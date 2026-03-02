@@ -683,7 +683,7 @@ function buildSettingsContent(
   const perfSection = make("div", { class: "settings-section" });
   perfSection.appendChild(make("h4", { class: "settings-section__title" }, "Performance Mode"));
   perfSection.appendChild(make("p", { class: "settings-help" },
-    "Controls rendering resolution, frameskip, and GPU settings for demanding systems (PSP, N64)."
+    "Controls rendering resolution, frameskip, and GPU settings for demanding systems (PSP, DS, N64, and similar 3D cores)."
   ));
 
   const modes: Array<{ value: PerformanceMode; label: string; desc: string }> = [
