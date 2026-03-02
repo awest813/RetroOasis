@@ -119,7 +119,7 @@ export function buildDOM(app: HTMLElement): void {
         </div>
 
         <!-- Drop zone (always active for drag-and-drop) -->
-        <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Add a game file">
           <input type="file"
                  id="file-input"
                  accept="${acceptList}"
@@ -235,6 +235,7 @@ export function initUI(opts: UIOptions): void {
   // ── File drop / pick ──────────────────────────────────────────────────────
   const fileInput = el<HTMLInputElement>("#file-input");
   const dropZone  = el("#drop-zone");
+  let dragDepth = 0;
 
   const handleFileChosen = (file: File) => {
     resolveSystemAndAdd(file, library, settings, onLaunchGame);
@@ -246,18 +247,32 @@ export function initUI(opts: UIOptions): void {
     fileInput.value = ""; // reset so the same file can be re-picked
   });
 
+  // Keyboard accessibility for the drop zone shell.
+  dropZone.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    fileInput.click();
+  });
+
   // Global drag-and-drop (whole page)
   document.addEventListener("dragover", (e) => {
     e.preventDefault();
     dropZone.classList.add("drag-over");
   });
+  document.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dragDepth += 1;
+    dropZone.classList.add("drag-over");
+  });
   document.addEventListener("dragleave", (e) => {
-    // Only remove the highlight when the drag leaves the browser window entirely.
-    if (e.relatedTarget !== null) return;
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth > 0) return;
     dropZone.classList.remove("drag-over");
   });
   document.addEventListener("drop", (e) => {
     e.preventDefault();
+    dragDepth = 0;
     dropZone.classList.remove("drag-over");
     const file = e.dataTransfer?.files[0];
     if (!file) return;
