@@ -263,6 +263,25 @@ class FPSMonitor {
   }
 }
 
+// ── WebGPU adapter info ───────────────────────────────────────────────────────
+
+/**
+ * Metadata captured from GPUAdapter.info (Chrome 113+) during preWarmWebGPU().
+ * Fields reflect the GPUAdapterInfo dictionary from the WebGPU spec.
+ */
+export interface WebGPUAdapterInfo {
+  /** GPU vendor string, e.g. "nvidia", "intel", "amd". */
+  vendor: string;
+  /** Microarchitecture family, e.g. "turing", "xe-lpg". */
+  architecture: string;
+  /** Device identifier string reported by the driver. */
+  device: string;
+  /** Human-readable description (driver-provided, may be empty). */
+  description: string;
+  /** True when the adapter is a software fallback (e.g. CPU-based SwiftShader). */
+  isFallbackAdapter: boolean;
+}
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 export interface LaunchOptions {
@@ -311,6 +330,7 @@ export class PSPEmulator {
   private _pspPipelineWarmed = false;
   private _webgpuDevice: object | null = null; // GPUDevice — typed as object to avoid requiring @webgpu/types
   private _webgpuPreWarmed = false;
+  private _webgpuAdapterInfo: WebGPUAdapterInfo | null = null;
   private _audioWorkletCtx: AudioContext | null = null;
   private _audioWorkletNode: AudioWorkletNode | null = null;
   private _audioUnderruns = 0;
@@ -348,6 +368,12 @@ export class PSPEmulator {
   get activeTier(): PerformanceTier | null { return this._activeTier; }
   /** True if a WebGPU device was successfully acquired during pre-warm. */
   get webgpuAvailable(): boolean { return this._webgpuDevice !== null; }
+  /**
+   * Adapter metadata captured during preWarmWebGPU().
+   * Returns null if pre-warm has not run, is still in progress, or the adapter
+   * did not expose GPUAdapterInfo (browsers prior to Chrome 113).
+   */
+  get webgpuAdapterInfo(): WebGPUAdapterInfo | null { return this._webgpuAdapterInfo; }
   /** The number of audio underruns detected since the last game launch. */
   get audioUnderruns(): number { return this._audioUnderruns; }
 
@@ -716,10 +742,24 @@ export class PSPEmulator {
    * connection, reducing the latency of the first WebGPU command on devices
    * where EmulatorJS eventually ships native WebGPU core support.
    *
+   * Beyond the basic device acquisition this method also:
+   *   - Captures GPUAdapterInfo (vendor, architecture, device name) for display
+   *     in the Settings panel.
+   *   - Pre-compiles a minimal WGSL render pipeline to warm the GPU shader
+   *     compiler, reducing first-frame stalls when a WebGPU rendering path
+   *     is eventually activated.
+   *   - Submits a trivial compute pass to flush the GPU command queue.
+   *
    * The acquired GPUDevice is held for the lifetime of the emulator instance
    * so it remains ready without repeated initialisation.
+   *
+   * @param powerPreference  "high-performance" (default) selects the discrete
+   *   GPU on multi-GPU systems. Pass "low-power" on low-spec or low-battery
+   *   devices to prefer the integrated GPU and conserve energy.
    */
-  async preWarmWebGPU(): Promise<void> {
+  async preWarmWebGPU(
+    powerPreference: "high-performance" | "low-power" = "high-performance"
+  ): Promise<void> {
     if (this._webgpuPreWarmed) return;
     this._webgpuPreWarmed = true;
 
@@ -729,23 +769,70 @@ export class PSPEmulator {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const gpu = (navigator as any).gpu as {
         requestAdapter(opts: { powerPreference: string }): Promise<{
+          info?: {
+            vendor: string;
+            architecture: string;
+            device: string;
+            description: string;
+          };
+          isFallbackAdapter?: boolean;
           requestDevice(): Promise<{
             createCommandEncoder(): {
               beginComputePass(): { end(): void };
               finish(): unknown;
             };
+            createShaderModule(desc: { code: string }): unknown;
+            createRenderPipeline(desc: unknown): unknown;
             queue: { submit(cmds: unknown[]): void };
+            destroy(): void;
           }>;
         } | null>;
       } | undefined;
 
       if (!gpu) return;
 
-      const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+      const adapter = await gpu.requestAdapter({ powerPreference });
       if (!adapter) return;
+
+      // Capture adapter metadata (GPUAdapterInfo — Chrome 113+).
+      // The `info` property is undefined on older adapter implementations.
+      if (adapter.info) {
+        this._webgpuAdapterInfo = {
+          vendor:            adapter.info.vendor,
+          architecture:      adapter.info.architecture,
+          device:            adapter.info.device,
+          description:       adapter.info.description,
+          isFallbackAdapter: adapter.isFallbackAdapter ?? false,
+        };
+      }
 
       const device = await adapter.requestDevice();
       this._webgpuDevice = device;
+
+      // Pre-compile a minimal WGSL render pipeline to warm the GPU shader
+      // compiler. This exercises the same WGSL → driver-native-binary path
+      // that future WebGPU rendering will use, so the compiler's lazy
+      // initialisation overhead is paid now rather than on the first game frame.
+      try {
+        const wgslModule = device.createShaderModule({
+          code: [
+            "@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {",
+            "  var p = array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));",
+            "  return vec4f(p[i], 0.0, 1.0);",
+            "}",
+            "@fragment fn fs() -> @location(0) vec4f { return vec4f(0.0, 0.0, 0.0, 1.0); }",
+          ].join("\n"),
+        });
+        device.createRenderPipeline({
+          layout:    "auto",
+          vertex:    { module: wgslModule, entryPoint: "vs" },
+          fragment:  { module: wgslModule, entryPoint: "fs", targets: [{ format: "bgra8unorm" }] },
+          primitive: { topology: "triangle-list" },
+        });
+      } catch {
+        // WGSL pipeline compilation is best-effort — the device is still
+        // acquired and the compute queue is still warmed below.
+      }
 
       // Submit a trivial compute pass to warm the GPU command queue
       const encoder = device.createCommandEncoder();
@@ -753,10 +840,18 @@ export class PSPEmulator {
       passEncoder.end();
       device.queue.submit([encoder.finish()]);
 
-      console.info("[RetroVault] WebGPU device acquired — GPU command queue warmed.");
+      const adapterLabel =
+        this._webgpuAdapterInfo?.device  ||
+        this._webgpuAdapterInfo?.vendor  ||
+        "unknown adapter";
+      console.info(
+        `[RetroVault] WebGPU device acquired (${adapterLabel}) — ` +
+        "GPU command queue and shader compiler warmed."
+      );
     } catch {
       // WebGPU unavailable or not yet supported — silently fall back to WebGL
       this._webgpuDevice = null;
+      this._webgpuAdapterInfo = null;
     }
   }
 
@@ -1120,6 +1215,7 @@ export class PSPEmulator {
 
   dispose(): void {
     this._teardown();
+    this._releaseWebGPUDevice();
   }
 
   // ── Page Visibility ─────────────────────────────────────────────────────────
@@ -1347,6 +1443,19 @@ export class PSPEmulator {
     this._audioWorkletNode = null;
     // Do not close the AudioContext — it is often shared with EJS.
     // The GC will collect it when EJS tears down its audio graph.
+  }
+
+  /**
+   * Release the WebGPU device and adapter metadata.
+   * Called only from dispose() — NOT from _teardown() — because the device
+   * is intentionally kept alive across game launches within the same session.
+   */
+  private _releaseWebGPUDevice(): void {
+    try {
+      (this._webgpuDevice as { destroy?(): void } | null)?.destroy?.();
+    } catch { /* best-effort */ }
+    this._webgpuDevice = null;
+    this._webgpuAdapterInfo = null;
   }
 
   private _revokeBlobUrl(): void {
