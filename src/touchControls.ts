@@ -190,6 +190,9 @@ export class TouchControlsOverlay {
   hide(): void {
     if (!this._visible) return;
     this._visible = false;
+    // Leaving gameplay should always exit edit mode so the next session
+    // starts in normal play mode.
+    this._editing = false;
     this._releaseAllKeys();
     this._overlay?.remove();
     this._overlay = null;
@@ -247,8 +250,16 @@ export class TouchControlsOverlay {
       this._buttonEls.set(btn.id, el);
     }
 
+    if (this._editing) {
+      overlay.classList.add("touch-controls--editing");
+    }
+
     this._container.appendChild(overlay);
     this._overlay = overlay;
+
+    // Re-apply editing visuals when rebuilding while edit mode is active
+    // (e.g. system change with overlay already visible).
+    this.setEditing(this._editing);
   }
 
   private _buildButton(btn: TouchButtonDef): HTMLElement {
