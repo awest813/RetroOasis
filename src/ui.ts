@@ -758,7 +758,7 @@ function buildSettingsContent(
   deviceSection.appendChild(gpuDetails);
 
   const webglRow = make("p", { class: "device-info" },
-    `WebGL 2: ${document.createElement("canvas").getContext("webgl2") ? "✓ Available" : "✗ Not available"}`
+    `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "✓ Available" : "✗ Not available"}`
   );
   deviceSection.appendChild(webglRow);
 
