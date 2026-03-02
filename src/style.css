@@ -347,9 +347,15 @@ body {
 .drop-zone--compact .drop-zone__sub { display: none; }
 
 .drop-zone:hover,
+.drop-zone:focus-visible,
 .drop-zone.drag-over {
   border-color: var(--c-accent);
   background: color-mix(in srgb, var(--c-accent) 6%, var(--c-surface));
+}
+
+.drop-zone:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--c-accent) 85%, white);
+  outline-offset: 2px;
 }
 
 .drop-zone input[type="file"] {
