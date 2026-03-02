@@ -323,6 +323,29 @@ describe("TouchControlsOverlay", () => {
     expect(upEl?.style.left).toBe("33%");
   });
 
+  it("hide() exits editing mode so a new show() starts in play mode", () => {
+    const overlay = new TouchControlsOverlay(container, "psp", false);
+    overlay.show();
+    overlay.setEditing(true);
+    expect(overlay.editing).toBe(true);
+
+    overlay.hide();
+    expect(overlay.editing).toBe(false);
+
+    overlay.show();
+    expect(container.querySelector(".touch-controls--editing")).toBeNull();
+  });
+
+  it("setSystem() keeps editing visuals coherent during rebuild", () => {
+    const overlay = new TouchControlsOverlay(container, "psp", false);
+    overlay.show();
+    overlay.setEditing(true);
+
+    overlay.setSystem("nes");
+
+    expect(container.querySelector(".touch-controls--editing")).not.toBeNull();
+  });
+
   it("resetToDefaults() resets layout and fires onLayoutSaved", () => {
     const overlay = new TouchControlsOverlay(container, "psp", false);
     overlay.show();
