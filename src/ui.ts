@@ -55,6 +55,7 @@ import {
   saveStateKey,
   defaultSlotLabel,
   createThumbnail,
+  stateBytesToBlob,
   downloadBlob,
 } from "./saves.js";
 import type { Settings } from "./main.js";
@@ -1232,9 +1233,7 @@ async function persistSaveMetadata(
     const screenshot = await emulator.captureScreenshot();
     const thumbnail  = screenshot ? await createThumbnail(screenshot) : null;
     const stateBytes = emulator.readStateData(slot);
-    const stateData  = stateBytes
-      ? new Blob([(stateBytes.buffer as ArrayBuffer).slice(stateBytes.byteOffset, stateBytes.byteOffset + stateBytes.byteLength)])
-      : null;
+    const stateData  = stateBytesToBlob(stateBytes);
 
     // Preserve the user-defined label if one exists
     const existingState = await saveLibrary.getState(gameId, slot);
