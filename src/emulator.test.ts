@@ -237,6 +237,289 @@ describe('PSPEmulator', () => {
       // jsdom does not expose navigator.gpu — so this should be false
       expect(emulator.webgpuAvailable).toBe(false);
     });
+
+    it('webgpuAdapterInfo is null before preWarmWebGPU is called', () => {
+      const freshEmulator = new PSPEmulator('test-player');
+      expect(freshEmulator.webgpuAdapterInfo).toBeNull();
+    });
+
+    it('is idempotent — calling twice does not throw', async () => {
+      await expect(
+        emulator.preWarmWebGPU().then(() => emulator.preWarmWebGPU())
+      ).resolves.not.toThrow();
+    });
+
+    it('accepts high-performance power preference without throwing', async () => {
+      const freshEmulator = new PSPEmulator('test-player');
+      await expect(freshEmulator.preWarmWebGPU('high-performance')).resolves.not.toThrow();
+    });
+
+    it('accepts low-power power preference without throwing', async () => {
+      const freshEmulator = new PSPEmulator('test-player');
+      await expect(freshEmulator.preWarmWebGPU('low-power')).resolves.not.toThrow();
+    });
+
+    describe('with mocked WebGPU adapter', () => {
+      afterEach(() => {
+        Object.defineProperty(navigator, 'gpu', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+      });
+
+      it('captures adapter info when adapter.info is available', async () => {
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        const mockAdapter = {
+          info: {
+            vendor: 'nvidia',
+            architecture: 'turing',
+            device: 'NVIDIA GeForce RTX 3080',
+            description: 'NVIDIA RTX 3080',
+          },
+          isFallbackAdapter: false,
+          requestDevice: vi.fn().mockResolvedValue(mockDevice),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: vi.fn().mockResolvedValue(mockAdapter) },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(freshEmulator.webgpuAvailable).toBe(true);
+        expect(freshEmulator.webgpuAdapterInfo).not.toBeNull();
+        expect(freshEmulator.webgpuAdapterInfo?.vendor).toBe('nvidia');
+        expect(freshEmulator.webgpuAdapterInfo?.architecture).toBe('turing');
+        expect(freshEmulator.webgpuAdapterInfo?.device).toBe('NVIDIA GeForce RTX 3080');
+        expect(freshEmulator.webgpuAdapterInfo?.isFallbackAdapter).toBe(false);
+      });
+
+      it('handles adapters without info property gracefully', async () => {
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        const mockAdapter = {
+          // No info property
+          requestDevice: vi.fn().mockResolvedValue(mockDevice),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: vi.fn().mockResolvedValue(mockAdapter) },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(freshEmulator.webgpuAvailable).toBe(true);
+        expect(freshEmulator.webgpuAdapterInfo).toBeNull();
+      });
+
+      it('marks isFallbackAdapter correctly when adapter reports software fallback', async () => {
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        const mockAdapter = {
+          info: {
+            vendor: 'google',
+            architecture: '',
+            device: '',
+            description: 'SwiftShader',
+          },
+          isFallbackAdapter: true,
+          requestDevice: vi.fn().mockResolvedValue(mockDevice),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: vi.fn().mockResolvedValue(mockAdapter) },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(freshEmulator.webgpuAdapterInfo?.isFallbackAdapter).toBe(true);
+        expect(freshEmulator.webgpuAdapterInfo?.description).toBe('SwiftShader');
+      });
+
+      it('respects the power preference parameter passed to requestAdapter', async () => {
+        const requestAdapterSpy = vi.fn().mockResolvedValue(null);
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: requestAdapterSpy },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU('low-power');
+
+        expect(requestAdapterSpy).toHaveBeenCalledWith({ powerPreference: 'low-power' });
+      });
+
+      it('uses high-performance by default', async () => {
+        const requestAdapterSpy = vi.fn().mockResolvedValue(null);
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: requestAdapterSpy },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(requestAdapterSpy).toHaveBeenCalledWith({ powerPreference: 'high-performance' });
+      });
+
+      it('leaves webgpuAvailable = false when requestAdapter returns null', async () => {
+        Object.defineProperty(navigator, 'gpu', {
+          value: { requestAdapter: vi.fn().mockResolvedValue(null) },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(freshEmulator.webgpuAvailable).toBe(false);
+        expect(freshEmulator.webgpuAdapterInfo).toBeNull();
+      });
+
+      it('calls createShaderModule and createRenderPipeline for WGSL warm-up', async () => {
+        const createShaderModuleSpy = vi.fn().mockReturnValue({});
+        const createRenderPipelineSpy = vi.fn().mockReturnValue({});
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: createShaderModuleSpy,
+          createRenderPipeline: createRenderPipelineSpy,
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              requestDevice: vi.fn().mockResolvedValue(mockDevice),
+            }),
+          },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(createShaderModuleSpy).toHaveBeenCalledOnce();
+        expect(createRenderPipelineSpy).toHaveBeenCalledOnce();
+        // Verify the shader code contains WGSL entry points
+        const shaderCode = createShaderModuleSpy.mock.calls[0][0].code as string;
+        expect(shaderCode).toContain('@vertex');
+        expect(shaderCode).toContain('@fragment');
+      });
+
+      it('still warms the compute queue even if WGSL pipeline compilation fails', async () => {
+        const submitSpy = vi.fn();
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockImplementation(() => {
+            throw new Error('WGSL not supported');
+          }),
+          createRenderPipeline: vi.fn(),
+          queue: { submit: submitSpy },
+          destroy: vi.fn(),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              requestDevice: vi.fn().mockResolvedValue(mockDevice),
+            }),
+          },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(freshEmulator.webgpuAvailable).toBe(true);
+        expect(submitSpy).toHaveBeenCalledOnce();
+      });
+    });
+  });
+
+  // ── WebGPU dispose / cleanup ───────────────────────────────────────────────
+
+  describe('dispose', () => {
+    it('calls destroy on the WebGPU device when dispose is called', async () => {
+      const destroySpy = vi.fn();
+      const mockDevice = {
+        createCommandEncoder: () => ({
+          beginComputePass: () => ({ end: vi.fn() }),
+          finish: () => ({}),
+        }),
+        createShaderModule: vi.fn().mockReturnValue({}),
+        createRenderPipeline: vi.fn().mockReturnValue({}),
+        queue: { submit: vi.fn() },
+        destroy: destroySpy,
+      };
+      Object.defineProperty(navigator, 'gpu', {
+        value: {
+          requestAdapter: vi.fn().mockResolvedValue({
+            info: { vendor: 'test', architecture: '', device: 'Test GPU', description: '' },
+            isFallbackAdapter: false,
+            requestDevice: vi.fn().mockResolvedValue(mockDevice),
+          }),
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      const freshEmulator = new PSPEmulator('test-player');
+      await freshEmulator.preWarmWebGPU();
+      expect(freshEmulator.webgpuAvailable).toBe(true);
+
+      freshEmulator.dispose();
+
+      expect(destroySpy).toHaveBeenCalledOnce();
+      expect(freshEmulator.webgpuAvailable).toBe(false);
+      expect(freshEmulator.webgpuAdapterInfo).toBeNull();
+
+      Object.defineProperty(navigator, 'gpu', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+    });
   });
 
   // ── Shader cache pre-warm ─────────────────────────────────────────────────

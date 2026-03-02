@@ -204,9 +204,12 @@ function main(): void {
   biosLibrary.warmUp().catch(() => {});
   saveLibrary.warmUp().catch(() => {});
 
-  // Pre-warm WebGPU if the user has opted in and it is available
+  // Pre-warm WebGPU if the user has opted in and it is available.
+  // Use low-power mode on low-spec devices to conserve energy and prefer
+  // the integrated GPU, which is usually more efficient on such hardware.
   if (settings.useWebGPU && deviceCaps.webgpuAvailable) {
-    emulator.preWarmWebGPU().catch(() => {});
+    const webgpuPowerPref = deviceCaps.isLowSpec ? "low-power" : "high-performance";
+    emulator.preWarmWebGPU(webgpuPowerPref).catch(() => {});
   }
 
   // In idle time: load and pre-compile cached shaders from previous sessions
@@ -464,7 +467,8 @@ function main(): void {
       Object.assign(settings, patch);
       saveSettings(settings);
       if (patch.useWebGPU && deviceCaps.webgpuAvailable && !emulator.webgpuAvailable) {
-        emulator.preWarmWebGPU().catch(() => {});
+        const webgpuPowerPref = deviceCaps.isLowSpec ? "low-power" : "high-performance";
+        emulator.preWarmWebGPU(webgpuPowerPref).catch(() => {});
       }
       // Sync haptic feedback setting to the active overlay in real time
       if (typeof patch.hapticFeedback === "boolean" && touchOverlay) {

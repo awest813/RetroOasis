@@ -1753,9 +1753,15 @@ function buildSettingsContent(
   );
   deviceSection.appendChild(sabRow);
 
-  const webgpuRow = make("p", { class: "device-info" },
-    `WebGPU: ${deviceCaps.webgpuAvailable ? "✓ Available" : "✗ Not available (Chrome 113+ required)"}`
-  );
+  const adapterInfo = emulatorRef?.webgpuAdapterInfo;
+  const webgpuStatusText = deviceCaps.webgpuAvailable
+    ? adapterInfo?.device
+      ? `✓ Available — ${adapterInfo.device}${adapterInfo.isFallbackAdapter ? " (software fallback)" : ""}`
+      : adapterInfo?.vendor
+        ? `✓ Available — ${adapterInfo.vendor}`
+        : "✓ Available"
+    : "✗ Not available (Chrome 113+ required)";
+  const webgpuRow = make("p", { class: "device-info" }, `WebGPU: ${webgpuStatusText}`);
   deviceSection.appendChild(webgpuRow);
 
   const audioWorkletRow = make("p", { class: "device-info" },
@@ -1775,7 +1781,9 @@ function buildSettingsContent(
     webgpuTxt.append(
       make("span", { class: "radio-row__label" }, "Use WebGPU (experimental)"),
       make("span", { class: "radio-row__desc"  },
-        "Prefer WebGPU rendering when available — eliminates ANGLE translation overhead on Windows/macOS. Requires page reload to take effect.")
+        "Pre-initialises the WebGPU adapter and warms the GPU shader compiler on startup. " +
+        "Reduces first-frame latency when native WebGPU rendering support arrives. " +
+        "Falls back silently to WebGL when unsupported. Requires page reload to take effect.")
     );
     webgpuRow2.append(webgpuCheck, webgpuTxt);
     deviceSection.appendChild(webgpuRow2);

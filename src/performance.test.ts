@@ -2,6 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   detectCapabilities,
   isLikelyChromeOS,
+  isWebGPUAvailable,
   prefersReducedMotion,
   checkBatteryStatus,
   formatCapabilitiesSummary,
@@ -41,6 +42,39 @@ describe('performance', () => {
     expect(typeof caps.isChromOS).toBe('boolean');
     expect(caps).toHaveProperty('prefersReducedMotion');
     expect(typeof caps.prefersReducedMotion).toBe('boolean');
+  });
+
+  // ── WebGPU availability ─────────────────────────────────────────────────
+
+  describe('isWebGPUAvailable', () => {
+    afterEach(() => {
+      Object.defineProperty(navigator, 'gpu', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+    });
+
+    it('returns false when navigator.gpu is absent', () => {
+      expect(isWebGPUAvailable()).toBe(false);
+    });
+
+    it('returns true when navigator.gpu is defined', () => {
+      Object.defineProperty(navigator, 'gpu', {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+      expect(isWebGPUAvailable()).toBe(true);
+    });
+
+    it('returns false when accessing navigator.gpu throws', () => {
+      Object.defineProperty(navigator, 'gpu', {
+        get() { throw new Error('Permission denied'); },
+        configurable: true,
+      });
+      expect(isWebGPUAvailable()).toBe(false);
+    });
   });
 
   // ── Chrome OS detection ─────────────────────────────────────────────────
