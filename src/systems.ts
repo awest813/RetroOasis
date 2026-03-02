@@ -5,9 +5,9 @@
  * definition here maps to an EmulatorJS core identifier plus metadata
  * used throughout the UI (badges, colours, performance settings).
  *
- * PSP settings are now tier-aware: low / medium / high / ultra each
- * map to a different combination of PPSSPP RetroArch core options for
- * optimal performance-to-quality ratio on each hardware class.
+ * Performance-heavy systems (PSP / NDS / N64) now use tier-aware settings:
+ * low / medium / high / ultra map to progressively heavier core options so
+ * low-end devices prioritize playability while high-end devices raise quality.
  */
 
 import type { PerformanceTier } from "./performance.js";
@@ -175,6 +175,52 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   },
 };
 
+const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    "mupen64plus-rdp-plugin": "rice",
+    "mupen64plus-resolution-factor": "1",
+  },
+  medium: {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-resolution-factor": "1",
+  },
+  high: {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-resolution-factor": "2",
+  },
+  ultra: {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-resolution-factor": "3",
+  },
+};
+
+const NDS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    desmume_num_cores: "1",
+    desmume_cpu_mode: "interpreter",
+    desmume_frameskip: "2",
+    desmume_internal_resolution: "256x192",
+  },
+  medium: {
+    desmume_num_cores: "2",
+    desmume_cpu_mode: "jit",
+    desmume_frameskip: "1",
+    desmume_internal_resolution: "256x192",
+  },
+  high: {
+    desmume_num_cores: "2",
+    desmume_cpu_mode: "jit",
+    desmume_frameskip: "0",
+    desmume_internal_resolution: "512x384",
+  },
+  ultra: {
+    desmume_num_cores: "3",
+    desmume_cpu_mode: "jit",
+    desmume_frameskip: "0",
+    desmume_internal_resolution: "1024x768",
+  },
+};
+
 /**
  * Get the appropriate PPSSPP settings for a given performance tier.
  */
@@ -268,6 +314,18 @@ export const SYSTEMS: SystemInfo[] = [
     perfSettings: {},
   },
   {
+    id: "nds",
+    name: "Nintendo DS",
+    shortName: "DS",
+    extensions: ["nds"],
+    color: "#4b5d7a",
+    needsThreads: false,
+    needsWebGL2: false,
+    qualitySettings: NDS_TIER_SETTINGS.high,
+    perfSettings: NDS_TIER_SETTINGS.low,
+    tierSettings: NDS_TIER_SETTINGS,
+  },
+  {
     id: "n64",
     name: "Nintendo 64",
     shortName: "N64",
@@ -275,11 +333,9 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#1a7a1a",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {
-      "mupen64plus-rdp-plugin": "gliden64",
-      "mupen64plus-resolution-factor": "1",
-    },
+    qualitySettings: N64_TIER_SETTINGS.high,
+    perfSettings: N64_TIER_SETTINGS.low,
+    tierSettings: N64_TIER_SETTINGS,
   },
   {
     id: "psx",
