@@ -5,19 +5,21 @@ import type { GameLibrary } from "./library.js";
 import type { Settings } from "./main.js";
 import type { DeviceCapabilities } from "./performance.js";
 
-interface Window {
-  __onLaunchGame?: (file: File, systemId: string) => Promise<void>;
-  __retrovault?: {
-    emulator: PSPEmulator;
-    library: GameLibrary;
-    settings: Settings;
-    deviceCaps: DeviceCapabilities;
-  };
+declare global {
+  interface Window {
+    __onLaunchGame?: (file: File, systemId: string) => Promise<void>;
+    __retrovault?: {
+      emulator: PSPEmulator;
+      library: GameLibrary;
+      settings: Settings;
+      deviceCaps: DeviceCapabilities;
+    };
 
-  requestIdleCallback?: (
-    callback: IdleRequestCallback,
-    options?: IdleRequestOptions,
-  ) => number;
+    requestIdleCallback?: (
+      callback: IdleRequestCallback,
+      options?: IdleRequestOptions,
+    ) => number;
+  }
 }
 
 interface IdleDeadline {
