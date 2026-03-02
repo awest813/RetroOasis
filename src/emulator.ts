@@ -61,6 +61,8 @@ export const EJS_CDN_BASE = "https://cdn.emulatorjs.org/stable/data/";
 /** Warn when a ROM file exceeds this size (500 MB). */
 const LARGE_ROM_THRESHOLD = 500 * 1024 * 1024;
 
+let cachedWebGL2Support: boolean | null = null;
+
 // ── State machine ─────────────────────────────────────────────────────────────
 
 export type EmulatorState = "idle" | "loading" | "running" | "paused" | "error";
@@ -473,8 +475,13 @@ export class PSPEmulator {
   }
 
   private _checkWebGL2(): boolean {
-    const canvas = document.createElement("canvas");
-    if (canvas.getContext("webgl2")) return true;
+    if (cachedWebGL2Support === null) {
+      const canvas = document.createElement("canvas");
+      cachedWebGL2Support = !!canvas.getContext("webgl2");
+    }
+
+    if (cachedWebGL2Support) return true;
+
     this._emitError(
       "WebGL 2 is not available in your browser.\n\n" +
       "This system requires WebGL 2 for rendering. Please:\n" +
