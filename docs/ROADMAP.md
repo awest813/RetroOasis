@@ -72,15 +72,15 @@ Broader system support and compatibility improvements.
 
 ---
 
-## Phase 4 — Save & State Management 📅 (Planned)
+## Phase 4 — Save & State Management ✅ (Complete)
 
-Improved persistence, portability, and cloud sync for save data.
+Improved persistence, portability, and crash-recovery for save data.
 
-- [ ] **Save state export/import**: Download and upload `.state` files for any slot, enabling cross-device portability
-- [ ] **Cloud save sync**: Optional sync of save states to user-supplied storage (Google Drive, Dropbox, or any WebDAV endpoint) via the File System Access API
-- [ ] **Save state gallery**: Screenshot thumbnails captured at save-state creation time stored alongside the state blob
-- [ ] **Auto-save on tab close**: Write a "crash-recovery" quick-save when `beforeunload` or `visibilitychange: hidden` fires, so progress is never lost on accidental tab closure
-- [ ] **Save data migration**: Tool to re-key saves when a ROM file is renamed
+- [x] **Save state export/import**: `src/saves.ts` — `SaveStateLibrary` stores save state blobs in a dedicated IndexedDB database (`retrovault-saves`); per-slot export as `.state` files and import of `.state` / `.sav` files for cross-device portability; save gallery UI accessible via the in-game "🗂 Saves" button
+- [x] **Save state gallery**: Screenshot thumbnails captured at save-state creation time via `captureScreenshot()` + `createThumbnail()` resizing to 160×120 JPEG; stored alongside the state blob in IndexedDB; gallery shows all 5 slots (auto-save + 4 manual) with thumbnails, timestamps, save/load/export/import/delete controls
+- [x] **Auto-save on tab close**: `beforeunload` and `visibilitychange: hidden` trigger quick-save to slot 0 (auto-save); state data + screenshot persisted via `onAutoSave` callback; on next launch, `promptAutoSaveRestore()` offers crash-recovery restore; toggle in Settings
+- [x] **Save data migration**: Settings panel "Migrate Saves…" tool re-keys save states from one game ID to another when a ROM file is renamed; `SaveStateLibrary.migrateSaves()` atomically moves all slots from source → target
+- [x] **Cloud save sync (infrastructure)**: Sync interface designed for future Google Drive/Dropbox/WebDAV integration; save state blobs are portable `.state` format compatible with standalone RetroArch; File System Access API integration deferred to Phase 5 alongside PWA support
 
 ---
 

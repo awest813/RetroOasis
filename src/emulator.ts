@@ -59,14 +59,25 @@ interface EJSEmulatorInstance {
     quickSave(slot: number): boolean;
     quickLoad(slot: number): void;
     supportsStates(): boolean;
+    getSaveFile?(): Uint8Array | null;
+    loadSaveFile?(data: Uint8Array): void;
   };
-  /** Emscripten module — used to access the OpenAL audio context. */
+  /** Emscripten module — used to access OpenAL audio and the virtual filesystem. */
   Module?: {
     AL?: {
       currentCtx?: {
         audioCtx?: AudioContext;
         sources?:  Record<string, { gain: GainNode }>;
       };
+    };
+    /** Emscripten virtual filesystem — available after core boot. */
+    FS?: {
+      readFile(path: string): Uint8Array;
+      writeFile(path: string, data: Uint8Array): void;
+      stat(path: string): { size: number };
+      readdir(path: string): string[];
+      unlink(path: string): void;
+      analyzePath(path: string): { exists: boolean; object?: unknown };
     };
   };
 }
@@ -289,6 +300,7 @@ export class PSPEmulator {
   private _currentSystem: SystemInfo | null = null;
   private _fpsMonitor: FPSMonitor;
   private _visibilityHandler: (() => void) | null = null;
+  private _beforeUnloadHandler: (() => void) | null = null;
   private _contextLossHandler: (() => void) | null = null;
   private _pausedByVisibility = false;
   private _preconnected = false;
@@ -320,6 +332,11 @@ export class PSPEmulator {
   onLowFPS?:      (averageFPS: number, tier: PerformanceTier | null) => void;
   /** Fired when an audio underrun is detected via the AudioWorklet processor. */
   onAudioUnderrun?: (count: number) => void;
+  /**
+   * Fired when auto-save is triggered (tab close / visibility hidden).
+   * The handler should persist the save state asynchronously.
+   */
+  onAutoSave?: () => void;
 
   constructor(playerId: string) {
     this._playerId = playerId;
@@ -996,6 +1013,93 @@ export class PSPEmulator {
     emu.gameManager?.quickLoad(slot);
   }
 
+  /** True if the running core supports save states. */
+  supportsStates(): boolean {
+    return window.EJS_emulator?.gameManager?.supportsStates?.() ?? false;
+  }
+
+  /**
+   * Try to read the most recent save state data from the emulator's
+   * virtual filesystem. Returns null if FS access is unavailable or
+   * no state file exists for the given slot.
+   */
+  readStateData(slot: number): Uint8Array | null {
+    const emu = window.EJS_emulator;
+    if (!emu?.Module?.FS) return null;
+
+    const gameName = window.EJS_gameName;
+    if (!gameName) return null;
+
+    const paths = [
+      `/home/web_user/retroarch/states/${gameName}.state${slot}`,
+      `/home/web_user/retroarch/states/${gameName}.state`,
+      `/data/saves/${gameName}.state${slot}`,
+    ];
+
+    for (const path of paths) {
+      try {
+        const analysis = emu.Module.FS.analyzePath(path);
+        if (analysis.exists) {
+          return emu.Module.FS.readFile(path);
+        }
+      } catch { /* path doesn't exist */ }
+    }
+
+    return null;
+  }
+
+  /**
+   * Write save state data back to the emulator's virtual filesystem
+   * so it can be loaded via quickLoad. Returns true on success.
+   */
+  writeStateData(slot: number, data: Uint8Array): boolean {
+    const emu = window.EJS_emulator;
+    if (!emu?.Module?.FS) return false;
+
+    const gameName = window.EJS_gameName;
+    if (!gameName) return false;
+
+    const basePath = "/home/web_user/retroarch/states";
+    const statePath = `${basePath}/${gameName}.state${slot}`;
+
+    try {
+      try {
+        emu.Module.FS.stat(basePath);
+      } catch {
+        return false;
+      }
+      emu.Module.FS.writeFile(statePath, data);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Capture a JPEG screenshot of the current game canvas.
+   * Returns null if the canvas is not found or capture fails.
+   */
+  captureScreenshot(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      try {
+        const playerEl = document.getElementById(this._playerId);
+        if (!playerEl) { resolve(null); return; }
+        const canvas = playerEl.querySelector("canvas");
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          resolve(null);
+          return;
+        }
+        canvas.toBlob(
+          (blob) => resolve(blob),
+          "image/jpeg",
+          0.75
+        );
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
   setVolume(volume: number): void {
     window.EJS_emulator?.setVolume(Math.max(0, Math.min(1, volume)));
   }
@@ -1023,6 +1127,7 @@ export class PSPEmulator {
   /**
    * Auto-pause emulation when the browser tab is hidden.
    * This frees CPU/GPU resources and prevents unnecessary battery drain.
+   * Also triggers auto-save when the tab becomes hidden.
    */
   private _installVisibilityHandler(): void {
     this._removeVisibilityHandler();
@@ -1030,10 +1135,9 @@ export class PSPEmulator {
     this._visibilityHandler = () => {
       if (document.hidden && this._state === "running") {
         this._pausedByVisibility = true;
+        this._triggerAutoSave();
         window.EJS_emulator?.pause?.();
         this._fpsMonitor.stop();
-        // Don't change _state — the user didn't explicitly pause.
-        // We resume transparently when the tab is visible again.
       } else if (!document.hidden && this._pausedByVisibility) {
         this._pausedByVisibility = false;
         window.EJS_emulator?.resume?.();
@@ -1041,7 +1145,14 @@ export class PSPEmulator {
       }
     };
 
+    this._beforeUnloadHandler = () => {
+      if (this._state === "running" || this._state === "paused") {
+        this._triggerAutoSave();
+      }
+    };
+
     document.addEventListener("visibilitychange", this._visibilityHandler);
+    window.addEventListener("beforeunload", this._beforeUnloadHandler);
   }
 
   private _removeVisibilityHandler(): void {
@@ -1049,7 +1160,24 @@ export class PSPEmulator {
       document.removeEventListener("visibilitychange", this._visibilityHandler);
       this._visibilityHandler = null;
     }
+    if (this._beforeUnloadHandler) {
+      window.removeEventListener("beforeunload", this._beforeUnloadHandler);
+      this._beforeUnloadHandler = null;
+    }
     this._pausedByVisibility = false;
+  }
+
+  /**
+   * Trigger the auto-save callback. Called on tab close / visibility hidden.
+   * The actual persistence is handled by the callback owner (main.ts).
+   */
+  private _triggerAutoSave(): void {
+    try {
+      this.quickSave(0);
+      this.onAutoSave?.();
+    } catch {
+      // Auto-save is best-effort — must never interfere with teardown
+    }
   }
 
   // ── WebGL context loss ───────────────────────────────────────────────────────

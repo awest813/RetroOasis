@@ -22,10 +22,12 @@ import "./style.css";
 import { PSPEmulator }   from "./emulator.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile } from "./library.js";
 import { BiosLibrary }   from "./bios.js";
+import { SaveStateLibrary, saveStateKey, AUTO_SAVE_SLOT, createThumbnail } from "./saves.js";
 import { detectCapabilities, checkBatteryStatus } from "./performance.js";
 import { buildDOM, initUI, showLanding,
          hideEjsContainer, renderLibrary, openSettingsPanel,
          buildLandingControls, showTierDowngradePrompt,
+         promptAutoSaveRestore,
          resolveSystemAndAdd } from "./ui.js";
 import { applyPatch } from "./patcher.js";
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
@@ -42,6 +44,8 @@ export interface Settings {
   showAudioVis:    boolean;
   /** Whether to prefer WebGPU when available (experimental). */
   useWebGPU:       boolean;
+  /** Whether to auto-save on tab close / visibility hidden. */
+  autoSaveEnabled: boolean;
 }
 
 const STORAGE_KEY = "retrovault-settings";
@@ -53,6 +57,7 @@ const DEFAULT_SETTINGS: Settings = {
   showFPS:         false,
   showAudioVis:    false,
   useWebGPU:       false,
+  autoSaveEnabled: true,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -82,6 +87,9 @@ function loadSettings(): Settings {
       useWebGPU: typeof parsed.useWebGPU === "boolean"
         ? parsed.useWebGPU
         : DEFAULT_SETTINGS.useWebGPU,
+      autoSaveEnabled: typeof parsed.autoSaveEnabled === "boolean"
+        ? parsed.autoSaveEnabled
+        : DEFAULT_SETTINGS.autoSaveEnabled,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -114,6 +122,7 @@ function main(): void {
   const emulator    = new PSPEmulator("ejs-player");
   const library     = new GameLibrary();
   const biosLibrary = new BiosLibrary();
+  const saveLibrary = new SaveStateLibrary();
 
   // Track the currently loaded game for tier-downgrade re-launch
   let currentGameId:   string | null = null;
@@ -133,6 +142,7 @@ function main(): void {
   // Pre-warm IndexedDB connections to eliminate cold-open latency
   library.warmUp().catch(() => {});
   biosLibrary.warmUp().catch(() => {});
+  saveLibrary.warmUp().catch(() => {});
 
   // Pre-warm WebGPU if the user has opted in and it is available
   if (settings.useWebGPU && deviceCaps.webgpuAvailable) {
@@ -181,6 +191,31 @@ function main(): void {
     currentSystemId     = systemId;
     currentGameId       = gameId ?? null;
 
+    // Check for auto-save restore opportunity
+    if (gameId && settings.autoSaveEnabled) {
+      try {
+        const shouldRestore = await promptAutoSaveRestore(saveLibrary, gameId);
+        if (shouldRestore) {
+          const autoState = await saveLibrary.getState(gameId, AUTO_SAVE_SLOT);
+          if (autoState?.stateData) {
+            const stateBytes = new Uint8Array(await autoState.stateData.arrayBuffer());
+            // We'll write the state data after the emulator launches and load it
+            const origOnGameStart = emulator.onGameStart;
+            emulator.onGameStart = () => {
+              origOnGameStart?.();
+              setTimeout(() => {
+                if (emulator.writeStateData(AUTO_SAVE_SLOT, stateBytes)) {
+                  emulator.quickLoad(AUTO_SAVE_SLOT);
+                }
+              }, 500);
+            };
+          }
+        }
+      } catch {
+        // Auto-save restore is best-effort
+      }
+    }
+
     // Apply per-game tier profile if no explicit override was requested
     const savedTier    = gameId ? getGameTierProfile(gameId) : null;
     const resolvedTier = tierOverride ?? savedTier ?? undefined;
@@ -191,7 +226,6 @@ function main(): void {
       const primaryBios = await biosLibrary.getPrimaryBiosUrl(systemId);
       if (primaryBios) {
         biosUrl = primaryBios;
-        // Blob URL will be revoked by PSPEmulator._revokeBlobUrl on teardown
       }
     } catch {
       // BIOS lookup failure is non-fatal — emulator may run without BIOS
@@ -234,7 +268,35 @@ function main(): void {
     await resolveSystemAndAdd(file, library, settings, onLaunchGame, emulator, onApplyPatch);
   };
 
-  // 5a. Wire auto tier downgrade — triggered by onLowFPS
+  // 5c. Wire auto-save persistence
+  emulator.onAutoSave = () => {
+    if (!settings.autoSaveEnabled || !currentGameId || !currentSystemId) return;
+    const gameName = settings.lastGameName ?? "Unknown";
+    (async () => {
+      try {
+        const screenshot = await emulator.captureScreenshot();
+        const thumbnail  = screenshot ? await createThumbnail(screenshot) : null;
+        const stateBytes = emulator.readStateData(AUTO_SAVE_SLOT);
+        const stateData  = stateBytes ? new Blob([stateBytes.slice().buffer]) : null;
+
+        await saveLibrary.saveState({
+          id:         saveStateKey(currentGameId!, AUTO_SAVE_SLOT),
+          gameId:     currentGameId!,
+          gameName,
+          systemId:   currentSystemId!,
+          slot:       AUTO_SAVE_SLOT,
+          timestamp:  Date.now(),
+          thumbnail,
+          stateData,
+          isAutoSave: true,
+        });
+      } catch {
+        // Auto-save persistence is best-effort
+      }
+    })();
+  };
+
+  // 5d. Wire auto tier downgrade — triggered by onLowFPS
   emulator.onLowFPS = async (averageFPS: number, currentTier: PerformanceTier | null) => {
     if (!currentTier || currentTier === "low") return; // already at minimum
 
@@ -293,6 +355,7 @@ function main(): void {
     emulator,
     library,
     biosLibrary,
+    saveLibrary,
     settings,
     deviceCaps,
     onLaunchGame,
@@ -301,12 +364,14 @@ function main(): void {
     onSettingsChange: (patch) => {
       Object.assign(settings, patch);
       saveSettings(settings);
-      // If the user enables WebGPU, kick off the pre-warm immediately
       if (patch.useWebGPU && deviceCaps.webgpuAvailable && !emulator.webgpuAvailable) {
         emulator.preWarmWebGPU().catch(() => {});
       }
     },
     onReturnToLibrary,
+    getCurrentGameId:   () => currentGameId,
+    getCurrentGameName: () => settings.lastGameName,
+    getCurrentSystemId: () => currentSystemId,
   });
 
   // 8. If user returns to landing, rebuild landing header controls with a Resume button
@@ -314,19 +379,19 @@ function main(): void {
     buildLandingControls(settings, deviceCaps, library, biosLibrary, (patch) => {
       Object.assign(settings, patch);
       saveSettings(settings);
-    }, emulator, onLaunchGame, onResumeGame);
+    }, emulator, onLaunchGame, onResumeGame, saveLibrary);
   });
 
   document.addEventListener("retrovault:openSettings", () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, (patch) => {
       Object.assign(settings, patch);
       saveSettings(settings);
-    }, emulator, onLaunchGame);
+    }, emulator, onLaunchGame, saveLibrary);
   });
 
   // 9. Dev helpers
   if (import.meta.env.DEV) {
-    window.__retrovault = { emulator, library, biosLibrary, settings, deviceCaps };
+    window.__retrovault = { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps };
     console.info("[RetroVault] Dev mode. Access `window.__retrovault` in the console.");
     console.info("Device capabilities:", deviceCaps);
     console.info(`Hardware tier: ${deviceCaps.tier} (GPU score: ${deviceCaps.gpuBenchmarkScore}/100)`);
