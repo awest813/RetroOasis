@@ -51,6 +51,14 @@ import {
   BiosLibrary,
   BIOS_REQUIREMENTS,
 } from "./bios.js";
+import {
+  SaveStateLibrary,
+  type SaveStateEntry,
+  AUTO_SAVE_SLOT,
+  saveStateKey,
+  createThumbnail,
+  downloadBlob,
+} from "./saves.js";
 import { detectArchiveFormat, extractFromZip, isArchiveExtension } from "./archive.js";
 import { PATCH_EXTENSIONS } from "./patcher.js";
 import type { Settings } from "./main.js";
@@ -228,6 +236,7 @@ export interface UIOptions {
   emulator:          PSPEmulator;
   library:           GameLibrary;
   biosLibrary:       BiosLibrary;
+  saveLibrary:       SaveStateLibrary;
   settings:          Settings;
   deviceCaps:        DeviceCapabilities;
   onLaunchGame:      (file: File, systemId: string, gameId?: string) => Promise<void>;
@@ -235,13 +244,18 @@ export interface UIOptions {
   onReturnToLibrary: () => void;
   onApplyPatch:      (gameId: string, patchFile: File) => Promise<void>;
   onFileChosen:      (file: File) => Promise<void>;
+  /** Current game tracking — needed for save gallery access */
+  getCurrentGameId:  () => string | null;
+  getCurrentGameName: () => string | null;
+  getCurrentSystemId: () => string | null;
 }
 
 /** Wire all DOM events, emulator callbacks, and render the initial library. */
 export function initUI(opts: UIOptions): void {
-  const { emulator, library, biosLibrary, settings, deviceCaps,
+  const { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps,
           onLaunchGame, onSettingsChange, onReturnToLibrary,
-          onApplyPatch, onFileChosen } = opts;
+          onApplyPatch, onFileChosen,
+          getCurrentGameId, getCurrentGameName, getCurrentSystemId } = opts;
 
   // ── File drop / pick ──────────────────────────────────────────────────────
   const fileInput = el<HTMLInputElement>("#file-input");
@@ -323,7 +337,10 @@ export function initUI(opts: UIOptions): void {
     setStatusGame(name);
     setStatusTier(emulator.activeTier);
     document.title = `${name} — RetroVault`;
-    buildInGameControls(emulator, settings, onSettingsChange, onReturnToLibrary);
+    buildInGameControls(
+      emulator, settings, onSettingsChange, onReturnToLibrary,
+      saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId
+    );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
   };
 
@@ -336,7 +353,10 @@ export function initUI(opts: UIOptions): void {
     document.title = `${name} — RetroVault`;
     setStatusSystem(sys ? sys.shortName : "—");
     setStatusGame(name);
-    buildInGameControls(emulator, settings, onSettingsChange, onReturnToLibrary);
+    buildInGameControls(
+      emulator, settings, onSettingsChange, onReturnToLibrary,
+      saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId
+    );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
   });
 
@@ -355,7 +375,7 @@ export function initUI(opts: UIOptions): void {
   // Handled via #library-grid data-game-id and the patcher flow in main.ts
 
   // ── Landing header controls ───────────────────────────────────────────────
-  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame);
+  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary);
 
   // ── Keep overflow indicator current on resize ─────────────────────────────
   if (typeof ResizeObserver !== "undefined") {
@@ -1025,7 +1045,8 @@ export function buildLandingControls(
   onSettingsChange: (patch: Partial<Settings>) => void,
   emulatorRef?:     PSPEmulator,
   onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
-  onResumeGame?:    () => void
+  onResumeGame?:    () => void,
+  saveLibrary?:     SaveStateLibrary
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
@@ -1062,7 +1083,7 @@ export function buildLandingControls(
   </svg> Settings`;
 
   btnSettings.addEventListener("click", () => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame);
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary);
   });
 
   container.appendChild(btnSettings);
@@ -1073,7 +1094,11 @@ function buildInGameControls(
   emulator:          PSPEmulator,
   settings:          Settings,
   onSettingsChange:  (patch: Partial<Settings>) => void,
-  onReturnToLibrary: () => void
+  onReturnToLibrary: () => void,
+  saveLibrary?:      SaveStateLibrary,
+  getCurrentGameId?: () => string | null,
+  getCurrentGameName?: () => string | null,
+  getCurrentSystemId?: () => string | null
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
@@ -1082,10 +1107,26 @@ function buildInGameControls(
   btnLibrary.addEventListener("click", onReturnToLibrary);
 
   const btnSave = make("button", { class: "btn", title: "Quick Save (F5)" }, "💾 Save");
-  btnSave.addEventListener("click", () => emulator.quickSave(1));
+  btnSave.addEventListener("click", async () => {
+    emulator.quickSave(1);
+    if (saveLibrary && getCurrentGameId?.() && getCurrentGameName?.() && getCurrentSystemId?.()) {
+      await persistSaveMetadata(emulator, saveLibrary, getCurrentGameId()!, getCurrentGameName()!, getCurrentSystemId()!, 1);
+    }
+  });
 
   const btnLoad = make("button", { class: "btn", title: "Quick Load (F7)" }, "📂 Load");
   btnLoad.addEventListener("click", () => emulator.quickLoad(1));
+
+  // Save gallery button
+  const btnSaves = make("button", { class: "btn", title: "Save state gallery" }, "🗂 Saves");
+  btnSaves.addEventListener("click", () => {
+    if (saveLibrary && getCurrentGameId?.() && getCurrentGameName?.() && getCurrentSystemId?.()) {
+      openSaveGallery(
+        emulator, saveLibrary,
+        getCurrentGameId()!, getCurrentGameName()!, getCurrentSystemId()!
+      );
+    }
+  });
 
   const btnReset = make("button", { class: "btn btn--danger", title: "Reset game (F1)" }, "↺ Reset");
   btnReset.addEventListener("click", async () => {
@@ -1106,11 +1147,10 @@ function buildInGameControls(
     onSettingsChange({ showFPS: settings.showFPS });
     btnFPS.className = settings.showFPS ? "btn btn--active" : "btn";
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-    // Enable/disable FPS callbacks to save CPU on low-spec devices when hidden
     emulator.setFPSMonitorEnabled(settings.showFPS);
   });
 
-  // Volume control — icon acts as a mute toggle; slider sets precise level
+  // Volume control
   let preMuteVolume = settings.volume > 0 ? settings.volume : 0.7;
 
   const volWrap = make("div", { class: "btn vol-control" });
@@ -1146,8 +1186,272 @@ function buildInGameControls(
   });
 
   volWrap.append(volBtn, volSlider);
-  container.append(btnLibrary, btnSave, btnLoad, btnReset, btnFPS, volWrap);
+  container.append(btnLibrary, btnSave, btnLoad, btnSaves, btnReset, btnFPS, volWrap);
   updateHeaderOverflow();
+}
+
+// ── Save state helpers ────────────────────────────────────────────────────────
+
+/**
+ * Persist save state metadata (thumbnail + optional state data) to our
+ * IndexedDB after a quickSave completes in EJS.
+ */
+async function persistSaveMetadata(
+  emulator:    PSPEmulator,
+  saveLibrary: SaveStateLibrary,
+  gameId:      string,
+  gameName:    string,
+  systemId:    string,
+  slot:        number
+): Promise<void> {
+  try {
+    const screenshot = await emulator.captureScreenshot();
+    const thumbnail  = screenshot ? await createThumbnail(screenshot) : null;
+
+    const stateBytes = emulator.readStateData(slot);
+    const stateData  = stateBytes ? new Blob([stateBytes.slice().buffer]) : null;
+
+    const entry: SaveStateEntry = {
+      id:         saveStateKey(gameId, slot),
+      gameId,
+      gameName,
+      systemId,
+      slot,
+      timestamp:  Date.now(),
+      thumbnail,
+      stateData,
+      isAutoSave: slot === AUTO_SAVE_SLOT,
+    };
+
+    await saveLibrary.saveState(entry);
+  } catch {
+    // Save metadata persistence is best-effort
+  }
+}
+
+// ── Save gallery dialog ───────────────────────────────────────────────────────
+
+/**
+ * Open the save state gallery dialog for the current game.
+ * Shows all slots (auto-save + 4 manual) with thumbnails,
+ * save/load/export/import controls.
+ */
+async function openSaveGallery(
+  emulator:    PSPEmulator,
+  saveLibrary: SaveStateLibrary,
+  gameId:      string,
+  gameName:    string,
+  systemId:    string
+): Promise<void> {
+  const overlay = make("div", { class: "confirm-overlay" });
+  const box = make("div", {
+    class: "confirm-box save-gallery-box",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-label": "Save State Gallery",
+  });
+
+  box.appendChild(make("h3", { class: "confirm-title" }, "Save States"));
+  box.appendChild(make("p", { class: "confirm-body" }, gameName));
+
+  const slotsContainer = make("div", { class: "save-gallery-slots" });
+  box.appendChild(slotsContainer);
+
+  const close = () => {
+    document.removeEventListener("keydown", onKey);
+    overlay.classList.remove("confirm-overlay--visible");
+    setTimeout(() => overlay.remove(), 200);
+  };
+
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+  };
+
+  const footer = make("div", { class: "confirm-footer" });
+  const btnClose = make("button", { class: "btn" }, "Close");
+  btnClose.addEventListener("click", close);
+  footer.appendChild(btnClose);
+  box.appendChild(footer);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  document.addEventListener("keydown", onKey);
+
+  requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
+
+  await renderSaveSlots(
+    slotsContainer, emulator, saveLibrary,
+    gameId, gameName, systemId
+  );
+}
+
+async function renderSaveSlots(
+  container:   HTMLElement,
+  emulator:    PSPEmulator,
+  saveLibrary: SaveStateLibrary,
+  gameId:      string,
+  gameName:    string,
+  systemId:    string
+): Promise<void> {
+  container.innerHTML = "";
+
+  const states = await saveLibrary.getStatesForGame(gameId);
+  const stateMap = new Map(states.map(s => [s.slot, s]));
+
+  const slots = [AUTO_SAVE_SLOT, 1, 2, 3, 4];
+
+  for (const slot of slots) {
+    const state = stateMap.get(slot);
+    const isAuto = slot === AUTO_SAVE_SLOT;
+    const slotLabel = isAuto ? "Auto-Save" : `Slot ${slot}`;
+
+    const row = make("div", { class: "save-slot" });
+
+    // Thumbnail
+    const thumbEl = make("div", { class: "save-slot__thumb" });
+    if (state?.thumbnail) {
+      const img = make("img", {
+        class: "save-slot__img",
+        alt: `${slotLabel} screenshot`,
+      }) as HTMLImageElement;
+      const url = URL.createObjectURL(state.thumbnail);
+      img.src = url;
+      img.onload = () => URL.revokeObjectURL(url);
+      thumbEl.appendChild(img);
+    } else {
+      thumbEl.appendChild(make("span", { class: "save-slot__empty" }, isAuto ? "⟳" : "—"));
+    }
+
+    // Info
+    const infoEl = make("div", { class: "save-slot__info" });
+    const labelEl = make("span", { class: "save-slot__label" }, slotLabel);
+    infoEl.appendChild(labelEl);
+
+    if (state) {
+      const timeStr = formatRelativeTime(state.timestamp);
+      infoEl.appendChild(make("span", { class: "save-slot__time" }, timeStr));
+    } else {
+      infoEl.appendChild(make("span", { class: "save-slot__time" }, "Empty"));
+    }
+
+    // Actions
+    const actionsEl = make("div", { class: "save-slot__actions" });
+
+    if (!isAuto) {
+      // Save to slot
+      const btnSave = make("button", { class: "btn save-slot__btn", title: `Save to ${slotLabel}` }, "💾");
+      btnSave.addEventListener("click", async () => {
+        emulator.quickSave(slot);
+        await persistSaveMetadata(emulator, saveLibrary, gameId, gameName, systemId, slot);
+        await renderSaveSlots(container, emulator, saveLibrary, gameId, gameName, systemId);
+      });
+      actionsEl.appendChild(btnSave);
+    }
+
+    if (state) {
+      // Load from slot
+      const btnLoad = make("button", { class: "btn save-slot__btn", title: `Load ${slotLabel}` }, "📂");
+      btnLoad.addEventListener("click", () => {
+        if (state.stateData) {
+          state.stateData.arrayBuffer().then(buf => {
+            const written = emulator.writeStateData(slot, new Uint8Array(buf));
+            if (written) {
+              emulator.quickLoad(slot);
+            } else {
+              emulator.quickLoad(slot);
+            }
+          }).catch(() => {
+            emulator.quickLoad(slot);
+          });
+        } else {
+          emulator.quickLoad(slot);
+        }
+      });
+      actionsEl.appendChild(btnLoad);
+
+      // Export
+      if (state.stateData) {
+        const btnExport = make("button", { class: "btn save-slot__btn", title: "Export .state file" }, "⬇");
+        btnExport.addEventListener("click", async () => {
+          const exported = await saveLibrary.exportState(gameId, slot);
+          if (exported) {
+            downloadBlob(exported.blob, exported.fileName);
+          }
+        });
+        actionsEl.appendChild(btnExport);
+      }
+
+      // Delete
+      if (!isAuto) {
+        const btnDel = make("button", { class: "btn btn--danger save-slot__btn", title: `Delete ${slotLabel}` }, "✕");
+        btnDel.addEventListener("click", async () => {
+          const confirmed = await showConfirmDialog(
+            `Delete save state in ${slotLabel}?`,
+            { title: "Delete Save", confirmLabel: "Delete", isDanger: true }
+          );
+          if (confirmed) {
+            await saveLibrary.deleteState(gameId, slot);
+            await renderSaveSlots(container, emulator, saveLibrary, gameId, gameName, systemId);
+          }
+        });
+        actionsEl.appendChild(btnDel);
+      }
+    }
+
+    // Import (for non-auto slots, regardless of existing state)
+    if (!isAuto) {
+      const importInput = make("input", {
+        type: "file",
+        accept: ".state,.sav",
+        style: "display:none",
+        "aria-label": `Import state to ${slotLabel}`,
+      }) as HTMLInputElement;
+
+      const btnImport = make("button", { class: "btn save-slot__btn", title: `Import .state to ${slotLabel}` }, "⬆");
+      btnImport.addEventListener("click", () => importInput.click());
+
+      importInput.addEventListener("change", async () => {
+        const file = importInput.files?.[0];
+        if (!file) return;
+        importInput.value = "";
+        try {
+          await saveLibrary.importState(gameId, gameName, systemId, slot, file);
+          const buf = await file.arrayBuffer();
+          emulator.writeStateData(slot, new Uint8Array(buf));
+          await renderSaveSlots(container, emulator, saveLibrary, gameId, gameName, systemId);
+        } catch (err) {
+          showError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      });
+
+      actionsEl.appendChild(importInput);
+      actionsEl.appendChild(btnImport);
+    }
+
+    row.append(thumbEl, infoEl, actionsEl);
+    container.appendChild(row);
+  }
+}
+
+// ── Auto-save restore prompt ──────────────────────────────────────────────────
+
+/**
+ * Check if an auto-save exists for a game and prompt to restore it.
+ * Returns true if the user chose to restore.
+ */
+export async function promptAutoSaveRestore(
+  saveLibrary: SaveStateLibrary,
+  gameId: string
+): Promise<boolean> {
+  const hasAuto = await saveLibrary.hasAutoSave(gameId);
+  if (!hasAuto) return false;
+
+  return showConfirmDialog(
+    "A crash-recovery save was found from your last session. Would you like to restore it?",
+    { title: "Restore Auto-Save?", confirmLabel: "Restore" }
+  );
 }
 
 // ── Settings panel ────────────────────────────────────────────────────────────
@@ -1159,13 +1463,14 @@ export function openSettingsPanel(
   biosLibrary:      BiosLibrary,
   onSettingsChange: (patch: Partial<Settings>) => void,
   emulatorRef?:     import("./emulator.js").PSPEmulator,
-  onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>
+  onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
+  saveLibrary?:     SaveStateLibrary
 ): void {
   const panel   = document.getElementById("settings-panel")!;
   const content = document.getElementById("settings-content")!;
   const previousFocus = document.activeElement as HTMLElement | null;
 
-  buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame);
+  buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary);
   panel.hidden = false;
 
   const onEsc = (e: KeyboardEvent) => {
@@ -1192,7 +1497,8 @@ function buildSettingsContent(
   biosLibrary:      BiosLibrary,
   onSettingsChange: (patch: Partial<Settings>) => void,
   emulatorRef?:     import("./emulator.js").PSPEmulator,
-  onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>
+  onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
+  saveLibrary?:     SaveStateLibrary
 ): void {
   container.innerHTML = "";
 
@@ -1354,6 +1660,97 @@ function buildSettingsContent(
   });
   // (onApplyPatch not available here; library re-render is enough)
   libSection.appendChild(btnClear);
+
+  // ── Save State Management ───────────────────────────────────────────────────
+  if (saveLibrary) {
+    const saveSection = make("div", { class: "settings-section" });
+    saveSection.appendChild(make("h4", { class: "settings-section__title" }, "Save States"));
+
+    const saveStatsEl = make("p", { class: "device-info" }, "Calculating…");
+    saveSection.appendChild(saveStatsEl);
+
+    saveLibrary.count().then((count) => {
+      saveStatsEl.textContent = `${count} save state${count !== 1 ? "s" : ""} stored locally`;
+    }).catch(() => { saveStatsEl.textContent = "Could not load save stats."; });
+
+    // Auto-save toggle
+    const autoSaveRow = make("label", { class: "radio-row" });
+    const autoSaveCheck = make("input", { type: "checkbox" }) as HTMLInputElement;
+    autoSaveCheck.checked = settings.autoSaveEnabled;
+    autoSaveCheck.addEventListener("change", () => {
+      onSettingsChange({ autoSaveEnabled: autoSaveCheck.checked });
+    });
+    const autoSaveTxt = make("span", { class: "radio-row__text" });
+    autoSaveTxt.append(
+      make("span", { class: "radio-row__label" }, "Auto-save on tab close"),
+      make("span", { class: "radio-row__desc" },
+        "Automatically save progress when the tab is hidden or closed, preventing loss from accidental closure")
+    );
+    autoSaveRow.append(autoSaveCheck, autoSaveTxt);
+    saveSection.appendChild(autoSaveRow);
+
+    // Save migration tool
+    const migrateSection = make("div", { class: "settings-subsection" });
+    migrateSection.appendChild(make("p", { class: "settings-help" },
+      "If you renamed a ROM file, use this tool to move its saves to the new library entry."
+    ));
+
+    const btnMigrate = make("button", { class: "btn" }, "Migrate Saves…");
+    btnMigrate.addEventListener("click", async () => {
+      let games: GameMetadata[];
+      try {
+        games = await library.getAllGamesMetadata();
+      } catch { games = []; }
+
+      if (games.length < 2) {
+        showError("You need at least two games in your library to migrate saves.");
+        return;
+      }
+
+      const source = await showGamePickerDialog(
+        "Select Source Game",
+        "Choose the game whose saves you want to move:",
+        games
+      );
+      if (!source) return;
+
+      const targets = games.filter(g => g.id !== source.id);
+      const target = await showGamePickerDialog(
+        "Select Target Game",
+        "Choose the game to receive the saves:",
+        targets
+      );
+      if (!target) return;
+
+      try {
+        const count = await saveLibrary.migrateSaves(source.id, target.id, target.name);
+        if (count > 0) {
+          showError(`Migrated ${count} save state${count !== 1 ? "s" : ""} from "${source.name}" to "${target.name}".`);
+        } else {
+          showError(`No saves found for "${source.name}".`);
+        }
+      } catch (err) {
+        showError(`Migration failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    });
+    migrateSection.appendChild(btnMigrate);
+    saveSection.appendChild(migrateSection);
+
+    // Clear saves
+    const btnClearSaves = make("button", { class: "btn btn--danger settings-clear-btn" }, "Clear All Saves");
+    btnClearSaves.addEventListener("click", async () => {
+      const confirmed = await showConfirmDialog(
+        "This will delete all save states and cannot be undone.",
+        { title: "Clear All Saves?", confirmLabel: "Clear All", isDanger: true }
+      );
+      if (!confirmed) return;
+      await saveLibrary.clearAll();
+      saveStatsEl.textContent = "0 save states stored locally";
+    });
+    saveSection.appendChild(btnClearSaves);
+
+    container.appendChild(saveSection);
+  }
 
   // ── BIOS Management ───────────────────────────────────────────────────────
   const biosSection = make("div", { class: "settings-section" });

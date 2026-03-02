@@ -1381,6 +1381,122 @@ body {
   background: var(--c-surface3);
 }
 
+/* ── Save state gallery (Phase 4) ─────────────────────────── */
+.save-gallery-box {
+  width: min(92vw, 520px);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.save-gallery-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.save-slot {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--c-border);
+  transition: background var(--transition);
+}
+
+.save-slot:last-child {
+  border-bottom: none;
+}
+
+.save-slot:hover {
+  background: var(--c-surface2);
+}
+
+.save-slot__thumb {
+  width: 80px;
+  height: 52px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--c-surface2);
+  border: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.save-slot__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.save-slot__empty {
+  color: var(--c-text-faint);
+  font-size: 1.2rem;
+}
+
+.save-slot__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.save-slot__label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.save-slot__time {
+  font-size: 0.75rem;
+  color: var(--c-text-dim);
+}
+
+.save-slot__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.save-slot__btn {
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  min-width: unset;
+}
+
+/* ── Settings subsection ──────────────────────────────────── */
+.settings-subsection {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c-border);
+}
+
+@media (max-width: 600px) {
+  .save-slot {
+    grid-template-columns: 60px 1fr auto;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .save-slot__thumb {
+    width: 60px;
+    height: 40px;
+  }
+
+  .save-slot__btn {
+    padding: 3px 6px;
+    font-size: 0.78rem;
+  }
+
+  .save-gallery-box {
+    width: 96vw;
+  }
+}
+
 /* ── Settings help text ────────────────────────────────────── */
 .settings-help {
   font-size: 0.82rem;
