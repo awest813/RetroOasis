@@ -43,6 +43,8 @@ export interface GPUCapabilities {
   floatTextures: boolean;
   /** Whether instanced rendering is available. */
   instancedArrays: boolean;
+  /** Whether WebGL 2 is available. */
+  webgl2: boolean;
 }
 
 export interface DeviceCapabilities {
@@ -100,11 +102,14 @@ function probeGPU(): GPUCapabilities {
     maxAnisotropy: 0,
     floatTextures: false,
     instancedArrays: false,
+    webgl2: false,
   };
 
   try {
     const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+    const webgl2Context = canvas.getContext("webgl2");
+    const isWebGL2 = webgl2Context !== null;
+    const gl = webgl2Context ?? canvas.getContext("webgl");
     if (!gl) return defaults;
 
     const debugExt = gl.getExtension("WEBGL_debug_renderer_info");
@@ -147,6 +152,7 @@ function probeGPU(): GPUCapabilities {
       maxAnisotropy,
       floatTextures,
       instancedArrays,
+      webgl2: isWebGL2,
     };
   } catch {
     return defaults;
