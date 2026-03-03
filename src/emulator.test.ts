@@ -55,6 +55,61 @@ describe('PSPEmulator', () => {
       }
       // No assertion beyond not throwing
     });
+
+    // Access the internal FPSMonitor for state-level assertions
+    type FPSMonitorInternal = {
+      _running: boolean;
+      _enabled: boolean;
+      _rafId: number | null;
+      start(): void;
+      stop(): void;
+      setCallbackEnabled(active: boolean): void;
+      _tick(now: number): void;
+    };
+    type EmuInternal = { _fpsMonitor: FPSMonitorInternal };
+
+    it('setCallbackEnabled(false) keeps _running true — loop must not stop', () => {
+      const mon = (emulator as unknown as EmuInternal)._fpsMonitor;
+      mon.start();
+      expect(mon._running).toBe(true);
+
+      mon.setCallbackEnabled(false);
+      // Loop should still be scheduled — _running must not be cleared
+      expect(mon._running).toBe(true);
+      expect(mon._enabled).toBe(false);
+
+      mon.stop();
+    });
+
+    it('stop() clears both _running and _enabled', () => {
+      const mon = (emulator as unknown as EmuInternal)._fpsMonitor;
+      mon.start();
+      mon.stop();
+      expect(mon._running).toBe(false);
+      expect(mon._enabled).toBe(false);
+      expect(mon._rafId).toBeNull();
+    });
+
+    it('_tick clears _rafId when _running is false so start() can restart', () => {
+      const mon = (emulator as unknown as EmuInternal)._fpsMonitor;
+      // Simulate a stale _rafId from a loop that stopped organically
+      mon._rafId = 999;
+      mon._running = false;
+      mon._tick(performance.now());
+      // The stale handle must be cleared so a subsequent start() is not blocked
+      expect(mon._rafId).toBeNull();
+    });
+
+    it('start() is not blocked after loop stopped organically and _rafId was cleared', () => {
+      const mon = (emulator as unknown as EmuInternal)._fpsMonitor;
+      // Place monitor in the state it would be after an organic stop + _tick cleanup
+      mon._rafId = null;
+      mon._running = false;
+      expect(() => mon.start()).not.toThrow();
+      // Loop is now running again — _rafId is set
+      expect(mon._rafId).not.toBeNull();
+      mon.stop();
+    });
   });
 
   // ── Preconnect / prefetch ─────────────────────────────────────────────────
