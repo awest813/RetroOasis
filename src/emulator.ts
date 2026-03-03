@@ -166,6 +166,7 @@ class FPSMonitor {
   private _lastTime = 0;
   private _droppedFrames = 0;
   private _targetFPS: number;
+  private _running = false;
   private _enabled = false;
   private _onUpdate?: (snapshot: FPSSnapshot) => void;
   private _frameCount = 0;
@@ -195,6 +196,7 @@ class FPSMonitor {
     this._droppedFrames = 0;
     this._frameCount = 0;
     this._lastTime = performance.now();
+    this._running = true;
     this._enabled = true;
     this._rafId = requestAnimationFrame(this._tick);
   }
@@ -204,11 +206,14 @@ class FPSMonitor {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
     }
+    this._running = false;
     this._enabled = false;
   }
 
   setCallbackEnabled(active: boolean): void {
     this._enabled = active;
+    // NOTE: does not stop the rAF loop — the loop keeps running for accurate
+    // stats even when the FPS overlay is hidden, allowing instant resume.
   }
 
   getSnapshot(): FPSSnapshot {
@@ -268,8 +273,11 @@ class FPSMonitor {
 
     // Re-schedule only when still running; stop() may have been called while
     // this callback was already in-flight.
-    if (this._enabled) {
+    if (this._running) {
       this._rafId = requestAnimationFrame(this._tick);
+    } else {
+      // Clear the stale handle so start() can restart the loop if needed.
+      this._rafId = null;
     }
   }
 }
