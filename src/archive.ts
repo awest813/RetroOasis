@@ -21,6 +21,12 @@
 
 import { ALL_EXTENSIONS } from "./systems.js";
 
+// Precomputed set of ROM-compatible extensions (excludes archive formats).
+// Built once at module load time to avoid rebuilding on every extractFromZip call.
+const _romExtensions = new Set(
+  ALL_EXTENSIONS.filter(ext => ext !== "zip" && ext !== "7z")
+);
+
 // ── ZIP magic constants ───────────────────────────────────────────────────────
 
 const LOCAL_FILE_MAGIC   = 0x04034b50; // "PK\x03\x04"
@@ -51,6 +57,10 @@ function readUint32LE(view: DataView, offset: number): number {
   return view.getUint32(offset, true);
 }
 
+// Shared, stateless decoders — reused across all ZIP filename decodes.
+const _utf8Decoder   = new TextDecoder("utf-8", { fatal: true });
+const _latin1Decoder = new TextDecoder("latin1");
+
 /**
  * Decode a byte slice as a filename.
  * ZIP filenames should be UTF-8 when the general-purpose bit 11 is set; we
@@ -58,9 +68,9 @@ function readUint32LE(view: DataView, offset: number): number {
  */
 function decodeName(bytes: Uint8Array): string {
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return _utf8Decoder.decode(bytes);
   } catch {
-    return new TextDecoder("latin1").decode(bytes);
+    return _latin1Decoder.decode(bytes);
   }
 }
 
@@ -200,15 +210,12 @@ export async function extractFromZip(
   // Intentionally exclude archive extensions from extraction candidates.
   // ZIP/7Z packages may be native ROM containers for arcade sets; picking an
   // inner archive (or an arbitrary non-ROM payload) causes mis-detection.
-  const knownExts = new Set(
-    ALL_EXTENSIONS.filter(ext => ext !== "zip" && ext !== "7z")
-  );
   const isDir = (e: CentralDirEntry) => e.name.endsWith("/") || e.uncompressedSize === 0;
 
   const romCandidates = entries.filter(e => {
     if (isDir(e)) return false;
     const ext = e.name.split(".").pop()?.toLowerCase() ?? "";
-    return knownExts.has(ext);
+    return _romExtensions.has(ext);
   });
 
   // Do not silently fall back to the first arbitrary file when no ROM-like
