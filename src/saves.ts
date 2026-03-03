@@ -112,12 +112,12 @@ export function defaultSlotLabel(slot: number): string {
 
 /**
  * Convert emulator save-state bytes to a Blob for IndexedDB persistence.
- * Uses the Uint8Array view directly to avoid intermediate ArrayBuffer slicing.
+ * Passes the Uint8Array view directly to the Blob constructor, which reads
+ * the correct byte range (including subarray offsets) without an extra copy.
  */
 export function stateBytesToBlob(stateBytes: Uint8Array | null | undefined): Blob | null {
   if (!stateBytes || stateBytes.byteLength === 0) return null;
-  const normalized = Uint8Array.from(stateBytes);
-  return new Blob([normalized], { type: "application/octet-stream" });
+  return new Blob([stateBytes], { type: "application/octet-stream" });
 }
 
 // ── SaveStateLibrary ──────────────────────────────────────────────────────────
