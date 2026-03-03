@@ -290,6 +290,13 @@ export function initUI(opts: UIOptions): void {
   const fileInput = el<HTMLInputElement>("#file-input");
   const dropZone  = el("#drop-zone");
   let dragDepth = 0;
+  let dragOverActive = false;
+  const clearDragOver = () => {
+    dragDepth = 0;
+    if (!dragOverActive) return;
+    dragOverActive = false;
+    dropZone.classList.remove("drag-over");
+  };
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
@@ -303,13 +310,12 @@ export function initUI(opts: UIOptions): void {
     fileInput.click();
   });
 
-  document.addEventListener("dragover",   (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
-  document.addEventListener("dragenter",  (e) => { e.preventDefault(); dragDepth += 1; dropZone.classList.add("drag-over"); });
-  document.addEventListener("dragleave",  (e) => { e.preventDefault(); dragDepth = Math.max(0, dragDepth - 1); if (dragDepth > 0) return; dropZone.classList.remove("drag-over"); });
+  document.addEventListener("dragover",   (e) => { e.preventDefault(); if (!dragOverActive) { dragOverActive = true; dropZone.classList.add("drag-over"); } });
+  document.addEventListener("dragenter",  (e) => { e.preventDefault(); dragDepth += 1; if (!dragOverActive) { dragOverActive = true; dropZone.classList.add("drag-over"); } });
+  document.addEventListener("dragleave",  (e) => { e.preventDefault(); dragDepth = Math.max(0, dragDepth - 1); if (dragDepth > 0) return; clearDragOver(); });
   document.addEventListener("drop", (e) => {
     e.preventDefault();
-    dragDepth = 0;
-    dropZone.classList.remove("drag-over");
+    clearDragOver();
     const file = e.dataTransfer?.files[0];
     if (!file) return;
     if (emulator.state === "running") {
@@ -318,6 +324,7 @@ export function initUI(opts: UIOptions): void {
     }
     void onFileChosen(file);
   });
+  window.addEventListener("blur", clearDragOver);
 
   // ── Error banner ──────────────────────────────────────────────────────────
   el("#error-close").addEventListener("click", hideError);
