@@ -172,6 +172,46 @@ describe("WebGPUPostProcessor", () => {
     });
   });
 
+  describe("timestamp queries", () => {
+    it("re-initialises timestamp query resources after detach + reattach", () => {
+      const { device } = createMockGPUDevice();
+      device.features = new Set<string>(["timestamp-query"]);
+
+      const pp = new WebGPUPostProcessor(device as unknown as GPUDevice, { effect: "crt" });
+
+      const webgpuContext = {
+        configure: vi.fn(),
+        getCurrentTexture: vi.fn().mockReturnValue({ createView: vi.fn().mockReturnValue({}) }),
+      };
+      const getContextSpy = vi
+        .spyOn(HTMLCanvasElement.prototype, "getContext")
+        .mockImplementation((contextId: string) => {
+          if (contextId === "webgpu") return webgpuContext as unknown as RenderingContext;
+          return null;
+        });
+
+      const originalGPU = navigator.gpu;
+      Object.defineProperty(navigator, "gpu", {
+        configurable: true,
+        writable: true,
+        value: { getPreferredCanvasFormat: vi.fn().mockReturnValue("bgra8unorm") },
+      });
+
+      pp.attach(sourceCanvas, container);
+      pp.detach();
+      pp.attach(sourceCanvas, container);
+
+      expect(device.createQuerySet).toHaveBeenCalledTimes(2);
+
+      getContextSpy.mockRestore();
+      Object.defineProperty(navigator, "gpu", {
+        configurable: true,
+        writable: true,
+        value: originalGPU,
+      });
+    });
+  });
+
   describe("pipeline building (via updateConfig)", () => {
     it("creates shader modules for CRT effect", () => {
       const { device } = createMockGPUDevice();

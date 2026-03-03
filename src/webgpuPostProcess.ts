@@ -364,6 +364,12 @@ export class WebGPUPostProcessor {
       minFilter: "linear",
     });
 
+    // Recreate optional timestamp query resources on re-attach. detach()
+    // releases them, and the same processor instance can be attached again.
+    if (!this._querySet) {
+      this._initTimestampQuery();
+    }
+
     this._rebuildPipeline();
     this._active = true;
 
