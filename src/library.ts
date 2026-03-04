@@ -418,6 +418,23 @@ export class GameLibrary {
   }
 
   /**
+   * Update the system/emulator assignment for an existing game.
+   *
+   * @param id          Existing game id to update.
+   * @param newSystemId New EmulatorJS core id.
+   * @returns Updated entry, or null when no game exists for the id.
+   */
+  async changeSystemId(id: string, newSystemId: string): Promise<GameEntry | null> {
+    const db    = await openDB();
+    const entry = await promisify<GameEntry | undefined>(tx(db, "readonly").get(id));
+    if (!entry) return null;
+    entry.systemId = newSystemId;
+    await promisify(tx(db, "readwrite").put(entry));
+    invalidateMetadataCache();
+    return entry;
+  }
+
+  /**
    * Delete every game from the library.
    */
   async clearAll(): Promise<void> {

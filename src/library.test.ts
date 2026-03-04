@@ -213,6 +213,48 @@ describe('GameLibrary.updateGameFile', () => {
   });
 });
 
+// ── changeSystemId ────────────────────────────────────────────────────────────
+
+describe('GameLibrary.changeSystemId', () => {
+  let library: GameLibrary;
+
+  beforeEach(async () => {
+    library = new GameLibrary();
+    await library.clearAll();
+  });
+
+  it('updates the systemId while preserving all other fields', async () => {
+    const file = new File(['rom'], 'game.bin', { type: 'application/octet-stream' });
+    const entry = await library.addGame(file, 'nes');
+
+    const updated = await library.changeSystemId(entry.id, 'snes');
+
+    expect(updated).not.toBeNull();
+    expect(updated!.id).toBe(entry.id);
+    expect(updated!.systemId).toBe('snes');
+    expect(updated!.name).toBe(entry.name);
+    expect(updated!.fileName).toBe(entry.fileName);
+    expect(updated!.size).toBe(entry.size);
+    expect(updated!.addedAt).toBe(entry.addedAt);
+  });
+
+  it('persists the new systemId in the database', async () => {
+    const file = new File(['rom'], 'game.bin', { type: 'application/octet-stream' });
+    const entry = await library.addGame(file, 'nes');
+
+    await library.changeSystemId(entry.id, 'gba');
+
+    const reloaded = await library.getGame(entry.id);
+    expect(reloaded).not.toBeNull();
+    expect(reloaded!.systemId).toBe('gba');
+  });
+
+  it('returns null when the game id does not exist', async () => {
+    const result = await library.changeSystemId('nonexistent-id', 'psp');
+    expect(result).toBeNull();
+  });
+});
+
 // ── Per-game tier profiles ────────────────────────────────────────────────────
 
 describe('getGameTierProfile / saveGameTierProfile / clearGameTierProfile', () => {
