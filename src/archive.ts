@@ -210,7 +210,7 @@ export async function extractFromZip(
   // Intentionally exclude archive extensions from extraction candidates.
   // ZIP/7Z packages may be native ROM containers for arcade sets; picking an
   // inner archive (or an arbitrary non-ROM payload) causes mis-detection.
-  const isDir = (e: CentralDirEntry) => e.name.endsWith("/") || e.uncompressedSize === 0;
+  const isDir = (e: CentralDirEntry) => e.name.endsWith("/");
 
   const romCandidates = entries.filter(e => {
     if (isDir(e)) return false;

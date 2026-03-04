@@ -397,6 +397,16 @@ describe('extractFromZip', () => {
     expect(result).toBeNull();
   });
 
+  it('does not treat zero-byte ROM entries as directories', async () => {
+    const zipBuf = buildZip('game.gba', new Uint8Array(0));
+    const blob = new Blob([zipBuf]);
+
+    const result = await extractFromZip(blob);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.gba');
+    expect(result!.blob.size).toBe(0);
+  });
+
   it('throws when the compression method is unsupported', async () => {
     const content = new Uint8Array([1, 2, 3]);
     // Method 1 = Shrunk (unsupported)
