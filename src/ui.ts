@@ -1891,6 +1891,9 @@ function buildDisplayTab(
       { value: "none",    label: "Off",     desc: "No post-processing — raw emulator output" },
       { value: "crt",     label: "CRT",     desc: "Scanlines, barrel distortion, phosphor glow, and vignette" },
       { value: "sharpen", label: "Sharpen", desc: "Edge-aware sharpening — crisper pixels for upscaled output" },
+      { value: "lcd",     label: "LCD",     desc: "RGB sub-pixel shadow-mask simulating a handheld LCD screen" },
+      { value: "bloom",   label: "Bloom",   desc: "Additive glow on bright areas — cinematic light bleed effect" },
+      { value: "fxaa",    label: "FXAA",    desc: "Fast approximate anti-aliasing — smooths 3D geometry edges" },
     ];
     for (const opt of fxOptions) {
       const row   = make("label", { class: "radio-row" });

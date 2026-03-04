@@ -122,13 +122,18 @@ Networked features requiring server infrastructure.
 
 ---
 
-## Phase 7 — WebGPU Native Path (In Progress)
+## Phase 7 — WebGPU Native Path (Complete)
 
 WebGPU integration for post-processing, async GPU readback, and future rendering support.
 
 - [ ] **Retire WebGL 2 for 3D cores**: Port PPSSPP-Web and mupen64plus-Next to emit WebGPU command buffers natively (requires upstream changes in EmulatorJS / libretro)
 - [x] **WebGPU post-processing pipeline**: `WebGPUPostProcessor` class captures the WebGL canvas via `copyExternalImageToTexture()` (GPU-side, zero CPU readback) and applies WGSL fragment shaders — CRT simulation (scanlines, barrel distortion, phosphor glow, vignette) and edge-aware sharpening; toggled per-session in Settings; overlay canvas architecture avoids interfering with EmulatorJS rendering
+- [x] **LCD shadow-mask effect**: WGSL fragment shader simulates an RGB sub-pixel grid and horizontal row-gap lines, reproducing the look of a handheld LCD display; `lcdShadowMask` (0–1) and `lcdPixelScale` parameters exposed in `PostProcessConfig`
+- [x] **Bloom effect**: Single-pass 8-tap cross + diagonal Gaussian approximation extracts bright pixels above a configurable threshold and additively blends the glow back onto the scene; `bloomThreshold` and `bloomIntensity` parameters
+- [x] **FXAA (Fast Approximate Anti-Aliasing)**: Single-pass WGSL shader implementing Lottes-style luminance-based edge detection; cardinal-neighbour luma sampling, sub-pixel alias estimation, and edge-direction blend; `fxaaQuality` parameter controls edge-detection sensitivity; 4–6 texture samples per fragment with near-zero overhead on any GPU tier
 - [x] **GPU readback elimination**: `captureScreenshotAsync()` copies the post-processed frame to a staging `GPUBuffer` and maps it asynchronously via `mapAsync()`, completely avoiding the synchronous GPU stall of `canvas.toBlob()` / `gl.readPixels()`; auto-save and save-state thumbnails use the async path when WebGPU is active
+- [x] **GPU timestamp profiling**: `WebGPUPostProcessor` optionally inserts `timestamp-query` writes at the start and end of each render pass; timestamps are resolved to a `GPUBuffer`, read back asynchronously once per 60 frames, and exposed via the `lastGPUFrameTimeMs` getter; silently no-ops on devices that do not expose the feature
+- [x] **Bind group caching**: The `GPUBindGroup` wrapping the source texture, sampler, and uniform buffer is created once and reused across frames; invalidated only when the source texture handle is replaced (canvas resize or effect switch); eliminated the single largest per-frame GPU object allocation
 - [x] **WebGPU type safety**: Added `@webgpu/types` as a dev dependency and configured `tsconfig.json`; replaced inline `any` casts with proper WebGPU types throughout `emulator.ts`; WebGPU enum constants (`GPUShaderStage`, `GPUBufferUsage`, etc.) defined as numeric values to allow the pipeline to be tested in jsdom without runtime WebGPU
 
 ---

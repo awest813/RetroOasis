@@ -102,7 +102,7 @@ function loadSettings(): Settings {
       useWebGPU: typeof parsed.useWebGPU === "boolean"
         ? parsed.useWebGPU
         : DEFAULT_SETTINGS.useWebGPU,
-      postProcessEffect: (["none", "crt", "sharpen"] as PostProcessEffect[]).includes(parsed.postProcessEffect as PostProcessEffect)
+      postProcessEffect: (["none", "crt", "sharpen", "lcd", "bloom", "fxaa"] as PostProcessEffect[]).includes(parsed.postProcessEffect as PostProcessEffect)
         ? (parsed.postProcessEffect as PostProcessEffect)
         : DEFAULT_SETTINGS.postProcessEffect,
       autoSaveEnabled: typeof parsed.autoSaveEnabled === "boolean"
