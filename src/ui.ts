@@ -92,6 +92,9 @@ function make<K extends keyof HTMLElementTagNameMap>(
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 export function buildDOM(app: HTMLElement): void {
+  // Reset module-level state that is tied to DOM nodes created below
+  _libraryControlsWired = false;
+
   const acceptList = ALL_EXTENSIONS.map(e => `.${e}`).join(",");
 
   app.innerHTML = `
@@ -1218,11 +1221,13 @@ function buildInGameControls(
   const btnFPS = make("button", {
     class: settings.showFPS ? "btn btn--active" : "btn",
     title: "Toggle FPS overlay",
+    "aria-pressed": settings.showFPS ? "true" : "false",
   }, "FPS");
   btnFPS.addEventListener("click", () => {
     settings.showFPS = !settings.showFPS;
     onSettingsChange({ showFPS: settings.showFPS });
     btnFPS.className = settings.showFPS ? "btn btn--active" : "btn";
+    btnFPS.setAttribute("aria-pressed", String(settings.showFPS));
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
     emulator.setFPSMonitorEnabled(settings.showFPS);
   });
@@ -1514,8 +1519,8 @@ async function buildSaveSlotCard(
     actions.appendChild(btnLoad);
 
     if (state.stateData) {
-      const btnExport = make("button", { class: "btn save-slot-card__btn", title: "Export .state file" });
-      btnExport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+      const btnExport = make("button", { class: "btn save-slot-card__btn", title: "Export .state file", "aria-label": "Export save state" });
+      btnExport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
       btnExport.addEventListener("click", async () => {
         const exported = await saveLibrary.exportState(gameId, slot);
         if (exported) downloadBlob(exported.blob, exported.fileName);
@@ -1718,6 +1723,7 @@ function buildSettingsContent(
 
   for (const tab of tabs) {
     const btn = make("button", {
+      id: `tab-${tab.id}`,
       class: "settings-tab",
       role: "tab",
       "aria-selected": tab.id === activeTab ? "true" : "false",
