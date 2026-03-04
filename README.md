@@ -59,7 +59,7 @@ Open **http://localhost:5173** in Chrome or Firefox.
 | PlayStation Portable | PSP | PPSSPP | `.iso` `.cso` `.elf` | — |
 | Nintendo 64 | N64 | mupen64plus-next | `.n64` `.v64` `.z64` | — |
 | Nintendo DS | DS | DeSmuME 2015 | `.nds` | — |
-| PlayStation 1 | PS1 | Beetle PSX HW | `.pbp` `.chd` `.cue` `.img` `.mdf` `.ccd` `.m3u` | Optional |
+| PlayStation 1 | PS1 | Beetle PSX HW | `.bin` `.iso` `.pbp` `.chd` `.cue` `.img` `.mdf` `.ccd` `.m3u` | Optional |
 | Game Boy Advance | GBA | mGBA | `.gba` | — |
 | Game Boy Color | GBC | Gambatte | `.gbc` | — |
 | Game Boy | GB | Gambatte | `.gb` | — |
@@ -68,7 +68,7 @@ Open **http://localhost:5173** in Chrome or Firefox.
 | Sega Genesis / Mega Drive | Genesis | Genesis Plus GX | `.md` `.smd` `.gen` | — |
 | Sega Game Gear | GG | Genesis Plus GX | `.gg` | — |
 | Sega Master System | SMS | Genesis Plus GX | `.sms` | — |
-| Sega Saturn | Saturn | Beetle Saturn | `.cue` `.chd` `.mdf` `.img` `.ccd` `.m3u` | **Required** |
+| Sega Saturn | Saturn | Beetle Saturn | `.cue` `.chd` `.mdf` `.img` `.ccd` `.m3u` | **Required (one BIOS file)** |
 | Dreamcast | DC | Flycast | `.cdi` `.gdi` `.chd` `.m3u` | **Required** |
 | Atari 2600 | 2600 | Stella | `.a26` | — |
 | Atari 7800 | 7800 | ProSystem | `.a78` `.bin` | — |
@@ -221,8 +221,8 @@ Some systems require BIOS files to run games. Upload them in Settings > BIOS Fil
 | PS1 | `scph5501.bin` (NTSC-U) | Optional (improves compatibility) |
 | PS1 | `scph1001.bin` (NTSC-U) | Optional |
 | PS1 | `scph5502.bin` (PAL) | Optional |
-| Saturn | `sega_101.bin` (JP) | **Required** |
-| Saturn | `mpr-17933.bin` (US/EU) | **Required** |
+| Saturn | `sega_101.bin` (JP) | **Required (one of the Saturn BIOS files)** |
+| Saturn | `mpr-17933.bin` (US/EU) | **Required (one of the Saturn BIOS files)** |
 | Dreamcast | `dc_boot.bin` | **Required** |
 | Dreamcast | `dc_flash.bin` | **Required** |
 | Lynx | `lynxboot.img` | Optional |
