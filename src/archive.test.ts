@@ -482,3 +482,118 @@ describe('extractFromZip', () => {
     });
   });
 });
+
+// ── ROM/ISO format-specific extraction ───────────────────────────────────────
+
+describe('extractFromZip — ROM/ISO format coverage', () => {
+  // PSP-specific formats
+  it('extracts a .iso file (PS1/PSP disc image)', async () => {
+    const content = new Uint8Array([0x01, 0x43, 0x44, 0x30, 0x30, 0x31]); // ISO 9660 magic
+    const zipBuf  = buildZip('game.iso', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.iso');
+    const extracted = new Uint8Array(await result!.blob.arrayBuffer());
+    expect(extracted).toEqual(content);
+  });
+
+  it('extracts a .cso file (PSP compressed ISO)', async () => {
+    // CSO magic: "CISO" = 0x43 0x49 0x53 0x4F
+    const content = new Uint8Array([0x43, 0x49, 0x53, 0x4f, 0x00, 0x00]);
+    const zipBuf  = buildZip('game.cso', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.cso');
+  });
+
+  it('extracts a .pbp file (PSP/PSX executable)', async () => {
+    // PBP magic: "\x00PBP"
+    const content = new Uint8Array([0x00, 0x50, 0x42, 0x50]);
+    const zipBuf  = buildZip('EBOOT.PBP', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    // Path-stripped name returned as lowercase extension
+    expect(result!.name.toLowerCase()).toContain('pbp');
+  });
+
+  // PS1-specific formats
+  it('extracts a .bin file (PS1 raw disc track)', async () => {
+    const content = new Uint8Array([0x00, 0xff, 0xff, 0xff]); // typical sync pattern
+    const zipBuf  = buildZip('track01.bin', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('track01.bin');
+  });
+
+  it('extracts a .chd file (compressed disc image)', async () => {
+    // CHD magic: "MComprHD"
+    const content = new Uint8Array([0x4d, 0x43, 0x6f, 0x6d, 0x70, 0x72, 0x48, 0x44]);
+    const zipBuf  = buildZip('disc.chd', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('disc.chd');
+  });
+
+  it('extracts a .cue file (cuesheet)', async () => {
+    const content = new TextEncoder().encode('FILE "track01.bin" BINARY\nTRACK 01 MODE2/2352\n');
+    const zipBuf  = buildZip('game.cue', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.cue');
+  });
+
+  it('extracts a .m3u file (multi-disc playlist)', async () => {
+    const content = new TextEncoder().encode('disc1.cue\ndisc2.cue\n');
+    const zipBuf  = buildZip('game.m3u', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.m3u');
+  });
+
+  // Preference: ISO over readme when both present
+  it('prefers .iso over .txt when both are present in the ZIP', async () => {
+    const readmeData = new TextEncoder().encode('This is a readme');
+    const isoData    = new Uint8Array([0x01, 0x43, 0x44, 0x30, 0x30, 0x31]);
+
+    const zipBuf = buildZipWithTwoEntries(
+      'readme.txt', readmeData,
+      'game.iso',   isoData,
+    );
+    const result = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.iso');
+  });
+
+  // Preference: CSO over general binary
+  it('prefers .cso over a .dat file when both are present', async () => {
+    const datData = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const csoData = new Uint8Array([0x43, 0x49, 0x53, 0x4f]);
+
+    const zipBuf = buildZipWithTwoEntries(
+      'metadata.dat', datData,
+      'game.cso',     csoData,
+    );
+    const result = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.cso');
+  });
+
+  // Path stripping for disc images stored in subdirectories
+  it('strips the directory prefix from an ISO stored in a subdirectory', async () => {
+    const content = new Uint8Array([0x01, 0x43, 0x44, 0x30]);
+    const zipBuf  = buildZip('psp/games/mygame.iso', content);
+    const result  = await extractFromZip(new Blob([zipBuf]));
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('mygame.iso');
+  });
+});
