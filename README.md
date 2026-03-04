@@ -46,7 +46,7 @@ Open **http://localhost:5173** in Chrome or Firefox.
 - **Adaptive quality** — automatic tier downgrade prompt when sustained low FPS is detected; per-game tier memory
 - **Audio latency adaptation** — probes hardware audio latency and adjusts buffer size to prevent crackles on Bluetooth/USB audio
 - **AudioWorklet path** — low-latency audio processing in a dedicated thread with underrun detection
-- **WebGPU opt-in** — experimental WebGPU rendering pre-warm, post-processing pipeline (CRT / sharpen filters), and async GPU screenshot capture (Chrome 113+)
+- **WebGPU post-processing** — six real-time GPU effects via WGSL shaders: CRT (scanlines, barrel distortion, phosphor glow, vignette), Sharpen (edge-aware unsharp mask), LCD (RGB sub-pixel shadow-mask), Bloom (additive bright-area glow), FXAA (fast approximate anti-aliasing), and Passthrough; GPU timestamp profiling exposed via `lastGPUFrameTimeMs`; bind-group caching eliminates per-frame GPU allocations (Chrome 113+)
 - **Shader cache** — IndexedDB-backed GLSL cache with LRU eviction and `KHR_parallel_shader_compile` pre-compilation
 - **Battery-aware** — auto-switches to Performance mode when battery drops below 20%
 
