@@ -360,8 +360,10 @@ function main(): void {
     if (emulator.state === "error") {
       pendingAutoRestoreCancel?.();
       pendingAutoRestoreCancel = null;
-      // Revoke the BIOS blob URL if the emulator never claimed it
-      // (e.g., preflight checks failed before _biosUrl was assigned).
+      // Defensive revoke: for preflight failures the emulator never stores
+      // the biosUrl, so we must revoke it here.  For mid-launch failures
+      // the emulator revokes it itself (in its catch block), making this
+      // call a safe no-op.
       if (biosUrl) URL.revokeObjectURL(biosUrl);
     }
   };

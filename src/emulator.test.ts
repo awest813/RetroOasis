@@ -762,6 +762,27 @@ describe('PSPEmulator', () => {
       expect(lowFPSEvents).toHaveLength(0);
     });
 
+    it('fires onLowFPS even when page was freshly loaded (now < COOLDOWN_MS)', () => {
+      // Regression: _lastQualitySuggestionTime was initialised to 0, which
+      // caused `now - 0 < 60_000` to block the first suggestion for users who
+      // started a game within the first 60 s of page load.
+      const lowFPSEvents: number[] = [];
+      emulator.onLowFPS = (fps) => { lowFPSEvents.push(fps); };
+
+      // Simulate a freshly loaded page: performance.now() returns a small value
+      // well inside the old 60 s cooldown window.
+      const baseTime = 200; // 200 ms since page load
+
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime);
+      (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
+
+      // 10+ s of sustained low FPS — suggestion must fire despite tiny `now`
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
+
+      expect(lowFPSEvents).toHaveLength(1);
+    });
+
     it('fires onLowFPS after 10 actual seconds of sustained low FPS', () => {
       const lowFPSEvents: number[] = [];
       emulator.onLowFPS = (fps) => { lowFPSEvents.push(fps); };

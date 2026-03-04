@@ -114,10 +114,15 @@ export function defaultSlotLabel(slot: number): string {
  * Convert emulator save-state bytes to a Blob for IndexedDB persistence.
  * Passes the Uint8Array view directly to the Blob constructor, which reads
  * the correct byte range (including subarray offsets) without an extra copy.
+ *
+ * The type assertion is required because TypeScript parameterises Uint8Array
+ * as <ArrayBufferLike>, which includes SharedArrayBuffer, while the Blob
+ * constructor only accepts ArrayBufferView<ArrayBuffer>.  Emulator FS data
+ * is always backed by a plain ArrayBuffer, so the assertion is safe.
  */
 export function stateBytesToBlob(stateBytes: Uint8Array | null | undefined): Blob | null {
   if (!stateBytes || stateBytes.byteLength === 0) return null;
-  return new Blob([stateBytes], { type: "application/octet-stream" });
+  return new Blob([stateBytes as unknown as Uint8Array<ArrayBuffer>], { type: "application/octet-stream" });
 }
 
 // ── SaveStateLibrary ──────────────────────────────────────────────────────────

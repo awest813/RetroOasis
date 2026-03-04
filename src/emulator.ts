@@ -356,8 +356,13 @@ export class PSPEmulator {
   private _audioUnderruns = 0;
   /** Timestamp (ms) when sustained low FPS was first detected; 0 when FPS is healthy. */
   private _lowFPSStartTime = 0;
-  /** Timestamp (ms) of the last low-FPS quality suggestion, to debounce warnings. */
-  private _lastQualitySuggestionTime = 0;
+  /**
+   * Timestamp (ms) of the last low-FPS quality suggestion, to debounce warnings.
+   * Initialised to -Infinity so the very first suggestion can always fire
+   * regardless of how soon after page-load the game is launched (avoids the
+   * 60-second page-age requirement that would arise from using 0 as the sentinel).
+   */
+  private _lastQualitySuggestionTime = Number.NEGATIVE_INFINITY;
 
   onStateChange?: (state: EmulatorState) => void;
   onProgress?:    (msg:   string)        => void;
@@ -1161,7 +1166,7 @@ export class PSPEmulator {
       await this._loadScript(`${EJS_CDN_BASE}loader.js`);
 
     } catch (err) {
-      this._setState("error");
+      this._revokeBlobUrl();
       this._emitError(
         `Failed to start emulator: ${err instanceof Error ? err.message : String(err)}`
       );
@@ -1572,7 +1577,7 @@ export class PSPEmulator {
   /** Reset low-FPS detection timers for a new emulator session. */
   private _resetAdaptiveQualityState(): void {
     this._lowFPSStartTime = 0;
-    this._lastQualitySuggestionTime = 0;
+    this._lastQualitySuggestionTime = Number.NEGATIVE_INFINITY;
   }
 
   private _disconnectAudioWorklet(): void {
