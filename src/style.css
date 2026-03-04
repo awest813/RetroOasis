@@ -1735,6 +1735,9 @@ body {
 @media (max-width: 600px) {
   .save-gallery-box { width: 98vw; max-height: 92vh; }
   .save-gallery-grid { grid-template-columns: 1fr; }
+  .game-card__patch,
+  .game-card__change-sys,
+  .save-slot-card__edit-btn { opacity: 1; }
 
   .save-slot-card__actions {
     flex-wrap: nowrap;
