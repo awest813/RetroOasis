@@ -96,6 +96,12 @@ export const EJS_CDN_BASE = "https://cdn.emulatorjs.org/stable/data/";
 /** Warn when a ROM file exceeds this size (500 MB). */
 const LARGE_ROM_THRESHOLD = 500 * 1024 * 1024;
 
+// Adaptive quality thresholds — moved here so they are not reconstructed on
+// every _checkAdaptiveQuality() call (which fires every ~10 frames).
+const AQ_LOW_FPS_HZ   = 25;        // FPS floor before the timer starts
+const AQ_TRIGGER_MS   = 10_000;    // sustained low-FPS window before alert
+const AQ_COOLDOWN_MS  = 60_000;    // minimum gap between successive alerts
+
 let cachedWebGL2Support: boolean | null = null;
 
 /**
@@ -1506,18 +1512,15 @@ export class PSPEmulator {
    * A 60-second cooldown prevents spamming the user during loading screens.
    */
   private _checkAdaptiveQuality(averageFPS: number): void {
-    const LOW_FPS_THRESHOLD_HZ = 25;
-    const TRIGGER_MS           = 10_000; // 10 consecutive seconds
-    const COOLDOWN_MS          = 60_000;
-    const now                  = performance.now();
+    const now = performance.now();
 
-    if (averageFPS > 0 && averageFPS < LOW_FPS_THRESHOLD_HZ) {
+    if (averageFPS > 0 && averageFPS < AQ_LOW_FPS_HZ) {
       if (this._lowFPSStartTime === 0) {
         this._lowFPSStartTime = now;
       }
       if (
-        now - this._lowFPSStartTime >= TRIGGER_MS &&
-        now - this._lastQualitySuggestionTime > COOLDOWN_MS
+        now - this._lowFPSStartTime >= AQ_TRIGGER_MS &&
+        now - this._lastQualitySuggestionTime > AQ_COOLDOWN_MS
       ) {
         this._lastQualitySuggestionTime = now;
         this._lowFPSStartTime = 0;

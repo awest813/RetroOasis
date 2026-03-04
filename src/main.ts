@@ -127,7 +127,7 @@ function saveSettings(s: Settings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   } catch {
-    showError("[retrovault] Could not persist settings to localStorage.");
+    showError("Could not persist settings to localStorage.");
   }
 }
 

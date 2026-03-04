@@ -915,7 +915,9 @@ export async function resolveSystemAndAdd(
     system = await pickSystem(resolvedFile.name, detected);
     if (!system) return;
   } else {
-    hideLoadingOverlay();
+    // Single system detected — do not hide the overlay here.
+    // If a ZIP was just extracted the overlay is still showing; leaving it
+    // visible avoids a flicker (hide → immediate show) on the happy path.
     system = detected;
   }
 
@@ -927,6 +929,7 @@ export async function resolveSystemAndAdd(
   try {
     const existing = await library.findByFileName(resolvedFile.name, system.id);
     if (existing) {
+      hideLoadingOverlay();
       const playExisting = await showConfirmDialog(
         `"${existing.name}" is already in your library.`,
         { title: "Already in Library", confirmLabel: "Play Existing" }
