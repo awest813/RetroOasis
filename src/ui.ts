@@ -2290,14 +2290,18 @@ class AudioVisualiser {
     ctx.fillRect(0, 0, width, height);
 
     const barCount = this._buffer.length;
-    const barWidth = Math.max(1, width / barCount);
-    for (let i = 0; i < barCount; i++) {
-      const magnitude = this._buffer[i] / 255;
+    // Clamp to at least 1px per bar; when canvas is narrow, render fewer bars
+    const barWidth = width / barCount;
+    const step = barWidth >= 1 ? 1 : Math.ceil(1 / barWidth);
+    const drawCount = Math.floor(barCount / step);
+    const drawBarWidth = width / drawCount;
+    for (let i = 0; i < drawCount; i++) {
+      const magnitude = this._buffer[i * step] / 255;
       const barHeight = magnitude * height;
       // Colour shifts from green (quiet) → yellow → red (loud)
       const hue = Math.round(120 - magnitude * 120);
       ctx.fillStyle = `hsl(${hue},80%,50%)`;
-      ctx.fillRect(i * barWidth, height - barHeight, Math.max(1, barWidth - 1), barHeight);
+      ctx.fillRect(i * drawBarWidth, height - barHeight, Math.max(1, drawBarWidth - 1), barHeight);
     }
   }
 

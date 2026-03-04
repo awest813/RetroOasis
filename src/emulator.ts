@@ -1326,9 +1326,9 @@ export class PSPEmulator {
     const clamped = Math.max(0, Math.min(1, volume));
     window.EJS_emulator?.setVolume(clamped);
     // Also update the worklet gain parameter so volume is reflected in the audio graph
-    if (this._audioWorkletNode) {
+    if (this._audioWorkletNode && this._audioWorkletCtx) {
       const gainParam = this._audioWorkletNode.parameters.get("gain");
-      if (gainParam) gainParam.setValueAtTime(clamped, 0);
+      if (gainParam) gainParam.setValueAtTime(clamped, this._audioWorkletCtx.currentTime);
     }
   }
 

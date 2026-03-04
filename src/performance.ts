@@ -724,7 +724,7 @@ export async function detectAudioCapabilities(
       const baseLatencyMs    = (ctx.baseLatency   ?? null) !== null ? (ctx.baseLatency   * 1000) : null;
       const outputLatencyMs  = (ctx.outputLatency  ?? null) !== null ? (ctx.outputLatency * 1000) : null;
       const sampleRate       = ctx.sampleRate;
-      const maxChannelCount  = (ctx.destination.maxChannelCount ?? null) as number | null;
+      const maxChannelCount  = ctx.destination.maxChannelCount ?? null;
 
       await ctx.close();
 

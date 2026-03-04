@@ -77,7 +77,7 @@ class RetroVaultProcessor extends AudioWorkletProcessor {
           outCh[i] = s;
           blockSumSq += s * s;
           blockSamples++;
-          if (Math.abs(inCh[i]) > this._SILENCE_THRESHOLD) hasSignal = true;
+          if (Math.abs(s) > this._SILENCE_THRESHOLD) hasSignal = true;
         }
       }
 
