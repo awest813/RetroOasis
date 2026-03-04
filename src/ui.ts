@@ -1766,6 +1766,7 @@ function buildSettingsContent(
     { id: "multiplayer",  label: "Multiplayer" },
     { id: "debug",        label: "Debug" },
   ];
+  const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
   let activeTab: SettingsTab = initialTab ?? "performance";
 
@@ -1779,7 +1780,7 @@ function buildSettingsContent(
 
   const switchTab = (id: SettingsTab) => {
     activeTab = id;
-    const activeIndex = tabs.findIndex(t => t.id === id);
+    const activeIndex = tabIndexById.get(id) ?? -1;
     tabBtns.forEach((btn, i) => {
       const isActive = tabs[i].id === id;
       btn.setAttribute("aria-selected", String(isActive));
@@ -1800,7 +1801,7 @@ function buildSettingsContent(
     }
   };
 
-  for (const tab of tabs) {
+  tabs.forEach((tab, i) => {
     const btn = make("button", {
       id: `tab-${tab.id}`,
       class: "settings-tab",
@@ -1812,8 +1813,6 @@ function buildSettingsContent(
     }, tab.label) as HTMLButtonElement;
     btn.addEventListener("click", () => switchTab(tab.id));
     btn.addEventListener("keydown", (e) => {
-      const i = tabs.findIndex(t => t.id === tab.id);
-      if (i < 0) return;
       if (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "Home" || e.key === "End") {
         e.preventDefault();
         const nextIndex =
@@ -1844,7 +1843,7 @@ function buildSettingsContent(
     if (tab.id !== activeTab) panel.hidden = true;
     panels.push(panel);
     panelsEl.appendChild(panel);
-  }
+  });
 
   container.appendChild(tabBar);
   container.appendChild(panelsEl);
