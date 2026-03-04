@@ -1779,25 +1779,58 @@ function buildSettingsContent(
 
   const switchTab = (id: SettingsTab) => {
     activeTab = id;
+    const activeIndex = tabs.findIndex(t => t.id === id);
     tabBtns.forEach((btn, i) => {
       const isActive = tabs[i].id === id;
       btn.setAttribute("aria-selected", String(isActive));
+      btn.setAttribute("tabindex", isActive ? "0" : "-1");
       btn.classList.toggle("settings-tab--active", isActive);
     });
     panels.forEach((panel, i) => {
-      panel.hidden = tabs[i].id !== id;
+      const isActive = tabs[i].id === id;
+      panel.hidden = !isActive;
+      panel.setAttribute("aria-hidden", String(!isActive));
     });
+    const activeBtn = activeIndex >= 0 ? tabBtns[activeIndex] : null;
+    if (activeBtn) {
+      const scrollIntoViewFn = (activeBtn as HTMLElement & { scrollIntoView?: unknown }).scrollIntoView;
+      if (typeof scrollIntoViewFn === "function") {
+        scrollIntoViewFn.call(activeBtn, { block: "nearest", inline: "nearest" });
+      }
+    }
   };
 
   for (const tab of tabs) {
     const btn = make("button", {
       id: `tab-${tab.id}`,
       class: "settings-tab",
+      type: "button",
       role: "tab",
       "aria-selected": tab.id === activeTab ? "true" : "false",
+      tabindex: tab.id === activeTab ? "0" : "-1",
       "aria-controls": `tab-panel-${tab.id}`,
     }, tab.label) as HTMLButtonElement;
     btn.addEventListener("click", () => switchTab(tab.id));
+    btn.addEventListener("keydown", (e) => {
+      const i = tabs.findIndex(t => t.id === tab.id);
+      if (i < 0) return;
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        const nextIndex =
+          e.key === "Home" ? 0 :
+          e.key === "End" ? tabs.length - 1 :
+          e.key === "ArrowRight" ? (i + 1) % tabs.length :
+          (i - 1 + tabs.length) % tabs.length;
+        const target = tabBtns[nextIndex];
+        switchTab(tabs[nextIndex].id);
+        target.focus();
+        return;
+      }
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        switchTab(tab.id);
+      }
+    });
     tabBar.appendChild(btn);
     tabBtns.push(btn);
 
@@ -1805,6 +1838,7 @@ function buildSettingsContent(
       id: `tab-panel-${tab.id}`,
       class: "settings-panel-content",
       role: "tabpanel",
+      "aria-hidden": tab.id === activeTab ? "false" : "true",
       "aria-labelledby": `tab-${tab.id}`,
     });
     if (tab.id !== activeTab) panel.hidden = true;
