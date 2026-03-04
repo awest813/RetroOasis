@@ -2195,18 +2195,78 @@ function buildMultiplayerTab(
   const iceSection = make("div", { class: "settings-section" });
   iceSection.appendChild(make("h4", { class: "settings-section__title" }, "ICE / STUN Servers"));
   iceSection.appendChild(make("p", { class: "settings-help" },
-    "Public Google STUN servers are used by default for WebRTC hole-punching. " +
-    "For networks with strict symmetric NAT, add a TURN server via the netplay server configuration. " +
-    "Current ICE servers:"
+    "Google STUN servers are used by default for WebRTC hole-punching. " +
+    "For networks with strict symmetric NAT, add a TURN server (e.g. turn:turn.example.com:3478)."
   ));
 
-  const defaultServers = netplayManager?.iceServers ?? DEFAULT_ICE_SERVERS;
-  const iceList = make("ul", { class: "device-info-list" });
-  for (const srv of defaultServers) {
-    const url = Array.isArray(srv.urls) ? srv.urls.join(", ") : srv.urls;
-    iceList.appendChild(make("li", { class: "device-info" }, url));
-  }
+  // Mutable local copy — kept in sync with NetplayManager on every change
+  let iceServers: RTCIceServer[] = [...(netplayManager?.iceServers ?? DEFAULT_ICE_SERVERS)];
+
+  // List of current entries, rebuilt on every mutation
+  const iceList = make("div", { class: "netplay-ice-list" });
+  const renderIceList = () => {
+    iceList.innerHTML = "";
+    for (const srv of iceServers) {
+      const urls   = Array.isArray(srv.urls) ? srv.urls : [srv.urls];
+      const urlStr = urls.join(", ");
+      const row = make("div", { class: "netplay-ice-row" });
+      row.appendChild(make("span", { class: "netplay-ice-url" }, urlStr));
+      const removeBtn = make("button", {
+        class: "btn netplay-ice-remove",
+        "aria-label": `Remove ${urlStr}`,
+      }, "✕") as HTMLButtonElement;
+      removeBtn.addEventListener("click", () => {
+        const idx = iceServers.indexOf(srv);
+        if (idx !== -1) iceServers.splice(idx, 1);
+        netplayManager?.setIceServers([...iceServers]);
+        renderIceList();
+      });
+      row.appendChild(removeBtn);
+      iceList.appendChild(row);
+    }
+  };
+  renderIceList();
   iceSection.appendChild(iceList);
+
+  // Add-server row
+  const addRow = make("div", { class: "settings-input-row" });
+  const addInput = make("input", {
+    type:        "text",
+    class:       "settings-input",
+    placeholder: "stun:stun.example.com:3478",
+    "aria-label": "New ICE server URL",
+  }) as HTMLInputElement;
+  const addBtn = make("button", { class: "btn btn--primary" }, "Add") as HTMLButtonElement;
+  addBtn.addEventListener("click", () => {
+    const url = addInput.value.trim();
+    if (!url) return;
+    if (!/^(stun|turn|turns):/i.test(url)) {
+      addInput.setCustomValidity("URL must start with stun:, turn:, or turns:");
+      addInput.reportValidity();
+      return;
+    }
+    addInput.setCustomValidity("");
+    iceServers.push({ urls: url });
+    netplayManager?.setIceServers([...iceServers]);
+    addInput.value = "";
+    renderIceList();
+  });
+  addInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addBtn.click();
+  });
+  addInput.addEventListener("input", () => addInput.setCustomValidity(""));
+  addRow.append(addInput, addBtn);
+  iceSection.appendChild(addRow);
+
+  // Reset-to-defaults button
+  const resetBtn = make("button", { class: "btn settings-clear-btn" }, "Reset to defaults") as HTMLButtonElement;
+  resetBtn.addEventListener("click", () => {
+    netplayManager?.resetIceServers();
+    iceServers = [...DEFAULT_ICE_SERVERS];
+    renderIceList();
+  });
+  iceSection.appendChild(resetBtn);
+
   serverSection.appendChild(iceSection);
 
   container.append(serverSection);

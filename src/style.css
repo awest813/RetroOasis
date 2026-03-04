@@ -1154,6 +1154,60 @@ body {
 /* ── Settings buttons ──────────────────────────────────────── */
 .settings-clear-btn { margin-top: 10px; }
 
+/* ── Settings text-input rows ───────────────────────────────── */
+.settings-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.settings-input-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--c-text);
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.settings-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--c-surface2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.settings-input:focus { border-color: var(--c-accent); }
+
+/* ── ICE server editable list ───────────────────────────────── */
+.netplay-ice-list { margin-bottom: 8px; }
+
+.netplay-ice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.netplay-ice-url {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--c-text-dim);
+  word-break: break-all;
+}
+
+.netplay-ice-remove {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  padding: 2px 7px;
+  line-height: 1.4;
+}
+
 /* ── Custom confirm dialog ─────────────────────────────────── */
 .confirm-overlay {
   position: fixed;
