@@ -1241,6 +1241,33 @@ body {
 
 .game-card__patch:hover { background: rgba(91, 142, 247, 0.35); }
 
+/* ── Game card — change-system button ──────────────────────── */
+.game-card__change-sys {
+  position: absolute;
+  top: 36px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(80, 200, 120, 0.18);
+  color: #50c878;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition);
+  z-index: 2;
+}
+
+.game-card:hover .game-card__change-sys,
+.game-card:focus-within .game-card__change-sys { opacity: 1; }
+
+.game-card__change-sys:hover { background: rgba(80, 200, 120, 0.35); }
+
 /* ── BIOS management UI ────────────────────────────────────── */
 .bios-grid { display: flex; flex-direction: column; gap: 14px; }
 

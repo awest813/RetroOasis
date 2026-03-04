@@ -693,11 +693,33 @@ function buildGameCard(
     }
   });
 
+  const btnChangeSystem = make("button", {
+    class: "game-card__change-sys",
+    title: "Change system / emulator",
+    "aria-label": `Change system for ${game.name}`,
+  }, "⟳");
+
+  btnChangeSystem.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const newSystem = await pickSystem(
+      game.name,
+      SYSTEMS,
+      `Choose the emulator for "${game.name}". Currently assigned to: ${system?.name ?? game.systemId}`
+    );
+    if (!newSystem || newSystem.id === game.systemId) return;
+    try {
+      await library.changeSystemId(game.id, newSystem.id);
+      void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    } catch (err) {
+      showError(`Could not change system: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+
   const playOverlay = make("div", { class: "game-card__play-overlay", "aria-hidden": "true" });
   const playBtn     = make("div", { class: "game-card__play-btn" }, "▶");
   playOverlay.appendChild(playBtn);
 
-  card.append(icon, info, patchInput, btnPatch, btnRemove, playOverlay);
+  card.append(icon, info, patchInput, btnPatch, btnChangeSystem, btnRemove, playOverlay);
 
   let preloadTriggered = false;
   const triggerPreload = () => {
@@ -795,7 +817,7 @@ function showConfirmDialog(
 
 // ── System picker modal ───────────────────────────────────────────────────────
 
-function pickSystem(fileName: string, candidates: SystemInfo[]): Promise<SystemInfo | null> {
+function pickSystem(fileName: string, candidates: SystemInfo[], subtitleText?: string): Promise<SystemInfo | null> {
   return new Promise((resolve) => {
     const panel    = document.getElementById("system-picker")!;
     const list     = document.getElementById("system-picker-list")!;
@@ -803,7 +825,7 @@ function pickSystem(fileName: string, candidates: SystemInfo[]): Promise<SystemI
     const closeBtn = document.getElementById("system-picker-close")!;
     const backdrop = document.getElementById("system-picker-backdrop")!;
 
-    subtitle.textContent = `The file "${fileName}" could belong to several systems. Choose one:`;
+    subtitle.textContent = subtitleText ?? `The file "${fileName}" could belong to several systems. Choose one:`;
     list.innerHTML = "";
     for (const sys of candidates) {
       const btn   = make("button", { class: "system-pick-btn" });
@@ -1649,7 +1671,7 @@ export function openSettingsPanel(
   document.addEventListener("keydown", _settingsPanelEscHandler);
 }
 
-type SettingsTab = "performance" | "display" | "library" | "bios";
+type SettingsTab = "performance" | "display" | "library" | "bios" | "debug";
 
 function buildSettingsContent(
   container:        HTMLElement,
@@ -1669,6 +1691,7 @@ function buildSettingsContent(
     { id: "display",     label: "Display" },
     { id: "library",     label: "Library" },
     { id: "bios",        label: "BIOS" },
+    { id: "debug",       label: "Debug" },
   ];
 
   let activeTab: SettingsTab = "performance";
@@ -1723,6 +1746,7 @@ function buildSettingsContent(
   buildDisplayTab(panels[1], settings, deviceCaps, onSettingsChange, emulatorRef);
   buildLibraryTab(panels[2], settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef);
   buildBiosTab(panels[3], biosLibrary);
+  buildDebugTab(panels[4], deviceCaps, emulatorRef);
 }
 
 // ── Performance tab ───────────────────────────────────────────────────────────
@@ -2090,6 +2114,107 @@ function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary): void {
   }
 
   container.appendChild(biosSection);
+}
+
+// ── Debug tab ─────────────────────────────────────────────────────────────────
+
+function buildDebugTab(
+  container:  HTMLElement,
+  deviceCaps: DeviceCapabilities,
+  emulatorRef?: import("./emulator.js").PSPEmulator
+): void {
+  // Environment section
+  const envSection = make("div", { class: "settings-section" });
+  envSection.appendChild(make("h4", { class: "settings-section__title" }, "Environment"));
+
+  const isIsolated = "crossOriginIsolated" in self ? self.crossOriginIsolated : false;
+  const hasSAB     = typeof SharedArrayBuffer !== "undefined";
+  const hasWasm    = typeof WebAssembly !== "undefined";
+
+  envSection.appendChild(make("p", { class: "device-info" },
+    `Cross-Origin Isolated: ${isIsolated ? "✓ Yes (PSP supported)" : "✗ No — PSP games will fail (reload after coi-serviceworker.js)"}`
+  ));
+  envSection.appendChild(make("p", { class: "device-info" },
+    `SharedArrayBuffer: ${hasSAB ? "✓ Available" : "✗ Not available"}`
+  ));
+  envSection.appendChild(make("p", { class: "device-info" },
+    `WebAssembly: ${hasWasm ? "✓ Available" : "✗ Not available"}`
+  ));
+  envSection.appendChild(make("p", { class: "device-info" },
+    `User Agent: ${navigator.userAgent}`
+  ));
+
+  // Emulator state section
+  const stateSection = make("div", { class: "settings-section" });
+  stateSection.appendChild(make("h4", { class: "settings-section__title" }, "Emulator State"));
+
+  stateSection.appendChild(make("p", { class: "device-info" },
+    `State: ${emulatorRef?.state ?? "unknown"}`
+  ));
+  stateSection.appendChild(make("p", { class: "device-info" },
+    `Active System: ${emulatorRef?.currentSystem?.name ?? "—"} (id: ${emulatorRef?.currentSystem?.id ?? "—"})`
+  ));
+  stateSection.appendChild(make("p", { class: "device-info" },
+    `Active Tier: ${emulatorRef?.activeTier ?? "—"}`
+  ));
+  const adapterInfo = emulatorRef?.webgpuAdapterInfo;
+  const adapterLabel = (adapterInfo?.vendor || adapterInfo?.device)
+    ? `${adapterInfo.device ?? adapterInfo.vendor}${adapterInfo.isFallbackAdapter ? " (software)" : ""}`
+    : null;
+  if (adapterLabel) {
+    stateSection.appendChild(make("p", { class: "device-info" },
+      `WebGPU Adapter: ${adapterLabel}`
+    ));
+  }
+
+  // Actions section
+  const actionsSection = make("div", { class: "settings-section" });
+  actionsSection.appendChild(make("h4", { class: "settings-section__title" }, "Actions"));
+  actionsSection.appendChild(make("p", { class: "settings-help" },
+    "Copy a snapshot of diagnostics to the clipboard for bug reports."
+  ));
+
+  const btnCopy = make("button", { class: "btn" }, "Copy Debug Info");
+  btnCopy.addEventListener("click", () => {
+    const lines = [
+      `RetroVault Debug Info — ${new Date().toISOString()}`,
+      ``,
+      `[Environment]`,
+      `Cross-Origin Isolated: ${isIsolated}`,
+      `SharedArrayBuffer: ${hasSAB}`,
+      `WebAssembly: ${hasWasm}`,
+      `User Agent: ${navigator.userAgent}`,
+      ``,
+      `[Device]`,
+      `Tier: ${deviceCaps.tier}`,
+      `GPU Score: ${deviceCaps.gpuBenchmarkScore}/100`,
+      `Low-Spec: ${deviceCaps.isLowSpec}`,
+      `ChromeOS: ${deviceCaps.isChromOS}`,
+      `WebGL2: ${deviceCaps.gpuCaps.webgl2}`,
+      `WebGPU: ${deviceCaps.webgpuAvailable}`,
+      `Max Texture: ${deviceCaps.gpuCaps.maxTextureSize}px`,
+      `Anisotropic: ${deviceCaps.gpuCaps.anisotropicFiltering} (max ${deviceCaps.gpuCaps.maxAnisotropy}×)`,
+      `Float Textures: ${deviceCaps.gpuCaps.floatTextures}`,
+      `Instanced Arrays: ${deviceCaps.gpuCaps.instancedArrays}`,
+      ``,
+      `[Emulator]`,
+      `State: ${emulatorRef?.state ?? "unknown"}`,
+      `System: ${emulatorRef?.currentSystem?.id ?? "—"}`,
+      `Tier: ${emulatorRef?.activeTier ?? "—"}`,
+    ];
+    if (adapterLabel) {
+      lines.push(`WebGPU Adapter: ${adapterLabel}`);
+    }
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      showInfoToast("Debug info copied to clipboard.");
+    }).catch(() => {
+      showError("Could not copy to clipboard.");
+    });
+  });
+  actionsSection.appendChild(btnCopy);
+
+  container.append(envSection, stateSection, actionsSection);
 }
 
 // ── Toggle row builder ────────────────────────────────────────────────────────
