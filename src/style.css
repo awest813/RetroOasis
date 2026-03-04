@@ -1516,12 +1516,10 @@ body {
   gap: 4px;
 }
 
-/* Gallery footer */
-.confirm-footer {
-  display: flex;
+/* Gallery footer (overrides the generic confirm-footer only within the save gallery) */
+.save-gallery-box .confirm-footer {
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid var(--c-border);
   flex-shrink: 0;
