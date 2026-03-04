@@ -47,6 +47,20 @@ export interface BiosRequirement {
   required: boolean;
   /** Short description shown beneath the upload control. */
   description: string;
+  /**
+   * Optional group identifier for mutually-exclusive BIOS alternatives.
+   * When set, `isBiosReady` requires that at least ONE entry sharing the
+   * same group is present rather than requiring all of them.
+   *
+   * Example: Sega Saturn accepts either the JP BIOS (sega_101.bin) or the
+   * US/EU BIOS (mpr-17933.bin). Both entries carry the same group so the
+   * check passes as soon as one of them is found.
+   *
+   * Entries without a group are treated as standalone requirements —
+   * each must individually be present (e.g. Dreamcast dc_boot.bin and
+   * dc_flash.bin are two distinct files that are both needed).
+   */
+  group?: string;
 }
 
 // ── Known BIOS requirements per system ────────────────────────────────────────
@@ -77,12 +91,14 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
       fileName: "sega_101.bin",
       displayName: "Saturn BIOS JP (sega_101.bin)",
       required: true,
+      group: "saturn-bios",
       description: "Sega Saturn Japanese BIOS — required for Saturn emulation",
     },
     {
       fileName: "mpr-17933.bin",
       displayName: "Saturn BIOS US/EU (mpr-17933.bin)",
       required: true,
+      group: "saturn-bios",
       description: "Sega Saturn North-American / European BIOS",
     },
   ],
@@ -254,10 +270,37 @@ export class BiosLibrary {
   async isBiosReady(systemId: string): Promise<boolean> {
     const reqs = BIOS_REQUIREMENTS[systemId];
     if (!reqs) return true;
-    for (const r of reqs) {
-      if (!r.required) continue;
-      const found = await this.findBios(systemId, r.fileName);
-      if (!found) return false;
+
+    // Separate required entries from optional ones — optional never block boot.
+    const required = reqs.filter(r => r.required);
+    if (required.length === 0) return true;
+
+    // Group entries by their `group` key (entries without a group use their
+    // fileName as a unique key so each is treated as its own requirement).
+    const groups = new Map<string, BiosRequirement[]>();
+    for (const r of required) {
+      const key = r.group ?? r.fileName;
+      const bucket = groups.get(key);
+      if (bucket) {
+        bucket.push(r);
+      } else {
+        groups.set(key, [r]);
+      }
+    }
+
+    // Every group must have at least one file present.
+    // A group with a single entry (no `group` field set) effectively means
+    // "this exact file must be present".
+    // A group with multiple entries means "at least one of these files must
+    // be present" — used for systems that accept regional BIOS alternatives
+    // (e.g. Sega Saturn: JP or US/EU BIOS, not necessarily both).
+    for (const entries of groups.values()) {
+      let anyFound = false;
+      for (const e of entries) {
+        const found = await this.findBios(systemId, e.fileName);
+        if (found) { anyFound = true; break; }
+      }
+      if (!anyFound) return false;
     }
     return true;
   }
@@ -284,5 +327,14 @@ export class BiosLibrary {
    */
   async warmUp(): Promise<void> {
     await openDB();
+  }
+
+  /**
+   * Remove all stored BIOS entries.
+   * Primarily used in tests to achieve a clean state between test cases.
+   */
+  async clearAll(): Promise<void> {
+    const db = await openDB();
+    await promisify(tx(db, "readwrite").clear());
   }
 }

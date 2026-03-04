@@ -1416,4 +1416,365 @@ describe('PSPEmulator', () => {
       expect(window.EJS_gameID).toBe(mgr.gameIdFor('psp-game-ff7'));
     });
   });
+
+  // ── biosUrl in LaunchOptions ──────────────────────────────────────────────
+
+  describe('launch — biosUrl EJS global', () => {
+    const fakeCaps = {
+      deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false,
+      recommendedMode: 'quality' as const, tier: 'medium' as const,
+      gpuCaps: {
+        renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
+        maxVertexAttribs: 16, maxVaryingVectors: 8, maxRenderbufferSize: 2048,
+        anisotropicFiltering: false, maxAnisotropy: 0,
+        floatTextures: false, halfFloatTextures: false,
+        instancedArrays: false, webgl2: false,
+        vertexArrayObject: false, compressedTextures: false,
+        maxColorAttachments: 1, multiDraw: false,
+      },
+      gpuBenchmarkScore: 30, prefersReducedMotion: false,
+      webgpuAvailable: false, connectionQuality: 'unknown' as const, jsHeapLimitMB: null,
+    };
+
+    beforeEach(() => {
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: vi.fn(() => 'blob:fake-url'),
+        revokeObjectURL: vi.fn(),
+      });
+      const marker = document.createElement('script');
+      marker.setAttribute('data-ejs-loader', 'true');
+      document.body.appendChild(marker);
+      delete (window as unknown as Record<string, unknown>).EJS_biosUrl;
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      document.querySelector('script[data-ejs-loader]')?.remove();
+      delete (window as unknown as Record<string, unknown>).EJS_biosUrl;
+    });
+
+    it('sets EJS_biosUrl when biosUrl is provided', async () => {
+      emulator.onError = () => {};
+      await emulator.launch({
+        file:            new File(['data'], 'game.nes'),
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+        biosUrl:         'blob:fake-bios-url',
+      });
+
+      expect((window as unknown as Record<string, unknown>).EJS_biosUrl)
+        .toBe('blob:fake-bios-url');
+    });
+
+    it('does not set EJS_biosUrl when biosUrl is omitted', async () => {
+      (window as unknown as Record<string, unknown>).EJS_biosUrl = 'stale-from-previous';
+
+      emulator.onError = () => {};
+      await emulator.launch({
+        file:            new File(['data'], 'game.nes'),
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+        // biosUrl intentionally omitted
+      });
+
+      expect((window as unknown as Record<string, unknown>).EJS_biosUrl).toBeUndefined();
+    });
+  });
+
+  // ── Large ROM warning ─────────────────────────────────────────────────────
+
+  describe('launch — large ROM warning', () => {
+    const fakeCaps = {
+      deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false,
+      recommendedMode: 'quality' as const, tier: 'medium' as const,
+      gpuCaps: {
+        renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
+        maxVertexAttribs: 16, maxVaryingVectors: 8, maxRenderbufferSize: 2048,
+        anisotropicFiltering: false, maxAnisotropy: 0,
+        floatTextures: false, halfFloatTextures: false,
+        instancedArrays: false, webgl2: false,
+        vertexArrayObject: false, compressedTextures: false,
+        maxColorAttachments: 1, multiDraw: false,
+      },
+      gpuBenchmarkScore: 30, prefersReducedMotion: false,
+      webgpuAvailable: false, connectionQuality: 'unknown' as const, jsHeapLimitMB: null,
+    };
+
+    it('emits a console.warn for ROMs larger than 500 MB', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: vi.fn(() => 'blob:fake-url'),
+        revokeObjectURL: vi.fn(),
+      });
+      const marker = document.createElement('script');
+      marker.setAttribute('data-ejs-loader', 'true');
+      document.body.appendChild(marker);
+
+      // Create a File whose .size property reports > 500 MB without allocating memory.
+      // Use GBA (needsThreads=false, needsWebGL2=false) so pre-flight checks pass.
+      const largeFile = new File(['x'], 'huge.gba');
+      Object.defineProperty(largeFile, 'size', { value: 600 * 1024 * 1024 });
+
+      emulator.onError = () => {};
+      await emulator.launch({
+        file:            largeFile,
+        volume:          0.7,
+        systemId:        'gba',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const largeRomWarns = warnSpy.mock.calls
+        .map(args => args[0] as string)
+        .filter(msg => typeof msg === 'string' && msg.includes('Large ROM'));
+      expect(largeRomWarns.length).toBeGreaterThan(0);
+      expect(largeRomWarns[0]).toContain('MB');
+
+      vi.unstubAllGlobals();
+      document.querySelector('script[data-ejs-loader]')?.remove();
+    });
+
+    it('does not emit a large-ROM warning for a normal-sized ROM', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // A small GBA ROM is well under the 500 MB threshold.
+      // GBA has needsThreads=false, needsWebGL2=false so pre-flight checks pass.
+      const smallFile = new File(['data'], 'game.gba');
+
+      emulator.onError = () => {};
+      await emulator.launch({
+        file:            smallFile,
+        volume:          0.7,
+        systemId:        'gba',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const largeRomWarns = warnSpy.mock.calls
+        .map(args => args[0] as string)
+        .filter(msg => typeof msg === 'string' && msg.includes('Large ROM'));
+      expect(largeRomWarns).toHaveLength(0);
+    });
+  });
+
+  // ── fileName override in LaunchOptions ───────────────────────────────────
+
+  describe('launch — fileName override', () => {
+    const fakeCaps = {
+      deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false,
+      recommendedMode: 'quality' as const, tier: 'medium' as const,
+      gpuCaps: {
+        renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
+        maxVertexAttribs: 16, maxVaryingVectors: 8, maxRenderbufferSize: 2048,
+        anisotropicFiltering: false, maxAnisotropy: 0,
+        floatTextures: false, halfFloatTextures: false,
+        instancedArrays: false, webgl2: false,
+        vertexArrayObject: false, compressedTextures: false,
+        maxColorAttachments: 1, multiDraw: false,
+      },
+      gpuBenchmarkScore: 30, prefersReducedMotion: false,
+      webgpuAvailable: false, connectionQuality: 'unknown' as const, jsHeapLimitMB: null,
+    };
+
+    it('uses the fileName option for extension validation when provided', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      // Blob (no .name) with a .gba fileName override — should match GBA system.
+      // GBA needs neither SharedArrayBuffer nor WebGL2, so the pre-flight checks
+      // pass and we can verify extension validation in isolation.
+      const blob = new Blob(['gba-data']);
+      await emulator.launch({
+        file:            blob,
+        fileName:        'game.gba',
+        volume:          0.7,
+        systemId:        'gba',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+
+    it('emits Unsupported file type when the fileName override extension mismatches', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      const blob = new Blob(['data']);
+      await emulator.launch({
+        file:            blob,
+        fileName:        'game.gba',      // GBA extension for NES system
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('Unsupported file type');
+    });
+
+    it('falls back to "game.bin" when file is a Blob with no name and no fileName override', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      const blob = new Blob(['data']);
+      await emulator.launch({
+        file:            blob,
+        // fileName intentionally omitted
+        volume:          0.7,
+        systemId:        'psx',          // .bin is a valid PS1 extension
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      // .bin is a valid PSX extension — should NOT emit an Unsupported error
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+  });
+
+  // ── ISO/PBP ambiguous extension validation ────────────────────────────────
+
+  describe('launch — ISO and PBP extension validation', () => {
+    const fakeCaps = {
+      deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false,
+      recommendedMode: 'quality' as const, tier: 'medium' as const,
+      gpuCaps: {
+        renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
+        maxVertexAttribs: 16, maxVaryingVectors: 8, maxRenderbufferSize: 2048,
+        anisotropicFiltering: false, maxAnisotropy: 0,
+        floatTextures: false, halfFloatTextures: false,
+        instancedArrays: false, webgl2: false,
+        vertexArrayObject: false, compressedTextures: false,
+        maxColorAttachments: 1, multiDraw: false,
+      },
+      gpuBenchmarkScore: 30, prefersReducedMotion: false,
+      webgpuAvailable: false, connectionQuality: 'unknown' as const, jsHeapLimitMB: null,
+    };
+
+    beforeEach(() => {
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: vi.fn(() => 'blob:fake-url'),
+        revokeObjectURL: vi.fn(),
+      });
+      const marker = document.createElement('script');
+      marker.setAttribute('data-ejs-loader', 'true');
+      document.body.appendChild(marker);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      document.querySelector('script[data-ejs-loader]')?.remove();
+    });
+
+    it('accepts a .iso file for the PSP system', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.iso'),
+        volume:          0.7,
+        systemId:        'psp',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+
+    it('accepts a .iso file for the PSX system', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.iso'),
+        volume:          0.7,
+        systemId:        'psx',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+
+    it('accepts a .pbp file for the PSP system', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'EBOOT.PBP'),
+        volume:          0.7,
+        systemId:        'psp',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+
+    it('accepts a .pbp file for the PSX system', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'EBOOT.PBP'),
+        volume:          0.7,
+        systemId:        'psx',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+
+    it('rejects a .iso file for the NES system', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.iso'),
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('Unsupported file type');
+    });
+
+    it('accepts a .cso file for the PSP system (CSO is PSP-only)', async () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.cso'),
+        volume:          0.7,
+        systemId:        'psp',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const extErrors = errors.filter(e => e.includes('Unsupported file type'));
+      expect(extErrors).toHaveLength(0);
+    });
+  });
 });
