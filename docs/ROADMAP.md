@@ -223,7 +223,7 @@ Data-driven and heuristic approaches to automatically tune emulator settings.
 - [ ] **Thermal-aware throttling**: On devices that expose the Compute Pressure API, monitor thermal state and proactively lower the tier before the OS forces CPU/GPU throttling; log thermal events in the diagnostic timeline
 - [ ] **Memory pressure detection**: Monitor `performance.measureUserAgentSpecificMemory()` (where available) and reduce texture cache sizes, disable texture scaling, or lower internal resolution when the JS heap approaches the limit; surface warnings in the debug panel
 - [ ] **Startup profiler**: Measure and log every phase of game launch (core download, WASM compile, BIOS load, first frame) with high-resolution timestamps; identify the slowest phase and surface actionable suggestions (e.g. "BIOS load took 2.3 s — consider uploading a smaller BIOS")
-- [ ] **FPS prediction**: Use the first 5 seconds of gameplay FPS data to predict whether the current tier will sustain 60 fps; if prediction is below threshold, offer an immediate tier downgrade instead of waiting for the 10-second low-FPS trigger
+- [x] **FPS prediction**: Use the first 5 seconds of gameplay FPS data to predict whether the current tier will sustain 60 fps; if prediction is below threshold, offer an immediate tier downgrade instead of waiting for the 10-second low-FPS trigger
 
 ### Caching & Preloading
 

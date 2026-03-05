@@ -1370,7 +1370,7 @@ describe('PSPEmulator', () => {
 
       vi.spyOn(performance, 'now').mockReturnValue(baseTime);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_100);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(warnSpy).not.toHaveBeenCalled();
@@ -1383,14 +1383,14 @@ describe('PSPEmulator', () => {
 
       vi.spyOn(performance, 'now').mockReturnValue(baseTime);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_100);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy.mock.calls[0]?.[0]).toContain("Sustained low FPS");
     });
 
-    it('does not fire onLowFPS before 10 seconds of sustained low FPS', () => {
+    it('does not fire onLowFPS before 5 seconds of sustained low FPS', () => {
       const lowFPSEvents: number[] = [];
       emulator.onLowFPS = (fps) => { lowFPSEvents.push(fps); };
 
@@ -1400,8 +1400,8 @@ describe('PSPEmulator', () => {
       vi.spyOn(performance, 'now').mockReturnValue(baseTime);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
-      // 9.9 seconds later — still under the 10 s threshold
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 9_900);
+      // 4.9 seconds later — still under the 5 s threshold
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 4_900);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(lowFPSEvents).toHaveLength(0);
@@ -1421,14 +1421,14 @@ describe('PSPEmulator', () => {
       vi.spyOn(performance, 'now').mockReturnValue(baseTime);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
-      // 10+ s of sustained low FPS — suggestion must fire despite tiny `now`
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      // 5+ s of sustained low FPS — suggestion must fire despite tiny `now`
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_100);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(lowFPSEvents).toHaveLength(1);
     });
 
-    it('fires onLowFPS after 10 actual seconds of sustained low FPS', () => {
+    it('fires onLowFPS after 5 actual seconds of sustained low FPS', () => {
       const lowFPSEvents: number[] = [];
       emulator.onLowFPS = (fps) => { lowFPSEvents.push(fps); };
 
@@ -1439,15 +1439,15 @@ describe('PSPEmulator', () => {
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
       expect(lowFPSEvents).toHaveLength(0);
 
-      // Move time past 10 s — should trigger onLowFPS
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      // Move time past 5 s — should trigger onLowFPS
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_100);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(lowFPSEvents).toHaveLength(1);
       expect(lowFPSEvents[0]).toBe(20);
     });
 
-    it('resets the timer when FPS recovers, then requires another 10 s', () => {
+    it('resets the timer when FPS recovers, then requires another 5 s', () => {
       const lowFPSEvents: number[] = [];
       emulator.onLowFPS = (fps) => { lowFPSEvents.push(fps); };
 
@@ -1461,12 +1461,12 @@ describe('PSPEmulator', () => {
       vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_000);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(55);
 
-      // FPS drops again at 5 s; a new 10 s window starts now
+      // FPS drops again at 5 s; a new 5 s window starts now
       vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_000);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
-      // 9 s after the reset (14 s absolute) — still under the new 10 s window
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 14_000);
+      // 4 s after the reset (9 s absolute) — still under the new 5 s window
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 9_000);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       expect(lowFPSEvents).toHaveLength(0);
@@ -1480,15 +1480,15 @@ describe('PSPEmulator', () => {
       vi.spyOn(performance, 'now').mockReturnValue(baseTime);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
-      // Trigger once at 10 s
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_100);
+      // Trigger once at 5 s
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_100);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
       expect(lowFPSEvents).toHaveLength(1);
 
       // Immediately keep low FPS; cooldown prevents a second fire
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 10_200);
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 5_200);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
-      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 20_000);
+      vi.spyOn(performance, 'now').mockReturnValue(baseTime + 15_000);
       (emulator as unknown as EmuInternal)._checkAdaptiveQuality(20);
 
       // Still only one event — the 60 s cooldown is in effect
@@ -1510,18 +1510,18 @@ describe('PSPEmulator', () => {
       // Trigger initial low-FPS suggestion
       nowSpy.mockReturnValue(baseTime);
       internal._checkAdaptiveQuality(20);
-      nowSpy.mockReturnValue(baseTime + 10_100);
+      nowSpy.mockReturnValue(baseTime + 5_100);
       internal._checkAdaptiveQuality(20);
       expect(lowFPSEvents).toHaveLength(1);
 
       // New session boundary
       internal._teardown();
 
-      // Within the old cooldown window, a fresh 10 s run should trigger again
+      // Within the old cooldown window, a fresh 5 s run should trigger again
       // because teardown resets the adaptive-quality timing state.
       nowSpy.mockReturnValue(baseTime + 11_000);
       internal._checkAdaptiveQuality(20);
-      nowSpy.mockReturnValue(baseTime + 21_200);
+      nowSpy.mockReturnValue(baseTime + 16_200);
       internal._checkAdaptiveQuality(20);
       expect(lowFPSEvents).toHaveLength(2);
     });

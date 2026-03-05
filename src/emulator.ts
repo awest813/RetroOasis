@@ -105,7 +105,7 @@ const LARGE_ROM_THRESHOLD = 500 * 1024 * 1024;
 // Adaptive quality thresholds — moved here so they are not reconstructed on
 // every _checkAdaptiveQuality() call (which fires every ~10 frames).
 const AQ_LOW_FPS_HZ   = 25;        // FPS floor before the timer starts
-const AQ_TRIGGER_MS   = 10_000;    // sustained low-FPS window before alert
+const AQ_TRIGGER_MS   = 5_000;     // low-FPS window before downgrade suggestion
 const AQ_COOLDOWN_MS  = 60_000;    // minimum gap between successive alerts
 
 let cachedWebGL2Support: boolean | null = null;
@@ -1723,10 +1723,10 @@ export class PSPEmulator {
   /**
    * Called every ~10 frames with the current average FPS.
    *
-   * If the average stays below 25 FPS for more than 10 consecutive seconds
-   * the game is definitively struggling on this hardware. We fire `onLowFPS`
-   * so the UI layer can surface a "Switch to Performance mode?" suggestion.
-   * A 60-second cooldown prevents spamming the user during loading screens.
+   * If the average stays below 25 FPS for roughly 5 consecutive seconds,
+   * we treat that as an early low-FPS prediction and fire `onLowFPS` so the
+   * UI can offer a tier downgrade sooner. A 60-second cooldown prevents
+   * spamming the user during loading screens.
    */
   private _checkAdaptiveQuality(averageFPS: number): void {
     const now = performance.now();
