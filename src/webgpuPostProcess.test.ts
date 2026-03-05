@@ -433,6 +433,41 @@ describe("WebGPUPostProcessor", () => {
       );
       expect(hasUniform).toBe(false);
     });
+
+    it("destroys the old uniform buffer only after the new pipeline is successfully built", () => {
+      const { device, mockBuffer } = createMockGPUDevice();
+      const pp = new WebGPUPostProcessor(device as unknown as GPUDevice);
+
+      // Build an initial CRT pipeline — this creates a uniform buffer
+      pp.updateConfig({ effect: "crt" });
+      const destroyCallsAfterFirstBuild = mockBuffer.destroy.mock.calls.length;
+
+      // The old buffer must NOT be destroyed yet (no effect change has happened)
+      expect(destroyCallsAfterFirstBuild).toBe(0);
+
+      // Switch to sharpen — this triggers _rebuildPipeline():
+      // the old CRT buffer should be destroyed only AFTER the new pipeline succeeds
+      pp.updateConfig({ effect: "sharpen" });
+      expect(mockBuffer.destroy).toHaveBeenCalled();
+    });
+
+    it("destroys the old uniform buffer even when the new pipeline build fails", () => {
+      const { device, mockBuffer } = createMockGPUDevice();
+      const pp = new WebGPUPostProcessor(device as unknown as GPUDevice);
+
+      // Build initial CRT pipeline
+      pp.updateConfig({ effect: "crt" });
+      expect(mockBuffer.destroy).not.toHaveBeenCalled();
+
+      // Make the next pipeline build throw
+      (device.createRenderPipeline as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+        throw new Error("GPU pipeline compile failed");
+      });
+
+      // Switch effect — build will fail, but the old buffer must still be released
+      pp.updateConfig({ effect: "sharpen" });
+      expect(mockBuffer.destroy).toHaveBeenCalled();
+    });
   });
 
   describe("bind group caching", () => {

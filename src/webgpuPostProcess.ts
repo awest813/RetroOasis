@@ -690,7 +690,7 @@ export class WebGPUPostProcessor {
   // ── Private ─────────────────────────────────────────────────────────────────
 
   private _rebuildPipeline(): void {
-    this._effectPipeline?.uniformBuffer?.destroy();
+    const prevPipeline = this._effectPipeline;
     this._currentEffect = this._config.effect;
 
     try {
@@ -699,6 +699,10 @@ export class WebGPUPostProcessor {
         this._currentEffect,
         this._presentFormat,
       );
+
+      // Destroy the old uniform buffer only after the new pipeline is assigned
+      // to avoid releasing GPU resources before the replacement is ready.
+      prevPipeline?.uniformBuffer?.destroy();
 
       // Persist the WGSL sources so subsequent session startups can pre-warm
       // the GPU shader compiler via shaderCache.preCompileWGSL().
@@ -710,6 +714,8 @@ export class WebGPUPostProcessor {
     } catch (err) {
       console.warn("[RetroVault] Failed to build WebGPU post-process pipeline:", err);
       this._effectPipeline = null;
+      // Release the old buffer to avoid a GPU resource leak.
+      prevPipeline?.uniformBuffer?.destroy();
     }
   }
 

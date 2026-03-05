@@ -49,7 +49,6 @@ declare global {
     EJS_startOnLoaded: boolean;
     EJS_threads:       boolean;
     EJS_volume:        number;
-    EJS_DEBUG_XX:      boolean;
     EJS_Settings?:     Record<string, string>;
     EJS_biosUrl?:      string;
     EJS_ready?:        () => void;
@@ -1223,7 +1222,6 @@ export class PSPEmulator {
       window.EJS_startOnLoaded = true;
       window.EJS_threads       = system.needsThreads;
       window.EJS_volume        = opts.volume;
-      window.EJS_DEBUG_XX      = false;
 
       if (opts.biosUrl) {
         window.EJS_biosUrl = opts.biosUrl;

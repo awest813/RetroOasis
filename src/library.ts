@@ -17,7 +17,7 @@
  * Schema
  * ------
  * Database : "retrovault"
- * Version  : 1
+ * Version  : 2
  * Store    : "games"  (keyPath = "id")
  *   id          string   — UUID v4
  *   name        string   — display name (filename without extension)
@@ -491,7 +491,7 @@ export function saveGameTierProfile(gameId: string, tier: PerformanceTier): void
 export function clearGameTierProfile(gameId: string): void {
   try {
     localStorage.removeItem(TIER_PROFILE_PREFIX + gameId);
-  } catch {}
+  } catch { /* localStorage unavailable — best-effort */ }
 }
 
 // ── Formatting utilities ──────────────────────────────────────────────────────
