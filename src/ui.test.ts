@@ -226,6 +226,52 @@ describe("library stale system filter recovery", () => {
   });
 });
 
+describe("game card patch action visibility", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("hides patch controls when onApplyPatch is not provided", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([makeGame("g1", "Crisis", "psp")]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(
+      library,
+      makeSettings(),
+      vi.fn(async () => {}),
+      undefined,
+      undefined
+    );
+
+    expect(document.querySelector(".game-card__patch")).toBeNull();
+  });
+
+  it("shows patch controls when onApplyPatch is provided", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([makeGame("g1", "Crisis", "psp")]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(
+      library,
+      makeSettings(),
+      vi.fn(async () => {}),
+      undefined,
+      vi.fn(async () => {})
+    );
+
+    expect(document.querySelector(".game-card__patch")).toBeTruthy();
+  });
+});
+
 describe("FPS toggle button aria-pressed", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
