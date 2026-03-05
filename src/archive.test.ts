@@ -605,7 +605,7 @@ describe('extractFromZip — all system format coverage', () => {
   it('extracts a .nds file (Nintendo DS ROM)', async () => {
     // NDS ROM header starts with an ARM9 entry point (4 bytes), then title (12 bytes).
     // We use a minimal non-zero header for the test.
-    const content = new Uint8Array([0x00, 0x00, 0x00, 0x04, ...new Array(12).fill(0x41)]);
+    const content = new Uint8Array([0x00, 0x00, 0x00, 0x04, ...new Array<number>(12).fill(0x41)]);
     const zipBuf  = buildZip('pokemon.nds', content);
     const result  = await extractFromZip(new Blob([zipBuf]));
 
