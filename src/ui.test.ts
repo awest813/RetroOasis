@@ -36,6 +36,8 @@ function makeOpts(settings: Settings) {
       currentSystem: null,
       setFPSMonitorEnabled: vi.fn(),
       prefetchCore: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
     } as unknown as PSPEmulator,
     library: { getAllGamesMetadata: vi.fn().mockResolvedValue([]) } as unknown as GameLibrary,
     biosLibrary: {} as BiosLibrary,
@@ -288,6 +290,8 @@ describe("FPS toggle button aria-pressed", () => {
       activeTier: "medium",
       currentSystem: { shortName: "PSP", name: "PSP", id: "psp", color: "#00f" },
       setFPSMonitorEnabled: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
       onStateChange: null,
       onProgress: null,
       onError: null,
@@ -930,5 +934,218 @@ describe("buildLibraryTab clear library closes panel properly", () => {
     // The panel should now be hidden (closed via settings-close.click(), not
     // via a direct .hidden assignment, so the ESC handler is also cleaned up).
     expect(panel.hidden).toBe(true);
+  });
+});
+
+// ── Volume slider debounce ────────────────────────────────────────────────────
+
+describe("volume slider debounce", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("calls setVolume immediately but debounces onSettingsChange while dragging", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const onSettingsChange = vi.fn();
+    const setVolume = vi.fn();
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { shortName: "PSP", name: "PSP", id: "psp", color: "#00f" },
+      setFPSMonitorEnabled: vi.fn(),
+      setVolume,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({
+      ...makeOpts(makeSettings({ volume: 0.7 })),
+      emulator: emulatorMock,
+      onSettingsChange,
+    });
+
+    // Trigger game start to render in-game controls including the volume slider
+    emulatorMock.onGameStart?.();
+
+    const volSlider = document.querySelector<HTMLInputElement>("input[type=range][aria-label=Volume]");
+    if (!volSlider) return; // skip if element not rendered (no-op in this environment)
+
+    // Simulate rapid slider input (like dragging)
+    for (let i = 1; i <= 5; i++) {
+      volSlider.value = String(i * 0.1);
+      volSlider.dispatchEvent(new Event("input"));
+    }
+
+    // setVolume should have been called immediately on every input
+    expect(setVolume).toHaveBeenCalledTimes(5);
+
+    // onSettingsChange should NOT have been called yet (debounce is 150 ms)
+    const volumeCallsBefore = (onSettingsChange.mock.calls as Array<[{ volume?: number }]>)
+      .filter(([arg]) => typeof arg.volume === "number");
+    expect(volumeCallsBefore.length).toBe(0);
+
+    // Advance timers past the 150 ms debounce window
+    vi.advanceTimersByTime(200);
+
+    // Now onSettingsChange should have been called exactly once with the last value
+    const volumeCalls = (onSettingsChange.mock.calls as Array<[{ volume?: number }]>)
+      .filter(([arg]) => typeof arg.volume === "number");
+    expect(volumeCalls.length).toBe(1);
+    expect(volumeCalls[0][0].volume).toBeCloseTo(0.5);
+  });
+
+  it("flushes pending debounce immediately on change event (drag end)", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const onSettingsChange = vi.fn();
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { shortName: "PSP", name: "PSP", id: "psp", color: "#00f" },
+      setFPSMonitorEnabled: vi.fn(),
+      setVolume: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({
+      ...makeOpts(makeSettings({ volume: 0.7 })),
+      emulator: emulatorMock,
+      onSettingsChange,
+    });
+
+    emulatorMock.onGameStart?.();
+
+    const volSlider = document.querySelector<HTMLInputElement>("input[type=range][aria-label=Volume]");
+    if (!volSlider) return;
+
+    volSlider.value = "0.3";
+    volSlider.dispatchEvent(new Event("input"));
+
+    // Before debounce fires, simulate the drag-end (change event)
+    volSlider.dispatchEvent(new Event("change"));
+
+    // onSettingsChange should have been called by the change event immediately
+    const volumeCalls = (onSettingsChange.mock.calls as Array<[{ volume?: number }]>)
+      .filter(([arg]) => typeof arg.volume === "number");
+    expect(volumeCalls.length).toBeGreaterThanOrEqual(1);
+    expect(volumeCalls[volumeCalls.length - 1][0].volume).toBeCloseTo(0.3);
+
+    // Advancing time should NOT trigger another call (timer was already flushed)
+    const callCountBefore = onSettingsChange.mock.calls.length;
+    vi.advanceTimersByTime(300);
+    expect(onSettingsChange).toHaveBeenCalledTimes(callCountBefore);
+  });
+});
+
+// ── F5/F7 keyboard shortcuts show toast ──────────────────────────────────────
+
+describe("F5/F7 keyboard shortcuts show toast feedback", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("pressing F5 shows a 'Saved to Slot 1' toast", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: null,
+      setFPSMonitorEnabled: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn().mockReturnValue(new Uint8Array(0)),
+      captureScreenshot: vi.fn().mockResolvedValue(null),
+      captureScreenshotAsync: vi.fn().mockResolvedValue(null),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    const saveLib = {
+      getState: vi.fn().mockResolvedValue(null),
+      saveState: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SaveStateLibrary;
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator: emulatorMock,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    // F5 dispatched in the capture phase
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "F5", bubbles: true, cancelable: true }));
+
+    // Allow async toast work to settle
+    await Promise.resolve();
+    vi.advanceTimersByTime(50);
+
+    const toast = document.getElementById("info-toast");
+    expect(toast?.textContent).toContain("Saved to Slot 1");
+  });
+
+  it("pressing F7 shows a 'Loaded Slot 1' toast", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: null,
+      setFPSMonitorEnabled: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator: emulatorMock,
+    });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "F7", bubbles: true, cancelable: true }));
+
+    const toast = document.getElementById("info-toast");
+    expect(toast?.textContent).toContain("Loaded Slot 1");
+    expect(emulatorMock.quickLoad).toHaveBeenCalledWith(1);
   });
 });

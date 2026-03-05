@@ -478,12 +478,15 @@ export function initUI(opts: UIOptions): void {
       case "F5":
         e.preventDefault();
         e.stopPropagation();
-        void quickSaveWithPersist(emulator, saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId, 1);
+        void quickSaveWithPersist(emulator, saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId, 1)
+          .then(() => showInfoToast("Saved to Slot 1"))
+          .catch(() => showError("Quick save failed."));
         break;
       case "F7":
         e.preventDefault();
         e.stopPropagation();
         emulator.quickLoad(1);
+        showInfoToast("Loaded Slot 1");
         break;
       case "F1":
         e.preventDefault();
@@ -1491,12 +1494,28 @@ function buildInGameControls(
     onSettingsChange({ volume: newVol });
     volBtn.textContent = volIcon(newVol);
   });
+
+  // Persist the volume setting at most once per 150 ms while dragging the
+  // slider to avoid synchronous localStorage writes on every animation frame.
+  let volDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   volSlider.addEventListener("input", () => {
     const v = Number(volSlider.value);
     if (v > 0) _preMuteVolume = v;
-    emulator.setVolume(v);
-    onSettingsChange({ volume: v });
+    emulator.setVolume(v);        // real-time audio update — no debounce
     volBtn.textContent = volIcon(v);
+    if (volDebounceTimer !== null) clearTimeout(volDebounceTimer);
+    volDebounceTimer = setTimeout(() => {
+      volDebounceTimer = null;
+      onSettingsChange({ volume: v });
+    }, 150);
+  });
+  volSlider.addEventListener("change", () => {
+    // Flush any pending debounced save when the drag ends (pointerup / blur).
+    if (volDebounceTimer !== null) {
+      clearTimeout(volDebounceTimer);
+      volDebounceTimer = null;
+    }
+    onSettingsChange({ volume: Number(volSlider.value) });
   });
   volWrap.append(volBtn, volSlider);
 
@@ -1619,17 +1638,18 @@ async function openSaveGallery(
   document.addEventListener("keydown", onKey);
   requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
 
-  await renderSaveSlots(slotsContainer, emulator, saveLibrary, gameId, gameName, systemId, slotCountBadge);
+  await renderSaveSlots(slotsContainer, emulator, saveLibrary, gameId, gameName, systemId, slotCountBadge, close);
 }
 
 async function renderSaveSlots(
-  container:       HTMLElement,
-  emulator:        PSPEmulator,
-  saveLibrary:     SaveStateLibrary,
-  gameId:          string,
-  gameName:        string,
-  systemId:        string,
-  slotCountBadge?: HTMLElement
+  container:        HTMLElement,
+  emulator:         PSPEmulator,
+  saveLibrary:      SaveStateLibrary,
+  gameId:           string,
+  gameName:         string,
+  systemId:         string,
+  slotCountBadge?:  HTMLElement,
+  onCloseGallery?:  () => void
 ): Promise<void> {
   container.innerHTML = "";
 
@@ -1649,7 +1669,7 @@ async function renderSaveSlots(
   // Auto-save slot
   const autoState = stateMap.get(AUTO_SAVE_SLOT);
   const autoCard  = await buildSaveSlotCard(
-    AUTO_SAVE_SLOT, autoState, true, container, emulator, saveLibrary, gameId, gameName, systemId
+    AUTO_SAVE_SLOT, autoState, true, container, emulator, saveLibrary, gameId, gameName, systemId, onCloseGallery
   );
   container.appendChild(autoCard);
 
@@ -1662,22 +1682,23 @@ async function renderSaveSlots(
   for (const slot of manualSlots) {
     const state = stateMap.get(slot);
     const card  = await buildSaveSlotCard(
-      slot, state, false, container, emulator, saveLibrary, gameId, gameName, systemId
+      slot, state, false, container, emulator, saveLibrary, gameId, gameName, systemId, onCloseGallery
     );
     container.appendChild(card);
   }
 }
 
 async function buildSaveSlotCard(
-  slot:        number,
-  state:       SaveStateEntry | undefined,
-  isAuto:      boolean,
-  container:   HTMLElement,
-  emulator:    PSPEmulator,
-  saveLibrary: SaveStateLibrary,
-  gameId:      string,
-  gameName:    string,
-  systemId:    string
+  slot:             number,
+  state:            SaveStateEntry | undefined,
+  isAuto:           boolean,
+  container:        HTMLElement,
+  emulator:         PSPEmulator,
+  saveLibrary:      SaveStateLibrary,
+  gameId:           string,
+  gameName:         string,
+  systemId:         string,
+  onCloseGallery?:  () => void
 ): Promise<HTMLElement> {
   const card = make("div", { class: `save-slot-card${state ? " save-slot-card--occupied" : ""}` });
 
@@ -1721,7 +1742,7 @@ async function buildSaveSlotCard(
       if (newLabel === null) return;
       await saveLibrary.updateStateLabel(gameId, slot, newLabel);
       // Re-render just this card
-      const newCard = await buildSaveSlotCard(slot, state ? { ...state, label: newLabel || defaultSlotLabel(slot) } : undefined, isAuto, container, emulator, saveLibrary, gameId, gameName, systemId);
+      const newCard = await buildSaveSlotCard(slot, state ? { ...state, label: newLabel || defaultSlotLabel(slot) } : undefined, isAuto, container, emulator, saveLibrary, gameId, gameName, systemId, onCloseGallery);
       card.replaceWith(newCard);
     });
     slotHeader.appendChild(btnEdit);
@@ -1743,7 +1764,7 @@ async function buildSaveSlotCard(
   const rerender = () => {
     const badge = container.closest<HTMLElement>(".save-gallery-box")
       ?.querySelector<HTMLElement>(".save-gallery-slot-count") ?? undefined;
-    return renderSaveSlots(container, emulator, saveLibrary, gameId, gameName, systemId, badge);
+    return renderSaveSlots(container, emulator, saveLibrary, gameId, gameName, systemId, badge, onCloseGallery);
   };
 
   // Actions
@@ -1753,10 +1774,16 @@ async function buildSaveSlotCard(
     const btnSave = make("button", { class: "btn btn--primary save-slot-card__btn", title: `Save current game to ${currentLabel}` });
     btnSave.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
     btnSave.addEventListener("click", async () => {
-      emulator.quickSave(slot);
-      await persistSaveMetadata(emulator, saveLibrary, gameId, gameName, systemId, slot);
-      await rerender();
-      showInfoToast(`Saved to ${currentLabel}`);
+      if (btnSave.disabled) return;
+      btnSave.disabled = true;
+      try {
+        emulator.quickSave(slot);
+        await persistSaveMetadata(emulator, saveLibrary, gameId, gameName, systemId, slot);
+        await rerender();
+        showInfoToast(`Saved to ${currentLabel}`);
+      } finally {
+        btnSave.disabled = false;
+      }
     });
     actions.appendChild(btnSave);
   }
@@ -1768,11 +1795,23 @@ async function buildSaveSlotCard(
       if (state.stateData) {
         state.stateData.arrayBuffer().then(buf => {
           const written = emulator.writeStateData(slot, new Uint8Array(buf));
-          if (written) emulator.quickLoad(slot);
-          else showError("Could not restore save state — the emulator filesystem is not ready.");
-        }).catch(() => emulator.quickLoad(slot));
+          if (written) {
+            emulator.quickLoad(slot);
+            onCloseGallery?.();
+            showInfoToast(`Loaded ${currentLabel}`);
+          } else {
+            showError("Could not restore save state — the emulator filesystem is not ready.");
+          }
+        }).catch(() => {
+          // Blob read failed — fall back to loading from emulator memory
+          emulator.quickLoad(slot);
+          onCloseGallery?.();
+          showInfoToast(`Loaded ${currentLabel}`);
+        });
       } else {
         emulator.quickLoad(slot);
+        onCloseGallery?.();
+        showInfoToast(`Loaded ${currentLabel}`);
       }
     });
     actions.appendChild(btnLoad);
