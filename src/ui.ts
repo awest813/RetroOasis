@@ -725,35 +725,39 @@ function buildGameCard(
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
   });
 
-  const patchInput = make("input", {
-    type: "file",
-    accept: ".ips,.bps,.ups",
-    "aria-label": `Apply patch to ${game.name}`,
-    style: "display:none",
-  }) as HTMLInputElement;
+  let patchInput: HTMLInputElement | null = null;
+  let btnPatch: HTMLButtonElement | null = null;
+  if (onApplyPatch) {
+    patchInput = make("input", {
+      type: "file",
+      accept: ".ips,.bps,.ups",
+      "aria-label": `Apply patch to ${game.name}`,
+      style: "display:none",
+    }) as HTMLInputElement;
 
-  const btnPatch = make("button", {
-    class: "game-card__patch",
-    title: "Apply IPS/BPS/UPS patch",
-    "aria-label": `Apply patch to ${game.name}`,
-  }, "⊕");
+    btnPatch = make("button", {
+      class: "game-card__patch",
+      title: "Apply IPS/BPS/UPS patch",
+      "aria-label": `Apply patch to ${game.name}`,
+    }, "⊕") as HTMLButtonElement;
 
-  btnPatch.addEventListener("click", (e) => { e.stopPropagation(); patchInput.click(); });
-  patchInput.addEventListener("change", async () => {
-    const patchFile = patchInput.files?.[0];
-    if (!patchFile || !onApplyPatch) return;
-    patchInput.value = "";
-    try {
-      showLoadingOverlay();
-      setLoadingMessage(`Applying patch to ${game.name}…`);
-      await onApplyPatch(game.id, patchFile);
-      hideLoadingOverlay();
-      void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    } catch (err) {
-      hideLoadingOverlay();
-      showError(`Patch failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  });
+    btnPatch.addEventListener("click", (e) => { e.stopPropagation(); patchInput!.click(); });
+    patchInput.addEventListener("change", async () => {
+      const patchFile = patchInput!.files?.[0];
+      if (!patchFile) return;
+      patchInput!.value = "";
+      try {
+        showLoadingOverlay();
+        setLoadingMessage(`Applying patch to ${game.name}…`);
+        await onApplyPatch(game.id, patchFile);
+        hideLoadingOverlay();
+        void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      } catch (err) {
+        hideLoadingOverlay();
+        showError(`Patch failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    });
+  }
 
   const btnChangeSystem = make("button", {
     class: "game-card__change-sys",
@@ -781,7 +785,9 @@ function buildGameCard(
   const playBtn     = make("div", { class: "game-card__play-btn" }, "▶");
   playOverlay.appendChild(playBtn);
 
-  card.append(icon, info, patchInput, btnPatch, btnChangeSystem, btnRemove, playOverlay);
+  card.append(icon, info);
+  if (patchInput && btnPatch) card.append(patchInput, btnPatch);
+  card.append(btnChangeSystem, btnRemove, playOverlay);
 
   let preloadTriggered = false;
   const triggerPreload = () => {
