@@ -312,6 +312,58 @@ describe("FPS toggle button aria-pressed", () => {
   });
 });
 
+describe("in-game touch controls quick toggle", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("shows a touch toggle button and flips touchControls during gameplay on touch devices", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const maxTouchPointsDesc = Object.getOwnPropertyDescriptor(navigator, "maxTouchPoints");
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 2, configurable: true });
+
+    const onSettingsChange = vi.fn();
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { shortName: "PSP", name: "PSP", id: "psp", color: "#00f" },
+      setFPSMonitorEnabled: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({
+      ...makeOpts(makeSettings({ touchControls: false })),
+      emulator: emulatorMock,
+      onSettingsChange,
+    });
+
+    emulatorMock.onGameStart?.();
+
+    const touchBtn = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((b) => b.textContent?.trim() === "🕹 Touch");
+    expect(touchBtn).toBeTruthy();
+    expect(touchBtn!.getAttribute("aria-pressed")).toBe("false");
+
+    touchBtn!.click();
+    expect(onSettingsChange).toHaveBeenCalledWith({ touchControls: true });
+    expect(touchBtn!.getAttribute("aria-pressed")).toBe("true");
+
+    touchBtn!.click();
+    expect(onSettingsChange).toHaveBeenCalledWith({ touchControls: false });
+    expect(touchBtn!.getAttribute("aria-pressed")).toBe("false");
+
+    if (maxTouchPointsDesc) Object.defineProperty(navigator, "maxTouchPoints", maxTouchPointsDesc);
+    else Object.defineProperty(navigator, "maxTouchPoints", { value: 0, configurable: true });
+  });
+});
+
 // ── Multiplayer settings tab ──────────────────────────────────────────────────
 
 describe("buildMultiplayerTab", () => {

@@ -1405,17 +1405,38 @@ function buildInGameControls(
     emulator.setFPSMonitorEnabled(settings.showFPS);
   });
 
-  // Touch controls edit button
+  // Touch controls quick toggle/edit buttons
+  const touchCapable = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
   const overlay = getTouchOverlay?.();
+  let btnTouchToggle: HTMLButtonElement | null = null;
   let btnTouch: HTMLButtonElement | null = null;
+  let touchEditMode = false;
+  if (touchCapable) {
+    btnTouchToggle = make("button", {
+      class: settings.touchControls ? "btn btn--active" : "btn",
+      title: "Toggle on-screen touch controls",
+      "aria-pressed": settings.touchControls ? "true" : "false",
+    }, "🕹 Touch") as HTMLButtonElement;
+    btnTouchToggle.addEventListener("click", () => {
+      settings.touchControls = !settings.touchControls;
+      onSettingsChange({ touchControls: settings.touchControls });
+      btnTouchToggle!.className = settings.touchControls ? "btn btn--active" : "btn";
+      btnTouchToggle!.setAttribute("aria-pressed", String(settings.touchControls));
+      if (!settings.touchControls && btnTouch) {
+        touchEditMode = false;
+        overlay?.setEditing(false);
+        btnTouch.className = "btn";
+        btnTouch.textContent = "🎮 Edit";
+      }
+    });
+  }
   if (overlay) {
     btnTouch = make("button", { class: "btn", title: "Edit touch control layout" }, "🎮 Edit") as HTMLButtonElement;
-    let editMode = false;
     btnTouch.addEventListener("click", () => {
-      editMode = !editMode;
-      overlay.setEditing(editMode);
-      btnTouch!.className    = editMode ? "btn btn--active" : "btn";
-      btnTouch!.textContent  = editMode ? "✓ Done" : "🎮 Edit";
+      touchEditMode = !touchEditMode;
+      overlay.setEditing(touchEditMode);
+      btnTouch!.className    = touchEditMode ? "btn btn--active" : "btn";
+      btnTouch!.textContent  = touchEditMode ? "✓ Done" : "🎮 Edit";
     });
   }
 
@@ -1446,7 +1467,7 @@ function buildInGameControls(
   });
   volWrap.append(volBtn, volSlider);
 
-  const controls: (HTMLElement | null)[] = [btnLibrary, savesGroup, btnReset, btnFPS, btnTouch, volWrap];
+  const controls: (HTMLElement | null)[] = [btnLibrary, savesGroup, btnReset, btnFPS, btnTouchToggle, btnTouch, volWrap];
   for (const ctrl of controls) {
     if (ctrl) container.appendChild(ctrl);
   }
