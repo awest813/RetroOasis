@@ -489,6 +489,8 @@ export class PSPEmulator {
   private _audioAnalyserNode: AnalyserNode | null = null;
   private _audioUnderruns = 0;
   private _audioLevel = 0;
+  /** Timestamp (ms) of the last audio-underrun console.warn — rate-limits log spam. */
+  private _lastAudioUnderrunWarnTime = 0;
   private _memoryMonitor: MemoryMonitor = new MemoryMonitor();
   /** Timestamp (ms) when sustained low FPS was first detected; 0 when FPS is healthy. */
   private _lowFPSStartTime = 0;
@@ -1126,14 +1128,16 @@ export class PSPEmulator {
         // Post-process pipeline pre-compilation is best-effort
       }
 
-      const adapterLabel =
-        this._webgpuAdapterInfo?.device  ||
-        this._webgpuAdapterInfo?.vendor  ||
-        "unknown adapter";
-      console.info(
-        `[RetroVault] WebGPU device acquired (${adapterLabel}) — ` +
-        "GPU command queue and shader compiler warmed."
-      );
+      if (this.verboseLogging) {
+        const adapterLabel =
+          this._webgpuAdapterInfo?.device  ||
+          this._webgpuAdapterInfo?.vendor  ||
+          "unknown adapter";
+        console.info(
+          `[RetroVault] WebGPU device acquired (${adapterLabel}) — ` +
+          "GPU command queue and shader compiler warmed."
+        );
+      }
     } catch {
       // WebGPU unavailable or not yet supported — silently fall back to WebGL
       this._webgpuDevice = null;
@@ -1179,20 +1183,8 @@ export class PSPEmulator {
 
       const workletNode = new AudioWorkletNode(ctx, "retrovault-audio-processor");
 
-      workletNode.port.onmessage = (e: MessageEvent<{ type: string; count: number; rms: number }>) => {
-        if (e.data.type === "underrun") {
-          this._audioUnderruns += e.data.count;
-          this.onAudioUnderrun?.(this._audioUnderruns);
-          console.warn(
-            `[RetroVault] Audio underrun detected (${e.data.count} new, ` +
-            `${this._audioUnderruns} total). ` +
-            "Consider increasing the audio buffer size."
-          );
-        } else if (e.data.type === "level") {
-          this._audioLevel = e.data.rms;
-          this.onAudioLevel?.(e.data.rms);
-        }
-      };
+      workletNode.port.onmessage = (e: MessageEvent<{ type: string; count: number; rms: number }>) =>
+        this._onAudioWorkletMessage(e);
 
       // AnalyserNode sits after the worklet so the UI can visualise post-gain output
       const analyserNode = ctx.createAnalyser();
@@ -1215,7 +1207,9 @@ export class PSPEmulator {
       this._audioWorkletNode = workletNode;
       this._audioAnalyserNode = analyserNode;
 
-      console.info("[RetroVault] AudioWorklet path active — reduced-latency audio enabled.");
+      if (this.verboseLogging) {
+        console.info("[RetroVault] AudioWorklet path active — reduced-latency audio enabled.");
+      }
       return true;
     } catch {
       // AudioWorklet unavailable or module failed to load — fall back silently
@@ -1326,8 +1320,9 @@ export class PSPEmulator {
       this._resetAdaptiveQualityState();
       this.logDiagnostic("performance", `Resolved tier: ${tier}${opts.tierOverride ? " (override)" : ""}`);
 
-      // Reset audio underrun counter and level for the new session
+      // Reset audio underrun counter, rate-limit timestamp, and level for the new session
       this._audioUnderruns = 0;
+      this._lastAudioUnderrunWarnTime = 0;
       this._audioLevel = 0;
 
       let ejsSettings: Record<string, string>;
@@ -1359,11 +1354,13 @@ export class PSPEmulator {
         const hwNumeric   = hwBufTier === "high" ? 2 : hwBufTier === "medium" ? 1 : 0;
         if (hwNumeric > tierNumeric) {
           ejsSettings["ppsspp_audio_latency"] = String(hwNumeric);
-          console.info(
-            `[RetroVault] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
-            `suggests buffer tier "${hwBufTier}"; upgrading ppsspp_audio_latency ` +
-            `from ${tierLatency} → ${hwNumeric}.`
-          );
+          if (this.verboseLogging) {
+            console.info(
+              `[RetroVault] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `suggests buffer tier "${hwBufTier}"; upgrading ppsspp_audio_latency ` +
+              `from ${tierLatency} → ${hwNumeric}.`
+            );
+          }
         }
       }
 
@@ -1912,6 +1909,9 @@ export class PSPEmulator {
     this._detachPostProcessor();
     this._revokeBlobUrl();
     this._disconnectAudioWorklet();
+    // Reset per-session audio counters so a new game starts from zero.
+    this._audioUnderruns = 0;
+    this._lastAudioUnderrunWarnTime = 0;
     document.querySelector("script[data-ejs-loader]")?.remove();
     const playerEl = document.getElementById(this._playerId);
     if (playerEl) playerEl.innerHTML = "";
@@ -1948,6 +1948,37 @@ export class PSPEmulator {
     }
     this._audioWorkletCtx = null;
     this._audioWorkletCtxOwned = false;
+  }
+
+  /**
+   * Handle a message from the AudioWorklet processor port.
+   *
+   * Extracted into a named method so tests can exercise the production
+   * handler directly without having to stand up a real AudioWorklet
+   * environment. The underrun branch is rate-limited to at most one
+   * console.warn per 10 seconds to prevent log spam on slow hardware.
+   *
+   * @internal Exposed as private for testing only.
+   */
+  private _onAudioWorkletMessage(e: MessageEvent<{ type: string; count: number; rms: number }>): void {
+    if (e.data.type === "underrun") {
+      this._audioUnderruns += e.data.count;
+      this.onAudioUnderrun?.(this._audioUnderruns);
+      // Rate-limit the console warning to at most once per 10 s to prevent
+      // log spam on slow hardware where underruns can fire every frame.
+      const now = performance.now();
+      if (now - this._lastAudioUnderrunWarnTime >= 10_000) {
+        this._lastAudioUnderrunWarnTime = now;
+        console.warn(
+          `[RetroVault] Audio underrun detected (${e.data.count} new, ` +
+          `${this._audioUnderruns} total). ` +
+          "Consider increasing the audio buffer size."
+        );
+      }
+    } else if (e.data.type === "level") {
+      this._audioLevel = e.data.rms;
+      this.onAudioLevel?.(e.data.rms);
+    }
   }
 
   /**

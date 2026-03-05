@@ -1039,6 +1039,77 @@ describe('PSPEmulator', () => {
         expect(freshEmulator.webgpuAvailable).toBe(true);
         expect(submitSpy).toHaveBeenCalledOnce();
       });
+
+      it('does not log WebGPU acquired message when verboseLogging is false', async () => {
+        const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+        const mockDevice = {
+          createCommandEncoder: () => ({ beginComputePass: () => ({ end: vi.fn() }), finish: () => ({}) }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          createBindGroupLayout: vi.fn().mockReturnValue({}),
+          createPipelineLayout: vi.fn().mockReturnValue({}),
+          createBuffer: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+          features: new Set<string>(),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              info: { vendor: 'nvidia', architecture: '', device: 'Test GPU', description: '' },
+              isFallbackAdapter: false,
+              requestDevice: vi.fn().mockResolvedValue(mockDevice),
+            }),
+            getPreferredCanvasFormat: vi.fn().mockReturnValue('bgra8unorm'),
+          },
+          configurable: true, writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        // verboseLogging defaults to false
+        await freshEmulator.preWarmWebGPU();
+
+        const webgpuLogs = infoSpy.mock.calls
+          .map(args => args.join(' '))
+          .filter(msg => msg.includes('WebGPU device acquired'));
+        expect(webgpuLogs).toHaveLength(0);
+      });
+
+      it('logs WebGPU acquired message when verboseLogging is true', async () => {
+        const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+        const mockDevice = {
+          createCommandEncoder: () => ({ beginComputePass: () => ({ end: vi.fn() }), finish: () => ({}) }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          createBindGroupLayout: vi.fn().mockReturnValue({}),
+          createPipelineLayout: vi.fn().mockReturnValue({}),
+          createBuffer: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+          features: new Set<string>(),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              info: { vendor: 'nvidia', architecture: '', device: 'Test GPU', description: '' },
+              isFallbackAdapter: false,
+              requestDevice: vi.fn().mockResolvedValue(mockDevice),
+            }),
+            getPreferredCanvasFormat: vi.fn().mockReturnValue('bgra8unorm'),
+          },
+          configurable: true, writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        freshEmulator.verboseLogging = true;
+        await freshEmulator.preWarmWebGPU();
+
+        const webgpuLogs = infoSpy.mock.calls
+          .map(args => args.join(' '))
+          .filter(msg => msg.includes('WebGPU device acquired'));
+        expect(webgpuLogs).toHaveLength(1);
+        expect(webgpuLogs[0]).toContain('Test GPU');
+      });
     });
   });
 
@@ -1332,6 +1403,58 @@ describe('PSPEmulator', () => {
 
     it('getAnalyserNode returns null when worklet has not been set up', () => {
       expect(emulator.getAnalyserNode()).toBeNull();
+    });
+  });
+
+  // ── Audio underrun warn rate-limiting ─────────────────────────────────────
+
+  describe('audio underrun warn rate-limiting', () => {
+    type EmuPrivate = {
+      _audioUnderruns: number;
+      _lastAudioUnderrunWarnTime: number;
+      _onAudioWorkletMessage(e: MessageEvent<{ type: string; count: number; rms: number }>): void;
+      _teardown(): void;
+    };
+
+    it('rate-limits console.warn to at most once per 10 s', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const priv = emulator as unknown as EmuPrivate;
+
+      const nowSpy = vi.spyOn(performance, 'now');
+      const baseTime = 5_000_000;
+      nowSpy.mockReturnValue(baseTime);
+
+      const fire = (count: number) =>
+        priv._onAudioWorkletMessage(
+          new MessageEvent('message', { data: { type: 'underrun', count, rms: 0 } })
+        );
+
+      // First underrun — should warn
+      fire(1);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('Audio underrun detected');
+
+      // Second underrun immediately after — within the 10 s window, no new warn
+      nowSpy.mockReturnValue(baseTime + 500);
+      fire(1);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      // After 10 s have elapsed — should warn again
+      nowSpy.mockReturnValue(baseTime + 11_000);
+      fire(3);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+
+      // Counter must accumulate ALL batches regardless of rate limiting
+      expect(emulator.audioUnderruns).toBe(5);
+    });
+
+    it('resets _audioUnderruns and _lastAudioUnderrunWarnTime to zero after _teardown', () => {
+      const priv = emulator as unknown as EmuPrivate;
+      priv._audioUnderruns = 7;
+      priv._lastAudioUnderrunWarnTime = 999_999;
+      priv._teardown();
+      expect(priv._audioUnderruns).toBe(0);
+      expect(priv._lastAudioUnderrunWarnTime).toBe(0);
     });
   });
 
