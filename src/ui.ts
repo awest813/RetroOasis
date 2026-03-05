@@ -1860,9 +1860,15 @@ async function buildSaveSlotCard(
       try {
         await saveLibrary.importState(gameId, gameName, systemId, slot, file);
         const buf = await file.arrayBuffer();
-        emulator.writeStateData(slot, new Uint8Array(buf));
+        const written = emulator.writeStateData(slot, new Uint8Array(buf));
         await rerender();
-        showInfoToast(`Imported save to ${currentLabel}`);
+        if (written) {
+          showInfoToast(`Imported save to ${currentLabel}`);
+        } else {
+          // State was saved to the library but the emulator filesystem is not
+          // ready (e.g. no game running). It will be applied on the next load.
+          showInfoToast(`Imported save to ${currentLabel} — load the game to apply it.`);
+        }
       } catch (err) {
         showError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
       }
