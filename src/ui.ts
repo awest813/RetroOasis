@@ -117,6 +117,9 @@ export function buildDOM(app: HTMLElement): void {
   const formatHint = `${hintExts} + more · ZIP auto-extracted`;
 
   app.innerHTML = `
+    <!-- Skip navigation link for keyboard users -->
+    <a class="skip-link" href="#landing">Skip to content</a>
+
     <!-- ── Header ── -->
     <header class="app-header">
       <div class="app-header__brand">
@@ -185,9 +188,33 @@ export function buildDOM(app: HTMLElement): void {
                  accept="${acceptList}"
                  aria-label="Select game ROM file" />
           <div class="drop-zone__icon" aria-hidden="true">+</div>
-          <p class="drop-zone__label">Drop a game file to add it</p>
-          <p class="drop-zone__sub">or <span class="drop-zone__browse">browse files</span></p>
+          <p class="drop-zone__label">Drop a ROM file here to start playing</p>
+          <p class="drop-zone__sub">or <span class="drop-zone__browse">browse your device</span></p>
           <p class="drop-zone__formats" title="Supported file formats">${formatHint}</p>
+        </div>
+
+        <!-- Onboarding — only visible when library is empty -->
+        <div class="onboarding" id="onboarding">
+          <h3 class="onboarding__title">20+ Systems Supported</h3>
+          <p class="onboarding__desc">PSP · N64 · PS1 · NDS · GBA · SNES · NES · Genesis · Game Boy · Arcade and more</p>
+          <div class="onboarding__features">
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">💾</span>
+              <span>Save states with screenshots</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
+              <span>Touch controls &amp; gamepad support</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
+              <span>Auto performance optimization</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">📲</span>
+              <span>Installable as a PWA</span>
+            </div>
+          </div>
         </div>
 
         <p class="landing__legal">
@@ -272,6 +299,9 @@ export function buildDOM(app: HTMLElement): void {
       <div class="status-item hide-mobile">
         <span class="status-item__label">Tier:</span>
         <span class="status-item__value" id="status-tier">—</span>
+      </div>
+      <div class="status-item hide-mobile" style="margin-left:auto">
+        <span class="status-item__value" style="opacity:0.5">RetroVault v1.0</span>
       </div>
     </footer>
   `;
@@ -537,6 +567,10 @@ export async function renderLibrary(
   dropZoneEl.classList.toggle("drop-zone--prominent", allGames.length === 0);
   dropZoneEl.classList.toggle("drop-zone--compact", allGames.length > 0);
 
+  // Show/hide onboarding section
+  const onboardingEl = document.getElementById("onboarding");
+  if (onboardingEl) onboardingEl.classList.toggle("hidden-section", allGames.length > 0);
+
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
     for (const sid of systemIds) { emulatorRef.prefetchCore(sid); }
@@ -685,7 +719,7 @@ function buildGameCard(
 ): HTMLElement {
   const system = getSystemById(game.systemId);
 
-  const card = make("div", { class: "game-card", role: "button", tabindex: "0", "aria-label": `Play ${game.name}` });
+  const card = make("div", { class: "game-card", role: "button", tabindex: "0", "aria-label": `Play ${game.name} (${system?.shortName ?? game.systemId})` });
   card.style.setProperty("--sys-color", system?.color ?? "#555");
 
   const icon = make("div", { class: "game-card__icon" });
@@ -1284,12 +1318,12 @@ export function buildLandingControls(
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
   }
 
-  const btnSettings = make("button", { class: "btn", title: "Settings", "aria-label": "Open settings" });
+  const btnSettings = make("button", { class: "btn", title: "Settings (F9)", "aria-label": "Open settings" });
   btnSettings.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg> Settings`;
+  </svg> Settings <kbd style="font-size:0.7em;opacity:0.5;margin-left:2px">F9</kbd>`;
 
   btnSettings.addEventListener("click", () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, netplayManager);
@@ -1314,20 +1348,20 @@ function buildInGameControls(
   container.innerHTML = "";
 
   // ← Library
-  const btnLibrary = make("button", { class: "btn", title: "Back to library (Esc)" }, "← Library");
+  const btnLibrary = make("button", { class: "btn", title: "Return to library (Esc)" }, "← Library");
   btnLibrary.addEventListener("click", onReturnToLibrary);
 
   // Saves group (Save / Load / Gallery combined)
   const savesGroup = make("div", { class: "btn-group" });
 
-  const btnSave = make("button", { class: "btn btn-group__btn", title: "Quick Save slot 1 (F5)" });
+  const btnSave = make("button", { class: "btn btn-group__btn", title: "Quick Save to slot 1 (F5)" });
   btnSave.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
   btnSave.addEventListener("click", async () => {
     await quickSaveWithPersist(emulator, saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId, 1);
     showInfoToast("Saved to Slot 1");
   });
 
-  const btnLoad = make("button", { class: "btn btn-group__btn", title: "Quick Load slot 1 (F7)" });
+  const btnLoad = make("button", { class: "btn btn-group__btn", title: "Quick Load from slot 1 (F7)" });
   btnLoad.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
   btnLoad.addEventListener("click", () => emulator.quickLoad(1));
 
@@ -1809,7 +1843,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 
-type SettingsTab = "performance" | "display" | "library" | "bios" | "multiplayer" | "debug";
+type SettingsTab = "performance" | "display" | "library" | "bios" | "multiplayer" | "debug" | "about";
 
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
@@ -1868,12 +1902,13 @@ function buildSettingsContent(
   container.innerHTML = "";
 
   const tabs: Array<{ id: SettingsTab; label: string }> = [
-    { id: "performance",  label: "Performance" },
-    { id: "display",      label: "Display" },
-    { id: "library",      label: "Library" },
-    { id: "bios",         label: "BIOS" },
-    { id: "multiplayer",  label: "Multiplayer" },
-    { id: "debug",        label: "Debug" },
+    { id: "performance",  label: "⚡ Performance" },
+    { id: "display",      label: "🖥 Display" },
+    { id: "library",      label: "📚 Library" },
+    { id: "bios",         label: "💾 BIOS" },
+    { id: "multiplayer",  label: "🌐 Multiplayer" },
+    { id: "debug",        label: "🔧 Debug" },
+    { id: "about",        label: "ℹ️ About" },
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
@@ -1967,6 +2002,7 @@ function buildSettingsContent(
   buildBiosTab(panels[3], biosLibrary);
   buildMultiplayerTab(panels[4], settings, onSettingsChange, netplayManager);
   buildDebugTab(panels[5], settings, onSettingsChange, deviceCaps, emulatorRef, netplayManager);
+  buildAboutTab(panels[6]);
 }
 
 // ── Performance tab ───────────────────────────────────────────────────────────
@@ -2662,6 +2698,67 @@ function buildDebugTab(
   container.append(settingsSection, envSection, stateSection, actionsSection);
 }
 
+// ── About tab ─────────────────────────────────────────────────────────────────
+
+function buildAboutTab(container: HTMLElement): void {
+  // Quick start section
+  const quickStartSection = make("div", { class: "settings-section" });
+  quickStartSection.appendChild(make("h4", { class: "settings-section__title" }, "Quick Start"));
+  quickStartSection.appendChild(make("p", { class: "settings-help" },
+    "1. Drop or browse for a ROM file to add it to your library.\n" +
+    "2. Click a game card to launch it in the emulator.\n" +
+    "3. Use F5 to quick save and F7 to quick load.\n" +
+    "4. Press Esc to return to the library."
+  ));
+
+  // Keyboard shortcuts
+  const shortcutsSection = make("div", { class: "settings-section" });
+  shortcutsSection.appendChild(make("h4", { class: "settings-section__title" }, "Keyboard Shortcuts"));
+
+  const shortcuts: Array<[string, string]> = [
+    ["F5", "Quick Save (slot 1)"],
+    ["F7", "Quick Load (slot 1)"],
+    ["F1", "Reset game"],
+    ["F9", "Open Settings → Debug"],
+    ["Esc", "Return to library"],
+  ];
+
+  const shortcutList = make("div", { class: "device-info-details" });
+  for (const [key, desc] of shortcuts) {
+    const row = make("div", { style: "display:flex;justify-content:space-between;align-items:center;padding:4px 0;gap:12px" });
+    const kbdEl = make("kbd", { style: "font-family:monospace;font-size:0.8rem;padding:2px 8px;background:var(--c-surface3);border:1px solid var(--c-border);border-radius:4px;color:var(--c-accent);font-weight:600;white-space:nowrap" }, key);
+    row.append(kbdEl, make("span", { class: "device-info", style: "margin:0" }, desc));
+    shortcutList.appendChild(row);
+  }
+  shortcutsSection.appendChild(shortcutList);
+
+  // About section
+  const aboutSection = make("div", { class: "settings-section" });
+  aboutSection.appendChild(make("h4", { class: "settings-section__title" }, "About RetroVault"));
+  aboutSection.appendChild(make("p", { class: "settings-help" },
+    "RetroVault is a browser-based multi-system retro game emulator supporting 20+ systems " +
+    "including PSP, N64, PS1, NDS, GBA, SNES, NES, and more. It runs entirely in your browser — " +
+    "no server, no account, no downloads required."
+  ));
+  aboutSection.appendChild(make("p", { class: "settings-help" },
+    "Your ROM files and save states are stored locally in IndexedDB. " +
+    "RetroVault never uploads your data anywhere."
+  ));
+
+  const links = make("div", { style: "display:flex;gap:8px;flex-wrap:wrap" });
+  const ejsLink = make("a", {
+    href: "https://emulatorjs.org",
+    target: "_blank",
+    rel: "noopener",
+    class: "btn",
+    style: "text-decoration:none",
+  }, "Powered by EmulatorJS");
+  links.appendChild(ejsLink);
+  aboutSection.appendChild(links);
+
+  container.append(quickStartSection, shortcutsSection, aboutSection);
+}
+
 // ── Toggle row builder ────────────────────────────────────────────────────────
 
 function buildToggleRow(label: string, desc: string, checked: boolean, onChange: (v: boolean) => void): HTMLElement {
@@ -3002,7 +3099,7 @@ export function showError(msg: string): void {
   });
   banner.classList.add("visible");
   if (_errorDismissTimer !== null) clearTimeout(_errorDismissTimer);
-  _errorDismissTimer = setTimeout(() => { hideError(); _errorDismissTimer = null; }, 8000);
+  _errorDismissTimer = setTimeout(() => { hideError(); _errorDismissTimer = null; }, 10_000);
 }
 
 export function hideError(): void {
