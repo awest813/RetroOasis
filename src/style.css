@@ -247,7 +247,7 @@ body {
   border: 1px solid var(--c-border);
   background: var(--c-surface2);
   color: var(--c-text-dim);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
