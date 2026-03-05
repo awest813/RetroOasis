@@ -470,8 +470,8 @@ describe("TouchControlsOverlay — multi-touch", () => {
     // Simulate two fingers landing simultaneously
     upEl.dispatchEvent(new TouchEvent("touchstart", {
       bubbles: true, cancelable: true,
-      changedTouches: [t1, t2] as unknown as TouchList,
-      touches: [t1, t2] as unknown as TouchList,
+      changedTouches: [t1, t2],
+      touches: [t1, t2],
     }));
 
     // Only one keydown should fire (not two)
@@ -495,15 +495,15 @@ describe("TouchControlsOverlay — multi-touch", () => {
     // Both fingers land
     upEl.dispatchEvent(new TouchEvent("touchstart", {
       bubbles: true, cancelable: true,
-      changedTouches: [t1, t2] as unknown as TouchList,
-      touches: [t1, t2] as unknown as TouchList,
+      changedTouches: [t1, t2],
+      touches: [t1, t2],
     }));
 
     // First finger lifts — key must NOT be released yet
     upEl.dispatchEvent(new TouchEvent("touchend", {
       bubbles: true, cancelable: true,
-      changedTouches: [t1] as unknown as TouchList,
-      touches: [t2] as unknown as TouchList,
+      changedTouches: [t1],
+      touches: [t2],
     }));
 
     expect(keyEvents.some((e) => e.startsWith("up:"))).toBe(false);
@@ -511,8 +511,8 @@ describe("TouchControlsOverlay — multi-touch", () => {
     // Second finger lifts — now the key should be released
     upEl.dispatchEvent(new TouchEvent("touchend", {
       bubbles: true, cancelable: true,
-      changedTouches: [t2] as unknown as TouchList,
-      touches: [] as unknown as TouchList,
+      changedTouches: [t2],
+      touches: [],
     }));
 
     expect(keyEvents).toContain("up:ArrowUp");
@@ -532,15 +532,15 @@ describe("TouchControlsOverlay — multi-touch", () => {
     // Two touches start
     aEl.dispatchEvent(new TouchEvent("touchstart", {
       bubbles: true, cancelable: true,
-      changedTouches: [t1, t2] as unknown as TouchList,
-      touches: [t1, t2] as unknown as TouchList,
+      changedTouches: [t1, t2],
+      touches: [t1, t2],
     }));
 
     // One touch is cancelled
     aEl.dispatchEvent(new TouchEvent("touchcancel", {
       bubbles: true, cancelable: true,
-      changedTouches: [t1] as unknown as TouchList,
-      touches: [t2] as unknown as TouchList,
+      changedTouches: [t1],
+      touches: [t2],
     }));
     // Key must still be held
     expect(keyEvents).not.toContain("z");
@@ -548,8 +548,8 @@ describe("TouchControlsOverlay — multi-touch", () => {
     // Second touch is cancelled
     aEl.dispatchEvent(new TouchEvent("touchcancel", {
       bubbles: true, cancelable: true,
-      changedTouches: [t2] as unknown as TouchList,
-      touches: [] as unknown as TouchList,
+      changedTouches: [t2],
+      touches: [],
     }));
     // Now the key should be released
     expect(keyEvents).toContain("z");
