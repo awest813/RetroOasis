@@ -514,6 +514,57 @@ body {
 .drop-zone__formats { font-size: 0.75rem; color: var(--c-text-faint); }
 .drop-zone--compact .drop-zone__formats { display: none; }
 
+/* ── Onboarding (shown when library is empty) ─────────────── */
+.onboarding {
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+}
+
+.onboarding.hidden-section { display: none; }
+
+.onboarding__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+
+.onboarding__desc {
+  font-size: 0.82rem;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.onboarding__features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  text-align: left;
+}
+
+.onboarding__feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+}
+
+.onboarding__feature-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 400px) {
+  .onboarding__features { grid-template-columns: 1fr; }
+}
+
 .landing__legal {
   max-width: 540px;
   font-size: 0.74rem;

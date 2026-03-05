@@ -193,6 +193,30 @@ export function buildDOM(app: HTMLElement): void {
           <p class="drop-zone__formats" title="Supported file formats">${formatHint}</p>
         </div>
 
+        <!-- Onboarding — only visible when library is empty -->
+        <div class="onboarding" id="onboarding">
+          <h3 class="onboarding__title">20+ Systems Supported</h3>
+          <p class="onboarding__desc">PSP · N64 · PS1 · NDS · GBA · SNES · NES · Genesis · Game Boy · Arcade and more</p>
+          <div class="onboarding__features">
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">💾</span>
+              <span>Save states with screenshots</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
+              <span>Touch controls &amp; gamepad support</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
+              <span>Auto performance optimization</span>
+            </div>
+            <div class="onboarding__feature">
+              <span class="onboarding__feature-icon" aria-hidden="true">📲</span>
+              <span>Installable as a PWA</span>
+            </div>
+          </div>
+        </div>
+
         <p class="landing__legal">
           Bring your own legally obtained ROM files. This app does not provide ROMs or BIOS files.
           <a href="https://emulatorjs.org" target="_blank" rel="noopener">Powered by EmulatorJS</a>
@@ -542,6 +566,10 @@ export async function renderLibrary(
   libSection.classList.toggle("hidden-section", allGames.length === 0);
   dropZoneEl.classList.toggle("drop-zone--prominent", allGames.length === 0);
   dropZoneEl.classList.toggle("drop-zone--compact", allGames.length > 0);
+
+  // Show/hide onboarding section
+  const onboardingEl = document.getElementById("onboarding");
+  if (onboardingEl) onboardingEl.classList.toggle("hidden-section", allGames.length > 0);
 
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
