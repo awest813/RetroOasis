@@ -46,6 +46,15 @@ export interface NetplaySettings {
   iceServers: RTCIceServer[];
 }
 
+export interface NetplayLobbyRoom {
+  id:      string;
+  gameId?: number;
+  name?:   string;
+  host?:   string;
+  players?: number;
+  maxPlayers?: number;
+}
+
 const DEFAULT_NETPLAY_SETTINGS: NetplaySettings = {
   enabled:    false,
   serverUrl:  "",
@@ -193,6 +202,43 @@ export class NetplayManager {
     return null;
   }
 
+  /**
+   * Fetch available netplay rooms for a lightweight lobby browser.
+   *
+   * Different netplay server implementations expose this data under different
+   * routes, so we try a small list of common JSON endpoints and return the
+   * first successful response.
+   */
+  async fetchLobbyRooms(signal?: AbortSignal): Promise<NetplayLobbyRoom[]> {
+    const err = this.validateServerUrl(this._settings.serverUrl);
+    if (err || !this.isActive) return [];
+
+    const base = this._settings.serverUrl
+      .replace(/^ws:\/\//i, "http://")
+      .replace(/^wss:\/\//i, "https://")
+      .replace(/\/+$/, "");
+
+    const endpoints = ["/rooms", "/lobby/rooms", "/netplay/rooms"];
+
+    for (const path of endpoints) {
+      try {
+        const res = await fetch(`${base}${path}`, {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+          signal,
+        });
+        if (!res.ok) continue;
+
+        const body = await res.json() as unknown;
+        const rooms = this._coerceLobbyRooms(body);
+        if (rooms.length > 0) return rooms;
+      } catch {
+        // Keep trying alternative endpoints.
+      }
+    }
+    return [];
+  }
+
   // ── Persistence ────────────────────────────────────────────────────────────
 
   private _load(): NetplaySettings {
@@ -222,5 +268,34 @@ export class NetplayManager {
     } catch {
       // localStorage write failures are non-fatal
     }
+  }
+
+  private _coerceLobbyRooms(body: unknown): NetplayLobbyRoom[] {
+    const raw = Array.isArray(body)
+      ? body
+      : (body && typeof body === "object" && Array.isArray((body as { rooms?: unknown }).rooms)
+        ? (body as { rooms: unknown[] }).rooms
+        : []);
+
+    const out: NetplayLobbyRoom[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+
+      const id = typeof row.id === "string"
+        ? row.id
+        : (typeof row.roomId === "string" ? row.roomId : null);
+      if (!id) continue;
+
+      out.push({
+        id,
+        gameId: typeof row.gameId === "number" ? row.gameId : undefined,
+        name: typeof row.name === "string" ? row.name : undefined,
+        host: typeof row.host === "string" ? row.host : undefined,
+        players: typeof row.players === "number" ? row.players : undefined,
+        maxPlayers: typeof row.maxPlayers === "number" ? row.maxPlayers : undefined,
+      });
+    }
+    return out;
   }
 }
