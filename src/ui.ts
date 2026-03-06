@@ -1900,11 +1900,15 @@ async function renderSaveSlots(
 
   // Slots 1–MAX_SAVE_SLOTS
   const manualSlots = Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1);
-  for (const slot of manualSlots) {
-    const state = stateMap.get(slot);
-    const card  = await buildSaveSlotCard(
-      slot, state, false, container, emulator, saveLibrary, gameId, gameName, systemId, onCloseGallery
-    );
+  const cards = await Promise.all(
+    manualSlots.map((slot) => {
+      const state = stateMap.get(slot);
+      return buildSaveSlotCard(
+        slot, state, false, container, emulator, saveLibrary, gameId, gameName, systemId, onCloseGallery
+      );
+    })
+  );
+  for (const card of cards) {
     container.appendChild(card);
   }
 }
