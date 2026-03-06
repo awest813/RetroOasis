@@ -70,10 +70,19 @@ import type { TouchControlsOverlay } from "./touchControls.js";
 import { isTouchDevice, isPortrait } from "./touchControls.js";
 import type { NetplayManager } from "./multiplayer.js";
 import { DEFAULT_ICE_SERVERS, validateIceServerUrl as standaloneValidateIceServerUrl } from "./multiplayer.js";
+import { CloudSaveManager, WebDAVProvider } from "./cloudSave.js";
 
 // ── PWA install callbacks (set once from initUI) ───────────────────────────────
 let _canInstallPWA: (() => boolean) | undefined;
 let _onInstallPWA:  (() => Promise<boolean>) | undefined;
+
+// ── Cloud save manager (module-level singleton) ────────────────────────────────
+let _cloudManager: CloudSaveManager | null = null;
+
+function getCloudManager(): CloudSaveManager {
+  if (!_cloudManager) _cloudManager = new CloudSaveManager();
+  return _cloudManager;
+}
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 
@@ -1573,6 +1582,212 @@ async function persistSaveMetadata(
   }
 }
 
+// ── Cloud save bar ────────────────────────────────────────────────────────────
+
+/**
+ * Build the cloud-save bar that sits between the gallery header and slot grid.
+ * The bar renders the connection status and provides Connect / Disconnect /
+ * Sync Now buttons.  It self-updates when cloudManager.onStatusChange fires.
+ */
+function buildCloudBar(
+  cloudManager: CloudSaveManager,
+  gameId:       string,
+  saveLibrary:  SaveStateLibrary,
+): HTMLElement {
+  const bar = make("div", { class: "cloud-bar", role: "region", "aria-label": "Cloud sync" });
+
+  const statusWrap = make("span", { class: "cloud-bar__status" });
+  const dot        = make("span", { class: "cloud-status-dot" });
+  const statusText = make("span", { class: "cloud-bar__status-text" });
+  statusWrap.append(dot, statusText);
+
+  const actions = make("div", { class: "cloud-bar__actions" });
+  bar.append(statusWrap, actions);
+
+  const render = () => {
+    const connected = cloudManager.isConnected();
+    dot.className = `cloud-status-dot ${connected ? "cloud-status-dot--on" : "cloud-status-dot--off"}`;
+
+    if (connected) {
+      statusText.textContent = `Connected to ${cloudManager.activeProvider.displayName}`;
+      if (cloudManager.lastSyncAt) {
+        const rel = formatRelativeTime(cloudManager.lastSyncAt);
+        statusText.title = `Last sync: ${rel}`;
+      } else {
+        statusText.title = "";
+      }
+    } else if (cloudManager.lastError) {
+      statusText.textContent = "Connection error";
+      statusText.title = cloudManager.lastError;
+    } else {
+      statusText.textContent = "Not connected";
+      statusText.title = "";
+    }
+
+    actions.innerHTML = "";
+
+    if (connected) {
+      // Auto-sync toggle
+      const autoLabel = make("label", { class: "cloud-bar__auto-label", title: "Automatically push saves to cloud" });
+      const autoCheck = make("input", { type: "checkbox", class: "cloud-bar__auto-check" }) as HTMLInputElement;
+      autoCheck.checked = cloudManager.autoSyncEnabled;
+      autoCheck.addEventListener("change", () => {
+        cloudManager.setAutoSync(autoCheck.checked);
+      });
+      autoLabel.append(autoCheck, document.createTextNode(" Auto"));
+      actions.appendChild(autoLabel);
+
+      // Sync Now button
+      const btnSync = make("button", { class: "btn", title: "Sync all save slots for this game with the cloud" }, "Sync Now");
+      btnSync.addEventListener("click", async () => {
+        btnSync.disabled = true;
+        btnSync.textContent = "Syncing…";
+        try {
+          const result = await cloudManager.syncGame(gameId, saveLibrary);
+          const parts: string[] = [];
+          if (result.pushed > 0) parts.push(`↑ ${result.pushed} pushed`);
+          if (result.pulled > 0) parts.push(`↓ ${result.pulled} pulled`);
+          if (result.errors > 0) parts.push(`${result.errors} error(s)`);
+          showInfoToast(parts.length > 0 ? parts.join(" · ") : "Cloud sync complete — no changes.");
+        } catch (err) {
+          showError(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+          btnSync.disabled = false;
+          btnSync.textContent = "Sync Now";
+        }
+      });
+      actions.appendChild(btnSync);
+
+      // Configure button
+      const btnCfg = make("button", { class: "btn", title: "Edit cloud connection settings" });
+      btnCfg.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+      btnCfg.addEventListener("click", () => openCloudConnectDialog(cloudManager, render));
+      actions.appendChild(btnCfg);
+
+      // Disconnect button
+      const btnDisc = make("button", { class: "btn btn--danger", title: "Disconnect from cloud" }, "Disconnect");
+      btnDisc.addEventListener("click", () => {
+        cloudManager.disconnect();
+        showInfoToast("Disconnected from cloud.");
+      });
+      actions.appendChild(btnDisc);
+    } else {
+      // Connect button
+      const btnConn = make("button", { class: "btn btn--primary", title: "Connect to a cloud save provider" }, "Connect");
+      btnConn.addEventListener("click", () => openCloudConnectDialog(cloudManager, render));
+      actions.appendChild(btnConn);
+    }
+  };
+
+  // Self-update on status changes from the manager
+  const prevHandler = cloudManager.onStatusChange;
+  cloudManager.onStatusChange = () => { prevHandler?.(); render(); };
+
+  render();
+  return bar;
+}
+
+/**
+ * Show a modal dialog that lets the user configure and connect to WebDAV.
+ * On successful connect, calls `onConnected()` so the cloud bar refreshes.
+ */
+function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () => void): void {
+  const overlay = make("div", { class: "confirm-overlay" });
+  const box = make("div", {
+    class: "confirm-box",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-label": "Cloud Connection",
+    style: "min-width: min(94vw, 400px);",
+  });
+
+  box.appendChild(make("h3", { class: "confirm-title" }, "☁ Cloud Connection"));
+  box.appendChild(make("p", { class: "confirm-body" }, "Connect to a WebDAV server. The server must allow CORS requests from this origin."));
+
+  // Provider is always WebDAV for now (only concrete provider)
+  const saved = cloudManager.loadWebDAVConfig();
+
+  const makeField = (labelText: string, type: string, placeholder: string, value = ""): HTMLInputElement => {
+    const wrap = make("div", { class: "cloud-dialog-field" });
+    const lbl  = make("label", { class: "cloud-dialog-label" }, labelText);
+    const inp  = make("input", { class: "confirm-input", type, placeholder, value, autocomplete: "off" }) as HTMLInputElement;
+    wrap.append(lbl, inp);
+    box.appendChild(wrap);
+    return inp;
+  };
+
+  const urlInp  = makeField("WebDAV URL", "url", "https://dav.example.com/retrovault", saved?.url ?? "");
+  const userInp = makeField("Username", "text", "user", saved?.username ?? "");
+  const passInp = makeField("Password / Token", "password", "••••••••", saved?.password ?? "");
+
+  // Conflict resolution
+  const cfgWrap = make("div", { class: "cloud-dialog-field" });
+  const cfgLbl  = make("label", { class: "cloud-dialog-label" }, "Conflict resolution");
+  const cfgSel  = make("select", { class: "confirm-input" }) as HTMLSelectElement;
+  [["newest", "Keep newest (default)"], ["local", "Always keep local"], ["remote", "Always keep remote"]].forEach(([v, t]) => {
+    const opt = make("option", { value: v }, t);
+    if (cloudManager.conflictResolution === v) opt.setAttribute("selected", "");
+    cfgSel.appendChild(opt);
+  });
+  cfgWrap.append(cfgLbl, cfgSel);
+  box.appendChild(cfgWrap);
+
+  // Status line
+  const statusEl = make("p", { class: "cloud-dialog-status" }, "");
+  box.appendChild(statusEl);
+
+  const footer = make("div", { class: "confirm-footer" });
+  const btnCancel = make("button", { class: "btn" }, "Cancel");
+  const btnConnect = make("button", { class: "btn btn--primary" }, "Connect");
+  footer.append(btnCancel, btnConnect);
+  box.appendChild(footer);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const close = () => {
+    overlay.classList.remove("confirm-overlay--visible");
+    setTimeout(() => overlay.remove(), 200);
+  };
+
+  btnCancel.addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+  btnConnect.addEventListener("click", async () => {
+    const url  = urlInp.value.trim();
+    const user = userInp.value.trim();
+    const pass = passInp.value;
+
+    if (!url) { statusEl.textContent = "Please enter a WebDAV URL."; return; }
+
+    btnConnect.disabled = true;
+    btnConnect.textContent = "Connecting…";
+    statusEl.textContent = "";
+
+    try {
+      // Apply conflict resolution setting first
+      cloudManager.setConflictResolution(cfgSel.value as import("./cloudSave.js").ConflictResolution);
+
+      const provider = new WebDAVProvider(url, user, pass);
+      await cloudManager.connect(provider);
+
+      // Persist credentials and settings after successful connect
+      cloudManager.saveWebDAVConfig(url, user, pass);
+
+      close();
+      onConnected();
+      showInfoToast(`Connected to WebDAV: ${url}`);
+    } catch (err) {
+      statusEl.textContent = err instanceof Error ? err.message : String(err);
+      btnConnect.disabled = false;
+      btnConnect.textContent = "Connect";
+    }
+  });
+
+  requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
+  urlInp.focus();
+}
+
 // ── Save gallery dialog ───────────────────────────────────────────────────────
 
 async function openSaveGallery(
@@ -1612,6 +1827,10 @@ async function openSaveGallery(
   });
   galleryHeader.appendChild(btnExportAll);
   box.appendChild(galleryHeader);
+
+  // Cloud bar (below the header, above the grid)
+  const cloudBar = buildCloudBar(getCloudManager(), gameId, saveLibrary);
+  box.appendChild(cloudBar);
 
   // Slots container
   const slotsContainer = make("div", { class: "save-gallery-grid" });
@@ -1781,6 +2000,16 @@ async function buildSaveSlotCard(
         await persistSaveMetadata(emulator, saveLibrary, gameId, gameName, systemId, slot);
         await rerender();
         showInfoToast(`Saved to ${currentLabel}`);
+        // Auto-push to cloud when auto-sync is enabled
+        const cm = getCloudManager();
+        if (cm.isConnected() && cm.autoSyncEnabled) {
+          const saved = await saveLibrary.getState(gameId, slot);
+          if (saved) {
+            cm.push(saved).catch((err: unknown) => {
+              showInfoToast(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
+            });
+          }
+        }
       } finally {
         btnSave.disabled = false;
       }
