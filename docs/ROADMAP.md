@@ -130,6 +130,7 @@ could leak through to the emulator's own input handler.
 Networked features requiring server infrastructure.
 
 - [x] **NetplayManager**: `NetplayManager` class wires the EmulatorJS built-in Netplay feature into RetroVault — manages server URL, ICE server list, per-game numeric ID derivation (djb2 hash), and localStorage persistence; Netplay button appears in the emulator toolbar when enabled and a server URL is set
+- [x] **Lobby browser foundation**: `NetplayManager.fetchLobbyRooms()` adds a resilient room-discovery API for UI integration — converts configured WebSocket server URLs to HTTPS/HTTP, probes common room-list endpoints (`/rooms`, `/lobby/rooms`, `/netplay/rooms`), normalises payload shapes (`[]` or `{ rooms: [] }`), and safely returns only valid room rows
 - [ ] **WebRTC peer-to-peer**: PSP ad-hoc / N64 NetPlay over WebRTC using a STUN/TURN relay; no dedicated game server needed
 - [ ] **Lobby browser**: WebSocket-based matchmaking room list for users who want to join ongoing sessions
 - [ ] **Spectator mode**: Read-only WebRTC stream of a running session for watch parties

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   hashGameId,
   NetplayManager,
@@ -284,5 +284,83 @@ describe('NetplayManager.validateIceServerUrl', () => {
     for (const url of inputs) {
       expect(mgr.validateIceServerUrl(url)).toBe(validateIceServerUrl(url));
     }
+  });
+});
+
+// ── NetplayManager.fetchLobbyRooms ──────────────────────────────────────────
+
+describe('NetplayManager.fetchLobbyRooms', () => {
+  let mgr: NetplayManager;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mgr = new NetplayManager();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    globalThis.fetch = originalFetch;
+  });
+
+  it('returns empty when netplay is inactive', async () => {
+    const rooms = await mgr.fetchLobbyRooms();
+    expect(rooms).toEqual([]);
+  });
+
+  it('tries fallback endpoints and returns parsed rooms from a wrapped payload', async () => {
+    mgr.setEnabled(true);
+    mgr.setServerUrl('wss://netplay.example.com/');
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        rooms: [
+          { id: 'room-a', gameId: 123, name: 'Room A', host: 'alice', players: 1, maxPlayers: 2 },
+          { roomId: 'room-b', players: 2 },
+          { players: 5 },
+        ],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const rooms = await mgr.fetchLobbyRooms();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://netplay.example.com/rooms',
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://netplay.example.com/lobby/rooms',
+      expect.objectContaining({ method: 'GET' })
+    );
+
+    expect(rooms).toEqual([
+      { id: 'room-a', gameId: 123, name: 'Room A', host: 'alice', players: 1, maxPlayers: 2 },
+      { id: 'room-b', players: 2 },
+    ]);
+  });
+
+  it('returns empty when every endpoint fails or returns invalid payload', async () => {
+    mgr.setEnabled(true);
+    mgr.setServerUrl('ws://localhost:3000');
+
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(new Response('{"rooms":"bad"}', { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    globalThis.fetch = fetchMock as typeof fetch;
+    const rooms = await mgr.fetchLobbyRooms();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(rooms).toEqual([]);
   });
 });
