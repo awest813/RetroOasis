@@ -34,7 +34,7 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
  * intentionally gated per-system for deterministic behavior while support is
  * rolled out incrementally.
  */
-export const NETPLAY_SUPPORTED_SYSTEM_IDS = ["n64", "psp"] as const;
+export const NETPLAY_SUPPORTED_SYSTEM_IDS = ["n64", "psp", "nds"] as const;
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 

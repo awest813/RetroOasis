@@ -1274,6 +1274,49 @@ describe('PSPEmulator', () => {
       expect(window.EJS_Settings).toEqual(active);
     });
 
+    it('records an NDS performance diagnostic event with tier, cpu_mode, frameskip, and resolution', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.nds'),
+        volume:          0.7,
+        systemId:        'nds',
+        performanceMode: 'performance',
+        deviceCaps:      { ...fakeCaps, tier: 'low' as const },
+      });
+
+      const log = emulator.diagnosticLog;
+      const ndsPerfEntry = log.find(e =>
+        e.category === 'performance' && e.message.startsWith('NDS tier=')
+      );
+      expect(ndsPerfEntry).toBeDefined();
+      // Entry must include cpu_mode and frameskip so it is actionable for debugging
+      expect(ndsPerfEntry!.message).toContain('cpu=interpreter');
+      expect(ndsPerfEntry!.message).toContain('frameskip=2');
+    });
+
+    it('does not record an NDS performance diagnostic event for non-NDS systems', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.nes'),
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      fakeCaps,
+      });
+
+      const log = emulator.diagnosticLog;
+      const ndsPerfEntry = log.find(e =>
+        e.category === 'performance' && e.message.startsWith('NDS tier=')
+      );
+      expect(ndsPerfEntry).toBeUndefined();
+    });
+
     it('is null for a system with no tier settings (NES)', async () => {
       emulator.onError = () => {};
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
