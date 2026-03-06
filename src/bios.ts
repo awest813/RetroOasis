@@ -227,7 +227,7 @@ export class BiosLibrary {
     const idx   = store.index("systemId");
     const all   = await promisify<BiosEntry[]>(idx.getAll(systemId));
     const lower = fileName.toLowerCase();
-    return all.find(b => b.fileName === lower) ?? null;
+    return all.find(b => b.fileName.toLowerCase() === lower) ?? null;
   }
 
   /**

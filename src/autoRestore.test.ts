@@ -74,4 +74,30 @@ describe("scheduleAutoRestoreOnGameStart", () => {
     expect(writeStateData).not.toHaveBeenCalled();
     expect(quickLoad).not.toHaveBeenCalled();
   });
+
+  it("catches exceptions thrown by writeStateData without propagating", () => {
+    vi.useFakeTimers();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const writeStateData = vi.fn(() => { throw new Error("FS write failed"); });
+    const quickLoad = vi.fn();
+
+    scheduleAutoRestoreOnGameStart({
+      emulator: { writeStateData, quickLoad },
+      stateBytes: new Uint8Array([1, 2, 3]),
+      slot: 1,
+      delayMs: 100,
+    });
+
+    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    expect(() => vi.advanceTimersByTime(100)).not.toThrow();
+
+    expect(writeStateData).toHaveBeenCalledTimes(1);
+    expect(quickLoad).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[RetroVault] Auto-restore failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
+  });
 });
