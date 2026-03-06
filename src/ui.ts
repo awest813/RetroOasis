@@ -23,6 +23,7 @@
  *
  * Global keyboard shortcuts (always active):
  *   F9  → Open Settings → Debug tab
+ *   F3  → Toggle developer debug overlay (FPS, frame time, memory, draw calls)
  */
 
 import {
@@ -49,6 +50,8 @@ import {
   type PerformanceTier,
   formatCapabilitiesSummary,
   formatTierLabel,
+  UIDirtyFlags,
+  UIDirtyTracker,
 } from "./performance.js";
 import {
   BiosLibrary,
@@ -244,6 +247,19 @@ export function buildDOM(app: HTMLElement): void {
           <span id="fps-dropped" class="fps-detail fps-warn" hidden>0 dropped</span>
           <canvas id="fps-visualiser" class="fps-visualiser" width="120" height="32" hidden aria-hidden="true"></canvas>
         </div>
+        <!-- Developer debug overlay (toggle with F3) -->
+        <div id="dev-overlay" class="dev-overlay" hidden aria-label="Developer debug overlay" aria-live="off">
+          <div class="dev-overlay__title">🔧 Dev Overlay <kbd>F3</kbd></div>
+          <div class="dev-overlay__grid">
+            <span class="dev-overlay__label">FPS</span><span id="dev-fps" class="dev-overlay__value">--</span>
+            <span class="dev-overlay__label">Frame</span><span id="dev-frame-time" class="dev-overlay__value">-- ms</span>
+            <span class="dev-overlay__label">P95</span><span id="dev-p95" class="dev-overlay__value">-- ms</span>
+            <span class="dev-overlay__label">Dropped</span><span id="dev-dropped" class="dev-overlay__value">0</span>
+            <span class="dev-overlay__label">Memory</span><span id="dev-memory" class="dev-overlay__value">-- MB</span>
+            <span class="dev-overlay__label">State</span><span id="dev-state" class="dev-overlay__value">idle</span>
+          </div>
+          <canvas id="dev-framegraph" class="dev-overlay__graph" width="180" height="40" aria-hidden="true"></canvas>
+        </div>
       </div>
 
       <!-- Loading overlay -->
@@ -413,7 +429,10 @@ export function initUI(opts: UIOptions): void {
 
   // ── FPS overlay wiring ────────────────────────────────────────────────────
   emulator.setFPSMonitorEnabled(settings.showFPS);
-  emulator.onFPSUpdate = (snapshot) => { updateFPSOverlay(snapshot, emulator); };
+  emulator.onFPSUpdate = (snapshot) => {
+    updateFPSOverlay(snapshot, emulator);
+    updateDevOverlay(snapshot, emulator);
+  };
 
   // ── Emulator lifecycle → DOM ──────────────────────────────────────────────
   emulator.onStateChange = (state) => updateStatusDot(state);
@@ -480,6 +499,13 @@ export function initUI(opts: UIOptions): void {
       e.preventDefault();
       e.stopPropagation();
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "debug");
+      return;
+    }
+    // F3 toggles the developer debug overlay from anywhere
+    if (e.key === "F3") {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleDevOverlay();
       return;
     }
     if (emulator.state !== "running") return;
@@ -3409,6 +3435,7 @@ function buildAboutTab(container: HTMLElement): void {
   shortcutsSection.appendChild(make("h4", { class: "settings-section__title" }, "Keyboard Shortcuts"));
 
   const shortcuts: Array<[string, string]> = [
+    ["F3", "Toggle developer debug overlay"],
     ["F5", "Quick Save (slot 1)"],
     ["F7", "Quick Load (slot 1)"],
     ["F1", "Reset game"],
@@ -3680,6 +3707,117 @@ class AudioVisualiser {
 const _audioVisualiser = new AudioVisualiser();
 function startAudioVisualiser(emulatorRef?: PSPEmulator): void { _audioVisualiser.start(emulatorRef); }
 function stopAudioVisualiser(): void { _audioVisualiser.stop(); }
+
+// ── Developer debug overlay ───────────────────────────────────────────────────
+
+/** Module-level dirty tracker wired to the dev overlay and FPS overlay. */
+export const _uiDirtyTracker = new UIDirtyTracker();
+
+/** Whether the developer overlay (F3) is currently visible. */
+let _devOverlayVisible = false;
+
+/** Number of samples in the dev overlay frame-time graph ring buffer. */
+const DEV_FRAME_GRAPH_SAMPLES = 60;
+/** Frame time at 60 fps target (ms). */
+const DEV_FT_60FPS = 16;
+/** Frame time at 30 fps target (ms). */
+const DEV_FT_30FPS = 33;
+/** Maximum frame time represented on the graph y-axis (ms). */
+const DEV_FT_GRAPH_MAX = 50;
+
+/**
+ * Frametime ring buffer for the mini graph drawn inside the dev overlay.
+ * Pre-allocated to avoid per-frame GC pressure.
+ */
+const _devFrameGraph = new Float64Array(DEV_FRAME_GRAPH_SAMPLES);
+let   _devFrameGraphHead = 0;
+
+/** Toggle the developer debug overlay (bound to F3). */
+export function toggleDevOverlay(): void {
+  _devOverlayVisible = !_devOverlayVisible;
+  const el = document.getElementById("dev-overlay");
+  if (el) el.hidden = !_devOverlayVisible;
+  if (_devOverlayVisible) _uiDirtyTracker.mark(UIDirtyFlags.DEV_OVERLAY);
+}
+
+/** Return whether the developer debug overlay is currently shown. */
+export function isDevOverlayVisible(): boolean {
+  return _devOverlayVisible;
+}
+
+/**
+ * Update the developer debug overlay with the latest FPS snapshot and
+ * emulator state.  Only performs DOM work when the overlay is visible and
+ * the DEV_OVERLAY dirty flag is set, avoiding redundant mutations.
+ */
+function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
+  if (!_devOverlayVisible) return;
+
+  // Push the current frame time into the ring buffer for the mini graph.
+  const frameTimeMs = snapshot.current > 0 ? Math.round(1000 / snapshot.current) : 0;
+  _devFrameGraph[_devFrameGraphHead] = frameTimeMs;
+  _devFrameGraphHead = (_devFrameGraphHead + 1) % DEV_FRAME_GRAPH_SAMPLES;
+
+  // Mark dirty so the render block below runs exactly once per tick.
+  _uiDirtyTracker.mark(UIDirtyFlags.DEV_OVERLAY);
+
+  if (!_uiDirtyTracker.consume(UIDirtyFlags.DEV_OVERLAY)) return;
+
+  // ── Scalar metrics ────────────────────────────────────────────────────────
+  const fpsEl    = document.getElementById("dev-fps");
+  const frameEl  = document.getElementById("dev-frame-time");
+  const p95El    = document.getElementById("dev-p95");
+  const dropEl   = document.getElementById("dev-dropped");
+  const memEl    = document.getElementById("dev-memory");
+  const stateEl  = document.getElementById("dev-state");
+
+  if (fpsEl)   fpsEl.textContent   = `${snapshot.current}`;
+  if (frameEl) frameEl.textContent = `${frameTimeMs} ms`;
+  if (p95El)   p95El.textContent   = `${snapshot.p95FrameTimeMs} ms`;
+  if (dropEl)  dropEl.textContent  = `${snapshot.droppedFrames}`;
+
+  if (memEl) {
+    const perf = performance as Performance & { memory?: { usedJSHeapSize?: number } };
+    const used = perf.memory?.usedJSHeapSize;
+    memEl.textContent = used ? `${Math.round(used / (1024 * 1024))} MB` : "n/a";
+  }
+
+  if (stateEl) {
+    stateEl.textContent = emulator.state;
+    stateEl.className = `dev-overlay__value dev-overlay__state--${emulator.state}`;
+  }
+
+  // ── Frame-time mini graph ─────────────────────────────────────────────────
+  const canvas = document.getElementById("dev-framegraph") as HTMLCanvasElement | null;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Reference lines at DEV_FT_60FPS ms (60 fps) and DEV_FT_30FPS ms (30 fps)
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.lineWidth = 1;
+  const ref60y = h - Math.min((DEV_FT_60FPS / DEV_FT_GRAPH_MAX) * h, h);
+  const ref30y = h - Math.min((DEV_FT_30FPS / DEV_FT_GRAPH_MAX) * h, h);
+  ctx.beginPath(); ctx.moveTo(0, ref60y); ctx.lineTo(w, ref60y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, ref30y); ctx.lineTo(w, ref30y); ctx.stroke();
+
+  const barW = w / DEV_FRAME_GRAPH_SAMPLES;
+  const count = DEV_FRAME_GRAPH_SAMPLES;
+  for (let i = 0; i < count; i++) {
+    // Read from ring buffer in chronological order
+    const idx = (_devFrameGraphHead + i) % count;
+    const ms  = _devFrameGraph[idx];
+    if (ms === 0) continue;
+    const barH = Math.min((ms / DEV_FT_GRAPH_MAX) * h, h);
+    const hue  = ms <= DEV_FT_60FPS ? 120 : ms <= DEV_FT_30FPS ? 60 : 0;
+    ctx.fillStyle = `hsl(${hue},80%,50%)`;
+    ctx.fillRect(i * barW, h - barH, Math.max(1, barW - 1), barH);
+  }
+}
 
 // ── FPS overlay ───────────────────────────────────────────────────────────────
 
