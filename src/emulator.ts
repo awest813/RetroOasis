@@ -1419,6 +1419,30 @@ export class PSPEmulator {
         }
       }
 
+      // ── NDS performance diagnostics ───────────────────────────────────────
+      // Log key DeSmuME settings chosen for this session so they appear in
+      // the diagnostic timeline and the browser console when verboseLogging is
+      // enabled.  This makes it straightforward to correlate sluggish gameplay
+      // reports with the active tier's frameskip / CPU-mode / resolution
+      // without having to dig through EJS_Settings manually.
+      if (opts.systemId === "nds") {
+        const dsFrameskip  = ejsSettings["desmume_frameskip"]            ?? "?";
+        const dsCpuMode    = ejsSettings["desmume_cpu_mode"]             ?? "?";
+        const dsResolution = ejsSettings["desmume_internal_resolution"]  ?? "?";
+        const dsOpenGL     = ejsSettings["desmume_opengl_mode"]          ?? "?";
+        this.logDiagnostic(
+          "performance",
+          `NDS tier=${tier}: cpu=${dsCpuMode} frameskip=${dsFrameskip} res=${dsResolution} opengl=${dsOpenGL}`
+        );
+        if (this.verboseLogging) {
+          console.info(
+            `[RetroVault] DS performance settings — ` +
+            `cpu_mode: ${dsCpuMode}, frameskip: ${dsFrameskip}, ` +
+            `resolution: ${dsResolution}, opengl: ${dsOpenGL}`
+          );
+        }
+      }
+
       // ── Set EJS globals ───────────────────────────────────────────────────
       window.EJS_player        = `#${this._playerId}`;
       window.EJS_core          = system.id;

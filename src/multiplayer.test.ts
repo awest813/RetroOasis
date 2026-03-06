@@ -99,6 +99,15 @@ describe('NetplayManager', () => {
     expect(mgr.isSupportedForSystem('psp')).toBe(true);
   });
 
+  it('isSupportedForSystem includes nds', () => {
+    const mgr = new NetplayManager();
+    mgr.setEnabled(true);
+    mgr.setServerUrl('wss://netplay.example.com');
+
+    expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('nds');
+    expect(mgr.isSupportedForSystem('nds')).toBe(true);
+  });
+
   it('isActive is false when server URL is whitespace only', () => {
     const mgr = new NetplayManager();
     mgr.setEnabled(true);
