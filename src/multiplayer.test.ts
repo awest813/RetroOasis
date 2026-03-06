@@ -568,11 +568,14 @@ describe('resolveNetplayRoomKey', () => {
     expect(roomDisplayNameForKey('custom_room_key')).toBe('custom_room_key');
   });
 
-  it('supports link-capable handheld systems and blocks unsupported examples', () => {
+  it('supports link-capable handheld systems, n64, and psp; blocks unsupported examples', () => {
     expect(SYSTEM_LINK_CAPABILITIES.gbc).toBe(true);
     expect(SYSTEM_LINK_CAPABILITIES.gba).toBe(true);
     expect(SYSTEM_LINK_CAPABILITIES.nds).toBe(true);
+    expect(SYSTEM_LINK_CAPABILITIES.n64).toBe(true);
+    expect(SYSTEM_LINK_CAPABILITIES.psp).toBe(true);
     expect(SYSTEM_LINK_CAPABILITIES.nes).toBe(false);
+    expect(SYSTEM_LINK_CAPABILITIES.snes).toBe(false);
   });
 
   it('uses canonical fallback hashing for unknown titles', () => {
@@ -734,10 +737,12 @@ describe('resolveNetplayRoomKey — system ID validation', () => {
     expect(key).not.toBe('pokemon_gen1');
   });
 
-  it('NETPLAY_SUPPORTED_SYSTEM_IDS includes gba, gbc, nds but not nes/snes/n64/psx', () => {
+  it('NETPLAY_SUPPORTED_SYSTEM_IDS includes gba, gbc, nds, n64, psp but not nes/snes/psx', () => {
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('gba');
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('gbc');
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('nds');
+    expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('n64');
+    expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('psp');
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).not.toContain('nes');
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).not.toContain('snes');
     expect(NETPLAY_SUPPORTED_SYSTEM_IDS).not.toContain('psx');
