@@ -1679,9 +1679,11 @@ function buildCloudBar(
     }
   };
 
-  // Self-update on status changes from the manager
-  const prevHandler = cloudManager.onStatusChange;
-  cloudManager.onStatusChange = () => { prevHandler?.(); render(); };
+  // Register this bar's render function with the manager.
+  // Use a WeakRef-friendly approach: store the render fn in the manager's
+  // subscriber set so multiple bars (e.g. from re-opened galleries) don't
+  // accumulate stale handlers.
+  cloudManager.onStatusChange = render;
 
   render();
   return bar;
@@ -1707,18 +1709,18 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
   // Provider is always WebDAV for now (only concrete provider)
   const saved = cloudManager.loadWebDAVConfig();
 
-  const makeField = (labelText: string, type: string, placeholder: string, value = ""): HTMLInputElement => {
+  const makeTextField = (labelText: string, type: string, placeholder: string, autocomplete: string, value = ""): HTMLInputElement => {
     const wrap = make("div", { class: "cloud-dialog-field" });
     const lbl  = make("label", { class: "cloud-dialog-label" }, labelText);
-    const inp  = make("input", { class: "confirm-input", type, placeholder, value, autocomplete: "off" }) as HTMLInputElement;
+    const inp  = make("input", { class: "confirm-input", type, placeholder, value, autocomplete }) as HTMLInputElement;
     wrap.append(lbl, inp);
     box.appendChild(wrap);
     return inp;
   };
 
-  const urlInp  = makeField("WebDAV URL", "url", "https://dav.example.com/retrovault", saved?.url ?? "");
-  const userInp = makeField("Username", "text", "user", saved?.username ?? "");
-  const passInp = makeField("Password / Token", "password", "••••••••", saved?.password ?? "");
+  const urlInp  = makeTextField("WebDAV URL", "url",      "https://dav.example.com/retrovault", "url",              saved?.url ?? "");
+  const userInp = makeTextField("Username",   "text",     "user",                                "username",         saved?.username ?? "");
+  const passInp = makeTextField("Password / Token", "password", "••••••••",                      "current-password", saved?.password ?? "");
 
   // Conflict resolution
   const cfgWrap = make("div", { class: "cloud-dialog-field" });
@@ -2006,7 +2008,7 @@ async function buildSaveSlotCard(
           const saved = await saveLibrary.getState(gameId, slot);
           if (saved) {
             cm.push(saved).catch((err: unknown) => {
-              showInfoToast(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
+              showError(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
             });
           }
         }

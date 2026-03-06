@@ -250,6 +250,9 @@ export class NullCloudProvider implements CloudSaveProvider {
 
 // ── WebDAVProvider ────────────────────────────────────────────────────────────
 
+/** Timeout (ms) for the isAvailable() connectivity check. */
+const AVAILABILITY_CHECK_TIMEOUT_MS = 8_000;
+
 /**
  * CloudSaveProvider backed by a user-supplied WebDAV endpoint.
  *
@@ -275,14 +278,17 @@ export class WebDAVProvider implements CloudSaveProvider {
 
   constructor(baseUrl: string, username: string, password: string) {
     this.baseUrl    = baseUrl.replace(/\/+$/, "");
-    this.authHeader = "Basic " + btoa(unescape(encodeURIComponent(`${username}:${password}`)));
+    // Encode credentials as UTF-8 bytes then base64 — avoids the deprecated unescape() trick.
+    const credentials = `${username}:${password}`;
+    const utf8Bytes   = new TextEncoder().encode(credentials);
+    this.authHeader   = "Basic " + btoa(String.fromCharCode(...utf8Bytes));
   }
 
   // ── CloudSaveProvider implementation ───────────────────────────────────────
 
   async isAvailable(): Promise<boolean> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8_000);
+    const timer = setTimeout(() => controller.abort(), AVAILABILITY_CHECK_TIMEOUT_MS);
     try {
       const r = await fetch(this.baseUrl + "/", {
         method: "OPTIONS",
