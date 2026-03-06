@@ -1551,3 +1551,107 @@ export class DrawCallBatcher {
     this._pending = [];
   }
 }
+
+// ── UI dirty-flag system ──────────────────────────────────────────────────────
+
+/**
+ * Bit-flag constants for each independently re-renderable UI region.
+ *
+ * Combine with bitwise OR to mark multiple regions dirty at once:
+ *   flags.mark(UIDirtyFlags.LIBRARY | UIDirtyFlags.FPS_OVERLAY)
+ *
+ * The values are powers of two so they can be stored in a single integer and
+ * tested cheaply with bitwise AND.
+ */
+export const UIDirtyFlags = {
+  /** Game library grid — card list needs re-render. */
+  LIBRARY:         0b00000001,
+  /** FPS overlay text values need updating. */
+  FPS_OVERLAY:     0b00000010,
+  /** Developer debug overlay values need updating. */
+  DEV_OVERLAY:     0b00000100,
+  /** In-game header status (state dot, tier badge). */
+  HEADER_STATUS:   0b00001000,
+  /** Settings panel content. */
+  SETTINGS:        0b00010000,
+  /** Touch controls overlay layout. */
+  TOUCH_CONTROLS:  0b00100000,
+  /** All regions. */
+  ALL:             0b00111111,
+} as const;
+
+export type UIDirtyFlagBit = typeof UIDirtyFlags[keyof typeof UIDirtyFlags];
+
+/**
+ * Lightweight dirty-flag tracker for the UI render pipeline.
+ *
+ * Rather than re-rendering all UI regions every frame, consumers mark
+ * specific regions dirty and then call `consume()` in the render loop.
+ * Regions that have not changed since the last consume are skipped,
+ * reducing redundant DOM mutations and layout reflows.
+ *
+ * ### Usage
+ * ```ts
+ * const dirty = new UIDirtyTracker();
+ *
+ * // Mark specific regions that changed:
+ * dirty.mark(UIDirtyFlags.FPS_OVERLAY);
+ *
+ * // In your render loop:
+ * if (dirty.consume(UIDirtyFlags.FPS_OVERLAY)) updateFPSOverlay();
+ * if (dirty.consume(UIDirtyFlags.LIBRARY))     renderLibrary();
+ * ```
+ *
+ * The tracker is intentionally not reactive — it does not schedule its own
+ * render loop. Callers remain in control of when rendering happens, which
+ * keeps the system compatible with requestAnimationFrame, setTimeout, or
+ * any other scheduling strategy.
+ */
+export class UIDirtyTracker {
+  private _flags = 0;
+
+  /**
+   * Mark one or more UI regions as dirty.
+   *
+   * @param flags  Bitwise OR of {@link UIDirtyFlags} constants.
+   */
+  mark(flags: number): void {
+    this._flags |= flags;
+  }
+
+  /**
+   * Return `true` if any of the given regions are dirty, then clear them.
+   *
+   * Call this once per region per render-loop tick. The region is
+   * automatically cleared so subsequent calls in the same tick return
+   * `false` unless the region is marked dirty again.
+   *
+   * @param flags  Bitwise OR of {@link UIDirtyFlags} constants to test.
+   */
+  consume(flags: number): boolean {
+    const dirty = (this._flags & flags) !== 0;
+    if (dirty) this._flags &= ~flags;
+    return dirty;
+  }
+
+  /**
+   * Return `true` if any of the given regions are dirty without clearing.
+   *
+   * Useful for conditional checks that should not advance the render state.
+   *
+   * @param flags  Bitwise OR of {@link UIDirtyFlags} constants to test.
+   */
+  peek(flags: number): boolean {
+    return (this._flags & flags) !== 0;
+  }
+
+  /** Mark all tracked regions as clean. */
+  reset(): void {
+    this._flags = 0;
+  }
+
+  /** Raw bitmask of all currently dirty regions. */
+  get raw(): number {
+    return this._flags;
+  }
+}
