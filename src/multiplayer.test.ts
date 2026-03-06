@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { hashGameId, NetplayManager, DEFAULT_ICE_SERVERS, validateIceServerUrl } from './multiplayer';
+import {
+  hashGameId,
+  NetplayManager,
+  DEFAULT_ICE_SERVERS,
+  NETPLAY_SUPPORTED_SYSTEM_IDS,
+  validateIceServerUrl,
+} from './multiplayer';
 
 // ── hashGameId ────────────────────────────────────────────────────────────────
 
@@ -72,6 +78,16 @@ describe('NetplayManager', () => {
     mgr.setEnabled(true);
     mgr.setServerUrl('wss://netplay.example.com');
     expect(mgr.isActive).toBe(true);
+  });
+
+  it('isSupportedForSystem is true only for supported systems when active', () => {
+    const mgr = new NetplayManager();
+    mgr.setEnabled(true);
+    mgr.setServerUrl('wss://netplay.example.com');
+
+    expect(NETPLAY_SUPPORTED_SYSTEM_IDS).toContain('n64');
+    expect(mgr.isSupportedForSystem('n64')).toBe(true);
+    expect(mgr.isSupportedForSystem('nes')).toBe(false);
   });
 
   it('isActive is false when server URL is whitespace only', () => {

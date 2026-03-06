@@ -846,7 +846,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "n64",
     name: "Nintendo 64",
     shortName: "N64",
-    extensions: ["n64", "v64", "z64"],
+    extensions: ["64", "n64", "v64", "z64"],
     color: "#1a7a1a",
     needsThreads: false,
     needsWebGL2: false,

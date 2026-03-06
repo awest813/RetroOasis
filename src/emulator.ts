@@ -1437,7 +1437,7 @@ export class PSPEmulator {
 
       // ── Netplay globals ───────────────────────────────────────────────────
       const netplay = opts.netplayManager;
-      if (netplay?.isActive && opts.gameId) {
+      if (netplay?.isSupportedForSystem(opts.systemId) && opts.gameId) {
         window.EJS_netplayServer    = netplay.serverUrl;
         window.EJS_netplayICEServers = netplay.iceServers;
         window.EJS_gameID           = netplay.gameIdFor(opts.gameId);

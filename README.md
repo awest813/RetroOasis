@@ -57,7 +57,7 @@ Open **http://localhost:5173** in Chrome or Firefox.
 | System | Short | Core | Extensions | BIOS |
 |--------|-------|------|------------|------|
 | PlayStation Portable | PSP | PPSSPP | `.iso` `.cso` `.elf` | — |
-| Nintendo 64 | N64 | mupen64plus-next | `.n64` `.v64` `.z64` | — |
+| Nintendo 64 | N64 | mupen64plus-next | `.64` `.n64` `.v64` `.z64` | — |
 | Nintendo DS | DS | DeSmuME 2015 | `.nds` | — |
 | PlayStation 1 | PS1 | Beetle PSX HW | `.bin` `.iso` `.pbp` `.chd` `.cue` `.img` `.mdf` `.ccd` `.m3u` | Optional |
 | Game Boy Advance | GBA | mGBA | `.gba` | — |
