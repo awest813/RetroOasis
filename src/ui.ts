@@ -992,10 +992,13 @@ export async function resolveSystemAndAdd(
     return;
   }
 
-  // RAR archives cannot be extracted in the browser — show a helpful hint.
-  if (ext === "rar") {
+  // RAR and other compressed archive formats cannot be extracted in-browser.
+  // 7z is intentionally not blocked here because it can be a native package
+  // format for arcade sets.
+  const blockedArchiveExts = new Set(["rar", "tar", "gz", "tgz", "bz2", "tbz", "tbz2", "xz", "txz", "zst", "lz", "lzma", "cab"]);
+  if (blockedArchiveExts.has(ext)) {
     showError(
-      "RAR archives are not supported for automatic extraction.\n\n" +
+      `.${ext} archives are not supported for automatic extraction.\n\n` +
       "Please extract the archive first and then import the ROM file directly."
     );
     return;
@@ -1010,23 +1013,33 @@ export async function resolveSystemAndAdd(
   //    magic header. This handles mobile file pickers (especially iOS Safari)
   //    that may strip or mangle file extensions.
   let treatAsZip = ext === "zip";
-  if (!treatAsZip && ext !== "7z" && ext !== "rar") {
+  if (!treatAsZip && ext !== "7z" && !blockedArchiveExts.has(ext)) {
     const { detectArchiveFormat } = await import("./archive.js");
     const fmt = await detectArchiveFormat(file);
     if (fmt === "zip") {
       treatAsZip = true;
       if (settings.verboseLogging) {
         console.info(
-          `[RetroVault] Archive detected by content (extension: "${ext || "(none)"}") for "${file.name}"`
+          `[RetroVault] ZIP archive detected by content (extension: "${ext || "(none)"}") for "${file.name}"`
         );
       }
     } else if (fmt === "7z") {
-      // 7z detected by content — treat as native package (same as .7z extension).
+      // 7z detected by content — ensure the file can still route through
+      // extension-based system detection (important for missing/mangled names).
+      if (ext !== "7z") {
+        resolvedFile = new File([file], `${file.name}.7z`, { type: file.type });
+      }
       if (settings.verboseLogging) {
         console.info(
           `[RetroVault] 7-Zip archive detected by content for "${file.name}", routing as native package.`
         );
       }
+    } else if (fmt === "rar" || fmt === "tar" || fmt === "gzip" || fmt === "bzip2" || fmt === "xz") {
+      showError(
+        `${fmt.toUpperCase()} archives are not supported for automatic extraction.\n\n` +
+        "Please extract the archive first and then import the ROM file directly."
+      );
+      return;
     }
   }
 

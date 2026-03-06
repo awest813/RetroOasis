@@ -12,8 +12,10 @@
  *         Falls back gracefully when DecompressionStream is absent (stored/uncompressed
  *         entries still work).
  *
- * 7-Zip (.7z) — client-side decompression of 7z requires a WASM port of
- *         7-Zip; we surface an actionable error rather than silently fail.
+ * 7-Zip (.7z) — treated as a native package format (e.g. arcade sets).
+ *
+ * RAR / TAR / GZIP / BZIP2 / XZ — identified so UI can show a clear
+ *         message instead of generic “unrecognised file type” errors.
  *
  * The extractor prefers files whose extension matches a known ROM type.
  * If none match it returns the first non-directory entry.
@@ -86,7 +88,7 @@ function hasZipMagic(buf: ArrayBuffer): boolean {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /** Format of the archive. */
-export type ArchiveFormat = "zip" | "7z" | "unknown";
+export type ArchiveFormat = "zip" | "7z" | "rar" | "gzip" | "bzip2" | "xz" | "tar" | "unknown";
 
 /**
  * Detect the archive format of a Blob by reading its magic header.
@@ -94,14 +96,45 @@ export type ArchiveFormat = "zip" | "7z" | "unknown";
 export async function detectArchiveFormat(blob: Blob): Promise<ArchiveFormat> {
   if (blob.size < 4) return "unknown";
   try {
-    const header = await blob.slice(0, 8).arrayBuffer();
+    const header = await blob.slice(0, 600).arrayBuffer();
     const view   = new DataView(header);
+    const bytes  = new Uint8Array(header);
     const sig32  = view.getUint32(0, true);
     if (sig32 === LOCAL_FILE_MAGIC) return "zip";
     // 7-zip magic: "7z\xBC\xAF\x27\x1C"
     // Bytes [0x37,'z'=0x7a] read as little-endian uint16 → 0x7a37
     if (view.getUint16(0, true) === 0x7a37 &&
         view.getUint16(2, true) === 0xafbc) return "7z";
+
+    // RAR v1.5+ / v5 signatures:
+    // 52 61 72 21 1A 07 00 and 52 61 72 21 1A 07 01 00
+    if (bytes.length >= 7 &&
+        bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 && bytes[3] === 0x21 &&
+        bytes[4] === 0x1a && bytes[5] === 0x07 && (bytes[6] === 0x00 || bytes[6] === 0x01)) {
+      return "rar";
+    }
+
+    // GZIP signature: 1F 8B
+    if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return "gzip";
+
+    // BZIP2 signature: 42 5A 68 ("BZh")
+    if (bytes.length >= 3 && bytes[0] === 0x42 && bytes[1] === 0x5a && bytes[2] === 0x68) return "bzip2";
+
+    // XZ signature: FD 37 7A 58 5A 00
+    if (bytes.length >= 6 &&
+        bytes[0] === 0xfd && bytes[1] === 0x37 && bytes[2] === 0x7a &&
+        bytes[3] === 0x58 && bytes[4] === 0x5a && bytes[5] === 0x00) {
+      return "xz";
+    }
+
+    // TAR magic at offset 257: "ustar" + NUL/space
+    if (bytes.length >= 263) {
+      const isTar =
+        bytes[257] === 0x75 && bytes[258] === 0x73 && bytes[259] === 0x74 &&
+        bytes[260] === 0x61 && bytes[261] === 0x72 &&
+        (bytes[262] === 0x00 || bytes[262] === 0x20);
+      if (isTar) return "tar";
+    }
   } catch { /* ignore */ }
   return "unknown";
 }
@@ -320,7 +353,11 @@ export async function extractFromZip(
  * be extracted manually before importing.
  */
 export function isArchiveExtension(ext: string): boolean {
-  return ext === "zip" || ext === "7z" || ext === "rar";
+  return ext === "zip" || ext === "7z" || ext === "rar" ||
+    ext === "tar" || ext === "gz" || ext === "tgz" ||
+    ext === "bz2" || ext === "tbz" || ext === "tbz2" ||
+    ext === "xz" || ext === "txz" ||
+    ext === "zst" || ext === "lz" || ext === "lzma" || ext === "cab";
 }
 
 /**
@@ -328,4 +365,5 @@ export function isArchiveExtension(ext: string): boolean {
  */
 export const ARCHIVE_SUPPORT_NOTE =
   "ZIP archives are automatically extracted. " +
-  "7-Zip (.7z) and RAR (.rar) files must be extracted manually before importing.";
+  "7-Zip (.7z) is treated as a native package for compatible systems. " +
+  "RAR, TAR, GZIP, BZIP2, XZ, and similar archives must be extracted manually before importing.";
