@@ -18,6 +18,10 @@ describe('systems performance profiles', () => {
       const gbaDetected = detectSystem('pokemon.gba');
       expect(Array.isArray(gbaDetected)).toBe(false);
       expect(gbaDetected && !Array.isArray(gbaDetected) ? gbaDetected.id : null).toBe('gba');
+
+      const n64Detected = detectSystem('pilotwings.64');
+      expect(Array.isArray(n64Detected)).toBe(false);
+      expect(n64Detected && !Array.isArray(n64Detected) ? n64Detected.id : null).toBe('n64');
     });
 
     it('.iso is shared between PSP and PSX — returns an array of candidates', () => {

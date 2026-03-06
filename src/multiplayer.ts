@@ -27,6 +27,15 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
+/**
+ * Systems with first-class netplay support in this app.
+ *
+ * Netplay remains globally configurable in settings, but launch integration is
+ * intentionally gated per-system for deterministic behavior while support is
+ * rolled out incrementally.
+ */
+export const NETPLAY_SUPPORTED_SYSTEM_IDS = ["n64"] as const;
+
 // ── Storage ───────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "rv:netplay";
@@ -111,6 +120,13 @@ export class NetplayManager {
    */
   get isActive(): boolean {
     return this._settings.enabled && this._settings.serverUrl.trim().length > 0;
+  }
+
+  /**
+   * True when netplay is active and the given system is currently supported.
+   */
+  isSupportedForSystem(systemId: string): boolean {
+    return this.isActive && NETPLAY_SUPPORTED_SYSTEM_IDS.includes(systemId as typeof NETPLAY_SUPPORTED_SYSTEM_IDS[number]);
   }
 
   // ── Mutations ──────────────────────────────────────────────────────────────

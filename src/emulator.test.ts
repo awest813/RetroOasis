@@ -1917,16 +1917,16 @@ describe('PSPEmulator', () => {
       delete window.EJS_gameID;
     });
 
-    it('sets EJS netplay globals when netplay is active and a gameId is provided', async () => {
+    it('sets EJS netplay globals when netplay is active for N64 and a gameId is provided', async () => {
       const mgr = new NetplayManager();
       mgr.setEnabled(true);
       mgr.setServerUrl('wss://netplay.example.com');
 
       emulator.onError = () => {};
       await emulator.launch({
-        file:           new File(['data'], 'game.nes'),
+        file:           new File(['data'], 'game.n64'),
         volume:         0.7,
-        systemId:       'nes',
+        systemId:       'n64',
         performanceMode:'auto',
         deviceCaps:     fakeCaps,
         netplayManager: mgr,
@@ -1946,9 +1946,9 @@ describe('PSPEmulator', () => {
 
       emulator.onError = () => {};
       await emulator.launch({
-        file:           new File(['data'], 'game.nes'),
+        file:           new File(['data'], 'game.n64'),
         volume:         0.7,
-        systemId:       'nes',
+        systemId:       'n64',
         performanceMode:'auto',
         deviceCaps:     fakeCaps,
         netplayManager: mgr,
@@ -1966,9 +1966,9 @@ describe('PSPEmulator', () => {
 
       emulator.onError = () => {};
       await emulator.launch({
-        file:           new File(['data'], 'game.nes'),
+        file:           new File(['data'], 'game.n64'),
         volume:         0.7,
-        systemId:       'nes',
+        systemId:       'n64',
         performanceMode:'auto',
         deviceCaps:     fakeCaps,
         netplayManager: mgr,
@@ -1986,9 +1986,9 @@ describe('PSPEmulator', () => {
 
       emulator.onError = () => {};
       await emulator.launch({
-        file:           new File(['data'], 'game.nes'),
+        file:           new File(['data'], 'game.n64'),
         volume:         0.7,
-        systemId:       'nes',
+        systemId:       'n64',
         performanceMode:'auto',
         deviceCaps:     fakeCaps,
         netplayManager: mgr,
@@ -2006,9 +2006,9 @@ describe('PSPEmulator', () => {
 
       emulator.onError = () => {};
       await emulator.launch({
-        file:           new File(['data'], 'game.nes'),
+        file:           new File(['data'], 'game.n64'),
         volume:         0.7,
-        systemId:       'nes',
+        systemId:       'n64',
         performanceMode:'auto',
         deviceCaps:     fakeCaps,
         netplayManager: mgr,
@@ -2016,6 +2016,26 @@ describe('PSPEmulator', () => {
       });
 
       expect(window.EJS_gameID).toBe(mgr.gameIdFor('psp-game-ff7'));
+    });
+
+    it('does not set EJS netplay globals for unsupported systems even when netplay is active', async () => {
+      const mgr = new NetplayManager();
+      mgr.setEnabled(true);
+      mgr.setServerUrl('wss://netplay.example.com');
+
+      emulator.onError = () => {};
+      await emulator.launch({
+        file:           new File(['data'], 'game.nes'),
+        volume:         0.7,
+        systemId:       'nes',
+        performanceMode:'auto',
+        deviceCaps:     fakeCaps,
+        netplayManager: mgr,
+        gameId:         'nes-game-test',
+      });
+
+      expect(window.EJS_netplayServer).toBeUndefined();
+      expect(window.EJS_gameID).toBeUndefined();
     });
   });
 
