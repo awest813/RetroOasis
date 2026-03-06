@@ -18,6 +18,10 @@ import {
   estimateVRAM,
   MemoryMonitor,
   scheduleIdleTask,
+  ObjectPool,
+  SpatialGrid,
+  FrameBudget,
+  DrawCallBatcher,
   DeviceCapabilities,
   GPUCapabilities,
 } from './performance';
@@ -1161,6 +1165,304 @@ describe('performance', () => {
       expect(capturedOpts[0].timeout).toBe(5000);
 
       (globalThis as Record<string, unknown>).requestIdleCallback = original;
+    });
+  });
+
+  // ── ObjectPool ─────────────────────────────────────────────────────────────
+
+  describe('ObjectPool', () => {
+    it('creates a new object when the pool is empty', () => {
+      let created = 0;
+      const pool = new ObjectPool<{ x: number }>(() => { created++; return { x: 0 }; });
+      const obj = pool.acquire();
+      expect(created).toBe(1);
+      expect(obj).toEqual({ x: 0 });
+    });
+
+    it('reuses a released object instead of creating a new one', () => {
+      let created = 0;
+      const pool = new ObjectPool<{ x: number }>(() => { created++; return { x: 0 }; });
+      const first = pool.acquire();
+      pool.release(first);
+      const second = pool.acquire();
+      expect(created).toBe(1); // no extra allocation
+      expect(second).toBe(first); // same reference
+    });
+
+    it('calls the reset callback with extra args on acquire', () => {
+      const pool = new ObjectPool<{ x: number; y: number }, [number, number]>(
+        () => ({ x: 0, y: 0 }),
+        (obj, x, y) => { obj.x = x; obj.y = y; },
+      );
+      const obj = pool.acquire(3, 7);
+      expect(obj.x).toBe(3);
+      expect(obj.y).toBe(7);
+    });
+
+    it('discards objects when the pool is at capacity', () => {
+      const pool = new ObjectPool<object>(() => ({}), undefined, 2);
+      const a = pool.acquire();
+      const b = pool.acquire();
+      const c = pool.acquire();
+      pool.release(a);
+      pool.release(b);
+      pool.release(c); // pool is full — should be silently dropped
+      expect(pool.size).toBe(2);
+    });
+
+    it('size reflects the number of pooled objects', () => {
+      const pool = new ObjectPool<object>(() => ({}), undefined, 10);
+      expect(pool.size).toBe(0);
+      const obj = pool.acquire();
+      pool.release(obj);
+      expect(pool.size).toBe(1);
+    });
+
+    it('prewarm fills the pool up to maxSize', () => {
+      const pool = new ObjectPool<object>(() => ({}), undefined, 5);
+      pool.prewarm(3);
+      expect(pool.size).toBe(3);
+    });
+
+    it('prewarm does not exceed maxSize', () => {
+      const pool = new ObjectPool<object>(() => ({}), undefined, 3);
+      pool.prewarm(100);
+      expect(pool.size).toBe(3);
+    });
+
+    it('clear drains all pooled objects', () => {
+      const pool = new ObjectPool<object>(() => ({}), undefined, 10);
+      pool.prewarm(5);
+      pool.clear();
+      expect(pool.size).toBe(0);
+    });
+  });
+
+  // ── SpatialGrid ────────────────────────────────────────────────────────────
+
+  describe('SpatialGrid', () => {
+    it('exposes cols, rows, and cellSize', () => {
+      const grid = new SpatialGrid(100, 200, 25);
+      expect(grid.cols).toBe(4);   // 100 / 25
+      expect(grid.rows).toBe(8);   // 200 / 25
+      expect(grid.cellSize).toBe(25);
+    });
+
+    it('throws when cellSize is zero or negative', () => {
+      expect(() => new SpatialGrid(100, 100, 0)).toThrow(RangeError);
+      expect(() => new SpatialGrid(100, 100, -1)).toThrow(RangeError);
+    });
+
+    it('insert and query return the object', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('a', 15, 25);
+      const result = grid.query(10, 20, 20, 30);
+      expect(result.has('a')).toBe(true);
+    });
+
+    it('query returns nothing for a disjoint region', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('a', 5, 5);
+      const result = grid.query(50, 50, 60, 60);
+      expect(result.size).toBe(0);
+    });
+
+    it('remove prevents the object from appearing in subsequent queries', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('b', 15, 15);
+      grid.remove('b', 15, 15);
+      expect(grid.query(10, 10, 20, 20).has('b')).toBe(false);
+    });
+
+    it('move updates the object to the new cell', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('c', 5, 5);
+      grid.move('c', 5, 5, 55, 55);
+      expect(grid.query(0, 0, 9, 9).has('c')).toBe(false);
+      expect(grid.query(50, 50, 60, 60).has('c')).toBe(true);
+    });
+
+    it('move within the same cell is a no-op (no duplicate)', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('d', 5, 5);
+      grid.move('d', 5, 5, 6, 6); // same cell (0,0)
+      const result = grid.query(0, 0, 9, 9);
+      expect(result.has('d')).toBe(true);
+      expect(result.size).toBe(1);
+    });
+
+    it('clamps out-of-bounds positions to boundary cells', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('e', -50, -50); // clamped to (0,0)
+      grid.insert('f', 999, 999); // clamped to last cell
+      expect(grid.query(0, 0, 9, 9).has('e')).toBe(true);
+      expect(grid.query(90, 90, 100, 100).has('f')).toBe(true);
+    });
+
+    it('clear removes all objects', () => {
+      const grid = new SpatialGrid<string>(100, 100, 10);
+      grid.insert('g', 5, 5);
+      grid.clear();
+      expect(grid.query(0, 0, 100, 100).size).toBe(0);
+    });
+
+    it('query spanning the entire world returns all inserted objects', () => {
+      const grid = new SpatialGrid<number>(100, 100, 10);
+      for (let i = 0; i < 5; i++) grid.insert(i, i * 15, i * 15);
+      const all = grid.query(0, 0, 100, 100);
+      for (let i = 0; i < 5; i++) expect(all.has(i)).toBe(true);
+    });
+  });
+
+  // ── FrameBudget ────────────────────────────────────────────────────────────
+
+  describe('FrameBudget', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('pendingCount starts at zero', () => {
+      const budget = new FrameBudget();
+      expect(budget.pendingCount).toBe(0);
+    });
+
+    it('enqueue increments pendingCount', () => {
+      const budget = new FrameBudget();
+      budget.enqueue(() => {});
+      budget.enqueue(() => {});
+      expect(budget.pendingCount).toBe(2);
+    });
+
+    it('flush executes all tasks when within budget', () => {
+      const ran: number[] = [];
+      const budget = new FrameBudget(1000); // very generous budget
+      budget.beginFrame();
+      budget.enqueue(() => ran.push(1));
+      budget.enqueue(() => ran.push(2));
+      const count = budget.flush();
+      expect(ran).toEqual([1, 2]);
+      expect(count).toBe(2);
+      expect(budget.pendingCount).toBe(0);
+    });
+
+    it('flush stops when budget is exceeded and defers remaining tasks', () => {
+      const baseTime = 5_000_000;
+      const nowSpy = vi.spyOn(performance, 'now');
+      // Call 1: beginFrame() records the frame start.
+      // Call 2: first isOverBudget() check before task 'a' — within budget.
+      // Call 3: second isOverBudget() check before task 'b' — over budget → stop.
+      nowSpy
+        .mockReturnValueOnce(baseTime)         // beginFrame
+        .mockReturnValueOnce(baseTime)         // check before 'a' → 0 ms
+        .mockReturnValue   (baseTime + 15);    // check before 'b' → 15 ms
+
+      const budget = new FrameBudget(10); // 10 ms budget
+      budget.beginFrame();
+
+      const ran: string[] = [];
+      budget.enqueue(() => ran.push('a'));
+      budget.enqueue(() => ran.push('b'));
+
+      budget.flush();
+      expect(ran).toEqual(['a']);
+      expect(budget.pendingCount).toBe(1); // 'b' deferred
+    });
+
+    it('isOverBudget returns false before beginFrame is called', () => {
+      const budget = new FrameBudget(16);
+      expect(budget.isOverBudget()).toBe(false);
+    });
+
+    it('elapsed returns 0 before beginFrame is called', () => {
+      const budget = new FrameBudget();
+      expect(budget.elapsed()).toBe(0);
+    });
+
+    it('clear discards all pending tasks', () => {
+      const budget = new FrameBudget();
+      budget.enqueue(() => {});
+      budget.enqueue(() => {});
+      budget.clear();
+      expect(budget.pendingCount).toBe(0);
+    });
+
+    it('flush returns 0 when the queue is empty', () => {
+      const budget = new FrameBudget(1000);
+      budget.beginFrame();
+      expect(budget.flush()).toBe(0);
+    });
+  });
+
+  // ── DrawCallBatcher ────────────────────────────────────────────────────────
+
+  describe('DrawCallBatcher', () => {
+    const GL_TRIANGLES = 4;
+
+    it('pendingCount starts at zero', () => {
+      const batcher = new DrawCallBatcher();
+      expect(batcher.pendingCount).toBe(0);
+    });
+
+    it('add increments pendingCount', () => {
+      const batcher = new DrawCallBatcher();
+      batcher.add(GL_TRIANGLES, 36, 0, 0, 1);
+      expect(batcher.pendingCount).toBe(1);
+    });
+
+    it('flush returns sorted commands and resets pendingCount', () => {
+      const batcher = new DrawCallBatcher();
+      batcher.add(GL_TRIANGLES, 12, 0, 1, 2); // programId=2, tex=1
+      batcher.add(GL_TRIANGLES, 36, 0, 0, 1); // programId=1, tex=0
+      batcher.add(GL_TRIANGLES, 6,  0, 0, 2); // programId=2, tex=0
+      const cmds = batcher.flush();
+      expect(batcher.pendingCount).toBe(0);
+      // Sorted: programId 1 < programId 2; within programId 2: tex 0 < tex 1
+      expect(cmds[0].programId).toBe(1);
+      expect(cmds[1].programId).toBe(2);
+      expect(cmds[1].textureUnit).toBe(0);
+      expect(cmds[2].programId).toBe(2);
+      expect(cmds[2].textureUnit).toBe(1);
+    });
+
+    it('flush sorts by offset within the same program and texture', () => {
+      const batcher = new DrawCallBatcher();
+      batcher.add(GL_TRIANGLES, 6, 72, 0, 1);
+      batcher.add(GL_TRIANGLES, 6, 0,  0, 1);
+      batcher.add(GL_TRIANGLES, 6, 36, 0, 1);
+      const cmds = batcher.flush();
+      expect(cmds.map(c => c.offset)).toEqual([0, 36, 72]);
+    });
+
+    it('flush returns an empty array when no commands were added', () => {
+      const batcher = new DrawCallBatcher();
+      expect(batcher.flush()).toEqual([]);
+    });
+
+    it('silently drops commands beyond maxCommands', () => {
+      const batcher = new DrawCallBatcher(2);
+      batcher.add(GL_TRIANGLES, 6, 0, 0, 1);
+      batcher.add(GL_TRIANGLES, 6, 0, 0, 2);
+      batcher.add(GL_TRIANGLES, 6, 0, 0, 3); // dropped
+      expect(batcher.pendingCount).toBe(2);
+    });
+
+    it('clear discards pending commands', () => {
+      const batcher = new DrawCallBatcher();
+      batcher.add(GL_TRIANGLES, 36, 0, 0, 1);
+      batcher.clear();
+      expect(batcher.pendingCount).toBe(0);
+      expect(batcher.flush()).toEqual([]);
+    });
+
+    it('stores correct DrawCommand fields', () => {
+      const batcher = new DrawCallBatcher();
+      batcher.add(GL_TRIANGLES, 36, 48, 2, 5);
+      const [cmd] = batcher.flush();
+      expect(cmd.mode).toBe(GL_TRIANGLES);
+      expect(cmd.count).toBe(36);
+      expect(cmd.offset).toBe(48);
+      expect(cmd.textureUnit).toBe(2);
+      expect(cmd.programId).toBe(5);
     });
   });
 });
