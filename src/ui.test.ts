@@ -625,6 +625,26 @@ describe("buildMultiplayerTab", () => {
     expect(setUsername).toHaveBeenCalledWith("Bob");
   });
 
+
+
+  it("renders a lock indicator for password-protected lobby rooms", async () => {
+    settings = makeSettings({ netplayEnabled: true, netplayServerUrl: "wss://netplay.example.com" });
+    mgr.setEnabled(true);
+    mgr.setServerUrl("wss://netplay.example.com");
+    vi.spyOn(mgr, "fetchLobbyRooms").mockResolvedValue([
+      { id: "room-1", name: "Room 1", hasPassword: true, players: 1, maxPlayers: 2 },
+    ]);
+
+    openMultiplayerTab();
+    const panel = document.getElementById("tab-panel-multiplayer")!;
+    const refreshBtn = panel.querySelector<HTMLButtonElement>(".netplay-lobby-refresh")!;
+    refreshBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const roomName = panel.querySelector<HTMLElement>(".netplay-lobby-name");
+    expect(roomName).toBeTruthy();
+    expect(roomName!.textContent).toContain("🔒");
+  });
   it("lobby browser section is hidden when netplay is not active", () => {
     openMultiplayerTab();
     const panel = document.getElementById("tab-panel-multiplayer")!;
@@ -727,6 +747,27 @@ describe("buildDebugTab", () => {
     const perfPanel = document.getElementById("tab-panel-performance")!;
     expect(perfPanel.hidden).toBe(true);
   });
+
+  it("falls back to Performance tab when an invalid initialTab is provided", () => {
+    openSettingsPanel(
+      settings,
+      caps,
+      { getAllGamesMetadata: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), totalSize: vi.fn().mockResolvedValue(0) } as unknown as GameLibrary,
+      { findBios: vi.fn().mockResolvedValue(null) } as unknown as BiosLibrary,
+      onSettingsChange,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "not-a-real-tab" as unknown as "performance"
+    );
+
+    const perfPanel = document.getElementById("tab-panel-performance")!;
+    const debugPanel = document.getElementById("tab-panel-debug")!;
+    expect(perfPanel.hidden).toBe(false);
+    expect(debugPanel.hidden).toBe(true);
+  });
+
 
   it("Debug tab button has aria-selected true when initialTab is 'debug'", () => {
     openDebugTab();

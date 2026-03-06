@@ -55,6 +55,7 @@ export interface NetplayLobbyRoom {
   host?:   string;
   players?: number;
   maxPlayers?: number;
+  hasPassword?: boolean;
 }
 
 const DEFAULT_NETPLAY_SETTINGS: NetplaySettings = {
@@ -249,11 +250,21 @@ export class NetplayManager {
       .replace(/^wss:\/\//i, "https://")
       .replace(/\/+$/, "");
 
-    const endpoints = ["/rooms", "/lobby/rooms", "/netplay/rooms"];
+    const endpointCandidates: Array<{ path: string; includeLegacyQuery?: boolean }> = [
+      { path: "/rooms" },
+      { path: "/lobby/rooms" },
+      { path: "/netplay/rooms" },
+      { path: "/list", includeLegacyQuery: true },
+    ];
 
-    for (const path of endpoints) {
+    for (const candidate of endpointCandidates) {
       try {
-        const res = await fetch(`${base}${path}`, {
+        const url = new URL(`${base}${candidate.path}`);
+        if (candidate.includeLegacyQuery) {
+          url.searchParams.set("domain", window.location.host);
+        }
+
+        const res = await fetch(url.toString(), {
           method: "GET",
           headers: { "Accept": "application/json" },
           signal,
@@ -305,11 +316,14 @@ export class NetplayManager {
   }
 
   private _coerceLobbyRooms(body: unknown): NetplayLobbyRoom[] {
+    const wrapped = body && typeof body === "object" ? (body as { rooms?: unknown }).rooms : undefined;
     const raw = Array.isArray(body)
       ? body
-      : (body && typeof body === "object" && Array.isArray((body as { rooms?: unknown }).rooms)
-        ? (body as { rooms: unknown[] }).rooms
-        : []);
+      : (Array.isArray(wrapped)
+        ? wrapped
+        : (body && typeof body === "object"
+          ? this._mapLegacyRoomDictionary(body as Record<string, unknown>)
+          : []));
 
     const out: NetplayLobbyRoom[] = [];
     for (const item of raw) {
@@ -318,18 +332,54 @@ export class NetplayManager {
 
       const id = typeof row.id === "string"
         ? row.id
-        : (typeof row.roomId === "string" ? row.roomId : null);
+        : (typeof row.roomId === "string"
+          ? row.roomId
+          : (typeof row.room_id === "string" ? row.room_id : null));
       if (!id) continue;
+
+      const gameId = this._readOptionalNumber(row, ["gameId", "game_id"]);
+      const players = this._readOptionalNumber(row, ["players", "current", "player_count"]);
+      const maxPlayers = this._readOptionalNumber(row, ["maxPlayers", "max", "max_players"]);
 
       out.push({
         id,
-        gameId: typeof row.gameId === "number" ? row.gameId : undefined,
-        name: typeof row.name === "string" ? row.name : undefined,
+        gameId,
+        name: this._readOptionalString(row, ["name", "room_name"]),
         host: typeof row.host === "string" ? row.host : undefined,
-        players: typeof row.players === "number" ? row.players : undefined,
-        maxPlayers: typeof row.maxPlayers === "number" ? row.maxPlayers : undefined,
+        players,
+        maxPlayers,
+        hasPassword: typeof row.hasPassword === "boolean"
+          ? row.hasPassword
+          : (typeof row.has_password === "boolean"
+            ? row.has_password
+            : undefined),
       });
     }
     return out;
+  }
+
+  private _mapLegacyRoomDictionary(body: Record<string, unknown>): unknown[] {
+    const rows: unknown[] = [];
+    for (const [id, value] of Object.entries(body)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      rows.push({ id, ...(value as Record<string, unknown>) });
+    }
+    return rows;
+  }
+
+  private _readOptionalNumber(row: Record<string, unknown>, keys: string[]): number | undefined {
+    for (const key of keys) {
+      const value = row[key];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+    }
+    return undefined;
+  }
+
+  private _readOptionalString(row: Record<string, unknown>, keys: string[]): string | undefined {
+    for (const key of keys) {
+      const value = row[key];
+      if (typeof value === "string") return value;
+    }
+    return undefined;
   }
 }
