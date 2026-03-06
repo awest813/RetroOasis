@@ -204,7 +204,7 @@ export class CloudSaveSync {
       slot,
     });
 
-    if (winner === localEntry || winner.timestamp === localEntry!.timestamp) {
+    if (winner === localEntry) {
       await this.provider.upload(localEntry!);
       return { entry: localEntry!, direction: "pushed" };
     }

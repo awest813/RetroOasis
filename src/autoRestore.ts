@@ -50,8 +50,12 @@ export function scheduleAutoRestoreOnGameStart(opts: AutoRestoreOptions): AutoRe
 
     // Give the core a short window to render its first frame before loading.
     setTimeout(() => {
-      if (emulator.writeStateData(slot, stateBytes)) {
-        emulator.quickLoad(slot);
+      try {
+        if (emulator.writeStateData(slot, stateBytes)) {
+          emulator.quickLoad(slot);
+        }
+      } catch (err) {
+        console.error("[RetroVault] Auto-restore failed:", err);
       }
     }, delayMs);
   };

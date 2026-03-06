@@ -310,6 +310,20 @@ describe("CloudSaveSync — syncSlot", () => {
     expect(result!.direction).toBe("pulled");
     expect(result!.entry).toBe(remoteEntry);
   });
+
+  it("returns remote as 'pulled' when timestamps are equal ('newest' tie-breaks to remote)", async () => {
+    const provider    = makeMockProvider(true);
+    const localEntry  = makeEntry({ timestamp: 1000 });
+    const remoteEntry = makeEntry({ timestamp: 1000 });
+    provider.download.mockResolvedValue(remoteEntry);
+    const sync = new CloudSaveSync(provider, "newest");
+
+    const result = await sync.syncSlot(localEntry, "game-1", 1);
+
+    expect(result!.direction).toBe("pulled");
+    expect(result!.entry).toBe(remoteEntry);
+    expect(provider.upload).not.toHaveBeenCalled();
+  });
 });
 
 // ── CloudSaveSync — listManifests ─────────────────────────────────────────────
