@@ -421,6 +421,38 @@ describe('NetplayManager.fetchLobbyRooms', () => {
     ]);
   });
 
+
+
+  it('parses legacy /list dictionary payload with snake_case fields', async () => {
+    mgr.setEnabled(true);
+    mgr.setServerUrl('wss://netplay.example.com');
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        'legacy-a': { room_name: 'Legacy Room', current: 1, max: 4, has_password: true },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const rooms = await mgr.fetchLobbyRooms();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      expect.stringContaining('https://netplay.example.com/list?domain='),
+      expect.objectContaining({ method: 'GET' })
+    );
+
+    expect(rooms).toEqual([
+      { id: 'legacy-a', name: 'Legacy Room', players: 1, maxPlayers: 4, hasPassword: true },
+    ]);
+  });
   it('returns empty when every endpoint fails or returns invalid payload', async () => {
     mgr.setEnabled(true);
     mgr.setServerUrl('ws://localhost:3000');
@@ -429,12 +461,18 @@ describe('NetplayManager.fetchLobbyRooms', () => {
       .fn()
       .mockRejectedValueOnce(new Error('network'))
       .mockResolvedValueOnce(new Response('{"rooms":"bad"}', { status: 200, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
     globalThis.fetch = fetchMock as typeof fetch;
     const rooms = await mgr.fetchLobbyRooms();
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      expect.stringContaining('http://localhost:3000/list?domain='),
+      expect.objectContaining({ method: 'GET' })
+    );
     expect(rooms).toEqual([]);
   });
 });

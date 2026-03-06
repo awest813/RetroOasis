@@ -2246,7 +2246,8 @@ function buildSettingsContent(
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
-  let activeTab: SettingsTab = initialTab ?? "performance";
+  const requestedTab = initialTab ?? "performance";
+  let activeTab: SettingsTab = tabIndexById.has(requestedTab) ? requestedTab : "performance";
 
   // Tab bar
   const tabBar = make("div", { class: "settings-tabs", role: "tablist" });
@@ -2257,6 +2258,7 @@ function buildSettingsContent(
   const panels: HTMLElement[] = [];
 
   const switchTab = (id: SettingsTab) => {
+    if (!tabIndexById.has(id)) return;
     activeTab = id;
     const activeIndex = tabIndexById.get(id) ?? -1;
     tabBtns.forEach((btn, i) => {
@@ -2953,6 +2955,9 @@ function buildMultiplayerTab(
               : `${room.players} player${room.players !== 1 ? "s" : ""}`
           )
         : null;
+      if (room.hasPassword) {
+        nameEl.appendChild(document.createTextNode(" 🔒"));
+      }
       row.appendChild(nameEl);
       if (hostEl)    row.appendChild(hostEl);
       if (playersEl) row.appendChild(playersEl);
