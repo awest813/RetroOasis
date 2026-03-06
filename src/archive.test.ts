@@ -235,6 +235,38 @@ describe('detectArchiveFormat', () => {
     expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('7z');
   });
 
+  it('returns "rar" for a RAR header', async () => {
+    const rarBytes = new Uint8Array([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00, 0x00]);
+    const blob = new Blob([rarBytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('rar');
+  });
+
+  it('returns "gzip" for a GZIP header', async () => {
+    const gzipBytes = new Uint8Array([0x1f, 0x8b, 0x08, 0x00]);
+    const blob = new Blob([gzipBytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('gzip');
+  });
+
+  it('returns "bzip2" for a BZIP2 header', async () => {
+    const bz2Bytes = new Uint8Array([0x42, 0x5a, 0x68, 0x39]);
+    const blob = new Blob([bz2Bytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('bzip2');
+  });
+
+  it('returns "xz" for an XZ header', async () => {
+    const xzBytes = new Uint8Array([0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00, 0x00]);
+    const blob = new Blob([xzBytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('xz');
+  });
+
+  it('returns "tar" for a TAR header with ustar magic', async () => {
+    const tarBytes = new Uint8Array(512);
+    tarBytes.set(new TextEncoder().encode('ustar'), 257);
+    tarBytes[262] = 0x00;
+    const blob = new Blob([tarBytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('tar');
+  });
+
   it('returns "unknown" for an unrecognised header', async () => {
     const blob = new Blob([new Uint8Array([0xde, 0xad, 0xbe, 0xef])]);
     expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('unknown');
@@ -259,6 +291,16 @@ describe('isArchiveExtension', () => {
 
   it('returns true for "rar"', () => {
     expect(isArchiveExtension('rar')).toBe(true);
+  });
+
+  it('returns true for additional archive extensions', () => {
+    expect(isArchiveExtension('tar')).toBe(true);
+    expect(isArchiveExtension('gz')).toBe(true);
+    expect(isArchiveExtension('tgz')).toBe(true);
+    expect(isArchiveExtension('bz2')).toBe(true);
+    expect(isArchiveExtension('xz')).toBe(true);
+    expect(isArchiveExtension('zst')).toBe(true);
+    expect(isArchiveExtension('cab')).toBe(true);
   });
   it('returns false for ROM extensions', () => {
     expect(isArchiveExtension('nes')).toBe(false);
@@ -285,6 +327,10 @@ describe('ARCHIVE_SUPPORT_NOTE', () => {
 
   it('mentions RAR limitation', () => {
     expect(ARCHIVE_SUPPORT_NOTE).toContain('RAR');
+  });
+
+  it('mentions additional archive limitations', () => {
+    expect(ARCHIVE_SUPPORT_NOTE).toContain('TAR');
   });
 });
 
