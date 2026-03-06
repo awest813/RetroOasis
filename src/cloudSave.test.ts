@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   NullCloudProvider,
   CloudSaveSync,
+  WebDAVProvider,
+  CloudSaveManager,
   type CloudSaveProvider,
   type CloudSaveManifest,
   type SyncConflict,
@@ -344,5 +346,301 @@ describe("CloudSaveSync — listManifests", () => {
 
     expect(result).toBe(manifests);
     expect(provider.listManifests).toHaveBeenCalledWith("game-1");
+  });
+});
+
+// ── WebDAVProvider ────────────────────────────────────────────────────────────
+
+describe("WebDAVProvider — construction", () => {
+  it("has providerId 'webdav' and a non-empty displayName", () => {
+    const p = new WebDAVProvider("https://dav.example.com/saves", "user", "pass");
+    expect(p.providerId).toBe("webdav");
+    expect(p.displayName.length).toBeGreaterThan(0);
+  });
+});
+
+describe("WebDAVProvider — isAvailable", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("returns true when the server responds with a 2xx status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 200, ok: true }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(true);
+  });
+
+  it("returns true when the server responds with 4xx (server reachable, auth denied)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 401, ok: false }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(true);
+  });
+
+  it("returns false when fetch throws (network error / CORS)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(false);
+  });
+
+  it("returns false when the server responds with 5xx", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 503, ok: false }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(false);
+  });
+});
+
+describe("WebDAVProvider — upload", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("sends PUT requests for manifest.json, state.bin, and thumb.jpg", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const entry = makeEntry({ gameId: "g1", slot: 1, stateData: new Blob(["state"]), thumbnail: new Blob(["img"], { type: "image/jpeg" }) });
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    await p.upload(entry);
+
+    const methods = mockFetch.mock.calls.map((c: unknown[]) => (c[1] as { method: string }).method);
+    const urls    = mockFetch.mock.calls.map((c: unknown[]) => c[0] as string);
+
+    expect(methods).toContain("MKCOL");
+    expect(methods).toContain("PUT");
+    expect(urls.some((u: string) => u.includes("manifest.json"))).toBe(true);
+    expect(urls.some((u: string) => u.includes("state.bin"))).toBe(true);
+    expect(urls.some((u: string) => u.includes("thumb.jpg"))).toBe(true);
+  });
+
+  it("throws when a PUT request fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+    const entry = makeEntry({ stateData: null, thumbnail: null });
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    await expect(p.upload(entry)).rejects.toThrow(/WebDAV PUT failed/);
+  });
+});
+
+describe("WebDAVProvider — download", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("returns null when manifest.json is not found (404)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.download("game-1", 1)).toBeNull();
+  });
+
+  it("returns a SaveStateEntry when manifest and state exist", async () => {
+    const manifest: CloudSaveManifest = makeManifest({ gameId: "game-1", slot: 1 });
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => manifest })  // manifest
+      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) }) // state
+      .mockResolvedValueOnce({ ok: false, status: 404 }); // no thumbnail
+
+    vi.stubGlobal("fetch", mockFetch);
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    const result = await p.download("game-1", 1);
+
+    expect(result).not.toBeNull();
+    expect(result!.gameId).toBe("game-1");
+    expect(result!.slot).toBe(1);
+    expect(result!.stateData).not.toBeNull();
+    expect(result!.thumbnail).toBeNull();
+  });
+});
+
+describe("WebDAVProvider — listManifests", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("returns manifests for slots that exist", async () => {
+    const manifest = makeManifest({ slot: 2 });
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if ((url as string).includes("/2/manifest.json")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => manifest });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    const results = await p.listManifests("game-1");
+
+    expect(results).toHaveLength(1);
+    expect(results[0].slot).toBe(2);
+  });
+
+  it("returns empty array when no slots exist", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.listManifests("game-1")).toEqual([]);
+  });
+});
+
+describe("WebDAVProvider — delete", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("sends DELETE requests for all three files", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    await p.delete("game-1", 2);
+
+    const methods = mockFetch.mock.calls.map((c: unknown[]) => (c[1] as { method: string }).method);
+    expect(methods.filter((m: string) => m === "DELETE")).toHaveLength(3);
+  });
+});
+
+// ── CloudSaveManager ──────────────────────────────────────────────────────────
+
+describe("CloudSaveManager — initial state", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("starts disconnected", () => {
+    const m = new CloudSaveManager();
+    expect(m.isConnected()).toBe(false);
+  });
+
+  it("defaults to conflictResolution 'newest' and autoSyncEnabled false", () => {
+    const m = new CloudSaveManager();
+    expect(m.conflictResolution).toBe("newest");
+    expect(m.autoSyncEnabled).toBe(false);
+  });
+});
+
+describe("CloudSaveManager — connect / disconnect", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("connect() sets isConnected() true when provider is available", async () => {
+    const m = new CloudSaveManager();
+    await m.connect(makeMockProvider(true));
+    expect(m.isConnected()).toBe(true);
+  });
+
+  it("connect() throws when provider reports unavailable", async () => {
+    const m = new CloudSaveManager();
+    await expect(m.connect(makeMockProvider(false))).rejects.toThrow();
+    expect(m.isConnected()).toBe(false);
+  });
+
+  it("disconnect() sets isConnected() false", async () => {
+    const m = new CloudSaveManager();
+    await m.connect(makeMockProvider(true));
+    m.disconnect();
+    expect(m.isConnected()).toBe(false);
+  });
+
+  it("fires onStatusChange on connect and disconnect", async () => {
+    const m = new CloudSaveManager();
+    const spy = vi.fn();
+    m.onStatusChange = spy;
+    await m.connect(makeMockProvider(true));
+    expect(spy).toHaveBeenCalledTimes(1);
+    m.disconnect();
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("CloudSaveManager — push / pull", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("push() delegates to the underlying sync when connected", async () => {
+    const provider = makeMockProvider(true);
+    const m = new CloudSaveManager();
+    await m.connect(provider);
+    const entry = makeEntry();
+    await m.push(entry);
+    expect(provider.upload).toHaveBeenCalledWith(entry);
+  });
+
+  it("push() is a no-op when disconnected", async () => {
+    const provider = makeMockProvider(false);
+    const m = new CloudSaveManager();
+    await m.push(makeEntry()).catch(() => {}); // provider unavailable, no-op
+    expect(provider.upload).not.toHaveBeenCalled();
+  });
+
+  it("pull() returns null when disconnected", async () => {
+    const m = new CloudSaveManager();
+    expect(await m.pull("game-1", 1)).toBeNull();
+  });
+
+  it("pull() records lastSyncAt on success", async () => {
+    const provider = makeMockProvider(true);
+    provider.download.mockResolvedValue(makeEntry());
+    const m = new CloudSaveManager();
+    await m.connect(provider);
+    await m.pull("game-1", 1);
+    expect(m.lastSyncAt).not.toBeNull();
+  });
+
+  it("push() records lastError and re-throws on provider error", async () => {
+    const provider = makeMockProvider(true);
+    provider.upload.mockRejectedValue(new Error("network fail"));
+    const m = new CloudSaveManager();
+    await m.connect(provider);
+    await expect(m.push(makeEntry())).rejects.toThrow("network fail");
+    expect(m.lastError).toBe("network fail");
+  });
+});
+
+describe("CloudSaveManager — syncGame", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("returns pushed/pulled counts after syncing all slots", async () => {
+    const provider = makeMockProvider(true);
+    // provider has no remote saves → every local save gets pushed
+    const m = new CloudSaveManager();
+    await m.connect(provider);
+
+    const states = [makeEntry({ slot: 1 }), makeEntry({ slot: 2 })];
+    const fakeLib = { getStatesForGame: vi.fn().mockResolvedValue(states) };
+    const result = await m.syncGame("game-1", fakeLib);
+
+    expect(result.pushed).toBe(2);
+    expect(result.pulled).toBe(0);
+    expect(result.errors).toBe(0);
+  });
+
+  it("counts errors without throwing", async () => {
+    const provider = makeMockProvider(true);
+    provider.upload.mockRejectedValue(new Error("quota exceeded"));
+    const m = new CloudSaveManager();
+    await m.connect(provider);
+
+    const states = [makeEntry({ slot: 1 })];
+    const fakeLib = { getStatesForGame: vi.fn().mockResolvedValue(states) };
+    const result = await m.syncGame("game-1", fakeLib);
+
+    expect(result.errors).toBeGreaterThan(0);
+  });
+});
+
+describe("CloudSaveManager — settings persistence", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("persists autoSyncEnabled via setAutoSync()", () => {
+    const m = new CloudSaveManager();
+    m.setAutoSync(true);
+    const m2 = new CloudSaveManager();
+    expect(m2.autoSyncEnabled).toBe(true);
+  });
+
+  it("persists conflictResolution via setConflictResolution()", () => {
+    const m = new CloudSaveManager();
+    m.setConflictResolution("local");
+    const m2 = new CloudSaveManager();
+    expect(m2.conflictResolution).toBe("local");
+  });
+
+  it("saveWebDAVConfig / loadWebDAVConfig round-trip", () => {
+    const m = new CloudSaveManager();
+    m.saveWebDAVConfig("https://dav.example.com", "alice", "s3cr3t");
+    const cfg = m.loadWebDAVConfig();
+    expect(cfg?.url).toBe("https://dav.example.com");
+    expect(cfg?.username).toBe("alice");
+    expect(cfg?.password).toBe("s3cr3t");
+  });
+
+  it("clearWebDAVConfig removes stored credentials", () => {
+    const m = new CloudSaveManager();
+    m.saveWebDAVConfig("https://dav.example.com", "alice", "pass");
+    m.clearWebDAVConfig();
+    expect(m.loadWebDAVConfig()).toBeNull();
   });
 });
