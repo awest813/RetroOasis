@@ -151,14 +151,22 @@ export function buildDOM(app: HTMLElement): void {
     <!-- ── Header ── -->
     <header class="app-header">
       <div class="app-header__brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2"
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+             stroke="currentColor" stroke-width="1.8"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="6" width="20" height="12" rx="2"/>
-          <circle cx="8"  cy="12" r="1.5"/>
-          <circle cx="16" cy="12" r="1.5"/>
-          <line x1="12" y1="9"  x2="12" y2="15"/>
-          <line x1="9"  y1="12" x2="15" y2="12"/>
+          <!-- Controller body -->
+          <rect x="2" y="7" width="24" height="14" rx="7"/>
+          <!-- D-pad left group -->
+          <rect x="7" y="12.5" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <rect x="8.5" y="11" width="2" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <!-- ABXY buttons -->
+          <circle cx="20" cy="12.5" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="22.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="20" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="17.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+          <!-- Center buttons -->
+          <circle cx="13" cy="14" r="1" fill="currentColor" stroke="none" opacity="0.5"/>
+          <circle cx="15" cy="14" r="1" fill="currentColor" stroke="none" opacity="0.5"/>
         </svg>
         <span class="brand-long">RetroVault</span>
         <span class="brand-short" aria-hidden="true">RV</span>
@@ -215,7 +223,14 @@ export function buildDOM(app: HTMLElement): void {
                  id="file-input"
                  accept="${acceptList}"
                  aria-label="Select game ROM file" />
-          <div class="drop-zone__icon" aria-hidden="true">+</div>
+          <div class="drop-zone__icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
           <p class="drop-zone__label">Drop a ROM file here to start playing</p>
           <p class="drop-zone__sub">or <span class="drop-zone__browse">browse your device</span></p>
           <p class="drop-zone__formats" title="Supported file formats">${formatHint}</p>
