@@ -122,6 +122,19 @@ function make<K extends keyof HTMLElementTagNameMap>(
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
+/** Mini controller SVG icon (reused in header brand and footer) */
+const _CTRL_SVG_MINI = `<svg width="12" height="12" viewBox="0 0 28 28" fill="none"
+     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     aria-hidden="true" style="color:var(--c-accent);opacity:0.6;flex-shrink:0">
+  <rect x="2" y="7" width="24" height="14" rx="7"/>
+  <rect x="7" y="12.5" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
+  <rect x="8.5" y="11" width="2" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
+  <circle cx="20" cy="12.5" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="22.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="20" cy="15.5" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="17.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
+</svg>`;
+
 export function buildDOM(app: HTMLElement): void {
   // Reset module-level state that is tied to DOM nodes created below
   if (_librarySearchDebounce !== null) {
@@ -357,17 +370,7 @@ export function buildDOM(app: HTMLElement): void {
         <span class="status-item__value" id="status-tier">—</span>
       </div>
       <div class="status-item hide-mobile" style="margin-left:auto;gap:6px">
-        <svg width="12" height="12" viewBox="0 0 28 28" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true" style="color:var(--c-accent);opacity:0.6;flex-shrink:0">
-          <rect x="2" y="7" width="24" height="14" rx="7"/>
-          <rect x="7" y="12.5" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
-          <rect x="8.5" y="11" width="2" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
-          <circle cx="20" cy="12.5" r="1.1" fill="currentColor" stroke="none"/>
-          <circle cx="22.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
-          <circle cx="20" cy="15.5" r="1.1" fill="currentColor" stroke="none"/>
-          <circle cx="17.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
-        </svg>
+        ${_CTRL_SVG_MINI}
         <span class="status-item__value" style="opacity:0.45;font-size:0.7rem">RetroVault v1.0</span>
       </div>
     </footer>

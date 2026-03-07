@@ -49,6 +49,7 @@
   --header-h:     60px;
   --footer-h:     36px;
   --sidebar-w:    300px;
+  --toast-bottom: calc(var(--footer-h) + 14px);
 
   /* ── Transitions ── */
   --transition:       0.18s ease;
@@ -451,7 +452,8 @@ body {
   transition: opacity var(--transition-med);
 }
 
-.game-card:hover .game-card__icon::after { opacity: 1; }
+.game-card:hover .game-card__icon::after,
+.game-card:focus-visible .game-card__icon::after { opacity: 1; }
 
 .game-card__info {
   padding: 11px 13px 13px;
@@ -1607,7 +1609,7 @@ body {
 /* ── Performance suggestion toast ─────────────────────────── */
 .perf-suggestion {
   position: fixed;
-  bottom: calc(var(--footer-h) + 14px);
+  bottom: var(--toast-bottom);
   left: 50%;
   transform: translateX(-50%) translateY(16px);
   z-index: 200;
@@ -2439,7 +2441,7 @@ kbd {
 /* ── Info toast (quick save / quick load / etc.) ───────────── */
 .info-toast {
   position: fixed;
-  bottom: calc(var(--footer-h) + 14px);
+  bottom: var(--toast-bottom);
   left: 50%;
   transform: translateX(-50%) translateY(12px);
   z-index: 200;
