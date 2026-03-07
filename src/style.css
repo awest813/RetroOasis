@@ -260,6 +260,11 @@ body {
   color: var(--c-text);
 }
 
+.sys-filter-chip:active {
+  transform: scale(0.95);
+  transition-duration: 0.06s;
+}
+
 .sys-filter-chip.active {
   background: var(--chip-color, var(--c-accent));
   border-color: var(--chip-color, var(--c-accent));
@@ -312,6 +317,11 @@ body {
   border-color: var(--sys-color, var(--c-accent));
   box-shadow: 0 0 0 1px var(--sys-color, var(--c-accent)), var(--shadow-card);
   transform: translateY(-2px) scale(1.02);
+}
+
+.game-card:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.08s;
 }
 
 .game-card__icon {
@@ -418,6 +428,12 @@ body {
   color: #fff;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   padding-left: 4px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-card:hover .game-card__play-btn {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
 /* System badge */
@@ -681,10 +697,25 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 50;
+  opacity: 1;
+  /* Smooth open AND close: fade the overlay; delay display:none until after fade */
+  transition: opacity 0.18s ease, display 0.18s allow-discrete;
 }
 
 #system-picker[hidden],
-#settings-panel[hidden] { display: none; }
+#settings-panel[hidden] {
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Entry animation: start at opacity 0 when first rendered */
+@starting-style {
+  #system-picker:not([hidden]),
+  #settings-panel:not([hidden]) {
+    opacity: 0;
+  }
+}
 
 .modal-box {
   position: relative;
@@ -698,8 +729,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transform: translateY(8px) scale(0.98);
-  transition: transform 0.2s ease;
+  transform: translateY(12px) scale(0.97);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #system-picker:not([hidden]) .modal-box,
@@ -761,6 +792,7 @@ body {
 }
 
 .system-pick-btn:hover { background: var(--c-surface3); border-color: var(--c-accent); }
+.system-pick-btn:active { transform: scale(0.98); transition-duration: 0.06s; }
 
 /* ── Settings panel with tabs ─────────────────────────────── */
 #settings-content {
@@ -837,13 +869,14 @@ body {
   font-size: 0.84rem;
   font-weight: 500;
   cursor: pointer;
-  transition: color var(--transition), border-color var(--transition);
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
   white-space: nowrap;
   gap: 6px;
   margin-bottom: -1px;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
-.settings-tab:hover { color: var(--c-text); }
+.settings-tab:hover { color: var(--c-text); background: var(--c-surface2); }
 .settings-tab:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--c-accent) 70%, transparent);
   outline-offset: -2px;
@@ -1092,6 +1125,7 @@ body {
 }
 
 .btn:hover { background: var(--c-surface3); border-color: var(--c-accent); color: var(--c-accent-h); }
+.btn:active:not(:disabled) { transform: scale(0.96); transition-duration: 0.06s; }
 
 .btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
 
@@ -1517,7 +1551,7 @@ body {
   flex-direction: column;
   gap: 14px;
   transform: translateY(12px) scale(0.98);
-  transition: transform 0.18s ease;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .confirm-overlay--visible .confirm-box { transform: translateY(0) scale(1); }
@@ -2216,4 +2250,64 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--c-border-lt) var(--c-surface);
+}
+
+/* ── High contrast mode ───────────────────────────────────── */
+@media (prefers-contrast: more) {
+  :root {
+    --c-bg:         #000000;
+    --c-surface:    #111111;
+    --c-surface2:   #1c1c1c;
+    --c-surface3:   #2a2a2a;
+    --c-border:     #666666;
+    --c-border-lt:  #999999;
+    --c-text:       #ffffff;
+    --c-text-dim:   #dddddd;
+    --c-text-faint: #aaaaaa;
+    --c-accent:     #80aaff;
+    --c-accent-h:   #99bbff;
+  }
+
+  .btn {
+    border-width: 2px;
+    font-weight: 600;
+  }
+
+  .btn:hover {
+    outline: 1px solid var(--c-accent);
+    outline-offset: 1px;
+  }
+
+  .game-card {
+    border-width: 2px;
+  }
+
+  :focus-visible {
+    outline-width: 3px;
+    outline-offset: 3px;
+  }
+
+  .modal-box {
+    border-width: 2px;
+    border-color: var(--c-border-lt);
+  }
+
+  .settings-tab--active,
+  .settings-tab[aria-selected="true"] {
+    border-bottom-width: 3px;
+  }
+
+  .status-dot {
+    width: 9px;
+    height: 9px;
+    outline: 1px solid var(--c-border-lt);
+  }
+}
+
+/* ── Reduced motion: suppress new animations ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  #system-picker,
+  #settings-panel {
+    transition: opacity 0s, display 0s;
+  }
 }

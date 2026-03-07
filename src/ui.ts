@@ -1016,6 +1016,8 @@ function pickSystem(fileName: string, candidates: SystemInfo[], subtitleText?: s
     }
     list.appendChild(fragment);
     panel.hidden = false;
+    // Move focus into the modal
+    requestAnimationFrame(() => closeBtn.focus());
 
     let closed = false;
     const onCloseClick = () => close(null);
@@ -2280,6 +2282,28 @@ export function openSettingsPanel(
 
   buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, netplayManager, initialTab);
   panel.hidden = false;
+  // Move focus into the panel so keyboard users can navigate immediately
+  requestAnimationFrame(() => {
+    (document.getElementById("settings-close") as HTMLButtonElement | null)?.focus();
+  });
+
+  // Focus trap: keep Tab navigation inside the settings panel
+  const _settingsFocusTrap = (e: KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const focusable = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(el => !el.closest("[hidden]"));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+    }
+  };
 
   const close = () => {
     panel.hidden = true;
@@ -2287,6 +2311,7 @@ export function openSettingsPanel(
       document.removeEventListener("keydown", _settingsPanelEscHandler);
       _settingsPanelEscHandler = null;
     }
+    document.removeEventListener("keydown", _settingsFocusTrap);
     previousFocus?.focus();
   };
 
@@ -2299,6 +2324,7 @@ export function openSettingsPanel(
   document.getElementById("settings-close")!.onclick   = close;
   document.getElementById("settings-backdrop")!.onclick = close;
   document.addEventListener("keydown", _settingsPanelEscHandler);
+  document.addEventListener("keydown", _settingsFocusTrap);
 }
 
 function buildSettingsContent(
