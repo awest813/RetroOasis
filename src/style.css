@@ -206,6 +206,7 @@ body {
   align-items: center;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 28px 20px 20px;
   gap: 22px;
   background: transparent;
@@ -964,12 +965,18 @@ body {
   align-items: center;
   justify-content: center;
   transition: color var(--transition), background var(--transition), transform var(--spring-fast);
+  touch-action: manipulation;
 }
 
 .modal-close:hover {
   color: var(--c-text);
   background: var(--c-surface3);
   transform: scale(1.1) rotate(90deg);
+}
+
+.modal-close:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
 
 .modal-subtitle {
@@ -986,6 +993,7 @@ body {
   gap: 8px;
   padding: 10px 22px 22px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .system-pick-btn {
@@ -1113,7 +1121,7 @@ body {
 }
 
 /* Tab panel */
-.settings-panels { overflow-y: auto; flex: 1; }
+.settings-panels { overflow-y: auto; flex: 1; overscroll-behavior: contain; }
 
 .settings-panel-content {
   display: flex;
@@ -1345,6 +1353,7 @@ body {
   line-height: 1.4;
   min-height: 36px;
   letter-spacing: -0.005em;
+  touch-action: manipulation;
 }
 
 .btn:hover {
@@ -1610,10 +1619,27 @@ body {
   .modal-close { width: 44px; height: 44px; }
   .sys-filter-chip { min-height: 36px; padding: 7px 14px; }
 
-  /* Game card action buttons — always visible on touch since hover is unavailable */
+  /* Prevent iOS Safari from auto-zooming when an input receives focus.
+     iOS zooms when the computed font-size is below 16 px. */
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Game card action buttons — always visible on touch since hover is unavailable.
+     Expand to 36 px so fingers can hit them reliably. */
   .game-card__remove,
   .game-card__patch,
-  .game-card__change-sys { opacity: 1; }
+  .game-card__change-sys {
+    opacity: 1;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  /* Offset change-sys button to stay clear of the now-larger patch button */
+  .game-card__change-sys { top: 48px; }
 
   /* Save slot edit button — always visible on touch */
   .save-slot-card__edit-btn { opacity: 1; }
@@ -2076,6 +2102,7 @@ body {
   gap: 1px;
   background: var(--c-border);
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1;
 }
 
@@ -2577,10 +2604,77 @@ kbd {
   padding: 0 2px;
 }
 
+/* ── touch-action: manipulation — eliminates 300 ms tap delay ─ */
+/* Applied broadly to every element users tap intentionally.     */
+.game-card,
+.sys-filter-chip,
+.drop-zone,
+.modal-close,
+.system-pick-btn,
+.settings-tab,
+.game-picker-btn,
+.save-slot-card__btn,
+.error-close,
+.vol-mute-btn,
+.game-card__remove,
+.game-card__patch,
+.game-card__change-sys,
+.save-slot-card__edit-btn,
+.perf-suggestion__close,
+.cloud-bar__auto-label {
+  touch-action: manipulation;
+}
+
+/* ── GPU promotion for frequently animated layers ──────────── */
+/* Only hint will-change on elements that animate every session */
+.modal-box,
+.confirm-box {
+  will-change: transform;
+}
+
+.info-toast,
+.perf-suggestion {
+  will-change: transform, opacity;
+}
+
+/* ── Info toast — narrow-screen wrapping (≤ 360 px) ────────── */
+@media (max-width: 360px) {
+  .info-toast {
+    white-space: normal;
+    max-width: 88vw;
+    text-align: center;
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* ── Header — reduce padding on very narrow screens ─────────── */
+@media (max-width: 380px) {
+  .app-header {
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    gap: 8px;
+  }
+}
+
+/* ── Focus-visible ring on icon-only interactive elements ──── */
+.error-close:focus-visible,
+.vol-mute-btn:focus-visible,
+.game-card__remove:focus-visible,
+.game-card__patch:focus-visible,
+.game-card__change-sys:focus-visible,
+.save-slot-card__edit-btn:focus-visible,
+.perf-suggestion__close:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
 /* ── Reduced motion overrides ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .info-toast { transition: opacity 0.01ms; }
   .status-dot.running { animation: none; box-shadow: 0 0 6px var(--c-success); }
   .now-playing-chip::before { animation: none; }
   .game-card__icon::after { display: none; }
+  .modal-box, .confirm-box { will-change: auto; }
+  .info-toast, .perf-suggestion { will-change: auto; }
 }
