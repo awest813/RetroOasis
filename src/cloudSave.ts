@@ -1239,7 +1239,7 @@ export class CloudSaveManager {
         this.setSlotBadge(gameId, slot, "synced");
         this.addHistoryEntry(`Slot ${slot} ${result.direction}`, true);
       } else {
-        this.setSlotBadge(gameId, slot, localEntry ? "local-only" : "local-only");
+        this.setSlotBadge(gameId, slot, "local-only");
       }
       return result;
     } catch (err) {
