@@ -214,6 +214,22 @@ describe('detectPatchFormat', () => {
     const buf = makeBuffer([0x50, 0x41]);
     expect(detectPatchFormat(buf)).toBeNull();
   });
+
+  it('handles exactly 4-byte buffers correctly', () => {
+    const bps = makeBuffer([...ascii('BPS1')]);
+    expect(detectPatchFormat(bps)).toBe<PatchFormat>('bps');
+
+    const ups = makeBuffer([...ascii('UPS1')]);
+    expect(detectPatchFormat(ups)).toBe<PatchFormat>('ups');
+
+    const unk = makeBuffer([0xde, 0xad, 0xbe, 0xef]);
+    expect(detectPatchFormat(unk)).toBeNull();
+  });
+
+  it('handles exactly 5-byte buffers (IPS) correctly', () => {
+    const ips = makeBuffer([...ascii('PATCH')]);
+    expect(detectPatchFormat(ips)).toBe<PatchFormat>('ips');
+  });
 });
 
 // ── PATCH_EXTENSIONS ──────────────────────────────────────────────────────────
@@ -320,6 +336,16 @@ describe('applyIPS', () => {
     expect(() => applyIPS(new ArrayBuffer(4), bad)).toThrow('truncated record data');
   });
 
+  it('throws when an IPS RLE record is truncated', () => {
+    const bad = makeBuffer([
+      ...ascii('PATCH'),
+      0x00, 0x00, 0x00, // record offset
+      0x00, 0x00,       // record size = 0 (RLE)
+      0x00, 0x01,       // RLE size, but missing RLE byte
+    ]);
+    expect(() => applyIPS(new ArrayBuffer(4), bad)).toThrow('truncated RLE record');
+  });
+
   it('throws when an IPS patch is missing the EOF marker', () => {
     const bad = makeBuffer([
       ...ascii('PATCH'),
@@ -365,6 +391,71 @@ describe('applyBPS', () => {
     expect(result.length).toBe(3);
   });
 
+  it('handles BPS SourceRead, SourceCopy, and TargetCopy actions correctly', () => {
+    // We will build a manual BPS patch that uses all 4 action types.
+    // source: "HELLO"
+    // target: "HELLO W OR LO W "
+    // Let's just use byte arrays.
+    const source = new Uint8Array([0x10, 0x20, 0x30, 0x40, 0x50]); // 5 bytes
+
+    // actions:
+    // SourceRead 2 bytes -> 0x10, 0x20. (outputPos=2)
+    // TargetRead 1 byte -> 0x99. (outputPos=3)
+    // SourceCopy 2 bytes, offset +2 -> from source pos 2: 0x30, 0x40. (outputPos=5)
+    // TargetCopy 2 bytes, offset -3 -> from target pos 2: 0x99, 0x30. (outputPos=7)
+    // target = [0x10, 0x20, 0x99, 0x30, 0x40, 0x99, 0x30]
+    const target = new Uint8Array([0x10, 0x20, 0x99, 0x30, 0x40, 0x99, 0x30]);
+
+    const bytes: number[] = ascii('BPS1');
+    bytes.push(...encodeBpsVLQ(source.length));
+    bytes.push(...encodeBpsVLQ(target.length));
+    bytes.push(...encodeBpsVLQ(0)); // meta length 0
+
+    // SourceRead 2: action 0, length 2 -> (1 << 2) | 0 = 4
+    bytes.push(...encodeBpsVLQ(4));
+
+    // TargetRead 1: action 1, length 1 -> (0 << 2) | 1 = 1
+    bytes.push(...encodeBpsVLQ(1));
+    bytes.push(0x99); // literal byte
+
+    // SourceCopy 2: action 2, length 2 -> (1 << 2) | 2 = 6
+    bytes.push(...encodeBpsVLQ(6));
+    // sourceRelPos was 0. we want to read from 2. So offset is +2.
+    // raw offset for +2: 2 << 1 = 4. (positive is even, negative is odd)
+    bytes.push(...encodeBpsVLQ(4));
+    // after reading 2 bytes, sourceRelPos = 4
+
+    // TargetCopy 2: action 3, length 2 -> (1 << 2) | 3 = 7
+    bytes.push(...encodeBpsVLQ(7));
+    // targetRelPos was 0. we want to read from outputPos 2. So offset +2.
+    bytes.push(...encodeBpsVLQ(4));
+
+    // Add CRCs
+    bytes.push(...uint32LE(crc32(source)));
+    bytes.push(...uint32LE(crc32(target)));
+    const patchCRC = crc32(new Uint8Array(bytes));
+    bytes.push(...uint32LE(patchCRC));
+
+    const result = new Uint8Array(applyBPS(source.buffer, makeBuffer(bytes)));
+    expect(result).toEqual(target);
+  });
+
+  it('throws when target CRC32 does not match', () => {
+    const source = new Uint8Array([0x00]);
+    const target = new Uint8Array([0x01]);
+    const patch  = new Uint8Array(buildBpsTargetRead(source, target));
+    // Corrupt the target CRC (last 8 bytes, first 4 of them)
+    patch[patch.length - 8] ^= 0xff;
+    // Corrupting target CRC invalidates the overall patch CRC, so we must fix patch CRC
+    const patchCRC = crc32(patch.slice(0, patch.length - 4));
+    const patchCrcBytes = uint32LE(patchCRC);
+    patch[patch.length - 4] = patchCrcBytes[0]!;
+    patch[patch.length - 3] = patchCrcBytes[1]!;
+    patch[patch.length - 2] = patchCrcBytes[2]!;
+    patch[patch.length - 1] = patchCrcBytes[3]!;
+    expect(() => applyBPS(source.buffer, patch.buffer)).toThrow('target CRC32 mismatch');
+  });
+
   it('throws on a missing BPS1 header', () => {
     const bad = makeBuffer([...ascii('BAD!'), 0, 0, 0, 0, 0, 0, 0, 0]);
     expect(() => applyBPS(new ArrayBuffer(4), bad)).toThrow('Invalid BPS patch');
@@ -386,6 +477,15 @@ describe('applyBPS', () => {
     // Apply patch to a DIFFERENT source ROM (wrong CRC)
     const wrongSource = new Uint8Array([0xFF, 0xFF]);
     expect(() => applyBPS(wrongSource.buffer, patch)).toThrow('source CRC32 mismatch');
+  });
+
+  it('throws when the source ROM is smaller than expected', () => {
+    const source = new Uint8Array([0x00, 0x01, 0x02]);
+    const target = new Uint8Array([0xAA, 0xBB, 0xCC]);
+    const patch  = buildBpsTargetRead(source, target);
+    // Apply patch to a smaller ROM
+    const smallerSource = new Uint8Array([0x00, 0x01]);
+    expect(() => applyBPS(smallerSource.buffer, patch)).toThrow('BPS patch expects a source ROM of 3 bytes but got 2');
   });
 
   it('throws on a truncated patch where VLQ data is cut off', () => {
@@ -432,6 +532,52 @@ describe('applyUPS', () => {
     const patch  = buildUPS(source, target);
     const wrongSource = new Uint8Array([0xAA, 0xBB]);
     expect(() => applyUPS(wrongSource.buffer, patch)).toThrow('source CRC32 mismatch');
+  });
+
+  it('handles targetSize < source.length correctly', () => {
+    // buildUPS generates XOR hunks matching differences between source and target.
+    // If source is 3 bytes and target is 3 bytes, it writes size 3, 3.
+    // Let's just change the target size in the patch to 2 and update CRCs.
+    const source = new Uint8Array([0x00, 0x01, 0x02]);
+    const paddedTarget = new Uint8Array([0xFF, 0x01, 0x02]);
+    const patch = new Uint8Array(buildUPS(source, paddedTarget));
+
+    // offset 0..3 = "UPS1"
+    // offset 4 = source size (3)
+    // offset 5 = target size (3). Change to 2.
+    // In UPS VLQ, values < 128 are encoded as `v | 0x80`.
+    // So 3 is 0x83. 2 is 0x82.
+    patch[5] = 0x82;
+
+    const outTarget = new Uint8Array([0xFF, 0x01]);
+    const targetCRC = crc32(outTarget);
+
+    // uint32LE returns a number[], we need to set it to Uint8Array
+    const crcBytes = uint32LE(targetCRC);
+    patch[patch.length - 8] = crcBytes[0]!;
+    patch[patch.length - 7] = crcBytes[1]!;
+    patch[patch.length - 6] = crcBytes[2]!;
+    patch[patch.length - 5] = crcBytes[3]!;
+
+    const patchCRC = crc32(patch.slice(0, patch.length - 4));
+    const patchCrcBytes = uint32LE(patchCRC);
+    patch[patch.length - 4] = patchCrcBytes[0]!;
+    patch[patch.length - 3] = patchCrcBytes[1]!;
+    patch[patch.length - 2] = patchCrcBytes[2]!;
+    patch[patch.length - 1] = patchCrcBytes[3]!;
+
+    const result = new Uint8Array(applyUPS(source.buffer, patch.buffer));
+    expect(result.length).toBe(2);
+    expect(result).toEqual(outTarget);
+  });
+
+  it('throws when target CRC32 mismatch occurs (corrupt output)', () => {
+    const source = new Uint8Array([0x00, 0x01]);
+    const target = new Uint8Array([0xFF, 0x01]);
+    const patch  = new Uint8Array(buildUPS(source, target));
+    // Corrupt the target CRC (last 8 bytes, first 4 of them)
+    patch[patch.length - 8] ^= 0xff;
+    expect(() => applyUPS(source.buffer, patch.buffer)).toThrow('target CRC32 mismatch');
   });
 
   it('throws on a truncated patch where VLQ data is cut off', () => {
