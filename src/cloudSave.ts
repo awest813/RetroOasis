@@ -655,8 +655,9 @@ export class GoogleDriveProvider implements CloudSaveProvider {
    * Returns the Drive file ID, or null if not found.
    */
   private async _findFileId(name: string): Promise<string | null> {
-    // Escape single quotes in the name to prevent breaking the Drive query syntax.
-    const safeName = name.replace(/'/g, "\\'");
+    // Escape backslashes first, then single quotes, to prevent breaking the
+    // Drive Files.list query syntax (both are special characters in the API).
+    const safeName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const q = encodeURIComponent(`name='${safeName}' and trashed=false`);
     try {
       const r = await this._timedFetch(
