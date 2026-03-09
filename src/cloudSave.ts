@@ -188,7 +188,7 @@ export class CloudSaveSync {
     localEntry: SaveStateEntry | null,
     gameId: string,
     slot: number,
-  ): Promise<{ entry: SaveStateEntry; direction: "pushed" | "pulled" | "none" } | null> {
+  ): Promise<{ entry: SaveStateEntry; direction: "pushed" | "pulled" } | null> {
     if (!(await this.provider.isAvailable())) return null;
 
     const remoteEntry = await this.provider.download(gameId, slot);
@@ -522,22 +522,27 @@ export class GoogleDriveProvider implements CloudSaveProvider {
   }
 
   async upload(entry: SaveStateEntry): Promise<void> {
-    // Upload binary payloads first so the manifest only becomes visible after
-    // all data is in place (same ordering logic as WebDAVProvider).
+    // Upload state.bin and thumb.jpg in parallel first, then the manifest last.
+    // The manifest is written last so it only becomes visible after all data is
+    // in place — this prevents a partial-upload window where the manifest
+    // references a state.bin that hasn't finished uploading yet.
+    const parallelUploads: Promise<void>[] = [];
     if (entry.stateData) {
-      await this._upsertFile(
+      parallelUploads.push(this._upsertFile(
         this._fileName(entry.gameId, entry.slot, "state.bin"),
         entry.stateData,
         "application/octet-stream",
-      );
+      ));
     }
     if (entry.thumbnail) {
-      await this._upsertFile(
+      parallelUploads.push(this._upsertFile(
         this._fileName(entry.gameId, entry.slot, "thumb.jpg"),
         entry.thumbnail,
         "image/jpeg",
-      );
+      ));
     }
+    // Wait for all data files before writing the manifest.
+    await Promise.all(parallelUploads);
 
     const manifest: CloudSaveManifest = {
       gameId:    entry.gameId,
@@ -572,25 +577,25 @@ export class GoogleDriveProvider implements CloudSaveProvider {
       return null;
     }
 
-    let stateData: Blob | null = null;
-    const stateId = await this._findFileId(this._fileName(gameId, slot, "state.bin"));
-    if (stateId) {
-      const r = await this._timedFetch(
-        `${GoogleDriveProvider.API_BASE}/files/${stateId}?alt=media`,
-        { headers: this._headers() },
-      );
-      if (r.ok) stateData = await r.blob();
-    }
+    // Look up state.bin and thumb.jpg file IDs in parallel, then download them
+    // simultaneously.  This replaces four sequential round-trips with two.
+    const [stateId, thumbId] = await Promise.all([
+      this._findFileId(this._fileName(gameId, slot, "state.bin")),
+      this._findFileId(this._fileName(gameId, slot, "thumb.jpg")),
+    ]);
 
-    let thumbnail: Blob | null = null;
-    const thumbId = await this._findFileId(this._fileName(gameId, slot, "thumb.jpg"));
-    if (thumbId) {
-      const r = await this._timedFetch(
-        `${GoogleDriveProvider.API_BASE}/files/${thumbId}?alt=media`,
-        { headers: this._headers() },
-      );
-      if (r.ok) thumbnail = await r.blob();
-    }
+    const [stateData, thumbnail] = await Promise.all([
+      stateId
+        ? this._timedFetch(`${GoogleDriveProvider.API_BASE}/files/${stateId}?alt=media`, { headers: this._headers() })
+            .then(r => (r.ok ? r.blob() : null))
+            .catch(() => null)
+        : Promise.resolve(null),
+      thumbId
+        ? this._timedFetch(`${GoogleDriveProvider.API_BASE}/files/${thumbId}?alt=media`, { headers: this._headers() })
+            .then(r => (r.ok ? r.blob() : null))
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
 
     return {
       id:         `${gameId}:${slot}`,
@@ -609,11 +614,14 @@ export class GoogleDriveProvider implements CloudSaveProvider {
   }
 
   async listManifests(gameId: string): Promise<CloudSaveManifest[]> {
-    const slots = [AUTO_SAVE_SLOT, ...Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1)];
+    // Use a single prefix-based search to fetch all manifest file IDs for this
+    // game in one request, then download each manifest in parallel.
+    // This reduces the number of API calls from 2 * (MAX_SAVE_SLOTS + 1) to
+    // 1 (search) + N (downloads), where N ≤ MAX_SAVE_SLOTS + 1.
+    const manifestIds = await this._findManifestFileIds(gameId);
+
     const results = await Promise.allSettled(
-      slots.map(async slot => {
-        const fileId = await this._findFileId(this._fileName(gameId, slot, "manifest.json"));
-        if (!fileId) return null;
+      Object.entries(manifestIds).map(async ([, fileId]) => {
         const r = await this._timedFetch(
           `${GoogleDriveProvider.API_BASE}/files/${fileId}?alt=media`,
           { headers: this._headers() },
@@ -673,6 +681,42 @@ export class GoogleDriveProvider implements CloudSaveProvider {
   }
 
   /**
+   * Search appDataFolder for all manifest files belonging to a game using a
+   * single API request.  Returns a map of filename → Drive file ID so that
+   * the caller can batch-download the manifests without further search calls.
+   */
+  private async _findManifestFileIds(gameId: string): Promise<Record<string, string>> {
+    // Build a prefix that all manifest files for this game share.
+    // We search for files whose name contains the prefix; exact-name matching
+    // for each slot would require MAX_SAVE_SLOTS + 1 separate requests.
+    const safeGameId = gameId.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const prefix     = `rv__${safeGameId}__`;
+    const suffix     = `__manifest.json`;
+    // Drive's `contains` operator is a substring match, so we filter client-side
+    // with startsWith(prefix) — to exclude any file whose name merely contains
+    // the prefix in the middle (e.g. an external backup tool) — and endsWith(suffix)
+    // to keep only manifest files rather than state or thumbnail files.
+    const q = encodeURIComponent(`name contains '${prefix}' and trashed=false`);
+    try {
+      const r = await this._timedFetch(
+        `${GoogleDriveProvider.API_BASE}/files?spaces=${GoogleDriveProvider.SPACE}&q=${q}&fields=files(id,name)`,
+        { headers: this._headers() },
+      );
+      if (!r.ok) return {};
+      const data = await r.json() as { files?: { id: string; name: string }[] };
+      const out: Record<string, string> = {};
+      for (const f of data.files ?? []) {
+        if (f.name.startsWith(prefix) && f.name.endsWith(suffix)) {
+          out[f.name] = f.id;
+        }
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  }
+
+  /**
    * Create or update (upsert) a file in appDataFolder.
    * If a file with the given name already exists, its content is replaced;
    * otherwise a new file is created via a multipart upload.
@@ -690,7 +734,12 @@ export class GoogleDriveProvider implements CloudSaveProvider {
           body:    content,
         },
       );
-      if (!r.ok) throw new Error(`Google Drive update failed (${r.status}): ${name}`);
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) {
+          throw new Error(`Google Drive authentication failed (${r.status}) — your token may have expired. Please reconnect.`);
+        }
+        throw new Error(`Google Drive update failed (${r.status}): ${name}`);
+      }
     } else {
       // Create new file via multipart upload (metadata + media in one request).
       const metadata = JSON.stringify({ name, parents: [GoogleDriveProvider.SPACE] });
@@ -710,7 +759,12 @@ export class GoogleDriveProvider implements CloudSaveProvider {
           body,
         },
       );
-      if (!r.ok) throw new Error(`Google Drive upload failed (${r.status}): ${name}`);
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) {
+          throw new Error(`Google Drive authentication failed (${r.status}) — your token may have expired. Please reconnect.`);
+        }
+        throw new Error(`Google Drive upload failed (${r.status}): ${name}`);
+      }
     }
   }
 
@@ -892,7 +946,12 @@ export class DropboxProvider implements CloudSaveProvider {
       },
       body: content,
     });
-    if (!r.ok) throw new Error(`Dropbox upload failed (${r.status}): ${path}`);
+    if (!r.ok) {
+      if (r.status === 401 || r.status === 403) {
+        throw new Error(`Dropbox authentication failed (${r.status}) — your token may have expired. Please reconnect.`);
+      }
+      throw new Error(`Dropbox upload failed (${r.status}): ${path}`);
+    }
   }
 
   private async _downloadFile(path: string): Promise<Blob | null> {
@@ -904,9 +963,14 @@ export class DropboxProvider implements CloudSaveProvider {
           "Dropbox-API-Arg": JSON.stringify({ path }),
         },
       });
+      if (r.status === 401 || r.status === 403) {
+        throw new Error(`Dropbox authentication failed (${r.status}) — your token may have expired. Please reconnect.`);
+      }
       if (!r.ok) return null;
       return r.blob();
-    } catch {
+    } catch (err) {
+      // Re-throw auth errors; swallow other errors (e.g. file not found).
+      if (err instanceof Error && err.message.includes("authentication failed")) throw err;
       return null;
     }
   }
@@ -1041,9 +1105,10 @@ export class CloudSaveManager {
    */
   async push(entry: SaveStateEntry): Promise<void> {
     try {
-      // Preserve historical no-op semantics while disconnected / unavailable,
-      // but do not update lastSyncAt for operations that never ran remotely.
-      if (!(await this._sync.isAvailable())) return;
+      // Use cached connection state to avoid a redundant isAvailable() round-trip
+      // before every push.  If the network has gone away since connect() the
+      // underlying upload will throw and we record it via _lastError below.
+      if (!this._connected) return;
       await this._sync.push(entry);
       this._lastSyncAt = Date.now();
       this._lastError  = null;
@@ -1061,9 +1126,8 @@ export class CloudSaveManager {
    */
   async pull(gameId: string, slot: number): Promise<SaveStateEntry | null> {
     try {
-      // Keep disconnected pulls as no-op/null, but avoid reporting a fake
-      // successful sync timestamp for calls that never reached the provider.
-      if (!(await this._sync.isAvailable())) return null;
+      // Use cached connection state (same rationale as push()).
+      if (!this._connected) return null;
       const result     = await this._sync.pull(gameId, slot);
       this._lastSyncAt = Date.now();
       this._lastError  = null;
@@ -1088,7 +1152,7 @@ export class CloudSaveManager {
     gameId:     string,
     slot:       number,
     localEntry: SaveStateEntry | null,
-  ): Promise<{ entry: SaveStateEntry; direction: "pushed" | "pulled" | "none" } | null> {
+  ): Promise<{ entry: SaveStateEntry; direction: "pushed" | "pulled" } | null> {
     try {
       const result = await this._sync.syncSlot(localEntry, gameId, slot);
       if (result) {
@@ -1119,6 +1183,9 @@ export class CloudSaveManager {
       saveState?(entry: SaveStateEntry): Promise<void>;
     },
   ): Promise<GameSyncResult> {
+    // Bail immediately when disconnected to avoid making API calls for each slot.
+    if (!this._connected) return { pushed: 0, pulled: 0, errors: 0 };
+
     const states   = await saveLibrary.getStatesForGame(gameId);
     const stateMap = new Map(states.map(s => [s.slot, s]));
     const slots    = [AUTO_SAVE_SLOT, ...Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1)];
