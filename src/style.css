@@ -2535,9 +2535,25 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
   min-width: 0;
 }
 
+.cloud-bar__status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .cloud-bar__status-text {
   font-size: 0.82rem;
   color: var(--c-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cloud-bar__last-sync {
+  font-size: 0.72rem;
+  color: var(--c-text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2583,6 +2599,11 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
 
 .cloud-status-dot--off {
   background: var(--c-text-faint);
+}
+
+.cloud-status-dot--syncing {
+  background: var(--c-accent);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 /* ── WebDAV connect dialog fields ─────────────────────────── */
@@ -2739,7 +2760,7 @@ kbd {
 
 /* ── "Connect to cloud" dialog ─────────────────────────────── */
 .cloud-connect-box {
-  width: min(92vw, 400px);
+  width: min(94vw, 440px);
 }
 
 /* ── Save gallery responsive ───────────────────────────────── */
@@ -2980,6 +3001,8 @@ kbd {
   .game-card__icon::after { display: none; }
   .modal-box, .confirm-box { will-change: auto; }
   .info-toast, .perf-suggestion { will-change: auto; }
+  .cloud-status-dot--syncing { animation: none; }
+  .cloud-bar__status-text--syncing { animation: none; }
 }
 
 

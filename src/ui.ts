@@ -625,7 +625,11 @@ export function initUI(opts: UIOptions): void {
       case "Escape":
         e.preventDefault();
         e.stopPropagation();
-        onReturnToLibrary();
+        // When a modal overlay is open, let its own capture-phase handler close it
+        // rather than returning to the library (which would close the whole game).
+        if (!document.querySelector(".confirm-overlay")) {
+          onReturnToLibrary();
+        }
         break;
     }
   };
@@ -2046,37 +2050,60 @@ function buildCloudBar(
 
   const statusWrap = make("span", { class: "cloud-bar__status" });
   const dot        = make("span", { class: "cloud-status-dot" });
+  const statusBody = make("span", { class: "cloud-bar__status-body" });
   const statusText = make("span", { class: "cloud-bar__status-text" });
-  statusWrap.append(dot, statusText);
+  const lastSyncEl = make("span", { class: "cloud-bar__last-sync" });
+  statusBody.append(statusText, lastSyncEl);
+  statusWrap.append(dot, statusBody);
 
   const actions = make("div", { class: "cloud-bar__actions" });
   bar.append(statusWrap, actions);
 
+  // Tracks whether a sync is currently in progress so render() can reflect it.
+  let isSyncing = false;
+
   const render = () => {
+    if (isSyncing) {
+      dot.className  = "cloud-status-dot cloud-status-dot--syncing";
+      statusText.className = "cloud-bar__status-text cloud-bar__status-text--syncing";
+      statusText.textContent = "Syncing…";
+      statusText.title = "";
+      lastSyncEl.textContent = "";
+      return;
+    }
+
     const connected = cloudManager.isConnected();
     dot.className = `cloud-status-dot ${connected ? "cloud-status-dot--on" : "cloud-status-dot--off"}`;
 
     if (connected) {
+      statusText.className = "cloud-bar__status-text cloud-bar__status-text--ok";
       statusText.textContent = `Connected to ${cloudManager.activeProvider.displayName}`;
+      statusText.title = "";
       if (cloudManager.lastSyncAt) {
         const rel = formatRelativeTime(cloudManager.lastSyncAt);
-        statusText.title = `Last sync: ${rel}`;
+        lastSyncEl.textContent = `Last sync: ${rel}`;
+        lastSyncEl.title = new Date(cloudManager.lastSyncAt).toLocaleString();
       } else {
-        statusText.title = "";
+        lastSyncEl.textContent = "Not yet synced";
+        lastSyncEl.title = "";
       }
     } else if (cloudManager.lastError) {
+      statusText.className = "cloud-bar__status-text cloud-bar__status-text--error";
       statusText.textContent = "Connection error";
       statusText.title = cloudManager.lastError;
+      lastSyncEl.textContent = "";
     } else {
+      statusText.className = "cloud-bar__status-text";
       statusText.textContent = "Not connected";
       statusText.title = "";
+      lastSyncEl.textContent = "";
     }
 
     actions.innerHTML = "";
 
     if (connected) {
       // Auto-sync toggle
-      const autoLabel = make("label", { class: "cloud-bar__auto-label", title: "Automatically push saves to cloud" });
+      const autoLabel = make("label", { class: "cloud-bar__auto-label", title: "Automatically sync saves to cloud after saving" });
       const autoCheck = make("input", { type: "checkbox", class: "cloud-bar__auto-check" }) as HTMLInputElement;
       autoCheck.checked = cloudManager.autoSyncEnabled;
       autoCheck.addEventListener("change", () => {
@@ -2086,22 +2113,24 @@ function buildCloudBar(
       actions.appendChild(autoLabel);
 
       // Sync Now button
-      const btnSync = make("button", { class: "btn", title: "Sync all save slots for this game with the cloud" }, "Sync Now");
+      const btnSync = make("button", { class: "btn", title: "Sync all save slots for this game with the cloud" }, "☁ Sync Now");
       btnSync.addEventListener("click", async () => {
         btnSync.disabled = true;
-        btnSync.textContent = "Syncing…";
+        isSyncing = true;
+        render();
         try {
           const result = await cloudManager.syncGame(gameId, saveLibrary);
           const parts: string[] = [];
           if (result.pushed > 0) parts.push(`↑ ${result.pushed} pushed`);
           if (result.pulled > 0) parts.push(`↓ ${result.pulled} pulled`);
           if (result.errors > 0) parts.push(`${result.errors} error(s)`);
-          showInfoToast(parts.length > 0 ? parts.join(" · ") : "Cloud sync complete — no changes.");
+          showInfoToast(parts.length > 0 ? `☁ ${parts.join(" · ")}` : "☁ Cloud sync complete — no changes.");
         } catch (err) {
           showError(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
         } finally {
+          isSyncing = false;
           btnSync.disabled = false;
-          btnSync.textContent = "Sync Now";
+          render();
         }
       });
       actions.appendChild(btnSync);
@@ -2121,7 +2150,7 @@ function buildCloudBar(
       actions.appendChild(btnDisc);
     } else {
       // Connect button
-      const btnConn = make("button", { class: "btn btn--primary", title: "Connect to a cloud save provider" }, "Connect");
+      const btnConn = make("button", { class: "btn btn--primary", title: "Connect to a cloud save provider" }, "☁ Connect");
       btnConn.addEventListener("click", () => openCloudConnectDialog(cloudManager, render));
       actions.appendChild(btnConn);
     }
@@ -2145,11 +2174,10 @@ function buildCloudBar(
 function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () => void): void {
   const overlay = make("div", { class: "confirm-overlay" });
   const box = make("div", {
-    class: "confirm-box",
+    class: "confirm-box cloud-connect-box",
     role: "dialog",
     "aria-modal": "true",
     "aria-label": "Cloud Connection",
-    style: "min-width: min(94vw, 420px);",
   });
 
   box.appendChild(make("h3", { class: "confirm-title" }, "☁ Cloud Connection"));
@@ -2280,12 +2308,16 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
 
   // ── Close handler ────────────────────────────────────────────────────────────
   const close = () => {
+    document.removeEventListener("keydown", onEsc, { capture: true });
     overlay.classList.remove("confirm-overlay--visible");
     setTimeout(() => overlay.remove(), 200);
   };
+  const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
 
   btnCancel.addEventListener("click", close);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  // Register in capture phase so this fires even when the global in-game Escape handler runs.
+  document.addEventListener("keydown", onEsc, { capture: true });
 
   // ── Connect handler ──────────────────────────────────────────────────────────
   btnConnect.addEventListener("click", async () => {
@@ -2410,14 +2442,17 @@ async function openSaveGallery(
   document.body.appendChild(overlay);
 
   const close = () => {
-    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("keydown", onKey, { capture: true });
     overlay.classList.remove("confirm-overlay--visible");
     setTimeout(() => overlay.remove(), 200);
   };
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); close(); } };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
   btnClose.addEventListener("click", close);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  document.addEventListener("keydown", onKey);
+  // Register in capture phase so Esc works even when the emulator is running
+  // (the global in-game Escape handler also uses capture but skips return-to-library
+  //  when a .confirm-overlay is present, allowing this handler to run).
+  document.addEventListener("keydown", onKey, { capture: true });
   requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
 
   await renderSaveSlots(slotsContainer, emulator, saveLibrary, gameId, gameName, systemId, slotCountBadge, close);
@@ -2646,8 +2681,8 @@ async function buildSaveSlotCard(
     }) as HTMLInputElement;
 
     const btnImport = make("button", { class: "btn save-slot-card__btn", title: "Import a .state file into this slot", "aria-label": "Import save state" });
-    // Download icon (arrow pointing DOWN) — import = bringing data in from external file
-    btnImport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    // Folder-open icon — visually distinct from the Load (download arrow) button
+    btnImport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>`;
     btnImport.addEventListener("click", () => importInput.click());
     importInput.addEventListener("change", async () => {
       const file = importInput.files?.[0];
