@@ -37,7 +37,7 @@
   /* Text hierarchy */
   --c-text:       #eaecf4;
   --c-text-dim:   #8b90a8;
-  --c-text-faint: #4a4e6a;
+  --c-text-faint: #636780;  /* improved from #4a4e6a (~2.7:1) → ~3.7:1 on dark bg */
 
   /* ── Shape & Sizing ── */
   --radius:       10px;
@@ -424,7 +424,7 @@ body {
   user-select: none;
   contain: layout style paint;
   content-visibility: auto;
-  contain-intrinsic-size: 0 220px;
+  contain-intrinsic-size: 1px 200px; /* 1px width avoids zero-width placeholder; 200px height closer to actual rendered height */
 }
 
 .game-card:hover,
@@ -939,7 +939,7 @@ body {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.04) inset;
   width: min(92vw, 440px);
-  max-height: 88vh;
+  max-height: min(88vh, 88dvh);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1105,9 +1105,18 @@ body {
   flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Fade right edge when tabs overflow to hint at hidden tabs */
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 
 .settings-tabs::-webkit-scrollbar { display: none; }
+
+/* Remove fade when all tabs are fully visible */
+.settings-tabs:not(.overflows) {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 
 .settings-tab {
   display: inline-flex;
@@ -1471,8 +1480,8 @@ body {
 /* ── FPS overlay ──────────────────────────────────────────── */
 .fps-overlay {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: calc(10px + var(--safe-top));
+  left: calc(10px + var(--safe-left));
   z-index: 8;
   display: flex;
   align-items: center;
@@ -1510,8 +1519,8 @@ body {
 /* ── Developer debug overlay (F3) ────────────────────────── */
 .dev-overlay {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: calc(10px + var(--safe-top));
+  right: calc(10px + var(--safe-right));
   z-index: 9;
   background: rgba(0, 0, 0, 0.86);
   backdrop-filter: blur(12px) saturate(1.2);
@@ -1676,18 +1685,19 @@ body {
   }
 
   /* Game card action buttons — always visible on touch since hover is unavailable.
-     Expand to 36 px so fingers can hit them reliably. */
+     Expand to 40 px for closer compliance with Apple HIG 44pt minimum tap target. */
   .game-card__remove,
   .game-card__patch,
   .game-card__change-sys {
     opacity: 1;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     font-size: 1rem;
   }
 
-  /* Offset change-sys button to stay clear of the now-larger patch button */
-  .game-card__change-sys { top: 48px; }
+  /* Offset patch/change-sys to stay clear of the now-larger remove button */
+  .game-card__patch { left: 6px; top: 6px; }
+  .game-card__change-sys { top: 50px; left: 6px; }
 
   /* Save slot edit button — always visible on touch */
   .save-slot-card__edit-btn { opacity: 1; }
@@ -2292,7 +2302,7 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
 /* ── Save state gallery ────────────────────────────────────── */
 .save-gallery-box {
   width: min(94vw, 700px);
-  max-height: 90vh;
+  max-height: min(90vh, 90dvh);
   padding: 0;
   gap: 0;
 }
@@ -2700,7 +2710,7 @@ kbd {
 
 /* ── Save gallery responsive ───────────────────────────────── */
 @media (max-width: 500px) {
-  .save-gallery-box { width: 98vw; max-height: 92vh; }
+  .save-gallery-box { width: 98vw; max-height: min(92vh, 92dvh); }
   .save-gallery-grid { grid-template-columns: 1fr; }
 }
 
