@@ -655,7 +655,9 @@ export class GoogleDriveProvider implements CloudSaveProvider {
    * Returns the Drive file ID, or null if not found.
    */
   private async _findFileId(name: string): Promise<string | null> {
-    const q = encodeURIComponent(`name='${name}' and trashed=false`);
+    // Escape single quotes in the name to prevent breaking the Drive query syntax.
+    const safeName = name.replace(/'/g, "\\'");
+    const q = encodeURIComponent(`name='${safeName}' and trashed=false`);
     try {
       const r = await this._timedFetch(
         `${GoogleDriveProvider.API_BASE}/files?spaces=${GoogleDriveProvider.SPACE}&q=${q}&fields=files(id)`,
@@ -780,10 +782,10 @@ export class DropboxProvider implements CloudSaveProvider {
     // Upload binary payloads before the manifest (same atomicity logic as
     // WebDAVProvider — manifest last so it signals a complete upload).
     if (entry.stateData) {
-      await this._uploadFile(`${base}/state.bin`, entry.stateData, "application/octet-stream");
+      await this._uploadFile(`${base}/state.bin`, entry.stateData);
     }
     if (entry.thumbnail) {
-      await this._uploadFile(`${base}/thumb.jpg`, entry.thumbnail, "image/jpeg");
+      await this._uploadFile(`${base}/thumb.jpg`, entry.thumbnail);
     }
 
     const manifest: CloudSaveManifest = {
@@ -799,7 +801,6 @@ export class DropboxProvider implements CloudSaveProvider {
     await this._uploadFile(
       `${base}/manifest.json`,
       new Blob([JSON.stringify(manifest)], { type: "application/json" }),
-      "application/json",
     );
   }
 
@@ -871,13 +872,16 @@ export class DropboxProvider implements CloudSaveProvider {
 
   /** Dropbox path for a specific game + slot folder. */
   private _slotPath(gameId: string, slot: number): string {
-    // Sanitise gameId for use as a path component (replace characters that may
-    // be problematic on some Dropbox back-ends with underscores).
+    // Sanitise gameId for use as a Dropbox path component.  Dropbox path names
+    // are case-insensitive and must not contain control characters; replacing
+    // everything outside the safe alphanumeric/punctuation set avoids issues.
     const safeId = gameId.replace(/[^a-zA-Z0-9_\-.]/g, "_");
     return `${DropboxProvider.ROOT_FOLDER}/${safeId}/${slot}`;
   }
 
-  private async _uploadFile(path: string, content: Blob, _contentType: string): Promise<void> {
+  private async _uploadFile(path: string, content: Blob): Promise<void> {
+    // The Dropbox /files/upload endpoint requires Content-Type to be
+    // application/octet-stream regardless of the actual content MIME type.
     const r = await this._timedFetch(`${DropboxProvider.CONTENT_API}/files/upload`, {
       method:  "POST",
       headers: {

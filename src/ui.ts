@@ -2293,6 +2293,12 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
     btnConnect.disabled  = true;
     btnConnect.textContent = "Connecting…";
 
+    const resetBtn = (msg: string) => {
+      statusEl.textContent   = msg;
+      btnConnect.disabled    = false;
+      btnConnect.textContent = "Connect";
+    };
+
     try {
       cloudManager.setConflictResolution(cfgSel.value as import("./cloudSave.js").ConflictResolution);
 
@@ -2303,7 +2309,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
         const url  = urlInp.value.trim();
         const user = userInp.value.trim();
         const pass = passInp.value;
-        if (!url) { statusEl.textContent = "Please enter a WebDAV URL."; btnConnect.disabled = false; btnConnect.textContent = "Connect"; return; }
+        if (!url) { resetBtn("Please enter a WebDAV URL."); return; }
         provider = new WebDAVProvider(url, user, pass);
         await cloudManager.connect(provider);
         cloudManager.saveWebDAVConfig(url, user, pass);
@@ -2312,7 +2318,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
         showInfoToast(`Connected to WebDAV: ${url}`);
       } else if (selectedProvider === "gdrive") {
         const token = gdriveTokenInp.value.trim();
-        if (!token) { statusEl.textContent = "Please enter a Google Drive access token."; btnConnect.disabled = false; btnConnect.textContent = "Connect"; return; }
+        if (!token) { resetBtn("Please enter a Google Drive access token."); return; }
         provider = new GoogleDriveProvider(token);
         await cloudManager.connect(provider);
         cloudManager.saveGDriveConfig(token);
@@ -2321,7 +2327,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
         showInfoToast("Connected to Google Drive.");
       } else {
         const token = dropboxTokenInp.value.trim();
-        if (!token) { statusEl.textContent = "Please enter a Dropbox access token."; btnConnect.disabled = false; btnConnect.textContent = "Connect"; return; }
+        if (!token) { resetBtn("Please enter a Dropbox access token."); return; }
         provider = new DropboxProvider(token);
         await cloudManager.connect(provider);
         cloudManager.saveDropboxConfig(token);
@@ -2330,9 +2336,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
         showInfoToast("Connected to Dropbox.");
       }
     } catch (err) {
-      statusEl.textContent = err instanceof Error ? err.message : String(err);
-      btnConnect.disabled  = false;
-      btnConnect.textContent = "Connect";
+      resetBtn(err instanceof Error ? err.message : String(err));
     }
   });
 
