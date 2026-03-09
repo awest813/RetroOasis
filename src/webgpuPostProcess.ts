@@ -1035,8 +1035,14 @@ export class WebGPUPostProcessor {
     try {
       // Explicitly check boolean to avoid @typescript-eslint/no-misused-promises
       // if TS incorrectly infers features.has as returning a Promise.
-      const features = this._device.features as unknown as { has: (s: string) => boolean };
-      if (features.has("timestamp-query") !== true) return;
+      const features = this._device.features as unknown as { has: (s: string) => boolean | Promise<boolean> };
+      const hasQuery = features.has("timestamp-query");
+      // @ts-expect-error some TS versions might complain, but this is a runtime safeguard
+      if (typeof hasQuery === "object" && hasQuery !== null && "then" in hasQuery) {
+        // We aren't in an async context to await it, so safely bail
+        return;
+      }
+      if (!hasQuery) return;
 
       // 2 query slots: index 0 = render pass begin, index 1 = render pass end
       this._querySet = this._device.createQuerySet({ type: "timestamp", count: 2 });
