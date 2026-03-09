@@ -365,6 +365,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .sys-filter-chip:hover {
@@ -1682,6 +1683,23 @@ body {
   .drop-zone--compact .drop-zone__formats {
     display: block;
   }
+
+  /* Horizontal-scroll chip row — no wrapping on mobile, chips stay on one line.
+     Fade the right edge to hint there are more chips to scroll to. */
+  .system-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    padding-bottom: 2px; /* ensure active chip box-shadow isn't clipped */
+  }
+
+  .system-filter::-webkit-scrollbar { display: none; }
+
+  .sys-filter-chip { scroll-snap-align: start; }
 }
 
 @media (max-width: 400px) { .library-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -1722,6 +1740,9 @@ body {
   /* Save slot edit button — always visible on touch */
   .save-slot-card__edit-btn { opacity: 1; }
 
+  /* Save slot card action buttons: taller tap target */
+  .save-slot-card__btn { min-height: 40px; }
+
   /* Show the play overlay on tap (active state) */
   .game-card:active .game-card__play-overlay { opacity: 1; }
 
@@ -1733,6 +1754,12 @@ body {
 
   /* Stronger active-press feedback on buttons */
   .btn:active:not(:disabled) { transform: scale(0.92); }
+
+  /* Dismiss/close buttons in toasts and error banners: meet 44×44 pt target */
+  .error-close { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+  /* Mute button: ensure 44×44 pt */
+  .vol-mute-btn { min-width: 44px; min-height: 44px; }
 
   /* Settings panels: smooth momentum scrolling on iOS */
   .settings-panels,
@@ -3385,3 +3412,55 @@ kbd {
   flex: 1;
   text-align: right;
 }
+
+/* ── Settings tabs — compact on small screens ──────────────── */
+/* On narrow viewports (≤ 480 px) the 8 emoji+text tabs are tight.
+   Reduce padding and font-size so they all remain reachable without
+   horizontal scrolling on most phones in portrait orientation. */
+@media (max-width: 480px) {
+  .settings-tab {
+    padding: 9px 11px;
+    font-size: 0.77rem;
+    gap: 4px;
+  }
+}
+
+/* ── Confirm dialog footer — wrap on very narrow screens ───── */
+/* Prevents action buttons from overflowing off-screen on phones
+   with very small widths (< 380 px, e.g. SE 1st gen in landscape). */
+@media (max-width: 380px) {
+  .confirm-footer {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .confirm-footer .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* ── Now-playing chip — proportional on mobile ─────────────── */
+/* The chip can crowd the header on small screens; shrink the
+   max-width so brand + chip + actions can coexist. */
+@media (max-width: 480px) {
+  .now-playing-chip {
+    max-width: min(30vw, 150px);
+    font-size: 0.68rem;
+    padding: 2px 8px;
+  }
+}
+
+/* ── Netplay lobby row — responsive on narrow screens ───────── */
+@media (max-width: 400px) {
+  .netplay-lobby-row {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .netplay-lobby-name {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
+

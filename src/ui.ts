@@ -202,7 +202,7 @@ export function buildDOM(app: HTMLElement): void {
           <div class="library-toolbar">
             <div class="library-title-row">
               <h2 class="library-title">My Library</h2>
-              <span class="library-count" id="library-count"></span>
+              <span class="library-count" id="library-count" aria-live="polite" aria-atomic="true"></span>
             </div>
             <div class="library-controls">
               <div class="library-search-wrap">
@@ -2911,14 +2911,14 @@ function buildSettingsContent(
   const searchStatus = make("p", { class: "settings-search-status", "aria-live": "polite" });
   quickBar.append(quickInfo, searchInput, searchStatus);
 
-  const tabs: Array<{ id: SettingsTab; label: string }> = [
-    { id: "performance",  label: "⚡ Performance" },
-    { id: "display",      label: "🖥 Display" },
-    { id: "library",      label: "📚 My Games" },
-    { id: "bios",         label: "💾 System Files" },
-    { id: "multiplayer",  label: "🌐 Play Together" },
-    { id: "debug",        label: "🔧 Advanced" },
-    { id: "about",        label: "❓ Help" },
+  const tabs: Array<{ id: SettingsTab; label: string; ariaLabel: string }> = [
+    { id: "performance",  label: "⚡ Performance",   ariaLabel: "Performance" },
+    { id: "display",      label: "🖥 Display",        ariaLabel: "Display" },
+    { id: "library",      label: "📚 My Games",       ariaLabel: "My Games" },
+    { id: "bios",         label: "💾 System Files",   ariaLabel: "System Files" },
+    { id: "multiplayer",  label: "🌐 Play Together",  ariaLabel: "Play Together" },
+    { id: "debug",        label: "🔧 Advanced",       ariaLabel: "Advanced" },
+    { id: "about",        label: "❓ Help",            ariaLabel: "Help" },
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
@@ -2966,6 +2966,7 @@ function buildSettingsContent(
       "aria-selected": tab.id === activeTab ? "true" : "false",
       tabindex: tab.id === activeTab ? "0" : "-1",
       "aria-controls": `tab-panel-${tab.id}`,
+      "aria-label": tab.ariaLabel,
     }, tab.label) as HTMLButtonElement;
     btn.addEventListener("click", () => switchTab(tab.id));
     btn.addEventListener("keydown", (e) => {
