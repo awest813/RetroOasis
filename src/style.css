@@ -1152,6 +1152,8 @@ body {
   flex-direction: column;
 }
 
+.settings-panel-content[hidden] { display: none; }
+
 .settings-section {
   padding: 16px 22px;
   border-bottom: 1px solid var(--c-border);
