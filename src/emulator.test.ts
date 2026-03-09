@@ -1523,6 +1523,41 @@ describe('PSPEmulator', () => {
     });
   });
 
+  // ── Controls ──────────────────────────────────────────────────────────────
+
+  describe('reset', () => {
+    afterEach(() => {
+      delete (window as Window & { EJS_emulator?: unknown }).EJS_emulator;
+    });
+
+    it('calls emu.gameManager.restart() if available', () => {
+      const restartSpy = vi.fn();
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        gameManager: { restart: restartSpy },
+      };
+
+      emulator.reset();
+      expect(restartSpy).toHaveBeenCalledOnce();
+    });
+
+    it('emits an error if gameManager.restart() throws', () => {
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        gameManager: {
+          restart: () => { throw new Error('Simulated restart error'); },
+        },
+      };
+
+      emulator.reset();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain('Reset failed: Simulated restart error');
+      expect(emulator.state).toBe('error');
+    });
+  });
+
   // ── readStateData / writeStateData ────────────────────────────────────────
 
   describe('readStateData', () => {
