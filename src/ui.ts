@@ -2775,6 +2775,17 @@ function buildSettingsContent(
   settingsShell.append(tabBar, panelsEl);
   container.append(quickBar, settingsShell);
 
+  // Detect tab bar overflow and apply fade mask via .overflows class
+  const updateTabBarOverflow = () => {
+    requestAnimationFrame(() => {
+      tabBar.classList.toggle("overflows", tabBar.scrollWidth > tabBar.clientWidth);
+    });
+  };
+  updateTabBarOverflow();
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(updateTabBarOverflow).observe(tabBar);
+  }
+
   // Ensure tab button classes and panel visibility match the active tab
   switchTab(activeTab);
 
