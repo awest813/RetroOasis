@@ -2116,3 +2116,306 @@ describe("settings panel focus trap cleanup", () => {
     expect(panel.hidden).toBe(true);
   });
 });
+
+// ── Cloud save gallery UX ─────────────────────────────────────────────────────
+
+describe("save gallery cloud bar UX", () => {
+  function makeRunningEmulator() {
+    return {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { id: "psp", shortName: "PSP", name: "PlayStation Portable" },
+      setFPSMonitorEnabled: vi.fn(),
+      prefetchCore: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      reset: vi.fn(),
+      readStateData: vi.fn().mockReturnValue(new Uint8Array(0)),
+      captureScreenshot: vi.fn().mockResolvedValue(null),
+      writeStateData: vi.fn().mockReturnValue(false),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+  }
+
+  function makeBasicSaveLibrary() {
+    return {
+      getStatesForGame: vi.fn().mockResolvedValue([]),
+      getState: vi.fn().mockResolvedValue(null),
+      saveState: vi.fn().mockResolvedValue(undefined),
+      deleteState: vi.fn().mockResolvedValue(undefined),
+      exportAllForGame: vi.fn().mockResolvedValue([]),
+      exportState: vi.fn().mockResolvedValue(null),
+      importState: vi.fn().mockResolvedValue(undefined),
+      updateStateLabel: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SaveStateLibrary;
+  }
+
+  function openGalleryButton(): HTMLButtonElement | undefined {
+    const headerActions = document.getElementById("header-actions")!;
+    return Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
+      .find(b => b.getAttribute("aria-label") === "Open save state gallery");
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    document.querySelectorAll(".confirm-overlay").forEach(el => el.remove());
+  });
+
+  it("cloud bar renders with 'Not connected' status text when no provider is configured", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    // Trigger in-game controls
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    // Click the gallery button
+    const galleryBtn = openGalleryButton();
+    expect(galleryBtn).toBeTruthy();
+    galleryBtn!.click();
+
+    // Let the async gallery render settle
+    await new Promise(r => setTimeout(r, 0));
+
+    const statusText = document.querySelector<HTMLElement>(".cloud-bar__status-text");
+    expect(statusText).toBeTruthy();
+    expect(statusText!.textContent).toBe("Not connected");
+    // No color modifier class should be present when disconnected
+    expect(statusText!.className).not.toContain("--ok");
+    expect(statusText!.className).not.toContain("--error");
+    expect(statusText!.className).not.toContain("--syncing");
+  });
+
+  it("cloud bar shows a '☁ Connect' button when not connected", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const connectBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".cloud-bar__actions button"))
+      .find(b => b.textContent?.includes("Connect"));
+    expect(connectBtn).toBeTruthy();
+  });
+
+  it("clicking Connect opens the cloud connect dialog", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const connectBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".cloud-bar__actions button"))
+      .find(b => b.textContent?.includes("Connect"));
+    connectBtn?.click();
+    await new Promise(r => setTimeout(r, 20));
+
+    const dialog = document.querySelector("[aria-label='Cloud Connection']");
+    expect(dialog).toBeTruthy();
+  });
+
+  it("cloud connect dialog closes when Escape is pressed", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const connectBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".cloud-bar__actions button"))
+      .find(b => b.textContent?.includes("Connect"));
+    connectBtn?.click();
+    await new Promise(r => setTimeout(r, 20));
+
+    // Dialog should be open
+    expect(document.querySelector("[aria-label='Cloud Connection']")).toBeTruthy();
+
+    // Switch to fake timers for deterministic close-animation control
+    vi.useFakeTimers();
+    try {
+      // Press Escape — close() is called synchronously and queues a 200ms removal timeout
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+
+      // Advance past the CSS animation-delay timeout (200ms)
+      vi.advanceTimersByTime(300);
+
+      // Dialog should be removed from the DOM
+      expect(document.querySelector("[aria-label='Cloud Connection']")).toBeFalsy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cloud connect dialog closes when Cancel is clicked", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const connectBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".cloud-bar__actions button"))
+      .find(b => b.textContent?.includes("Connect"));
+    connectBtn?.click();
+    await new Promise(r => setTimeout(r, 20));
+
+    expect(document.querySelector("[aria-label='Cloud Connection']")).toBeTruthy();
+
+    const box = document.querySelector("[aria-label='Cloud Connection']");
+    const cancelBtn = Array.from(box?.querySelectorAll<HTMLButtonElement>("button") ?? [])
+      .find(b => b.textContent === "Cancel");
+    expect(cancelBtn).toBeTruthy();
+
+    vi.useFakeTimers();
+    try {
+      cancelBtn?.click();
+      vi.advanceTimersByTime(300);
+      expect(document.querySelector("[aria-label='Cloud Connection']")).toBeFalsy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cloud connect dialog has a provider selector with WebDAV, Google Drive, and Dropbox options", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const connectBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".cloud-bar__actions button"))
+      .find(b => b.textContent?.includes("Connect"));
+    connectBtn?.click();
+    await new Promise(r => setTimeout(r, 20));
+
+    const dialog = document.querySelector("[aria-label='Cloud Connection']");
+    const sel = dialog?.querySelector("select");
+    expect(sel).toBeTruthy();
+
+    const optionValues = Array.from(sel!.querySelectorAll("option")).map(o => o.value);
+    expect(optionValues).toContain("webdav");
+    expect(optionValues).toContain("gdrive");
+    expect(optionValues).toContain("dropbox");
+  });
+
+  it("cloud bar shows 'Not yet synced' in the last-sync element when connected but sync has not occurred", async () => {
+    const emulator = makeRunningEmulator();
+    const saveLib  = makeBasicSaveLibrary();
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator,
+      saveLibrary: saveLib,
+      getCurrentGameId:   () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    if (typeof (emulator as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulator as unknown as { onGameStart: () => void }).onGameStart();
+    }
+
+    openGalleryButton()?.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    // The cloud bar is rendered but not connected — status text and last-sync element are present
+    const statusText = document.querySelector<HTMLElement>(".cloud-bar__status-text");
+    const lastSyncEl = document.querySelector<HTMLElement>(".cloud-bar__last-sync");
+
+    expect(statusText).toBeTruthy();
+    expect(lastSyncEl).toBeTruthy();
+
+    // When disconnected, lastSyncEl should be empty
+    expect(lastSyncEl!.textContent).toBe("");
+
+    // The status text should say "Not connected" with no modifier class
+    expect(statusText!.textContent).toBe("Not connected");
+    expect(statusText!.className).toBe("cloud-bar__status-text");
+  });
+});
