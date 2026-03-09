@@ -1533,7 +1533,8 @@ describe('PSPEmulator', () => {
     it('calls emu.gameManager.restart() if available', () => {
       const restartSpy = vi.fn();
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
-        gameManager: { restart: restartSpy },
+        setVolume: vi.fn(),
+        gameManager: { restart: restartSpy, quickSave: vi.fn(), quickLoad: vi.fn(), supportsStates: vi.fn() },
       };
 
       emulator.reset();
@@ -1545,8 +1546,12 @@ describe('PSPEmulator', () => {
       emulator.onError = (msg) => errors.push(msg);
 
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
         gameManager: {
           restart: () => { throw new Error('Simulated restart error'); },
+          quickSave: vi.fn(),
+          quickLoad: vi.fn(),
+          supportsStates: vi.fn(),
         },
       };
 

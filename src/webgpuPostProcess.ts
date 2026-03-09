@@ -1033,7 +1033,7 @@ export class WebGPUPostProcessor {
    */
   private _initTimestampQuery(): void {
     try {
-      const features = this._device.features as Set<string>;
+      const features = this._device.features as unknown as Set<string>;
       if (!features.has("timestamp-query")) return;
 
       // 2 query slots: index 0 = render pass begin, index 1 = render pass end
