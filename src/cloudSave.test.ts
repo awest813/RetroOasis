@@ -740,11 +740,13 @@ describe("GoogleDriveProvider — upload", () => {
 
   it("updates existing files via PATCH when file already exists", async () => {
     const mockFetch = vi.fn()
-      // _findFileId returns an existing id for each file
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "id-state" }] }) })
+      // state.bin and thumb.jpg _findFileId calls run in parallel
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "id-state" }] }) })   // findFileId state.bin
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "id-thumb" }] }) })   // findFileId thumb.jpg (parallel)
+      // then their PATCH calls run in parallel
       .mockResolvedValueOnce({ ok: true, status: 200 }) // PATCH state.bin
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "id-thumb" }] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200 }) // PATCH thumb.jpg
+      .mockResolvedValueOnce({ ok: true, status: 200 }) // PATCH thumb.jpg (parallel)
+      // then manifest
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "id-manifest" }] }) })
       .mockResolvedValueOnce({ ok: true, status: 200 }); // PATCH manifest.json
 
@@ -758,14 +760,24 @@ describe("GoogleDriveProvider — upload", () => {
     expect(methods.filter(m => m === "PATCH")).toHaveLength(3);
   });
 
-  it("throws when a file operation fails", async () => {
+  it("throws when a file operation fails with a non-auth error", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [] }) })
-      .mockResolvedValueOnce({ ok: false, status: 403 }), // upload fails
+      .mockResolvedValueOnce({ ok: false, status: 500 }), // upload fails with server error
     );
     const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
     const p = new GoogleDriveProvider("tok");
     await expect(p.upload(entry)).rejects.toThrow(/Google Drive upload failed/);
+  });
+
+  it("throws an auth error message when upload fails with 401", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [] }) })
+      .mockResolvedValueOnce({ ok: false, status: 401 }), // token expired
+    );
+    const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
+    const p = new GoogleDriveProvider("tok");
+    await expect(p.upload(entry)).rejects.toThrow(/authentication failed/);
   });
 });
 
@@ -787,12 +799,11 @@ describe("GoogleDriveProvider — download", () => {
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "manifest-id" }] }) })
       // download manifest content
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => manifest })
-      // _findFileId(state.bin) → found
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "state-id" }] }) })
-      // download state content
-      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) })
-      // _findFileId(thumb.jpg) → not found
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [] }) });
+      // _findFileId(state.bin) and _findFileId(thumb.jpg) run in parallel
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [{ id: "state-id" }] }) })   // state.bin found
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ files: [] }) })                     // thumb.jpg not found
+      // download state content (parallel with thumb which resolves null immediately)
+      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) });
 
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1030,5 +1041,142 @@ describe("CloudSaveManager — providerId includes gdrive and dropbox", () => {
 
     const m2 = new CloudSaveManager();
     expect(m2.providerId).toBe("dropbox");
+  });
+});
+
+// ── CloudSaveManager — early bail when disconnected ────────────────────────────
+
+describe("CloudSaveManager — disconnected no-ops", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("push() is a no-op and does not call provider when disconnected", async () => {
+    const provider = makeMockProvider(true);
+    const m = new CloudSaveManager();
+    // Never connect — manager stays disconnected
+    await m.push(makeEntry());
+    expect(provider.upload).not.toHaveBeenCalled();
+    expect(m.lastSyncAt).toBeNull();
+  });
+
+  it("pull() returns null immediately without calling provider when disconnected", async () => {
+    const provider = makeMockProvider(true);
+    const m = new CloudSaveManager();
+    const result = await m.pull("game-1", 1);
+    expect(result).toBeNull();
+    expect(provider.download).not.toHaveBeenCalled();
+    expect(m.lastSyncAt).toBeNull();
+  });
+
+  it("syncGame() returns zeros immediately without calling provider when disconnected", async () => {
+    const provider = makeMockProvider(true);
+    const m = new CloudSaveManager();
+    const fakeLib = { getStatesForGame: vi.fn().mockResolvedValue([makeEntry()]) };
+    const result = await m.syncGame("game-1", fakeLib);
+    expect(result).toEqual({ pushed: 0, pulled: 0, errors: 0 });
+    // Library should not even be queried when disconnected
+    expect(fakeLib.getStatesForGame).not.toHaveBeenCalled();
+    expect(provider.upload).not.toHaveBeenCalled();
+  });
+});
+
+// ── Dropbox — auth error detection ────────────────────────────────────────────
+
+describe("DropboxProvider — auth error surfacing", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("upload() throws an auth error message on 401", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+    const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
+    const p = new DropboxProvider("tok");
+    await expect(p.upload(entry)).rejects.toThrow(/authentication failed/);
+  });
+
+  it("upload() throws an auth error message on 403", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+    const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
+    const p = new DropboxProvider("tok");
+    await expect(p.upload(entry)).rejects.toThrow(/authentication failed/);
+  });
+
+  it("download() propagates auth error instead of returning null on 401", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+    const p = new DropboxProvider("tok");
+    await expect(p.download("game-1", 1)).rejects.toThrow(/authentication failed/);
+  });
+
+  it("download() returns null for non-auth non-ok responses (e.g. file not found)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409 }));
+    const p = new DropboxProvider("tok");
+    expect(await p.download("game-1", 1)).toBeNull();
+  });
+});
+
+// ── GoogleDriveProvider — batch listManifests ─────────────────────────────────
+
+describe("GoogleDriveProvider — listManifests (batch search)", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("uses a single prefix search and returns manifests for matching files", async () => {
+    const manifest1 = makeManifest({ slot: 1 });
+    const manifest2 = makeManifest({ slot: 2 });
+    const mockFetch = vi.fn()
+      // Single batch search returns two manifest files
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({
+          files: [
+            { id: "m1-id", name: "rv__game-1__1__manifest.json" },
+            { id: "m2-id", name: "rv__game-1__2__manifest.json" },
+          ],
+        }),
+      })
+      // Download manifest 1
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => manifest1 })
+      // Download manifest 2
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => manifest2 });
+
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new GoogleDriveProvider("tok");
+    const results = await p.listManifests("game-1");
+
+    // Only 3 fetch calls: 1 batch search + 2 manifest downloads
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(results).toHaveLength(2);
+    expect(results.map(m => m.slot).sort()).toEqual([1, 2]);
+  });
+
+  it("returns empty array when no manifest files exist for the game", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ files: [] }),
+    }));
+    const p = new GoogleDriveProvider("tok");
+    expect(await p.listManifests("game-1")).toEqual([]);
+  });
+
+  it("does not include files from a different game that shares a common prefix", async () => {
+    // "game-1" and "game-10" share the prefix "rv__game-1__" — the suffix
+    // check ("__manifest.json") combined with the full-name startsWith/endsWith
+    // guards should prevent cross-game contamination.
+    const manifest = makeManifest({ gameId: "game-1", slot: 1 });
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true, status: 200,
+      json: async () => ({
+        files: [
+          // Belongs to game-1
+          { id: "m1", name: "rv__game-1__1__manifest.json" },
+          // Belongs to game-10 — must NOT be included in game-1 results
+          { id: "m10", name: "rv__game-10__1__manifest.json" },
+        ],
+      }),
+    })
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => manifest });
+
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new GoogleDriveProvider("tok");
+    const results = await p.listManifests("game-1");
+    expect(results).toHaveLength(1);
+    expect(results[0].gameId).toBe("game-1");
   });
 });
