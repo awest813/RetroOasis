@@ -5,7 +5,7 @@ import {
   buildEffectPipeline,
   adjustConfigForTier,
   type PostProcessConfig,
-} from "./webgpuPostProcess";
+} from "./webgpuPostProcess.js";
 
 // ── Mock GPU device factory ───────────────────────────────────────────────────
 

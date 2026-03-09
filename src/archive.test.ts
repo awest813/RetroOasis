@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   detectArchiveFormat,
   extractFromArchive,
@@ -8,7 +8,7 @@ import {
   isArchiveExtension,
   ARCHIVE_SUPPORT_NOTE,
   type ArchiveFormat,
-} from './archive';
+} from "./archive.js";
 
 // ── ZIP binary builder ────────────────────────────────────────────────────────
 
