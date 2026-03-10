@@ -1887,20 +1887,33 @@ function buildInGameControls(
   container.innerHTML = "";
 
   // ← Library
-  const btnLibrary = make("button", { class: "btn", title: "Return to library (Esc)" }, "← Library");
+  const btnLibrary = make("button", {
+    class: "btn",
+    title: "Return to library (Esc)",
+    "data-tooltip": "Return to library (Esc)",
+  });
+  btnLibrary.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg> Library`;
   btnLibrary.addEventListener("click", onReturnToLibrary);
 
   // Saves group (Save / Load / Gallery combined)
   const savesGroup = make("div", { class: "btn-group" });
 
-  const btnSave = make("button", { class: "btn btn-group__btn", title: "Quick Save to slot 1 (F5)" });
+  const btnSave = make("button", {
+    class: "btn btn-group__btn",
+    title: "Quick Save to slot 1 (F5)",
+    "data-tooltip": "Quick Save — Slot 1 (F5)",
+  });
   btnSave.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
   btnSave.addEventListener("click", async () => {
     await quickSaveWithPersist(emulator, saveLibrary, getCurrentGameId, getCurrentGameName, getCurrentSystemId, 1);
     showInfoToast("Saved to Slot 1");
   });
 
-  const btnLoad = make("button", { class: "btn btn-group__btn", title: "Quick Load from slot 1 (F7)" });
+  const btnLoad = make("button", {
+    class: "btn btn-group__btn",
+    title: "Quick Load from slot 1 (F7)",
+    "data-tooltip": "Quick Load — Slot 1 (F7)",
+  });
   btnLoad.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
   btnLoad.addEventListener("click", () => emulator.quickLoad(1));
 
@@ -1908,6 +1921,7 @@ function buildInGameControls(
     class: "btn btn-group__btn btn-group__btn--icon",
     title: "Save state gallery",
     "aria-label": "Open save state gallery",
+    "data-tooltip": "All Save Slots",
   });
   btnSavesGallery.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
   btnSavesGallery.addEventListener("click", () => {
@@ -1919,7 +1933,11 @@ function buildInGameControls(
   savesGroup.append(btnSave, btnLoad, btnSavesGallery);
 
   // Reset
-  const btnReset = make("button", { class: "btn btn--danger", title: "Reset game (F1)" });
+  const btnReset = make("button", {
+    class: "btn btn--danger",
+    title: "Reset game (F1)",
+    "data-tooltip": "Reset game (F1)",
+  });
   btnReset.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Reset`;
   btnReset.addEventListener("click", async () => {
     const confirmed = await showConfirmDialog(
@@ -1934,6 +1952,7 @@ function buildInGameControls(
     class: settings.showFPS ? "btn btn--active" : "btn",
     title: "Toggle FPS overlay",
     "aria-pressed": settings.showFPS ? "true" : "false",
+    "data-tooltip": "FPS Overlay",
   }, "FPS");
   btnFPS.addEventListener("click", () => {
     settings.showFPS = !settings.showFPS;
@@ -2073,7 +2092,9 @@ function buildInGameControls(
       class: (isSupported && isActive) ? "btn btn--active" : "btn",
       title: netplayTitle,
       "aria-label": "Open multiplayer settings",
-    }, "🌐 Netplay") as HTMLButtonElement;
+      "data-tooltip": "Multiplayer",
+    }) as HTMLButtonElement;
+    btnNetplay.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Netplay`;
 
     if (systemId && !isSupported) {
       btnNetplay.disabled = true;
@@ -2740,6 +2761,12 @@ async function buildSaveSlotCard(
 
   // Thumbnail area
   const thumb = make("div", { class: "save-slot-card__thumb" });
+
+  // Slot number badge overlaid on the thumbnail
+  const slotBadgeText = isAuto ? "Auto" : `Slot ${slot}`;
+  const slotBadge = make("span", { class: "save-slot-card__slot-badge" }, slotBadgeText);
+  thumb.appendChild(slotBadge);
+
   if (state?.thumbnail) {
     const img = make("img", { class: "save-slot-card__img", alt: `Slot ${slot} screenshot` }) as HTMLImageElement;
     const url = URL.createObjectURL(state.thumbnail);
@@ -2754,6 +2781,22 @@ async function buildSaveSlotCard(
       : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Empty</span>`;
     thumb.appendChild(empty);
   }
+
+  // Thumbnail hover overlay — "▶ Load" pill shown on occupied slots (wired after doLoad is defined)
+  let thumbPlayBtn: HTMLButtonElement | null = null;
+  if (state) {
+    const thumbOverlay = make("div", { class: "save-slot-card__thumb-overlay", "aria-hidden": "true" });
+    const thumbPlay = make("button", {
+      class: "save-slot-card__thumb-play",
+      title: "Load this save state",
+      tabindex: "-1",
+    }) as HTMLButtonElement;
+    thumbPlay.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
+    thumbOverlay.appendChild(thumbPlay);
+    thumb.appendChild(thumbOverlay);
+    thumbPlayBtn = thumbPlay;
+  }
+
   card.appendChild(thumb);
 
   // Info area
@@ -2820,6 +2863,18 @@ async function buildSaveSlotCard(
     return renderSaveSlots(container, emulator, saveLibrary, saveService, gameId, gameName, systemId, badge, onCloseGallery);
   };
 
+  // Shared load action — used by both the thumbnail overlay button and the actions row Load button
+  const doLoad = async () => {
+    const loaded = await saveService.loadSlot(slot);
+    if (loaded) {
+      onCloseGallery?.();
+      showInfoToast(`Loaded ${currentLabel}`);
+    } else {
+      showError("Could not restore this save state.");
+    }
+  };
+  thumbPlayBtn?.addEventListener("click", doLoad);
+
   // Actions
   const actions = make("div", { class: "save-slot-card__actions" });
 
@@ -2844,15 +2899,7 @@ async function buildSaveSlotCard(
   if (state) {
     const btnLoad = make("button", { class: "btn save-slot-card__btn", title: "Load this save state" });
     btnLoad.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-    btnLoad.addEventListener("click", async () => {
-      const loaded = await saveService.loadSlot(slot);
-      if (loaded) {
-        onCloseGallery?.();
-        showInfoToast(`Loaded ${currentLabel}`);
-      } else {
-        showError("Could not restore this save state.");
-      }
-    });
+    btnLoad.addEventListener("click", doLoad);
     actions.appendChild(btnLoad);
 
     if (state.stateData) {
@@ -3899,8 +3946,22 @@ function buildMultiplayerTab(
   let lobbyAutoRefreshTimer: ReturnType<typeof setInterval> | null = null;
   const lobbyLastRefreshed = make("p", { class: "netplay-lobby-timestamp" });
 
+  // Tracks the room currently selected in the lobby list
+  let selectedLobbyRoom: import("./multiplayer.js").NetplayLobbyRoom | null = null;
+  // Reference to the Join button — set later, updated by syncJoinBtn()
+  let joinBtnRef: HTMLButtonElement | null = null;
+  const syncJoinBtn = () => {
+    if (!joinBtnRef) return;
+    joinBtnRef.disabled = !selectedLobbyRoom;
+    joinBtnRef.title = selectedLobbyRoom
+      ? `Join "${selectedLobbyRoom.name || "selected room"}"`
+      : "Select a room above to join";
+  };
+
   const renderLobbyRooms = (rooms: import("./multiplayer.js").NetplayLobbyRoom[]) => {
     lobbyRoomList.innerHTML = "";
+    selectedLobbyRoom = null;
+    syncJoinBtn();
     if (rooms.length === 0) {
       lobbyRoomList.appendChild(make("p", { class: "netplay-lobby-empty" },
         "No open rooms right now — be the first to create one!"
@@ -3958,6 +4019,16 @@ function buildMultiplayerTab(
       if (hostEl)    row.appendChild(hostEl);
       if (playersEl) row.appendChild(playersEl);
       if (latencyEl) row.appendChild(latencyEl);
+
+      // Click-to-select: highlight the row and enable the Join button
+      row.addEventListener("click", () => {
+        lobbyRoomList.querySelectorAll<HTMLElement>(".netplay-lobby-row--selected")
+          .forEach(el => el.classList.remove("netplay-lobby-row--selected"));
+        row.classList.add("netplay-lobby-row--selected");
+        selectedLobbyRoom = room;
+        syncJoinBtn();
+      });
+
       fragment.appendChild(row);
     }
     lobbyRoomList.appendChild(fragment);
@@ -3969,14 +4040,15 @@ function buildMultiplayerTab(
   const refreshBtn = make("button", {
     class: "btn btn--primary netplay-lobby-refresh",
     "aria-label": "Refresh room list",
-  }, "Refresh") as HTMLButtonElement;
+  }) as HTMLButtonElement;
+  refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refresh`;
 
   const doLobbyRefresh = async () => {
     if (!netplayManager) return;
     if (lobbyAbort) lobbyAbort.abort();
     lobbyAbort = new AbortController();
     refreshBtn.disabled = true;
-    refreshBtn.textContent = "Refreshing…";
+    refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refreshing…`;
     lobbyLastRefreshed.textContent = "";
 
     // Show skeleton rows while loading
@@ -4007,7 +4079,7 @@ function buildMultiplayerTab(
       ));
     } finally {
       refreshBtn.disabled = false;
-      refreshBtn.textContent = "Refresh";
+      refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refresh`;
     }
   };
 
@@ -4107,11 +4179,17 @@ function buildMultiplayerTab(
     const createBtn = make("button", {
       class: "btn btn--primary netplay-create-room",
       title: "Start a game and use the Netplay button to create a room",
-    }, "Create Room") as HTMLButtonElement;
+    }) as HTMLButtonElement;
+    createBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Room`;
     const joinBtn = make("button", {
       class: "btn netplay-join-room",
-      title: "Browse the lobby above and start a game to join a room",
-    }, "Join from Lobby") as HTMLButtonElement;
+      title: "Select a room above to join",
+      disabled: "",
+    }) as HTMLButtonElement;
+    joinBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Join Room`;
+    // Wire the join button to the selection tracker in the lobby browser
+    joinBtnRef = joinBtn;
+    syncJoinBtn();
     createBtn.addEventListener("click", () => {
       showInfoToast(
         hasGame
@@ -4120,8 +4198,11 @@ function buildMultiplayerTab(
       );
     });
     joinBtn.addEventListener("click", () => {
+      const room = selectedLobbyRoom;
       showInfoToast(
-        "Select a room in the Room Browser above, then start the same game to join it."
+        room
+          ? `Start "${currentGameName || "the game"}" — the app will connect you to "${room.name ?? "the selected room"}".`
+          : "Select a room in the Room Browser above, then start the same game to join it."
       );
     });
     actionRow.append(createBtn, joinBtn);
