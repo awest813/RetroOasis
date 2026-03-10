@@ -76,8 +76,13 @@ Open `http://localhost:5173`.
 
 ### Networking (experimental)
 
-- **Netplay**: WebRTC-based peer-to-peer multiplayer for supported systems (PSP, N64, NDS)
-- **ICE server management**: configurable STUN/TURN servers; lobby browser UI
+- **Netplay**: WebRTC-based peer-to-peer multiplayer for supported systems (PSP, N64, NDS, GBA, GBC, GB)
+- **Lobby browser**: refresh room list, join a room, or start a host session in one click
+- **Local wireless**: play on the same Wi-Fi network with near-zero latency — no remote server needed
+- **ICE server management**: configurable STUN/TURN servers for NAT traversal
+- **ROM alias grouping**: regional variants (USA / Europe / Japan) automatically share the same room
+
+See [`docs/NETPLAY.md`](docs/NETPLAY.md) for the full setup guide.
 
 ## Project Architecture
 
