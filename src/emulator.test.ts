@@ -2730,9 +2730,9 @@ describe('PSPEmulator', () => {
       emulator.logDiagnostic('performance', 'Test event');
       const log = emulator.diagnosticLog;
       expect(log).toHaveLength(1);
-      expect(log[0].category).toBe('performance');
-      expect(log[0].message).toBe('Test event');
-      expect(typeof log[0].timestamp).toBe('number');
+      expect(log[0]!.category).toBe('performance');
+      expect(log[0]!.message).toBe('Test event');
+      expect(typeof log[0]!.timestamp).toBe('number');
     });
 
     it('caps diagnostic log at MAX_DIAGNOSTIC_EVENTS', () => {
@@ -2867,8 +2867,8 @@ describe('PSPEmulator', () => {
       mon._check();
 
       expect(pressureEvents).toHaveLength(1);
-      expect(pressureEvents[0][0]).toBe(850); // usedMB
-      expect(pressureEvents[0][1]).toBe(1000); // limitMB
+      expect(pressureEvents[0]![0]).toBe(850); // usedMB
+      expect(pressureEvents[0]![1]).toBe(1000); // limitMB
 
       // Cleanup
       Object.defineProperty(perfMock, 'memory', { value: undefined, configurable: true });

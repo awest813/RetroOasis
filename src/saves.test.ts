@@ -199,9 +199,9 @@ describe('SaveStateLibrary', () => {
 
     const metas = await lib.getMetadataForGame('test-game');
     expect(metas.length).toBe(1);
-    expect('thumbnail' in metas[0]).toBe(false);
-    expect('stateData' in metas[0]).toBe(false);
-    expect(metas[0].gameId).toBe('test-game');
+    expect('thumbnail' in metas[0]!).toBe(false);
+    expect('stateData' in metas[0]!).toBe(false);
+    expect(metas[0]!.gameId).toBe('test-game');
   });
 
   it('clearAll removes everything', async () => {
@@ -265,8 +265,8 @@ describe('SaveStateLibrary', () => {
     const newStates = await lib.getStatesForGame('new-id');
     expect(oldStates.length).toBe(0);
     expect(newStates.length).toBe(2);
-    expect(newStates[0].gameName).toBe('New Name');
-    expect(newStates[0].gameId).toBe('new-id');
+    expect(newStates[0]!.gameName).toBe('New Name');
+    expect(newStates[0]!.gameId).toBe('new-id');
   });
 
   it('migrateSaves returns 0 when source has no saves', async () => {
@@ -280,7 +280,7 @@ describe('SaveStateLibrary', () => {
 
     const states = await lib.getStatesForGame('dst');
     expect(states.length).toBe(1);
-    expect(states[0].slot).toBe(3);
+    expect(states[0]!.slot).toBe(3);
   });
 
   // ── getAllSavedGameIds ──────────────────────────────────────────────────────

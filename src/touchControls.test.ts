@@ -94,9 +94,9 @@ describe("DEFAULT_LAYOUT", () => {
 
   it("returns independent copies from DEFAULT_LAYOUT (mutations don't leak)", () => {
     const layout = loadLayout("__test_isolation__");
-    layout[0].x = 999;
+    layout[0]!.x = 999;
     const layout2 = loadLayout("__test_isolation__");
-    expect(layout2[0].x).not.toBe(999);
+    expect(layout2[0]!.x).not.toBe(999);
     cleanLS("__test_isolation__");
   });
 });
@@ -145,18 +145,18 @@ describe("loadLayout", () => {
   it("returns defaults when no saved layout exists", () => {
     const layout = loadLayout(SYS);
     expect(layout).toHaveLength(DEFAULT_LAYOUT.length);
-    expect(layout[0].id).toBe(DEFAULT_LAYOUT[0].id);
+    expect(layout[0]!.id).toBe(DEFAULT_LAYOUT[0]!.id);
   });
 
   it("restores saved positions on round-trip", () => {
     const layout = loadLayout(SYS);
-    layout[0].x = 42;
-    layout[0].y = 77;
+    layout[0]!.x = 42;
+    layout[0]!.y = 77;
     saveLayout(SYS, layout);
 
     const restored = loadLayout(SYS);
-    expect(restored[0].x).toBeCloseTo(42);
-    expect(restored[0].y).toBeCloseTo(77);
+    expect(restored[0]!.x).toBeCloseTo(42);
+    expect(restored[0]!.y).toBeCloseTo(77);
   });
 
   it("falls back to defaults for buttons absent from the saved blob", () => {
@@ -188,14 +188,14 @@ describe("saveLayout", () => {
 
   it("persists positions so they survive a loadLayout call", () => {
     const layout: TouchButtonDef[] = DEFAULT_LAYOUT.map((b) => ({ ...b }));
-    layout[2].x = 55;
-    layout[2].y = 66;
+    layout[2]!.x = 55;
+    layout[2]!.y = 66;
     saveLayout(SYS, layout);
 
     const raw = localStorage.getItem(LS_KEY(SYS));
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!) as Array<{ id: string; x: number; y: number }>;
-    const entry = parsed.find((p) => p.id === layout[2].id)!;
+    const entry = parsed.find((p) => p.id === layout[2]!.id)!;
     expect(entry.x).toBeCloseTo(55);
     expect(entry.y).toBeCloseTo(66);
   });
@@ -210,11 +210,11 @@ describe("resetLayout", () => {
 
   it("removes saved layout and returns defaults", () => {
     const layout = loadLayout(SYS);
-    layout[0].x = 88;
+    layout[0]!.x = 88;
     saveLayout(SYS, layout);
 
     const defaults = resetLayout(SYS);
-    expect(defaults[0].x).toBe(DEFAULT_LAYOUT[0].x);
+    expect(defaults[0]!.x).toBe(DEFAULT_LAYOUT[0]!.x);
     expect(localStorage.getItem(LS_KEY(SYS))).toBeNull();
   });
 });
@@ -239,20 +239,20 @@ describe("loadLayout — portrait mode", () => {
 
   it("landscape and portrait use separate storage keys", () => {
     const landscape = loadLayout(SYS, false);
-    landscape[0].x = 11;
+    landscape[0]!.x = 11;
     saveLayout(SYS, landscape, false);
 
     const portrait = loadLayout(SYS, true);
-    portrait[0].x = 55;
+    portrait[0]!.x = 55;
     saveLayout(SYS, portrait, true);
 
     // Landscape slot must not be affected by the portrait write
     const reloadedLandscape = loadLayout(SYS, false);
-    expect(reloadedLandscape[0].x).toBeCloseTo(11);
+    expect(reloadedLandscape[0]!.x).toBeCloseTo(11);
 
     // Portrait slot must not be affected by the landscape write
     const reloadedPortrait = loadLayout(SYS, true);
-    expect(reloadedPortrait[0].x).toBeCloseTo(55);
+    expect(reloadedPortrait[0]!.x).toBeCloseTo(55);
   });
 });
 
@@ -310,24 +310,24 @@ describe("resetLayout — portrait mode", () => {
 
   it("removes the portrait layout and returns portrait defaults", () => {
     const layout = loadLayout(SYS, true);
-    layout[0].x = 88;
+    layout[0]!.x = 88;
     saveLayout(SYS, layout, true);
     expect(localStorage.getItem(LS_KEY_PORTRAIT(SYS))).not.toBeNull();
 
     const defaults = resetLayout(SYS, true);
-    expect(defaults[0].x).toBe(DEFAULT_PORTRAIT_LAYOUT[0].x);
+    expect(defaults[0]!.x).toBe(DEFAULT_PORTRAIT_LAYOUT[0]!.x);
     expect(localStorage.getItem(LS_KEY_PORTRAIT(SYS))).toBeNull();
   });
 
   it("landscape slot is unaffected when resetting the portrait slot", () => {
     const ls = loadLayout(SYS, false);
-    ls[0].x = 77;
+    ls[0]!.x = 77;
     saveLayout(SYS, ls, false);
 
     resetLayout(SYS, true); // reset portrait only
 
     const reloaded = loadLayout(SYS, false);
-    expect(reloaded[0].x).toBeCloseTo(77);
+    expect(reloaded[0]!.x).toBeCloseTo(77);
   });
 });
 
@@ -533,7 +533,7 @@ describe("TouchControlsOverlay", () => {
     overlay.show();
 
     const layout = loadLayout("psp");
-    layout[0].x = 77;
+    layout[0]!.x = 77;
     saveLayout("psp", layout);
 
     const saved: Array<{ systemId: string; layout: TouchButtonDef[] }> = [];
@@ -542,10 +542,10 @@ describe("TouchControlsOverlay", () => {
     overlay.resetToDefaults();
 
     expect(saved).toHaveLength(1);
-    expect(saved[0].systemId).toBe("psp");
+    expect(saved[0]!.systemId).toBe("psp");
     // Positions should be back to defaults
     const upDefault = DEFAULT_LAYOUT.find((b) => b.id === "up")!;
-    const upRestored = saved[0].layout.find((b) => b.id === "up")!;
+    const upRestored = saved[0]!.layout.find((b) => b.id === "up")!;
     expect(upRestored.x).toBe(upDefault.x);
   });
 

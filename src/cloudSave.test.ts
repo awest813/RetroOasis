@@ -463,7 +463,7 @@ describe("WebDAVProvider — listManifests", () => {
     const results = await p.listManifests("game-1");
 
     expect(results).toHaveLength(1);
-    expect(results[0].slot).toBe(2);
+    expect(results[0]!.slot).toBe(2);
   });
 
   it("returns empty array when no slots exist", async () => {
@@ -1177,7 +1177,7 @@ describe("GoogleDriveProvider — listManifests (batch search)", () => {
     const p = new GoogleDriveProvider("tok");
     const results = await p.listManifests("game-1");
     expect(results).toHaveLength(1);
-    expect(results[0].gameId).toBe("game-1");
+    expect(results[0]!.gameId).toBe("game-1");
   });
 });
 
@@ -1231,10 +1231,10 @@ describe("CloudSaveManager — sync history", () => {
     manager.addHistoryEntry("Pushed slot 1", true);
     manager.addHistoryEntry("Pull slot 2 failed", false);
     expect(manager.syncHistory).toHaveLength(2);
-    expect(manager.syncHistory[0].action).toBe("Pull slot 2 failed");
-    expect(manager.syncHistory[0].ok).toBe(false);
-    expect(manager.syncHistory[1].action).toBe("Pushed slot 1");
-    expect(manager.syncHistory[1].ok).toBe(true);
+    expect(manager.syncHistory[0]!.action).toBe("Pull slot 2 failed");
+    expect(manager.syncHistory[0]!.ok).toBe(false);
+    expect(manager.syncHistory[1]!.action).toBe("Pushed slot 1");
+    expect(manager.syncHistory[1]!.ok).toBe(true);
   });
 
   it("caps history at MAX_HISTORY entries", () => {
@@ -1269,8 +1269,8 @@ describe("CloudSaveManager — push records badge + history", () => {
     await manager.push(entry);
     expect(manager.getSlotBadge("g1", 2)).toBe("synced");
     expect(manager.syncHistory.length).toBeGreaterThan(0);
-    expect(manager.syncHistory[0].action).toContain("Pushed slot 2");
-    expect(manager.syncHistory[0].ok).toBe(true);
+    expect(manager.syncHistory[0]!.action).toContain("Pushed slot 2");
+    expect(manager.syncHistory[0]!.ok).toBe(true);
   });
 
   it("push sets badge to error on failure", async () => {
@@ -1280,7 +1280,7 @@ describe("CloudSaveManager — push records badge + history", () => {
     const entry = makeEntry({ gameId: "g1", slot: 3 });
     await expect(manager.push(entry)).rejects.toThrow("net down");
     expect(manager.getSlotBadge("g1", 3)).toBe("error");
-    expect(manager.syncHistory[0].ok).toBe(false);
+    expect(manager.syncHistory[0]!.ok).toBe(false);
   });
 });
 

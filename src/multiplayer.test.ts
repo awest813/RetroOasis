@@ -1259,7 +1259,7 @@ describe('NetplayManager.fetchLobbyRooms — systemId and latencyMs fields', () 
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
 
     const rooms = await mgr.fetchLobbyRooms();
-    expect(rooms[0].systemId).toBe('gba');
+    expect(rooms[0]!.systemId).toBe('gba');
   });
 
   it('parses system_id (snake_case) from server response', async () => {
@@ -1268,7 +1268,7 @@ describe('NetplayManager.fetchLobbyRooms — systemId and latencyMs fields', () 
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
 
     const rooms = await mgr.fetchLobbyRooms();
-    expect(rooms[0].systemId).toBe('nds');
+    expect(rooms[0]!.systemId).toBe('nds');
   });
 
   it('parses latencyMs from server response', async () => {
@@ -1277,7 +1277,7 @@ describe('NetplayManager.fetchLobbyRooms — systemId and latencyMs fields', () 
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
 
     const rooms = await mgr.fetchLobbyRooms();
-    expect(rooms[0].latencyMs).toBe(32);
+    expect(rooms[0]!.latencyMs).toBe(32);
   });
 
   it('parses ping field as latencyMs', async () => {
@@ -1286,7 +1286,7 @@ describe('NetplayManager.fetchLobbyRooms — systemId and latencyMs fields', () 
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
 
     const rooms = await mgr.fetchLobbyRooms();
-    expect(rooms[0].latencyMs).toBe(45);
+    expect(rooms[0]!.latencyMs).toBe(45);
   });
 
   it('systemId and latencyMs are undefined when absent from server response', async () => {
@@ -1295,7 +1295,7 @@ describe('NetplayManager.fetchLobbyRooms — systemId and latencyMs fields', () 
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
 
     const rooms = await mgr.fetchLobbyRooms();
-    expect(rooms[0].systemId).toBeUndefined();
-    expect(rooms[0].latencyMs).toBeUndefined();
+    expect(rooms[0]!.systemId).toBeUndefined();
+    expect(rooms[0]!.latencyMs).toBeUndefined();
   });
 });

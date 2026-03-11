@@ -58,15 +58,15 @@ describe('BIOS_REQUIREMENTS', () => {
   it('PS1 BIOS entries are all optional', () => {
     const psxReqs = BIOS_REQUIREMENTS['psx'];
     expect(psxReqs).toBeDefined();
-    expect(psxReqs.every((r: BiosRequirement) => !r.required)).toBe(true);
+    expect(psxReqs!.every((r: BiosRequirement) => !r.required)).toBe(true);
   });
 
   it('PS1 BIOS includes NTSC-J (SCPH-5500) entry for Japanese game compatibility', () => {
     const psxReqs = BIOS_REQUIREMENTS['psx'];
     expect(psxReqs).toBeDefined();
-    const fileNames = psxReqs.map((r: BiosRequirement) => r.fileName);
+    const fileNames = psxReqs!.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('scph5500.bin');
-    const entry = psxReqs.find((r: BiosRequirement) => r.fileName === 'scph5500.bin');
+    const entry = psxReqs!.find((r: BiosRequirement) => r.fileName === 'scph5500.bin');
     expect(entry).toBeDefined();
     expect(entry?.required).toBe(false);
     // Description should mention Japanese or NTSC-J
@@ -75,21 +75,21 @@ describe('BIOS_REQUIREMENTS', () => {
 
   it('PS1 BIOS includes NTSC-U entries (SCPH-5501 and SCPH-1001)', () => {
     const psxReqs = BIOS_REQUIREMENTS['psx'];
-    const fileNames = psxReqs.map((r: BiosRequirement) => r.fileName);
+    const fileNames = psxReqs!.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('scph5501.bin');
     expect(fileNames).toContain('scph1001.bin');
   });
 
   it('PS1 BIOS includes PAL entry (SCPH-5502)', () => {
     const psxReqs = BIOS_REQUIREMENTS['psx'];
-    const fileNames = psxReqs.map((r: BiosRequirement) => r.fileName);
+    const fileNames = psxReqs!.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('scph5502.bin');
   });
 
   it('Dreamcast has two required BIOS files', () => {
     const dcReqs = BIOS_REQUIREMENTS['segaDC'];
     expect(dcReqs).toBeDefined();
-    const required = dcReqs.filter((r: BiosRequirement) => r.required);
+    const required = dcReqs!.filter((r: BiosRequirement) => r.required);
     expect(required).toHaveLength(2);
     const fileNames = required.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('dc_boot.bin');
@@ -99,7 +99,7 @@ describe('BIOS_REQUIREMENTS', () => {
   it('Saturn has two required BIOS files in the same group', () => {
     const saturnReqs = BIOS_REQUIREMENTS['segaSaturn'];
     expect(saturnReqs).toBeDefined();
-    const required = saturnReqs.filter((r: BiosRequirement) => r.required);
+    const required = saturnReqs!.filter((r: BiosRequirement) => r.required);
     expect(required).toHaveLength(2);
     const fileNames = required.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('sega_101.bin');
@@ -112,7 +112,7 @@ describe('BIOS_REQUIREMENTS', () => {
 
   it('Dreamcast entries do NOT share a group (each file is independently required)', () => {
     const dcReqs = BIOS_REQUIREMENTS['segaDC'];
-    const required = dcReqs.filter((r: BiosRequirement) => r.required);
+    const required = dcReqs!.filter((r: BiosRequirement) => r.required);
     // Either both have no group, or they have distinct groups
     const groups = required.map((r: BiosRequirement) => r.group ?? r.fileName);
     const uniqueGroups = new Set(groups);
@@ -122,13 +122,13 @@ describe('BIOS_REQUIREMENTS', () => {
   it('Lynx BIOS is optional', () => {
     const lynxReqs = BIOS_REQUIREMENTS['lynx'];
     expect(lynxReqs).toBeDefined();
-    expect(lynxReqs.every((r: BiosRequirement) => !r.required)).toBe(true);
+    expect(lynxReqs!.every((r: BiosRequirement) => !r.required)).toBe(true);
   });
 
   it('NDS BIOS entries exist for bios7.bin, bios9.bin, and firmware.bin', () => {
     const ndsReqs = BIOS_REQUIREMENTS['nds'];
     expect(ndsReqs).toBeDefined();
-    const fileNames = ndsReqs.map((r: BiosRequirement) => r.fileName);
+    const fileNames = ndsReqs!.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('bios7.bin');
     expect(fileNames).toContain('bios9.bin');
     expect(fileNames).toContain('firmware.bin');
@@ -137,19 +137,19 @@ describe('BIOS_REQUIREMENTS', () => {
   it('NDS BIOS entries are all optional', () => {
     const ndsReqs = BIOS_REQUIREMENTS['nds'];
     expect(ndsReqs).toBeDefined();
-    expect(ndsReqs.every((r: BiosRequirement) => !r.required)).toBe(true);
+    expect(ndsReqs!.every((r: BiosRequirement) => !r.required)).toBe(true);
   });
 
   it('NDS bios7.bin description mentions ARM7', () => {
     const ndsReqs = BIOS_REQUIREMENTS['nds'];
-    const entry = ndsReqs.find((r: BiosRequirement) => r.fileName === 'bios7.bin');
+    const entry = ndsReqs!.find((r: BiosRequirement) => r.fileName === 'bios7.bin');
     expect(entry).toBeDefined();
     expect(entry?.description.toLowerCase()).toMatch(/arm7/);
   });
 
   it('NDS bios9.bin description mentions ARM9', () => {
     const ndsReqs = BIOS_REQUIREMENTS['nds'];
-    const entry = ndsReqs.find((r: BiosRequirement) => r.fileName === 'bios9.bin');
+    const entry = ndsReqs!.find((r: BiosRequirement) => r.fileName === 'bios9.bin');
     expect(entry).toBeDefined();
     expect(entry?.description.toLowerCase()).toMatch(/arm9/);
   });

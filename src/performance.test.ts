@@ -1365,8 +1365,8 @@ describe('performance', () => {
       mon._check();
 
       expect(pressureEvents).toHaveLength(1);
-      expect(pressureEvents[0][0]).toBe(850);
-      expect(pressureEvents[0][1]).toBe(1000);
+      expect(pressureEvents[0]![0]).toBe(850);
+      expect(pressureEvents[0]![1]).toBe(1000);
 
       Object.defineProperty(perfMock, 'memory', { value: undefined, configurable: true });
     });
@@ -1528,7 +1528,7 @@ describe('performance', () => {
       };
 
       scheduleIdleTask(() => {}, 5000);
-      expect(capturedOpts[0].timeout).toBe(5000);
+      expect(capturedOpts[0]!.timeout).toBe(5000);
 
       (globalThis as Record<string, unknown>).requestIdleCallback = original;
     });
@@ -1783,11 +1783,11 @@ describe('performance', () => {
       const cmds = batcher.flush();
       expect(batcher.pendingCount).toBe(0);
       // Sorted: programId 1 < programId 2; within programId 2: tex 0 < tex 1
-      expect(cmds[0].programId).toBe(1);
-      expect(cmds[1].programId).toBe(2);
-      expect(cmds[1].textureUnit).toBe(0);
-      expect(cmds[2].programId).toBe(2);
-      expect(cmds[2].textureUnit).toBe(1);
+      expect(cmds[0]!.programId).toBe(1);
+      expect(cmds[1]!.programId).toBe(2);
+      expect(cmds[1]!.textureUnit).toBe(0);
+      expect(cmds[2]!.programId).toBe(2);
+      expect(cmds[2]!.textureUnit).toBe(1);
     });
 
     it('flush sorts by offset within the same program and texture', () => {
@@ -1823,7 +1823,7 @@ describe('performance', () => {
     it('stores correct DrawCommand fields', () => {
       const batcher = new DrawCallBatcher();
       batcher.add(GL_TRIANGLES, 36, 48, 2, 5);
-      const [cmd] = batcher.flush();
+      const cmd = batcher.flush()[0]!;
       expect(cmd.mode).toBe(GL_TRIANGLES);
       expect(cmd.count).toBe(36);
       expect(cmd.offset).toBe(48);

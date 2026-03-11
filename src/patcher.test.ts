@@ -400,7 +400,7 @@ describe('applyBPS', () => {
     const target = new Uint8Array([0x01]);
     const patch  = new Uint8Array(buildBpsTargetRead(source, target));
     // Corrupt the patch CRC (last 4 bytes)
-    patch[patch.length - 1] ^= 0xff;
+    patch[patch.length - 1] = patch[patch.length - 1]! ^ 0xff;
     expect(() => applyBPS(source.buffer, patch.buffer)).toThrow('patch CRC32 mismatch');
   });
 
