@@ -84,6 +84,14 @@ export interface DeviceCapabilities {
   /** True when the device appears to be a mobile device (iOS or Android). */
   isMobile: boolean;
   /**
+   * True when the browser is Safari (any platform — desktop macOS or iOS).
+   * Combine with `isIOS` to distinguish desktop Safari from mobile WebKit.
+   * Use this to guard Safari-specific behaviours such as the
+   * `webkitAudioContext` prefix on older Safari versions, or to check whether
+   * `credentialless` COEP (Safari 17+) is available for PSP multi-threading.
+   */
+  isSafari: boolean;
+  /**
    * Recommended mode based on hardware alone.
    * Does NOT reflect the user's manual override.
    */
@@ -201,6 +209,56 @@ export function isLikelyAndroid(): boolean {
     return /Android/.test(navigator.userAgent);
   } catch {
     return false;
+  }
+}
+
+// ── Safari / WebKit detection ─────────────────────────────────────────────────
+
+/**
+ * Detect if the user is running the Safari browser (any platform).
+ *
+ * Safari's user-agent always includes a `Version/X.Y` token immediately
+ * before the `Safari/` token. Chromium-based browsers (Chrome, Edge, Opera,
+ * Samsung Internet) include `Safari/` for compatibility but use the fixed
+ * string `Safari/537.36` — they never emit a `Version/` token — so they are
+ * cleanly excluded by the Version/ check. Chrome on iOS uses `CriOS/` and
+ * Firefox on iOS uses `FxiOS/`, which are also excluded.
+ *
+ * Returns `true` for both desktop Safari (macOS) and iOS Safari. Combine with
+ * `isLikelyIOS()` to distinguish desktop Safari from mobile WebKit.
+ */
+export function isLikelySafari(): boolean {
+  try {
+    const ua = navigator.userAgent;
+    if (!/\bVersion\/\d+/.test(ua)) return false;
+    if (!/\bSafari\//.test(ua)) return false;
+    // Exclude Chromium-derived browsers that might include a Version/ token.
+    if (/\b(Chrome|CriOS|Chromium|OPR|Edg|EdgA|FxiOS|SamsungBrowser)\b/.test(ua)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parse the major Safari version number from the user-agent string.
+ *
+ * Safari encodes its version as `Version/X.Y` in the user-agent. This
+ * function extracts the major (`X`) component and returns it as a number.
+ * Returns `null` when not running in Safari or when the version cannot be
+ * parsed (e.g. in a non-browser environment).
+ *
+ * Useful for gating on version-specific capabilities such as `credentialless`
+ * COEP support (Safari 17+) or `requestIdleCallback` (Safari 17+).
+ */
+export function getSafariVersion(): number | null {
+  try {
+    if (!isLikelySafari()) return null;
+    const match = /\bVersion\/(\d+)/.exec(navigator.userAgent);
+    if (!match) return null;
+    return parseInt(match[1], 10);
+  } catch {
+    return null;
   }
 }
 
@@ -742,6 +800,7 @@ export function detectCapabilities(): DeviceCapabilities {
   const chromeos = isLikelyChromeOS();
   const ios = isLikelyIOS();
   const android = isLikelyAndroid();
+  const safari = isLikelySafari();
   const mobile = ios || android;
   const reducedMotion = prefersReducedMotion();
   const webgpuAvailable = isWebGPUAvailable();
@@ -764,6 +823,7 @@ export function detectCapabilities(): DeviceCapabilities {
     isIOS: ios,
     isAndroid: android,
     isMobile: mobile,
+    isSafari: safari,
     recommendedMode: isLowSpec || tier === "medium" ? "performance" : "quality",
     tier,
     gpuCaps,
@@ -784,7 +844,7 @@ export function detectCapabilities(): DeviceCapabilities {
  * so that cached entries without the new fields are automatically discarded,
  * even if the sessionStorage key name is not also bumped.
  */
-const CAPS_SCHEMA_VERSION = 2;
+const CAPS_SCHEMA_VERSION = 3;
 
 /**
  * sessionStorage key for the cached DeviceCapabilities result.
@@ -1167,7 +1227,8 @@ export function formatCapabilitiesSummary(caps: DeviceCapabilities): string {
       : "GPU info unavailable";
   const chromeosSuffix = caps.isChromOS ? " · Chromebook" : "";
   const mobileSuffix = caps.isIOS ? " · iPhone/iPad" : caps.isAndroid ? " · Android" : "";
-  return `${ram} · ${cores} · ${gpu}${chromeosSuffix}${mobileSuffix}`;
+  const safariBrowserSuffix = !caps.isIOS && caps.isSafari ? " · Safari" : "";
+  return `${ram} · ${cores} · ${gpu}${chromeosSuffix}${mobileSuffix}${safariBrowserSuffix}`;
 }
 
 export function formatDetailedSummary(caps: DeviceCapabilities): string {
@@ -1191,6 +1252,8 @@ export function formatDetailedSummary(caps: DeviceCapabilities): string {
     lines.push("Device: iPhone/iPad (iOS) — memory-constrained browser; tier capped at High");
   } else if (caps.isAndroid) {
     lines.push("Device: Android — WebGL performance varies by device; tier capped at High");
+  } else if (caps.isSafari) {
+    lines.push("Browser: Safari (macOS) — some APIs limited; PSP requires Safari 17+");
   }
   return lines.join("\n");
 }

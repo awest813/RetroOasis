@@ -6,6 +6,8 @@ import {
   isLikelyChromeOS,
   isLikelyIOS,
   isLikelyAndroid,
+  isLikelySafari,
+  getSafariVersion,
   isWebGPUAvailable,
   prefersReducedMotion,
   checkBatteryStatus,
@@ -351,6 +353,112 @@ describe('performance', () => {
     });
   });
 
+  // ── Safari detection ────────────────────────────────────────────────────
+
+  describe('isLikelySafari', () => {
+    it('returns true for macOS Safari', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+      );
+      expect(isLikelySafari()).toBe(true);
+    });
+
+    it('returns true for iOS Safari (Version/ token present)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(isLikelySafari()).toBe(true);
+    });
+
+    it('returns false for Chrome on macOS (no Version/ token)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Chrome on iOS (CriOS token)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Firefox on iOS (FxiOS token)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/120.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Edge on Windows', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Chrome on Windows', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Firefox on desktop', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+
+    it('returns false for Chrome OS', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (X11; CrOS x86_64 15236.80.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
+      );
+      expect(isLikelySafari()).toBe(false);
+    });
+  });
+
+  // ── getSafariVersion ────────────────────────────────────────────────────
+
+  describe('getSafariVersion', () => {
+    it('returns the major version for macOS Safari 17', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+      );
+      expect(getSafariVersion()).toBe(17);
+    });
+
+    it('returns the major version for iOS Safari 16', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(getSafariVersion()).toBe(16);
+    });
+
+    it('returns null for Chrome (no Version/ token)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      expect(getSafariVersion()).toBeNull();
+    });
+
+    it('returns null for Chrome on iOS (CriOS)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(getSafariVersion()).toBeNull();
+    });
+
+    it('returns null for Firefox on desktop', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0'
+      );
+      expect(getSafariVersion()).toBeNull();
+    });
+  });
+
   // ── Reduced motion preference ───────────────────────────────────────────
 
   describe('prefersReducedMotion', () => {
@@ -614,6 +722,45 @@ describe('performance', () => {
       expect(caps.isIOS).toBe(false);
       expect(caps.isAndroid).toBe(false);
       expect(caps.isMobile).toBe(false);
+    });
+  });
+
+  // ── Safari detection in detectCapabilities ──────────────────────────────
+
+  describe('isSafari in detectCapabilities', () => {
+    it('sets isSafari=true for macOS Safari', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+      );
+      Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+      const caps = detectCapabilities();
+      expect(caps.isSafari).toBe(true);
+      expect(caps.isIOS).toBe(false);
+    });
+
+    it('sets isSafari=true and isIOS=true for iOS Safari', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+      );
+      const caps = detectCapabilities();
+      expect(caps.isSafari).toBe(true);
+      expect(caps.isIOS).toBe(true);
+    });
+
+    it('sets isSafari=false for Chrome on macOS', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      const caps = detectCapabilities();
+      expect(caps.isSafari).toBe(false);
+    });
+
+    it('sets isSafari=false for Chrome on Windows', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      const caps = detectCapabilities();
+      expect(caps.isSafari).toBe(false);
     });
   });
 
