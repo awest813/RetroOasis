@@ -11,6 +11,7 @@
  * - WebDAVProvider      : User-provided WebDAV server (URL / username / password).
  * - GoogleDriveProvider : Google Drive REST API v3 (OAuth access token).
  * - DropboxProvider     : Dropbox API v2 (OAuth access token).
+ * - pCloudProvider      : pCloud REST API (OAuth access token, US or EU region).
  *
  * Manager
  * -------
@@ -1009,11 +1010,260 @@ export class DropboxProvider implements CloudSaveProvider {
   }
 }
 
+// ── pCloudProvider ────────────────────────────────────────────────────────────
+
+/** Timeout (ms) for pCloud availability check. */
+const PCLOUD_AVAILABILITY_TIMEOUT_MS = 8_000;
+/** Timeout (ms) for all other pCloud operations. */
+const PCLOUD_OPERATION_TIMEOUT_MS    = 15_000;
+
+/**
+ * CloudSaveProvider backed by the pCloud REST API.
+ *
+ * Files are stored in a pCloud folder under:
+ * ```
+ * /RetroVault/{gameId}/{slot}/manifest.json
+ * /RetroVault/{gameId}/{slot}/state.bin
+ * /RetroVault/{gameId}/{slot}/thumb.jpg
+ * ```
+ *
+ * The access token is obtained via OAuth 2.0 and passed directly to the
+ * constructor.  pCloud has two API regions (US / EU); the correct one must
+ * match the account's home location — mismatches will return an auth error.
+ */
+export class pCloudProvider implements CloudSaveProvider {
+  readonly providerId  = "pcloud";
+  readonly displayName = "pCloud";
+
+  private static readonly US_API      = "https://api.pcloud.com";
+  private static readonly EU_API      = "https://eapi.pcloud.com";
+  private static readonly ROOT_FOLDER = "/RetroVault";
+
+  // pCloud API result codes
+  private static readonly ERR_LOGIN_REQUIRED = 2000; // Log in required
+  private static readonly ERR_INVALID_TOKEN  = 2094; // Access token is not valid
+  private static readonly ERR_FILE_NOT_FOUND = 2009; // File not found
+  private static readonly ERR_DIR_NOT_FOUND  = 2010; // Directory not found
+
+  private readonly apiBase: string;
+
+  constructor(
+    private readonly accessToken: string,
+    region: "us" | "eu" = "us",
+  ) {
+    this.apiBase = region === "eu" ? pCloudProvider.EU_API : pCloudProvider.US_API;
+  }
+
+  // ── CloudSaveProvider implementation ───────────────────────────────────────
+
+  async isAvailable(): Promise<boolean> {
+    const ctl   = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), PCLOUD_AVAILABILITY_TIMEOUT_MS);
+    try {
+      const r = await fetch(`${this.apiBase}/userinfo`, {
+        headers: this._headers(),
+        signal:  ctl.signal,
+      });
+      if (!r.ok) return false;
+      const data = await r.json() as { result: number };
+      return data.result === 0;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async upload(entry: SaveStateEntry): Promise<void> {
+    const folderPath = this._slotPath(entry.gameId, entry.slot);
+    await this._ensureFolder(folderPath);
+
+    if (entry.stateData) {
+      await this._uploadFile(folderPath, "state.bin", entry.stateData);
+    }
+    if (entry.thumbnail) {
+      await this._uploadFile(folderPath, "thumb.jpg", entry.thumbnail);
+    }
+
+    const manifest: CloudSaveManifest = {
+      gameId:    entry.gameId,
+      slot:      entry.slot,
+      timestamp: entry.timestamp,
+      checksum:  entry.checksum ?? "",
+      label:     entry.label,
+      gameName:  entry.gameName,
+      systemId:  entry.systemId,
+      version:   entry.version ?? 1,
+    };
+    await this._uploadFile(
+      folderPath, "manifest.json",
+      new Blob([JSON.stringify(manifest)], { type: "application/json" }),
+    );
+  }
+
+  async download(gameId: string, slot: number): Promise<SaveStateEntry | null> {
+    const base = this._slotPath(gameId, slot);
+
+    const manifestBlob = await this._downloadFile(`${base}/manifest.json`);
+    if (!manifestBlob) return null;
+
+    let manifest: CloudSaveManifest;
+    try {
+      manifest = JSON.parse(await manifestBlob.text()) as CloudSaveManifest;
+    } catch {
+      return null;
+    }
+
+    const stateData = await this._downloadFile(`${base}/state.bin`);
+    const thumbnail  = await this._downloadFile(`${base}/thumb.jpg`);
+
+    return {
+      id:         `${gameId}:${slot}`,
+      gameId,
+      gameName:   manifest.gameName,
+      systemId:   manifest.systemId,
+      slot:       manifest.slot,
+      label:      manifest.label,
+      timestamp:  manifest.timestamp,
+      thumbnail,
+      stateData,
+      isAutoSave: slot === AUTO_SAVE_SLOT,
+      version:    manifest.version,
+      checksum:   manifest.checksum,
+    };
+  }
+
+  async listManifests(gameId: string): Promise<CloudSaveManifest[]> {
+    const slots = [AUTO_SAVE_SLOT, ...Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1)];
+    const results = await Promise.allSettled(
+      slots.map(async slot => {
+        const blob = await this._downloadFile(`${this._slotPath(gameId, slot)}/manifest.json`);
+        if (!blob) return null;
+        try {
+          return JSON.parse(await blob.text()) as CloudSaveManifest;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return results
+      .filter((r): r is PromiseFulfilledResult<CloudSaveManifest | null> => r.status === "fulfilled")
+      .map(r => r.value)
+      .filter((m): m is CloudSaveManifest => m !== null);
+  }
+
+  async delete(gameId: string, slot: number): Promise<void> {
+    const base = this._slotPath(gameId, slot);
+    await Promise.allSettled([
+      this._deleteFile(`${base}/manifest.json`),
+      this._deleteFile(`${base}/state.bin`),
+      this._deleteFile(`${base}/thumb.jpg`),
+    ]);
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
+  private _headers(): HeadersInit {
+    return { Authorization: `Bearer ${this.accessToken}` };
+  }
+
+  /** pCloud path for a specific game + slot folder. */
+  private _slotPath(gameId: string, slot: number): string {
+    const safeId = gameId.replace(/[^a-zA-Z0-9_\-.]/g, "_");
+    return `${pCloudProvider.ROOT_FOLDER}/${safeId}/${slot}`;
+  }
+
+  /** Create a folder (and all parents) if it does not already exist. */
+  private async _ensureFolder(path: string): Promise<void> {
+    try {
+      const url = new URL(`${this.apiBase}/createfolderifnotexists`);
+      url.searchParams.set("path", path);
+      await this._timedFetch(url.toString(), {
+        method:  "GET",
+        headers: this._headers(),
+      });
+    } catch { /* non-fatal — upload will surface the real error if needed */ }
+  }
+
+  private async _uploadFile(folderPath: string, filename: string, content: Blob): Promise<void> {
+    const url = new URL(`${this.apiBase}/uploadfile`);
+    url.searchParams.set("path", folderPath);
+    url.searchParams.set("filename", filename);
+    url.searchParams.set("nopartial", "1");
+
+    const r = await this._timedFetch(url.toString(), {
+      method:  "POST",
+      headers: { ...this._headers(), "Content-Type": "application/octet-stream" },
+      body:    content,
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({ result: -1 })) as { result?: number };
+      if (r.status === 401 || r.status === 403 ||
+          data.result === pCloudProvider.ERR_LOGIN_REQUIRED ||
+          data.result === pCloudProvider.ERR_INVALID_TOKEN) {
+        throw new Error(`pCloud authentication failed — your token may have expired. Please reconnect.`);
+      }
+      throw new Error(`pCloud upload failed (${r.status}): ${folderPath}/${filename}`);
+    }
+  }
+
+  private async _downloadFile(path: string): Promise<Blob | null> {
+    try {
+      // Step 1: Obtain a short-lived download link from the pCloud API.
+      const linkUrl = new URL(`${this.apiBase}/getfilelink`);
+      linkUrl.searchParams.set("path", path);
+      const linkR = await this._timedFetch(linkUrl.toString(), {
+        method:  "GET",
+        headers: this._headers(),
+      });
+      if (!linkR.ok) return null;
+      const linkData = await linkR.json() as { result: number; hosts?: string[]; path?: string };
+      // result ERR_FILE_NOT_FOUND/ERR_DIR_NOT_FOUND = file not found — not an error in this context.
+      if (linkData.result === pCloudProvider.ERR_FILE_NOT_FOUND ||
+          linkData.result === pCloudProvider.ERR_DIR_NOT_FOUND) return null;
+      if (linkData.result === pCloudProvider.ERR_LOGIN_REQUIRED ||
+          linkData.result === pCloudProvider.ERR_INVALID_TOKEN) {
+        throw new Error(`pCloud authentication failed — your token may have expired. Please reconnect.`);
+      }
+      if (linkData.result !== 0 || !linkData.hosts?.length || !linkData.path) return null;
+
+      // Step 2: Download the file content from the CDN link.
+      const downloadUrl = `https://${linkData.hosts[0]}${linkData.path}`;
+      const fileR = await this._timedFetch(downloadUrl, { method: "GET" });
+      if (!fileR.ok) return null;
+      return fileR.blob();
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("authentication failed")) throw err;
+      return null;
+    }
+  }
+
+  private async _deleteFile(path: string): Promise<void> {
+    const url = new URL(`${this.apiBase}/deletefile`);
+    url.searchParams.set("path", path);
+    const r = await this._timedFetch(url.toString(), {
+      method:  "GET",
+      headers: this._headers(),
+    });
+    if (!r.ok) throw new Error(`pCloud delete failed (${r.status}): ${path}`);
+  }
+
+  private async _timedFetch(url: string, init: RequestInit): Promise<Response> {
+    const ctl   = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), PCLOUD_OPERATION_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: ctl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 // ── CloudSaveManager ──────────────────────────────────────────────────────────
 
 /** Settings persisted in localStorage under "retrovault-cloud". */
 export interface CloudSaveSettings {
-  providerId:         "null" | "webdav" | "gdrive" | "dropbox";
+  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud";
   autoSyncEnabled:    boolean;
   conflictResolution: ConflictResolution;
 }
@@ -1050,7 +1300,7 @@ export class CloudSaveManager {
   private _lastError:   string | null = null;
 
   /** Persisted settings */
-  providerId:         "null" | "webdav" | "gdrive" | "dropbox" = "null";
+  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" = "null";
   autoSyncEnabled:    boolean           = false;
   conflictResolution: ConflictResolution = "newest";
 
@@ -1103,6 +1353,7 @@ export class CloudSaveManager {
   private static readonly WEBDAV_KEY   = "retrovault-cloud-webdav";
   private static readonly GDRIVE_KEY   = "retrovault-cloud-gdrive";
   private static readonly DROPBOX_KEY  = "retrovault-cloud-dropbox";
+  private static readonly PCLOUD_KEY   = "retrovault-cloud-pcloud";
 
   constructor() {
     this._sync = new CloudSaveSync(this._provider, this.conflictResolution);
@@ -1136,7 +1387,7 @@ export class CloudSaveManager {
     this._provider      = provider;
     this._sync          = new CloudSaveSync(provider, this.conflictResolution);
     this._connected     = true;
-    this.providerId     = provider.providerId as "null" | "webdav" | "gdrive" | "dropbox";
+    this.providerId     = provider.providerId as "null" | "webdav" | "gdrive" | "dropbox" | "pcloud";
     this._lastError     = null;
     this._saveSettings();
     this.onStatusChange?.();
@@ -1389,6 +1640,36 @@ export class CloudSaveManager {
     try { localStorage.removeItem(CloudSaveManager.DROPBOX_KEY); } catch { /* ignore */ }
   }
 
+  // ── pCloud credential storage ─────────────────────────────────────────────
+
+  /** Persist pCloud OAuth access token and selected region.
+   *
+   * ⚠️  Security note: the token is stored in plaintext in localStorage,
+   * which is accessible to any JavaScript running on the same origin.
+   * Users should be aware of this risk, particularly on shared devices.
+   */
+  savePCloudConfig(accessToken: string, region: "us" | "eu"): void {
+    try {
+      localStorage.setItem(CloudSaveManager.PCLOUD_KEY, JSON.stringify({ accessToken, region }));
+    } catch { /* quota exceeded or private-browsing restriction */ }
+  }
+
+  /** Load previously saved pCloud access token and region, or null if none exist. */
+  loadPCloudConfig(): { accessToken: string; region: "us" | "eu" } | null {
+    try {
+      const raw = localStorage.getItem(CloudSaveManager.PCLOUD_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw) as { accessToken?: string; region?: string };
+      const region = p.region === "eu" ? "eu" : "us";
+      return { accessToken: p.accessToken ?? "", region };
+    } catch { return null; }
+  }
+
+  /** Remove persisted pCloud credentials from localStorage. */
+  clearPCloudConfig(): void {
+    try { localStorage.removeItem(CloudSaveManager.PCLOUD_KEY); } catch { /* ignore */ }
+  }
+
   // ── Settings persistence ────────────────────────────────────────────────────
 
   private _loadSettings(): void {
@@ -1399,7 +1680,8 @@ export class CloudSaveManager {
       // providerId is stored as the literal string "null" (not JSON null) when
       // no provider is configured, matching the CloudSaveSettings type definition.
       if (p.providerId === "null" || p.providerId === "webdav" ||
-          p.providerId === "gdrive" || p.providerId === "dropbox") {
+          p.providerId === "gdrive" || p.providerId === "dropbox" ||
+          p.providerId === "pcloud") {
         this.providerId = p.providerId;
       }
       if (p.autoSyncEnabled === true) this.autoSyncEnabled = true;
