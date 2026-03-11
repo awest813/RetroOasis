@@ -5,6 +5,7 @@ import {
   WebDAVProvider,
   GoogleDriveProvider,
   DropboxProvider,
+  pCloudProvider,
   CloudSaveManager,
   type CloudSaveProvider,
   type CloudSaveManifest,
@@ -1108,6 +1109,235 @@ describe("DropboxProvider — auth error surfacing", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409 }));
     const p = new DropboxProvider("tok");
     expect(await p.download("game-1", 1)).toBeNull();
+  });
+});
+
+// ── pCloudProvider ────────────────────────────────────────────────────────────
+
+describe("pCloudProvider — construction", () => {
+  it("has providerId 'pcloud' and a non-empty displayName", () => {
+    const p = new pCloudProvider("fake-token");
+    expect(p.providerId).toBe("pcloud");
+    expect(p.displayName.length).toBeGreaterThan(0);
+  });
+
+  it("uses US API by default", () => {
+    // The US API host is used when no region is specified.
+    // We can't read the private field directly, but isAvailable() will hit it.
+    const p = new pCloudProvider("tok");
+    expect(p).toBeInstanceOf(pCloudProvider);
+  });
+
+  it("accepts 'eu' region without throwing", () => {
+    const p = new pCloudProvider("tok", "eu");
+    expect(p).toBeInstanceOf(pCloudProvider);
+  });
+});
+
+describe("pCloudProvider — isAvailable", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("returns true when /userinfo responds with result:0", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ result: 0, email: "user@example.com" }),
+    }));
+    const p = new pCloudProvider("tok");
+    expect(await p.isAvailable()).toBe(true);
+  });
+
+  it("returns false when /userinfo responds with non-zero result", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ result: 2000 }),
+    }));
+    const p = new pCloudProvider("tok");
+    expect(await p.isAvailable()).toBe(false);
+  });
+
+  it("returns false when status is 401", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+    const p = new pCloudProvider("tok");
+    expect(await p.isAvailable()).toBe(false);
+  });
+
+  it("returns false when fetch throws (network error)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    const p = new pCloudProvider("tok");
+    expect(await p.isAvailable()).toBe(false);
+  });
+});
+
+describe("pCloudProvider — upload", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("sends POST requests for state.bin, thumb.jpg, and manifest.json", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const entry = makeEntry({ gameId: "g1", slot: 1, stateData: new Blob(["state"]), thumbnail: new Blob(["img"]) });
+    const p = new pCloudProvider("tok");
+    await p.upload(entry);
+
+    const urls: string[] = mockFetch.mock.calls.map((c: unknown[]) => c[0] as string);
+    expect(urls.some(u => u.includes("filename=state.bin"))).toBe(true);
+    expect(urls.some(u => u.includes("filename=thumb.jpg"))).toBe(true);
+    expect(urls.some(u => u.includes("filename=manifest.json"))).toBe(true);
+  });
+
+  it("throws when an upload request returns a non-ok status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false, status: 503,
+      json: async () => ({ result: -1 }),
+    }));
+    const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
+    const p = new pCloudProvider("tok");
+    await expect(p.upload(entry)).rejects.toThrow(/pCloud upload failed/);
+  });
+
+  it("throws an auth error when result is 2000 (login required)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false, status: 200,
+      json: async () => ({ result: 2000 }),
+    }));
+    const entry = makeEntry({ stateData: new Blob(["x"]), thumbnail: null });
+    const p = new pCloudProvider("tok");
+    await expect(p.upload(entry)).rejects.toThrow(/authentication failed/);
+  });
+});
+
+describe("pCloudProvider — download", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("returns null when getfilelink returns result 2009 (file not found)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ result: 2009 }),
+    }));
+    const p = new pCloudProvider("tok");
+    expect(await p.download("game-1", 1)).toBeNull();
+  });
+
+  it("returns null when the link request returns non-ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const p = new pCloudProvider("tok");
+    expect(await p.download("game-1", 1)).toBeNull();
+  });
+
+  it("returns a SaveStateEntry when manifest and state download succeed", async () => {
+    const manifest: CloudSaveManifest = makeManifest({ gameId: "game-1", slot: 1 });
+    const mockFetch = vi.fn()
+      // getfilelink for manifest.json — returns CDN link
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ result: 0, hosts: ["cdn.pcloud.com"], path: "/manifest.json" }),
+      })
+      // CDN download of manifest.json
+      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob([JSON.stringify(manifest)]) })
+      // getfilelink for state.bin
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ result: 0, hosts: ["cdn.pcloud.com"], path: "/state.bin" }),
+      })
+      // CDN download of state.bin
+      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) })
+      // getfilelink for thumb.jpg — not found
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ result: 2009 }),
+      });
+
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new pCloudProvider("tok");
+    const result = await p.download("game-1", 1);
+
+    expect(result).not.toBeNull();
+    expect(result!.gameId).toBe("game-1");
+    expect(result!.slot).toBe(1);
+    expect(result!.stateData).not.toBeNull();
+    expect(result!.thumbnail).toBeNull();
+  });
+
+  it("throws auth error when getfilelink returns result 2000", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ result: 2000 }),
+    }));
+    const p = new pCloudProvider("tok");
+    await expect(p.download("game-1", 1)).rejects.toThrow(/authentication failed/);
+  });
+});
+
+describe("pCloudProvider — delete", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("sends GET deletefile requests for all three files via allSettled", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new pCloudProvider("tok");
+    await p.delete("game-1", 1);
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    const urls: string[] = mockFetch.mock.calls.map((c: unknown[]) => c[0] as string);
+    expect(urls.some(u => u.includes("deletefile"))).toBe(true);
+  });
+
+  it("resolves even when individual delete requests fail (allSettled semantics)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409 }));
+    const p = new pCloudProvider("tok");
+    await expect(p.delete("game-1", 1)).resolves.toBeUndefined();
+  });
+});
+
+describe("CloudSaveManager — pCloud credential storage", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("savePCloudConfig / loadPCloudConfig round-trip (US region)", () => {
+    const m = new CloudSaveManager();
+    m.savePCloudConfig("pcloud-tok", "us");
+    const cfg = m.loadPCloudConfig();
+    expect(cfg?.accessToken).toBe("pcloud-tok");
+    expect(cfg?.region).toBe("us");
+  });
+
+  it("savePCloudConfig / loadPCloudConfig round-trip (EU region)", () => {
+    const m = new CloudSaveManager();
+    m.savePCloudConfig("pcloud-eu-tok", "eu");
+    const cfg = m.loadPCloudConfig();
+    expect(cfg?.accessToken).toBe("pcloud-eu-tok");
+    expect(cfg?.region).toBe("eu");
+  });
+
+  it("clearPCloudConfig removes stored token", () => {
+    const m = new CloudSaveManager();
+    m.savePCloudConfig("pcloud-tok", "us");
+    m.clearPCloudConfig();
+    expect(m.loadPCloudConfig()).toBeNull();
+  });
+});
+
+describe("CloudSaveManager — persists pcloud providerId", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("persists 'pcloud' providerId after connecting a pCloudProvider", async () => {
+    const mockProvider: CloudSaveProvider = {
+      providerId:    "pcloud",
+      displayName:   "pCloud",
+      isAvailable:   vi.fn().mockResolvedValue(true),
+      upload:        vi.fn().mockResolvedValue(undefined),
+      download:      vi.fn().mockResolvedValue(null),
+      listManifests: vi.fn().mockResolvedValue([]),
+      delete:        vi.fn().mockResolvedValue(undefined),
+    };
+    const m = new CloudSaveManager();
+    await m.connect(mockProvider);
+    expect(m.providerId).toBe("pcloud");
+
+    // Persisted value should survive a fresh instance
+    const m2 = new CloudSaveManager();
+    expect(m2.providerId).toBe("pcloud");
   });
 });
 

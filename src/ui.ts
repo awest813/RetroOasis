@@ -87,7 +87,7 @@ import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
 import { normaliseInviteCode } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
-import { CloudSaveManager, WebDAVProvider, GoogleDriveProvider, DropboxProvider, type ConflictResolution, type SyncConflict, type SyncBadge } from "./cloudSave.js";
+import { CloudSaveManager, WebDAVProvider, GoogleDriveProvider, DropboxProvider, pCloudProvider, type ConflictResolution, type SyncConflict, type SyncBadge } from "./cloudSave.js";
 import { SaveGameService, type SaveOperationStatus } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
 
@@ -2516,6 +2516,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
     ["gdrive",  "Google Drive"],
     ["webdav",  "WebDAV (self-hosted)"],
     ["dropbox", "Dropbox"],
+    ["pcloud",  "pCloud"],
   ].forEach(([v, t]) => {
     const opt = make("option", { value: v! }, t!);
     if (cloudManager.providerId !== "null" && cloudManager.providerId === v) {
@@ -2591,6 +2592,36 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
     "Generate a long-lived token in the Dropbox App Console (scopes: files.content.read, files.content.write) and paste it here."));
   box.appendChild(dropboxSection);
 
+  // ── pCloud fields ────────────────────────────────────────────────────────────
+  const pcloudSection = make("div", { class: "cloud-dialog-section" });
+  const savedPCloud   = cloudManager.loadPCloudConfig();
+
+  const pcloudTokenWrap = make("div", { class: "cloud-dialog-field" });
+  const pcloudTokenLbl  = make("label", { class: "cloud-dialog-label" }, "OAuth Access Token");
+  const pcloudTokenInp  = make("input", {
+    class:        "confirm-input",
+    type:         "password",
+    placeholder:  "pCloud access token…",
+    autocomplete: "off",
+    value:        savedPCloud?.accessToken ?? "",
+  }) as HTMLInputElement;
+  pcloudTokenWrap.append(pcloudTokenLbl, pcloudTokenInp);
+  pcloudSection.appendChild(pcloudTokenWrap);
+
+  const pcloudRegionWrap = make("div", { class: "cloud-dialog-field" });
+  const pcloudRegionLbl  = make("label", { class: "cloud-dialog-label" }, "Region");
+  const pcloudRegionSel  = make("select", { class: "confirm-input" }) as HTMLSelectElement;
+  [["us", "US (api.pcloud.com)"], ["eu", "EU (eapi.pcloud.com)"]].forEach(([v, t]) => {
+    const opt = make("option", { value: v! }, t!);
+    if ((savedPCloud?.region ?? "us") === v) opt.setAttribute("selected", "");
+    pcloudRegionSel.appendChild(opt);
+  });
+  pcloudRegionWrap.append(pcloudRegionLbl, pcloudRegionSel);
+  pcloudSection.appendChild(pcloudRegionWrap);
+  pcloudSection.appendChild(make("p", { class: "cloud-dialog-hint" },
+    "Generate an access token via the pCloud OAuth 2.0 flow and paste it here. Choose EU region if your pCloud account is registered in Europe."));
+  box.appendChild(pcloudSection);
+
   // ── Conflict resolution (shared across all providers) ────────────────────────
   const cfgWrap = make("div", { class: "cloud-dialog-field" });
   const cfgLbl  = make("label", { class: "cloud-dialog-label" }, "Conflict resolution");
@@ -2623,12 +2654,15 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
     webdavSection.style.display  = v === "webdav"  ? "" : "none";
     gdriveSection.style.display  = v === "gdrive"  ? "" : "none";
     dropboxSection.style.display = v === "dropbox" ? "" : "none";
+    pcloudSection.style.display  = v === "pcloud"  ? "" : "none";
     statusEl.textContent = "";
 
     if (v === "webdav") {
       descEl.textContent = "Connect to a WebDAV server. The server must allow CORS requests from this origin.";
     } else if (v === "gdrive") {
       descEl.textContent = "Saves are stored in the hidden appDataFolder on your Google Drive (not visible in regular Drive).";
+    } else if (v === "pcloud") {
+      descEl.textContent = "Saves are stored in /RetroVault inside your pCloud account. Choose the region that matches your account.";
     } else {
       descEl.textContent = "Saves are stored in /retrovault inside your Dropbox app folder.";
     }
@@ -2658,11 +2692,16 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
     btnTest.setAttribute("disabled", "true");
     try {
       const selectedProvider = providerSel.value;
-      const candidate = selectedProvider === "webdav"
-        ? new WebDAVProvider(urlInp.value.trim(), userInp.value.trim(), passInp.value)
-        : selectedProvider === "gdrive"
-          ? new GoogleDriveProvider(gdriveTokenInp.value.trim())
-          : new DropboxProvider(dropboxTokenInp.value.trim());
+      let candidate;
+      if (selectedProvider === "webdav") {
+        candidate = new WebDAVProvider(urlInp.value.trim(), userInp.value.trim(), passInp.value);
+      } else if (selectedProvider === "gdrive") {
+        candidate = new GoogleDriveProvider(gdriveTokenInp.value.trim());
+      } else if (selectedProvider === "pcloud") {
+        candidate = new pCloudProvider(pcloudTokenInp.value.trim(), pcloudRegionSel.value as "us" | "eu");
+      } else {
+        candidate = new DropboxProvider(dropboxTokenInp.value.trim());
+      }
       const ok = await candidate.isAvailable();
       statusEl.textContent = ok ? "Connection test succeeded. You can connect now." : "Could not reach provider. Check token/network/CORS.";
     } catch (err) {
@@ -2709,6 +2748,16 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
         close();
         onConnected();
         showInfoToast("Connected to Google Drive.");
+      } else if (selectedProvider === "pcloud") {
+        const token  = pcloudTokenInp.value.trim();
+        const region = pcloudRegionSel.value as "us" | "eu";
+        if (!token) { resetBtn("Please enter a pCloud access token."); return; }
+        provider = new pCloudProvider(token, region);
+        await cloudManager.connect(provider);
+        cloudManager.savePCloudConfig(token, region);
+        close();
+        onConnected();
+        showInfoToast("Connected to pCloud.");
       } else {
         const token = dropboxTokenInp.value.trim();
         if (!token) { resetBtn("Please enter a Dropbox access token."); return; }
@@ -2729,6 +2778,7 @@ function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () 
   setTimeout(() => {
     if (providerSel.value === "gdrive") gdriveTokenInp.focus();
     else if (providerSel.value === "webdav") urlInp.focus();
+    else if (providerSel.value === "pcloud") pcloudTokenInp.focus();
     else dropboxTokenInp.focus();
   }, 50);
 }
