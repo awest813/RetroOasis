@@ -374,11 +374,12 @@ export class WebDAVProvider implements CloudSaveProvider {
     }
 
     let stateData: Blob | null = null;
-    const stateRes = await this._timedFetch(`${base}/state.bin`, { headers: this._headers() });
-    if (stateRes.ok) stateData = await stateRes.blob();
-
     let thumbnail: Blob | null = null;
-    const thumbRes = await this._timedFetch(`${base}/thumb.jpg`, { headers: this._headers() });
+    const [stateRes, thumbRes] = await Promise.all([
+      this._timedFetch(`${base}/state.bin`, { headers: this._headers() }),
+      this._timedFetch(`${base}/thumb.jpg`, { headers: this._headers() }),
+    ]);
+    if (stateRes.ok) stateData = await stateRes.blob();
     if (thumbRes.ok) thumbnail = await thumbRes.blob();
 
     return {
@@ -887,8 +888,10 @@ export class DropboxProvider implements CloudSaveProvider {
       return null;
     }
 
-    const stateData = await this._downloadFile(`${base}/state.bin`);
-    const thumbnail  = await this._downloadFile(`${base}/thumb.jpg`);
+    const [stateData, thumbnail] = await Promise.all([
+      this._downloadFile(`${base}/state.bin`),
+      this._downloadFile(`${base}/thumb.jpg`),
+    ]);
 
     return {
       id:         `${gameId}:${slot}`,
@@ -1078,12 +1081,17 @@ export class pCloudProvider implements CloudSaveProvider {
     const folderPath = this._slotPath(entry.gameId, entry.slot);
     await this._ensureFolder(folderPath);
 
+    // Upload state and thumbnail in parallel before writing the manifest.
+    // The manifest is written last so it only becomes visible after all data
+    // is in place — matching the atomicity approach used by other providers.
+    const parallelUploads: Promise<void>[] = [];
     if (entry.stateData) {
-      await this._uploadFile(folderPath, "state.bin", entry.stateData);
+      parallelUploads.push(this._uploadFile(folderPath, "state.bin", entry.stateData));
     }
     if (entry.thumbnail) {
-      await this._uploadFile(folderPath, "thumb.jpg", entry.thumbnail);
+      parallelUploads.push(this._uploadFile(folderPath, "thumb.jpg", entry.thumbnail));
     }
+    await Promise.all(parallelUploads);
 
     const manifest: CloudSaveManifest = {
       gameId:    entry.gameId,
@@ -1114,8 +1122,10 @@ export class pCloudProvider implements CloudSaveProvider {
       return null;
     }
 
-    const stateData = await this._downloadFile(`${base}/state.bin`);
-    const thumbnail  = await this._downloadFile(`${base}/thumb.jpg`);
+    const [stateData, thumbnail] = await Promise.all([
+      this._downloadFile(`${base}/state.bin`),
+      this._downloadFile(`${base}/thumb.jpg`),
+    ]);
 
     return {
       id:         `${gameId}:${slot}`,
@@ -1294,7 +1304,6 @@ export interface GameSyncResult {
  */
 export class CloudSaveManager {
   private _provider: CloudSaveProvider = new NullCloudProvider();
-  private _sync:     CloudSaveSync;
   private _connected    = false;
   private _lastSyncAt:  number | null = null;
   private _lastError:   string | null = null;
@@ -1356,7 +1365,6 @@ export class CloudSaveManager {
   private static readonly PCLOUD_KEY   = "retrovault-cloud-pcloud";
 
   constructor() {
-    this._sync = new CloudSaveSync(this._provider, this.conflictResolution);
     this._loadSettings();
   }
 
@@ -1385,7 +1393,6 @@ export class CloudSaveManager {
     if (!ok) throw new Error(`${provider.displayName} is not reachable. Check the URL and credentials.`);
 
     this._provider      = provider;
-    this._sync          = new CloudSaveSync(provider, this.conflictResolution);
     this._connected     = true;
     this.providerId     = provider.providerId as "null" | "webdav" | "gdrive" | "dropbox" | "pcloud";
     this._lastError     = null;
@@ -1398,7 +1405,6 @@ export class CloudSaveManager {
     this._connected   = false;
     this.providerId   = "null";
     this._provider    = new NullCloudProvider();
-    this._sync        = new CloudSaveSync(this._provider, this.conflictResolution);
     this._lastError   = null;
     this._saveSettings();
     this.onStatusChange?.();
@@ -1414,7 +1420,7 @@ export class CloudSaveManager {
     try {
       if (!this._connected) return;
       this.setSlotBadge(entry.gameId, entry.slot, "syncing");
-      await this._sync.push(entry);
+      await this._provider.upload(entry);
       this._lastSyncAt = Date.now();
       this._lastError  = null;
       this.setSlotBadge(entry.gameId, entry.slot, "synced");
@@ -1435,7 +1441,7 @@ export class CloudSaveManager {
     try {
       if (!this._connected) return null;
       this.setSlotBadge(gameId, slot, "syncing");
-      const result     = await this._sync.pull(gameId, slot);
+      const result     = await this._provider.download(gameId, slot);
       this._lastSyncAt = Date.now();
       this._lastError  = null;
       this.setSlotBadge(gameId, slot, result ? "synced" : "local-only");
@@ -1462,37 +1468,62 @@ export class CloudSaveManager {
     slot:       number,
     localEntry: SaveStateEntry | null,
   ): Promise<{ entry: SaveStateEntry; direction: "pushed" | "pulled" } | null> {
+    if (!this._connected) return null;
+
     try {
       this.setSlotBadge(gameId, slot, "syncing");
 
-      // When an interactive onConflict callback is registered, detect
-      // conflicts manually so the user can choose.
-      if (this.onConflict && this._connected && localEntry) {
-        const remoteEntry = await this._provider.download(gameId, slot);
-        if (remoteEntry) {
-          const resolution = await this.onConflict({ local: localEntry, remote: remoteEntry, gameId, slot });
-          const tempSync = new CloudSaveSync(this._provider, resolution);
-          const result = await tempSync.syncSlot(localEntry, gameId, slot);
-          if (result) {
-            this._lastSyncAt = Date.now();
-            this._lastError  = null;
-            this.setSlotBadge(gameId, slot, "synced");
-            this.addHistoryEntry(`Slot ${slot} ${result.direction} (user chose ${resolution})`, true);
-          }
-          return result;
-        }
+      // Download the remote entry once — reused for both conflict detection and
+      // resolution, avoiding a second round-trip when onConflict is set.
+      const remoteEntry = await this._provider.download(gameId, slot);
+
+      if (!localEntry && !remoteEntry) {
+        this.setSlotBadge(gameId, slot, "local-only");
+        return null;
       }
 
-      const result = await this._sync.syncSlot(localEntry, gameId, slot);
-      if (result) {
+      if (!localEntry && remoteEntry) {
         this._lastSyncAt = Date.now();
         this._lastError  = null;
         this.setSlotBadge(gameId, slot, "synced");
-        this.addHistoryEntry(`Slot ${slot} ${result.direction}`, true);
-      } else {
-        this.setSlotBadge(gameId, slot, "local-only");
+        this.addHistoryEntry(`Slot ${slot} pulled`, true);
+        return { entry: remoteEntry, direction: "pulled" };
       }
-      return result;
+
+      if (localEntry && !remoteEntry) {
+        await this._provider.upload(localEntry);
+        this._lastSyncAt = Date.now();
+        this._lastError  = null;
+        this.setSlotBadge(gameId, slot, "synced");
+        this.addHistoryEntry(`Slot ${slot} pushed`, true);
+        return { entry: localEntry, direction: "pushed" };
+      }
+
+      // Both sides have a save — resolve the conflict.
+      let resolution: ConflictResolution;
+      if (this.onConflict) {
+        resolution = await this.onConflict({
+          local: localEntry!, remote: remoteEntry!, gameId, slot,
+        });
+      } else {
+        resolution = this.conflictResolution;
+      }
+
+      const tempSync = new CloudSaveSync(this._provider, resolution);
+      const winner   = tempSync.resolveConflict({
+        local: localEntry!, remote: remoteEntry!, gameId, slot,
+      });
+      const direction: "pushed" | "pulled" = winner === localEntry ? "pushed" : "pulled";
+      if (direction === "pushed") await this._provider.upload(localEntry!);
+
+      this._lastSyncAt = Date.now();
+      this._lastError  = null;
+      this.setSlotBadge(gameId, slot, "synced");
+      const conflictLabel = this.onConflict
+        ? `Slot ${slot} ${direction} (user chose ${resolution})`
+        : `Slot ${slot} ${direction} (auto: ${resolution})`;
+      this.addHistoryEntry(conflictLabel, true);
+      return { entry: winner, direction };
     } catch (err) {
       this._lastError = err instanceof Error ? err.message : String(err);
       this.setSlotBadge(gameId, slot, "error");
@@ -1712,7 +1743,6 @@ export class CloudSaveManager {
   /** Update conflictResolution and persist to localStorage. */
   setConflictResolution(strategy: ConflictResolution): void {
     this.conflictResolution = strategy;
-    this._sync = new CloudSaveSync(this._provider, strategy);
     this._saveSettings();
   }
 }

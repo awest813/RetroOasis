@@ -1227,25 +1227,25 @@ describe("pCloudProvider — download", () => {
   it("returns a SaveStateEntry when manifest and state download succeed", async () => {
     const manifest: CloudSaveManifest = makeManifest({ gameId: "game-1", slot: 1 });
     const mockFetch = vi.fn()
-      // getfilelink for manifest.json — returns CDN link
+      // getfilelink for manifest.json — sequential, before parallel downloads start
       .mockResolvedValueOnce({
         ok: true, status: 200,
         json: async () => ({ result: 0, hosts: ["cdn.pcloud.com"], path: "/manifest.json" }),
       })
-      // CDN download of manifest.json
+      // CDN download of manifest.json — sequential
       .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob([JSON.stringify(manifest)]) })
-      // getfilelink for state.bin
+      // getfilelink for state.bin — parallel with thumb getfilelink (started first)
       .mockResolvedValueOnce({
         ok: true, status: 200,
         json: async () => ({ result: 0, hosts: ["cdn.pcloud.com"], path: "/state.bin" }),
       })
-      // CDN download of state.bin
-      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) })
-      // getfilelink for thumb.jpg — not found
+      // getfilelink for thumb.jpg — parallel (started second)
       .mockResolvedValueOnce({
         ok: true, status: 200,
         json: async () => ({ result: 2009 }),
-      });
+      })
+      // CDN download of state.bin — after state getfilelink resolves
+      .mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["state"]) });
 
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1531,13 +1531,13 @@ describe("CloudSaveManager — onConflict callback", () => {
     const local  = makeEntry({ gameId: "g1", slot: 1, timestamp: 100 });
     const remote = makeEntry({ gameId: "g1", slot: 1, timestamp: 200 });
     provider.download.mockResolvedValueOnce(remote);
-    // Download is called again inside the temp CloudSaveSync created by syncSlot
-    provider.download.mockResolvedValueOnce(remote);
+    // Fixed: remote is downloaded exactly once — no second round-trip.
 
     manager.onConflict = vi.fn().mockResolvedValue("local");
 
     const result = await manager.syncSlot("g1", 1, local);
     expect(manager.onConflict).toHaveBeenCalled();
+    expect(provider.download).toHaveBeenCalledTimes(1);
     // With "local" resolution + both sides present, local should be pushed
     expect(result?.direction).toBe("pushed");
   });
@@ -1550,7 +1550,16 @@ describe("CloudSaveManager — onConflict callback", () => {
 
     const result = await manager.syncSlot("g1", 1, local);
     expect(manager.onConflict).not.toHaveBeenCalled();
+    expect(provider.download).toHaveBeenCalledTimes(1);
     expect(result?.direction).toBe("pushed");
+  });
+
+  it("syncSlot() returns null immediately when disconnected without calling the provider", async () => {
+    manager.disconnect();
+    const result = await manager.syncSlot("g1", 1, makeEntry());
+    expect(result).toBeNull();
+    expect(provider.download).not.toHaveBeenCalled();
+    expect(provider.upload).not.toHaveBeenCalled();
   });
 
   it("syncGame adds a summary history entry", async () => {
