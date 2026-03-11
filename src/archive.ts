@@ -181,9 +181,20 @@ function toUint8Array(value: unknown): Uint8Array | null {
   return null;
 }
 
-/** Returns true when running inside Mobile Safari or Chrome-on-iOS (both WebKit). */
+/**
+ * Returns true when running inside Mobile Safari, Chrome-on-iOS, or any
+ * browser on iPadOS (all of which use WebKit and share the same constraints).
+ *
+ * Handles both classic iOS user-agents (`iP(hone|ad|od)`) and the iPadOS 13+
+ * case where the browser reports itself as "Macintosh" but exposes touch
+ * points — matching the same logic used by `isLikelyIOS()` in performance.ts.
+ */
 function isIOSBrowser(): boolean {
-  return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent);
+  if (typeof navigator === "undefined") return false;
+  if (/iP(hone|ad|od)/.test(navigator.userAgent)) return true;
+  // iPadOS 13+ reports as "Macintosh" but has touch hardware.
+  if (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints >= 1) return true;
+  return false;
 }
 
 function assertArchiveSize(blob: Blob, formatLabel: string): void {

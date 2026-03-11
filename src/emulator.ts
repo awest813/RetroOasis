@@ -25,6 +25,7 @@
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
   resolveMode, resolveTier, detectAudioCapabilities,
+  isLikelyIOS, getSafariVersion,
   type PerformanceMode, type DeviceCapabilities, type PerformanceTier,
   MemoryMonitor,
 } from "./performance.js";
@@ -2041,15 +2042,10 @@ export class PSPEmulator {
   private _checkSharedArrayBuffer(): boolean {
     if (typeof SharedArrayBuffer !== "undefined") return true;
 
-    // Provide targeted guidance for iOS/iPadOS (Safari and Chrome, which both
-    // use WebKit on iOS). WebKit does not yet support the `credentialless` COEP
-    // value needed to load CDN assets without CORP headers in an isolated context,
-    // so SharedArrayBuffer is unavailable for PSP on iOS regardless of headers.
-    const isIOS =
-      typeof navigator !== "undefined" &&
-      /iP(hone|ad|od)/.test(navigator.userAgent);
-
-    if (isIOS) {
+    // iOS: all browsers on iOS/iPadOS use WebKit and lack the `credentialless`
+    // COEP value needed for cross-origin isolation, so SharedArrayBuffer is
+    // unavailable for PSP on iOS regardless of server headers.
+    if (isLikelyIOS()) {
       this._emitError(
         "PSP emulation is not supported on iPhone/iPad.\n\n" +
         "iOS Safari and Chrome (both WebKit-based) do not yet support the " +
@@ -2057,16 +2053,43 @@ export class PSPEmulator {
         "• Many other systems work great on iPhone/iPad: try NES, SNES, GBA, N64, and more.\n" +
         "• For PSP: use a desktop browser such as Chrome or Firefox on a Mac or PC."
       );
-    } else {
-      this._emitError(
-        "SharedArrayBuffer is not available.\n\n" +
-        "This system requires worker threads, which need Cross-Origin Isolation " +
-        "(COOP + COEP headers).\n\n" +
-        "• In dev: make sure you are running `npm run dev`.\n" +
-        "• In production: coi-serviceworker.js should activate automatically.\n" +
-        "• Try reloading the page once the service worker is registered."
-      );
+      return false;
     }
+
+    // Desktop Safari: `credentialless` COEP was added in Safari 17. Earlier
+    // versions cannot achieve cross-origin isolation and therefore cannot run
+    // PSP. Safari 17+ should work once the correct COOP/COEP headers are
+    // served — if it still fails, the service worker may not have activated yet.
+    const safariVersion = getSafariVersion();
+    if (safariVersion !== null) {
+      if (safariVersion < 17) {
+        this._emitError(
+          `PSP emulation requires Safari 17 or later (you appear to be on Safari ${safariVersion}).\n\n` +
+          "Safari added support for the required cross-origin isolation in version 17.\n\n" +
+          "• Update Safari in System Settings → General → Software Update.\n" +
+          "• Or switch to Chrome or Firefox for PSP emulation."
+        );
+      } else {
+        this._emitError(
+          "PSP emulation is not available in this browser session.\n\n" +
+          "Safari 17+ supports PSP, but SharedArrayBuffer is not available — " +
+          "this usually means the Cross-Origin Isolation headers are missing.\n\n" +
+          "• Try reloading the page — the service worker may still be activating.\n" +
+          "• In production: ensure coi-serviceworker.js is installed and responding.\n" +
+          "• Check that COOP and COEP headers are set on the server."
+        );
+      }
+      return false;
+    }
+
+    this._emitError(
+      "SharedArrayBuffer is not available.\n\n" +
+      "This system requires worker threads, which need Cross-Origin Isolation " +
+      "(COOP + COEP headers).\n\n" +
+      "• In dev: make sure you are running `npm run dev`.\n" +
+      "• In production: coi-serviceworker.js should activate automatically.\n" +
+      "• Try reloading the page once the service worker is registered."
+    );
     return false;
   }
 
