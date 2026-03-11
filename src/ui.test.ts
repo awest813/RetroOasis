@@ -461,7 +461,7 @@ describe("resolveSystemAndAdd mobile/import fallbacks", () => {
     await new Promise(r => setTimeout(r, 0));
     const systemBtns = Array.from(document.querySelectorAll<HTMLButtonElement>(".system-pick-btn"));
     expect(systemBtns.length).toBeGreaterThan(0);
-    systemBtns[0].click();
+    systemBtns[0]!.click();
 
     await importPromise;
 
@@ -514,7 +514,7 @@ describe("resolveSystemAndAdd mobile/import fallbacks", () => {
     await new Promise(r => setTimeout(r, 0));
     const candidateBtns = Array.from(document.querySelectorAll<HTMLButtonElement>(".game-picker-btn"));
     expect(candidateBtns.length).toBeGreaterThanOrEqual(2);
-    candidateBtns[1].click();
+    candidateBtns[1]!.click();
 
     await importPromise;
 
@@ -882,7 +882,7 @@ describe("buildMultiplayerTab", () => {
     addBtn.click();
 
     expect(setIceServers).toHaveBeenCalled();
-    const updatedServers = setIceServers.mock.calls[0][0] as RTCIceServer[];
+    const updatedServers = setIceServers.mock.calls[0]![0] as RTCIceServer[];
     expect(updatedServers.some(s => {
       const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
       return urls.includes("stun:custom.stun.example.com:3478");
@@ -916,7 +916,7 @@ describe("buildMultiplayerTab", () => {
     removeBtn.click();
 
     expect(setIceServers).toHaveBeenCalled();
-    const updated = setIceServers.mock.calls[0][0] as RTCIceServer[];
+    const updated = setIceServers.mock.calls[0]![0] as RTCIceServer[];
     // Should have one fewer entry than the default
     expect(updated.length).toBe(DEFAULT_ICE_SERVERS.length - 1);
   });
@@ -1650,7 +1650,7 @@ describe("volume slider debounce", () => {
     const volumeCalls = (onSettingsChange.mock.calls as Array<[{ volume?: number }]>)
       .filter(([arg]) => typeof arg.volume === "number");
     expect(volumeCalls.length).toBe(1);
-    expect(volumeCalls[0][0].volume).toBeCloseTo(0.5);
+    expect(volumeCalls[0]![0].volume).toBeCloseTo(0.5);
   });
 
   it("flushes pending debounce immediately on change event (drag end)", () => {
@@ -1695,7 +1695,7 @@ describe("volume slider debounce", () => {
     const volumeCalls = (onSettingsChange.mock.calls as Array<[{ volume?: number }]>)
       .filter(([arg]) => typeof arg.volume === "number");
     expect(volumeCalls.length).toBeGreaterThanOrEqual(1);
-    expect(volumeCalls[volumeCalls.length - 1][0].volume).toBeCloseTo(0.3);
+    expect(volumeCalls[volumeCalls.length - 1]![0].volume).toBeCloseTo(0.3);
 
     // Advancing time should NOT trigger another call (timer was already flushed)
     const callCountBefore = onSettingsChange.mock.calls.length;
@@ -2982,8 +2982,8 @@ describe("openEasyNetplayModal", () => {
     mgr.setEnabled(true);
     mgr.setServerUrl("wss://netplay.example.com");
     openEasyNetplayModal({ netplayManager: mgr });
-    const hostPanel   = document.querySelectorAll<HTMLElement>(".enp-panel")[0];
-    const browsePanel = document.querySelectorAll<HTMLElement>(".enp-panel")[2];
+    const hostPanel   = document.querySelectorAll<HTMLElement>(".enp-panel")[0]!;
+    const browsePanel = document.querySelectorAll<HTMLElement>(".enp-panel")[2]!;
     expect(hostPanel.querySelector(".enp-server-warn")).toBeNull();
     expect(browsePanel.querySelector(".enp-server-warn")).toBeNull();
   });

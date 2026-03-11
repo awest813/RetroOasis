@@ -117,7 +117,7 @@ describe('GameLibrary.getAllGamesMetadata', () => {
 
     if (nes.length >= 2) {
       // Most recent should be first
-      expect(nes[0].addedAt).toBeGreaterThanOrEqual(nes[1].addedAt);
+      expect(nes[0]!.addedAt).toBeGreaterThanOrEqual(nes[1]!.addedAt);
     }
   });
 

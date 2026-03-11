@@ -139,7 +139,7 @@ describe("SaveGameService", () => {
 
     // The entry passed to saveState must carry the preserved label.
     expect(saveState).toHaveBeenCalledTimes(1);
-    const savedEntry = saveState.mock.calls[0][0];
+    const savedEntry = saveState.mock.calls[0]![0];
     expect(savedEntry.label).toBe("Before Final Boss");
   });
 });

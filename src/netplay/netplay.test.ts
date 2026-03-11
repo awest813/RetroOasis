@@ -188,8 +188,8 @@ describe("DiagnosticsLog", () => {
   it("stores info entries", () => {
     log.info("hello");
     expect(log.entries).toHaveLength(1);
-    expect(log.entries[0].level).toBe("info");
-    expect(log.entries[0].message).toBe("hello");
+    expect(log.entries[0]!.level).toBe("info");
+    expect(log.entries[0]!.message).toBe("hello");
   });
 
   it("stores warning entries with level=warning", () => {
@@ -299,7 +299,7 @@ describe("HttpSignalingClient", () => {
 
     const client = new HttpSignalingClient("wss://example.com");
     const rooms = await client.listRooms();
-    expect(rooms[0].code).toHaveLength(6);
+    expect(rooms[0]!.code).toHaveLength(6);
 
     vi.unstubAllGlobals();
   });
