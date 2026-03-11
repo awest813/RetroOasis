@@ -1,5 +1,4 @@
 import * as http from 'http';
-import * as net from 'net';
 import * as url from 'url';
 import { WebSocketServer } from 'ws';
 import { LobbyManager } from './lobby-manager';
