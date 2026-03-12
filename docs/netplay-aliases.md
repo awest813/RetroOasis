@@ -98,9 +98,34 @@ Regenerate after adding new No-Intro DAT data:
 node tools/generate-netplay-aliases.js
 ```
 
+## Pokémon compatibility groups
+
+RetroVault ships with built-in compatibility groups covering every mainline
+Pokémon game supported by the emulator (GB/GBC, GBA, NDS).  Each group is
+called a **room key**.
+
+| Room key | System | Games | Display name |
+|---|---|---|---|
+| `pokemon_gen1` | GB / GBC | Red, Blue, Yellow, Green | Pokémon Gen1 Trading Room (Red / Blue / Yellow) |
+| `pokemon_gen2` | GB / GBC | Gold, Silver, Crystal | Pokémon Gen2 Trading Room (Gold / Silver / Crystal) |
+| `pokemon_gen3_kanto` | GBA | FireRed, LeafGreen | Pokémon Gen3 Kanto Trading Room (FireRed / LeafGreen) |
+| `pokemon_gen3_hoenn` | GBA | Ruby, Sapphire, Emerald | Pokémon Gen3 Hoenn Trading Room (Ruby / Sapphire / Emerald) |
+| `pokemon_gen4_sinnoh` | NDS | Diamond, Pearl, Platinum | Pokémon Gen4 Sinnoh Trading Room (Diamond / Pearl / Platinum) |
+| `pokemon_gen4_johto` | NDS | HeartGold, SoulSilver | Pokémon Gen4 Johto Trading Room (HeartGold / SoulSilver) |
+| `pokemon_gen5_unova` | NDS | Black, White | Pokémon Gen5 Unova Trading Room (Black / White) |
+| `pokemon_gen5_unova2` | NDS | Black 2, White 2 | Pokémon Gen5 Unova Trading Room (Black 2 / White 2) |
+
+> **Note:** Gen 5 uses two separate room keys (`pokemon_gen5_unova` for Black /
+> White and `pokemon_gen5_unova2` for Black 2 / White 2) so players can find
+> partners playing the same game.  This mirrors the Gen 3 separation of Kanto
+> (FireRed/LeafGreen) and Hoenn (Ruby/Sapphire/Emerald).
+
+Japanese "Pocket Monsters" variants are handled by the same regex patterns and
+route to the same room keys as their international counterparts.
+
 ---
 
-## Tools
+
 
 ### `tools/parse-nointro-dat.js`
 
