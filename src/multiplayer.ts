@@ -50,13 +50,14 @@ export const SYSTEM_LINK_CAPABILITIES: Record<string, boolean> = {
 };
 
 export const ROOM_KEY_DISPLAY_NAMES: Record<string, string> = {
-  pokemon_gen1: "Pokémon Gen1 Trading Room",
-  pokemon_gen2: "Pokémon Gen2 Trading Room",
-  pokemon_gen3_kanto: "Pokémon Gen3 Kanto Trading Room",
-  pokemon_gen3_hoenn: "Pokémon Gen3 Hoenn Trading Room",
-  pokemon_gen4_sinnoh: "Pokémon Gen4 Sinnoh Trading Room",
-  pokemon_gen4_johto: "Pokémon Gen4 Johto Trading Room",
-  pokemon_gen5_unova: "Pokémon Gen5 Unova Trading Room",
+  pokemon_gen1:        "Pokémon Gen1 Trading Room (Red / Blue / Yellow)",
+  pokemon_gen2:        "Pokémon Gen2 Trading Room (Gold / Silver / Crystal)",
+  pokemon_gen3_kanto:  "Pokémon Gen3 Kanto Trading Room (FireRed / LeafGreen)",
+  pokemon_gen3_hoenn:  "Pokémon Gen3 Hoenn Trading Room (Ruby / Sapphire / Emerald)",
+  pokemon_gen4_sinnoh: "Pokémon Gen4 Sinnoh Trading Room (Diamond / Pearl / Platinum)",
+  pokemon_gen4_johto:  "Pokémon Gen4 Johto Trading Room (HeartGold / SoulSilver)",
+  pokemon_gen5_unova:  "Pokémon Gen5 Unova Trading Room (Black / White)",
+  pokemon_gen5_unova2: "Pokémon Gen5 Unova Trading Room (Black 2 / White 2)",
 };
 
 /**

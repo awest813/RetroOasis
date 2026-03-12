@@ -140,9 +140,23 @@ const BUILTIN_SEED_TITLES = {
   ],
   pokemon_gen4_sinnoh: [
     'pokemon diamond', 'pokemon pearl', 'pokemon platinum',
+    'pocket monsters diamond', 'pocket monsters pearl', 'pocket monsters platinum',
+  ],
+  pokemon_gen4_johto: [
+    'pokemon heartgold', 'pokemon heart gold',
+    'pokemon soulsilver', 'pokemon soul silver',
+    'pocket monsters heartgold', 'pocket monsters heart gold',
+    'pocket monsters soulsilver', 'pocket monsters soul silver',
   ],
   pokemon_gen5_unova: [
-    'pokemon black', 'pokemon white', 'pokemon black 2', 'pokemon white 2',
+    'pokemon black', 'pokemon white',
+    'pokemon black version', 'pokemon white version',
+    'pocket monsters black', 'pocket monsters white',
+  ],
+  pokemon_gen5_unova2: [
+    'pokemon black 2', 'pokemon white 2',
+    'pokemon black version 2', 'pokemon white version 2',
+    'pocket monsters black 2', 'pocket monsters white 2',
   ],
 };
 

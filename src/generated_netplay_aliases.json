@@ -29,14 +29,37 @@
     "pokemon sapphire"
   ],
   "pokemon_gen4_sinnoh": [
+    "pocket monsters diamond",
+    "pocket monsters pearl",
+    "pocket monsters platinum",
     "pokemon diamond",
     "pokemon pearl",
     "pokemon platinum"
   ],
+  "pokemon_gen4_johto": [
+    "pocket monsters heart gold",
+    "pocket monsters heartgold",
+    "pocket monsters soul silver",
+    "pocket monsters soulsilver",
+    "pokemon heart gold",
+    "pokemon heartgold",
+    "pokemon soul silver",
+    "pokemon soulsilver"
+  ],
   "pokemon_gen5_unova": [
+    "pocket monsters black",
+    "pocket monsters white",
     "pokemon black",
-    "pokemon black 2",
+    "pokemon black version",
     "pokemon white",
-    "pokemon white 2"
+    "pokemon white version"
+  ],
+  "pokemon_gen5_unova2": [
+    "pocket monsters black 2",
+    "pocket monsters white 2",
+    "pokemon black 2",
+    "pokemon black version 2",
+    "pokemon white 2",
+    "pokemon white version 2"
   ]
 }

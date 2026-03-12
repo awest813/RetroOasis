@@ -18,6 +18,9 @@
     "^(?:pokemon|pok[eé]mon|pocket[_\\s]*monsters)_(?:heart_?gold|soul_?silver)(?:_version)?$"
   ],
   "pokemon_gen5_unova": [
-    "^(?:pokemon|pok[eé]mon|pocket[_\\s]*monsters)_(?:black|white)(?:_version_2|_2_version|_version|_2)?$"
+    "^(?:pokemon|pok[eé]mon|pocket[_\\s]*monsters)_(?:black|white)(?:_version)?$"
+  ],
+  "pokemon_gen5_unova2": [
+    "^(?:pokemon|pok[eé]mon|pocket[_\\s]*monsters)_(?:black|white)(?:_version_2|_2_version|_2)(?:_version)?$"
   ]
 }

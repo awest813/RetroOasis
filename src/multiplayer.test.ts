@@ -661,7 +661,7 @@ describe('resolveNetplayRoomKey', () => {
     const soulSilver = resolveNetplayRoomKey('Pokemon SoulSilver Version', 'nds');
     expect(pearl).toBe('pokemon_gen4_sinnoh');
     expect(black).toBe('pokemon_gen5_unova');
-    expect(white2).toBe('pokemon_gen5_unova');
+    expect(white2).toBe('pokemon_gen5_unova2');
     expect(heartGold).toBe('pokemon_gen4_johto');
     expect(soulSilver).toBe('pokemon_gen4_johto');
   });
@@ -705,8 +705,10 @@ describe('resolveNetplayRoomKey', () => {
   });
 
   it('has display names for known compatibility room keys', () => {
-    expect(roomDisplayNameForKey('pokemon_gen3_kanto')).toBe('Pokémon Gen3 Kanto Trading Room');
-    expect(roomDisplayNameForKey('pokemon_gen4_johto')).toBe('Pokémon Gen4 Johto Trading Room');
+    expect(roomDisplayNameForKey('pokemon_gen3_kanto')).toBe('Pokémon Gen3 Kanto Trading Room (FireRed / LeafGreen)');
+    expect(roomDisplayNameForKey('pokemon_gen4_johto')).toBe('Pokémon Gen4 Johto Trading Room (HeartGold / SoulSilver)');
+    expect(roomDisplayNameForKey('pokemon_gen5_unova')).toBe('Pokémon Gen5 Unova Trading Room (Black / White)');
+    expect(roomDisplayNameForKey('pokemon_gen5_unova2')).toBe('Pokémon Gen5 Unova Trading Room (Black 2 / White 2)');
     expect(roomDisplayNameForKey('custom_room_key')).toBe('custom_room_key');
   });
 
@@ -814,12 +816,37 @@ describe('resolveNetplayRoomKey — generation grouping', () => {
   it('groups Gen 4 Johto titles under pokemon_gen4_johto', () => {
     expect(resolveNetplayRoomKey('Pokemon HeartGold Version', 'nds')).toBe('pokemon_gen4_johto');
     expect(resolveNetplayRoomKey('Pokemon SoulSilver Version', 'nds')).toBe('pokemon_gen4_johto');
+    expect(resolveNetplayRoomKey('Pokemon HeartGold (Japan)', 'nds')).toBe('pokemon_gen4_johto');
+    expect(resolveNetplayRoomKey('Pokemon Soul Silver (USA)', 'nds')).toBe('pokemon_gen4_johto');
   });
 
   it('groups Gen 4 Sinnoh titles under pokemon_gen4_sinnoh', () => {
     expect(resolveNetplayRoomKey('Pokemon Diamond Version', 'nds')).toBe('pokemon_gen4_sinnoh');
     expect(resolveNetplayRoomKey('Pokemon Pearl Version', 'nds')).toBe('pokemon_gen4_sinnoh');
     expect(resolveNetplayRoomKey('Pokemon Platinum Version', 'nds')).toBe('pokemon_gen4_sinnoh');
+  });
+
+  it('groups Gen 5 BW1 titles under pokemon_gen5_unova', () => {
+    expect(resolveNetplayRoomKey('Pokemon Black Version', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon White Version', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon Black (USA)', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon White (USA)', 'nds')).toBe('pokemon_gen5_unova');
+  });
+
+  it('groups Gen 5 BW2 titles under pokemon_gen5_unova2', () => {
+    expect(resolveNetplayRoomKey('Pokemon Black 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon White 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon Black Version 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon White Version 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon Black 2 (Japan)', 'nds')).toBe('pokemon_gen5_unova2');
+  });
+
+  it('BW1 and BW2 produce different room keys (separate matchmaking groups)', () => {
+    const bw1 = resolveNetplayRoomKey('Pokemon Black Version', 'nds');
+    const bw2 = resolveNetplayRoomKey('Pokemon Black 2 (USA)', 'nds');
+    expect(bw1).toBe('pokemon_gen5_unova');
+    expect(bw2).toBe('pokemon_gen5_unova2');
+    expect(bw1).not.toBe(bw2);
   });
 
   it('negative test: Red, Ruby, Diamond each produce different room keys', () => {
@@ -925,6 +952,15 @@ describe('resolveNetplayRoomKey — stress test official vs unofficial ROM varia
     ['Pokemon SoulSilver Version (USA)', 'nds', 'pokemon_gen4_johto'],
     ['Pokemon HeartGold (Europe)',      'nds', 'pokemon_gen4_johto'],
     ['Pokemon SoulSilver (Japan)',      'nds', 'pokemon_gen4_johto'],
+    ['Pokemon Black Version (USA)',     'nds', 'pokemon_gen5_unova'],
+    ['Pokemon White Version (USA)',     'nds', 'pokemon_gen5_unova'],
+    ['Pokemon Black (Europe)',          'nds', 'pokemon_gen5_unova'],
+    ['Pokemon White (Japan)',           'nds', 'pokemon_gen5_unova'],
+    ['Pokemon Black 2 (USA)',           'nds', 'pokemon_gen5_unova2'],
+    ['Pokemon White 2 (USA)',           'nds', 'pokemon_gen5_unova2'],
+    ['Pokemon Black Version 2 (USA)',   'nds', 'pokemon_gen5_unova2'],
+    ['Pokemon White Version 2 (Europe)','nds', 'pokemon_gen5_unova2'],
+    ['Pokemon Black 2 (Japan)',         'nds', 'pokemon_gen5_unova2'],
   ] as const;
 
   for (const [title, system, expected] of officialVariants) {
@@ -943,6 +979,8 @@ describe('resolveNetplayRoomKey — stress test official vs unofficial ROM varia
     ['Pokemon Red++ (Hack)',            'gbc'],
     ['Pokemon HeartGold Randomizer',    'nds'],
     ['Pokemon SoulSilver Plus',         'nds'],
+    ['Pokemon Black 2 Randomizer',      'nds'],
+    ['Pokemon White 2 Enhanced',        'nds'],
   ] as const;
 
   for (const [title, system] of unofficialVariants) {
@@ -1043,6 +1081,74 @@ describe('resolveNetplayRoomKey — gb system support', () => {
     mgr.setEnabled(true);
     mgr.setServerUrl('wss://netplay.example.com');
     expect(mgr.isSupportedForSystem('gb')).toBe(true);
+  });
+});
+
+// ── Gen 5 Unova2 — Black 2 / White 2 ─────────────────────────────────────────
+
+describe('resolveNetplayRoomKey — Gen 5 Unova2 (Black 2 / White 2)', () => {
+  beforeEach(() => clearNetplayResolutionCache());
+
+  it('routes Black 2 to pokemon_gen5_unova2', () => {
+    expect(resolveNetplayRoomKey('Pokemon Black 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon Black 2 (Europe)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon Black 2 (Japan)', 'nds')).toBe('pokemon_gen5_unova2');
+  });
+
+  it('routes White 2 to pokemon_gen5_unova2', () => {
+    expect(resolveNetplayRoomKey('Pokemon White 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon White 2 (Europe)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon White 2 (Japan)', 'nds')).toBe('pokemon_gen5_unova2');
+  });
+
+  it('handles "Version 2" naming variant', () => {
+    expect(resolveNetplayRoomKey('Pokemon Black Version 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+    expect(resolveNetplayRoomKey('Pokemon White Version 2 (USA)', 'nds')).toBe('pokemon_gen5_unova2');
+  });
+
+  it('routes BW1 (no "2") to pokemon_gen5_unova, not unova2', () => {
+    expect(resolveNetplayRoomKey('Pokemon Black Version (USA)', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon White Version (USA)', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon Black (USA)', 'nds')).toBe('pokemon_gen5_unova');
+    expect(resolveNetplayRoomKey('Pokemon White (USA)', 'nds')).toBe('pokemon_gen5_unova');
+  });
+
+  it('unova and unova2 are distinct room keys', () => {
+    const unova  = resolveNetplayRoomKey('Pokemon Black Version', 'nds');
+    const unova2 = resolveNetplayRoomKey('Pokemon Black 2 (USA)', 'nds');
+    expect(unova).toBe('pokemon_gen5_unova');
+    expect(unova2).toBe('pokemon_gen5_unova2');
+    expect(unova).not.toBe(unova2);
+  });
+
+  it('unova2 has a display name', () => {
+    expect(roomDisplayNameForKey('pokemon_gen5_unova2')).toBe('Pokémon Gen5 Unova Trading Room (Black 2 / White 2)');
+  });
+});
+
+// ── Japanese Pocket Monsters Gen 4 / Gen 5 ───────────────────────────────────
+
+describe('resolveNetplayRoomKey — Pocket Monsters Gen 4 & 5 (Japanese titles)', () => {
+  beforeEach(() => clearNetplayResolutionCache());
+
+  it('routes Pocket Monsters HeartGold to pokemon_gen4_johto', () => {
+    expect(resolveNetplayRoomKey('Pocket Monsters HeartGold (Japan)', 'nds')).toBe('pokemon_gen4_johto');
+  });
+
+  it('routes Pocket Monsters SoulSilver to pokemon_gen4_johto', () => {
+    expect(resolveNetplayRoomKey('Pocket Monsters SoulSilver (Japan)', 'nds')).toBe('pokemon_gen4_johto');
+  });
+
+  it('routes Pocket Monsters Diamond to pokemon_gen4_sinnoh', () => {
+    expect(resolveNetplayRoomKey('Pocket Monsters Diamond (Japan)', 'nds')).toBe('pokemon_gen4_sinnoh');
+  });
+
+  it('routes Pocket Monsters Black to pokemon_gen5_unova', () => {
+    expect(resolveNetplayRoomKey('Pocket Monsters Black (Japan)', 'nds')).toBe('pokemon_gen5_unova');
+  });
+
+  it('routes Pocket Monsters Black 2 to pokemon_gen5_unova2', () => {
+    expect(resolveNetplayRoomKey('Pocket Monsters Black 2 (Japan)', 'nds')).toBe('pokemon_gen5_unova2');
   });
 });
 
