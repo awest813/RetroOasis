@@ -727,7 +727,7 @@ fn rcas(color: vec3f, uv: vec2f, texel: vec2f, sharpness: f32) -> vec3f {
 // geometry.  This is a lightweight, single-pass accumulation approach suited
 // for the WebGPU post-processing pipeline.
 //
-// Unlike full TAA (which reprojections motion vectors), this implementation is
+// Unlike full TAA (which reprojects motion vectors), this implementation is
 // a simple frame accumulation: a weighted mix of the current frame and the
 // previous frame snapshot stored in the history texture.  The result reduces
 // sub-pixel shimmer and edge flicker at a cost of mild ghosting on fast motion.
@@ -1227,6 +1227,10 @@ export class WebGPUPostProcessor {
       usage:
         TEX_BINDING |
         TEX_COPY_DST |
+        // TEX_COPY_SRC is required to support copyTextureToTexture() into the
+        // TAA history buffer after each frame.  Included unconditionally because
+        // the overhead is negligible and it avoids recreating the texture when
+        // switching to/from the TAA effect.
         TEX_COPY_SRC |
         TEX_RENDER_ATTACH,
     });
@@ -1390,11 +1394,10 @@ export class WebGPUPostProcessor {
     // Upload uniforms — reuses the pre-allocated Float32Array
     this._writeUniforms(srcW, srcH);
 
-    // TAA: invalidate the bind group cache when the history texture is new
-    // (first frame or resize) so the bind group is rebuilt with the new handle.
-    if (isTAA) this._invalidateBindGroupCache();
-
-    // Retrieve the cached (or freshly created) bind group
+    // Retrieve the cached (or freshly created) bind group.
+    // Note: _ensureHistoryTexture() already calls _invalidateBindGroupCache() when
+    // it creates or recreates the history texture, so no explicit invalidation is
+    // needed here.
     const bindGroup = this._ensureBindGroup();
     if (!bindGroup) return;
 
