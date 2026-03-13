@@ -52,7 +52,7 @@ const MAP_MODE_READ = 0x0001;
 
 // ── Effect types ──────────────────────────────────────────────────────────────
 
-export type PostProcessEffect = "none" | "crt" | "sharpen" | "lcd" | "bloom" | "fxaa" | "fsr" | "grain" | "retro" | "colorgrade";
+export type PostProcessEffect = "none" | "crt" | "sharpen" | "lcd" | "bloom" | "fxaa" | "fsr" | "grain" | "retro" | "colorgrade" | "taa";
 
 export interface PostProcessConfig {
   effect: PostProcessEffect;
@@ -99,6 +99,12 @@ export interface PostProcessConfig {
   saturation: number;
   /** Color-grade brightness offset added to each channel (−1–1). Default 0.0. */
   brightness: number;
+  /**
+   * TAA blend weight for the current frame (0 = pure history, 1 = pure current).
+   * Values near 0.1 give subtle temporal smoothing; 0 freezes the image.
+   * Default 0.1.
+   */
+  taaBlend: number;
   /** Performance tier — used to auto-reduce effect quality on low-end devices. */
   tier?: PerformanceTier;
 }
@@ -121,6 +127,7 @@ export const DEFAULT_POST_PROCESS_CONFIG: PostProcessConfig = {
   contrast: 1.0,
   saturation: 1.0,
   brightness: 0.0,
+  taaBlend: 0.1,
 };
 
 // ── WGSL shaders ──────────────────────────────────────────────────────────────
@@ -715,12 +722,61 @@ fn rcas(color: vec3f, uv: vec2f, texel: vec2f, sharpness: f32) -> vec3f {
 }
 `;
 
+// Temporal Anti-Aliasing (TAA) — blends the current frame with a stored history
+// texture to smooth high-frequency temporal noise and reduce shimmer on 3D
+// geometry.  This is a lightweight, single-pass accumulation approach suited
+// for the WebGPU post-processing pipeline.
+//
+// Unlike full TAA (which reprojects motion vectors), this implementation is
+// a simple frame accumulation: a weighted mix of the current frame and the
+// previous frame snapshot stored in the history texture.  The result reduces
+// sub-pixel shimmer and edge flicker at a cost of mild ghosting on fast motion.
+//
+// Uniform layout (32 bytes):
+//   offset  0: taaBlend  (f32) — weight of current frame (0 = pure history, 1 = pure current)
+//   offset  4–12: _pad × 3
+//   offset 16: resolution (vec2f)
+//
+// Bindings:
+//   0: srcTex    — current frame
+//   1: srcSampler
+//   2: uniforms
+//   3: histTex   — previous frame (history buffer)
+const TAA_FRAGMENT = /* wgsl */ `
+struct Params {
+  taaBlend: f32,
+  _pad1: f32,
+  _pad2: f32,
+  _pad3: f32,
+  resolution: vec2f,
+};
+
+@group(0) @binding(0) var srcTex:     texture_2d<f32>;
+@group(0) @binding(1) var srcSampler: sampler;
+@group(0) @binding(2) var<uniform> params: Params;
+@group(0) @binding(3) var histTex:    texture_2d<f32>;
+
+@fragment fn fs(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+  let uv      = fragCoord.xy / params.resolution;
+  let current = textureSample(srcTex,  srcSampler, uv);
+  let history = textureSample(histTex, srcSampler, uv);
+
+  // Blend: high taaBlend = more current frame (less smoothing)
+  //        low  taaBlend = more history (stronger smoothing / ghosting)
+  let blend = clamp(params.taaBlend, 0.0, 1.0);
+  return vec4f(mix(history.rgb, current.rgb, blend), 1.0);
+}
+`;
+
 interface EffectPipeline {
   pipeline: GPURenderPipeline;
   bindGroupLayout: GPUBindGroupLayout;
   uniformBuffer: GPUBuffer | null;
   /** WGSL source strings built into this pipeline (vertex, fragment). */
   wgslSources: { vertex: string; fragment: string };
+  /** True when the pipeline uses a second texture binding (e.g. TAA history). */
+  requiresHistoryTexture?: boolean;
+
 }
 
 // ── Pipeline builder ──────────────────────────────────────────────────────────
@@ -747,6 +803,7 @@ export const EFFECT_LABELS: Record<PostProcessEffect, string> = {
   grain:      "Film grain",
   retro:      "Retro pixel art",
   colorgrade: "Color grading",
+  taa:        "Temporal AA (TAA)",
 };
 
 /**
@@ -775,6 +832,7 @@ export function validatePostProcessConfig(config: PostProcessConfig): PostProces
     contrast:          Math.max(0, Math.min(4,   config.contrast)),
     saturation:        Math.max(0, Math.min(4,   config.saturation)),
     brightness:        Math.max(-1, Math.min(1,  config.brightness)),
+    taaBlend:          Math.max(0, Math.min(1,   config.taaBlend)),
   };
 }
 
@@ -796,6 +854,8 @@ export function adjustConfigForTier(config: PostProcessConfig): PostProcessConfi
     adjusted.scanlineIntensity = Math.min(adjusted.scanlineIntensity, LOW_TIER_MAX_SCANLINE);
     // FSR: disable RCAS sharpening on low tier to save shader cost
     adjusted.fsrSharpness = 0;
+    // TAA: disabled on low tier — history texture copy adds GPU overhead
+    adjusted.taaBlend = 1;
   } else if (tier === "medium") {
     // Reduce intensity on medium-tier devices
     const MED_TIER_MAX_BLOOM     = 0.3;
@@ -804,6 +864,8 @@ export function adjustConfigForTier(config: PostProcessConfig): PostProcessConfi
     adjusted.bloomIntensity = Math.min(adjusted.bloomIntensity, MED_TIER_MAX_BLOOM);
     adjusted.curvature = Math.min(adjusted.curvature, MED_TIER_MAX_CURVATURE);
     adjusted.fsrSharpness = Math.min(adjusted.fsrSharpness, MED_TIER_MAX_FSR);
+    // TAA: cap blend on medium to reduce history influence (less ghosting risk)
+    adjusted.taaBlend = Math.max(adjusted.taaBlend, 0.2);
   }
   return adjusted;
 }
@@ -825,6 +887,7 @@ export function buildEffectPipeline(
     case "grain":      fragmentCode = GRAIN_FRAGMENT; break;
     case "retro":      fragmentCode = RETRO_FRAGMENT; break;
     case "colorgrade": fragmentCode = COLORGRADE_FRAGMENT; break;
+    case "taa":        fragmentCode = TAA_FRAGMENT; break;
     default:           fragmentCode = PASSTHROUGH_FRAGMENT; break;
   }
 
@@ -833,6 +896,7 @@ export function buildEffectPipeline(
 
   // All effects except passthrough ("none") use a uniform buffer for parameters.
   const hasUniforms = effect !== "none";
+  const requiresHistoryTexture = effect === "taa";
 
   const entries: GPUBindGroupLayoutEntry[] = [
     { binding: 0, visibility: SHADER_STAGE_FRAGMENT, texture: { sampleType: "float" } },
@@ -844,6 +908,15 @@ export function buildEffectPipeline(
       binding: 2,
       visibility: SHADER_STAGE_FRAGMENT,
       buffer: { type: "uniform" },
+    });
+  }
+
+  // TAA requires a second texture input for the history (previous frame) buffer.
+  if (requiresHistoryTexture) {
+    entries.push({
+      binding: 3,
+      visibility: SHADER_STAGE_FRAGMENT,
+      texture: { sampleType: "float" },
     });
   }
 
@@ -862,7 +935,7 @@ export function buildEffectPipeline(
     ? device.createBuffer({ size: 32, usage: BUFFER_UNIFORM | BUFFER_COPY_DST })
     : null;
 
-  return { pipeline, bindGroupLayout, uniformBuffer, wgslSources: { vertex: FULLSCREEN_VERTEX, fragment: fragmentCode } };
+  return { pipeline, bindGroupLayout, uniformBuffer, wgslSources: { vertex: FULLSCREEN_VERTEX, fragment: fragmentCode }, requiresHistoryTexture };
 }
 
 // ── WebGPUPostProcessor ───────────────────────────────────────────────────────
@@ -874,6 +947,8 @@ export class WebGPUPostProcessor {
   private _gpuContext: GPUCanvasContext | null = null;
   private _sourceCanvas: HTMLCanvasElement | null = null;
   private _sourceTexture: GPUTexture | null = null;
+  /** History texture for TAA accumulation (previous frame snapshot). */
+  private _historyTexture: GPUTexture | null = null;
   private _sampler: GPUSampler | null = null;
   private _effectPipeline: EffectPipeline | null = null;
   private _currentEffect: PostProcessEffect = "none";
@@ -1152,6 +1227,11 @@ export class WebGPUPostProcessor {
       usage:
         TEX_BINDING |
         TEX_COPY_DST |
+        // TEX_COPY_SRC is required to support copyTextureToTexture() into the
+        // TAA history buffer after each frame.  Included unconditionally because
+        // the overhead is negligible and it avoids recreating the texture when
+        // switching to/from the TAA effect.
+        TEX_COPY_SRC |
         TEX_RENDER_ATTACH,
     });
 
@@ -1162,11 +1242,37 @@ export class WebGPUPostProcessor {
     this._invalidateBindGroupCache();
   }
 
+  /**
+   * Ensure the TAA history texture exists at the given dimensions.
+   * Creates or recreates the texture when dimensions change.
+   * The history texture stores the previous frame for temporal blending.
+   */
+  private _ensureHistoryTexture(width: number, height: number): void {
+    if (
+      this._historyTexture &&
+      this._historyTexture.width === width &&
+      this._historyTexture.height === height
+    ) {
+      return;
+    }
+    this._historyTexture?.destroy();
+    this._historyTexture = this._device.createTexture({
+      size: { width, height },
+      format: "rgba8unorm",
+      usage: TEX_BINDING | TEX_COPY_DST,
+    });
+    // Invalidate cached bind group so next frame builds with new history handle.
+    this._invalidateBindGroupCache();
+  }
+
   private _destroySourceTexture(): void {
     this._sourceTexture?.destroy();
     this._sourceTexture = null;
     this._lastSourceWidth = 0;
     this._lastSourceHeight = 0;
+    // Also tear down history texture — it matches source dimensions.
+    this._historyTexture?.destroy();
+    this._historyTexture = null;
     this._invalidateBindGroupCache();
   }
 
@@ -1192,7 +1298,12 @@ export class WebGPUPostProcessor {
   private _ensureBindGroup(): GPUBindGroup | null {
     if (!this._effectPipeline || !this._sourceTexture || !this._sampler) return null;
 
-    // Cache hit: same texture and same pipeline
+    // For TAA, the bind group also depends on the history texture.
+    // The cache key must include both textures.
+    const needsHistory = this._effectPipeline.requiresHistoryTexture;
+    if (needsHistory && !this._historyTexture) return null;
+
+    // Cache hit: same source texture (and same history texture for TAA)
     if (this._cachedBindGroup && this._cachedBindGroupTexture === this._sourceTexture) {
       return this._cachedBindGroup;
     }
@@ -1203,6 +1314,9 @@ export class WebGPUPostProcessor {
     ];
     if (this._effectPipeline.uniformBuffer) {
       entries.push({ binding: 2, resource: { buffer: this._effectPipeline.uniformBuffer } });
+    }
+    if (needsHistory && this._historyTexture) {
+      entries.push({ binding: 3, resource: this._historyTexture.createView() });
     }
 
     this._cachedBindGroup = this._device.createBindGroup({
@@ -1256,6 +1370,13 @@ export class WebGPUPostProcessor {
     this._ensureSourceTexture(srcW, srcH);
     if (!this._sourceTexture) return;
 
+    // TAA: ensure history texture exists and is correctly sized.
+    const isTAA = this._effectPipeline.requiresHistoryTexture;
+    if (isTAA) {
+      this._ensureHistoryTexture(srcW, srcH);
+      if (!this._historyTexture) return;
+    }
+
     // Copy the emulator canvas to our GPU texture (GPU-side, no CPU readback)
     try {
       this._device.queue.copyExternalImageToTexture(
@@ -1273,7 +1394,10 @@ export class WebGPUPostProcessor {
     // Upload uniforms — reuses the pre-allocated Float32Array
     this._writeUniforms(srcW, srcH);
 
-    // Retrieve the cached (or freshly created) bind group
+    // Retrieve the cached (or freshly created) bind group.
+    // Note: _ensureHistoryTexture() already calls _invalidateBindGroupCache() when
+    // it creates or recreates the history texture, so no explicit invalidation is
+    // needed here.
     const bindGroup = this._ensureBindGroup();
     if (!bindGroup) return;
 
@@ -1309,6 +1433,16 @@ export class WebGPUPostProcessor {
     pass.setBindGroup(0, bindGroup);
     pass.draw(3);
     pass.end();
+
+    // TAA: copy the current source frame into the history buffer for next frame.
+    // This records the pre-blend source so the next frame can reference it.
+    if (isTAA && this._sourceTexture && this._historyTexture) {
+      encoder.copyTextureToTexture(
+        { texture: this._sourceTexture },
+        { texture: this._historyTexture },
+        { width: srcW, height: srcH },
+      );
+    }
 
     // Resolve timestamps into the resolve buffer once per sample interval
     if (useTimer && this._querySet && this._queryResolveBuffer) {
@@ -1409,6 +1543,14 @@ export class WebGPUPostProcessor {
         data[0] = cfg.contrast;
         data[1] = cfg.saturation;
         data[2] = cfg.brightness;
+        data[3] = 0;
+        data[4] = width;
+        data[5] = height;
+        break;
+      case "taa":
+        data[0] = cfg.taaBlend;
+        data[1] = 0;
+        data[2] = 0;
         data[3] = 0;
         data[4] = width;
         data[5] = height;

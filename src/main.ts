@@ -68,6 +68,17 @@ export interface Settings {
   netplayUsername: string;
   /** Whether verbose debug logging is written to the browser console. */
   verboseLogging:  boolean;
+  /**
+   * Audio enhancement filter type.
+   * `"none"` disables filtering; `"lowpass"` reduces high-frequency crunch
+   * common in PSP/N64 audio; `"highpass"` removes low-frequency rumble.
+   */
+  audioFilterType: "none" | "lowpass" | "highpass";
+  /**
+   * Audio filter cutoff frequency in Hz (20–20 000).
+   * Only used when `audioFilterType` is not `"none"`. Default: 10 000 Hz.
+   */
+  audioFilterCutoff: number;
 }
 
 const STORAGE_KEY = "retrovault-settings";
@@ -88,6 +99,8 @@ const DEFAULT_SETTINGS: Settings = {
   netplayServerUrl: "",
   netplayUsername: "",
   verboseLogging:  false,
+  audioFilterType: "none" as "none" | "lowpass" | "highpass",
+  audioFilterCutoff: 10_000,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -117,7 +130,7 @@ function loadSettings(): Settings {
       useWebGPU: typeof parsed.useWebGPU === "boolean"
         ? parsed.useWebGPU
         : DEFAULT_SETTINGS.useWebGPU,
-      postProcessEffect: (["none", "crt", "sharpen", "lcd", "bloom", "fxaa", "fsr"] as PostProcessEffect[]).includes(parsed.postProcessEffect as PostProcessEffect)
+      postProcessEffect: (["none", "crt", "sharpen", "lcd", "bloom", "fxaa", "fsr", "grain", "retro", "colorgrade", "taa"] as PostProcessEffect[]).includes(parsed.postProcessEffect as PostProcessEffect)
         ? (parsed.postProcessEffect as PostProcessEffect)
         : DEFAULT_SETTINGS.postProcessEffect,
       autoSaveEnabled: typeof parsed.autoSaveEnabled === "boolean"
@@ -144,6 +157,12 @@ function loadSettings(): Settings {
       verboseLogging: typeof parsed.verboseLogging === "boolean"
         ? parsed.verboseLogging
         : DEFAULT_SETTINGS.verboseLogging,
+      audioFilterType: (["none", "lowpass", "highpass"] as Array<Settings["audioFilterType"]>).includes(parsed.audioFilterType as Settings["audioFilterType"])
+        ? (parsed.audioFilterType as Settings["audioFilterType"])
+        : DEFAULT_SETTINGS.audioFilterType,
+      audioFilterCutoff: typeof parsed.audioFilterCutoff === "number"
+        ? Math.max(20, Math.min(20_000, parsed.audioFilterCutoff))
+        : DEFAULT_SETTINGS.audioFilterCutoff,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -610,6 +629,16 @@ function main(): void {
     // Sync verbose logging flag so debug output can be toggled without reload.
     if (typeof patch.verboseLogging === "boolean") {
       emulator.verboseLogging = patch.verboseLogging;
+    }
+    // Apply audio filter changes immediately if the worklet is running.
+    if (patch.audioFilterType !== undefined || patch.audioFilterCutoff !== undefined) {
+      const filterType = settings.audioFilterType;
+      const cutoff     = settings.audioFilterCutoff;
+      if (filterType === "none") {
+        emulator.removeAudioFilter();
+      } else {
+        emulator.setAudioFilter(filterType, cutoff);
+      }
     }
   };
 

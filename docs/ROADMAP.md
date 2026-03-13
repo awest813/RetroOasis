@@ -21,7 +21,7 @@ Items within each phase are roughly ordered by expected impact.
 | 6 | Multiplayer & Social | ✅ Complete |
 | 7 | WebGPU Native Path | ✅ Complete |
 | 7.1 | 3D Emulator Overhaul | ✅ Complete |
-| 8 | Advanced 3D Rendering & Quality | 🔜 Next |
+| 8 | Advanced 3D Rendering & Quality | 🔄 In Progress |
 | 9 | Intelligent Performance Optimization | 📋 Planned |
 | 10 | Community, Accessibility & Ecosystem | 📋 Planned |
 
@@ -229,7 +229,7 @@ WebGPU rendering pipeline completed in Phase 7/7.1.
 ### Rendering Pipeline
 
 - [x] **FSR 1.0 upscaling**: AMD FidelityFX Super Resolution-inspired WGSL fragment shader (EASU + RCAS); `fsrSharpness` config param; tier-aware sharpness reduction; available in Settings and per-game graphics dialog
-- [ ] **Temporal anti-aliasing (TAA)**: Lightweight frame-blend pass to reduce shimmer on PSP and N64; opt-in via Settings; disabled on Low/Medium
+- [x] **Temporal anti-aliasing (TAA)**: Lightweight frame-blend pass accumulating current + history frame textures; `taaBlend` config param; disabled on Low (blend=1), capped on Medium; history texture lifecycle managed by `WebGPUPostProcessor`; available in Settings and per-game graphics dialog
 - [x] **Resolution scaling presets**: "Native", "2× Crisp", "4× Ultra", "Display Match" — `ResolutionPreset` type + `getResolutionCoreOptions()` in `performance.ts`; applied via `coreSettingsOverride` in `LaunchOptions`
 - [x] **Dynamic resolution scaling (DRS)**: Auto-lower internal resolution after 2 seconds below 25 FPS; auto-raise after 10 seconds above 55 FPS; logged in diagnostic timeline; `onDRSChange` callback; `enableDRS()` / `isDRSEnabled` on `PSPEmulator`
 - [x] **Per-game graphics profiles**: `PerGameGraphicsProfile` (resolution preset, post-effect override, DRS toggle) stored in `localStorage`; "🎨 Graphics" button in emulator toolbar; accessible from the in-game toolbar; `getGameGraphicsProfile` / `saveGameGraphicsProfile` / `clearGameGraphicsProfile` in `library.ts`
@@ -242,7 +242,7 @@ WebGPU rendering pipeline completed in Phase 7/7.1.
 
 ### Audio Enhancement
 
-- [ ] **Audio enhancement filters**: Optional low-pass filter for PSP/N64 audio crunch; adjustable cutoff in Settings
+- [x] **Audio enhancement filters**: `setAudioFilter(type, cutoffHz)` / `removeAudioFilter()` on `PSPEmulator` wires a `BiquadFilterNode` between the AudioWorklet and AnalyserNode; adjustable filter type (lowpass/highpass/none) and cutoff frequency in Settings panel; auto-applied on settings change
 - [ ] **Spatial audio**: Binaural spatialization as an AudioWorklet filter node for stereo-positioned games; toggled in Settings
 
 ---
