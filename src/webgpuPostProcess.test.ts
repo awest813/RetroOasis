@@ -886,7 +886,7 @@ describe("EFFECT_LABELS", () => {
   it("provides a label for every PostProcessEffect", () => {
     const allEffects: PostProcessEffect[] = [
       "none", "crt", "sharpen", "lcd", "bloom", "fxaa", "fsr",
-      "grain", "retro", "colorgrade",
+      "grain", "retro", "colorgrade", "taa",
     ];
     for (const e of allEffects) {
       expect(EFFECT_LABELS[e]).toBeTruthy();
@@ -1033,7 +1033,7 @@ describe("DEFAULT_POST_PROCESS_CONFIG new fields", () => {
 
 describe("buildEffectPipeline uniform buffer presence", () => {
   const effectsWithUniforms: PostProcessEffect[] = [
-    "crt", "sharpen", "lcd", "bloom", "fxaa", "fsr", "grain", "retro", "colorgrade",
+    "crt", "sharpen", "lcd", "bloom", "fxaa", "fsr", "grain", "retro", "colorgrade", "taa",
   ];
 
   for (const effect of effectsWithUniforms) {
@@ -1048,5 +1048,101 @@ describe("buildEffectPipeline uniform buffer presence", () => {
     const { device } = createMockGPUDevice();
     const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "none", "bgra8unorm");
     expect(pipeline.uniformBuffer).toBeNull();
+  });
+});
+
+// ── TAA effect ────────────────────────────────────────────────────────────────
+
+describe("taa effect", () => {
+  it("buildEffectPipeline succeeds for 'taa' effect", () => {
+    const { device } = createMockGPUDevice();
+    expect(() => buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm")).not.toThrow();
+  });
+
+  it("buildEffectPipeline for 'taa' creates a uniform buffer", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    expect(pipeline.uniformBuffer).not.toBeNull();
+  });
+
+  it("buildEffectPipeline for 'taa' sets requiresHistoryTexture = true", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    expect(pipeline.requiresHistoryTexture).toBe(true);
+  });
+
+  it("buildEffectPipeline for non-taa effects does NOT set requiresHistoryTexture", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "fsr", "bgra8unorm");
+    expect(pipeline.requiresHistoryTexture).toBeFalsy();
+  });
+
+  it("wgslSources.fragment for 'taa' contains 'taaBlend'", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    expect(pipeline.wgslSources.fragment).toContain("taaBlend");
+  });
+
+  it("wgslSources.fragment for 'taa' contains 'histTex' history texture binding", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    expect(pipeline.wgslSources.fragment).toContain("histTex");
+  });
+
+  it("TAA bind group layout includes extra texture entry (4 entries)", () => {
+    const { device } = createMockGPUDevice();
+    buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    const calls = (device.createBindGroupLayout as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const lastCall = calls[calls.length - 1]!;
+    const entries = (lastCall[0] as { entries: unknown[] }).entries;
+    // TAA: src texture (0) + sampler (1) + uniform (2) + history texture (3) = 4 entries
+    expect(entries.length).toBe(4);
+  });
+
+  it("updateConfig accepts taaBlend parameter", () => {
+    const { device } = createMockGPUDevice();
+    const pp = new WebGPUPostProcessor(device as unknown as GPUDevice);
+    pp.updateConfig({ effect: "taa", taaBlend: 0.15 });
+    expect(pp.config.effect).toBe("taa");
+    expect(pp.config.taaBlend).toBe(0.15);
+  });
+
+  it("EFFECT_LABELS has a label for 'taa'", () => {
+    expect(EFFECT_LABELS.taa).toBeTruthy();
+    expect(EFFECT_LABELS.taa.toLowerCase()).toContain("taa");
+  });
+
+  it("DEFAULT_POST_PROCESS_CONFIG includes taaBlend = 0.1", () => {
+    expect(DEFAULT_POST_PROCESS_CONFIG.taaBlend).toBe(0.1);
+  });
+
+  it("adjustConfigForTier sets taaBlend = 1 on low tier (disables smoothing)", () => {
+    const cfg = { ...DEFAULT_POST_PROCESS_CONFIG, effect: "taa" as const, taaBlend: 0.1, tier: "low" as const };
+    const adjusted = adjustConfigForTier(cfg);
+    expect(adjusted.taaBlend).toBe(1);
+  });
+
+  it("adjustConfigForTier caps taaBlend minimum to 0.2 on medium tier", () => {
+    const cfg = { ...DEFAULT_POST_PROCESS_CONFIG, effect: "taa" as const, taaBlend: 0.05, tier: "medium" as const };
+    const adjusted = adjustConfigForTier(cfg);
+    expect(adjusted.taaBlend).toBeGreaterThanOrEqual(0.2);
+  });
+
+  it("adjustConfigForTier leaves taaBlend unchanged on high tier", () => {
+    const cfg = { ...DEFAULT_POST_PROCESS_CONFIG, effect: "taa" as const, taaBlend: 0.08, tier: "high" as const };
+    const adjusted = adjustConfigForTier(cfg);
+    expect(adjusted.taaBlend).toBe(0.08);
+  });
+
+  it("validatePostProcessConfig clamps taaBlend to [0, 1]", () => {
+    expect(validatePostProcessConfig({ ...DEFAULT_POST_PROCESS_CONFIG, taaBlend: -0.5 }).taaBlend).toBe(0);
+    expect(validatePostProcessConfig({ ...DEFAULT_POST_PROCESS_CONFIG, taaBlend: 1.5 }).taaBlend).toBe(1);
+  });
+
+  it("'taa' effect always creates a uniform buffer", () => {
+    const { device } = createMockGPUDevice();
+    const pipeline = buildEffectPipeline(device as unknown as GPUDevice, "taa", "bgra8unorm");
+    expect(pipeline.uniformBuffer).not.toBeNull();
   });
 });

@@ -27,6 +27,8 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     netplayServerUrl: "",
     netplayUsername: "",
     verboseLogging: false,
+    audioFilterType: "none",
+    audioFilterCutoff: 10_000,
     ...overrides,
   };
 }

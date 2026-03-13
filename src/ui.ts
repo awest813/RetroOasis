@@ -3508,6 +3508,7 @@ function openPerGameGraphicsDialog(
     { value: "__global__", label: "— Use global setting —" },
     { value: "none",       label: "None" },
     { value: "fsr",        label: "FSR 1.0 (upscaling + sharpening)" },
+    { value: "taa",        label: "TAA (temporal anti-aliasing)" },
     { value: "sharpen",    label: "Sharpen" },
     { value: "fxaa",       label: "FXAA" },
     { value: "crt",        label: "CRT Simulation" },
@@ -3989,6 +3990,52 @@ function buildDisplayTab(
     }
   ));
 
+  // Audio Enhancement section
+  const audioSection = make("div", { class: "settings-section" });
+  audioSection.appendChild(make("h4", { class: "settings-section__title" }, "Audio Enhancement"));
+  audioSection.appendChild(make("p", { class: "settings-help" },
+    "Apply an audio filter to reduce harshness or rumble in emulated audio output."
+  ));
+
+  const filterTypeRow = make("div", { style: "display:flex;align-items:center;gap:10px;flex-wrap:wrap;" });
+  const filterTypeLabel = make("span", { style: "font-size:0.8rem;font-weight:600;flex-shrink:0;" }, "Filter type:");
+  const filterTypeSel = make("select", { class: "settings-select", style: "flex:1;min-width:130px;padding:4px 8px;font-size:0.8rem;" }) as HTMLSelectElement;
+  const filterTypeOptions: Array<[string, string]> = [
+    ["none",     "None (off)"],
+    ["lowpass",  "Low-pass (reduce crunch)"],
+    ["highpass", "High-pass (reduce rumble)"],
+  ];
+  for (const [val, lbl] of filterTypeOptions) {
+    const o = make("option", { value: val }, lbl) as HTMLOptionElement;
+    if (settings.audioFilterType === val) o.selected = true;
+    filterTypeSel.appendChild(o);
+  }
+  filterTypeSel.addEventListener("change", () => {
+    onSettingsChange({ audioFilterType: filterTypeSel.value as Settings["audioFilterType"] });
+    cutoffRow.style.display = filterTypeSel.value === "none" ? "none" : "";
+  });
+  filterTypeRow.append(filterTypeLabel, filterTypeSel);
+  audioSection.appendChild(filterTypeRow);
+
+  const cutoffRow = make("div", { style: `display:${settings.audioFilterType === "none" ? "none" : "flex"};align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;` });
+  const cutoffLabel = make("span", { style: "font-size:0.8rem;font-weight:600;flex-shrink:0;" }, "Cutoff frequency:");
+  const cutoffInp = make("input", {
+    type: "range", min: "1000", max: "18000", step: "500",
+    value: String(settings.audioFilterCutoff),
+    style: "flex:1;min-width:120px;",
+  }) as HTMLInputElement;
+  const cutoffVal = make("span", { style: "font-size:0.8rem;width:60px;text-align:right;" }, `${settings.audioFilterCutoff} Hz`);
+  cutoffInp.addEventListener("input", () => {
+    const hz = parseInt(cutoffInp.value, 10);
+    cutoffVal.textContent = `${hz} Hz`;
+  });
+  cutoffInp.addEventListener("change", () => {
+    const hz = parseInt(cutoffInp.value, 10);
+    onSettingsChange({ audioFilterCutoff: hz });
+  });
+  cutoffRow.append(cutoffLabel, cutoffInp, cutoffVal);
+  audioSection.appendChild(cutoffRow);
+
   // Mobile & PWA section
   const mobileSection = make("div", { class: "settings-section" });
   mobileSection.appendChild(make("h4", { class: "settings-section__title" }, "Mobile & Touch"));
@@ -4038,7 +4085,7 @@ function buildDisplayTab(
     (v) => onSettingsChange({ orientationLock: v })
   ));
 
-  container.append(overlaySection, mobileSection);
+  container.append(overlaySection, audioSection, mobileSection);
 
   // WebGPU section — appended last so Overlays and Mobile always appear first
   if (deviceCaps.webgpuAvailable) {
@@ -4059,6 +4106,7 @@ function buildDisplayTab(
     const fxOptions: FxOption[] = [
       { value: "none",       label: "No effect",        desc: "Clean output — exactly as the game renders it" },
       { value: "fsr",        label: "FSR 1.0",          desc: "Edge-adaptive upsampling + sharpening — AMD FidelityFX inspired" },
+      { value: "taa",        label: "TAA",              desc: "Temporal anti-aliasing — blends frames to reduce shimmer on 3D geometry" },
       { value: "crt",        label: "CRT screen",       desc: "Scanlines and glow — like playing on a real CRT TV" },
       { value: "sharpen",    label: "Sharper image",    desc: "Crisper pixels — great for upscaled handheld games" },
       { value: "lcd",        label: "LCD handheld",     desc: "Sub-pixel grid — simulates a handheld LCD screen" },

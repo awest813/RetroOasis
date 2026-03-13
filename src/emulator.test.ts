@@ -3245,3 +3245,127 @@ describe("_loadScript race-condition guard", () => {
     expect(document.querySelectorAll("script[data-ejs-loader]")).toHaveLength(1);
   });
 });
+
+// ── Audio filter (setAudioFilter / removeAudioFilter) ─────────────────────────
+
+describe("setAudioFilter", () => {
+  let emulator: PSPEmulator;
+
+  beforeEach(() => {
+    emulator = new PSPEmulator("test-player-filter");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.getElementById("test-player-filter")?.remove();
+  });
+
+  it("returns false when no AudioContext is available (worklet not set up)", () => {
+    expect(emulator.setAudioFilter("lowpass", 8000)).toBe(false);
+  });
+
+  it("removeAudioFilter is a no-op when no filter is active", () => {
+    expect(() => emulator.removeAudioFilter()).not.toThrow();
+  });
+
+  it("setAudioFilter with type 'none' removes any active filter and returns true when context present", () => {
+    type EmuPrivate = {
+      _audioWorkletCtx: AudioContext | null;
+      _audioFilterNode: BiquadFilterNode | null;
+    };
+    const priv = emulator as unknown as EmuPrivate;
+    // Inject a fake AudioContext so the "none" path executes correctly.
+    priv._audioWorkletCtx = {} as AudioContext;
+    expect(emulator.setAudioFilter("none", 8000)).toBe(true);
+    expect(priv._audioFilterNode).toBeNull();
+  });
+
+  it("setAudioFilter creates a BiquadFilterNode when AudioContext is present but worklet nodes are null", () => {
+    type EmuPrivate = {
+      _audioWorkletCtx: AudioContext | null;
+      _audioWorkletNode: AudioWorkletNode | null;
+      _audioAnalyserNode: AnalyserNode | null;
+      _audioFilterNode: BiquadFilterNode | null;
+    };
+    const priv = emulator as unknown as EmuPrivate;
+
+    const mockFilter = {
+      type: "",
+      frequency: { setValueAtTime: vi.fn() },
+      Q: { setValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const mockCtx = {
+      currentTime: 0,
+      createBiquadFilter: vi.fn().mockReturnValue(mockFilter),
+    } as unknown as AudioContext;
+
+    priv._audioWorkletCtx = mockCtx;
+    // Worklet and analyser nodes are null — wiring silently skipped.
+    const result = emulator.setAudioFilter("lowpass", 10_000);
+    expect(result).toBe(true);
+    expect(mockCtx.createBiquadFilter).toHaveBeenCalled();
+    expect(priv._audioFilterNode).toBe(mockFilter);
+    expect(mockFilter.type).toBe("lowpass");
+    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(10_000, 0);
+  });
+
+  it("setAudioFilter clamps cutoff to 20 Hz minimum", () => {
+    type EmuPrivate = {
+      _audioWorkletCtx: AudioContext | null;
+      _audioFilterNode: BiquadFilterNode | null;
+    };
+    const priv = emulator as unknown as EmuPrivate;
+    const mockFilter = {
+      type: "",
+      frequency: { setValueAtTime: vi.fn() },
+      Q: { setValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    priv._audioWorkletCtx = { currentTime: 0, createBiquadFilter: vi.fn().mockReturnValue(mockFilter) } as unknown as AudioContext;
+    emulator.setAudioFilter("lowpass", 0);
+    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(20, 0);
+  });
+
+  it("setAudioFilter clamps cutoff to 20 000 Hz maximum", () => {
+    type EmuPrivate = {
+      _audioWorkletCtx: AudioContext | null;
+      _audioFilterNode: BiquadFilterNode | null;
+    };
+    const priv = emulator as unknown as EmuPrivate;
+    const mockFilter = {
+      type: "",
+      frequency: { setValueAtTime: vi.fn() },
+      Q: { setValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    priv._audioWorkletCtx = { currentTime: 0, createBiquadFilter: vi.fn().mockReturnValue(mockFilter) } as unknown as AudioContext;
+    emulator.setAudioFilter("lowpass", 99_999);
+    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(20_000, 0);
+  });
+
+  it("calling setAudioFilter again updates existing filter node in-place", () => {
+    type EmuPrivate = {
+      _audioWorkletCtx: AudioContext | null;
+      _audioFilterNode: BiquadFilterNode | null;
+    };
+    const priv = emulator as unknown as EmuPrivate;
+    const mockFilter = {
+      type: "lowpass",
+      frequency: { setValueAtTime: vi.fn() },
+      Q: { setValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    priv._audioWorkletCtx = { currentTime: 0, createBiquadFilter: vi.fn().mockReturnValue(mockFilter) } as unknown as AudioContext;
+    priv._audioFilterNode = mockFilter as unknown as BiquadFilterNode;
+
+    emulator.setAudioFilter("highpass", 5000);
+    // Should update in place, not create a new node
+    expect(mockFilter.type).toBe("highpass");
+    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(5000, 0);
+  });
+});

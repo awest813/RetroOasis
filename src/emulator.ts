@@ -539,6 +539,8 @@ export class PSPEmulator {
   private _audioWorkletCtxOwned = false;
   private _audioWorkletNode: AudioWorkletNode | null = null;
   private _audioAnalyserNode: AnalyserNode | null = null;
+  /** Optional BiquadFilterNode wired between the worklet and the analyser/destination. */
+  private _audioFilterNode: BiquadFilterNode | null = null;
   private _audioUnderruns = 0;
   private _audioLevel = 0;
   /** Timestamp (ms) of the last audio-underrun console.warn — rate-limits log spam. */
@@ -1357,6 +1359,96 @@ export class PSPEmulator {
    */
   getAnalyserNode(): AnalyserNode | null {
     return this._audioAnalyserNode;
+  }
+
+  /**
+   * Apply an audio enhancement filter to the audio output chain.
+   *
+   * Inserts a `BiquadFilterNode` between the AudioWorklet node (or source)
+   * and the AnalyserNode/destination.  Calling this method while the worklet
+   * is already running updates the filter parameters in real time without
+   * restarting the audio graph.
+   *
+   * @param type      Web Audio BiquadFilter type.  Use `"lowpass"` to reduce
+   *                  high-frequency "crunch" artefacts common in PSP/N64 audio,
+   *                  `"highpass"` to roll off low-frequency rumble, or `"none"`
+   *                  to remove any existing filter.
+   * @param cutoffHz  Filter cutoff frequency in Hz (20–20 000).  Ignored when
+   *                  type is `"none"`.  Typical values: 8 000–12 000 Hz for a
+   *                  gentle lowpass that tames harshness without muddying.
+   * @param resonance Optional Q factor (0.001–30).  Defaults to 0.707 (Butterworth
+   *                  — maximally flat passband, no resonant peak).
+   *
+   * @returns `true` if the filter was applied successfully, `false` if the
+   *          AudioContext is not available (worklet not yet set up).
+   */
+  setAudioFilter(
+    type: "lowpass" | "highpass" | "bandpass" | "notch" | "none",
+    cutoffHz: number,
+    resonance = 0.707,
+  ): boolean {
+    const ctx = this._audioWorkletCtx;
+    if (!ctx) return false;
+
+    if (type === "none") {
+      this._removeAudioFilter();
+      return true;
+    }
+
+    const clampedCutoff = Math.max(20, Math.min(20_000, cutoffHz));
+    const clampedQ     = Math.max(0.001, Math.min(30, resonance));
+
+    if (this._audioFilterNode) {
+      // Update in place — no reconnection needed for parameter changes.
+      this._audioFilterNode.type      = type;
+      this._audioFilterNode.frequency.setValueAtTime(clampedCutoff, ctx.currentTime);
+      this._audioFilterNode.Q.setValueAtTime(clampedQ, ctx.currentTime);
+      return true;
+    }
+
+    // Create and wire: workletNode → filterNode → analyserNode → destination
+    const filter = ctx.createBiquadFilter();
+    filter.type  = type;
+    filter.frequency.setValueAtTime(clampedCutoff, ctx.currentTime);
+    filter.Q.setValueAtTime(clampedQ, ctx.currentTime);
+
+    try {
+      if (this._audioWorkletNode && this._audioAnalyserNode) {
+        this._audioWorkletNode.disconnect(this._audioAnalyserNode);
+        this._audioWorkletNode.connect(filter);
+        filter.connect(this._audioAnalyserNode);
+      }
+      this._audioFilterNode = filter;
+    } catch {
+      // Reconnection failed (e.g. nodes not connected yet) — discard safely.
+      try { filter.disconnect(); } catch { /* ignore */ }
+    }
+
+    return true;
+  }
+
+  /**
+   * Remove the audio enhancement filter previously applied via `setAudioFilter()`.
+   * Reconnects the AudioWorklet node directly to the AnalyserNode.
+   * No-op if no filter is currently active.
+   */
+  removeAudioFilter(): void {
+    this._removeAudioFilter();
+  }
+
+  /** @internal */
+  private _removeAudioFilter(): void {
+    if (!this._audioFilterNode) return;
+
+    try {
+      if (this._audioWorkletNode && this._audioAnalyserNode) {
+        this._audioWorkletNode.disconnect(this._audioFilterNode);
+        this._audioFilterNode.disconnect(this._audioAnalyserNode);
+        this._audioWorkletNode.connect(this._audioAnalyserNode);
+      }
+    } catch { /* ignore disconnection errors — graph may already be torn down */ }
+
+    this._audioFilterNode = null;
   }
 
   /**
@@ -2326,6 +2418,8 @@ export class PSPEmulator {
   }
 
   private _disconnectAudioWorklet(): void {
+    // Remove any enhancement filter first to clean up its graph connections.
+    this._removeAudioFilter();
     try {
       this._audioWorkletNode?.disconnect();
     } catch { /* ignore */ }
