@@ -194,6 +194,19 @@ export interface DeviceCapabilities {
    */
   isSafari: boolean;
   /**
+   * Major Safari version number (e.g. `17` for Safari 17.x), or `null` when
+   * the user is not on Safari or the version cannot be parsed.
+   *
+   * Cached here so callers can branch on the version without re-parsing the
+   * user-agent string. Equivalent to calling `getSafariVersion()` once at
+   * capability-detection time.
+   *
+   * Key version milestones:
+   *   - Safari 17 — `credentialless` COEP support → PSP SharedArrayBuffer works.
+   *   - Safari 18 — `requestIdleCallback` support → idle scheduling available.
+   */
+  safariVersion: number | null;
+  /**
    * Recommended mode based on hardware alone.
    * Does NOT reflect the user's manual override.
    */
@@ -907,6 +920,7 @@ export function detectCapabilities(): DeviceCapabilities {
   const ios = isLikelyIOS();
   const android = isLikelyAndroid();
   const safari = isLikelySafari();
+  const safariVer = getSafariVersion();
   const mobile = ios || android;
   const reducedMotion = prefersReducedMotion();
   const webgpuAvailable = isWebGPUAvailable();
@@ -930,6 +944,7 @@ export function detectCapabilities(): DeviceCapabilities {
     isAndroid: android,
     isMobile: mobile,
     isSafari: safari,
+    safariVersion: safariVer,
     recommendedMode: isLowSpec || tier === "medium" ? "performance" : "quality",
     tier,
     gpuCaps,
@@ -950,7 +965,7 @@ export function detectCapabilities(): DeviceCapabilities {
  * so that cached entries without the new fields are automatically discarded,
  * even if the sessionStorage key name is not also bumped.
  */
-const CAPS_SCHEMA_VERSION = 3;
+const CAPS_SCHEMA_VERSION = 4;
 
 /**
  * sessionStorage key for the cached DeviceCapabilities result.
@@ -1129,9 +1144,10 @@ export class MemoryMonitor {
 /**
  * Schedule a non-critical task to run during the browser's next idle period.
  *
- * Uses `requestIdleCallback` when available (Chromium-based browsers), falling
- * back to `setTimeout(task, 0)` for browsers that do not support it
- * (Safari ≤16, Firefox with `dom.requestIdleCallback.enabled = false`).
+ * Uses `requestIdleCallback` when available (Chromium-based browsers and
+ * Safari 18+), falling back to `setTimeout(task, 0)` for browsers that do
+ * not support it (Safari ≤17, Firefox with
+ * `dom.requestIdleCallback.enabled = false`).
  *
  * Idle scheduling avoids competing with the main-thread work needed to render
  * the first game frame, making it ideal for startup tasks such as:
@@ -1359,7 +1375,11 @@ export function formatDetailedSummary(caps: DeviceCapabilities): string {
   } else if (caps.isAndroid) {
     lines.push("Device: Android — WebGL performance varies by device; tier capped at High");
   } else if (caps.isSafari) {
-    lines.push("Browser: Safari (macOS) — some APIs limited; PSP requires Safari 17+");
+    const verLabel = caps.safariVersion !== null ? ` ${caps.safariVersion}` : "";
+    const pspNote = caps.safariVersion !== null && caps.safariVersion >= 17
+      ? "PSP is supported (Safari 17+)"
+      : "PSP requires Safari 17+";
+    lines.push(`Browser: Safari${verLabel} (macOS) — some APIs limited; ${pspNote}`);
   }
   return lines.join("\n");
 }
