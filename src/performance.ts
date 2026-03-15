@@ -594,7 +594,8 @@ function benchmarkGPU(): number {
     gl  = gl2 ?? canvas.getContext("webgl") as WebGLRenderingContext | null;
     if (!gl) return 0;
 
-    const vs = gl.createShader(gl.VERTEX_SHADER)!;
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    if (!vs) return 0;
     gl.shaderSource(vs, `
       attribute vec2 a_pos;
       attribute vec2 a_uv;
@@ -603,7 +604,8 @@ function benchmarkGPU(): number {
     `);
     gl.compileShader(vs);
 
-    const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    if (!fs) return 0;
     // Sample a 1×1 texture to measure the texture-fetch unit.
     // 3D retro game cores are texture-bound; a solid-colour benchmark
     // overestimates GPU capability relative to real gameplay.
@@ -619,7 +621,8 @@ function benchmarkGPU(): number {
     `);
     gl.compileShader(fs);
 
-    const prog = gl.createProgram()!;
+    const prog = gl.createProgram();
+    if (!prog) return 0;
     gl.attachShader(prog, vs);
     gl.attachShader(prog, fs);
     gl.linkProgram(prog);
@@ -631,7 +634,8 @@ function benchmarkGPU(): number {
 
     // Interleaved buffer: position (2 floats) + UV (2 floats) per vertex.
     // The UV coordinates are passed to the fragment shader for texture sampling.
-    const buf = gl.createBuffer()!;
+    const buf = gl.createBuffer();
+    if (!buf) return 0;
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(
       gl.ARRAY_BUFFER,

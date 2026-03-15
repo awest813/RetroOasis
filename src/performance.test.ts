@@ -1127,6 +1127,33 @@ describe('performance', () => {
 
       expect(deleteTexture).toHaveBeenCalled();
     });
+
+    /** Mount a WebGL1 mock canvas so detectCapabilities() exercises benchmarkGPU(). */
+    function spyBenchmarkCanvas(glOverrides: Record<string, unknown>) {
+      const gl = makeBenchmarkGLMock(glOverrides);
+      const canvas = { width: 0, height: 0, getContext: vi.fn((type: string) => (type === 'webgl' ? gl : null)) };
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => (
+        tagName === 'canvas'
+          ? (canvas as unknown as HTMLCanvasElement)
+          : originalCreateElement(tagName, options)
+      ));
+    }
+
+    it('returns gpuBenchmarkScore 0 when createShader returns null', () => {
+      spyBenchmarkCanvas({ createShader: vi.fn(() => null) });
+      expect(detectCapabilities().gpuBenchmarkScore).toBe(0);
+    });
+
+    it('returns gpuBenchmarkScore 0 when createProgram returns null', () => {
+      spyBenchmarkCanvas({ createProgram: vi.fn(() => null) });
+      expect(detectCapabilities().gpuBenchmarkScore).toBe(0);
+    });
+
+    it('returns gpuBenchmarkScore 0 when createBuffer returns null', () => {
+      spyBenchmarkCanvas({ createBuffer: vi.fn(() => null) });
+      expect(detectCapabilities().gpuBenchmarkScore).toBe(0);
+    });
   });
 
   // ── classifyTier — very-limited-GPU penalty ──────────────────────────────
