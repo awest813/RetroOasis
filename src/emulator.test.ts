@@ -318,7 +318,7 @@ describe('PSPEmulator', () => {
         gpuRenderer: 'unknown',
         isSoftwareGPU: false,
         isLowSpec: false,
-        isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+        isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
         recommendedMode: 'quality' as const,
         tier: 'medium' as const,
         gpuCaps: {
@@ -378,7 +378,7 @@ describe('PSPEmulator', () => {
           gpuRenderer: 'unknown',
           isSoftwareGPU: false,
           isLowSpec: false,
-          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
           recommendedMode: 'quality' as const,
           tier: 'medium' as const,
           gpuCaps: {
@@ -423,7 +423,7 @@ describe('PSPEmulator', () => {
           gpuRenderer: 'unknown',
           isSoftwareGPU: false,
           isLowSpec: false,
-          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
           recommendedMode: 'quality' as const,
           tier: 'medium' as const,
           gpuCaps: {
@@ -464,7 +464,7 @@ describe('PSPEmulator', () => {
       gpuRenderer: 'unknown',
       isSoftwareGPU: false,
       isLowSpec: false,
-      isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const,
       tier: 'medium' as const,
       gpuCaps: {
@@ -648,7 +648,7 @@ describe('PSPEmulator', () => {
           gpuRenderer: 'unknown',
           isSoftwareGPU: false,
           isLowSpec: false,
-          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+          isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
           recommendedMode: 'quality' as const,
           tier: 'medium' as const,
           gpuCaps: {
@@ -727,7 +727,7 @@ describe('PSPEmulator', () => {
 
       const fakeCaps = {
         deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-        isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+        isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
         recommendedMode: 'quality' as const, tier: 'medium' as const,
         gpuCaps: {
           renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -762,7 +762,7 @@ describe('PSPEmulator', () => {
   describe('_checkSharedArrayBuffer', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -839,6 +839,75 @@ describe('PSPEmulator', () => {
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0]).toContain('npm run dev');
+    });
+
+    it('emits a version-specific upgrade error for desktop Safari < 17', async () => {
+      const originalSAB = (globalThis as Record<string, unknown>).SharedArrayBuffer;
+      const originalUA  = navigator.userAgent;
+
+      delete (globalThis as Record<string, unknown>).SharedArrayBuffer;
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+        configurable: true,
+      });
+
+      const errors: string[] = [];
+      const freshEmulator = new PSPEmulator('test-player');
+      freshEmulator.onError = (msg) => errors.push(msg);
+
+      try {
+        await freshEmulator.launch({
+          file: new File(['data'], 'game.iso'),
+          volume: 0.7,
+          systemId: 'psp',
+          performanceMode: 'auto',
+          deviceCaps: fakeCaps,
+        });
+      } finally {
+        (globalThis as Record<string, unknown>).SharedArrayBuffer = originalSAB;
+        Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
+      }
+
+      expect(errors.length).toBeGreaterThan(0);
+      // Should mention the required version and the detected version
+      expect(errors[0]).toMatch(/Safari 17/i);
+      expect(errors[0]).toMatch(/Safari 16/i);
+      // Should NOT suggest npm run dev (not a dev server issue)
+      expect(errors[0]).not.toContain('npm run dev');
+    });
+
+    it('emits a COI-headers error for desktop Safari 17+ when SAB is still missing', async () => {
+      const originalSAB = (globalThis as Record<string, unknown>).SharedArrayBuffer;
+      const originalUA  = navigator.userAgent;
+
+      delete (globalThis as Record<string, unknown>).SharedArrayBuffer;
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        configurable: true,
+      });
+
+      const errors: string[] = [];
+      const freshEmulator = new PSPEmulator('test-player');
+      freshEmulator.onError = (msg) => errors.push(msg);
+
+      try {
+        await freshEmulator.launch({
+          file: new File(['data'], 'game.iso'),
+          volume: 0.7,
+          systemId: 'psp',
+          performanceMode: 'auto',
+          deviceCaps: fakeCaps,
+        });
+      } finally {
+        (globalThis as Record<string, unknown>).SharedArrayBuffer = originalSAB;
+        Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
+      }
+
+      expect(errors.length).toBeGreaterThan(0);
+      // Safari 17+ error should mention reloading or COI headers
+      expect(errors[0]).toMatch(/reload|COOP|COEP/i);
+      // Should NOT suggest npm run dev (different error path)
+      expect(errors[0]).not.toContain('npm run dev');
     });
   });
 
@@ -1332,7 +1401,7 @@ describe('PSPEmulator', () => {
   describe('activeCoreSettings', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -1489,7 +1558,7 @@ describe('PSPEmulator', () => {
   describe('audio latency adaptation', () => {
     const baseCaps = {
       deviceMemoryGB: 8, cpuCores: 8, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'high' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 4096,
@@ -2077,7 +2146,7 @@ describe('PSPEmulator', () => {
         tierOverride:    'low',
         deviceCaps: {
           deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-          isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+          isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
           recommendedMode: 'quality', tier: 'medium',
           gpuCaps: {
             renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2105,7 +2174,7 @@ describe('PSPEmulator', () => {
   describe('launch with skipExtensionCheck', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2178,7 +2247,7 @@ describe('PSPEmulator', () => {
   describe('launch — netplay EJS globals', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2359,7 +2428,7 @@ describe('PSPEmulator', () => {
   describe('launch — biosUrl EJS global', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2430,7 +2499,7 @@ describe('PSPEmulator', () => {
   describe('launch — large ROM warning', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2510,7 +2579,7 @@ describe('PSPEmulator', () => {
   describe('launch — fileName override', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2590,7 +2659,7 @@ describe('PSPEmulator', () => {
   describe('launch — ISO and PBP extension validation', () => {
     const fakeCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'medium' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
@@ -2938,7 +3007,7 @@ describe('PSPEmulator', () => {
   describe('performance marks', () => {
     const markTestCaps = {
       deviceMemoryGB: 4, cpuCores: 4, gpuRenderer: 'unknown',
-      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false,
+      isSoftwareGPU: false, isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
       recommendedMode: 'quality' as const, tier: 'high' as const,
       gpuCaps: {
         renderer: 'unknown', vendor: 'unknown', maxTextureSize: 4096,

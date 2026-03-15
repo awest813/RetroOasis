@@ -768,6 +768,56 @@ describe('performance', () => {
     });
   });
 
+  // ── safariVersion in detectCapabilities ─────────────────────────────────
+
+  describe('safariVersion in detectCapabilities', () => {
+    it('sets safariVersion to the major version for macOS Safari 17', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+      );
+      Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+      const caps = detectCapabilities();
+      expect(caps.safariVersion).toBe(17);
+      expect(caps.isSafari).toBe(true);
+    });
+
+    it('sets safariVersion for iOS Safari 16', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+      );
+      const caps = detectCapabilities();
+      expect(caps.safariVersion).toBe(16);
+      expect(caps.isSafari).toBe(true);
+    });
+
+    it('sets safariVersion to null for Chrome on macOS', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      const caps = detectCapabilities();
+      expect(caps.safariVersion).toBeNull();
+      expect(caps.isSafari).toBe(false);
+    });
+
+    it('sets safariVersion to null for Chrome on iOS (CriOS)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1'
+      );
+      const caps = detectCapabilities();
+      expect(caps.safariVersion).toBeNull();
+      expect(caps.isSafari).toBe(false);
+    });
+
+    it('sets safariVersion to null for Firefox on desktop', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0'
+      );
+      const caps = detectCapabilities();
+      expect(caps.safariVersion).toBeNull();
+      expect(caps.isSafari).toBe(false);
+    });
+  });
+
   // ── Mobile tier cap ──────────────────────────────────────────────────────
 
   describe('classifyTier — mobile tier cap', () => {
@@ -883,6 +933,30 @@ describe('performance', () => {
       const summary = formatDetailedSummary(desktopCaps);
       expect(summary).not.toContain('iPhone/iPad');
       expect(summary).not.toContain('Android — WebGL');
+    });
+
+    it('shows Safari version and PSP-requires note for Safari < 17', () => {
+      const caps = detectCapabilities();
+      const safariCaps = { ...caps, isIOS: false, isSafari: true, safariVersion: 16 };
+      const summary = formatDetailedSummary(safariCaps);
+      expect(summary).toContain('Safari 16');
+      expect(summary).toContain('PSP requires Safari 17+');
+    });
+
+    it('shows Safari version and PSP-supported note for Safari 17+', () => {
+      const caps = detectCapabilities();
+      const safariCaps = { ...caps, isIOS: false, isSafari: true, safariVersion: 17 };
+      const summary = formatDetailedSummary(safariCaps);
+      expect(summary).toContain('Safari 17');
+      expect(summary).toContain('PSP is supported');
+    });
+
+    it('shows generic Safari line when safariVersion is null', () => {
+      const caps = detectCapabilities();
+      const safariCaps = { ...caps, isIOS: false, isSafari: true, safariVersion: null };
+      const summary = formatDetailedSummary(safariCaps);
+      expect(summary).toContain('Safari');
+      expect(summary).toContain('PSP requires Safari 17+');
     });
   });
 
