@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import "fake-indexeddb/auto";
-import { ShaderCache, shaderProgramKey, wgslModuleKey } from "./shaderCache.js";
+import { ShaderCache, shaderProgramKey, wgslModuleKey, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
 
 // ── shaderProgramKey ──────────────────────────────────────────────────────────
 
@@ -226,5 +226,168 @@ describe('tier scaling', () => {
     expect(cache.maxWGSLModules).toBe(8);
     cache.setTier('ultra');
     expect(cache.maxWGSLModules).toBe(64);
+  });
+});
+
+// ── Per-game shader warmup ────────────────────────────────────────────────────
+
+describe('Per-game shader warmup', () => {
+  let cache: ShaderCache;
+
+  beforeEach(() => {
+    cache = new ShaderCache();
+  });
+
+  afterEach(() => {
+    cache.endWarmupWindow();
+    vi.restoreAllMocks();
+  });
+
+  it('GAME_WARMUP_WINDOW_MS is 60 000 ms', () => {
+    expect(GAME_WARMUP_WINDOW_MS).toBe(60_000);
+  });
+
+  it('warmupGameId is null before beginWarmupWindow', () => {
+    expect(cache.warmupGameId).toBeNull();
+  });
+
+  it('beginWarmupWindow sets warmupGameId', () => {
+    cache.beginWarmupWindow('game-001');
+    expect(cache.warmupGameId).toBe('game-001');
+  });
+
+  it('endWarmupWindow clears warmupGameId', () => {
+    cache.beginWarmupWindow('game-001');
+    cache.endWarmupWindow();
+    expect(cache.warmupGameId).toBeNull();
+  });
+
+  it('record() associates shaders with the active game during the warmup window', async () => {
+    const vs = 'attribute vec2 pWarm; void main(){ gl_Position=vec4(pWarm,0,1); }';
+    const fs = 'precision lowp float; void main(){ gl_FragColor=vec4(1,0,0,1); }';
+
+    cache.beginWarmupWindow('game-abc');
+    await cache.record(vs, fs);
+
+    const entries = await cache.loadForGame('game-abc');
+    expect(entries.length).toBe(1);
+    expect(entries[0].vsSource).toBe(vs);
+    expect(entries[0].fsSource).toBe(fs);
+    expect(entries[0].gameId).toBe('game-abc');
+  });
+
+  it('record() does NOT associate shaders when no warmup window is open', async () => {
+    const vs = 'attribute vec3 bNoWarm; void main(){ gl_Position=vec4(bNoWarm,1); }';
+    const fs = 'void main(){ gl_FragColor=vec4(0); }';
+
+    await cache.record(vs, fs);
+
+    const entries = await cache.loadForGame('game-xyz');
+    expect(entries.length).toBe(0);
+  });
+
+  it('record() stops associating shaders after endWarmupWindow()', async () => {
+    const vs1 = 'attribute vec2 a1Stop; void main(){ gl_Position=vec4(a1Stop,0,1); }';
+    const fs1 = 'void main(){ gl_FragColor=vec4(1); }';
+    const vs2 = 'attribute vec2 a2Stop; void main(){ gl_Position=vec4(a2Stop,0,1); }';
+    const fs2 = 'void main(){ gl_FragColor=vec4(0); }';
+
+    cache.beginWarmupWindow('game-stop');
+    await cache.record(vs1, fs1);
+    cache.endWarmupWindow();
+    await cache.record(vs2, fs2);
+
+    const entries = await cache.loadForGame('game-stop');
+    expect(entries.length).toBe(1);
+    expect(entries[0].vsSource).toBe(vs1);
+  });
+
+  it('record() stops associating shaders after the warmup window time expires', async () => {
+    const vs1 = 'attribute vec2 earlyW; void main(){ gl_Position=vec4(earlyW,0,1); }';
+    const fs1 = 'void main(){ gl_FragColor=vec4(1,1,0,1); }';
+    const vs2 = 'attribute vec2 lateW; void main(){ gl_Position=vec4(lateW,0,1); }';
+    const fs2 = 'void main(){ gl_FragColor=vec4(0,1,1,1); }';
+
+    // Open the warmup window at t=0
+    vi.spyOn(performance, 'now').mockReturnValueOnce(0);
+    cache.beginWarmupWindow('game-expire');
+
+    // First record still within the window (t=100)
+    vi.spyOn(performance, 'now').mockReturnValue(100);
+    await cache.record(vs1, fs1);
+
+    // Second record is past the window boundary (t=GAME_WARMUP_WINDOW_MS+1)
+    vi.spyOn(performance, 'now').mockReturnValue(GAME_WARMUP_WINDOW_MS + 1);
+    await cache.record(vs2, fs2);
+
+    const entries = await cache.loadForGame('game-expire');
+    expect(entries.length).toBe(1);
+    expect(entries[0].vsSource).toBe(vs1);
+  });
+
+  it('countForGame() returns correct count', async () => {
+    cache.beginWarmupWindow('game-count');
+    await cache.record('attribute vec2 pCnt1; void main(){ gl_Position=vec4(pCnt1,0,1); }', 'void main(){ gl_FragColor=vec4(1); }');
+    await cache.record('attribute vec2 pCnt2; void main(){ gl_Position=vec4(pCnt2,0,1); }', 'void main(){ gl_FragColor=vec4(0); }');
+    cache.endWarmupWindow();
+
+    const count = await cache.countForGame('game-count');
+    expect(count).toBe(2);
+  });
+
+  it('countForGame() returns 0 for an unknown game', async () => {
+    const count = await cache.countForGame('nonexistent-game');
+    expect(count).toBe(0);
+  });
+
+  it('clearForGame() removes only entries for the target game', async () => {
+    cache.beginWarmupWindow('game-clear-a');
+    await cache.record('attribute vec2 pCA; void main(){ gl_Position=vec4(pCA,0,1); }', 'void main(){ gl_FragColor=vec4(1,0,0,1); }');
+    cache.endWarmupWindow();
+
+    cache.beginWarmupWindow('game-clear-b');
+    await cache.record('attribute vec2 pCB; void main(){ gl_Position=vec4(pCB,0,1); }', 'void main(){ gl_FragColor=vec4(0,1,0,1); }');
+    cache.endWarmupWindow();
+
+    await cache.clearForGame('game-clear-a');
+
+    expect(await cache.countForGame('game-clear-a')).toBe(0);
+    expect(await cache.countForGame('game-clear-b')).toBe(1);
+  });
+
+  it('loadForGame() returns entries for the correct game only', async () => {
+    cache.beginWarmupWindow('game-lf-x');
+    await cache.record('attribute vec2 pLX; void main(){ gl_Position=vec4(pLX,0,1); }', 'void main(){ gl_FragColor=vec4(1); }');
+    cache.endWarmupWindow();
+
+    cache.beginWarmupWindow('game-lf-y');
+    await cache.record('attribute vec2 pLY; void main(){ gl_Position=vec4(pLY,0,1); }', 'void main(){ gl_FragColor=vec4(0); }');
+    cache.endWarmupWindow();
+
+    const xEntries = await cache.loadForGame('game-lf-x');
+    const yEntries = await cache.loadForGame('game-lf-y');
+
+    expect(xEntries.length).toBe(1);
+    expect(yEntries.length).toBe(1);
+    expect(xEntries[0].gameId).toBe('game-lf-x');
+    expect(yEntries[0].gameId).toBe('game-lf-y');
+  });
+
+  it('preCompileForGame() resolves without error when cache is empty', async () => {
+    await expect(cache.preCompileForGame('game-pc-empty')).resolves.not.toThrow();
+  });
+
+  it('preCompileForGame() resolves without error when entries exist', async () => {
+    cache.beginWarmupWindow('game-pc-fill');
+    await cache.record('attribute vec2 pPC; void main(){ gl_Position=vec4(pPC,0,1); }', 'precision lowp float; void main(){ gl_FragColor=vec4(0); }');
+    cache.endWarmupWindow();
+
+    await expect(cache.preCompileForGame('game-pc-fill')).resolves.not.toThrow();
+  });
+
+  it('beginWarmupWindow replaces an existing open window', () => {
+    cache.beginWarmupWindow('game-first');
+    cache.beginWarmupWindow('game-second');
+    expect(cache.warmupGameId).toBe('game-second');
   });
 });

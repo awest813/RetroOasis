@@ -19,14 +19,25 @@
  *   - The GLSL cache is capped at MAX_PROGRAMS to avoid unbounded IDB growth
  *   - KHR_parallel_shader_compile is used when available to avoid stalling
  *     the main thread during GLSL pre-compilation
+ *   - Per-game shader warmup: during the first GAME_WARMUP_WINDOW_MS of each
+ *     game session, recorded shaders are also stored under the game's ID so
+ *     they can be pre-compiled specifically for that game on subsequent launches
  */
 
 import type { PerformanceTier } from "./performance.js";
 
 const CACHE_DB_NAME    = "retrovault-shaders";
-const CACHE_DB_VERSION = 2;
+const CACHE_DB_VERSION = 3;
 const CACHE_STORE      = "programs";
 const WGSL_STORE       = "wgslModules";
+const GAME_WARMUP_STORE = "gameWarmupPrograms";
+
+/**
+ * Duration of the per-game shader recording window (ms).
+ * Shaders recorded via `record()` while a warmup window is active are also
+ * persisted under the game's ID for targeted pre-compilation on next launch.
+ */
+export const GAME_WARMUP_WINDOW_MS = 60_000;
 export const DEFAULT_MAX_PROGRAMS     = 64;
 export const DEFAULT_MAX_WGSL_MODULES = 32;
 
@@ -78,6 +89,27 @@ export interface CachedWGSLModule {
   lastUsed: number;
 }
 
+/**
+ * A shader program recorded during the per-game warmup window.
+ *
+ * Stored in the `gameWarmupPrograms` IDB store, keyed on `id` which is a
+ * composite of `${gameId}:${shaderKey}`. The `gameId` field is indexed so
+ * that all programs for a specific game can be retrieved with a single
+ * index query.
+ */
+export interface GameWarmupEntry {
+  /** Composite primary key: `"${gameId}:${shaderKey}"`. */
+  id:       string;
+  /** The game identifier that was active when this shader was recorded. */
+  gameId:   string;
+  /** djb2 hash key of the shader program pair (matches `CachedProgram.key`). */
+  key:      string;
+  vsSource: string;
+  fsSource: string;
+  /** Unix timestamp (ms) of the last update (used for cleanup). */
+  lastUsed: number;
+}
+
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
 let _cacheDB: IDBDatabase | null = null;
@@ -110,6 +142,12 @@ function openCacheDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(WGSL_STORE)) {
         const wgslStore = db.createObjectStore(WGSL_STORE, { keyPath: "key" });
         wgslStore.createIndex("lastUsed", "lastUsed", { unique: false });
+      }
+
+      // v3: per-game warmup shader store (new in version 3)
+      if (!db.objectStoreNames.contains(GAME_WARMUP_STORE)) {
+        const warmupStore = db.createObjectStore(GAME_WARMUP_STORE, { keyPath: "id" });
+        warmupStore.createIndex("gameId", "gameId", { unique: false });
       }
     };
 
@@ -152,6 +190,22 @@ function idbGetAll<T>(store: IDBObjectStore): Promise<T[]> {
   });
 }
 
+function idbGetAllFromIndex<T>(index: IDBIndex, query: IDBValidKey): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const req = index.getAll(IDBKeyRange.only(query));
+    req.onsuccess = () => resolve(req.result as T[]);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function idbDelete(store: IDBObjectStore, key: IDBValidKey): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = store.delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
 // ── Hash function ─────────────────────────────────────────────────────────────
 
 /**
@@ -186,6 +240,12 @@ export class ShaderCache {
   private _tier: PerformanceTier = "medium";
   private _writesSinceEviction = 0;
   private _wgslWritesSinceEviction = 0;
+
+  // ── Per-game warmup window ─────────────────────────────────────────────────
+  /** Game ID of the active warmup window, or null when no window is open. */
+  private _warmupGameId: string | null = null;
+  /** Performance.now() timestamp when the warmup window was opened. */
+  private _warmupWindowStart = 0;
 
   setTier(tier: PerformanceTier): void {
     this._tier = tier;
@@ -260,8 +320,221 @@ export class ShaderCache {
           });
         }
       }
+
+      // If a per-game warmup window is active and still within the time limit,
+      // also associate this shader with the current game.
+      if (
+        this._warmupGameId !== null &&
+        (performance.now() - this._warmupWindowStart) < GAME_WARMUP_WINDOW_MS
+      ) {
+        await this._recordForGame(this._warmupGameId, key, vsSource, fsSource);
+      }
     } catch {
       // Best-effort — shader recording must never block gameplay
+    }
+  }
+
+  // ── Per-game warmup window API ─────────────────────────────────────────────
+
+  /**
+   * Open a per-game shader recording window for `gameId`.
+   *
+   * While the window is open (up to `GAME_WARMUP_WINDOW_MS` from now), any
+   * call to `record()` will additionally persist the shader under `gameId` in
+   * the `gameWarmupPrograms` store. Call `endWarmupWindow()` to close it
+   * early, or let it expire naturally via the time guard inside `record()`.
+   *
+   * Opening a window while one is already open replaces the previous window.
+   */
+  beginWarmupWindow(gameId: string): void {
+    this._warmupGameId     = gameId;
+    this._warmupWindowStart = performance.now();
+  }
+
+  /**
+   * Close the active per-game shader recording window, if any.
+   *
+   * Safe to call even when no window is open.
+   */
+  endWarmupWindow(): void {
+    this._warmupGameId     = null;
+    this._warmupWindowStart = 0;
+  }
+
+  /** Returns the gameId of the currently active warmup window, or null. */
+  get warmupGameId(): string | null {
+    return this._warmupGameId;
+  }
+
+  /**
+   * Persist a shader program association for `gameId` in the
+   * `gameWarmupPrograms` store.  This is the internal implementation shared by
+   * `record()` (automatic, window-driven) and callers who want to explicitly
+   * associate a shader with a game.
+   */
+  private async _recordForGame(
+    gameId: string,
+    key: string,
+    vsSource: string,
+    fsSource: string,
+  ): Promise<void> {
+    try {
+      const db = await openCacheDB();
+      const id = `${gameId}:${key}`;
+      const entry: GameWarmupEntry = {
+        id,
+        gameId,
+        key,
+        vsSource,
+        fsSource,
+        lastUsed: Date.now(),
+      };
+      await idbPut(
+        db.transaction(GAME_WARMUP_STORE, "readwrite").objectStore(GAME_WARMUP_STORE),
+        entry,
+      );
+    } catch {
+      // Best-effort — must never block gameplay
+    }
+  }
+
+  /**
+   * Load all shader programs associated with `gameId` from the per-game store.
+   * Returns an empty array if no programs have been recorded for this game or
+   * if IndexedDB is unavailable.
+   */
+  async loadForGame(gameId: string): Promise<GameWarmupEntry[]> {
+    try {
+      const db    = await openCacheDB();
+      const store = db.transaction(GAME_WARMUP_STORE, "readonly").objectStore(GAME_WARMUP_STORE);
+      const index = store.index("gameId");
+      return await idbGetAllFromIndex<GameWarmupEntry>(index, gameId);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Pre-compile all shader programs that were recorded for `gameId`.
+   *
+   * Works exactly like `preCompile()` but draws only from the per-game store
+   * rather than the global cache. Call this at game launch (before the core
+   * loads) so the GPU driver can serve those specific shaders from its binary
+   * cache on the first game frame.
+   *
+   * No-op if no programs have been recorded for this game.
+   */
+  async preCompileForGame(gameId: string): Promise<void> {
+    try {
+      const entries = await this.loadForGame(gameId);
+      if (entries.length === 0) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+      if (!gl) return;
+
+      const parallelExt = gl.getExtension("KHR_parallel_shader_compile") as ParallelShaderExt | null;
+      const compiled: Array<{ vs: WebGLShader; fs: WebGLShader; prog: WebGLProgram }> = [];
+
+      for (const e of entries) {
+        try {
+          const vs = gl.createShader(gl.VERTEX_SHADER)!;
+          gl.shaderSource(vs, e.vsSource);
+          gl.compileShader(vs);
+
+          const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+          gl.shaderSource(fs, e.fsSource);
+          gl.compileShader(fs);
+
+          const prog = gl.createProgram()!;
+          gl.attachShader(prog, vs);
+          gl.attachShader(prog, fs);
+          gl.linkProgram(prog);
+
+          if (!parallelExt) {
+            if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS) ||
+                !gl.getShaderParameter(fs, gl.COMPILE_STATUS) ||
+                !gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+              gl.deleteShader(vs);
+              gl.deleteShader(fs);
+              gl.deleteProgram(prog);
+              continue;
+            }
+          }
+
+          compiled.push({ vs, fs, prog });
+        } catch {
+          // Skip broken entries
+        }
+      }
+
+      if (parallelExt) {
+        const POLL_MS_LOW    = 16;
+        const POLL_MS_MEDIUM = 8;
+        const POLL_MS_HIGH   = 4;
+        const pollMs = this._tier === "low" ? POLL_MS_LOW : this._tier === "medium" ? POLL_MS_MEDIUM : POLL_MS_HIGH;
+
+        const poll = () => {
+          const allDone = compiled.every(({ prog }) =>
+            gl.getProgramParameter(prog, parallelExt.COMPLETION_STATUS_KHR) === true
+          );
+          if (!allDone) {
+            setTimeout(poll, pollMs);
+          } else {
+            cleanup();
+          }
+        };
+        poll();
+      } else {
+        cleanup();
+      }
+
+      function cleanup() {
+        for (const { vs, fs, prog } of compiled) {
+          gl!.deleteShader(vs);
+          gl!.deleteShader(fs);
+          gl!.deleteProgram(prog);
+        }
+        gl!.getExtension("WEBGL_lose_context")?.loseContext();
+      }
+    } catch {
+      // Best-effort — must never block gameplay
+    }
+  }
+
+  /**
+   * Remove all shader programs recorded for `gameId` from the per-game store.
+   */
+  async clearForGame(gameId: string): Promise<void> {
+    try {
+      const entries = await this.loadForGame(gameId);
+      if (entries.length === 0) return;
+      const db = await openCacheDB();
+      await new Promise<void>((resolve, reject) => {
+        const store = db.transaction(GAME_WARMUP_STORE, "readwrite").objectStore(GAME_WARMUP_STORE);
+        for (const e of entries) {
+          idbDelete(store, e.id).catch(() => {});
+        }
+        store.transaction.oncomplete = () => resolve();
+        store.transaction.onerror    = () => reject(store.transaction.error);
+      });
+    } catch {
+      // Best-effort
+    }
+  }
+
+  /**
+   * Count the number of shader programs recorded for `gameId`.
+   * Returns 0 if none have been recorded or IDB is unavailable.
+   */
+  async countForGame(gameId: string): Promise<number> {
+    try {
+      const entries = await this.loadForGame(gameId);
+      return entries.length;
+    } catch {
+      return 0;
     }
   }
 

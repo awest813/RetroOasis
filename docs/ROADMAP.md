@@ -262,7 +262,7 @@ Data-driven and heuristic approaches to automatically tune emulator settings.
 ### Caching & Preloading
 
 - [x] **Intelligent core preloading**: `recordSystemLaunch()` / `getTopLaunchedSystems()` in `performance.ts`; `emulator.prefetchTopSystems(2)` called at startup in `main.ts` via `scheduleIdleTask`; tracks launch counts in `localStorage` under `rv:launchCounts`
-- [ ] **Per-game shader warmup**: Record exact programs compiled during first 60 s of each game; pre-compile those on subsequent launches
+- [x] **Per-game shader warmup**: `ShaderCache.beginWarmupWindow(gameId)` / `endWarmupWindow()` open a 60-second recording window when `EJS_onGameStart` fires; any `record()` call during the window additionally persists the shader under `gameId` in the `gameWarmupPrograms` IDB store; `preCompileForGame(gameId)` pre-compiles those shaders at the start of each subsequent launch; `clearForGame()` / `countForGame()` / `loadForGame()` for management; wired into `PSPEmulator.launch()` and `_teardown()`
 - [x] **WASM compilation caching**: `WasmModuleCache` in `src/wasmCache.ts`; IndexedDB-backed `WebAssembly.Module` store; ETag/Last-Modified conditional validation; `wasmModuleCache` shared singleton
 - [x] **Capability cache TTL**: `detectCapabilitiesCached()` uses `sessionStorage` under `retrovault-devcaps-v1`; "Clear Capability Cache" button added to Debug tab in Settings
 
