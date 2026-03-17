@@ -35,7 +35,7 @@ import {
   recordSystemLaunch,
   getTopLaunchedSystems,
 } from "./performance.js";
-import { shaderCache } from "./shaderCache.js";
+import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
 import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
 import {
   WebGPUPostProcessor,
@@ -592,6 +592,8 @@ export class PSPEmulator {
   private _fpsPrediction: FpsPrediction = new FpsPrediction();
   /** Whether onFpsPredictionUnsustainable has already fired for this game launch. */
   private _fpsPredictionFired = false;
+  /** Timer ID for the per-game shader warmup window — cleared on teardown. */
+  private _shaderWarmupTimerId: ReturnType<typeof setTimeout> | null = null;
 
   /** When true, emit detailed debug information to the browser console. */
   verboseLogging = false;
@@ -1609,6 +1611,12 @@ export class PSPEmulator {
       // ── Record launch count for intelligent core preloading ─────────────
       recordSystemLaunch(opts.systemId);
 
+      // ── Per-game shader warmup: pre-compile shaders from previous sessions ─
+      // Fire-and-forget — must never delay the launch or block the UI thread.
+      if (opts.gameId) {
+        shaderCache.preCompileForGame(opts.gameId).catch(() => {});
+      }
+
       // ── Resolve performance settings (tier-aware) ───────────────────────
       // tierOverride bypasses auto-detection — used by the tier-downgrade flow
       const tier = opts.tierOverride ?? resolveTier(opts.performanceMode, opts.deviceCaps);
@@ -1923,6 +1931,26 @@ export class PSPEmulator {
         this._memoryMonitor.start();
         this._installVisibilityHandler();
         this._installContextLossHandler();
+
+        // ── Per-game shader warmup: open recording window ─────────────────
+        // Record shaders compiled during the first GAME_WARMUP_WINDOW_MS of
+        // gameplay and associate them with this game. On the next launch we
+        // will pre-compile those exact programs via preCompileForGame().
+        if (opts.gameId) {
+          shaderCache.beginWarmupWindow(opts.gameId);
+          this.logDiagnostic(
+            "performance",
+            `Per-game shader warmup window opened for "${opts.gameId}" (${GAME_WARMUP_WINDOW_MS / 1000} s)`
+          );
+          if (this._shaderWarmupTimerId !== null) {
+            clearTimeout(this._shaderWarmupTimerId);
+          }
+          this._shaderWarmupTimerId = setTimeout(() => {
+            shaderCache.endWarmupWindow();
+            this._shaderWarmupTimerId = null;
+            this.logDiagnostic("performance", `Per-game shader warmup window closed for "${opts.gameId}"`);
+          }, GAME_WARMUP_WINDOW_MS);
+        }
 
         // Attach WebGPU post-processing if enabled and device is available
         if (this._webgpuDevice && this._postProcessConfig.effect !== "none") {
@@ -2493,6 +2521,12 @@ export class PSPEmulator {
       clearTimeout(this._launchTimeoutId);
       this._launchTimeoutId = null;
     }
+    // Cancel any active per-game shader warmup window.
+    if (this._shaderWarmupTimerId !== null) {
+      clearTimeout(this._shaderWarmupTimerId);
+      this._shaderWarmupTimerId = null;
+    }
+    shaderCache.endWarmupWindow();
     this._fpsMonitor.stop();
     this._memoryMonitor.stop();
     this._removeVisibilityHandler();
