@@ -113,7 +113,7 @@ export class WasmModuleCache {
       }
 
       // Cache miss or stale — fetch, compile, and store
-      const { module, etag, lastModified } = await this._fetchCompileAndStore(url, db);
+      const { module } = await this._fetchCompileAndStore(url, db);
       return module;
     } catch {
       // IDB unavailable, module not serialisable, or network error — fall back

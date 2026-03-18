@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { WasmModuleCache } from "./wasmCache.js";
 
 // ── WasmModuleCache ───────────────────────────────────────────────────────────
@@ -53,8 +53,6 @@ describe("WasmModuleCache", () => {
   });
 
   it("falls back to compile on network error", async () => {
-    const wasmBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
-
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
 
     const cache = new WasmModuleCache();

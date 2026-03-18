@@ -151,7 +151,7 @@ describe("GameCompatibilityDb", () => {
   it("exportJson() returns a valid JSON string", () => {
     const db = new GameCompatibilityDb();
     const json = db.exportJson();
-    expect(() => JSON.parse(json)).not.toThrow();
+    expect(() => { JSON.parse(json); }).not.toThrow();
   });
 
   it("exportJson() includes built-in entries", () => {
