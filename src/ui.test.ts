@@ -23,6 +23,8 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     autoSaveEnabled: true,
     touchControls: false,
     hapticFeedback: true,
+    touchOpacity: 0.85,
+    touchButtonScale: 1.0,
     orientationLock: true,
     netplayEnabled: false,
     netplayServerUrl: "",

@@ -271,9 +271,9 @@ describe('Per-game shader warmup', () => {
 
     const entries = await cache.loadForGame('game-abc');
     expect(entries.length).toBe(1);
-    expect(entries[0].vsSource).toBe(vs);
-    expect(entries[0].fsSource).toBe(fs);
-    expect(entries[0].gameId).toBe('game-abc');
+    expect(entries[0]!.vsSource).toBe(vs);
+    expect(entries[0]!.fsSource).toBe(fs);
+    expect(entries[0]!.gameId).toBe('game-abc');
   });
 
   it('record() does NOT associate shaders when no warmup window is open', async () => {
@@ -299,7 +299,7 @@ describe('Per-game shader warmup', () => {
 
     const entries = await cache.loadForGame('game-stop');
     expect(entries.length).toBe(1);
-    expect(entries[0].vsSource).toBe(vs1);
+    expect(entries[0]!.vsSource).toBe(vs1);
   });
 
   it('record() stops associating shaders after the warmup window time expires', async () => {
@@ -322,7 +322,7 @@ describe('Per-game shader warmup', () => {
 
     const entries = await cache.loadForGame('game-expire');
     expect(entries.length).toBe(1);
-    expect(entries[0].vsSource).toBe(vs1);
+    expect(entries[0]!.vsSource).toBe(vs1);
   });
 
   it('countForGame() returns correct count', async () => {
@@ -369,8 +369,8 @@ describe('Per-game shader warmup', () => {
 
     expect(xEntries.length).toBe(1);
     expect(yEntries.length).toBe(1);
-    expect(xEntries[0].gameId).toBe('game-lf-x');
-    expect(yEntries[0].gameId).toBe('game-lf-y');
+    expect(xEntries[0]!.gameId).toBe('game-lf-x');
+    expect(yEntries[0]!.gameId).toBe('game-lf-y');
   });
 
   it('preCompileForGame() resolves without error when cache is empty', async () => {

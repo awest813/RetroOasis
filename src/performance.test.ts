@@ -114,7 +114,7 @@ describe('performance', () => {
           createShader: vi.fn(() => ({})),
           shaderSource: vi.fn(),
           compileShader: vi.fn(),
-          getShaderParameter: vi.fn((shader: unknown, pname: number) => {
+          getShaderParameter: vi.fn((_shader: unknown, pname: number) => {
             // Vertex shader compile fails
             if (pname === mockGl.COMPILE_STATUS) return false;
             return true;
@@ -182,7 +182,7 @@ describe('performance', () => {
           createProgram: vi.fn(() => ({})),
           attachShader: vi.fn(),
           linkProgram: vi.fn(),
-          getProgramParameter: vi.fn((prog: unknown, pname: number) => {
+          getProgramParameter: vi.fn((_prog: unknown, pname: number) => {
             if (pname === mockGl.LINK_STATUS) return false; // link fails
             return true;
           }),
@@ -2641,13 +2641,13 @@ describe('ThermalMonitor', () => {
 
   it('stop() resets state to "unknown"', async () => {
     // Simulate a running monitor with a mock PressureObserver
-    let callback: ((records: Array<{ state: string }>) => void) | null = null;
+    const cbHolder: { fn: ((records: Array<{ state: string }>) => void) | null } = { fn: null };
     const mockObserver = {
       observe: vi.fn().mockResolvedValue(undefined),
       unobserve: vi.fn(),
     };
     const MockPO = vi.fn().mockImplementation((cb: (records: Array<{ state: string }>) => void) => {
-      callback = cb;
+      cbHolder.fn = cb;
       return mockObserver;
     });
     (globalThis as Record<string, unknown>)['PressureObserver'] = MockPO;
@@ -2656,7 +2656,7 @@ describe('ThermalMonitor', () => {
     await monitor.start();
 
     // Fire a simulated state change
-    callback?.([{ state: 'serious' }]);
+    cbHolder.fn?.([{ state: 'serious' }]);
     expect(monitor.state).toBe('serious');
 
     monitor.stop();
@@ -2666,13 +2666,13 @@ describe('ThermalMonitor', () => {
   });
 
   it('fires onPressureChange callback on state transition', async () => {
-    let callback: ((records: Array<{ state: string }>) => void) | null = null;
+    const cbHolder: { fn: ((records: Array<{ state: string }>) => void) | null } = { fn: null };
     const mockObserver = {
       observe: vi.fn().mockResolvedValue(undefined),
       unobserve: vi.fn(),
     };
     const MockPO = vi.fn().mockImplementation((cb: (records: Array<{ state: string }>) => void) => {
-      callback = cb;
+      cbHolder.fn = cb;
       return mockObserver;
     });
     (globalThis as Record<string, unknown>)['PressureObserver'] = MockPO;
@@ -2682,11 +2682,11 @@ describe('ThermalMonitor', () => {
     monitor.onPressureChange = (s, p) => changes.push([s, p]);
     await monitor.start();
 
-    callback?.([{ state: 'fair' }]);
+    cbHolder.fn?.([{ state: 'fair' }]);
     expect(changes).toHaveLength(1);
     expect(changes[0]).toEqual(['fair', 'unknown']);
 
-    callback?.([{ state: 'serious' }]);
+    cbHolder.fn?.([{ state: 'serious' }]);
     expect(changes).toHaveLength(2);
     expect(changes[1]).toEqual(['serious', 'fair']);
 
@@ -2694,13 +2694,13 @@ describe('ThermalMonitor', () => {
   });
 
   it('does not fire onPressureChange when the state does not change', async () => {
-    let callback: ((records: Array<{ state: string }>) => void) | null = null;
+    const cbHolder: { fn: ((records: Array<{ state: string }>) => void) | null } = { fn: null };
     const mockObserver = {
       observe: vi.fn().mockResolvedValue(undefined),
       unobserve: vi.fn(),
     };
     const MockPO = vi.fn().mockImplementation((cb: (records: Array<{ state: string }>) => void) => {
-      callback = cb;
+      cbHolder.fn = cb;
       return mockObserver;
     });
     (globalThis as Record<string, unknown>)['PressureObserver'] = MockPO;
@@ -2710,21 +2710,21 @@ describe('ThermalMonitor', () => {
     monitor.onPressureChange = () => callCount++;
     await monitor.start();
 
-    callback?.([{ state: 'nominal' }]);
-    callback?.([{ state: 'nominal' }]); // same state — should not fire again
+    cbHolder.fn?.([{ state: 'nominal' }]);
+    cbHolder.fn?.([{ state: 'nominal' }]); // same state — should not fire again
     expect(callCount).toBe(1);
 
     delete (globalThis as Record<string, unknown>)['PressureObserver'];
   });
 
   it('maps unknown pressure states to "unknown"', async () => {
-    let callback: ((records: Array<{ state: string }>) => void) | null = null;
+    const cbHolder: { fn: ((records: Array<{ state: string }>) => void) | null } = { fn: null };
     const mockObserver = {
       observe: vi.fn().mockResolvedValue(undefined),
       unobserve: vi.fn(),
     };
     const MockPO = vi.fn().mockImplementation((cb: (records: Array<{ state: string }>) => void) => {
-      callback = cb;
+      cbHolder.fn = cb;
       return mockObserver;
     });
     (globalThis as Record<string, unknown>)['PressureObserver'] = MockPO;
@@ -2735,11 +2735,11 @@ describe('ThermalMonitor', () => {
     await monitor.start();
 
     // Transition to a known state first
-    callback?.([{ state: 'fair' }]);
+    cbHolder.fn?.([{ state: 'fair' }]);
     expect(monitor.state).toBe('fair');
 
     // Now an unknown state maps to "unknown" — should fire a transition fair → unknown
-    callback?.([{ state: 'extremely_hot' }]);
+    cbHolder.fn?.([{ state: 'extremely_hot' }]);
     expect(states).toHaveLength(2);
     expect(states[1]).toBe('unknown');
     expect(monitor.state).toBe('unknown');

@@ -203,7 +203,11 @@ export class PeerDataChannel {
     if (!this._dc || this._dc.readyState !== "open") {
       throw new Error("Data channel is not open.");
     }
-    this._dc.send(data);
+    if (typeof data === "string") {
+      this._dc.send(data);
+    } else {
+      this._dc.send(data);
+    }
   }
 
   /**
