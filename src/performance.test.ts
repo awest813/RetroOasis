@@ -2500,6 +2500,69 @@ describe('performance', () => {
       expect(typeof result).toBe('object');
     });
 
+    it('display_match returns step 1 (2×) for a 1080p display', () => {
+      // Simulate a 1920×1080 display with no HiDPI scaling
+      const origWindow = globalThis.window;
+      try {
+        Object.defineProperty(globalThis, 'window', {
+          value: { devicePixelRatio: 1, screen: { width: 1920 } },
+          configurable: true,
+        });
+        const result = getResolutionCoreOptions('psp', 'display_match');
+        // 1920 physical pixels → step 1 → ppsspp_internal_resolution: '2'
+        expect(result).toEqual({ ppsspp_internal_resolution: '2' });
+      } finally {
+        Object.defineProperty(globalThis, 'window', { value: origWindow, configurable: true });
+      }
+    });
+
+    it('display_match returns step 2 (4×) for a 4K display', () => {
+      // Simulate a 3840×2160 display with no HiDPI scaling
+      const origWindow = globalThis.window;
+      try {
+        Object.defineProperty(globalThis, 'window', {
+          value: { devicePixelRatio: 1, screen: { width: 3840 } },
+          configurable: true,
+        });
+        const result = getResolutionCoreOptions('psp', 'display_match');
+        // 3840 physical pixels → step 2 → ppsspp_internal_resolution: '4'
+        expect(result).toEqual({ ppsspp_internal_resolution: '4' });
+      } finally {
+        Object.defineProperty(globalThis, 'window', { value: origWindow, configurable: true });
+      }
+    });
+
+    it('display_match returns step 2 (4×) for N64 on a 4K display', () => {
+      // N64 benefits greatly from 4× upscaling on 4K displays (1280×960 output)
+      const origWindow = globalThis.window;
+      try {
+        Object.defineProperty(globalThis, 'window', {
+          value: { devicePixelRatio: 1, screen: { width: 3840 } },
+          configurable: true,
+        });
+        const result = getResolutionCoreOptions('n64', 'display_match');
+        expect(result).toEqual({ 'mupen64plus-resolution-factor': '4' });
+      } finally {
+        Object.defineProperty(globalThis, 'window', { value: origWindow, configurable: true });
+      }
+    });
+
+    it('display_match uses devicePixelRatio to calculate physical resolution', () => {
+      // A 2560×1440 logical display at 2× DPR has 5120 physical pixels — selects 4×
+      const origWindow = globalThis.window;
+      try {
+        Object.defineProperty(globalThis, 'window', {
+          value: { devicePixelRatio: 2, screen: { width: 2560 } },
+          configurable: true,
+        });
+        const result = getResolutionCoreOptions('psp', 'display_match');
+        // physicalW = 5120 → >= 3840 → step 2 → '4'
+        expect(result).toEqual({ ppsspp_internal_resolution: '4' });
+      } finally {
+        Object.defineProperty(globalThis, 'window', { value: origWindow, configurable: true });
+      }
+    });
+
     describe('getResolutionLadder', () => {
       it('returns null for unknown system', () => {
         expect(getResolutionLadder('unknownSystem')).toBeNull();

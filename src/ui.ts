@@ -60,6 +60,7 @@ import {
   UIDirtyFlags,
   UIDirtyTracker,
   clearCapabilitiesCache,
+  getResolutionLadder,
 } from "./performance.js";
 import {
   BiosLibrary,
@@ -3688,13 +3689,16 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
  */
 function openPerGameGraphicsDialog(
   gameId:           string,
-  _systemId:        string,
+  systemId:         string,
   gameName:         string,
   emulator:         PSPEmulator,
   onSettingsChange: (patch: Partial<Settings>) => void,
   settings:         Settings,
 ): void {
-  const existing = getGameGraphicsProfile(gameId) ?? {};
+  const existing   = getGameGraphicsProfile(gameId) ?? {};
+  const systemInfo = getSystemById(systemId);
+  const is3D       = systemInfo?.is3D ?? false;
+  const hasResolutionLadder = getResolutionLadder(systemId) !== null;
 
   const overlay = make("div", { class: "confirm-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Per-Game Graphics Settings" });
   const box     = make("div", { class: "confirm-box" });
@@ -3702,17 +3706,24 @@ function openPerGameGraphicsDialog(
   const title = make("h3", { class: "confirm-title" }, `🎨 Graphics — ${gameName}`);
   const body  = make("div", { class: "confirm-body", style: "display:flex;flex-direction:column;gap:12px;" });
 
-  // Resolution preset
+  // Resolution preset — only shown for systems with a known resolution ladder
   const resPresetLabel = make("label", { class: "settings-label", style: "font-size:0.8rem;font-weight:600;" }, "Resolution Preset");
+  const resPresetDescText = hasResolutionLadder
+    ? "Override the tier default internal resolution for this game."
+    : "Internal resolution scaling is not available for this system.";
   const resPresetDesc  = make("p", { class: "settings-desc", style: "font-size:0.72rem;opacity:0.7;margin:2px 0 6px;" },
-    "Override the tier default internal resolution for this game."
+    resPresetDescText
   );
-  const resPresetSel = make("select", { class: "settings-select", style: "width:100%;padding:5px 8px;font-size:0.8rem;" }) as HTMLSelectElement;
+  const resPresetSel = make("select", {
+    class: "settings-select",
+    style: "width:100%;padding:5px 8px;font-size:0.8rem;",
+    ...(hasResolutionLadder ? {} : { disabled: "true" }),
+  }) as HTMLSelectElement;
   const resPresetOptions: Array<{ value: string; label: string }> = [
     { value: "",              label: "— Use tier default —" },
     { value: "native",        label: "Native (1×)" },
-    { value: "2x",            label: "2× Crisp" },
-    { value: "4x",            label: "4× Ultra" },
+    { value: "2x",            label: "2× Internal" },
+    { value: "4x",            label: "4× Internal" },
     { value: "display_match", label: "Display Match (auto)" },
   ];
   for (const opt of resPresetOptions) {
@@ -3724,23 +3735,29 @@ function openPerGameGraphicsDialog(
 
   // Post-process effect override
   const fxLabel = make("label", { class: "settings-label", style: "font-size:0.8rem;font-weight:600;" }, "Post-Processing Effect");
+  const fxDescText = is3D
+    ? "FSR and TAA are recommended for 3D systems to improve sharpness and reduce aliasing."
+    : "Override the global post-processing effect for this game.";
   const fxDesc  = make("p", { class: "settings-desc", style: "font-size:0.72rem;opacity:0.7;margin:2px 0 6px;" },
-    "Override the global post-processing effect for this game."
+    fxDescText
   );
   const fxSel = make("select", { class: "settings-select", style: "width:100%;padding:5px 8px;font-size:0.8rem;" }) as HTMLSelectElement;
   const fxOptions: Array<{ value: string; label: string }> = [
     { value: "__global__", label: "— Use global setting —" },
     { value: "none",       label: "None" },
-    { value: "fsr",        label: "FSR 1.0 (upscaling + sharpening)" },
+    { value: "fsr",        label: is3D ? "FSR 1.0 ★ (upscaling + sharpening)" : "FSR 1.0 (upscaling + sharpening)" },
     { value: "taa",        label: "TAA (temporal anti-aliasing)" },
-    { value: "sharpen",    label: "Sharpen" },
     { value: "fxaa",       label: "FXAA" },
+    { value: "sharpen",    label: "Sharpen" },
+    { value: "hdr",        label: "HDR Tone Mapping" },
+    { value: "ntsc",       label: "NTSC Composite" },
     { value: "crt",        label: "CRT Simulation" },
     { value: "lcd",        label: "LCD Shadow Mask" },
     { value: "bloom",      label: "Bloom" },
     { value: "grain",      label: "Film Grain" },
-    { value: "retro",      label: "Retro Pixel Art" },
     { value: "colorgrade", label: "Color Grade" },
+    { value: "retro",      label: "Retro Pixel Art" },
+    { value: "pixelate",   label: "Pixelate" },
   ];
   for (const opt of fxOptions) {
     const o = make("option", { value: opt.value }, opt.label) as HTMLOptionElement;

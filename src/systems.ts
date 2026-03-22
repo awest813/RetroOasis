@@ -35,6 +35,12 @@ export interface SystemInfo {
    */
   needsBios?: boolean;
   /**
+   * Whether this system renders 3D graphics (polygon-based geometry).
+   * When true, post-processing effects like FSR and TAA are particularly
+   * beneficial. 2D pixel-art systems omit this field (defaults to false).
+   */
+  is3D?: boolean;
+  /**
    * EJS_Settings overrides applied in "performance" (low-spec) mode.
    * Keys are RetroArch core-option names; values are strings.
    */
@@ -770,6 +776,7 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#0070cc",
     needsThreads: true,
     needsWebGL2: true,
+    is3D: true,
     qualitySettings: {
       ppsspp_internal_resolution: "2",
       ppsspp_auto_frameskip: "disabled",
@@ -849,6 +856,7 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#4b5d7a",
     needsThreads: false,
     needsWebGL2: false,
+    is3D: true,
     qualitySettings: NDS_TIER_SETTINGS.high,
     perfSettings: NDS_TIER_SETTINGS.low,
     tierSettings: NDS_TIER_SETTINGS,
@@ -861,6 +869,7 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#1a7a1a",
     needsThreads: false,
     needsWebGL2: false,
+    is3D: true,
     qualitySettings: N64_TIER_SETTINGS.high,
     perfSettings: N64_TIER_SETTINGS.low,
     tierSettings: N64_TIER_SETTINGS,
@@ -873,6 +882,7 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#003087",
     needsThreads: false,
     needsWebGL2: false,
+    is3D: true,
     qualitySettings: PSX_TIER_SETTINGS.high,
     perfSettings: PSX_TIER_SETTINGS.low,
     tierSettings: PSX_TIER_SETTINGS,
@@ -944,6 +954,7 @@ export const SYSTEMS: SystemInfo[] = [
     needsThreads: false,
     needsWebGL2: false,
     needsBios: true,
+    is3D: true,
     qualitySettings: SATURN_TIER_SETTINGS.high,
     perfSettings: SATURN_TIER_SETTINGS.low,
     tierSettings: SATURN_TIER_SETTINGS,
@@ -957,6 +968,7 @@ export const SYSTEMS: SystemInfo[] = [
     needsThreads: false,
     needsWebGL2: false,
     needsBios: true,
+    is3D: true,
     qualitySettings: DREAMCAST_TIER_SETTINGS.high,
     perfSettings: DREAMCAST_TIER_SETTINGS.low,
     tierSettings: DREAMCAST_TIER_SETTINGS,

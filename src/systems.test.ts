@@ -395,4 +395,139 @@ describe('systems performance profiles', () => {
       expect(fresh.ppsspp_internal_resolution).toBe('1');
     });
   });
+
+  // ── is3D flag ───────────────────────────────────────────────────────────────
+
+  describe('is3D system flag', () => {
+    it('marks PSP as a 3D system', () => {
+      expect(getSystemById('psp')?.is3D).toBe(true);
+    });
+
+    it('marks N64 as a 3D system', () => {
+      expect(getSystemById('n64')?.is3D).toBe(true);
+    });
+
+    it('marks PS1 as a 3D system', () => {
+      expect(getSystemById('psx')?.is3D).toBe(true);
+    });
+
+    it('marks Sega Saturn as a 3D system', () => {
+      expect(getSystemById('segaSaturn')?.is3D).toBe(true);
+    });
+
+    it('marks Dreamcast as a 3D system', () => {
+      expect(getSystemById('segaDC')?.is3D).toBe(true);
+    });
+
+    it('does not mark NES as a 3D system', () => {
+      expect(getSystemById('nes')?.is3D).toBeFalsy();
+    });
+
+    it('does not mark SNES as a 3D system', () => {
+      expect(getSystemById('snes')?.is3D).toBeFalsy();
+    });
+
+    it('does not mark GBA as a 3D system', () => {
+      expect(getSystemById('gba')?.is3D).toBeFalsy();
+    });
+
+    it('does not mark Game Boy Color as a 3D system', () => {
+      expect(getSystemById('gbc')?.is3D).toBeFalsy();
+    });
+
+    it('marks NDS as a 3D system (DS hardware includes a dedicated 3D rendering engine)', () => {
+      expect(getSystemById('nds')?.is3D).toBe(true);
+    });
+  });
+
+  // ── N64 graphics settings ───────────────────────────────────────────────────
+
+  describe('N64 tier graphics settings', () => {
+    it('uses Rice plugin on low tier for maximum performance', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.['mupen64plus-rdp-plugin']).toBe('rice');
+    });
+
+    it('uses GliDeN64 plugin on medium, high, and ultra tiers for better accuracy', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-rdp-plugin']).toBe('gliden64');
+      expect(n64?.tierSettings?.high?.['mupen64plus-rdp-plugin']).toBe('gliden64');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-rdp-plugin']).toBe('gliden64');
+    });
+
+    it('uses native resolution on low and medium tiers', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.['mupen64plus-resolution-factor']).toBe('1');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-resolution-factor']).toBe('1');
+    });
+
+    it('uses 2× resolution on high tier and 4× on ultra tier', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.high?.['mupen64plus-resolution-factor']).toBe('2');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-resolution-factor']).toBe('4');
+    });
+
+    it('enables hardware lighting only on high and ultra tiers', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.['mupen64plus-EnableHWLighting']).toBe('False');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-EnableHWLighting']).toBe('False');
+      expect(n64?.tierSettings?.high?.['mupen64plus-EnableHWLighting']).toBe('True');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableHWLighting']).toBe('True');
+    });
+
+    it('enables N64 depth compare only on ultra tier for maximum accuracy', () => {
+      const n64 = getSystemById('n64');
+      // Ultra: enables N64 depth compare for highest rendering accuracy
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableN64DepthCompare']).toBe('True');
+      // High: depth compare disabled — avoids the GPU overhead at 2× resolution
+      expect(n64?.tierSettings?.high?.['mupen64plus-EnableN64DepthCompare']).toBe('False');
+    });
+
+    it('disables FB emulation on low tier to save GPU bandwidth', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.['mupen64plus-EnableFBEmulation']).toBe('False');
+    });
+
+    it('enables FB emulation from medium tier upward for better compatibility', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-EnableFBEmulation']).toBe('True');
+      expect(n64?.tierSettings?.high?.['mupen64plus-EnableFBEmulation']).toBe('True');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableFBEmulation']).toBe('True');
+    });
+
+    it('uses 3-point bilinear filtering on high and ultra tiers', () => {
+      const n64 = getSystemById('n64');
+      // Standard bilinear on low/medium — lower GPU cost
+      expect(n64?.tierSettings?.low?.['mupen64plus-BilinearMode']).toBe('standard');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-BilinearMode']).toBe('standard');
+      // 3-point mode gives better texture quality at higher internal resolutions
+      expect(n64?.tierSettings?.high?.['mupen64plus-BilinearMode']).toBe('3point');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-BilinearMode']).toBe('3point');
+    });
+
+    it('uses progressively stronger texture filtering across tiers', () => {
+      const n64 = getSystemById('n64');
+      // Low: no texture filtering
+      expect(n64?.tierSettings?.low?.['mupen64plus-txFilterMode']).toBe('None');
+      // Medium: no texture filtering
+      expect(n64?.tierSettings?.medium?.['mupen64plus-txFilterMode']).toBe('None');
+      // High: smooth filtering 1 (gentle smoothing)
+      expect(n64?.tierSettings?.high?.['mupen64plus-txFilterMode']).toBe('Smooth filtering 1');
+      // Ultra: smooth filtering 4 (maximum smoothing for 4× resolution)
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-txFilterMode']).toBe('Smooth filtering 4');
+    });
+
+    it('uses a larger texture cache on ultra tier to support 4× resolution', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-MaxTxCacheSize']).toBe('4000');
+    });
+
+    it('uses dynamic recompiler for CPU on all tiers', () => {
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
+      expect(n64?.tierSettings?.medium?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
+      expect(n64?.tierSettings?.high?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
+      expect(n64?.tierSettings?.ultra?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
+    });
+  });
 });
