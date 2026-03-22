@@ -103,7 +103,7 @@ export function getResolutionCoreOptions(
         const dpr         = window.devicePixelRatio ?? 1;
         const logicalW    = window.screen?.width ?? 1920;
         const physicalW   = logicalW * dpr;
-        displayStep = physicalW >= 3840 ? 2 : physicalW >= 1920 ? 1 : 1;
+        displayStep = physicalW >= 3840 ? 2 : 1;
       }
       targetIdx = Math.min(displayStep, ladder.values.length - 1);
       break;
