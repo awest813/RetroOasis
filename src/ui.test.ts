@@ -174,6 +174,16 @@ describe("buildDOM", () => {
     expect(accept).toContain(".gz");
   });
 
+  it("renders a clear-search control for quick library resets", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const clearButton = document.getElementById("library-search-clear") as HTMLButtonElement | null;
+    expect(clearButton).toBeTruthy();
+    expect(clearButton?.hidden).toBe(true);
+  });
+
   it("resets library control state on a second buildDOM call", async () => {
     const settings = makeSettings();
     const gamesA: GameMetadata[] = [
@@ -426,6 +436,90 @@ describe("library stale system filter recovery", () => {
       .map(el => el.textContent?.trim());
     expect(cardNames).toEqual(["Mario"]);
     expect(document.querySelector(".library-empty")).toBeNull();
+  });
+
+  it("lets users clear an active search from the inline clear button", async () => {
+    const settings = makeSettings();
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const games: GameMetadata[] = [
+      makeGame("g1", "Mario", "nes"),
+      makeGame("g2", "Metroid", "nes"),
+    ];
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue(games),
+    } as unknown as GameLibrary;
+    const opts = makeOpts(settings);
+    initUI({ ...opts, library });
+    await new Promise(r => setTimeout(r, 0));
+
+    const search = document.getElementById("library-search") as HTMLInputElement;
+    const clearButton = document.getElementById("library-search-clear") as HTMLButtonElement;
+
+    search.value = "zzz";
+    search.dispatchEvent(new Event("input"));
+    await new Promise(r => setTimeout(r, 150));
+
+    expect(document.querySelector(".library-empty")?.textContent).toMatch(/No games match/i);
+    expect(clearButton.hidden).toBe(false);
+
+    clearButton.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const cardNames = Array.from(document.querySelectorAll<HTMLElement>(".game-card__name"))
+      .map(el => el.textContent?.trim());
+    expect(search.value).toBe("");
+    expect(clearButton.hidden).toBe(true);
+    expect(cardNames).toEqual(["Mario", "Metroid"]);
+  });
+
+  it("offers a reset filters action when search and system filters produce no matches", async () => {
+    const settings = makeSettings();
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const games: GameMetadata[] = [
+      makeGame("g1", "Mario", "nes"),
+      makeGame("g2", "Ridge Racer", "psp"),
+    ];
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue(games),
+    } as unknown as GameLibrary;
+    const opts = makeOpts(settings);
+    initUI({ ...opts, library });
+    await new Promise(r => setTimeout(r, 0));
+
+    const pspChip = Array.from(document.querySelectorAll<HTMLButtonElement>(".sys-filter-chip"))
+      .find(btn => btn.textContent?.trim() === "PSP");
+    expect(pspChip).toBeTruthy();
+    pspChip!.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const search = document.getElementById("library-search") as HTMLInputElement;
+    search.value = "mario";
+    search.dispatchEvent(new Event("input"));
+    await new Promise(r => setTimeout(r, 150));
+
+    const empty = document.querySelector(".library-empty");
+    expect(empty?.textContent).toMatch(/reset the filters/i);
+    expect(empty?.textContent).toMatch(/PSP/i);
+    const resetButton = document.querySelector(".library-empty__reset") as HTMLButtonElement | null;
+    expect(resetButton).toBeTruthy();
+
+    resetButton!.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const allChip = Array.from(document.querySelectorAll<HTMLButtonElement>(".sys-filter-chip"))
+      .find(btn => btn.textContent?.trim() === "All");
+    expect(search.value).toBe("");
+    expect(allChip?.classList.contains("active")).toBe(true);
+
+    const cardNames = Array.from(document.querySelectorAll<HTMLElement>(".game-card__name"))
+      .map(el => el.textContent?.trim());
+    expect(cardNames).toEqual(["Mario", "Ridge Racer"]);
   });
 });
 
@@ -4008,7 +4102,7 @@ describe("resolveSystemAndAdd — retry on addGame failure", () => {
     let addGameCalls = 0;
     const library = {
       findByFileName: vi.fn().mockResolvedValue(null),
-      addGame: vi.fn().mockImplementation(async (f: File, systemId: string) => {
+      addGame: vi.fn().mockImplementation(async (_file: File, systemId: string) => {
         addGameCalls++;
         if (addGameCalls < 2) {
           const err = Object.assign(new Error("transaction aborted"), { name: "AbortError" });

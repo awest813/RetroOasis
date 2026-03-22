@@ -245,6 +245,8 @@ export function buildDOM(app: HTMLElement): void {
                 <input class="library-search" id="library-search"
                        type="search" placeholder="Search games…" autocomplete="off"
                        aria-label="Search games" />
+                <button class="library-search-clear" id="library-search-clear"
+                        type="button" aria-label="Clear search" hidden>✕</button>
               </div>
               <select class="library-sort" id="library-sort" aria-label="Sort games">
                 <option value="lastPlayed">Last Played</option>
@@ -749,6 +751,56 @@ let _librarySortMode: SortMode = "lastPlayed";
 let _librarySystemFilter = "";
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
+function _syncLibraryControlState(): void {
+  const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
+  const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
+  const clearBtn = document.getElementById("library-search-clear") as HTMLButtonElement | null;
+
+  if (searchEl) searchEl.value = _librarySearchQuery;
+  if (sortEl) sortEl.value = _librarySortMode;
+  if (clearBtn) clearBtn.hidden = _librarySearchQuery.length === 0;
+}
+
+function _scheduleLibraryRender(
+  library: GameLibrary,
+  settings: Settings,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
+  emulatorRef?: PSPEmulator,
+  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>,
+  debounceMs = 0
+): void {
+  if (_librarySearchDebounce !== null) {
+    clearTimeout(_librarySearchDebounce);
+    _librarySearchDebounce = null;
+  }
+
+  const doRender = () => {
+    _librarySearchDebounce = null;
+    void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+  };
+
+  if (debounceMs > 0) {
+    _librarySearchDebounce = setTimeout(doRender, debounceMs);
+    return;
+  }
+
+  doRender();
+}
+
+function _resetLibraryFilters(
+  library: GameLibrary,
+  settings: Settings,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
+  emulatorRef?: PSPEmulator,
+  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
+): void {
+  _librarySearchQuery = "";
+  _librarySystemFilter = "";
+  _librarySortMode = "lastPlayed";
+  _syncLibraryControlState();
+  _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+}
+
 export async function renderLibrary(
   library:       GameLibrary,
   settings:      Settings,
@@ -812,7 +864,22 @@ export async function renderLibrary(
 
   if (displayed.length === 0 && allGames.length > 0) {
     const empty = make("div", { class: "library-empty" });
-    empty.innerHTML = `<p>No games match "<em>${_escHtml(_librarySearchQuery)}</em>" — try a different search</p>`;
+    const hasSearch = _librarySearchQuery.trim().length > 0;
+    const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
+    let message = "No games match your current filters.";
+    if (hasSearch && activeSystem) {
+      message = `No ${_escHtml(activeSystem)} games match "<em>${_escHtml(_librarySearchQuery)}</em>".`;
+    } else if (hasSearch) {
+      message = `No games match "<em>${_escHtml(_librarySearchQuery)}</em>".`;
+    } else if (activeSystem) {
+      message = `No games available for <em>${_escHtml(activeSystem)}</em>.`;
+    }
+    empty.innerHTML = `<p>${message} Try a broader search, choose another system, or reset the filters.</p>`;
+    const resetBtn = make("button", { class: "btn library-empty__reset", type: "button" }, "Reset filters");
+    resetBtn.addEventListener("click", () => {
+      _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    });
+    empty.appendChild(resetBtn);
     grid.appendChild(empty);
     return;
   }
@@ -1063,24 +1130,41 @@ function _wireLibraryControls(
 
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
   const sortEl   = document.getElementById("library-sort") as HTMLSelectElement | null;
+  const clearBtn = document.getElementById("library-search-clear") as HTMLButtonElement | null;
+
+  _syncLibraryControlState();
 
   if (searchEl) {
-    searchEl.value = _librarySearchQuery;
     searchEl.addEventListener("input", () => {
       _librarySearchQuery = searchEl.value;
-      if (_librarySearchDebounce !== null) clearTimeout(_librarySearchDebounce);
-      _librarySearchDebounce = setTimeout(() => {
-        _librarySearchDebounce = null;
-        void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-      }, 120);
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch, 120);
+    });
+    searchEl.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || _librarySearchQuery.length === 0) return;
+      event.preventDefault();
+      searchEl.value = "";
+      _librarySearchQuery = "";
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
   }
 
   if (sortEl) {
-    sortEl.value = _librarySortMode;
     sortEl.addEventListener("change", () => {
       _librarySortMode = sortEl.value as SortMode;
-      void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    });
+  }
+
+  if (clearBtn && searchEl) {
+    clearBtn.addEventListener("click", () => {
+      searchEl.value = "";
+      _librarySearchQuery = "";
+      _syncLibraryControlState();
+      searchEl.focus();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
   }
 }
@@ -1112,7 +1196,7 @@ function _renderSystemFilterChips(
   }, "All");
   allChip.addEventListener("click", () => {
     _librarySystemFilter = "";
-    void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
   });
   filterEl.appendChild(allChip);
 
@@ -1125,7 +1209,7 @@ function _renderSystemFilterChips(
     if (sys) chip.style.setProperty("--chip-color", sys.color);
     chip.addEventListener("click", () => {
       _librarySystemFilter = _librarySystemFilter === sysId ? "" : sysId;
-      void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
     filterEl.appendChild(chip);
   }

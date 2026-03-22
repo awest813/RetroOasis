@@ -315,7 +315,7 @@ body {
 
 .library-search {
   height: 36px;
-  padding: 0 12px 0 32px;
+  padding: 0 38px 0 32px;
   background: var(--c-surface2);
   border: 1.5px solid var(--c-border);
   border-radius: var(--radius-pill);
@@ -329,6 +329,33 @@ body {
 
 .library-search::placeholder { color: var(--c-text-faint); }
 .library-search::-webkit-search-cancel-button { cursor: pointer; }
+
+.library-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition), transform var(--spring-fast);
+}
+
+.library-search-clear:hover,
+.library-search-clear:focus-visible {
+  background: color-mix(in srgb, var(--c-accent) 18%, transparent);
+  color: var(--c-text);
+  outline: none;
+}
+
+.library-search-clear:active {
+  transform: scale(0.92);
+}
 
 .library-search:focus {
   border-color: var(--c-accent);
@@ -419,9 +446,16 @@ body {
   color: var(--c-text-dim);
   font-size: 0.92rem;
   line-height: 1.6;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
 }
 
 .library-empty em { color: var(--c-text); font-style: normal; font-weight: 700; }
+
+.library-empty__reset {
+  min-width: 148px;
+}
 
 /* ── Game grid ────────────────────────────────────────────── */
 .library-grid {
