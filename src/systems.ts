@@ -644,19 +644,6 @@ export function getPSXSettingsForTier(tier: PerformanceTier): Record<string, str
   return { ...PSX_TIER_SETTINGS[tier] };
 }
 
-/**
- * Get the appropriate Beetle Saturn settings for a given performance tier.
- */
-export function getSaturnSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...SATURN_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate Flycast (Dreamcast) settings for a given performance tier.
- */
-export function getDreamcastSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...DREAMCAST_TIER_SETTINGS[tier] };
-}
 
 // ── Sega Saturn (Beetle Saturn) tier settings ─────────────────────────────────
 
