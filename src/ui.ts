@@ -4130,22 +4130,24 @@ function buildSettingsContent(
   const searchStatus = make("p", { class: "settings-search-status", "aria-live": "polite" });
   quickBar.append(quickInfo, searchInput, searchStatus);
 
-  const tabs: Array<{ id: SettingsTab; label: string; ariaLabel: string }> = [
-    { id: "performance",  label: "⚡ Performance",   ariaLabel: "Performance" },
-    { id: "display",      label: "🖥 Display",        ariaLabel: "Display" },
-    { id: "library",      label: "📚 My Games",       ariaLabel: "My Games" },
-    { id: "bios",         label: "💾 System Files",   ariaLabel: "System Files" },
-    { id: "multiplayer",  label: "🌐 Play Together",  ariaLabel: "Play Together" },
-    { id: "debug",        label: "🔧 Advanced",       ariaLabel: "Advanced" },
-    { id: "about",        label: "❓ Help",            ariaLabel: "Help" },
+  const tabs: Array<{ id: SettingsTab; icon: string; label: string; ariaLabel: string }> = [
+    { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
+    { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
+    { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
+    { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
+    { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
+    { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
+    { id: "about",        icon: "❓", label: "Help",            ariaLabel: "Help" },
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
   const requestedTab = initialTab ?? "performance";
   let activeTab: SettingsTab = tabIndexById.has(requestedTab) ? requestedTab : "performance";
 
-  // Tab bar
-  const tabBar = make("div", { class: "settings-tabs", role: "tablist" });
+  // Sidebar nav (replaces horizontal tab bar)
+  const tabBar = make("div", { class: "settings-sidebar", role: "tablist" });
+  // Content body wrapper
+  const bodyEl = make("div", { class: "settings-body" });
   // Tab panels container
   const panelsEl = make("div", { class: "settings-panels" });
 
@@ -4177,24 +4179,27 @@ function buildSettingsContent(
   };
 
   tabs.forEach((tab, i) => {
+    const iconEl = make("span", { class: "settings-sidebar__icon", "aria-hidden": "true" }, tab.icon);
+    const labelEl = make("span", { class: "settings-sidebar__label" }, tab.label);
     const btn = make("button", {
       id: `tab-${tab.id}`,
-      class: "settings-tab",
+      class: "settings-sidebar__item",
       type: "button",
       role: "tab",
       "aria-selected": tab.id === activeTab ? "true" : "false",
       tabindex: tab.id === activeTab ? "0" : "-1",
       "aria-controls": `tab-panel-${tab.id}`,
       "aria-label": tab.ariaLabel,
-    }, tab.label) as HTMLButtonElement;
+    }) as HTMLButtonElement;
+    btn.append(iconEl, labelEl);
     btn.addEventListener("click", () => switchTab(tab.id));
     btn.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "Home" || e.key === "End") {
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
         e.preventDefault();
         const nextIndex =
           e.key === "Home" ? 0 :
           e.key === "End" ? tabs.length - 1 :
-          e.key === "ArrowRight" ? (i + 1) % tabs.length :
+          (e.key === "ArrowRight" || e.key === "ArrowDown") ? (i + 1) % tabs.length :
           (i - 1 + tabs.length) % tabs.length;
         const target = tabBtns[nextIndex]!;
         switchTab(tabs[nextIndex]!.id);
@@ -4221,10 +4226,11 @@ function buildSettingsContent(
     panelsEl.appendChild(panel);
   });
 
-  settingsShell.append(tabBar, panelsEl);
+  bodyEl.appendChild(panelsEl);
+  settingsShell.append(tabBar, bodyEl);
   container.append(quickBar, settingsShell);
 
-  // Detect tab bar overflow and apply fade mask via .overflows class
+  // Detect sidebar overflow (used on mobile when sidebar collapses to horizontal)
   const updateTabBarOverflow = () => {
     requestAnimationFrame(() => {
       tabBar.classList.toggle("overflows", tabBar.scrollWidth > tabBar.clientWidth);
