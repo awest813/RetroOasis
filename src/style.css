@@ -20,9 +20,10 @@
   --c-border-lt:  #363660;
 
   /* Primary accent: Electric Indigo */
-  --c-accent:     #8b5cf6;
-  --c-accent-h:   #a78bfa;
-  --c-accent-dim: rgba(139, 92, 246, 0.16);
+  --c-accent:      #8b5cf6;
+  --c-accent-h:    #a78bfa;
+  --c-accent-dark: #150050;
+  --c-accent-dim:  rgba(139, 92, 246, 0.16);
   --c-accent-glow: rgba(139, 92, 246, 0.40);
 
   /* Secondary accent: Amber Gold */
@@ -196,17 +197,22 @@ body {
   letter-spacing: -0.03em;
   flex-shrink: 0;
   user-select: none;
-  /* Gradient text for the brand name */
-  background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 40%, var(--c-gold-h) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--c-text);
 }
 
 .app-header__brand svg {
   color: var(--c-accent);
   filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.9));
-  -webkit-text-fill-color: initial;
+  flex-shrink: 0;
+}
+
+/* Gradient text for the brand name spans */
+.brand-long,
+.brand-short {
+  background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 40%, var(--c-gold-h) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .brand-short { display: none; }
@@ -1843,7 +1849,7 @@ body {
 .btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
 
 .btn--primary {
-  background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 50%, color-mix(in srgb, var(--c-accent) 75%, #150050) 100%);
+  background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 50%, color-mix(in srgb, var(--c-accent) 75%, var(--c-accent-dark)) 100%);
   border-color: var(--c-accent);
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
@@ -2111,18 +2117,16 @@ body {
     gap: 1px;
     overflow-x: auto;
     overflow-y: hidden;
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
-  }
-
-  .settings-sidebar.overflows {
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
   }
 
   .settings-sidebar:not(.overflows) {
     -webkit-mask-image: none;
     mask-image: none;
+  }
+
+  .settings-sidebar.overflows {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
   }
 
   .settings-sidebar__item {
@@ -2633,7 +2637,10 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
   background: var(--c-surface);
   border: 1.5px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px rgba(255,255,255,0.06) inset,
+    0 0 60px rgba(139, 92, 246, 0.05);
   width: min(92vw, 380px);
   padding: 26px;
   display: flex;
@@ -4030,6 +4037,14 @@ kbd {
 /* Disable gradient text in forced-colors / high-contrast mode (text must be a system color) */
 @media (forced-colors: active) {
   .welcome-hero__title {
+    background: none;
+    -webkit-text-fill-color: unset;
+    color: CanvasText;
+  }
+
+  .brand-long,
+  .brand-short,
+  .modal-title {
     background: none;
     -webkit-text-fill-color: unset;
     color: CanvasText;
