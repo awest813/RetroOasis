@@ -731,6 +731,39 @@ body {
   text-transform: uppercase;
 }
 
+/* "NEW" badge — shown on cards added within the last 24 h */
+.game-card__new-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #fff;
+  background: var(--c-accent);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  z-index: 2;
+  pointer-events: none;
+  animation: new-badge-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes new-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--c-accent-glow); }
+  50%       { box-shadow: 0 0 0 5px transparent; }
+}
+
+/* Tinted border on recently added cards at rest */
+.game-card--new {
+  border-color: color-mix(in srgb, var(--c-accent) 40%, var(--c-border));
+}
+
+/* Slightly more visible timestamp row for fresh, unplayed games */
+.game-card__played--fresh {
+  color: var(--c-text-dim);
+}
+
 /* ── Drop zone ─────────────────────────────────────────────── */
 .drop-zone {
   position: relative;
