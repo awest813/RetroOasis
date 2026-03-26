@@ -624,6 +624,101 @@ describe("resolveSystemAndAdd mobile/import fallbacks", () => {
   });
 });
 
+describe("game card NEW badge", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("shows the NEW badge for a game added within the last 24 hours", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const freshGame: GameMetadata = { ...makeGame("g1", "Fresh Game", "psp"), addedAt: Date.now() - 1000 };
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([freshGame]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    expect(document.querySelector(".game-card__new-badge")).toBeTruthy();
+    expect(document.querySelector(".game-card--new")).toBeTruthy();
+  });
+
+  it("does not show the NEW badge for a game added more than 24 hours ago", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const oldGame: GameMetadata = {
+      ...makeGame("g1", "Old Game", "psp"),
+      addedAt: Date.now() - 25 * 60 * 60 * 1000, // 25 hours ago
+    };
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([oldGame]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    expect(document.querySelector(".game-card__new-badge")).toBeNull();
+    expect(document.querySelector(".game-card--new")).toBeNull();
+  });
+
+  it("applies game-card__played--fresh class to unplayed fresh games", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const freshUnplayed: GameMetadata = {
+      ...makeGame("g1", "Unplayed Fresh", "psp"),
+      addedAt: Date.now() - 1000,
+      lastPlayedAt: null,
+    };
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([freshUnplayed]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    expect(document.querySelector(".game-card__played--fresh")).toBeTruthy();
+  });
+
+  it("does not apply game-card__played--fresh when the fresh game has been played", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const freshPlayed: GameMetadata = {
+      ...makeGame("g1", "Played Fresh", "psp"),
+      addedAt: Date.now() - 1000,
+      lastPlayedAt: Date.now() - 500,
+    };
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([freshPlayed]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    expect(document.querySelector(".game-card__played--fresh")).toBeNull();
+  });
+
+  it("sets aria-label to include 'New game' for fresh cards", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const freshGame: GameMetadata = { ...makeGame("g1", "Fresh Game", "psp"), addedAt: Date.now() - 1000 };
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([freshGame]),
+    } as unknown as GameLibrary;
+
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    const card = document.querySelector<HTMLElement>(".game-card--new");
+    expect(card?.getAttribute("aria-label")).toMatch(/^New game:/);
+  });
+});
+
 describe("game card patch action visibility", () => {
   beforeEach(() => {
     document.body.innerHTML = "";

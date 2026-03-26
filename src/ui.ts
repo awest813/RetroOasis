@@ -1225,13 +1225,26 @@ function buildGameCard(
 ): HTMLElement {
   const system = getSystemById(game.systemId);
 
-  const card = make("div", { class: "game-card", role: "button", tabindex: "0", "aria-label": `Play ${game.name} (${system?.shortName ?? game.systemId})` });
+  // A game is considered "new" for 24 hours after it is added to the library.
+  const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+  const isNew = Date.now() - game.addedAt < NEW_THRESHOLD_MS;
+
+  const ariaLabel = isNew
+    ? `New game: Play ${game.name} (${system?.shortName ?? game.systemId})`
+    : `Play ${game.name} (${system?.shortName ?? game.systemId})`;
+  const card = make("div", { class: "game-card", role: "button", tabindex: "0", "aria-label": ariaLabel });
+  if (isNew) card.classList.add("game-card--new");
   card.style.setProperty("--sys-color", system?.color ?? "#555");
 
   const icon = make("div", { class: "game-card__icon" });
   icon.setAttribute("aria-hidden", "true");
   icon.style.background = `linear-gradient(135deg, ${system?.color ?? "#555"}33, ${system?.color ?? "#555"}11)`;
   icon.textContent = systemIcon(game.systemId);
+
+  if (isNew) {
+    const newBadge = make("div", { class: "game-card__new-badge", "aria-hidden": "true" }, "NEW");
+    icon.appendChild(newBadge);
+  }
 
   const info = make("div", { class: "game-card__info" });
   const name = make("div", { class: "game-card__name" }, game.name);
@@ -1246,6 +1259,7 @@ function buildGameCard(
       ? `Played ${formatRelativeTime(game.lastPlayedAt)}`
       : `Added ${formatRelativeTime(game.addedAt)}`
   );
+  if (!game.lastPlayedAt && isNew) played.classList.add("game-card__played--fresh");
 
   info.append(name, meta, played);
 
