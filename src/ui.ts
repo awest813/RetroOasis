@@ -89,7 +89,7 @@ import {
 } from "./multiplayer.js";
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
-import { normaliseInviteCode } from "./netplay/signalingClient.js";
+import { normaliseInviteCode, INVITE_CODE_LEN } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
 import { CloudSaveManager, WebDAVProvider, GoogleDriveProvider, DropboxProvider, pCloudProvider, type ConflictResolution, type SyncConflict, type SyncBadge } from "./cloudSave.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
@@ -493,6 +493,12 @@ export function initUI(opts: UIOptions): void {
   _openSettingsFn = (tab?: string) =>
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, tab as SettingsTab | undefined);
 
+  /** Close the Multiplayer modal (if open) and jump to Play Together settings. */
+  const openPlayTogetherSettings = () => {
+    document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "multiplayer");
+  };
+
   // ── File drop / pick ──────────────────────────────────────────────────────
   const fileInput = el<HTMLInputElement>("#file-input");
   const dropZone  = el("#drop-zone");
@@ -618,7 +624,7 @@ export function initUI(opts: UIOptions): void {
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWith, netplayManager
+      getTouchOverlay, openSettingsWith, netplayManager, openPlayTogetherSettings
     );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
     if (settings.touchControls) {
@@ -644,7 +650,7 @@ export function initUI(opts: UIOptions): void {
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWithResume, netplayManager
+      getTouchOverlay, openSettingsWithResume, netplayManager, openPlayTogetherSettings
     );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
     if (settings.touchControls) {
@@ -661,7 +667,7 @@ export function initUI(opts: UIOptions): void {
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWith, netplayManager
+      getTouchOverlay, openSettingsWith, netplayManager, openPlayTogetherSettings
     );
   };
   bindEvent(document, TOUCH_CONTROLS_CHANGED_EVENT, rebuildInGameControls);
@@ -740,7 +746,7 @@ export function initUI(opts: UIOptions): void {
   bindEvent(document, "keydown", onGlobalShortcutKeydown, { capture: true });
 
   // ── Landing header controls ───────────────────────────────────────────────
-  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, netplayManager);
+  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, netplayManager, openPlayTogetherSettings);
 
   if (typeof ResizeObserver !== "undefined") {
     const headerActions = document.getElementById("header-actions");
@@ -2368,7 +2374,8 @@ export function buildLandingControls(
   onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
   onResumeGame?:    () => void,
   saveLibrary?:     SaveStateLibrary,
-  netplayManager?:  import("./multiplayer.js").NetplayManager
+  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  onOpenPlayTogetherSettings?: () => void,
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
@@ -2418,6 +2425,7 @@ export function buildLandingControls(
       currentGameName:  null,
       currentGameId:    null,
       currentSystemId:  emulatorRef?.currentSystem?.id ?? null,
+      onOpenPlayTogetherSettings,
     });
   });
 
@@ -2440,6 +2448,7 @@ function buildInGameControls(
   getTouchOverlay?:   (() => TouchControlsOverlay | null) | undefined,
   onOpenSettings?:    (tab?: SettingsTab) => void,
   netplayManager?:    import("./multiplayer.js").NetplayManager,
+  onOpenPlayTogetherSettings?: () => void,
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
@@ -2684,7 +2693,7 @@ function buildInGameControls(
   });
   volWrap.append(volBtn, volSlider);
 
-  // Netplay button — always visible in-game when onOpenSettings is wired
+  // Online play — always visible in-game when onOpenSettings is wired
   let btnNetplay: HTMLButtonElement | null = null;
   if (onOpenSettings) {
     const systemId = getCurrentSystemId?.() ?? "";
@@ -2696,20 +2705,20 @@ function buildInGameControls(
     let netplayTitle: string;
     if (systemId && !isSupported) {
       const sysName = getSystemById(systemId)?.shortName ?? systemId.toUpperCase();
-      netplayTitle = `Netplay is not supported for this system (${sysName})`;
+      netplayTitle = `Online play is not supported for this system (${sysName})`;
     } else if (!isActive) {
-      netplayTitle = "Open Multiplayer Settings to configure netplay";
+      netplayTitle = "Play online with friends — add a server in Settings → Play Together if prompted";
     } else {
-      netplayTitle = "Open Multiplayer Settings";
+      netplayTitle = "Host or join online play";
     }
 
     btnNetplay = make("button", {
       class: (isSupported && isActive) ? "btn btn--active" : "btn",
       title: netplayTitle,
-      "aria-label": "Open multiplayer settings",
-      "data-tooltip": "Multiplayer",
+      "aria-label": "Open online multiplayer",
+      "data-tooltip": "Online play",
     }) as HTMLButtonElement;
-    btnNetplay.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Netplay`;
+    btnNetplay.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Online`;
 
     if (systemId && !isSupported) {
       btnNetplay.disabled = true;
@@ -2721,6 +2730,7 @@ function buildInGameControls(
         currentGameName:  getCurrentGameName?.() ?? null,
         currentGameId:    getCurrentGameId?.()   ?? null,
         currentSystemId:  getCurrentSystemId?.() ?? null,
+        onOpenPlayTogetherSettings,
       });
     });
   }
@@ -4844,10 +4854,13 @@ export function openEasyNetplayModal(opts: {
   currentGameName?: string | null;
   currentGameId?:   string | null;
   currentSystemId?: string | null;
+  /** Opens Settings on the Play Together tab (closes this modal first). */
+  onOpenPlayTogetherSettings?: () => void;
 }): void {
-  const { netplayManager, currentGameName, currentGameId, currentSystemId } = opts;
+  const { netplayManager, currentGameName, currentGameId, currentSystemId, onOpenPlayTogetherSettings } = opts;
   const serverUrl = netplayManager?.serverUrl ?? "";
   const username  = netplayManager?.username  ?? "";
+  const netplayEnabled = netplayManager?.enabled ?? false;
 
   const easyMgr = getEasyNetplayManager(serverUrl);
   const panelCleanups: Array<() => void> = [];
@@ -4898,6 +4911,37 @@ export function openEasyNetplayModal(opts: {
   }, "✕") as HTMLButtonElement;
   header.appendChild(btnClose);
   dialog.appendChild(header);
+
+  // ── First-time / setup strip (server or enable missing) ──────────────────
+  const needsServerUrl = serverUrl.trim().length === 0;
+  const needsEnable = !netplayEnabled;
+  if (needsServerUrl || needsEnable) {
+    const setupStrip = make("div", { class: "enp-setup-strip", role: "region", "aria-label": "Online play setup" });
+    const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up online play (one minute)");
+    const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
+    const step1 = needsEnable
+      ? "Open Settings → Play Together and turn on Online play."
+      : "Online play is on — add your server URL in Settings → Play Together.";
+    const step2 = "Paste the WebSocket address your host gave you (starts with wss:// or ws://).";
+    const step3 = "Come back here, host or join, and use the same game as your friend.";
+    setupSteps.append(
+      make("li", {}, step1),
+      make("li", {}, step2),
+      make("li", {}, step3),
+    );
+    setupStrip.append(setupTitle, setupSteps);
+    if (onOpenPlayTogetherSettings) {
+      const btnSetup = make("button", {
+        type: "button",
+        class: "btn btn--primary enp-setup-strip__btn",
+      }, "Open Play Together settings") as HTMLButtonElement;
+      btnSetup.addEventListener("click", () => {
+        onOpenPlayTogetherSettings();
+      });
+      setupStrip.appendChild(btnSetup);
+    }
+    dialog.appendChild(setupStrip);
+  }
 
   // ── Current game badge ───────────────────────────────────────────────────
   if (currentGameName) {
@@ -5011,6 +5055,7 @@ export function openEasyNetplayModal(opts: {
   const close = () => {
     if (closed) return;
     closed = true;
+    document.removeEventListener("retrovault:closeEasyNetplay", onCloseNetplayEvent);
     document.removeEventListener("keydown", onKey, { capture: true });
     panelCleanups.forEach((fn) => {
       try { fn(); } catch { /* ignore cleanup errors */ }
@@ -5027,6 +5072,9 @@ export function openEasyNetplayModal(opts: {
       close();
     }
   };
+
+  const onCloseNetplayEvent = () => { if (!closed) close(); };
+  document.addEventListener("retrovault:closeEasyNetplay", onCloseNetplayEvent);
 
   btnClose.addEventListener("click", close);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
@@ -5065,9 +5113,13 @@ function _buildHostPanel(
     class: "enp-select",
   }) as HTMLSelectElement;
   const typeOptions: Array<{ value: string; label: string; desc: string }> = [
-    { value: "local",   label: "Local Network",  desc: "Friends on the same Wi-Fi" },
-    { value: "private", label: "Private Room",    desc: "Share a code to invite" },
-    { value: "public",  label: "Public Room",     desc: "Anyone can browse and join" },
+    {
+      value: "local",
+      label: "Same Wi‑Fi / LAN",
+      desc: "Lowest latency when everyone is nearby. You still need the same server URL so this device can register the room (paste it in Play Together settings).",
+    },
+    { value: "private", label: "Private (invite code)", desc: "Only people with the code can join — best for playing with a specific friend." },
+    { value: "public",  label: "Public lobby",        desc: "Shows in Browse so anyone on the same game can join." },
   ];
   for (const opt of typeOptions) {
     typeSelect.appendChild(make("option", { value: opt.value }, opt.label));
@@ -5197,8 +5249,8 @@ function _buildJoinPanel(
     type:         "text",
     id:           "enp-join-code",
     class:        "enp-code-input",
-    placeholder:  "AB12CD",
-    maxlength:    "10",
+    placeholder:  "6-letter code",
+    maxlength:    String(INVITE_CODE_LEN),
     autocomplete: "off",
     autocapitalize: "characters",
     spellcheck:   "false",
@@ -5211,7 +5263,7 @@ function _buildJoinPanel(
     const norm = normaliseInviteCode(codeInput.value);
     if (norm !== codeInput.value) codeInput.value = norm;
     codeError.hidden = true;
-    btnJoin.disabled = norm.length < 4;
+    btnJoin.disabled = norm.length < INVITE_CODE_LEN;
   };
   codeInput.addEventListener("input", syncCodeInput);
   codeField.appendChild(codeInput);
@@ -5254,8 +5306,8 @@ function _buildJoinPanel(
     const code = normaliseInviteCode(prefilledCode ?? codeInput.value);
     codeInput.value = code;
     syncCodeInput();
-    if (code.length < 4) {
-      codeError.textContent = "Please enter a valid invite code (at least 4 characters).";
+    if (code.length < INVITE_CODE_LEN) {
+      codeError.textContent = `Enter the full invite code (${INVITE_CODE_LEN} characters).`;
       codeError.hidden = false;
       return;
     }
@@ -5611,8 +5663,8 @@ function _buildWatchPanel(
     type:          "text",
     id:            "enp-watch-code",
     class:         "enp-code-input",
-    placeholder:   "AB12CD",
-    maxlength:     "10",
+    placeholder:   "6-letter code",
+    maxlength:     String(INVITE_CODE_LEN),
     autocomplete:  "off",
     autocapitalize: "characters",
     spellcheck:    "false",
@@ -5663,8 +5715,8 @@ function _buildWatchPanel(
     const code = normaliseInviteCode(prefilledCode ?? codeInput.value);
     codeInput.value = code;
     syncCodeInput();
-    if (code.length < 4) {
-      codeError.textContent = "Please enter a valid invite code (at least 4 characters).";
+    if (code.length < INVITE_CODE_LEN) {
+      codeError.textContent = `Enter the full invite code (${INVITE_CODE_LEN} characters).`;
       codeError.hidden = false;
       return;
     }
@@ -5843,17 +5895,25 @@ function buildMultiplayerTab(
 ): void {
   // Intro section
   const introSection = make("div", { class: "settings-section" });
-  introSection.appendChild(make("h4", { class: "settings-section__title" }, "Online Multiplayer"));
+  introSection.appendChild(make("h4", { class: "settings-section__title" }, "Online play with friends"));
   introSection.appendChild(make("p", { class: "settings-help" },
-    "Play with friends online. Enable this and add a server URL to get started — " +
-    "then open a game and use the Netplay button in the toolbar to create or join a room."
+    "Play the same game with someone else over the internet. Turn on Online play below, paste the WebSocket URL from whoever runs your netplay server (often wss://…), " +
+    "then use Multiplayer on the home screen or Online in the game toolbar to host or join."
   ));
 
   // Status badge — shows whether netplay is ready to use
   const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
   const updateStatusBadge = () => {
     const active = netplayManager?.isActive ?? false;
-    statusBadge.textContent = active ? "Ready" : "Not configured";
+    const enabled = netplayManager?.enabled ?? false;
+    const hasUrl = (netplayManager?.serverUrl ?? "").trim().length > 0;
+    statusBadge.textContent = active
+      ? "Ready to play online"
+      : enabled && !hasUrl
+        ? "Add a server URL"
+        : !enabled && hasUrl
+          ? "Turn on Online play"
+          : "Not set up yet";
     statusBadge.className = active
       ? "netplay-status-pill netplay-status-pill--active"
       : "netplay-status-pill netplay-status-pill--inactive";
@@ -5863,8 +5923,8 @@ function buildMultiplayerTab(
 
   // Enable toggle
   introSection.appendChild(buildToggleRow(
-    "Enable Netplay",
-    "Show the Netplay button in the emulator toolbar. Requires a server URL below.",
+    "Online play",
+    "Shows Multiplayer on the home screen and Online in the game toolbar. You still need a server URL below for internet play.",
     settings.netplayEnabled,
     (v) => {
       onSettingsChange({ netplayEnabled: v });
@@ -5879,15 +5939,14 @@ function buildMultiplayerTab(
   // Server URL section — hidden when netplay is disabled
   const serverSection = make("div", { class: "settings-section" });
   serverSection.hidden = !settings.netplayEnabled;
-  serverSection.appendChild(make("h4", { class: "settings-section__title" }, "Netplay Server"));
+  serverSection.appendChild(make("h4", { class: "settings-section__title" }, "Server address"));
   serverSection.appendChild(make("p", { class: "settings-help" },
-    "WebSocket URL of the netplay signalling server (e.g. wss://netplay.example.com). " +
-    "The server handles room creation, room listing, and WebRTC signalling. " +
-    "Leave blank to disable netplay even when toggled on."
+    "One field is enough: paste the full WebSocket URL for your netplay server (for example wss://games.example.com:443/netplay). " +
+    "Include the port if your host gave you one (e.g. :3000). The app uses the same address for rooms over HTTPS and for in-game connection — everyone in your session must use the exact same URL."
   ));
 
   const urlRow   = make("div", { class: "settings-input-row" });
-  const urlLabel = make("label", { class: "settings-input-label", for: "netplay-server-url" }, "Server URL");
+  const urlLabel = make("label", { class: "settings-input-label", for: "netplay-server-url" }, "WebSocket URL (wss:// or ws://)");
   const urlInput = make("input", {
     type:         "text",
     id:           "netplay-server-url",
@@ -5907,7 +5966,15 @@ function buildMultiplayerTab(
       return;
     }
     urlInput.setCustomValidity("");
-    onSettingsChange({ netplayServerUrl: url });
+    const patch: Partial<Settings> = { netplayServerUrl: url };
+    if (!settings.netplayEnabled) {
+      patch.netplayEnabled = true;
+      netplayManager?.setEnabled(true);
+      serverSection.hidden = false;
+      const toggleInput = introSection.querySelector<HTMLInputElement>(".toggle-row input[type=checkbox]");
+      if (toggleInput) toggleInput.checked = true;
+    }
+    onSettingsChange(patch);
     netplayManager?.setServerUrl(url);
     updateStatusBadge();
   });
@@ -6302,8 +6369,8 @@ function buildMultiplayerTab(
     const hasGame = !!currentGameName;
     roomSection.appendChild(make("p", { class: "settings-help" },
       hasGame
-        ? `Open the Netplay button in the toolbar while playing ${currentGameName} to create or join a room.`
-        : "Open a game, then use the Netplay button in the toolbar to create or join a room."
+        ? `Use the Online button in the toolbar while playing ${currentGameName} to create or join a room.`
+        : "Open a game, then use the Online button in the toolbar to create or join a room."
     ));
     const actionRow = make("div", { class: "netplay-room-actions" });
     const createBtn = make("button", {
@@ -6771,6 +6838,24 @@ function buildAboutTab(container: HTMLElement): void {
   }
   shortcutsSection.appendChild(shortcutList);
 
+  // Play with friends (online)
+  const mpSection = make("div", { class: "settings-section" });
+  mpSection.appendChild(make("h4", { class: "settings-section__title" }, "Play with friends online"));
+  const mpSteps = [
+    "Open ⚙ Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your netplay server — everyone must use the same URL.",
+    "Launch the same game as your friend (same title and system when possible).",
+    "Click Multiplayer on the home screen, or Online in the game toolbar. Host creates a room and shares the invite code; Join pastes the code from your friend.",
+    "If something fails, open Multiplayer and use 📋 Logs to copy connection details for troubleshooting.",
+  ];
+  const mpList = make("ol", { class: "help-steps" });
+  for (const step of mpSteps) {
+    mpList.appendChild(make("li", { class: "help-step" }, step));
+  }
+  mpSection.appendChild(mpList);
+  mpSection.appendChild(make("p", { class: "settings-help" },
+    "In-game “Wi‑Fi” or Nintendo WFC features inside a ROM are not the same as RetroVault online play — use Host / Join here for link-style multiplayer."
+  ));
+
   // Troubleshooting section
   const troubleSection = make("div", { class: "settings-section" });
   troubleSection.appendChild(make("h4", { class: "settings-section__title" }, "Troubleshooting"));
@@ -6783,6 +6868,7 @@ function buildAboutTab(container: HTMLElement): void {
     ["Saves aren't working", "Your saves are stored in your browser. Clearing browser data will erase them — export saves as a backup before doing that."],
     ["Controls not responding", "Click on the game screen first to make sure it has focus. Gamepads should be connected before launching a game."],
     ["Stuck on loading screen", "Try refreshing the page. If the issue persists, the game file may be corrupted or an unsupported format."],
+    ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try 📋 Logs in the Multiplayer window; strict networks may need a TURN server under Advanced."],
   ];
 
   for (const [problem, solution] of troubles) {
@@ -6814,7 +6900,7 @@ function buildAboutTab(container: HTMLElement): void {
   links.appendChild(ejsLink);
   aboutSection.appendChild(links);
 
-  container.append(quickStartSection, shortcutsSection, troubleSection, aboutSection);
+  container.append(quickStartSection, shortcutsSection, mpSection, troubleSection, aboutSection);
 }
 
 // ── Toggle row builder ────────────────────────────────────────────────────────

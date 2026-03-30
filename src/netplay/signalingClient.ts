@@ -69,7 +69,8 @@ export interface SignalingClient {
 
 /** Alphabet used for invite codes (uppercase, no ambiguous chars 0/O, 1/I/L). */
 const INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-const INVITE_CODE_LEN = 6;
+/** Length of invite codes shown and accepted in the UI (matches `generateInviteCode`). */
+export const INVITE_CODE_LEN = 6;
 
 /**
  * Derive a stable, short invite code from a room ID string.

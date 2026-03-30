@@ -4625,6 +4625,31 @@ kbd {
 }
 .enp-close:hover { background: var(--c-surface3); color: var(--c-text); }
 
+/* ── First-time setup strip ─────────────────────────────────── */
+.enp-setup-strip {
+  padding:       12px 18px 14px;
+  background:    color-mix(in srgb, var(--c-accent) 10%, var(--c-surface2));
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink:   0;
+}
+.enp-setup-strip__title {
+  margin:      0 0 8px;
+  font-size:   0.82rem;
+  font-weight: 600;
+  color:       var(--c-text);
+}
+.enp-setup-strip__steps {
+  margin:      0 0 12px 1.1rem;
+  padding:     0;
+  font-size:   0.78rem;
+  line-height: 1.45;
+  color:       var(--c-text-dim);
+}
+.enp-setup-strip__steps li + li { margin-top: 4px; }
+.enp-setup-strip__btn {
+  width: 100%;
+}
+
 /* ── Current game badge ──────────────────────────────────────── */
 .enp-game-badge {
   display:     flex;
