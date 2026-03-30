@@ -160,6 +160,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_texture_deposterize: "enabled",
     ppsspp_gpu_hardware_transform: "enabled",
     ppsspp_vertex_cache: "enabled",
+    // Lazy texture hashing cuts CPU cost in texture-heavy 3D titles; safe at 1× IR
     ppsspp_lazy_texture_caching: "enabled",
     ppsspp_retain_changed_textures: "enabled",
     ppsspp_spline_quality: "medium",
@@ -200,7 +201,8 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_texture_deposterize: "enabled",
     ppsspp_gpu_hardware_transform: "enabled",
     ppsspp_vertex_cache: "enabled",
-    ppsspp_lazy_texture_caching: "disabled",
+    // At 2× IR, lazy hashing still wins most 3D titles vs full CPU texture hashing
+    ppsspp_lazy_texture_caching: "enabled",
     ppsspp_retain_changed_textures: "enabled",
     ppsspp_spline_quality: "high",
     ppsspp_software_skinning: "enabled",

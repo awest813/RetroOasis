@@ -32,7 +32,7 @@ import {
   StartupProfiler,
   FpsPrediction,
   recordSystemLaunch,
-  getTopLaunchedSystems,
+  resolveCorePrefetchSystems,
 } from "./performance.js";
 import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
 import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
@@ -864,15 +864,17 @@ export class PSPEmulator {
    * HTTP cache for the systems the user launches most often. This eliminates
    * the 5–15 s core download on subsequent launches.
    *
-   * @param n  Maximum number of systems to prefetch (default 2).
+   * @param n  Maximum number of history-based systems to prefetch (default 2).
+   * @param extraHeavy3D  Additional large 3D WASM cores to prefetch when not
+   *   already covered (default 2). Set to 0 to only use launch history.
    */
-  prefetchTopSystems(n = 2): void {
-    const topSystems = getTopLaunchedSystems(n);
-    for (const systemId of topSystems) {
+  prefetchTopSystems(n = 2, extraHeavy3D = 2): void {
+    const systems = resolveCorePrefetchSystems(n, extraHeavy3D);
+    for (const systemId of systems) {
       this.prefetchCore(systemId);
     }
-    if (topSystems.length > 0 && this.verboseLogging) {
-      console.info(`[RetroVault] Intelligent core preload: prefetching ${topSystems.join(", ")}`);
+    if (systems.length > 0 && this.verboseLogging) {
+      console.info(`[RetroVault] Intelligent core preload: prefetching ${systems.join(", ")}`);
     }
   }
 
