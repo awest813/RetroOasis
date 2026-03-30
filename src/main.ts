@@ -740,7 +740,11 @@ function main(): void {
 
   // 8. If user returns to landing, rebuild landing header controls with a Resume button
   document.addEventListener("retrovault:returnToLibrary", () => {
-    buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, netplayManager);
+    const openPlayTogetherSettings = () => {
+      document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "multiplayer");
+    };
+    buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, netplayManager, openPlayTogetherSettings);
   });
 
   document.addEventListener("retrovault:openSettings", () => {
