@@ -737,7 +737,7 @@ export class PSPEmulator {
    * When enabled, the emulator monitors FPS and fires `onDRSChange` when the
    * resolution should be stepped down (low FPS) or up (recovered FPS).
    * DRS only has effect for systems that have a resolution ladder (PSP, N64,
-   * PS1, Saturn, Dreamcast). For other systems this is a no-op.
+   * PS1). For other systems this is a no-op.
    */
   enableDRS(enabled: boolean): void {
     this._drsEnabled = enabled;
@@ -1680,8 +1680,8 @@ export class PSPEmulator {
       // Bluetooth/USB audio devices (high base latency) and allows the
       // minimum buffer on DACs with very low output latency.
       //
-      // Applies to all 3D and audio-sensitive cores: PSP, N64, PS1, GBA,
-      // NDS, and Dreamcast — each exposes audio buffer or timing knobs that
+      // Applies to 3D and audio-sensitive cores: PSP, N64, PS1, GBA, and NDS —
+      // each exposes audio buffer or timing knobs that
       // benefit from hardware-aware tuning.
       const audioCaps = await audioCapabilitiesPromise;
       if (audioCaps && opts.systemId === "psp" && "ppsspp_audio_latency" in ejsSettings) {
