@@ -454,6 +454,17 @@ describe('systems performance profiles', () => {
   // ── N64 graphics settings ───────────────────────────────────────────────────
 
   describe('N64 tier graphics settings', () => {
+    it('forces mupen64plus_next core in all tiers', () => {
+      // EmulatorJS lists parallel_n64 second on desktop but reverses the list on
+      // Safari mobile, which would otherwise load parallel_n64 and ignore
+      // mupen64plus-* options. Pin the core like PS1/NDS.
+      const n64 = getSystemById('n64');
+      expect(n64?.tierSettings?.low?.retroarch_core).toBe('mupen64plus_next');
+      expect(n64?.tierSettings?.medium?.retroarch_core).toBe('mupen64plus_next');
+      expect(n64?.tierSettings?.high?.retroarch_core).toBe('mupen64plus_next');
+      expect(n64?.tierSettings?.ultra?.retroarch_core).toBe('mupen64plus_next');
+    });
+
     it('uses Rice plugin on low tier for maximum performance', () => {
       const n64 = getSystemById('n64');
       expect(n64?.tierSettings?.low?.['mupen64plus-rdp-plugin']).toBe('rice');

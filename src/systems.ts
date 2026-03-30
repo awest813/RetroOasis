@@ -274,8 +274,17 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   },
 };
 
+/**
+ * mupen64plus-next RetroArch core options per tier.
+ *
+ * `retroarch_core: "mupen64plus_next"` is injected on every tier so EmulatorJS
+ * always loads GLideN64/Rice-capable mupen64plus-next. Without it, Safari
+ * mobile reverses the core list and would default to parallel_n64, ignoring
+ * these `mupen64plus-*` keys.
+ */
 const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
+    retroarch_core: "mupen64plus_next",
     // Rice plugin: lightest-weight RDP; skips most accuracy features.
     "mupen64plus-rdp-plugin": "rice",
     "mupen64plus-resolution-factor": "1",
@@ -296,6 +305,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     "mupen64plus-CountPerOp": "0",
   },
   medium: {
+    retroarch_core: "mupen64plus_next",
     "mupen64plus-rdp-plugin": "gliden64",
     "mupen64plus-resolution-factor": "1",
     "mupen64plus-cpucore": "dynamic_recompiler",
@@ -316,6 +326,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     "mupen64plus-CountPerOp": "0",
   },
   high: {
+    retroarch_core: "mupen64plus_next",
     "mupen64plus-rdp-plugin": "gliden64",
     "mupen64plus-resolution-factor": "2",
     "mupen64plus-cpucore": "dynamic_recompiler",
@@ -342,6 +353,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     "mupen64plus-CountPerOp": "0",
   },
   ultra: {
+    retroarch_core: "mupen64plus_next",
     "mupen64plus-rdp-plugin": "gliden64",
     // 4× internal resolution for sharp, clean geometry at high DPI
     "mupen64plus-resolution-factor": "4",
