@@ -2494,3 +2494,49 @@ export function getTopLaunchedSystems(n = 2): string[] {
     .slice(0, n)
     .map(([id]) => id);
 }
+
+/**
+ * Large WASM cores for polygon-heavy systems. Used to extend idle-time prefetch
+ * beyond launch history so first-time users still warm PSP / N64 / PS1 / NDS
+ * blobs when bandwidth is available.
+ *
+ * Order is roughly by typical download size and user demand (heaviest first).
+ */
+export const HEAVY_3D_CORE_PREFETCH_ORDER: readonly string[] = [
+  "psp",
+  "n64",
+  "psx",
+  "nds",
+  "segaSaturn",
+];
+
+/**
+ * Merge the user's most-launched systems with additional heavy 3D cores, without
+ * duplicates. Unknown ids are still returned — callers filter with their own
+ * prefetch map.
+ *
+ * @param topN  How many top launch-count systems to include first
+ * @param extraHeavy3D  Max additional systems to append from {@link HEAVY_3D_CORE_PREFETCH_ORDER}
+ */
+export function resolveCorePrefetchSystems(topN: number, extraHeavy3D: number): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const id of getTopLaunchedSystems(topN)) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+
+  let heavyAdded = 0;
+  const cap = Math.max(0, Math.floor(extraHeavy3D));
+  for (const id of HEAVY_3D_CORE_PREFETCH_ORDER) {
+    if (heavyAdded >= cap) break;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    heavyAdded++;
+  }
+
+  return out;
+}

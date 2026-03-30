@@ -39,6 +39,8 @@ import {
   getLaunchCounts,
   recordSystemLaunch,
   getTopLaunchedSystems,
+  resolveCorePrefetchSystems,
+  HEAVY_3D_CORE_PREFETCH_ORDER,
 } from "./performance.js";
 
 describe('performance', () => {
@@ -2819,6 +2821,30 @@ describe('getLaunchCounts / recordSystemLaunch / getTopLaunchedSystems', () => {
 
   it('getTopLaunchedSystems returns empty array when no systems have been launched', () => {
     expect(getTopLaunchedSystems(2)).toHaveLength(0);
+  });
+
+  it('resolveCorePrefetchSystems appends heavy 3D cores when history is empty', () => {
+    expect(resolveCorePrefetchSystems(2, 2)).toEqual(['psp', 'n64']);
+  });
+
+  it('resolveCorePrefetchSystems does not duplicate systems already in top launches', () => {
+    recordSystemLaunch('psp');
+    recordSystemLaunch('psp');
+    expect(resolveCorePrefetchSystems(1, 2)).toEqual(['psp', 'n64', 'psx']);
+  });
+
+  it('resolveCorePrefetchSystems respects extraHeavy3D cap of zero', () => {
+    expect(resolveCorePrefetchSystems(2, 0)).toEqual([]);
+  });
+
+  it('HEAVY_3D_CORE_PREFETCH_ORDER lists expected systems', () => {
+    expect(HEAVY_3D_CORE_PREFETCH_ORDER).toEqual([
+      'psp',
+      'n64',
+      'psx',
+      'nds',
+      'segaSaturn',
+    ]);
   });
 
   it('getLaunchCounts returns empty object when localStorage contains invalid JSON', () => {
