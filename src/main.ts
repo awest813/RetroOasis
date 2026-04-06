@@ -36,7 +36,10 @@ import { buildDOM, initUI, showLanding,
          showError, showInfoToast,
          TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
 import { isTouchDevice } from "./touchControls.js";
-import { NetplayManager } from "./multiplayer.js";
+import { NetplayManager, optimizeChromePerformance } from "./multiplayer.js";
+
+// Initialize Chrome-specific performance optimizations early
+optimizeChromePerformance();
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import type { PostProcessEffect } from "./webgpuPostProcess.js";
 

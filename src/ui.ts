@@ -130,6 +130,167 @@ function make<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+// ── Debug Console State & Logic ──────────────────────────────────────────────
+let _debugConsoleWired = false;
+let _debugConsoleVisible = false;
+let _debugConsolePos = (() => {
+  try {
+    const saved = localStorage.getItem("rv_debug_console_pos");
+    return saved ? JSON.parse(saved) : { x: 20, y: 80 };
+  } catch { return { x: 20, y: 80 }; }
+})();
+let _lastLoggedEventCount = 0;
+
+function toggleDebugConsole(emulator?: PSPEmulator): void {
+  const consoleEl = document.getElementById("debug-console");
+  if (!consoleEl) return;
+
+  _debugConsoleVisible = !_debugConsoleVisible;
+  consoleEl.hidden = !_debugConsoleVisible;
+
+  if (_debugConsoleVisible) {
+    consoleEl.style.left = `${_debugConsolePos.x}px`;
+    consoleEl.style.top = `${_debugConsolePos.y}px`;
+
+    if (!_debugConsoleWired && emulator) {
+      wireDebugConsole(emulator);
+    }
+    document.getElementById("debug-console-input")?.focus();
+    if (emulator) updateDebugConsoleLog(emulator);
+  }
+}
+
+function wireDebugConsole(emulator: PSPEmulator): void {
+  if (_debugConsoleWired) return;
+  _debugConsoleWired = true;
+
+  const handle = document.getElementById("debug-console-handle");
+  const consoleEl = document.getElementById("debug-console");
+  const closeBtn = document.getElementById("debug-console-close");
+  const clearBtn = document.getElementById("debug-console-clear");
+  const input = document.getElementById("debug-console-input") as HTMLInputElement;
+
+  // Draggable logic
+  if (handle && consoleEl) {
+    let isDragging = false;
+    let startX: number, startY: number;
+
+    handle.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      startX = e.clientX - consoleEl.offsetLeft;
+      startY = e.clientY - consoleEl.offsetTop;
+      handle.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const x = e.clientX - startX;
+      const y = e.clientY - startY;
+      consoleEl.style.left = `${x}px`;
+      consoleEl.style.top = `${y}px`;
+      _debugConsolePos = { x, y };
+      localStorage.setItem("rv_debug_console_pos", JSON.stringify(_debugConsolePos));
+    });
+
+    window.addEventListener("mouseup", () => {
+      isDragging = false;
+      if (handle) handle.style.cursor = "grab";
+    });
+  }
+
+  closeBtn?.addEventListener("click", () => toggleDebugConsole());
+  clearBtn?.addEventListener("click", () => {
+    emulator.clearDiagnosticLog();
+    const logEl = document.getElementById("debug-console-log");
+    if (logEl) logEl.innerHTML = "";
+    _lastLoggedEventCount = 0;
+  });
+
+  input?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const cmd = input.value.trim();
+      if (cmd) {
+        handleDebugCommand(cmd, emulator);
+        input.value = "";
+      }
+    }
+    // Prevent emulator from seeing these keys when typing in the console
+    e.stopPropagation();
+  });
+}
+
+function handleDebugCommand(cmd: string, emulator: PSPEmulator): void {
+  const parts = cmd.toLowerCase().split(" ");
+  const action = parts[0];
+
+  emulator.logDiagnostic("system", `> ${cmd}`);
+
+  switch (action) {
+    case "help":
+      emulator.logDiagnostic("system", "Available commands: help, reset, pause, resume, step, stats, log [on|off], clear, close");
+      break;
+    case "reset":
+      emulator.reset();
+      break;
+    case "pause":
+      emulator.pause();
+      break;
+    case "resume":
+      emulator.resume();
+      break;
+    case "step":
+      emulator.pause();
+      // Most EmulatorJS cores don't have a direct "step" API yet, but we can simulate it
+      // or at least show that we are in a paused state.
+      setTimeout(() => emulator.resume(), 16);
+      setTimeout(() => emulator.pause(), 32);
+      break;
+    case "stats":
+      toggleDevOverlay();
+      break;
+    case "log":
+      if (parts[1] === "on" || parts[1] === "verbose") {
+        emulator.verboseLogging = true;
+        emulator.logDiagnostic("system", "Verbose logging enabled.");
+      } else {
+        emulator.verboseLogging = false;
+        emulator.logDiagnostic("system", "Verbose logging disabled.");
+      }
+      break;
+    case "clear":
+      emulator.clearDiagnosticLog();
+      const logEl = document.getElementById("debug-console-log");
+      if (logEl) logEl.innerHTML = "";
+      _lastLoggedEventCount = 0;
+      break;
+    case "close":
+      toggleDebugConsole();
+      break;
+    default:
+      emulator.logDiagnostic("error", `Unknown command: ${action}`);
+  }
+  updateDebugConsoleLog(emulator);
+}
+
+function updateDebugConsoleLog(emulator: PSPEmulator): void {
+  const logEl = document.getElementById("debug-console-log");
+  if (!logEl || !_debugConsoleVisible) return;
+
+  const logs = emulator.diagnosticLog;
+  if (logs.length === _lastLoggedEventCount) return;
+
+  const newLogs = logs.slice(_lastLoggedEventCount);
+  newLogs.forEach(entry => {
+    const row = make("div", { class: `debug-console__log-entry debug-console__log-entry--${entry.category}` });
+    const time = new Date(entry.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    row.textContent = `[${time}] ${entry.message}`;
+    logEl.appendChild(row);
+  });
+
+  _lastLoggedEventCount = logs.length;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 /** Mini controller SVG icon (reused in header brand and footer) */
@@ -178,32 +339,18 @@ export function buildDOM(app: HTMLElement): void {
   const touchUI = isTouchDevice();
 
   app.innerHTML = `
+    <div class="bokeh-container" aria-hidden="true">
+      <div class="bokeh" style="width:400px;height:400px;top:10%;left:5%;animation-duration:20s"></div>
+      <div class="bokeh" style="width:300px;height:300px;top:60%;left:80%;animation-duration:25s;background:var(--c-gold-glow)"></div>
+      <div class="bokeh" style="width:500px;height:500px;top:40%;left:40%;animation-duration:30s;background:var(--c-accent-2-glow)"></div>
+    </div>
     <!-- Skip navigation link for keyboard users -->
     <a class="skip-link" href="#landing">Skip to content</a>
 
     <!-- ── Header ── -->
     <header class="app-header">
       <div class="app-header__brand">
-        <svg width="30" height="30" viewBox="0 0 32 32" fill="none"
-             stroke="currentColor" stroke-width="1.75"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <!-- Joy-Con left body -->
-          <rect x="1" y="8" width="10" height="16" rx="5" fill="color-mix(in srgb, currentColor 8%, transparent)" stroke="var(--c-joy-red)" stroke-width="1.75"/>
-          <!-- D-pad on left Joy-Con -->
-          <line x1="6" y1="12" x2="6" y2="17" stroke="var(--c-joy-red)" stroke-width="1.5" opacity="0.85"/>
-          <line x1="3.5" y1="14.5" x2="8.5" y2="14.5" stroke="var(--c-joy-red)" stroke-width="1.5" opacity="0.85"/>
-          <!-- Joy-Con right body -->
-          <rect x="21" y="8" width="10" height="16" rx="5" fill="color-mix(in srgb, currentColor 8%, transparent)" stroke="var(--c-joy-blue)" stroke-width="1.75"/>
-          <!-- ABXY on right Joy-Con -->
-          <circle cx="26" cy="12.5" r="1.15" fill="var(--c-joy-blue)" stroke="none" opacity="0.9"/>
-          <circle cx="28.5" cy="14.5" r="1.15" fill="var(--c-joy-blue)" stroke="none" opacity="0.9"/>
-          <circle cx="26" cy="16.5" r="1.15" fill="var(--c-joy-blue)" stroke="none" opacity="0.9"/>
-          <circle cx="23.5" cy="14.5" r="1.15" fill="var(--c-joy-blue)" stroke="none" opacity="0.9"/>
-          <!-- Center dock -->
-          <rect x="11" y="10" width="10" height="12" rx="3" fill="color-mix(in srgb, currentColor 5%, transparent)" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-          <!-- Home button -->
-          <circle cx="16" cy="16" r="2" fill="currentColor" stroke="none" opacity="0.4"/>
-        </svg>
+        <img src="/assets/logo_premium.png" alt="RetroVault" class="brand-logo" width="36" height="36" />
         <span class="brand-long">RetroVault</span>
         <span class="brand-short" aria-hidden="true">RV</span>
       </div>
@@ -388,6 +535,23 @@ export function buildDOM(app: HTMLElement): void {
           <div id="settings-content">
             <!-- Populated by buildSettingsContent() -->
           </div>
+        </div>
+      </div>
+
+      <!-- Debug console (toggled with Shift+F3 or Debug button) -->
+      <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog">
+        <div class="debug-console__header" id="debug-console-handle">
+          <div class="debug-console__title">🔧 Debug Console</div>
+          <div class="debug-console__actions">
+            <button class="debug-console__btn" id="debug-console-clear" title="Clear log">Clear</button>
+            <button class="debug-console__btn" id="debug-console-close" aria-label="Close">✕</button>
+          </div>
+        </div>
+        <div class="debug-console__body" id="debug-console-log"></div>
+        <div class="debug-console__footer">
+          <input type="text" class="debug-console__input" id="debug-console-input" 
+                 placeholder="Type a command (reset, pause, step, help)..." 
+                 spellcheck="false" autocomplete="off" />
         </div>
       </div>
 
@@ -596,6 +760,7 @@ export function initUI(opts: UIOptions): void {
   emulator.onFPSUpdate = (snapshot) => {
     updateFPSOverlay(snapshot, emulator);
     updateDevOverlay(snapshot, emulator);
+    updateDebugConsoleLog(emulator);
   };
 
   // ── Emulator lifecycle → DOM ──────────────────────────────────────────────
@@ -700,7 +865,11 @@ export function initUI(opts: UIOptions): void {
     if (e.key === "F3") {
       e.preventDefault();
       e.stopPropagation();
-      toggleDevOverlay();
+      if (e.shiftKey) {
+        toggleDebugConsole(emulator);
+      } else {
+        toggleDevOverlay();
+      }
       return;
     }
     if (emulator.state !== "running") return;
@@ -762,6 +931,75 @@ export function initUI(opts: UIOptions): void {
   };
 
   void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
+}
+
+// ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
+
+function buildLibraryHero(
+  game: GameMetadata,
+  library: GameLibrary,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>
+): HTMLElement {
+  const hero = make("div", { class: "library-hero" });
+  const system = getSystemById(game.systemId);
+  
+  const bg = make("div", { class: "library-hero__bg" });
+  bg.style.background = `radial-gradient(circle at 20% 30%, ${system?.color ?? "#8b5cf6"}44 0%, transparent 70%), 
+                         linear-gradient(135deg, var(--c-surface) 0%, var(--c-bg) 100%)`;
+  
+  const content = make("div", { class: "library-hero__content" });
+  
+  const tag = make("div", { class: "library-hero__tag" }, "Continue Playing");
+  const title = make("h2", { class: "library-hero__title" }, game.name);
+  
+  const meta = make("div", { class: "library-hero__meta" });
+  const sysName = system?.shortName ?? game.systemId.toUpperCase();
+  meta.innerHTML = `<span>${systemIcon(game.systemId)} ${sysName}</span> <span>🕒 ${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
+  
+  const actions = make("div", { class: "library-hero__actions" });
+  const playBtn = make("button", { class: "btn--hero" });
+  playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Now`;
+  playBtn.addEventListener("click", async () => {
+    const blob = await library.getGameBlob(game.id);
+    if (blob) onLaunchGame(blob as File, game.systemId, game.id);
+  });
+  
+  actions.appendChild(playBtn);
+  content.append(tag, title, meta, actions);
+  hero.append(bg, content);
+  
+  return hero;
+}
+
+function buildLibraryRow(
+  title: string,
+  systemId: string | null,
+  games: GameMetadata[],
+  library: GameLibrary,
+  settings: Settings,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
+  emulatorRef?: PSPEmulator,
+  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
+): HTMLElement {
+  const row = make("div", { class: "library-row" });
+  
+  const header = make("div", { class: "library-row__header" });
+  if (systemId) {
+    const icon = make("span", { class: "library-row__icon-span" }, systemIcon(systemId));
+    const sys = getSystemById(systemId);
+    if (sys) icon.style.color = sys.color;
+    header.appendChild(icon);
+  }
+  header.appendChild(make("h3", { class: "library-row__title" }, title));
+  
+  const scroll = make("div", { class: "library-row__scroll" });
+  games.forEach(game => {
+    const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    scroll.appendChild(card);
+  });
+  
+  row.append(header, scroll);
+  return row;
 }
 
 // ── Library rendering ─────────────────────────────────────────────────────────
@@ -902,6 +1140,8 @@ export async function renderLibrary(
 
   grid.innerHTML = "";
 
+  const isCinematicMode = !_librarySearchQuery && !_librarySystemFilter && _librarySortMode === "lastPlayed";
+
   if (displayed.length === 0 && allGames.length > 0) {
     const empty = make("div", { class: "library-empty" });
     const hasSearch = _librarySearchQuery.trim().length > 0;
@@ -924,17 +1164,42 @@ export async function renderLibrary(
     return;
   }
 
-  const fragment = document.createDocumentFragment();
-  displayed.forEach((game, index) => {
-    const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    // Stagger entrance animation — cap at 20 to avoid long initial delays for large libraries
-    if (index < 20) {
-      card.style.setProperty("--card-i", String(index));
-      card.classList.add("game-card--entering");
+  if (isCinematicMode && displayed.length > 0) {
+    grid.classList.add("library-section__rows");
+    
+    // 1. Hero (Last Played)
+    const lastPlayed = displayed[0]!;
+    grid.appendChild(buildLibraryHero(lastPlayed, library, onLaunchGame));
+    
+    // 2. Continue Playing Row (Recent 2-6 excluding hero)
+    const recent = displayed.slice(1, 7);
+    if (recent.length > 0) {
+      grid.appendChild(buildLibraryRow("Jump Back In", null, recent, library, settings, onLaunchGame, emulatorRef, onApplyPatch));
     }
-    fragment.appendChild(card);
-  });
-  grid.appendChild(fragment);
+    
+    // 3. System Groups
+    const systemIds = [...new Set(allGames.map(g => g.systemId))].sort();
+    systemIds.forEach(sid => {
+      const sysGames = allGames.filter(g => g.systemId === sid);
+      if (sysGames.length > 0) {
+        const sys = getSystemById(sid);
+        grid.appendChild(buildLibraryRow(sys?.name ?? sid.toUpperCase(), sid, sysGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch));
+      }
+    });
+  } else {
+    grid.classList.remove("library-section__rows");
+    const fragment = document.createDocumentFragment();
+    displayed.forEach((game, index) => {
+      const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      // Stagger entrance animation — cap at 20 to avoid long initial delays for large libraries
+      if (index < 20) {
+        card.style.setProperty("--card-i", String(index));
+        card.classList.add("game-card--entering");
+      }
+      fragment.appendChild(card);
+    });
+    grid.appendChild(fragment);
+  }
 }
 
 function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
@@ -1295,7 +1560,13 @@ function buildGameCard(
   const icon = make("div", { class: "game-card__icon" });
   icon.setAttribute("aria-hidden", "true");
   icon.style.background = `linear-gradient(135deg, ${system?.color ?? "#555"}33, ${system?.color ?? "#555"}11)`;
-  icon.textContent = systemIcon(game.systemId);
+
+  const iconOutput = systemIcon(game.systemId);
+  if (iconOutput.includes("/assets/")) {
+    icon.innerHTML = `<img src="${iconOutput}" alt="" class="sys-icon-img" />`;
+  } else {
+    icon.textContent = iconOutput;
+  }
 
   if (isNew) {
     const newBadge = make("div", { class: "game-card__new-badge", "aria-hidden": "true" }, "NEW");
@@ -1438,6 +1709,9 @@ function buildGameCard(
 }
 
 function systemIcon(systemId: string): string {
+  const sys = getSystemById(systemId);
+  if (sys?.iconUrl) return sys.iconUrl;
+
   const icons: Record<string, string> = {
     psp: "🎮", nes: "🕹", snes: "🕹", gba: "🎯", gbc: "🟢", gb: "⬜",
     nds: "📱", n64: "🎮", psx: "🔵", segaMD: "⚡", segaGG: "🔶",
@@ -1918,11 +2192,24 @@ export async function resolveSystemAndAdd(
       if (extracted) {
         const extractedCandidates = extracted.candidates ?? [];
         if (extractedCandidates.length > 1) {
-          hideLoadingOverlay();
-          const picked = await showArchiveEntryPickerDialog(
-            extracted.format,
-            extractedCandidates,
-          );
+          const { ArchiveSelectionStore } = await import("./archiveStore.js");
+          const savedPick = ArchiveSelectionStore.get(file.name, file.size);
+          const pickedCandidate = savedPick 
+            ? extractedCandidates.find(c => c.name === savedPick)
+            : null;
+
+          let picked = pickedCandidate;
+          if (!picked) {
+            hideLoadingOverlay();
+            picked = await showArchiveEntryPickerDialog(
+              extracted.format,
+              extractedCandidates,
+            );
+            if (picked) {
+               ArchiveSelectionStore.set(file.name, file.size, picked.name);
+            }
+          }
+
           if (!picked) return;
           resolvedFile = new File([picked.blob], picked.name, { type: picked.blob.type });
           showLoadingOverlay();
@@ -2414,11 +2701,11 @@ export function buildLandingControls(
   });
 
   const btnMultiplayer = make("button", {
-    class: "btn",
+    class: "btn btn--highlight",
     title: "Open Multiplayer — Host or join a game with friends",
     "aria-label": "Open multiplayer",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Multiplayer`;
+  btnMultiplayer.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Multiplayer`;
   btnMultiplayer.addEventListener("click", () => {
     openEasyNetplayModal({
       netplayManager,
@@ -2453,329 +2740,203 @@ function buildInGameControls(
   const container = el("#header-actions");
   container.innerHTML = "";
 
-  // ← Library
-  const btnLibrary = make("button", {
-    class: "btn",
-    title: "Return to library (Esc)",
-    "aria-label": "Return to library",
-    "data-tooltip": "Return to library (Esc)",
+  // Menu button — the only visible control when the game is running
+  const btnMenu = make("button", {
+    class: "btn btn--gradient",
+    title: "Open Menu (Esc)",
+    "aria-label": "Open Menu",
+    "data-tooltip": "Open Menu (Esc)",
   });
-  btnLibrary.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg> Library`;
-  btnLibrary.addEventListener("click", onReturnToLibrary);
-
-  // Saves group (Save / Load / Gallery combined)
-  const savesGroup = make("div", { class: "btn-group" });
-
-  const btnSave = make("button", {
-    class: "btn btn-group__btn",
-    title: "Quick Save to slot 1 (F5)",
-    "aria-label": "Quick save to slot 1",
-    "data-tooltip": "Quick Save — Slot 1 (F5)",
-  });
-  btnSave.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
-  btnSave.addEventListener("click", async () => {
-    if (!saveService) {
-      showError("Save service is not available.");
-      return;
-    }
-    const entry = await saveService.saveSlot(1);
-    if (entry) showInfoToast("Saved to Slot 1");
-    else showError("Quick save failed — add this game to your library or wait for the core to finish starting.");
-  });
-
-  const btnLoad = make("button", {
-    class: "btn btn-group__btn",
-    title: "Quick Load from slot 1 (F7)",
-    "aria-label": "Quick load from slot 1",
-    "data-tooltip": "Quick Load — Slot 1 (F7)",
-  });
-  btnLoad.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-  btnLoad.addEventListener("click", async () => {
-    if (!saveService) {
-      showError("Save service is not available.");
-      return;
-    }
-    const ok = await saveService.loadSlot(1);
-    if (ok) showInfoToast("Loaded Slot 1");
-    else showError("Nothing saved in Slot 1 yet, or the emulator is still starting.");
-  });
-
-  const btnSavesGallery = make("button", {
-    class: "btn btn-group__btn btn-group__btn--icon",
-    title: "Save state gallery",
-    "aria-label": "Open save state gallery",
-    "data-tooltip": "All Save Slots",
-  });
-  btnSavesGallery.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
-  btnSavesGallery.addEventListener("click", () => {
-    if (saveLibrary && saveService && getCurrentGameId?.() && getCurrentGameName?.() && getCurrentSystemId?.()) {
-      void openSaveGallery(emulator, saveLibrary, saveService, getCurrentGameId()!, getCurrentGameName()!, getCurrentSystemId()!);
-    } else {
-      showInfoToast("Save slots need a game from your library. Return to the library and add this title to open the gallery.");
-    }
-  });
-
-  savesGroup.append(btnSave, btnLoad, btnSavesGallery);
-
-  // Reset
-  const btnReset = make("button", {
-    class: "btn btn--danger",
-    title: "Reset game (F1)",
-    "aria-label": "Reset game",
-    "data-tooltip": "Reset game (F1)",
-  });
-  btnReset.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Reset`;
-  btnReset.addEventListener("click", async () => {
-    const confirmed = await showConfirmDialog(
-      "Unsaved progress will be lost.",
-      { title: "Reset Game?", confirmLabel: "Reset", isDanger: true }
-    );
-    if (confirmed) emulator.reset();
-  });
-
-  // FPS toggle
-  const btnFPS = make("button", {
-    class: settings.showFPS ? "btn btn--active" : "btn",
-    title: "Toggle FPS overlay",
-    "aria-label": "Toggle frames per second overlay",
-    "aria-pressed": settings.showFPS ? "true" : "false",
-    "data-tooltip": "FPS Overlay",
-  }, "FPS");
-  btnFPS.addEventListener("click", () => {
-    settings.showFPS = !settings.showFPS;
-    onSettingsChange({ showFPS: settings.showFPS });
-    btnFPS.className = settings.showFPS ? "btn btn--active" : "btn";
-    btnFPS.setAttribute("aria-pressed", String(settings.showFPS));
-    showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-    emulator.setFPSMonitorEnabled(settings.showFPS);
-  });
-
-  // Touch controls — quick toggle + edit/reset buttons (touch devices only)
-  let btnTouchToggle: HTMLButtonElement | null = null;
-  let btnTouch: HTMLButtonElement | null = null;
-  let btnTouchReset: HTMLButtonElement | null = null;
-
-  if (isTouchDevice()) {
-    const getOverlay = (): TouchControlsOverlay | null => getTouchOverlay?.() ?? null;
-    const syncTouchButtons = (): void => {
-      const overlay   = getOverlay();
-      const canEdit   = settings.touchControls && !!overlay;
-      const isEditing = !!overlay?.editing;
-
-      if (btnTouchToggle) {
-        btnTouchToggle.className = settings.touchControls ? "btn btn--active" : "btn";
-        btnTouchToggle.setAttribute("aria-pressed", String(settings.touchControls));
-        btnTouchToggle.title = settings.touchControls
-          ? "Hide on-screen touch controls"
-          : "Show on-screen touch controls";
-        btnTouchToggle.setAttribute("data-tooltip", settings.touchControls ? "Hide Touch Controls" : "Show Touch Controls");
-      }
-
-      if (btnTouch) {
-        btnTouch.disabled = !canEdit;
-        btnTouch.className = isEditing ? "btn btn--active" : "btn";
-        btnTouch.textContent = isEditing ? "✓ Done" : "🎮 Edit";
-        btnTouch.title = canEdit
-          ? (isEditing ? "Finish editing touch control layout" : "Edit touch control layout")
-          : "Enable touch controls to edit the on-screen layout";
-        btnTouch.setAttribute("data-tooltip", canEdit ? "Edit Touch Layout" : "Enable Touch Controls First");
-        btnTouch.setAttribute("aria-pressed", String(isEditing));
-      }
-
-      if (btnTouchReset) {
-        btnTouchReset.disabled = !canEdit;
-        btnTouchReset.style.display = isEditing ? "" : "none";
-      }
-    };
-
-    // 🕹 quick show/hide toggle — visible even when the overlay doesn't exist yet
-    // (e.g. the user disabled touch controls in settings then re-enabled mid-game)
-    btnTouchToggle = make("button", {
-      class: settings.touchControls ? "btn btn--active" : "btn",
-      title: settings.touchControls ? "Hide on-screen touch controls" : "Show on-screen touch controls",
-      "aria-label": "Toggle on-screen touch controls",
-      "aria-pressed": settings.touchControls ? "true" : "false",
-      "data-tooltip": settings.touchControls ? "Hide Touch Controls" : "Show Touch Controls",
-    }, "🕹") as HTMLButtonElement;
-    btnTouchToggle.addEventListener("click", () => {
-      onSettingsChange({ touchControls: !settings.touchControls });
-      syncTouchButtons();
+  btnMenu.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Menu`;
+  btnMenu.addEventListener("click", () => {
+    showInGameMenu({
+      emulator, settings, onSettingsChange, onReturnToLibrary,
+      saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
+      getCurrentSystemId, getTouchOverlay, onOpenSettings,
+      netplayManager, onOpenPlayTogetherSettings
     });
-
-    // 🎮 Edit — enter drag-to-reposition mode
-    btnTouch = make("button", {
-      class: "btn",
-      title: "Enable touch controls to edit the on-screen layout",
-      "aria-label": "Edit touch control layout",
-      "data-tooltip": "Enable Touch Controls First",
-    }, "🎮 Edit") as HTMLButtonElement;
-
-    // ↺ Reset — visible only while editing; resets to defaults for this orientation
-    btnTouchReset = make("button", {
-      class: "btn",
-      title: "Reset touch layout to defaults",
-      "aria-label": "Reset touch control layout",
-      "data-tooltip": "Reset Touch Layout",
-      style: "display:none",
-    }, "↺ Reset") as HTMLButtonElement;
-
-    btnTouch.addEventListener("click", () => {
-      const overlay = getOverlay();
-      if (!settings.touchControls || !overlay) {
-        syncTouchButtons();
-        return;
-      }
-      overlay.setEditing(!overlay.editing);
-      syncTouchButtons();
-    });
-
-    btnTouchReset.addEventListener("click", async () => {
-      const overlay = getOverlay();
-      if (!overlay) {
-        syncTouchButtons();
-        return;
-      }
-      const orientationLabel = isPortrait() ? "portrait" : "landscape";
-      const confirmed = await showConfirmDialog(
-        `Button positions will be reset to their defaults for ${orientationLabel} orientation.`,
-        { title: "Reset Layout?", confirmLabel: "Reset" }
-      );
-      if (!confirmed) return;
-      overlay.resetToDefaults();
-      // Exit edit mode after reset so the user can play straight away
-      overlay.setEditing(false);
-      syncTouchButtons();
-    });
-
-    syncTouchButtons();
-  }
-
-  // Volume control
-  _preMuteVolume = settings.volume > 0 ? settings.volume : _preMuteVolume;
-  const volWrap  = make("div", { class: "btn vol-control" });
-  const volBtn   = make("button", { class: "vol-mute-btn", title: "Toggle mute", "aria-label": "Toggle mute" }) as HTMLButtonElement;
-  volBtn.textContent = volIcon(settings.volume);
-  const volSlider = make("input", {
-    type: "range", min: "0", max: "1", step: "0.05",
-    value: String(settings.volume), "aria-label": "Volume",
-  }) as HTMLInputElement;
-
-  volBtn.addEventListener("click", () => {
-    const newVol = settings.volume > 0 ? 0 : _preMuteVolume;
-    if (settings.volume > 0) _preMuteVolume = settings.volume;
-    emulator.setVolume(newVol);
-    volSlider.value = String(newVol);
-    onSettingsChange({ volume: newVol });
-    volBtn.textContent = volIcon(newVol);
   });
 
-  // Persist the volume setting at most once per 150 ms while dragging the
-  // slider to avoid synchronous localStorage writes on every animation frame.
-  let volDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  volSlider.addEventListener("input", () => {
-    const v = Number(volSlider.value);
-    if (v > 0) _preMuteVolume = v;
-    emulator.setVolume(v);        // real-time audio update — no debounce
-    volBtn.textContent = volIcon(v);
-    if (volDebounceTimer !== null) clearTimeout(volDebounceTimer);
-    volDebounceTimer = setTimeout(() => {
-      volDebounceTimer = null;
-      onSettingsChange({ volume: v });
-    }, 150);
-  });
-  volSlider.addEventListener("change", () => {
-    // Flush any pending debounced save when the drag ends (pointerup / blur).
-    if (volDebounceTimer !== null) {
-      clearTimeout(volDebounceTimer);
-      volDebounceTimer = null;
-    }
-    onSettingsChange({ volume: Number(volSlider.value) });
-  });
-  volWrap.append(volBtn, volSlider);
+  container.append(btnMenu);
 
-  // Online play — always visible in-game when onOpenSettings is wired
-  let btnNetplay: HTMLButtonElement | null = null;
-  if (onOpenSettings) {
-    const systemId = getCurrentSystemId?.() ?? "";
-    const isNetplaySystem = (NETPLAY_SUPPORTED_SYSTEM_IDS as readonly string[]).includes(systemId);
-    const isLinkCapable   = !systemId || SYSTEM_LINK_CAPABILITIES[systemId] === true;
-    const isSupported     = isNetplaySystem && isLinkCapable;
-    const isActive        = netplayManager?.isActive ?? false;
-
-    let netplayTitle: string;
-    if (systemId && !isSupported) {
-      const sysName = getSystemById(systemId)?.shortName ?? systemId.toUpperCase();
-      netplayTitle = `Online play is not supported for this system (${sysName})`;
-    } else if (!isActive) {
-      netplayTitle = "Play online with friends — add a server in Settings → Play Together if prompted";
-    } else {
-      netplayTitle = "Host or join online play";
-    }
-
-    btnNetplay = make("button", {
-      class: (isSupported && isActive) ? "btn btn--active" : "btn",
-      title: netplayTitle,
-      "aria-label": "Open online multiplayer",
-      "data-tooltip": "Online play",
-    }) as HTMLButtonElement;
-    btnNetplay.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Online`;
-
-    if (systemId && !isSupported) {
-      btnNetplay.disabled = true;
-    }
-
-    btnNetplay.addEventListener("click", () => {
-      openEasyNetplayModal({
-        netplayManager,
-        currentGameName:  getCurrentGameName?.() ?? null,
-        currentGameId:    getCurrentGameId?.()   ?? null,
-        currentSystemId:  getCurrentSystemId?.() ?? null,
-        onOpenPlayTogetherSettings,
+  // Global Esc listener for quick menu access
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && emulator.state === "running") {
+      e.preventDefault();
+      showInGameMenu({
+        emulator, settings, onSettingsChange, onReturnToLibrary,
+        saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
+        getCurrentSystemId, getTouchOverlay, onOpenSettings,
+        netplayManager, onOpenPlayTogetherSettings
       });
+    }
+  };
+  window.addEventListener("keydown", onKeyDown);
+
+  // Clean up listener when returning to library
+  document.addEventListener("retrovault:returnToLibrary", () => {
+    window.removeEventListener("keydown", onKeyDown);
+  }, { once: true });
+}
+
+/**
+ * Premium glassmorphic in-game overlay menu.
+ */
+async function showInGameMenu(ctx: {
+  emulator: PSPEmulator;
+  settings: Settings;
+  onSettingsChange: (patch: Partial<Settings>) => void;
+  onReturnToLibrary: () => void;
+  saveLibrary?: SaveStateLibrary;
+  saveService?: SaveGameService;
+  getCurrentGameId?: () => string | null;
+  getCurrentGameName?: () => string | null;
+  getCurrentSystemId?: () => string | null;
+  getTouchOverlay?: () => TouchControlsOverlay | null;
+  onOpenSettings?: (tab?: SettingsTab) => void;
+  netplayManager?: import("./multiplayer.js").NetplayManager;
+  onOpenPlayTogetherSettings?: () => void;
+}): Promise<void> {
+  if (ctx.emulator.state === "running") ctx.emulator.pause();
+
+  const overlay = make("div", { class: "ingame-menu-overlay" });
+  document.body.appendChild(overlay);
+
+  // Transition in
+  requestAnimationFrame(() => overlay.classList.add("ingame-menu-overlay--visible"));
+
+  const gameName = ctx.getCurrentGameName?.() ?? "Unknown Game";
+  const systemId = ctx.getCurrentSystemId?.() ?? "unknown";
+
+  const closeMenu = () => {
+    overlay.classList.remove("ingame-menu-overlay--visible");
+    setTimeout(() => {
+      overlay.remove();
+      if (ctx.emulator.state === "paused") ctx.emulator.resume();
+    }, 400);
+  };
+
+  const menu = make("div", { class: "ingame-menu" });
+  overlay.appendChild(menu);
+
+  // Sidebar
+  const sidebar = make("div", { class: "ingame-menu__sidebar" });
+  sidebar.innerHTML = `<div class="ingame-menu__sidebar-title">Pause Menu</div>`;
+  menu.appendChild(sidebar);
+
+  const content = make("div", { class: "ingame-menu__content" });
+  menu.appendChild(content);
+
+  const renderContent = (type: "saves" | "settings" | "cheats" | "multiplayer") => {
+    content.innerHTML = "";
+    
+    // Update sidebar active state
+    sidebar.querySelectorAll(".ingame-menu__sidebar-btn").forEach(b => b.classList.remove("ingame-menu__sidebar-btn--active"));
+    const activeBtn = sidebar.querySelector(`[data-tab="${type}"]`);
+    if (activeBtn) activeBtn.classList.add("ingame-menu__sidebar-btn--active");
+
+    if (type === "saves") {
+      const header = make("div", { class: "ingame-menu__header" });
+      header.innerHTML = `
+        <h2 class="ingame-menu__game-name">${gameName}</h2>
+        <span class="ingame-menu__system-tag">${systemId.toUpperCase()}</span>
+      `;
+      content.appendChild(header);
+
+      const grid = make("div", { class: "ingame-menu__saves-grid" });
+      content.appendChild(grid);
+
+      // Render slots 1-5
+      for (let i = 1; i <= 5; i++) {
+        const card = make("div", { class: "ingame-menu__save-card" });
+        card.innerHTML = `
+          <div class="ingame-menu__save-info">
+            <span class="ingame-menu__save-slot">Slot ${i}</span>
+          </div>
+          <div class="ingame-menu__save-actions"></div>
+        `;
+        
+        const actions = card.querySelector(".ingame-menu__save-actions")!;
+        
+        const btnSave = make("button", { class: "ingame-menu__btn ingame-menu__btn--primary" }, "Save");
+        btnSave.addEventListener("click", async () => {
+          if (ctx.saveService) {
+            const entry = await ctx.saveService.saveSlot(i);
+            if (entry) showInfoToast(`Saved to Slot ${i}`);
+          }
+        });
+
+        const btnLoad = make("button", { class: "ingame-menu__btn" }, "Load");
+        btnLoad.addEventListener("click", async () => {
+          if (ctx.saveService) {
+            const ok = await ctx.saveService.loadSlot(i);
+            if (ok) {
+              showInfoToast(`Loaded Slot ${i}`);
+              closeMenu();
+            } else {
+              showError(`Nothing saved in Slot ${i}`);
+            }
+          }
+        });
+
+        actions.append(btnSave, btnLoad);
+        grid.appendChild(card);
+      }
+
+      // Quick Settings
+      const quick = make("div", { class: "ingame-menu__quick-settings" });
+      quick.innerHTML = `
+        <div class="ingame-menu__settings-pill">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1zm0 18a7 7 0 1 1 7-7 7 7 0 0 1-7 7z"/></svg>
+          Volume: ${Math.round(ctx.settings.volume * 100)}%
+        </div>
+        <div class="ingame-menu__settings-pill">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          ${ctx.settings.performanceMode.toUpperCase()}
+        </div>
+      `;
+      content.appendChild(quick);
+    } else {
+      content.innerHTML = `<div style="opacity: 0.5; padding: 40px; text-align: center;">${type.charAt(0).toUpperCase() + type.slice(1)} coming soon in this menu overhaul. Use global settings for now.</div>`;
+    }
+  };
+
+  const addSideBtn = (label: string, icon: string, tab: string, isDanger = false) => {
+    const btn = make("button", { 
+      class: isDanger ? "ingame-menu__sidebar-btn ingame-menu__sidebar-btn--danger" : "ingame-menu__sidebar-btn",
+      "data-tab": tab
     });
-  }
-
-  // Per-game graphics button
-  let btnGraphics: HTMLButtonElement | null = null;
-  {
-    const gameId    = getCurrentGameId?.()    ?? null;
-    const systemId  = getCurrentSystemId?.()  ?? null;
-    const gameName  = getCurrentGameName?.()  ?? null;
-
-    btnGraphics = make("button", {
-      class: "btn",
-      title: "Per-game graphics settings",
-      "aria-label": "Open per-game graphics settings",
-      "data-tooltip": "Graphics Settings",
-    }) as HTMLButtonElement;
-    btnGraphics.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 20.66 7"/><polyline points="22 2 22 8 16 8"/></svg> Graphics`;
-    btnGraphics.addEventListener("click", () => {
-      if (gameId && systemId && gameName) {
-        openPerGameGraphicsDialog(gameId, systemId, gameName, emulator, onSettingsChange, settings);
+    btn.innerHTML = `${icon} ${label}`;
+    btn.addEventListener("click", () => {
+      if (tab === "resume") closeMenu();
+      else if (tab === "library") {
+        closeMenu();
+        ctx.onReturnToLibrary();
+      } else if (tab === "reset") {
+        showConfirmDialog("Unsaved progress will be lost.", { title: "Reset Game?", confirmLabel: "Reset", isDanger: true }).then(conf => {
+          if (conf) {
+            ctx.emulator.reset();
+            closeMenu();
+          }
+        });
+      } else {
+        renderContent(tab as any);
       }
     });
-  }
+    sidebar.appendChild(btn);
+  };
 
-  const gameName = getCurrentGameName?.();
-  const nowPlayingChip = gameName
-    ? make("span", {
-      class: "now-playing-chip",
-      title: gameName,
-      "aria-label": `Now playing: ${gameName}`,
-    }, gameName)
-    : null;
+  addSideBtn("Resume", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`, "resume");
+  addSideBtn("Saves & Gallery", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`, "saves");
+  addSideBtn("Settings", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`, "settings");
+  addSideBtn("Reset Game", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>`, "reset", true);
+  addSideBtn("Back to Library", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`, "library");
 
-  // Put the title chip right after Library so it stays visible on narrow screens
-  // (horizontal scroll starts from the left; far-right items are easy to miss).
-  const controls: (HTMLElement | null)[] = [
-    btnLibrary, nowPlayingChip, savesGroup, btnReset, btnFPS,
-    btnTouchToggle, btnTouch, btnTouchReset, btnGraphics, btnNetplay, volWrap,
-  ];
-  for (const ctrl of controls) {
-    if (ctrl) container.appendChild(ctrl);
-  }
+  renderContent("saves");
 
-  updateHeaderOverflow();
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeMenu();
+  });
 }
 
 // ── Cloud save bar ────────────────────────────────────────────────────────────
@@ -4876,8 +5037,8 @@ export function openEasyNetplayModal(opts: {
 
   // ── Header ───────────────────────────────────────────────────────────────
   const header = make("div", { class: "enp-header" });
-  header.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
-  header.appendChild(make("span", { class: "enp-title" }, "Multiplayer"));
+  header.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="22" height="22" style="margin-right:10px" />`;
+  header.appendChild(make("span", { class: "enp-title" }, "Multiplayer Lobby"));
   const btnCopyDiagnostics = make("button", {
     class: "enp-copy-diag",
     "aria-label": "Copy multiplayer diagnostics",

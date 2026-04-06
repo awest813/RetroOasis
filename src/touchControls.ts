@@ -629,18 +629,26 @@ export class TouchControlsOverlay {
       if (dragPointerId === e.pointerId) {
         dragPointerId = -1;
         outer.style.cursor = "grab";
+        outer.releasePointerCapture(e.pointerId);
         saveLayout(this._systemId, this._buttons, this._portrait);
         this.onLayoutSaved?.(this._systemId, this._buttons);
         return;
       }
       if (e.pointerId === playPointerId) {
         playPointerId = -1;
+        outer.releasePointerCapture(e.pointerId);
         releaseAll();
       }
     };
 
     outer.addEventListener("pointerup",     onPointerEnd);
     outer.addEventListener("pointercancel", onPointerEnd);
+    outer.addEventListener("lostpointercapture", () => {
+      if (playPointerId !== -1) {
+        playPointerId = -1;
+        releaseAll();
+      }
+    });
   }
 
   /**
@@ -782,12 +790,14 @@ export class TouchControlsOverlay {
       if (dragPointerId === e.pointerId) {
         dragPointerId = -1;
         outer.style.cursor = "grab";
+        outer.releasePointerCapture(e.pointerId);
         saveLayout(this._systemId, this._buttons, this._portrait);
         this.onLayoutSaved?.(this._systemId, this._buttons);
         return;
       }
       if (e.pointerId === playPointerId) {
         playPointerId = -1;
+        outer.releasePointerCapture(e.pointerId);
         setPlayActive(false);
         releaseAll();
       }
@@ -795,6 +805,13 @@ export class TouchControlsOverlay {
 
     outer.addEventListener("pointerup",     onPointerEnd);
     outer.addEventListener("pointercancel", onPointerEnd);
+    outer.addEventListener("lostpointercapture", () => {
+      if (playPointerId !== -1) {
+        playPointerId = -1;
+        setPlayActive(false);
+        releaseAll();
+      }
+    });
   }
 
   private _bindButton(el: HTMLElement, btn: TouchButtonDef): void {

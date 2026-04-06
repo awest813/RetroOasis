@@ -21,6 +21,8 @@ export interface SystemInfo {
   name: string;
   /** Short label for library badges. */
   shortName: string;
+  /** High-fidelity glassmorphic icon asset URL. */
+  iconUrl?: string;
   /** Accepted file extensions, lowercase without the leading dot. */
   extensions: string[];
   /** Badge background colour. */
@@ -720,6 +722,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "psp",
     name: "PlayStation Portable",
     shortName: "PSP",
+    iconUrl: "/assets/psp_system_icon_premium_1775433994525.png",
     extensions: ["iso", "cso", "elf", "pbp"],
     color: "#0070cc",
     needsThreads: true,
@@ -744,6 +747,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "nes",
     name: "Nintendo Entertainment System",
     shortName: "NES",
+    iconUrl: "/assets/nes_system_icon_premium_1775435133234.png",
     extensions: ["nes", "fds", "unf", "unif"],
     color: "#e52b2b",
     needsThreads: false,
@@ -755,6 +759,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "snes",
     name: "Super Nintendo",
     shortName: "SNES",
+    iconUrl: "/assets/snes_system_icon_premium_1775434976156.png",
     extensions: ["snes", "smc", "sfc", "fig", "bs"],
     color: "#7b3fae",
     needsThreads: false,
@@ -766,6 +771,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "gba",
     name: "Game Boy Advance",
     shortName: "GBA",
+    iconUrl: "/assets/gba_system_icon_premium_1775434039102.png",
     extensions: ["gba"],
     color: "#7c4dff",
     needsThreads: false,
@@ -800,6 +806,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "nds",
     name: "Nintendo DS",
     shortName: "DS",
+    iconUrl: "/assets/nds_system_icon_premium_1775435000887.png",
     extensions: ["nds"],
     color: "#4b5d7a",
     needsThreads: false,
@@ -813,6 +820,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "n64",
     name: "Nintendo 64",
     shortName: "N64",
+    iconUrl: "/assets/n64_system_icon_premium_1775434016833.png",
     extensions: ["64", "n64", "v64", "z64"],
     color: "#1a7a1a",
     needsThreads: false,
@@ -826,6 +834,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "psx",
     name: "PlayStation 1",
     shortName: "PS1",
+    iconUrl: "/assets/psx_system_icon_premium_1775434989040.png",
     extensions: ["bin", "pbp", "chd", "cue", "img", "mdf", "ccd", "m3u", "iso"],
     color: "#003087",
     needsThreads: false,
@@ -839,6 +848,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "segaMD",
     name: "Sega Genesis / Mega Drive",
     shortName: "Genesis",
+    iconUrl: "/assets/genesis_system_icon_premium_1775435147615.png",
     extensions: ["md", "smd", "gen"],
     color: "#1a1ae6",
     needsThreads: false,

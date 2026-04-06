@@ -76,6 +76,112 @@ declare global {
   }
 }
 
+// ── Core Bridge ─────────────────────────────────────────────────────────────
+
+/**
+ * CoreBridge wraps the low-level EmulatorJS global instance to provide a 
+ * robust, typed, and asynchronous interface for the frontend.
+ */
+export class CoreBridge {
+  private _instance: EJSEmulatorInstance | null = null;
+
+  constructor(instance: EJSEmulatorInstance) {
+    this._instance = instance;
+  }
+
+  get instance(): EJSEmulatorInstance {
+    if (!this._instance) throw new Error("Emulator core is not initialized.");
+    return this._instance;
+  }
+
+  /**
+   * Virtual Filesystem Access.
+   * Provides high-performance read/write paths for ROMs, BIOS, and save data.
+   */
+  get fs() {
+    const fs = this.instance.Module?.FS;
+    if (!fs) throw new Error("Emulator VFS is not available.");
+    return {
+      exists: (path: string) => fs.analyzePath(path).exists,
+      read: (path: string) => fs.readFile(path),
+      write: (path: string, data: Uint8Array) => fs.writeFile(path, data),
+      mkdir: (path: string) => {
+        if (!fs.analyzePath(path).exists) fs.mkdir?.(path);
+      },
+      unlink: (path: string) => {
+        if (fs.analyzePath(path).exists) fs.unlink(path);
+      },
+      readdir: (path: string) => fs.readdir(path),
+    };
+  }
+
+  setVolume(v: number): void {
+    this.instance.setVolume(v);
+  }
+
+  pause(): void {
+    this.instance.pause?.();
+  }
+
+  resume(): void {
+    this.instance.resume?.();
+  }
+
+  restart(): void {
+    this.instance.gameManager?.restart();
+  }
+
+  /**
+   * Quick Save/Load via internal EmulatorJS mechanism.
+   * Slot 0 is usually the "auto" slot.
+   */
+  saveState(slot: number): boolean {
+    return this.instance.gameManager?.quickSave(slot) ?? false;
+  }
+
+  loadState(slot: number): void {
+    this.instance.gameManager?.quickLoad(slot);
+  }
+
+  /**
+   * Access the Emscripten Audio Context for advanced visualizations
+   * or latency monitoring.
+   */
+  get audioContext(): AudioContext | null {
+    return this.instance.Module?.AL?.currentCtx?.audioCtx ?? null;
+  }
+}
+
+declare global {
+  interface Window {
+    EJS_player:        string;
+    EJS_core:          string;
+    EJS_gameUrl:       string | File;
+    EJS_pathtodata:    string;
+    EJS_gameName:      string;
+    EJS_startOnLoaded: boolean;
+    EJS_threads:       boolean;
+    EJS_volume:        number;
+    EJS_Settings?:     Record<string, string>;
+    EJS_biosUrl?:      string;
+    EJS_ready?:        () => void;
+    EJS_onGameStart?:  () => void;
+    EJS_emulator?:     EJSEmulatorInstance;
+    /** Netplay signalling server WebSocket URL (set when netplay is active). */
+    EJS_netplayServer?:     string;
+    /** ICE server list forwarded to WebRTC peer connections. */
+    EJS_netplayICEServers?: RTCIceServer[];
+    /** Numeric room-scoping ID derived from the game's string identifier. */
+    EJS_gameID?:            number;
+    /** Canonical string room key used for compatibility discovery. */
+    EJS_roomKey?:           string;
+    /** Friendly room name presented by supported netplay UIs. */
+    EJS_netplayRoom?:       string;
+    /** Player display name shown to others in a netplay room. Empty means anonymous. */
+    EJS_playerName?:        string;
+  }
+}
+
 interface EJSEmulatorInstance {
   setVolume(volume: number): void;
   pause?(): void;
@@ -544,6 +650,7 @@ export class PSPEmulator {
   private _memoryMonitor: MemoryMonitor = new MemoryMonitor();
   /** Timestamp (ms) when sustained low FPS was first detected; 0 when FPS is healthy. */
   private _lowFPSStartTime = 0;
+  private _bridge: CoreBridge | null = null;
   /**
    * Timestamp (ms) of the last low-FPS quality suggestion, to debounce warnings.
    * Initialised to -Infinity so the very first suggestion can always fire
@@ -1864,6 +1971,9 @@ export class PSPEmulator {
 
       // ── Lifecycle callbacks ───────────────────────────────────────────────
       window.EJS_ready = () => {
+        if (window.EJS_emulator) {
+          this._bridge = new CoreBridge(window.EJS_emulator);
+        }
         // Ignore stale callbacks from a torn-down/replaced core instance.
         if (this._state !== "loading") return;
         this._emit("onProgress", "Booting game…");
@@ -2101,9 +2211,9 @@ export class PSPEmulator {
     });
   }
 
-  setVolume(volume: number): void {
-    const clamped = Math.max(0, Math.min(1, volume));
-    window.EJS_emulator?.setVolume(clamped);
+   setVolume(volume: number): void {
+     const clamped = Math.max(0, Math.min(1, volume));
+     this._bridge?.setVolume(clamped);
     // Also update the worklet gain parameter so volume is reflected in the audio graph
     if (this._audioWorkletNode && this._audioWorkletCtx) {
       const gainParam = this._audioWorkletNode.parameters.get("gain");
@@ -2113,7 +2223,7 @@ export class PSPEmulator {
 
   pause(): void {
     if (this._state !== "running") return;
-    window.EJS_emulator?.pause?.();
+    this._bridge?.pause();
     this._fpsMonitor.stop();
     this._memoryMonitor.stop();
     this._setState("paused");
@@ -2121,7 +2231,7 @@ export class PSPEmulator {
 
   resume(): void {
     if (this._state !== "paused") return;
-    window.EJS_emulator?.resume?.();
+    this._bridge?.resume();
     this._fpsMonitor.start();
     this._memoryMonitor.start();
     this._setState("running");

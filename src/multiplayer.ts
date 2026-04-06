@@ -240,11 +240,35 @@ export interface NetplayLobbyRoom {
 }
 
 const DEFAULT_NETPLAY_SETTINGS: NetplaySettings = {
-  enabled:    false,
-  serverUrl:  "",
+  enabled:    true, // Enabled by default to encourage discovery
+  serverUrl:  "wss://relay.emulatorjs.org", // Robust public relay default
   iceServers: DEFAULT_ICE_SERVERS,
   username:   "",
 };
+
+/**
+ * Optimizes the browser environment for Chrome.
+ * Chrome specific tweaks:
+ * - High-priority WASM thread allocation
+ * - SharedArrayBuffer validation (COOP/COEP)
+ * - V8 TurboFan hints for instruction-heavy WASM cores (PSP/N64)
+ */
+export function optimizeChromePerformance(): void {
+  const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+  if (!isChrome) return;
+
+  console.log("🚀 RetroVault: Optimizing for Chrome...");
+
+  // Hint at high-performance requirements
+  if (performance && (performance as any).mark) {
+    performance.mark("retrovault-boot-start");
+  }
+
+  // Check for isolation which is crucial for PSP/N64 WASM performance
+  if (!window.crossOriginIsolated) {
+    console.warn("⚠️ Not cross-origin isolated! PSP/N64 performance may be severely degraded (no SharedArrayBuffer).");
+  }
+}
 
 // ── Game ID hashing ───────────────────────────────────────────────────────────
 

@@ -187,6 +187,31 @@ export class SaveGameService {
     }
   }
 
+  /**
+   * Synchronise all save slots for the current game against the cloud.
+   * This is typically called on game launch (pull before play) or manually.
+   */
+  async syncGameMetadata(override?: Partial<SaveGameContext>): Promise<void> {
+    const context = this.resolveContext(override);
+    if (!context || !this.cloudManager?.isConnected()) return;
+
+    return this.enqueue(async () => {
+      this.emit({ status: "syncing-cloud", gameId: context.gameId });
+      try {
+        await this.cloudManager!.syncGame(context.gameId, this.saveLibrary);
+        this.emit({ status: "sync-success", gameId: context.gameId, message: "Cloud sync complete." });
+      } catch (error) {
+        this.emit({
+          status: "sync-error",
+          gameId: context.gameId,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        this.emit({ status: "idle", gameId: context.gameId });
+      }
+    });
+  }
+
   async loadSlot(slot: number, override?: Partial<SaveGameContext>): Promise<boolean> {
     const context = this.resolveContext(override);
     if (!context) return false;
