@@ -776,6 +776,30 @@ function benchmarkGPU(): number {
   }
 }
 
+/**
+ * Optimizes the browser environment for Chrome.
+ * Chrome-specific tweaks for RetroVault:
+ * - High-priority WASM thread allocation hints
+ * - SharedArrayBuffer validation (COOP/COEP)
+ * - V8 TurboFan hints for instruction-heavy WASM cores (PSP/N64)
+ */
+export function optimizeChromePerformance(): void {
+  const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+  if (!isChrome) return;
+
+  console.log("🚀 RetroVault: Optimizing for Chrome...");
+
+  // Hint at high-performance requirements
+  if (typeof performance !== "undefined" && typeof performance.mark === "function") {
+    performance.mark("retrovault-boot-start");
+  }
+
+  // Check for isolation which is crucial for PSP/N64 WASM performance
+  if (typeof window !== "undefined" && !window.crossOriginIsolated) {
+    console.warn("⚠️ Not cross-origin isolated! PSP/N64 performance may be severely degraded (no SharedArrayBuffer).");
+  }
+}
+
 // ── Tier classification ───────────────────────────────────────────────────────
 
 function classifyTier(

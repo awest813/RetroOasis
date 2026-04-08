@@ -26,7 +26,7 @@ import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT } from "./saves.js";
-import { detectCapabilitiesCached, checkBatteryStatus, formatDetailedSummary, scheduleIdleTask, getResolutionCoreOptions } from "./performance.js";
+import { detectCapabilitiesCached, formatDetailedSummary, scheduleIdleTask, getResolutionCoreOptions } from "./performance.js";
 import { gameCompatibilityDb } from "./compatibility.js";
 import { buildDOM, initUI, showLanding,
          hideEjsContainer, renderLibrary, openSettingsPanel,
@@ -36,9 +36,8 @@ import { buildDOM, initUI, showLanding,
          showError, showInfoToast,
          TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
 import { isTouchDevice } from "./touchControls.js";
-import { NetplayManager, optimizeChromePerformance } from "./multiplayer.js";
-
 // Initialize Chrome-specific performance optimizations early
+import { optimizeChromePerformance } from "./performance.js";
 optimizeChromePerformance();
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import type { PostProcessEffect } from "./webgpuPostProcess.js";
@@ -241,7 +240,7 @@ export function canInstallPWA(): boolean {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
-function main(): void {
+async function main(): Promise<void> {
   // 1. Build DOM
   const app = document.getElementById("app");
   if (!app) throw new Error("Root element #app not found");
@@ -280,7 +279,10 @@ function main(): void {
       ? { gameId: currentGameId, gameName: settings.lastGameName ?? "Unknown", systemId: currentSystemId }
       : null,
   });
-  const netplayManager = new NetplayManager();
+  
+  // Lazy-load NetplayManager only when first needed (Phase 5 Optimization)
+  const { getNetplayManager, peekNetplayManager } = await import("./netplaySingleton.js");
+  // Don't instantiate yet — getNetplayManager() will do it on demand.
 
   // Propagate verbose logging from settings into the emulator so debug
   // information is written to the console when the user enables it.
@@ -317,43 +319,60 @@ function main(): void {
     }).catch(() => {});
   }
 
-  // Defer blocking GPU warm-up work to idle time so it does not delay the
-  // first render frame. preWarmWebGL and warmUpPSPPipeline each create a
-  // throwaway WebGL context and compile shaders, which blocks the main
-  // thread for up to ~20ms on slower devices.
-  scheduleIdleTask(() => emulator.preWarmWebGL());
-  scheduleIdleTask(() => emulator.warmUpPSPPipeline());
-  scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
-  scheduleIdleTask(() => emulator.prefetchLoader());
-  // Intelligent core preloading — top launched systems plus two heavy 3D cores
-  // (e.g. PSP, N64) when not already in the list, so first visits still warm
-  // large WASM blobs during idle time.
-  scheduleIdleTask(() => emulator.prefetchTopSystems(2, 2));
+  // 4b. Intelligent Warmup Strategy (Phase 5 Optimization)
+  // Instead of flooding the idle queue immediately on landing, we gate heavy
+  // GPU and WASM pre-warming behind "User Intent" (hovering the drop zone,
+  // focusing the search, or interacting with the library). This ensures the
+  // landing screen remains perfectly smooth on low-end hardware.
+  let warmupsTriggered = false;
+  const triggerWarmups = () => {
+    if (warmupsTriggered) return;
+    warmupsTriggered = true;
 
-  // 4b. Battery status — asynchronously check if the device is low on battery.
-  // If so, auto-switch to "performance" mode when the user hasn't made a manual
-  // choice. This is particularly valuable on Chromebooks (always Chrome, always
-  // has Battery API) where sustained emulation drains the battery quickly.
-  checkBatteryStatus().then(battery => {
-    if (!battery) return;
-    if (battery.isLowBattery && settings.performanceMode === "auto") {
-      settings.performanceMode = "performance";
-      saveSettings(settings);
-      console.info(
-        `[RetroVault] Low battery (${Math.round((battery.level ?? 0) * 100)}%) detected. ` +
-        "Auto-switched to Performance mode to conserve power."
-      );
+    console.info("[RetroVault] Play intent detected — triggering heavy warmups...");
+    
+    // Defer blocking GPU warm-up work to idle time so it does not delay the
+    // current interaction frame.
+    scheduleIdleTask(() => emulator.preWarmWebGL());
+    scheduleIdleTask(() => emulator.warmUpPSPPipeline());
+    scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
+    scheduleIdleTask(() => emulator.prefetchLoader());
+    
+    // Intelligent core preloading — top launched systems plus two heavy 3D cores
+    scheduleIdleTask(() => emulator.prefetchTopSystems(2, 2));
+  };
+
+  // Listen for intent signals from the landing page
+  const intentEvents = ["mouseover", "touchstart", "focusin"];
+  const intentContainers = ["#drop-zone", "#library-grid", "#library-search"];
+  
+  intentContainers.forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) {
+      intentEvents.forEach(evt => {
+        el.addEventListener(evt, triggerWarmups, { once: true, passive: true });
+      });
     }
-  }).catch(() => { /* Battery API unavailable or denied — ignore silently */ });
+  });
 
-  // 5. Wire launch callback
-  const onLaunchGame = async (
+  // 5. Wire launch handler with warmup trigger
+  let onLaunchGame: (
+    file: File,
+    systemId: string,
+    gameId?: string,
+    tierOverride?: PerformanceTier
+  ) => Promise<void>;
+
+  const baseOnLaunchGame = async (
     file: File,
     systemId: string,
     gameId?: string,
     tierOverride?: PerformanceTier
   ): Promise<void> => {
-    // Cancel any stale pending restore handler from an earlier launch attempt.
+    // Trigger warmups if they haven't run yet
+    triggerWarmups();
+
+    // Cancel any stale pending restore handler
     pendingAutoRestoreCancel?.();
     pendingAutoRestoreCancel = null;
 
@@ -361,15 +380,14 @@ function main(): void {
     settings.lastGameName = gameName;
     saveSettings(settings);
 
-    // Orientation lock — auto-lock to landscape on mobile when a game starts.
-    // Gracefully ignored on desktop and iOS (which lacks the lock API).
+    // Orientation lock
     if (settings.orientationLock && "orientation" in screen) {
       (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })
         .lock?.("landscape-primary")
-        .catch(() => { /* not supported on this device/browser */ });
+        .catch(() => {});
     }
 
-    // Touch controls — lazily initialise and attach to the EJS container.
+    // Touch controls
     if (settings.touchControls && isTouchDevice()) {
       const ejsContainer = document.getElementById("ejs-container");
       if (ejsContainer) {
@@ -388,7 +406,6 @@ function main(): void {
       }
     }
 
-    // Update current-game tracking for tier-downgrade re-launch
     currentGameFile     = file;
     currentGameFileName = file.name;
     currentSystemId     = systemId;
@@ -402,7 +419,6 @@ function main(): void {
       showInfoToast(`Compatibility note: ${compatibilityEntry.knownIssues[0]}`);
     }
 
-    // Check for auto-save restore opportunity
     let pendingAutoRestore: Uint8Array | null = null;
     if (gameId && settings.autoSaveEnabled) {
       try {
@@ -413,22 +429,16 @@ function main(): void {
             pendingAutoRestore = new Uint8Array(await autoState.stateData.arrayBuffer());
           }
         }
-      } catch {
-        // Auto-save restore is best-effort
-      }
+      } catch {}
     }
 
-    // One-shot auto-restore: inject via a listener that removes itself after firing,
-    // avoiding the stale-handler leak of monkey-patching emulator.onGameStart.
     if (pendingAutoRestore) {
       const registration = scheduleAutoRestoreOnGameStart({
         emulator,
         stateBytes: pendingAutoRestore,
         slot: AUTO_SAVE_SLOT,
         delayMs: 500,
-        onConsumed: () => {
-          pendingAutoRestoreCancel = null;
-        },
+        onConsumed: () => { pendingAutoRestoreCancel = null; },
       });
       pendingAutoRestoreCancel = () => {
         registration.cancel();
@@ -436,42 +446,31 @@ function main(): void {
       };
     }
 
-    // Apply per-game tier profile if no explicit override was requested
     const savedTier    = gameId ? getGameTierProfile(gameId) : null;
     const resolvedTier = tierOverride ?? savedTier ?? compatibilityEntry?.tierOverride ?? undefined;
 
-    // Apply per-game graphics profile overrides
     const gfxProfile = gameId ? getGameGraphicsProfile(gameId) : null;
     let coreSettingsOverride: Record<string, string> | undefined;
     if (gfxProfile) {
-      // Resolution preset: build core-option overrides to merge at launch
       if (gfxProfile.resolutionPreset) {
         const presetOptions = getResolutionCoreOptions(systemId, gfxProfile.resolutionPreset);
-        if (Object.keys(presetOptions).length > 0) {
-          coreSettingsOverride = presetOptions;
-        }
+        if (Object.keys(presetOptions).length > 0) coreSettingsOverride = presetOptions;
       }
-      // DRS: configure before launch so the game starts with the right setting
-      if (typeof gfxProfile.drsEnabled === "boolean") {
-        emulator.enableDRS(gfxProfile.drsEnabled);
-      }
+      if (typeof gfxProfile.drsEnabled === "boolean") emulator.enableDRS(gfxProfile.drsEnabled);
     }
 
-    // Resolve BIOS URL for systems that need it (PS1, Saturn, Dreamcast, Lynx)
     let biosUrl: string | undefined;
     try {
       const primaryBios = await biosLibrary.getPrimaryBiosUrl(systemId);
-      if (primaryBios) {
-        biosUrl = primaryBios;
-      }
-    } catch {
-      // BIOS lookup failure is non-fatal — emulator may run without BIOS
-    }
+      if (primaryBios) biosUrl = primaryBios;
+    } catch {}
 
-    // Sync netplay settings from app settings into the manager before launch
-    netplayManager.setEnabled(settings.netplayEnabled);
-    netplayManager.setServerUrl(settings.netplayServerUrl);
-    netplayManager.setUsername(settings.netplayUsername);
+    const nm = peekNetplayManager();
+    if (nm) {
+      nm.setEnabled(settings.netplayEnabled);
+      nm.setServerUrl(settings.netplayServerUrl);
+      nm.setUsername(settings.netplayUsername);
+    }
 
     await emulator.launch({
       file,
@@ -482,16 +481,31 @@ function main(): void {
       tierOverride:        resolvedTier,
       coreSettingsOverride,
       biosUrl,
-      netplayManager,
+      netplayManager: peekNetplayManager() ?? undefined,
       gameId,
-      // When a game already exists in the library the user may have manually
-      // reassigned its system type.  Trust their choice and skip the extension
-      // check so the emulator doesn't refuse to launch the file.
       skipExtensionCheck:  !!gameId,
     });
 
-    // When cloud is connected, merge remote saves into IndexedDB so F7 / gallery
-    // see the latest data without opening Sync Now first.
+    if (gameId && cloudSaveManager.isConnected()) {
+      void cloudSaveManager.syncGame(gameId, saveLibrary).then((r) => {
+        if (r.errors > 0) {
+          showInfoToast(`☁ Cloud sync had ${r.errors} error(s) — open Save States to retry.`);
+        } else if (r.pulled > 0 || r.pushed > 0) {
+          showInfoToast(`☁ Saves updated`);
+        }
+      }).catch(() => {});
+    }
+
+    const materialised = emulator.getLaunchGameFile();
+    if (materialised) {
+      currentGameFile = materialised;
+      currentGameFileName = materialised.name;
+    }
+
+    if (gfxProfile?.postEffect && emulator.state !== "error") {
+      emulator.updatePostProcessConfig({ effect: gfxProfile.postEffect });
+    }
+
     if (gameId && cloudSaveManager.isConnected()) {
       void cloudSaveManager.syncGame(gameId, saveLibrary).then((r) => {
         if (r.errors > 0) {
@@ -502,41 +516,29 @@ function main(): void {
           if (r.pushed > 0) parts.push(`↑ ${r.pushed} to cloud`);
           showInfoToast(`☁ Saves updated · ${parts.join(" · ")}`);
         }
-      }).catch(() => { /* best-effort — gallery Sync Now still available */ });
+      }).catch(() => {});
     }
 
-    // iOS WebKit: launch() may replace the ROM with a materialised in-memory
-    // File so tier-downgrade relaunch and other paths reuse a stable payload.
-    const materialised = emulator.getLaunchGameFile();
-    if (materialised) {
-      currentGameFile = materialised;
-      currentGameFileName = materialised.name;
-    }
+    // Materialised file already handled above.
 
-    // After a successful launch, apply per-game post-process effect override.
-    // This is done post-launch (not pre-launch) because the post-processor is
-    // attached to the emulator after game start, so we override it here.
-    if (gfxProfile?.postEffect !== null && gfxProfile?.postEffect !== undefined && emulator.state !== "error") {
+    if (gfxProfile?.postEffect && emulator.state !== "error") {
       emulator.updatePostProcessConfig({ effect: gfxProfile.postEffect });
     }
 
-    // launch() reports failures via state/onError instead of throwing.
-    // Ensure failed launches don't leave stale pending restore handlers or
-    // unreferenced blob URLs.
     if (emulator.state === "error") {
       pendingAutoRestoreCancel?.();
       pendingAutoRestoreCancel = null;
-      // Launch failed after we attempted to lock orientation at start.
-      // Release lock so users are not left stuck in landscape on mobile.
       try {
-        (screen.orientation as ScreenOrientation & { unlock?: () => void }).unlock?.();
-      } catch { /* not supported */ }
-      // Defensive revoke: for preflight failures the emulator never stores
-      // the biosUrl, so we must revoke it here.  For mid-launch failures
-      // the emulator revokes it itself (in its catch block), making this
-      // call a safe no-op.
+        const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+        orientation.unlock?.();
+      } catch { /* orientation lock not supported */ }
       if (biosUrl) URL.revokeObjectURL(biosUrl);
     }
+  };
+
+  onLaunchGame = async (...args) => {
+    triggerWarmups();
+    return baseOnLaunchGame(...args);
   };
 
   // 5a. Wire patch application callback (patcher lazily loaded — not in initial bundle)
@@ -725,7 +727,6 @@ function main(): void {
     biosLibrary,
     saveLibrary,
     saveService,
-    netplayManager,
     settings,
     deviceCaps,
     onLaunchGame,
@@ -737,6 +738,7 @@ function main(): void {
     getCurrentGameName: () => settings.lastGameName,
     getCurrentSystemId: () => currentSystemId,
     getTouchOverlay:    () => touchOverlay,
+    getNetplayManager,
     canInstallPWA,
     onInstallPWA:       promptPWAInstall,
   });
@@ -745,13 +747,13 @@ function main(): void {
   document.addEventListener("retrovault:returnToLibrary", () => {
     const openPlayTogetherSettings = () => {
       document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "multiplayer");
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "multiplayer");
     };
-    buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, netplayManager, openPlayTogetherSettings);
+    buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, getNetplayManager, openPlayTogetherSettings);
   });
 
   document.addEventListener("retrovault:openSettings", () => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager);
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager);
   });
 
   // 9. Dev helpers
@@ -780,5 +782,8 @@ function main(): void {
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", main);
 } else {
-  main();
+  main().catch(err => {
+  console.error("[RetroVault] Fatal startup error:", err);
+  alert("RetroVault failed to start. Check console for details.");
+});
 }

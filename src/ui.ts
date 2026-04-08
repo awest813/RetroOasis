@@ -43,16 +43,11 @@ import {
   formatBytes,
   formatRelativeTime,
   type GameMetadata,
-  getGameGraphicsProfile,
-  saveGameGraphicsProfile,
-  clearGameGraphicsProfile,
-  type PerGameGraphicsProfile,
 } from "./library.js";
 import {
   type DeviceCapabilities,
   type PerformanceMode,
   type PerformanceTier,
-  type ResolutionPreset,
   formatCapabilitiesSummary,
   formatTierLabel,
   isLikelyIOS,
@@ -60,7 +55,6 @@ import {
   UIDirtyFlags,
   UIDirtyTracker,
   clearCapabilitiesCache,
-  getResolutionLadder,
 } from "./performance.js";
 import {
   BiosLibrary,
@@ -68,12 +62,6 @@ import {
 } from "./bios.js";
 import {
   SaveStateLibrary,
-  type SaveStateEntry,
-  AUTO_SAVE_SLOT,
-  MAX_SAVE_SLOTS,
-  defaultSlotLabel,
-  downloadBlob,
-  verifySaveChecksum,
 } from "./saves.js";
 import type { Settings } from "./main.js";
 import type { TouchControlsOverlay } from "./touchControls.js";
@@ -82,18 +70,18 @@ import type { NetplayManager } from "./multiplayer.js";
 import {
   DEFAULT_ICE_SERVERS,
   validateIceServerUrl as standaloneValidateIceServerUrl,
-  resolveNetplayRoomKey,
-  roomDisplayNameForKey,
   NETPLAY_SUPPORTED_SYSTEM_IDS,
   SYSTEM_LINK_CAPABILITIES,
-} from "./multiplayer.js";
+  roomDisplayNameForKey,
+} from "./multiplayerUtils.js";
+import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
+import { resolveNetplayRoomKey } from "./multiplayer.js"; // Stay in lazy chunk for now
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
 import { normaliseInviteCode, INVITE_CODE_LEN } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
-import { CloudSaveManager, WebDAVProvider, GoogleDriveProvider, DropboxProvider, pCloudProvider, type ConflictResolution, type SyncConflict, type SyncBadge } from "./cloudSave.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
-import { SaveGameService, type SaveOperationStatus } from "./saveService.js";
+import { SaveGameService } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
 
 // ── PWA install callbacks (set once from initUI) ───────────────────────────────
@@ -133,10 +121,10 @@ function make<K extends keyof HTMLElementTagNameMap>(
 // ── Debug Console State & Logic ──────────────────────────────────────────────
 let _debugConsoleWired = false;
 let _debugConsoleVisible = false;
-let _debugConsolePos = (() => {
+let _debugConsolePos: { x: number; y: number } = (() => {
   try {
     const saved = localStorage.getItem("rv_debug_console_pos");
-    return saved ? JSON.parse(saved) : { x: 20, y: 80 };
+    return saved ? (JSON.parse(saved) as { x: number; y: number }) : { x: 20, y: 80 };
   } catch { return { x: 20, y: 80 }; }
 })();
 let _lastLoggedEventCount = 0;
@@ -599,7 +587,6 @@ export interface UIOptions {
   saveLibrary:       SaveStateLibrary;
   /** When omitted, a SaveGameService is built from emulator + saveLibrary + game getters. */
   saveService?:      SaveGameService;
-  netplayManager?:   NetplayManager;
   settings:          Settings;
   deviceCaps:        DeviceCapabilities;
   onLaunchGame:      (file: File, systemId: string, gameId?: string) => Promise<void>;
@@ -621,7 +608,7 @@ export function initUI(opts: UIOptions): void {
   _initUICleanup?.();
   _initUICleanup = null;
 
-  const { emulator, library, biosLibrary, saveLibrary, netplayManager, settings, deviceCaps,
+  const { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps,
           onLaunchGame, onSettingsChange, onReturnToLibrary,
           onApplyPatch, onFileChosen,
           getCurrentGameId, getCurrentGameName, getCurrentSystemId,
@@ -655,12 +642,12 @@ export function initUI(opts: UIOptions): void {
   _canInstallPWA = canInstallPWA;
   _onInstallPWA  = onInstallPWA;
   _openSettingsFn = (tab?: string) =>
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, tab as SettingsTab | undefined);
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab as SettingsTab | undefined);
 
   /** Close the Multiplayer modal (if open) and jump to Play Together settings. */
   const openPlayTogetherSettings = () => {
     document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "multiplayer");
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "multiplayer");
   };
 
   // ── File drop / pick ──────────────────────────────────────────────────────
@@ -785,11 +772,11 @@ export function initUI(opts: UIOptions): void {
     setStatusTier(emulator.activeTier);
     document.title = `${name} — RetroVault`;
     const openSettingsWith = (tab?: SettingsTab) =>
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, tab);
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWith, netplayManager, openPlayTogetherSettings
+      getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
     );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
     if (settings.touchControls) {
@@ -811,11 +798,11 @@ export function initUI(opts: UIOptions): void {
     setStatusSystem(sys ? sys.shortName : "—");
     setStatusGame(name);
     const openSettingsWithResume = (tab?: SettingsTab) =>
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, tab);
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWithResume, netplayManager, openPlayTogetherSettings
+      getTouchOverlay, openSettingsWithResume, getNetplayManager, openPlayTogetherSettings
     );
     showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
     if (settings.touchControls) {
@@ -828,11 +815,11 @@ export function initUI(opts: UIOptions): void {
   const rebuildInGameControls = () => {
     if (emulator.state !== "running" && emulator.state !== "paused") return;
     const openSettingsWith = (tab?: SettingsTab) =>
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, tab);
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
     buildInGameControls(
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWith, netplayManager, openPlayTogetherSettings
+      getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
     );
   };
   bindEvent(document, TOUCH_CONTROLS_CHANGED_EVENT, rebuildInGameControls);
@@ -858,7 +845,7 @@ export function initUI(opts: UIOptions): void {
     if (e.key === "F9") {
       e.preventDefault();
       e.stopPropagation();
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, netplayManager, "debug");
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "debug");
       return;
     }
     // F3 toggles the developer debug overlay from anywhere
@@ -915,7 +902,7 @@ export function initUI(opts: UIOptions): void {
   bindEvent(document, "keydown", onGlobalShortcutKeydown, { capture: true });
 
   // ── Landing header controls ───────────────────────────────────────────────
-  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, netplayManager, openPlayTogetherSettings);
+  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, getNetplayManager, openPlayTogetherSettings);
 
   if (typeof ResizeObserver !== "undefined") {
     const headerActions = document.getElementById("header-actions");
@@ -961,7 +948,7 @@ function buildLibraryHero(
   playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Now`;
   playBtn.addEventListener("click", async () => {
     const blob = await library.getGameBlob(game.id);
-    if (blob) onLaunchGame(blob as File, game.systemId, game.id);
+    if (blob) void onLaunchGame(blob as File, game.systemId, game.id);
   });
   
   actions.appendChild(playBtn);
@@ -1059,6 +1046,10 @@ function _resetLibraryFilters(
   _librarySortMode = "lastPlayed";
   _syncLibraryControlState();
   _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+}
+
+interface ExtendedWindow extends Window {
+  requestIdleCallback(callback: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void, options?: { timeout: number }): number;
 }
 
 export async function renderLibrary(
@@ -1169,7 +1160,10 @@ export async function renderLibrary(
     
     // 1. Hero (Last Played)
     const lastPlayed = displayed[0]!;
-    grid.appendChild(buildLibraryHero(lastPlayed, library, onLaunchGame));
+    const hero = buildLibraryHero(lastPlayed, library, onLaunchGame);
+    hero.style.setProperty("--row-i", "0");
+    hero.classList.add("library-hero--entering");
+    grid.appendChild(hero);
     
     // 2. Continue Playing Row (Recent 2-6 excluding hero)
     const recent = displayed.slice(1, 7);
@@ -1179,26 +1173,72 @@ export async function renderLibrary(
     
     // 3. System Groups
     const systemIds = [...new Set(allGames.map(g => g.systemId))].sort();
-    systemIds.forEach(sid => {
+    systemIds.forEach((sid, idx) => {
       const sysGames = allGames.filter(g => g.systemId === sid);
       if (sysGames.length > 0) {
         const sys = getSystemById(sid);
-        grid.appendChild(buildLibraryRow(sys?.name ?? sid.toUpperCase(), sid, sysGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch));
+        const row = buildLibraryRow(sys?.name ?? sid.toUpperCase(), sid, sysGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+        row.style.setProperty("--row-i", String(idx + 1));
+        row.classList.add("library-row--entering");
+        grid.appendChild(row);
       }
     });
-  } else {
-    grid.classList.remove("library-section__rows");
+    return;
+  }
+
+  // Standard Grid Rendering
+  grid.classList.remove("library-section__rows");
+  
+  // Incremental rendering for large grids (Phase 5 Optimization)
+  const CHUNK_SIZE = 24;
+  const initial = displayed.slice(0, CHUNK_SIZE);
+  const remaining = displayed.slice(CHUNK_SIZE);
+
+  const renderChunk = (chunk: GameMetadata[], startIdx: number) => {
     const fragment = document.createDocumentFragment();
-    displayed.forEach((game, index) => {
+    chunk.forEach((game, index) => {
+      const globalIdx = startIdx + index;
       const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-      // Stagger entrance animation — cap at 20 to avoid long initial delays for large libraries
-      if (index < 20) {
-        card.style.setProperty("--card-i", String(index));
+      // Stagger entrance animation
+      if (globalIdx < 20) {
+        card.style.setProperty("--card-i", String(globalIdx));
         card.classList.add("game-card--entering");
       }
       fragment.appendChild(card);
     });
     grid.appendChild(fragment);
+  };
+
+  // Render first chunk immediately
+  renderChunk(initial, 0);
+
+  // If more games exist, schedule them in chunks
+  if (remaining.length > 0) {
+    let offset = CHUNK_SIZE;
+    const processNext = () => {
+      // Stop if the grid has been cleared or replaced (e.g. user searched/filtered)
+      if (document.getElementById("library-grid") !== grid) return;
+      
+      const nextBatch = remaining.slice(offset - CHUNK_SIZE, offset - CHUNK_SIZE + CHUNK_SIZE);
+      if (nextBatch.length === 0) return;
+
+      renderChunk(nextBatch, offset);
+      offset += CHUNK_SIZE;
+      
+      if (offset - CHUNK_SIZE < remaining.length) {
+        if ("requestIdleCallback" in window) {
+          (window as unknown as ExtendedWindow).requestIdleCallback(processNext, { timeout: 100 });
+        } else {
+          setTimeout(processNext, 16);
+        }
+      }
+    };
+    
+    if ("requestIdleCallback" in window) {
+      (window as unknown as ExtendedWindow).requestIdleCallback(processNext, { timeout: 100 });
+    } else {
+      setTimeout(processNext, 32);
+    }
   }
 }
 
@@ -1437,7 +1477,6 @@ function _wireLibraryNavigation(): void {
 
 // Persists the last non-zero volume across buildInGameControls rebuilds (e.g.
 // game resume) so mute/unmute restores the correct level after a re-render.
-let _preMuteVolume = 0.7;
 function _wireLibraryControls(
   _allGames: GameMetadata[],
   library: GameLibrary,
@@ -1721,11 +1760,6 @@ function systemIcon(systemId: string): string {
   return icons[systemId] ?? "🎮";
 }
 
-function volIcon(volume: number): string {
-  if (volume === 0) return "🔇";
-  if (volume < 0.5) return "🔉";
-  return "🔊";
-}
 
 function _escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -1791,120 +1825,6 @@ function showConfirmDialog(
   });
 }
 
-// ── Conflict-resolution modal ─────────────────────────────────────────────────
-
-/**
- * Show a modal dialog for explicit cloud-save conflict resolution.
- * Returns the user's chosen ConflictResolution strategy for this slot.
- */
-function showConflictResolutionDialog(
-  conflict: SyncConflict,
-): Promise<ConflictResolution> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", {
-      class: "confirm-box conflict-resolution-box",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Resolve save conflict",
-    });
-
-    box.appendChild(make("h3", { class: "confirm-title" }, "Save Conflict Detected"));
-
-    const localDate  = new Date(conflict.local.timestamp).toLocaleString();
-    const remoteDate = new Date(conflict.remote.timestamp).toLocaleString();
-    const body = make("div", { class: "conflict-body" });
-    body.appendChild(make("p", {}, `Slot ${conflict.slot} has different saves locally and in the cloud.`));
-
-    const table = make("div", { class: "conflict-compare" });
-    table.appendChild(make("div", { class: "conflict-side" },
-      `📁 Local: ${localDate}`));
-    table.appendChild(make("div", { class: "conflict-side" },
-      `☁ Cloud: ${remoteDate}`));
-    body.appendChild(table);
-    box.appendChild(body);
-
-    const footer = make("div", { class: "confirm-footer conflict-footer" });
-    const btnLocal  = make("button", { class: "btn" }, "Keep Local");
-    const btnRemote = make("button", { class: "btn" }, "Keep Cloud");
-    const btnNewest = make("button", { class: "btn btn--primary" }, "Keep Newest");
-
-    const close = (result: ConflictResolution) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close("newest"); }
-    };
-
-    btnLocal.addEventListener("click",  () => close("local"));
-    btnRemote.addEventListener("click", () => close("remote"));
-    btnNewest.addEventListener("click", () => close("newest"));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close("newest"); });
-    document.addEventListener("keydown", onKey, { capture: true });
-
-    footer.append(btnLocal, btnRemote, btnNewest);
-    box.appendChild(footer);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => { overlay.classList.add("confirm-overlay--visible"); btnNewest.focus(); });
-  });
-}
-
-// ── Import checksum validation dialog ─────────────────────────────────────────
-
-/**
- * Show a recovery dialog when an imported save file fails checksum validation.
- * Returns "keep" to keep the imported data, "reimport" to let the user try
- * again, or "discard" to throw away the corrupted import.
- */
-function showChecksumFailureDialog(): Promise<"keep" | "reimport" | "discard"> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", {
-      class: "confirm-box",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Checksum mismatch",
-    });
-
-    box.appendChild(make("h3", { class: "confirm-title" }, "Possible Corrupt Import"));
-    box.appendChild(make("p", { class: "confirm-body" },
-      "The imported save file's checksum does not match its contents. " +
-      "This may indicate a corrupted or modified file."));
-
-    const footer = make("div", { class: "confirm-footer" });
-    const btnKeep     = make("button", { class: "btn" }, "Keep Anyway");
-    const btnReimport = make("button", { class: "btn btn--primary" }, "Re-Import");
-    const btnDiscard  = make("button", { class: "btn btn--danger-filled" }, "Discard");
-
-    const close = (result: "keep" | "reimport" | "discard") => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close("discard"); }
-    };
-
-    btnKeep.addEventListener("click",     () => close("keep"));
-    btnReimport.addEventListener("click", () => close("reimport"));
-    btnDiscard.addEventListener("click",  () => close("discard"));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close("discard"); });
-    document.addEventListener("keydown", onKey, { capture: true });
-
-    footer.append(btnKeep, btnReimport, btnDiscard);
-    box.appendChild(footer);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => { overlay.classList.add("confirm-overlay--visible"); btnReimport.focus(); });
-  });
-}
 
 // ── System picker modal ───────────────────────────────────────────────────────
 
@@ -2661,7 +2581,7 @@ export function buildLandingControls(
   onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
   onResumeGame?:    () => void,
   saveLibrary?:     SaveStateLibrary,
-  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   onOpenPlayTogetherSettings?: () => void,
 ): void {
   const container = el("#header-actions");
@@ -2687,7 +2607,7 @@ export function buildLandingControls(
   </svg> Settings <kbd style="font-size:0.7em;opacity:0.5;margin-left:2px">F9</kbd>`;
 
   btnSettings.addEventListener("click", () => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, netplayManager);
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager);
   });
 
   const btnHelp = make("button", {
@@ -2697,7 +2617,7 @@ export function buildLandingControls(
   });
   btnHelp.textContent = "❓ Help";
   btnHelp.addEventListener("click", () => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, netplayManager, "about");
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "about");
   });
 
   const btnMultiplayer = make("button", {
@@ -2707,13 +2627,17 @@ export function buildLandingControls(
   }) as HTMLButtonElement;
   btnMultiplayer.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Multiplayer`;
   btnMultiplayer.addEventListener("click", () => {
-    openEasyNetplayModal({
-      netplayManager,
-      currentGameName:  null,
-      currentGameId:    null,
-      currentSystemId:  emulatorRef?.currentSystem?.id ?? null,
-      onOpenPlayTogetherSettings,
-    });
+    if (getNetplayManager) {
+      void getNetplayManager().then(nm => {
+        openEasyNetplayModal({
+          netplayManager: nm,
+          currentGameName:  null,
+          currentGameId:    null,
+          currentSystemId:  emulatorRef?.currentSystem?.id ?? null,
+          onOpenPlayTogetherSettings,
+        });
+      });
+    }
   });
 
   container.appendChild(btnSettings);
@@ -2721,6 +2645,8 @@ export function buildLandingControls(
   container.appendChild(btnMultiplayer);
   updateHeaderOverflow();
 }
+
+let _inGameControlsAc: AbortController | null = null;
 
 function buildInGameControls(
   emulator:           PSPEmulator,
@@ -2734,11 +2660,17 @@ function buildInGameControls(
   getCurrentSystemId?: () => string | null,
   getTouchOverlay?:   (() => TouchControlsOverlay | null) | undefined,
   onOpenSettings?:    (tab?: SettingsTab) => void,
-  netplayManager?:    import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   onOpenPlayTogetherSettings?: () => void,
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
+
+  if (_inGameControlsAc) {
+    _inGameControlsAc.abort();
+  }
+  _inGameControlsAc = new AbortController();
+  const signal = _inGameControlsAc.signal;
 
   // Menu button — the only visible control when the game is running
   const btnMenu = make("button", {
@@ -2749,13 +2681,13 @@ function buildInGameControls(
   });
   btnMenu.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Menu`;
   btnMenu.addEventListener("click", () => {
-    showInGameMenu({
+    void showInGameMenu({
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
       getCurrentSystemId, getTouchOverlay, onOpenSettings,
-      netplayManager, onOpenPlayTogetherSettings
+      getNetplayManager, onOpenPlayTogetherSettings
     });
-  });
+  }, { signal });
 
   container.append(btnMenu);
 
@@ -2763,20 +2695,21 @@ function buildInGameControls(
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && emulator.state === "running") {
       e.preventDefault();
-      showInGameMenu({
+      void showInGameMenu({
         emulator, settings, onSettingsChange, onReturnToLibrary,
         saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
         getCurrentSystemId, getTouchOverlay, onOpenSettings,
-        netplayManager, onOpenPlayTogetherSettings
+        getNetplayManager, onOpenPlayTogetherSettings
       });
     }
   };
-  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keydown", onKeyDown, { signal });
 
   // Clean up listener when returning to library
   document.addEventListener("retrovault:returnToLibrary", () => {
-    window.removeEventListener("keydown", onKeyDown);
-  }, { once: true });
+    _inGameControlsAc?.abort();
+    _inGameControlsAc = null;
+  }, { once: true, signal });
 }
 
 /**
@@ -2794,10 +2727,12 @@ async function showInGameMenu(ctx: {
   getCurrentSystemId?: () => string | null;
   getTouchOverlay?: () => TouchControlsOverlay | null;
   onOpenSettings?: (tab?: SettingsTab) => void;
-  netplayManager?: import("./multiplayer.js").NetplayManager;
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>;
   onOpenPlayTogetherSettings?: () => void;
 }): Promise<void> {
   if (ctx.emulator.state === "running") ctx.emulator.pause();
+
+  const ac = new AbortController();
 
   const overlay = make("div", { class: "ingame-menu-overlay" });
   document.body.appendChild(overlay);
@@ -2812,6 +2747,7 @@ async function showInGameMenu(ctx: {
     overlay.classList.remove("ingame-menu-overlay--visible");
     setTimeout(() => {
       overlay.remove();
+      ac.abort();
       if (ctx.emulator.state === "paused") ctx.emulator.resume();
     }, 400);
   };
@@ -2864,7 +2800,7 @@ async function showInGameMenu(ctx: {
             const entry = await ctx.saveService.saveSlot(i);
             if (entry) showInfoToast(`Saved to Slot ${i}`);
           }
-        });
+        }, { signal: ac.signal });
 
         const btnLoad = make("button", { class: "ingame-menu__btn" }, "Load");
         btnLoad.addEventListener("click", async () => {
@@ -2877,7 +2813,7 @@ async function showInGameMenu(ctx: {
               showError(`Nothing saved in Slot ${i}`);
             }
           }
-        });
+        }, { signal: ac.signal });
 
         actions.append(btnSave, btnLoad);
         grid.appendChild(card);
@@ -2913,16 +2849,16 @@ async function showInGameMenu(ctx: {
         closeMenu();
         ctx.onReturnToLibrary();
       } else if (tab === "reset") {
-        showConfirmDialog("Unsaved progress will be lost.", { title: "Reset Game?", confirmLabel: "Reset", isDanger: true }).then(conf => {
+        void showConfirmDialog("Unsaved progress will be lost.", { title: "Reset Game?", confirmLabel: "Reset", isDanger: true }).then(conf => {
           if (conf) {
             ctx.emulator.reset();
             closeMenu();
           }
         });
       } else {
-        renderContent(tab as any);
+        renderContent(tab as Parameters<typeof renderContent>[0]);
       }
-    });
+    }, { signal: ac.signal });
     sidebar.appendChild(btn);
   };
 
@@ -2936,7 +2872,7 @@ async function showInGameMenu(ctx: {
 
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeMenu();
-  });
+  }, { signal: ac.signal });
 }
 
 // ── Cloud save bar ────────────────────────────────────────────────────────────
@@ -2946,1104 +2882,7 @@ async function showInGameMenu(ctx: {
  * The bar renders the connection status and provides Connect / Disconnect /
  * Sync Now buttons.  It self-updates when cloudManager.onStatusChange fires.
  */
-function buildCloudBar(
-  cloudManager: CloudSaveManager,
-  gameId:       string,
-  saveLibrary:  SaveStateLibrary,
-): { bar: HTMLElement; teardown: () => void } {
-  const bar = make("div", { class: "cloud-bar", role: "region", "aria-label": "Cloud sync" });
 
-  const statusWrap = make("span", { class: "cloud-bar__status" });
-  const dot        = make("span", { class: "cloud-status-dot" });
-  const statusBody = make("span", { class: "cloud-bar__status-body" });
-  const statusText = make("span", { class: "cloud-bar__status-text" });
-  const lastSyncEl = make("span", { class: "cloud-bar__last-sync" });
-  statusBody.append(statusText, lastSyncEl);
-  statusWrap.append(dot, statusBody);
-
-  const actions = make("div", { class: "cloud-bar__actions" });
-
-  // ── Sync history panel ──────────────────────────────────────────────────────
-  const historyPanel = make("div", { class: "sync-history-panel", "aria-label": "Sync history" });
-  const historyToggle = make("button", {
-    class: "btn sync-history-toggle",
-    title: "Toggle sync history",
-    "aria-expanded": "false",
-  }, "📋 History");
-  const historyList = make("ul", { class: "sync-history-list" });
-  historyPanel.append(historyToggle, historyList);
-  historyToggle.addEventListener("click", () => {
-    const expanded = historyPanel.classList.toggle("sync-history-panel--open");
-    historyToggle.setAttribute("aria-expanded", String(expanded));
-  });
-
-  bar.append(statusWrap, actions, historyPanel);
-
-  // Wire the interactive conflict-resolution modal into the manager.
-  cloudManager.onConflict = (conflict: SyncConflict) => showConflictResolutionDialog(conflict);
-
-  // Tracks whether a sync is currently in progress so render() can reflect it.
-  let isSyncing = false;
-
-  const render = () => {
-    if (isSyncing) {
-      dot.className  = "cloud-status-dot cloud-status-dot--syncing";
-      statusText.className = "cloud-bar__status-text cloud-bar__status-text--syncing";
-      statusText.textContent = "Syncing…";
-      statusText.title = "";
-      lastSyncEl.textContent = "";
-      return;
-    }
-
-    const connected = cloudManager.isConnected();
-    dot.className = `cloud-status-dot ${connected ? "cloud-status-dot--on" : "cloud-status-dot--off"}`;
-
-    if (connected) {
-      statusText.className = "cloud-bar__status-text cloud-bar__status-text--ok";
-      statusText.textContent = `Connected to ${cloudManager.activeProvider.displayName}`;
-      statusText.title = "";
-      lastSyncEl.className = "cloud-bar__last-sync";
-      if (cloudManager.lastSyncAt) {
-        const rel = formatRelativeTime(cloudManager.lastSyncAt);
-        lastSyncEl.textContent = `Last sync: ${rel}`;
-        lastSyncEl.title = new Date(cloudManager.lastSyncAt).toLocaleString();
-      } else {
-        lastSyncEl.textContent = "Not yet synced";
-        lastSyncEl.title = "";
-      }
-    } else if (cloudManager.lastError) {
-      statusText.className = "cloud-bar__status-text cloud-bar__status-text--error";
-      statusText.textContent = "Connection error";
-      statusText.title = cloudManager.lastError;
-      lastSyncEl.className = "cloud-bar__last-sync";
-      lastSyncEl.textContent = "";
-    } else {
-      statusText.className = "cloud-bar__status-text";
-      statusText.textContent = "Not connected";
-      statusText.title = "";
-      lastSyncEl.className = "cloud-bar__last-sync cloud-bar__last-sync--hint";
-      lastSyncEl.textContent = "Connect to sync saves across devices";
-    }
-
-    actions.innerHTML = "";
-
-    // Render sync history entries
-    historyList.innerHTML = "";
-    for (const entry of cloudManager.syncHistory) {
-      const li = make("li", { class: `sync-history-entry${entry.ok ? "" : " sync-history-entry--error"}` });
-      const time = make("span", { class: "sync-history-time" }, new Date(entry.timestamp).toLocaleTimeString());
-      const msg  = make("span", { class: "sync-history-msg" }, entry.action);
-      li.append(time, msg);
-      historyList.appendChild(li);
-    }
-    if (cloudManager.syncHistory.length === 0) {
-      historyList.appendChild(make("li", { class: "sync-history-entry sync-history-entry--empty" }, "No sync activity yet"));
-    }
-
-    if (connected) {
-      // Auto-sync toggle
-      const autoLabel = make("label", {
-        class: "cloud-bar__auto-label",
-        title: "Automatically sync saves to cloud after saving",
-        "data-tooltip": "Auto-sync after every save",
-      });
-      const autoCheck = make("input", { type: "checkbox", class: "cloud-bar__auto-check" }) as HTMLInputElement;
-      autoCheck.checked = cloudManager.autoSyncEnabled;
-      autoCheck.addEventListener("change", () => {
-        cloudManager.setAutoSync(autoCheck.checked);
-      });
-      autoLabel.append(autoCheck, document.createTextNode(" Auto"));
-      actions.appendChild(autoLabel);
-
-      // Sync Now button
-      const btnSync = make("button", {
-        class: "btn",
-        title: "Sync all save slots for this game with the cloud",
-        "data-tooltip": "Upload & download saves now",
-      }, "☁ Sync Now");
-      btnSync.addEventListener("click", async () => {
-        btnSync.disabled = true;
-        isSyncing = true;
-        render();
-        try {
-          const result = await cloudManager.syncGame(gameId, saveLibrary);
-          const parts: string[] = [];
-          if (result.pushed > 0) parts.push(`↑ ${result.pushed} pushed`);
-          if (result.pulled > 0) parts.push(`↓ ${result.pulled} pulled`);
-          if (result.errors > 0) parts.push(`${result.errors} error(s)`);
-          showInfoToast(parts.length > 0 ? `☁ ${parts.join(" · ")}` : "☁ Cloud sync complete — no changes.");
-        } catch (err) {
-          showError(`Cloud sync failed: ${err instanceof Error ? err.message : String(err)}`);
-        } finally {
-          isSyncing = false;
-          btnSync.disabled = false;
-          render();
-        }
-      });
-      actions.appendChild(btnSync);
-
-      // Configure button
-      const btnCfg = make("button", {
-        class: "btn",
-        title: "Edit cloud connection settings",
-        "aria-label": "Cloud settings",
-        "data-tooltip": "Change provider or settings",
-      });
-      btnCfg.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
-      btnCfg.addEventListener("click", () => openCloudConnectDialog(cloudManager, render));
-      actions.appendChild(btnCfg);
-
-      // Disconnect button
-      const btnDisc = make("button", {
-        class: "btn btn--danger",
-        title: "Disconnect from cloud",
-        "data-tooltip": "Remove cloud connection",
-      }, "Disconnect");
-      btnDisc.addEventListener("click", () => {
-        cloudManager.disconnect();
-        showInfoToast("Disconnected from cloud.");
-      });
-      actions.appendChild(btnDisc);
-    } else {
-      // Connect button — tooltip guides new users to Google Drive
-      const btnConn = make("button", {
-        class: "btn btn--primary",
-        title: "Connect to a cloud save provider",
-        "data-tooltip": "Free with Google Drive — keeps saves safe across devices",
-      }, "☁ Connect");
-      btnConn.addEventListener("click", () => openCloudConnectDialog(cloudManager, render));
-      actions.appendChild(btnConn);
-    }
-  };
-
-  // Register this bar's render function with the manager and return a teardown
-  // callback so callers can unsubscribe when the gallery closes.
-  const removeStatusListener = cloudManager.addStatusListener(render);
-  cloudManager.onStatusChange = render;
-
-  render();
-  return { bar, teardown: removeStatusListener };
-}
-
-/**
- * Show a modal dialog that lets the user configure and connect to a cloud
- * save provider (WebDAV, Google Drive, or Dropbox).
- * On successful connect, calls `onConnected()` so the cloud bar refreshes.
- */
-function openCloudConnectDialog(cloudManager: CloudSaveManager, onConnected: () => void): void {
-  const overlay = make("div", { class: "confirm-overlay" });
-  const box = make("div", {
-    class: "confirm-box cloud-connect-box",
-    role: "dialog",
-    "aria-modal": "true",
-    "aria-label": "Cloud Connection",
-  });
-
-  box.appendChild(make("h3", { class: "confirm-title" }, "☁ Cloud Connection"));
-
-  // ── Provider selector ───────────────────────────────────────────────────────
-  const providerWrap = make("div", { class: "cloud-dialog-field" });
-  const providerLbl  = make("label", { class: "cloud-dialog-label" }, "Provider");
-  const providerSel  = make("select", { class: "confirm-input" }) as HTMLSelectElement;
-  [
-    ["gdrive",  "Google Drive"],
-    ["webdav",  "WebDAV (self-hosted)"],
-    ["dropbox", "Dropbox"],
-    ["pcloud",  "pCloud"],
-  ].forEach(([v, t]) => {
-    const opt = make("option", { value: v! }, t!);
-    if (cloudManager.providerId !== "null" && cloudManager.providerId === v) {
-      opt.setAttribute("selected", "");
-    }
-    providerSel.appendChild(opt);
-  });
-  providerWrap.append(providerLbl, providerSel);
-  box.appendChild(providerWrap);
-
-  // Description paragraph (updated when provider changes)
-  const descEl = make("p", { class: "confirm-body" }, "");
-  box.appendChild(descEl);
-
-  // ── WebDAV fields ────────────────────────────────────────────────────────────
-  const webdavSection = make("div", { class: "cloud-dialog-section" });
-  const savedDav      = cloudManager.loadWebDAVConfig();
-
-  const makeDavField = (labelText: string, type: string, placeholder: string, autocomplete: string, value = ""): HTMLInputElement => {
-    const wrap = make("div", { class: "cloud-dialog-field" });
-    const lbl  = make("label", { class: "cloud-dialog-label" }, labelText);
-    const inp  = make("input", { class: "confirm-input", type, placeholder, value, autocomplete }) as HTMLInputElement;
-    wrap.append(lbl, inp);
-    webdavSection.appendChild(wrap);
-    return inp;
-  };
-
-  const urlInp  = makeDavField("WebDAV URL", "url",      "https://dav.example.com/retrovault", "url",              savedDav?.url ?? "");
-  const userInp = makeDavField("Username",   "text",     "user",                                "username",         savedDav?.username ?? "");
-  const passInp = makeDavField("Password / Token", "password", "••••••••",                      "current-password", savedDav?.password ?? "");
-  box.appendChild(webdavSection);
-
-  // ── Google Drive fields ──────────────────────────────────────────────────────
-  const gdriveSection = make("div", { class: "cloud-dialog-section" });
-  const savedGDrive   = cloudManager.loadGDriveConfig();
-
-  const gdriveTokenWrap = make("div", { class: "cloud-dialog-field" });
-  const gdriveTokenLbl  = make("label", { class: "cloud-dialog-label" }, "OAuth Access Token");
-  const gdriveTokenInp  = make("input", {
-    class:        "confirm-input",
-    type:         "password",
-    placeholder:  "ya29.…",
-    autocomplete: "off",
-    value:        savedGDrive?.accessToken ?? "",
-  }) as HTMLInputElement;
-  gdriveTokenWrap.append(gdriveTokenLbl, gdriveTokenInp);
-  gdriveSection.appendChild(gdriveTokenWrap);
-  {
-    const step1 = make("p", { class: "cloud-dialog-hint" },
-      "Step 1: Visit developers.google.com/oauthplayground, authorize the drive.appdata scope, and copy the access token.");
-    const step2 = make("p", { class: "cloud-dialog-hint" },
-      "Step 2: Paste the token above. Saves are stored in a private app folder — invisible in regular Google Drive.");
-    gdriveSection.append(step1, step2);
-  }
-  box.appendChild(gdriveSection);
-
-  // ── Dropbox fields ───────────────────────────────────────────────────────────
-  const dropboxSection = make("div", { class: "cloud-dialog-section" });
-  const savedDropbox   = cloudManager.loadDropboxConfig();
-
-  const dropboxTokenWrap = make("div", { class: "cloud-dialog-field" });
-  const dropboxTokenLbl  = make("label", { class: "cloud-dialog-label" }, "OAuth Access Token");
-  const dropboxTokenInp  = make("input", {
-    class:        "confirm-input",
-    type:         "password",
-    placeholder:  "sl.…",
-    autocomplete: "off",
-    value:        savedDropbox?.accessToken ?? "",
-  }) as HTMLInputElement;
-  dropboxTokenWrap.append(dropboxTokenLbl, dropboxTokenInp);
-  dropboxSection.appendChild(dropboxTokenWrap);
-  dropboxSection.appendChild(make("p", { class: "cloud-dialog-hint" },
-    "Generate a long-lived token in the Dropbox App Console (scopes: files.content.read, files.content.write) and paste it here."));
-  box.appendChild(dropboxSection);
-
-  // ── pCloud fields ────────────────────────────────────────────────────────────
-  const pcloudSection = make("div", { class: "cloud-dialog-section" });
-  const savedPCloud   = cloudManager.loadPCloudConfig();
-
-  const pcloudTokenWrap = make("div", { class: "cloud-dialog-field" });
-  const pcloudTokenLbl  = make("label", { class: "cloud-dialog-label" }, "OAuth Access Token");
-  const pcloudTokenInp  = make("input", {
-    class:        "confirm-input",
-    type:         "password",
-    placeholder:  "pCloud access token…",
-    autocomplete: "off",
-    value:        savedPCloud?.accessToken ?? "",
-  }) as HTMLInputElement;
-  pcloudTokenWrap.append(pcloudTokenLbl, pcloudTokenInp);
-  pcloudSection.appendChild(pcloudTokenWrap);
-
-  const pcloudRegionWrap = make("div", { class: "cloud-dialog-field" });
-  const pcloudRegionLbl  = make("label", { class: "cloud-dialog-label" }, "Region");
-  const pcloudRegionSel  = make("select", { class: "confirm-input" }) as HTMLSelectElement;
-  [["us", "US (api.pcloud.com)"], ["eu", "EU (eapi.pcloud.com)"]].forEach(([v, t]) => {
-    const opt = make("option", { value: v! }, t!);
-    if ((savedPCloud?.region ?? "us") === v) opt.setAttribute("selected", "");
-    pcloudRegionSel.appendChild(opt);
-  });
-  pcloudRegionWrap.append(pcloudRegionLbl, pcloudRegionSel);
-  pcloudSection.appendChild(pcloudRegionWrap);
-  pcloudSection.appendChild(make("p", { class: "cloud-dialog-hint" },
-    "Generate an access token via the pCloud OAuth 2.0 flow and paste it here. Choose EU region if your pCloud account is registered in Europe."));
-  box.appendChild(pcloudSection);
-
-  // ── Conflict resolution (shared across all providers) ────────────────────────
-  const cfgWrap = make("div", { class: "cloud-dialog-field" });
-  const cfgLbl  = make("label", { class: "cloud-dialog-label" }, "Conflict resolution");
-  const cfgSel  = make("select", { class: "confirm-input" }) as HTMLSelectElement;
-  [["newest", "Keep newest (default)"], ["local", "Always keep local"], ["remote", "Always keep remote"]].forEach(([v, t]) => {
-    const opt = make("option", { value: v! }, t!);
-    if (cloudManager.conflictResolution === v) opt.setAttribute("selected", "");
-    cfgSel.appendChild(opt);
-  });
-  cfgWrap.append(cfgLbl, cfgSel);
-  box.appendChild(cfgWrap);
-
-  // ── Status line ──────────────────────────────────────────────────────────────
-  const statusEl = make("p", { class: "cloud-dialog-status" }, "");
-  box.appendChild(statusEl);
-
-  const footer   = make("div", { class: "confirm-footer" });
-  const btnCancel  = make("button", { class: "btn" }, "Cancel");
-  const btnTest    = make("button", { class: "btn" }, "Test Connection");
-  const btnConnect = make("button", { class: "btn btn--primary" }, "Connect");
-  footer.append(btnCancel, btnTest, btnConnect);
-  box.appendChild(footer);
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  // ── Show/hide sections based on provider selection ───────────────────────────
-  const updateVisibility = () => {
-    const v = providerSel.value;
-    webdavSection.style.display  = v === "webdav"  ? "" : "none";
-    gdriveSection.style.display  = v === "gdrive"  ? "" : "none";
-    dropboxSection.style.display = v === "dropbox" ? "" : "none";
-    pcloudSection.style.display  = v === "pcloud"  ? "" : "none";
-    statusEl.textContent = "";
-
-    if (v === "webdav") {
-      descEl.textContent = "Connect to a WebDAV server. The server must allow CORS requests from this origin.";
-    } else if (v === "gdrive") {
-      descEl.textContent = "Saves are stored in the hidden appDataFolder on your Google Drive (not visible in regular Drive).";
-    } else if (v === "pcloud") {
-      descEl.textContent = "Saves are stored in /RetroVault inside your pCloud account. Choose the region that matches your account.";
-    } else {
-      descEl.textContent = "Saves are stored in /retrovault inside your Dropbox app folder.";
-    }
-  };
-
-  providerSel.addEventListener("change", updateVisibility);
-  updateVisibility();
-
-  // ── Close handler ────────────────────────────────────────────────────────────
-  const close = () => {
-    document.removeEventListener("keydown", onEsc, { capture: true });
-    overlay.classList.remove("confirm-overlay--visible");
-    setTimeout(() => overlay.remove(), 200);
-  };
-  const onEsc = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close(); }
-  };
-
-  btnCancel.addEventListener("click", close);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  // Register in capture phase so this fires even when the global in-game Escape handler runs.
-  document.addEventListener("keydown", onEsc, { capture: true });
-
-
-  btnTest.addEventListener("click", async () => {
-    statusEl.textContent = "Testing connection…";
-    btnTest.setAttribute("disabled", "true");
-    try {
-      const selectedProvider = providerSel.value;
-      let candidate;
-      if (selectedProvider === "webdav") {
-        candidate = new WebDAVProvider(urlInp.value.trim(), userInp.value.trim(), passInp.value);
-      } else if (selectedProvider === "gdrive") {
-        candidate = new GoogleDriveProvider(gdriveTokenInp.value.trim());
-      } else if (selectedProvider === "pcloud") {
-        candidate = new pCloudProvider(pcloudTokenInp.value.trim(), pcloudRegionSel.value as "us" | "eu");
-      } else {
-        candidate = new DropboxProvider(dropboxTokenInp.value.trim());
-      }
-      const ok = await candidate.isAvailable();
-      statusEl.textContent = ok ? "Connection test succeeded. You can connect now." : "Could not reach provider. Check token/network/CORS.";
-    } catch (err) {
-      statusEl.textContent = err instanceof Error ? err.message : String(err);
-    } finally {
-      btnTest.removeAttribute("disabled");
-    }
-  });
-  // ── Connect handler ──────────────────────────────────────────────────────────
-  btnConnect.addEventListener("click", async () => {
-    statusEl.textContent = "";
-    btnConnect.disabled  = true;
-    btnConnect.textContent = "Connecting…";
-
-    const resetBtn = (msg: string) => {
-      statusEl.textContent   = msg;
-      btnConnect.disabled    = false;
-      btnConnect.textContent = "Connect";
-    };
-
-    try {
-      cloudManager.setConflictResolution(cfgSel.value as import("./cloudSave.js").ConflictResolution);
-
-      const selectedProvider = providerSel.value;
-      let provider;
-
-      if (selectedProvider === "webdav") {
-        const url  = urlInp.value.trim();
-        const user = userInp.value.trim();
-        const pass = passInp.value;
-        if (!url) { resetBtn("Please enter a WebDAV URL."); return; }
-        provider = new WebDAVProvider(url, user, pass);
-        await cloudManager.connect(provider);
-        cloudManager.saveWebDAVConfig(url, user, pass);
-        close();
-        onConnected();
-        showInfoToast(`Connected to WebDAV: ${url}`);
-      } else if (selectedProvider === "gdrive") {
-        const token = gdriveTokenInp.value.trim();
-        if (!token) { resetBtn("Please enter a Google Drive access token."); return; }
-        provider = new GoogleDriveProvider(token);
-        await cloudManager.connect(provider);
-        cloudManager.saveGDriveConfig(token);
-        close();
-        onConnected();
-        showInfoToast("Connected to Google Drive.");
-      } else if (selectedProvider === "pcloud") {
-        const token  = pcloudTokenInp.value.trim();
-        const region = pcloudRegionSel.value as "us" | "eu";
-        if (!token) { resetBtn("Please enter a pCloud access token."); return; }
-        provider = new pCloudProvider(token, region);
-        await cloudManager.connect(provider);
-        cloudManager.savePCloudConfig(token, region);
-        close();
-        onConnected();
-        showInfoToast("Connected to pCloud.");
-      } else {
-        const token = dropboxTokenInp.value.trim();
-        if (!token) { resetBtn("Please enter a Dropbox access token."); return; }
-        provider = new DropboxProvider(token);
-        await cloudManager.connect(provider);
-        cloudManager.saveDropboxConfig(token);
-        close();
-        onConnected();
-        showInfoToast("Connected to Dropbox.");
-      }
-    } catch (err) {
-      resetBtn(err instanceof Error ? err.message : String(err));
-    }
-  });
-
-  requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  // Focus the first visible input (Google Drive is first when no previous provider)
-  setTimeout(() => {
-    if (providerSel.value === "gdrive") gdriveTokenInp.focus();
-    else if (providerSel.value === "webdav") urlInp.focus();
-    else if (providerSel.value === "pcloud") pcloudTokenInp.focus();
-    else dropboxTokenInp.focus();
-  }, 50);
-}
-
-// ── Save gallery dialog ───────────────────────────────────────────────────────
-
-type SaveGalleryMode = "save" | "load";
-
-async function openSaveGallery(
-  emulator:    PSPEmulator,
-  saveLibrary: SaveStateLibrary,
-  saveService: SaveGameService,
-  gameId:      string,
-  gameName:    string,
-  systemId:    string
-): Promise<void> {
-  const overlay = make("div", { class: "confirm-overlay" });
-  const box = make("div", {
-    class: "confirm-box save-gallery-box",
-    role: "dialog",
-    "aria-modal": "true",
-    "aria-label": "Save States",
-  });
-
-  // Header
-  const galleryHeader = make("div", { class: "save-gallery-header" });
-  const galleryTitle  = make("div", { class: "save-gallery-title-wrap" });
-  const titleRow = make("div", { class: "save-gallery-title-row" });
-  titleRow.appendChild(make("h3", { class: "confirm-title" }, "Save States"));
-  const slotCountBadge = make("span", { class: "save-gallery-slot-count" }, "");
-  titleRow.appendChild(slotCountBadge);
-  galleryTitle.appendChild(titleRow);
-  galleryTitle.appendChild(make("p",  { class: "save-gallery-game" }, gameName));
-  galleryHeader.appendChild(galleryTitle);
-
-  // Export all button
-  const btnExportAll = make("button", { class: "btn", title: "Export all save states as .state files" });
-  btnExportAll.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Export All`;
-  btnExportAll.addEventListener("click", async () => {
-    const exports = await saveLibrary.exportAllForGame(gameId);
-    if (exports.length === 0) { showInfoToast("No save data to export."); return; }
-    for (const exp of exports) { downloadBlob(exp.blob, exp.fileName); }
-    showInfoToast(`Exported ${exports.length} save state${exports.length !== 1 ? "s" : ""}.`);
-  });
-  galleryHeader.appendChild(btnExportAll);
-  box.appendChild(galleryHeader);
-
-  // ── Mode tabs (Save / Load) ────────────────────────────────────────────────
-  let currentMode: SaveGalleryMode = "save";
-
-  const tabsRow = make("div", { class: "save-gallery-tabs", role: "tablist", "aria-label": "Gallery mode" });
-
-  const tabSave = make("button", {
-    class: "save-gallery-tab save-gallery-tab--save save-gallery-tab--active",
-    role: "tab",
-    "aria-selected": "true",
-  });
-  tabSave.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
-
-  const tabLoad = make("button", {
-    class: "save-gallery-tab save-gallery-tab--load",
-    role: "tab",
-    "aria-selected": "false",
-  });
-  tabLoad.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-
-  tabsRow.append(tabSave, tabLoad);
-  box.appendChild(tabsRow);
-
-  let teardownCloudStatus: (() => void) | null = null;
-
-  // Cloud bar (below the tabs, above the grid)
-  const cloudMgr = getCloudSaveManager();
-  const cloudBar = buildCloudBar(cloudMgr, gameId, saveLibrary);
-  box.appendChild(cloudBar.bar);
-  teardownCloudStatus = cloudBar.teardown;
-
-  const statusBanner = make("div", { class: "save-gallery-status", role: "status", "aria-live": "polite" }, "");
-  box.appendChild(statusBanner);
-
-  const statusToClass = (status: SaveOperationStatus): string => `save-gallery-status--${status}`;
-  saveService.onStatus((event) => {
-    statusBanner.className = `save-gallery-status ${statusToClass(event.status)}`;
-    statusBanner.textContent = event.message ?? event.status.replaceAll("-", " ");
-  });
-
-  // Slots container
-  const slotsContainer = make("div", { class: "save-gallery-grid", "data-mode": "save" });
-  box.appendChild(slotsContainer);
-
-  // ── Tab switching ──────────────────────────────────────────────────────────
-  const switchMode = async (mode: SaveGalleryMode) => {
-    currentMode = mode;
-    slotsContainer.dataset.mode = mode;
-    tabSave.classList.toggle("save-gallery-tab--active", mode === "save");
-    tabLoad.classList.toggle("save-gallery-tab--active", mode === "load");
-    tabSave.setAttribute("aria-selected", String(mode === "save"));
-    tabLoad.setAttribute("aria-selected", String(mode === "load"));
-    await renderSaveSlots(slotsContainer, emulator, saveLibrary, saveService, gameId, gameName, systemId, currentMode, slotCountBadge, close);
-  };
-
-  tabSave.addEventListener("click", () => switchMode("save"));
-  tabLoad.addEventListener("click", () => switchMode("load"));
-
-  // Footer
-  const footer    = make("div", { class: "confirm-footer" });
-  const btnClose  = make("button", { class: "btn", title: "Close (Esc)" }, "Close");
-  const shortcutHint = make("span", { class: "save-gallery-hint" },
-    isTouchDevice() ? "Tap a slot to save or load" : "F5 Quick Save · F7 Quick Load · ←→↑↓ Navigate"
-  );
-  footer.append(shortcutHint, btnClose);
-  box.appendChild(footer);
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  const close = () => {
-    document.removeEventListener("keydown", onKey, { capture: true });
-    teardownCloudStatus?.();
-    teardownCloudStatus = null;
-    overlay.classList.remove("confirm-overlay--visible");
-    setTimeout(() => overlay.remove(), 200);
-  };
-
-  // ── Keyboard navigation ────────────────────────────────────────────────────
-  const onKey = (e: KeyboardEvent) => {
-    if (!_isTopmostOverlay(overlay)) return;
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
-
-    const cards = Array.from(slotsContainer.querySelectorAll<HTMLElement>(".save-slot-card:not([aria-disabled='true'])"));
-    const focused = document.activeElement;
-    const focusedCard = (focused as HTMLElement)?.closest?.(".save-slot-card") as HTMLElement | null;
-
-    const colCount = Math.round(slotsContainer.getBoundingClientRect().width /
-      (cards[0]?.getBoundingClientRect().width || 1));
-
-    if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key) && focusedCard) {
-      e.preventDefault(); e.stopPropagation();
-      const idx = cards.indexOf(focusedCard);
-      let next = -1;
-      if (e.key === "ArrowRight") next = idx + 1;
-      else if (e.key === "ArrowLeft") next = idx - 1;
-      else if (e.key === "ArrowDown") next = idx + colCount;
-      else if (e.key === "ArrowUp") next = idx - colCount;
-      if (next >= 0 && next < cards.length) {
-        const primaryBtn = cards[next]!.querySelector<HTMLElement>(".save-slot-card__btn-primary");
-        (primaryBtn ?? cards[next]!).focus();
-      }
-    }
-  };
-
-  btnClose.addEventListener("click", close);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  // Register in capture phase so Esc works even when the emulator is running
-  document.addEventListener("keydown", onKey, { capture: true });
-  requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-
-  await renderSaveSlots(slotsContainer, emulator, saveLibrary, saveService, gameId, gameName, systemId, currentMode, slotCountBadge, close);
-}
-
-async function renderSaveSlots(
-  container:        HTMLElement,
-  emulator:         PSPEmulator,
-  saveLibrary:      SaveStateLibrary,
-  saveService:      SaveGameService,
-  gameId:           string,
-  gameName:         string,
-  systemId:         string,
-  mode:             SaveGalleryMode,
-  slotCountBadge?:  HTMLElement,
-  onCloseGallery?:  () => void
-): Promise<void> {
-  container.innerHTML = "";
-
-  const states = await saveLibrary.getStatesForGame(gameId);
-  const stateMap = new Map(states.map(s => [s.slot, s]));
-
-  // Update the used-slots counter in the gallery header if provided
-  if (slotCountBadge) {
-    const usedManual = states.filter(s => s.slot !== AUTO_SAVE_SLOT).length;
-    slotCountBadge.textContent = `${usedManual} / ${MAX_SAVE_SLOTS} slots used`;
-  }
-
-  // Auto-save section label (spans full grid width)
-  const autoLabel = make("div", { class: "save-gallery-section-label" }, "Auto-Save");
-  container.appendChild(autoLabel);
-
-  // Auto-save slot
-  const autoState = stateMap.get(AUTO_SAVE_SLOT);
-  const autoCard  = await buildSaveSlotCard(
-    AUTO_SAVE_SLOT, autoState, true, container, emulator, saveLibrary, saveService, gameId, gameName, systemId, mode, onCloseGallery
-  );
-  container.appendChild(autoCard);
-
-  // Manual saves section label
-  const manualLabel = make("div", { class: "save-gallery-section-label" }, "Manual Saves");
-  container.appendChild(manualLabel);
-
-  // Slots 1–MAX_SAVE_SLOTS
-  const manualSlots = Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1);
-  const cards = await Promise.all(
-    manualSlots.map((slot) => {
-      const state = stateMap.get(slot);
-      return buildSaveSlotCard(
-        slot, state, false, container, emulator, saveLibrary, saveService, gameId, gameName, systemId, mode, onCloseGallery
-      );
-    })
-  );
-  for (const card of cards) {
-    container.appendChild(card);
-  }
-}
-
-async function buildSaveSlotCard(
-  slot:             number,
-  state:            SaveStateEntry | undefined,
-  isAuto:           boolean,
-  container:        HTMLElement,
-  emulator:         PSPEmulator,
-  saveLibrary:      SaveStateLibrary,
-  saveService:      SaveGameService,
-  gameId:           string,
-  gameName:         string,
-  systemId:         string,
-  mode:             SaveGalleryMode,
-  onCloseGallery?:  () => void
-): Promise<HTMLElement> {
-  const isQuickSave = !isAuto && slot === 1;
-  let cardClass = "save-slot-card";
-  if (state)        cardClass += " save-slot-card--occupied";
-  if (isQuickSave)  cardClass += " save-slot-card--quick-save";
-  // In load mode, mark empty non-auto slots so CSS can re-enable import
-  if (!state && !isAuto) cardClass += " save-slot-card--has-import";
-
-  const card = make("div", { class: cardClass });
-
-  // Thumbnail area
-  const thumb = make("div", { class: "save-slot-card__thumb" });
-
-  // Slot number badge overlaid on the thumbnail
-  const slotBadgeText = isAuto ? "Auto" : isQuickSave ? "Slot 1 · Quick" : `Slot ${slot}`;
-  const slotBadge = make("span", { class: "save-slot-card__slot-badge" }, slotBadgeText);
-  thumb.appendChild(slotBadge);
-
-  if (state?.thumbnail) {
-    const img = make("img", { class: "save-slot-card__img", alt: `Slot ${slot} screenshot` }) as HTMLImageElement;
-    const url = URL.createObjectURL(state.thumbnail);
-    img.src = url;
-    img.onload  = () => URL.revokeObjectURL(url);
-    img.onerror = () => URL.revokeObjectURL(url);
-    thumb.appendChild(img);
-  } else {
-    const empty = make("div", { class: "save-slot-card__empty" });
-    if (mode === "save" && !isAuto) {
-      // Save mode: show a "+" invite
-      empty.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Save Here</span>`;
-    } else if (isAuto) {
-      empty.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span>Empty</span>`;
-    } else {
-      empty.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Empty</span>`;
-    }
-    thumb.appendChild(empty);
-  }
-
-  // Thumbnail hover overlay — shown on occupied slots; label depends on mode
-  let thumbPlayBtn: HTMLButtonElement | null = null;
-  if (state) {
-    const thumbOverlay = make("div", { class: "save-slot-card__thumb-overlay", "aria-hidden": "true" });
-    const thumbPlay = make("button", {
-      class: "save-slot-card__thumb-play",
-      title: mode === "save" ? "Overwrite this save state" : "Load this save state",
-      tabindex: "-1",
-    }) as HTMLButtonElement;
-    if (mode === "save") {
-      thumbPlay.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save`;
-    } else {
-      thumbPlay.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-    }
-    thumbOverlay.appendChild(thumbPlay);
-    thumb.appendChild(thumbOverlay);
-    thumbPlayBtn = thumbPlay;
-  }
-
-  card.appendChild(thumb);
-
-  // Info area
-  const info = make("div", { class: "save-slot-card__info" });
-
-  // Slot header (label + rename for manual slots)
-  const slotHeader = make("div", { class: "save-slot-card__header" });
-  const currentLabel = state?.label || defaultSlotLabel(slot);
-
-  const labelEl = make("span", { class: "save-slot-card__label" }, currentLabel);
-  slotHeader.appendChild(labelEl);
-
-  if (!isAuto) {
-    if (isQuickSave) {
-      const qBadge = make("span", { class: "save-slot-card__quick-badge" }, "F5·F7");
-      slotHeader.appendChild(qBadge);
-    }
-    const btnEdit = make("button", {
-      class: "save-slot-card__edit-btn",
-      title: "Rename this slot",
-      "aria-label": "Rename slot",
-    });
-    btnEdit.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-    btnEdit.addEventListener("click", async () => {
-      const newLabel = await showInputDialog("Rename Slot", "Enter a name for this save slot:", currentLabel);
-      if (newLabel === null) return;
-      await saveLibrary.updateStateLabel(gameId, slot, newLabel);
-      const newCard = await buildSaveSlotCard(slot, state ? { ...state, label: newLabel || defaultSlotLabel(slot) } : undefined, isAuto, container, emulator, saveLibrary, saveService, gameId, gameName, systemId, mode, onCloseGallery);
-      card.replaceWith(newCard);
-    });
-    slotHeader.appendChild(btnEdit);
-  } else {
-    const autoBadge = make("span", { class: "save-slot-card__auto-badge" }, "Auto");
-    slotHeader.appendChild(autoBadge);
-  }
-
-  info.appendChild(slotHeader);
-
-  if (state) {
-    const exactDate = new Date(state.timestamp).toLocaleString();
-    info.appendChild(make("span", { class: "save-slot-card__time", title: exactDate }, formatRelativeTime(state.timestamp)));
-  } else {
-    info.appendChild(make("span", { class: "save-slot-card__time save-slot-card__time--empty" }, "Empty"));
-  }
-
-  // Sync badge — shows cloud sync status for this slot
-  const cloudMgr = getCloudSaveManager();
-  if (cloudMgr.isConnected()) {
-    const badge: SyncBadge = cloudMgr.getSlotBadge(gameId, slot);
-    const badgeLabels: Record<SyncBadge, string> = {
-      "local-only": "Local only",
-      "syncing":    "Syncing…",
-      "synced":     "Synced",
-      "error":      "Sync error",
-    };
-    const badgeEl = make("span", {
-      class: `sync-badge sync-badge--${badge}`,
-      title: badgeLabels[badge],
-    }, badgeLabels[badge]);
-    info.appendChild(badgeEl);
-  }
-
-  // Helper: re-render all slots
-  const rerender = () => {
-    const badge = container.closest<HTMLElement>(".save-gallery-box")
-      ?.querySelector<HTMLElement>(".save-gallery-slot-count") ?? undefined;
-    return renderSaveSlots(container, emulator, saveLibrary, saveService, gameId, gameName, systemId, mode, badge, onCloseGallery);
-  };
-
-  // Helper: show per-card busy spinner
-  const setBusy = (on: boolean) => {
-    if (on) {
-      if (!card.querySelector(".save-slot-card__busy")) {
-        const busy = make("div", { class: "save-slot-card__busy", "aria-hidden": "true" });
-        busy.appendChild(make("div", { class: "save-slot-card__busy-spinner" }));
-        card.appendChild(busy);
-      }
-    } else {
-      card.querySelector(".save-slot-card__busy")?.remove();
-    }
-  };
-
-  // Shared load action
-  const doLoad = async () => {
-    setBusy(true);
-    const loaded = await saveService.loadSlot(slot);
-    setBusy(false);
-    if (loaded) {
-      onCloseGallery?.();
-      showInfoToast(`Loaded ${currentLabel}`);
-    } else {
-      showError("Could not restore this save state.");
-    }
-  };
-
-  // Shared save action
-  const doSave = async () => {
-    setBusy(true);
-    const saved = await saveService.saveSlot(slot);
-    setBusy(false);
-    await rerender();
-    if (saved) showInfoToast(`Saved to ${currentLabel}`);
-    else showError("Save failed — emulator is still warming up.");
-  };
-
-  // Wire thumbnail overlay button
-  if (thumbPlayBtn) {
-    thumbPlayBtn.addEventListener("click", mode === "save" ? doSave : doLoad);
-  }
-
-  // ── Actions row ────────────────────────────────────────────────────────────
-  const actions = make("div", { class: "save-slot-card__actions" });
-
-  if (mode === "save") {
-    // ── Save mode ────────────────────────────────────────────────
-    if (!isAuto) {
-      const btnSave = make("button", {
-        class: "btn btn--primary save-slot-card__btn save-slot-card__btn-primary",
-        title: `Save current game to ${currentLabel}`,
-      });
-      btnSave.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Here`;
-      btnSave.addEventListener("click", async () => {
-        if (btnSave.disabled) return;
-        btnSave.disabled = true;
-        try { await doSave(); } finally { btnSave.disabled = false; }
-      });
-      actions.appendChild(btnSave);
-
-      // Secondary: Load (if occupied), Export, Delete
-      if (state) {
-        const secondary = make("div", { class: "save-slot-card__secondary" });
-
-        const btnLoad = make("button", {
-          class: "btn save-slot-card__btn save-slot-card__icon-btn",
-          title: "Load this save state",
-          "aria-label": "Load",
-        });
-        btnLoad.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-        btnLoad.addEventListener("click", doLoad);
-        secondary.appendChild(btnLoad);
-
-        if (state.stateData) {
-          const btnExport = make("button", {
-            class: "btn save-slot-card__btn save-slot-card__icon-btn",
-            title: "Export save as .state file",
-            "aria-label": "Export",
-          });
-          btnExport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
-          btnExport.addEventListener("click", async () => {
-            const exported = await saveLibrary.exportState(gameId, slot);
-            if (exported) downloadBlob(exported.blob, exported.fileName);
-          });
-          secondary.appendChild(btnExport);
-        }
-
-        const btnDel = make("button", {
-          class: "btn btn--danger save-slot-card__btn save-slot-card__icon-btn",
-          title: "Delete this save state",
-          "aria-label": "Delete",
-        });
-        btnDel.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-        btnDel.addEventListener("click", async () => {
-          const confirmed = await showConfirmDialog(
-            `Delete the save in "${currentLabel}"?`,
-            { title: "Delete Save", confirmLabel: "Delete", isDanger: true }
-          );
-          if (confirmed) {
-            await saveLibrary.deleteState(gameId, slot);
-            await rerender();
-          }
-        });
-        secondary.appendChild(btnDel);
-        actions.appendChild(secondary);
-      }
-    } else if (state) {
-      // Auto slot in save mode: just show Load
-      const btnLoad = make("button", { class: "btn save-slot-card__btn save-slot-card__btn-primary", title: "Load auto-save" });
-      btnLoad.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-      btnLoad.addEventListener("click", doLoad);
-      actions.appendChild(btnLoad);
-    }
-  } else {
-    // ── Load mode ────────────────────────────────────────────────
-    if (state) {
-      const btnLoad = make("button", {
-        class: "btn btn--primary save-slot-card__btn save-slot-card__btn-primary",
-        title: "Load this save state",
-      });
-      btnLoad.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load`;
-      btnLoad.addEventListener("click", doLoad);
-      actions.appendChild(btnLoad);
-
-      // Secondary: Export, Delete (no Save in load mode)
-      const secondary = make("div", { class: "save-slot-card__secondary" });
-
-      if (state.stateData) {
-        const btnExport = make("button", {
-          class: "btn save-slot-card__btn save-slot-card__icon-btn",
-          title: "Export save as .state file",
-          "aria-label": "Export",
-        });
-        btnExport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
-        btnExport.addEventListener("click", async () => {
-          const exported = await saveLibrary.exportState(gameId, slot);
-          if (exported) downloadBlob(exported.blob, exported.fileName);
-        });
-        secondary.appendChild(btnExport);
-      }
-
-      if (!isAuto) {
-        const btnDel = make("button", {
-          class: "btn btn--danger save-slot-card__btn save-slot-card__icon-btn",
-          title: "Delete this save state",
-          "aria-label": "Delete",
-        });
-        btnDel.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-        btnDel.addEventListener("click", async () => {
-          const confirmed = await showConfirmDialog(
-            `Delete the save in "${currentLabel}"?`,
-            { title: "Delete Save", confirmLabel: "Delete", isDanger: true }
-          );
-          if (confirmed) {
-            await saveLibrary.deleteState(gameId, slot);
-            await rerender();
-          }
-        });
-        secondary.appendChild(btnDel);
-      }
-
-      if (secondary.hasChildNodes()) actions.appendChild(secondary);
-    }
-  }
-
-  // Import button — available on all non-auto slots in both modes
-  if (!isAuto) {
-    const importInput = make("input", {
-      type: "file", accept: ".state,.sav", style: "display:none",
-      "aria-label": `Import state file to slot ${slot}`,
-    }) as HTMLInputElement;
-
-    const btnImport = make("button", {
-      class: "btn save-slot-card__btn save-slot-card__icon-btn",
-      title: "Import a .state file into this slot",
-      "aria-label": "Import",
-    });
-    btnImport.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>`;
-    btnImport.addEventListener("click", () => importInput.click());
-    importInput.addEventListener("change", async () => {
-      const file = importInput.files?.[0];
-      if (!file) return;
-      importInput.value = "";
-      try {
-        await saveLibrary.importState(gameId, gameName, systemId, slot, file);
-
-        const imported = await saveLibrary.getState(gameId, slot);
-        if (imported) {
-          const checksumOk = await verifySaveChecksum(imported);
-          if (!checksumOk) {
-            const choice = await showChecksumFailureDialog();
-            if (choice === "discard") {
-              await saveLibrary.deleteState(gameId, slot);
-              await rerender();
-              showInfoToast("Discarded corrupt import.");
-              return;
-            }
-            if (choice === "reimport") {
-              await saveLibrary.deleteState(gameId, slot);
-              await rerender();
-              showInfoToast("Import discarded — please try again with a valid file.");
-              return;
-            }
-          }
-        }
-
-        const buf = await file.arrayBuffer();
-        const written = emulator.writeStateData(slot, new Uint8Array(buf));
-        await rerender();
-        if (written) {
-          showInfoToast(`Imported save to ${currentLabel}`);
-        } else {
-          showInfoToast(`Imported save to ${currentLabel} — load the game to apply it.`);
-        }
-      } catch (err) {
-        showError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    });
-
-    // Find secondary group or add to main actions
-    const secondary = actions.querySelector(".save-slot-card__secondary");
-    if (secondary) {
-      secondary.appendChild(importInput);
-      secondary.appendChild(btnImport);
-    } else {
-      actions.append(importInput, btnImport);
-    }
-  }
-
-  card.append(info, actions);
-  return card;
-}
-
-// ── Input dialog ──────────────────────────────────────────────────────────────
-
-function showInputDialog(title: string, message: string, defaultValue = ""): Promise<string | null> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", { class: "confirm-box", role: "dialog", "aria-modal": "true", "aria-label": title });
-    box.appendChild(make("h3", { class: "confirm-title" }, title));
-    box.appendChild(make("p",  { class: "confirm-body" }, message));
-
-    const input = make("input", {
-      type: "text",
-      class: "confirm-input",
-      value: defaultValue,
-      maxlength: "32",
-      "aria-label": message,
-    }) as HTMLInputElement;
-    box.appendChild(input);
-
-    const footer     = make("div", { class: "confirm-footer" });
-    const btnCancel  = make("button", { class: "btn" }, "Cancel");
-    const btnConfirm = make("button", { class: "btn btn--primary" }, "Save");
-    footer.append(btnCancel, btnConfirm);
-    box.appendChild(footer);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const close = (result: string | null) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (!_isTopmostOverlay(overlay)) return;
-      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(null); }
-      if (e.key === "Enter")  { e.preventDefault(); e.stopPropagation(); close(input.value); }
-    };
-    btnCancel.addEventListener("click",  () => close(null));
-    btnConfirm.addEventListener("click", () => close(input.value));
-    overlay.addEventListener("click",    (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onKey, { capture: true });
-    requestAnimationFrame(() => {
-      overlay.classList.add("confirm-overlay--visible");
-      input.focus();
-      input.select();
-    });
-  });
-}
 
 // ── Auto-save restore prompt ──────────────────────────────────────────────────
 
@@ -4056,172 +2895,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
   );
 }
 
-// ── Per-game graphics settings dialog ────────────────────────────────────────
 
-/**
- * Open a modal dialog for configuring per-game graphics overrides.
- * Changes are persisted to localStorage immediately on confirmation.
- */
-function openPerGameGraphicsDialog(
-  gameId:           string,
-  systemId:         string,
-  gameName:         string,
-  emulator:         PSPEmulator,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  settings:         Settings,
-): void {
-  const existing   = getGameGraphicsProfile(gameId) ?? {};
-  const systemInfo = getSystemById(systemId);
-  const is3D       = systemInfo?.is3D ?? false;
-  const hasResolutionLadder = getResolutionLadder(systemId) !== null;
-
-  const overlay = make("div", { class: "confirm-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Per-Game Graphics Settings" });
-  const box     = make("div", { class: "confirm-box" });
-
-  const title = make("h3", { class: "confirm-title" }, `🎨 Graphics — ${gameName}`);
-  const body  = make("div", { class: "confirm-body", style: "display:flex;flex-direction:column;gap:12px;" });
-
-  // Resolution preset — only shown for systems with a known resolution ladder
-  const resPresetLabel = make("label", { class: "settings-label", style: "font-size:0.8rem;font-weight:600;" }, "Resolution Preset");
-  const resPresetDescText = hasResolutionLadder
-    ? "Override the tier default internal resolution for this game."
-    : "Internal resolution scaling is not available for this system.";
-  const resPresetDesc  = make("p", { class: "settings-desc", style: "font-size:0.72rem;opacity:0.7;margin:2px 0 6px;" },
-    resPresetDescText
-  );
-  const resPresetSel = make("select", {
-    class: "settings-select",
-    style: "width:100%;padding:5px 8px;font-size:0.8rem;",
-    ...(hasResolutionLadder ? {} : { disabled: "true" }),
-  }) as HTMLSelectElement;
-  const resPresetOptions: Array<{ value: string; label: string }> = [
-    { value: "",              label: "— Use tier default —" },
-    { value: "native",        label: "Native (1×)" },
-    { value: "2x",            label: "2× Internal" },
-    { value: "4x",            label: "4× Internal" },
-    { value: "display_match", label: "Display Match (auto)" },
-  ];
-  for (const opt of resPresetOptions) {
-    const o = make("option", { value: opt.value }, opt.label) as HTMLOptionElement;
-    if (existing.resolutionPreset === opt.value || (!existing.resolutionPreset && opt.value === "")) o.selected = true;
-    resPresetSel.appendChild(o);
-  }
-  body.append(resPresetLabel, resPresetDesc, resPresetSel);
-
-  // Post-process effect override
-  const fxLabel = make("label", { class: "settings-label", style: "font-size:0.8rem;font-weight:600;" }, "Post-Processing Effect");
-  const fxDescText = is3D
-    ? "FSR and TAA are recommended for 3D systems to improve sharpness and reduce aliasing."
-    : "Override the global post-processing effect for this game.";
-  const fxDesc  = make("p", { class: "settings-desc", style: "font-size:0.72rem;opacity:0.7;margin:2px 0 6px;" },
-    fxDescText
-  );
-  const fxSel = make("select", { class: "settings-select", style: "width:100%;padding:5px 8px;font-size:0.8rem;" }) as HTMLSelectElement;
-  const fxOptions: Array<{ value: string; label: string }> = [
-    { value: "__global__", label: "— Use global setting —" },
-    { value: "none",       label: "None" },
-    { value: "fsr",        label: is3D ? "FSR 1.0 ★ (upscaling + sharpening)" : "FSR 1.0 (upscaling + sharpening)" },
-    { value: "taa",        label: "TAA (temporal anti-aliasing)" },
-    { value: "fxaa",       label: "FXAA" },
-    { value: "sharpen",    label: "Sharpen" },
-    { value: "hdr",        label: "HDR Tone Mapping" },
-    { value: "ntsc",       label: "NTSC Composite" },
-    { value: "crt",        label: "CRT Simulation" },
-    { value: "lcd",        label: "LCD Shadow Mask" },
-    { value: "bloom",      label: "Bloom" },
-    { value: "grain",      label: "Film Grain" },
-    { value: "colorgrade", label: "Color Grade" },
-    { value: "retro",      label: "Retro Pixel Art" },
-    { value: "pixelate",   label: "Pixelate" },
-  ];
-  for (const opt of fxOptions) {
-    const o = make("option", { value: opt.value }, opt.label) as HTMLOptionElement;
-    const curFx = existing.postEffect === undefined ? "__global__"
-                : existing.postEffect === null ? "__global__"
-                : existing.postEffect;
-    if (curFx === opt.value) o.selected = true;
-    fxSel.appendChild(o);
-  }
-  body.append(fxLabel, fxDesc, fxSel);
-
-  // DRS toggle
-  const drsRow = make("div", { style: "display:flex;align-items:center;gap:10px;margin-top:4px;" });
-  const drsCheck = make("input", { type: "checkbox", id: "gfx-drs-check", style: "width:16px;height:16px;" }) as HTMLInputElement;
-  drsCheck.checked = existing.drsEnabled ?? false;
-  const drsLabel = make("label", { for: "gfx-drs-check", style: "font-size:0.8rem;cursor:pointer;" },
-    "Enable Dynamic Resolution Scaling (DRS)"
-  );
-  const drsDesc = make("p", { class: "settings-desc", style: "font-size:0.72rem;opacity:0.7;margin:0 0 0 26px;" },
-    "Automatically lowers resolution when FPS drops, then raises it when performance recovers."
-  );
-  drsRow.append(drsCheck, drsLabel);
-  body.append(drsRow, drsDesc);
-
-  // Buttons
-  const btnBar     = make("div", { class: "confirm-actions" });
-  const btnClear   = make("button", { class: "btn btn--danger", style: "margin-right:auto;" }, "Reset to Defaults");
-  const btnCancel  = make("button", { class: "btn" }, "Cancel");
-  const btnConfirm = make("button", { class: "btn btn--primary" }, "Apply");
-  btnBar.append(btnClear, btnCancel, btnConfirm);
-
-  box.append(title, body, btnBar);
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  const close = (save: boolean) => {
-    if (save) {
-      const profile: PerGameGraphicsProfile = {};
-      const resPick = resPresetSel.value as ResolutionPreset | "";
-      if (resPick) profile.resolutionPreset = resPick as ResolutionPreset;
-
-      const fxPick = fxSel.value;
-      if (fxPick !== "__global__") {
-        profile.postEffect = fxPick as import("./webgpuPostProcess.js").PostProcessEffect;
-      }
-
-      if (drsCheck.checked) profile.drsEnabled = true;
-
-      saveGameGraphicsProfile(gameId, profile);
-
-      // Apply DRS immediately
-      emulator.enableDRS(profile.drsEnabled ?? false);
-
-      // Apply post-effect immediately if one was set
-      if (profile.postEffect != null) {
-        emulator.updatePostProcessConfig({ effect: profile.postEffect });
-      } else {
-        // Revert to global setting
-        emulator.updatePostProcessConfig({ effect: settings.postProcessEffect });
-        onSettingsChange({});
-      }
-
-      showInfoToast(`Graphics settings saved for "${gameName}"`);
-    }
-
-    document.removeEventListener("keydown", onKey, { capture: true });
-    overlay.classList.remove("confirm-overlay--visible");
-    overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
-    setTimeout(() => overlay.remove(), 250);
-  };
-
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(false); }
-  };
-
-  btnClear.addEventListener("click", () => {
-    clearGameGraphicsProfile(gameId);
-    emulator.enableDRS(false);
-    emulator.updatePostProcessConfig({ effect: settings.postProcessEffect });
-    showInfoToast(`Graphics settings cleared for "${gameName}"`);
-    close(false);
-  });
-  btnCancel.addEventListener("click", () => close(false));
-  btnConfirm.addEventListener("click", () => close(true));
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
-  document.addEventListener("keydown", onKey, { capture: true });
-
-  requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-}
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 
@@ -4239,14 +2913,14 @@ export function openSettingsPanel(
   emulatorRef?:     import("./emulator.js").PSPEmulator,
   onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
   saveLibrary?:     SaveStateLibrary,
-  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   initialTab?:      SettingsTab
 ): void {
   const panel   = document.getElementById("settings-panel")!;
   const content = document.getElementById("settings-content")!;
   const previousFocus = document.activeElement as HTMLElement | null;
 
-  buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, netplayManager, initialTab);
+  buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, initialTab);
   panel.hidden = false;
   // Move focus into the panel so keyboard users can navigate immediately
   requestAnimationFrame(() => {
@@ -4310,7 +2984,7 @@ function buildSettingsContent(
   emulatorRef?:     import("./emulator.js").PSPEmulator,
   onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
   saveLibrary?:     SaveStateLibrary,
-  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   initialTab?:      SettingsTab
 ): void {
   container.innerHTML = "";
@@ -4453,8 +3127,8 @@ function buildSettingsContent(
   buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef);
   buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef);
   buildBiosTab(panels[3]!, biosLibrary);
-  buildMultiplayerTab(panels[4]!, settings, onSettingsChange, netplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
-  buildDebugTab(panels[5]!, settings, onSettingsChange, deviceCaps, emulatorRef, netplayManager, biosLibrary);
+  buildMultiplayerTab(panels[4]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
+  buildDebugTab(panels[5]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
   buildAboutTab(panels[6]!);
 
   const applySearchFilter = () => {
@@ -6050,10 +4724,13 @@ function buildMultiplayerTab(
   container:        HTMLElement,
   settings:         Settings,
   onSettingsChange: (patch: Partial<Settings>) => void,
-  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   currentGameName?: string | null,
   currentSystemId?: string | null,
 ): void {
+  // Use peek for immediate status checks to avoid eager loading the manager
+  peekNetplayManager();
+
   // Intro section
   const introSection = make("div", { class: "settings-section" });
   introSection.appendChild(make("h4", { class: "settings-section__title" }, "Online play with friends"));
@@ -6065,6 +4742,7 @@ function buildMultiplayerTab(
   // Status badge — shows whether netplay is ready to use
   const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
   const updateStatusBadge = () => {
+    const netplayManager = peekNetplayManager();
     const active = netplayManager?.isActive ?? false;
     const enabled = netplayManager?.enabled ?? false;
     const hasUrl = (netplayManager?.serverUrl ?? "").trim().length > 0;
@@ -6089,7 +4767,9 @@ function buildMultiplayerTab(
     settings.netplayEnabled,
     (v) => {
       onSettingsChange({ netplayEnabled: v });
-      netplayManager?.setEnabled(v);
+      if (getNetplayManager) {
+        void getNetplayManager().then(m => m.setEnabled(v));
+      }
       serverSection.hidden = !v;
       updateStatusBadge();
     }
@@ -6117,9 +4797,9 @@ function buildMultiplayerTab(
     autocomplete: "off",
     spellcheck:   "false",
   }) as HTMLInputElement;
-  urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
   urlInput.addEventListener("change", () => {
     const url = urlInput.value.trim();
+    const netplayManager = peekNetplayManager();
     const err = netplayManager?.validateServerUrl(url) ?? null;
     if (err) {
       urlInput.setCustomValidity(err);
@@ -6130,13 +4810,13 @@ function buildMultiplayerTab(
     const patch: Partial<Settings> = { netplayServerUrl: url };
     if (!settings.netplayEnabled) {
       patch.netplayEnabled = true;
-      netplayManager?.setEnabled(true);
+      if (getNetplayManager) void getNetplayManager().then(m => m.setEnabled(true));
       serverSection.hidden = false;
       const toggleInput = introSection.querySelector<HTMLInputElement>(".toggle-row input[type=checkbox]");
       if (toggleInput) toggleInput.checked = true;
     }
     onSettingsChange(patch);
-    netplayManager?.setServerUrl(url);
+    if (getNetplayManager) void getNetplayManager().then(m => m.setServerUrl(url));
     updateStatusBadge();
   });
   urlRow.append(urlLabel, urlInput);
@@ -6158,6 +4838,7 @@ function buildMultiplayerTab(
   unameInput.addEventListener("input", () => unameInput.setCustomValidity(""));
   unameInput.addEventListener("change", () => {
     const name = unameInput.value.trim();
+    const netplayManager = peekNetplayManager();
     const err = netplayManager?.validateUsername(name) ?? null;
     if (err) {
       unameInput.setCustomValidity(err);
@@ -6166,7 +4847,7 @@ function buildMultiplayerTab(
     }
     unameInput.setCustomValidity("");
     onSettingsChange({ netplayUsername: name });
-    netplayManager?.setUsername(name);
+    if (getNetplayManager) void getNetplayManager().then(m => m.setUsername(name));
   });
   unameRow.append(unameLabel, unameInput);
   serverSection.appendChild(unameRow);
@@ -6186,7 +4867,7 @@ function buildMultiplayerTab(
   ));
 
   // Mutable local copy — kept in sync with NetplayManager on every change
-  let iceServers: RTCIceServer[] = [...(netplayManager?.iceServers ?? DEFAULT_ICE_SERVERS)];
+  let iceServers: RTCIceServer[] = [...(peekNetplayManager()?.iceServers ?? DEFAULT_ICE_SERVERS)];
 
   // List of current entries, rebuilt on every mutation
   const iceList = make("div", { class: "netplay-ice-list" });
@@ -6211,7 +4892,7 @@ function buildMultiplayerTab(
       removeBtn.addEventListener("click", () => {
         const idx = iceServers.indexOf(srv);
         if (idx !== -1) iceServers.splice(idx, 1);
-        netplayManager?.setIceServers([...iceServers]);
+        if (getNetplayManager) void getNetplayManager().then(m => m.setIceServers([...iceServers]));
         renderIceList();
       });
       row.appendChild(removeBtn);
@@ -6237,6 +4918,7 @@ function buildMultiplayerTab(
   addBtn.addEventListener("click", () => {
     const url = addInput.value.trim();
     if (!url) return;
+    const netplayManager = peekNetplayManager();
     const err = netplayManager
       ? netplayManager.validateIceServerUrl(url)
       : standaloneValidateIceServerUrl(url);
@@ -6247,7 +4929,7 @@ function buildMultiplayerTab(
     }
     addInput.setCustomValidity("");
     iceServers.push({ urls: url });
-    netplayManager?.setIceServers([...iceServers]);
+    if (getNetplayManager) void getNetplayManager().then(m => m.setIceServers([...iceServers]));
     addInput.value = "";
     renderIceList();
   });
@@ -6261,7 +4943,7 @@ function buildMultiplayerTab(
   // Reset-to-defaults button
   const resetBtn = make("button", { class: "btn settings-clear-btn" }, "Reset to defaults") as HTMLButtonElement;
   resetBtn.addEventListener("click", () => {
-    netplayManager?.resetIceServers();
+    if (getNetplayManager) void getNetplayManager().then(m => m.resetIceServers());
     iceServers = [...DEFAULT_ICE_SERVERS];
     renderIceList();
   });
@@ -6274,7 +4956,7 @@ function buildMultiplayerTab(
 
   // Lobby browser section — visible only when netplay is active
   const lobbySection = make("div", { class: "settings-section netplay-lobby" });
-  lobbySection.hidden = !(netplayManager?.isActive ?? false);
+  lobbySection.hidden = !(peekNetplayManager()?.isActive ?? false);
   lobbySection.appendChild(make("h4", { class: "settings-section__title" }, "Room Browser"));
 
   // Show game-scope hint — if a game is running, name it; otherwise give
@@ -6387,6 +5069,7 @@ function buildMultiplayerTab(
   refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refresh`;
 
   const doLobbyRefresh = async () => {
+    const netplayManager = peekNetplayManager();
     if (!netplayManager) return;
     // If the lobby section has been removed from the DOM (e.g. settings panel was
     // rebuilt) or is inside a hidden ancestor (e.g. settings panel was closed),
@@ -6452,6 +5135,7 @@ function buildMultiplayerTab(
   // so the user immediately sees current rooms without a manual click.
   const syncLobbyVisibility = () => {
     const wasHidden = lobbySection.hidden;
+    const netplayManager = peekNetplayManager();
     const nowActive = netplayManager?.isActive ?? false;
     lobbySection.hidden = !nowActive;
     if (wasHidden && nowActive) {
@@ -6522,7 +5206,7 @@ function buildMultiplayerTab(
   const roomSection = make("div", { class: "settings-section" });
   roomSection.appendChild(make("h4", { class: "settings-section__title" }, "Room Actions"));
 
-  if (!(netplayManager?.isActive)) {
+  if (!(peekNetplayManager()?.isActive)) {
     roomSection.appendChild(make("p", { class: "settings-help" },
       "Server URL is required — enable Online Play and add a server URL above to start playing with others."
     ));
@@ -6575,7 +5259,7 @@ function buildDebugTab(
   onSettingsChange: (patch: Partial<Settings>) => void,
   deviceCaps:       DeviceCapabilities,
   emulatorRef?:     import("./emulator.js").PSPEmulator,
-  netplayManager?:  import("./multiplayer.js").NetplayManager,
+  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
   biosLibrary?:     BiosLibrary
 ): void {
   // Settings section
@@ -6902,11 +5586,11 @@ function buildDebugTab(
     lines.push(
       ``,
       `[Netplay]`,
-      `Enabled: ${netplayManager?.enabled ?? false}`,
-      `Active: ${netplayManager?.isActive ?? false}`,
-      `Server: ${netplayManager?.serverUrl || "—"}`,
-      `ICE Servers: ${netplayManager?.iceServers.length ?? 0}`,
-      ...(netplayManager?.iceServers ?? []).map(s =>
+      `Enabled: ${peekNetplayManager()?.enabled ?? false}`,
+      `Active: ${peekNetplayManager()?.isActive ?? false}`,
+      `Server: ${peekNetplayManager()?.serverUrl || "—"}`,
+      `ICE Servers: ${peekNetplayManager()?.iceServers?.length ?? 0}`,
+      ...(peekNetplayManager()?.iceServers ?? []).map((s) =>
         `  ${Array.isArray(s.urls) ? s.urls.join(", ") : s.urls}`
       ),
     );
@@ -7646,6 +6330,3 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
 }
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
-
-/** @internal — test-only: expose showConflictResolutionDialog for isolated unit tests. */
-export const __showConflictResolutionDialogForTests = showConflictResolutionDialog;

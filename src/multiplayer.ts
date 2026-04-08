@@ -1,64 +1,9 @@
+import { 
+  DEFAULT_ICE_SERVERS, 
+  NETPLAY_SUPPORTED_SYSTEM_IDS, 
+  SYSTEM_LINK_CAPABILITIES
+} from "./multiplayerUtils.js";
 import compatibilityAliases from "./compatibility_aliases.json";
-
-/**
- * multiplayer.ts — Phase 6: Multiplayer & Social
- *
- * Provides `NetplayManager`, which manages the EmulatorJS netplay integration:
- *   - Netplay server URL (WebSocket endpoint that EmulatorJS connects to for
- *     room creation, room listing, and signalling)
- *   - ICE server list (STUN/TURN) forwarded to WebRTC peer connections
- *   - Enable/disable flag
- *   - Per-game numeric ID derived from the game's string ID
- *
- * Settings are persisted to `localStorage` under the key `rv:netplay`.
- *
- * The singleton is wired into `PSPEmulator.launch()` via `LaunchOptions` so
- * the appropriate `window.EJS_netplayServer`, `window.EJS_netplayICEServers`,
- * and `window.EJS_gameID` globals are set before EmulatorJS's loader.js runs.
- */
-
-// ── Default public STUN servers ───────────────────────────────────────────────
-
-/**
- * Default ICE server list used when no custom TURN servers are configured.
- * Public Google STUN servers work for direct peer connections; add TURN for
- * networks with symmetric NAT or strict firewalls.
- */
-export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-];
-
-/**
- * Systems with first-class netplay support in this app.
- *
- * Netplay remains globally configurable in settings, but launch integration is
- * intentionally gated per-system for deterministic behavior while support is
- * rolled out incrementally.
- */
-export const NETPLAY_SUPPORTED_SYSTEM_IDS = ["n64", "psp", "nds", "gba", "gbc", "gb"] as const;
-
-export const SYSTEM_LINK_CAPABILITIES: Record<string, boolean> = {
-  nes: false,
-  snes: false,
-  n64: true,
-  psp: true,
-  gb: true,
-  gbc: true,
-  gba: true,
-  nds: true,
-};
-
-export const ROOM_KEY_DISPLAY_NAMES: Record<string, string> = {
-  pokemon_gen1:        "Pokémon Gen1 Trading Room (Red / Blue / Yellow)",
-  pokemon_gen2:        "Pokémon Gen2 Trading Room (Gold / Silver / Crystal)",
-  pokemon_gen3_kanto:  "Pokémon Gen3 Kanto Trading Room (FireRed / LeafGreen)",
-  pokemon_gen3_hoenn:  "Pokémon Gen3 Hoenn Trading Room (Ruby / Sapphire / Emerald)",
-  pokemon_gen4_sinnoh: "Pokémon Gen4 Sinnoh Trading Room (Diamond / Pearl / Platinum)",
-  pokemon_gen4_johto:  "Pokémon Gen4 Johto Trading Room (HeartGold / SoulSilver)",
-  pokemon_gen5_unova:  "Pokémon Gen5 Unova Trading Room (Black / White)",
-  pokemon_gen5_unova2: "Pokémon Gen5 Unova Trading Room (Black 2 / White 2)",
-};
 
 /**
  * Netplay room-key aliases used to group known cross-version compatible games.
@@ -260,7 +205,7 @@ export function optimizeChromePerformance(): void {
   console.log("🚀 RetroVault: Optimizing for Chrome...");
 
   // Hint at high-performance requirements
-  if (performance && (performance as any).mark) {
+  if (typeof performance !== "undefined" && typeof performance.mark === "function") {
     performance.mark("retrovault-boot-start");
   }
 
@@ -307,9 +252,8 @@ export function resolveNetplayRoomKey(gameId: string, systemId?: string): string
   return resolved.roomKey;
 }
 
-export function roomDisplayNameForKey(roomKey: string): string {
-  return ROOM_KEY_DISPLAY_NAMES[roomKey] ?? roomKey;
-}
+import { roomDisplayNameForKey } from "./multiplayerUtils.js";
+export { roomDisplayNameForKey };
 
 // ── Alias table integrity ─────────────────────────────────────────────────────
 
@@ -531,36 +475,8 @@ export class NetplayMetricsCollector {
   }
 }
 
-// ── ICE server URL validation ─────────────────────────────────────────────────
-
-/**
- * Validate a single ICE / STUN / TURN server URL string.
- *
- * Returns `null` when the URL is valid.  Returns a human-readable error
- * message when the URL is empty, has an unrecognised scheme, or has no
- * hostname after the scheme separator.
- *
- * Rules:
- *  - An empty / whitespace-only string is invalid — ICE URLs must be
- *    explicitly provided.
- *  - The URL must start with `stun:`, `turn:`, or `turns:` (case-insensitive).
- *  - There must be a non-empty hostname immediately after the colon (e.g.
- *    `stun:` alone is rejected — WebRTC ignores servers without a host).
- */
-export function validateIceServerUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (trimmed.length === 0) return "ICE server URL must not be empty";
-  if (!/^(stun|turn|turns):/i.test(trimmed)) {
-    return "URL must start with stun:, turn:, or turns:";
-  }
-  // Verify there is a non-empty hostname after the scheme colon.
-  const colonIdx = trimmed.indexOf(":");
-  const afterColon = trimmed.slice(colonIdx + 1).replace(/^\/\//, "").trim();
-  if (afterColon.length === 0) {
-    return "ICE server URL must include a hostname (e.g. stun:stun.example.com:3478)";
-  }
-  return null;
-}
+import { validateIceServerUrl } from "./multiplayerUtils.js";
+export { validateIceServerUrl };
 
 // ── NetplayManager ────────────────────────────────────────────────────────────
 

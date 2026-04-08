@@ -49,6 +49,16 @@ export default defineConfig({
           if (id.includes("/src/touchControls.")) {
             return "touch";
           }
+          if (id.includes("/src/multiplayer.") || id.includes("/src/netplay/")) {
+            return "multiplayer";
+          }
+          if (id.includes("/src/cloudSave.") || id.includes("/src/saveService.") || id.includes("/src/saves.")) {
+            return "saves";
+          }
+          if (id.includes("/src/ui.ts") || id.includes("/src/compatibility.")) {
+            // Keep UI and compatibility in the main bundle for now as they are core to landing,
+            // but we could split more specific UI panels later if needed.
+          }
         },
       },
     },
