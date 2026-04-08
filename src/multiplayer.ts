@@ -3,6 +3,11 @@ import {
   NETPLAY_SUPPORTED_SYSTEM_IDS, 
   SYSTEM_LINK_CAPABILITIES
 } from "./multiplayerUtils.js";
+export {
+  DEFAULT_ICE_SERVERS,
+  NETPLAY_SUPPORTED_SYSTEM_IDS,
+  SYSTEM_LINK_CAPABILITIES,
+} from "./multiplayerUtils.js";
 import compatibilityAliases from "./compatibility_aliases.json";
 
 /**

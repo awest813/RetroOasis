@@ -415,8 +415,8 @@ export function buildDOM(app: HTMLElement): void {
         <!-- Onboarding — only visible when library is empty -->
         <div class="onboarding" id="onboarding">
           <div class="welcome-hero">
-            <h2 class="welcome-hero__title">Your retro games, in your browser</h2>
-            <p class="welcome-hero__tagline">PSP · N64 · PS1 · GBA · SNES · NES and 20+ more systems — no installs, no account, just pure play</p>
+            <h2 class="welcome-hero__title">A refined home for your retro library</h2>
+            <p class="welcome-hero__tagline">PSP, N64, PS1, GBA, SNES, NES, and 20+ more systems. Local-first, instant to launch, and designed to stay out of the way.</p>
             <div class="welcome-steps">
               <div class="welcome-step">
                 <span class="welcome-step__num" aria-hidden="true">1</span>
@@ -428,26 +428,26 @@ export function buildDOM(app: HTMLElement): void {
               </div>
               <div class="welcome-step">
                 <span class="welcome-step__num" aria-hidden="true">3</span>
-                <span class="welcome-step__text">Play instantly! 🎮</span>
+                <span class="welcome-step__text">Launch and keep playing</span>
               </div>
             </div>
           </div>
           <div class="onboarding__features">
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">💾</span>
-              <span><strong>Save anytime</strong><br>Snapshot your progress across up to 8 slots — quick-save with F5</span>
+              <span><strong>Save anytime</strong><br>Keep progress close with up to 8 save slots and quick-save on F5</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
-              <span><strong>Any controller</strong><br>Touch screen, keyboard, USB gamepad, or Bluetooth — plug in and play</span>
+              <span><strong>Any controller</strong><br>Touch, keyboard, USB gamepad, or Bluetooth with no extra setup</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
-              <span><strong>Auto-optimized</strong><br>Detects your hardware and tunes graphics for the smoothest experience</span>
+              <span><strong>Auto-optimized</strong><br>Adapts performance settings to your hardware for smooth, stable play</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
-              <span><strong>100% private</strong><br>Everything stays in your browser — no uploads, no account needed</span>
+              <span><strong>Private by default</strong><br>Your library stays on your device with no uploads and no account required</span>
             </div>
           </div>
         </div>
@@ -2745,7 +2745,7 @@ async function showInGameMenu(ctx: {
   getCurrentCoreOptions?: () => Record<string, string>;
   onUpdateCoreOption?: (key: string, value: string) => void;
 }): Promise<void> {
-  if (ctx.emulator.state === "running") ctx.emulator.pause();
+  if (ctx.emulator.state === "running") ctx.emulator.pause?.();
 
   const ac = new AbortController();
   const signal = ac.signal;
@@ -2801,7 +2801,8 @@ async function showInGameMenu(ctx: {
     content.appendChild(body);
 
     if (type === "saves") {
-      const states = ctx.saveLibrary ? await ctx.saveLibrary.getStatesForGame(gameId) : [];
+      const statesResult = ctx.saveLibrary ? await ctx.saveLibrary.getStatesForGame(gameId) : [];
+      const states = Array.isArray(statesResult) ? statesResult : [];
       const slots = Array.from({ length: 8 }, (_, i) => i + 1);
 
       const grid = make("div", { class: "ingame-menu__saves-grid" });
@@ -5019,6 +5020,36 @@ function buildMultiplayerTab(
 ): void {
   // Use peek for immediate status checks to avoid eager loading the manager
   peekNetplayManager();
+  let currentEnabled = settings.netplayEnabled;
+  let currentServerUrl = settings.netplayServerUrl.trim();
+
+  const validateServerUrl = (url: string): string | null => {
+    const netplayManager = peekNetplayManager();
+    if (netplayManager) return netplayManager.validateServerUrl(url);
+    const trimmed = url.trim();
+    if (trimmed.length === 0) return null;
+    if (!/^wss?:\/\//i.test(trimmed)) {
+      return "Server URL must start with ws:// or wss://";
+    }
+    try {
+      new URL(trimmed);
+    } catch {
+      return "Server URL is not a valid URL";
+    }
+    return null;
+  };
+
+  const validateUsername = (name: string): string | null => {
+    const netplayManager = peekNetplayManager();
+    if (netplayManager) return netplayManager.validateUsername(name);
+    return name.trim().length > 32 ? "Display name must be 32 characters or fewer" : null;
+  };
+
+  const isNetplayActive = (): boolean => {
+    const netplayManager = peekNetplayManager();
+    if (netplayManager) return netplayManager.isActive;
+    return currentEnabled && currentServerUrl.length > 0 && !validateServerUrl(currentServerUrl);
+  };
 
   // Intro section
   const introSection = make("div", { class: "settings-section" });
@@ -5032,9 +5063,9 @@ function buildMultiplayerTab(
   const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
   const updateStatusBadge = () => {
     const netplayManager = peekNetplayManager();
-    const active = netplayManager?.isActive ?? false;
-    const enabled = netplayManager?.enabled ?? false;
-    const hasUrl = (netplayManager?.serverUrl ?? "").trim().length > 0;
+    const active = netplayManager?.isActive ?? isNetplayActive();
+    const enabled = netplayManager?.enabled ?? currentEnabled;
+    const hasUrl = ((netplayManager?.serverUrl ?? currentServerUrl).trim().length > 0);
     statusBadge.textContent = active
       ? "Ready to play online"
       : enabled && !hasUrl
@@ -5055,6 +5086,7 @@ function buildMultiplayerTab(
     "Shows Multiplayer on the home screen and Online in the game toolbar. You still need a server URL below for internet play.",
     settings.netplayEnabled,
     (v) => {
+      currentEnabled = v;
       onSettingsChange({ netplayEnabled: v });
       if (getNetplayManager) {
         void getNetplayManager().then(m => m.setEnabled(v));
@@ -5088,16 +5120,17 @@ function buildMultiplayerTab(
   }) as HTMLInputElement;
   urlInput.addEventListener("change", () => {
     const url = urlInput.value.trim();
-    const netplayManager = peekNetplayManager();
-    const err = netplayManager?.validateServerUrl(url) ?? null;
+    const err = validateServerUrl(url);
     if (err) {
       urlInput.setCustomValidity(err);
       urlInput.reportValidity();
       return;
     }
     urlInput.setCustomValidity("");
+    currentServerUrl = url;
     const patch: Partial<Settings> = { netplayServerUrl: url };
-    if (!settings.netplayEnabled) {
+    if (!currentEnabled) {
+      currentEnabled = true;
       patch.netplayEnabled = true;
       if (getNetplayManager) void getNetplayManager().then(m => m.setEnabled(true));
       serverSection.hidden = false;
@@ -5108,6 +5141,7 @@ function buildMultiplayerTab(
     if (getNetplayManager) void getNetplayManager().then(m => m.setServerUrl(url));
     updateStatusBadge();
   });
+  urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
   urlRow.append(urlLabel, urlInput);
   serverSection.appendChild(urlRow);
 
@@ -5127,8 +5161,7 @@ function buildMultiplayerTab(
   unameInput.addEventListener("input", () => unameInput.setCustomValidity(""));
   unameInput.addEventListener("change", () => {
     const name = unameInput.value.trim();
-    const netplayManager = peekNetplayManager();
-    const err = netplayManager?.validateUsername(name) ?? null;
+    const err = validateUsername(name);
     if (err) {
       unameInput.setCustomValidity(err);
       unameInput.reportValidity();
@@ -5245,7 +5278,7 @@ function buildMultiplayerTab(
 
   // Lobby browser section — visible only when netplay is active
   const lobbySection = make("div", { class: "settings-section netplay-lobby" });
-  lobbySection.hidden = !(peekNetplayManager()?.isActive ?? false);
+  lobbySection.hidden = !isNetplayActive();
   lobbySection.appendChild(make("h4", { class: "settings-section__title" }, "Room Browser"));
 
   // Show game-scope hint — if a game is running, name it; otherwise give
@@ -5495,7 +5528,7 @@ function buildMultiplayerTab(
   const roomSection = make("div", { class: "settings-section" });
   roomSection.appendChild(make("h4", { class: "settings-section__title" }, "Room Actions"));
 
-  if (!(peekNetplayManager()?.isActive)) {
+  if (!isNetplayActive()) {
     roomSection.appendChild(make("p", { class: "settings-help" },
       "Server URL is required — enable Online Play and add a server URL above to start playing with others."
     ));

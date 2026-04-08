@@ -2078,14 +2078,17 @@ describe('PSPEmulator', () => {
       expect(() => emulator.setVolume(2)).not.toThrow();
     });
 
-    it('applies volume to EJS_emulator when available', () => {
+    it('applies volume through the core bridge when available', () => {
       const setVolumeSpy = vi.fn();
-      (window as Window & { EJS_emulator?: { setVolume: (v: number) => void } }).EJS_emulator = {
-        setVolume: setVolumeSpy,
-      };
+      (
+        emulator as unknown as {
+          _bridge: { setVolume: (v: number) => void };
+        }
+      )._bridge = { setVolume: setVolumeSpy };
+
       emulator.setVolume(0.75);
+
       expect(setVolumeSpy).toHaveBeenCalledWith(0.75);
-      delete (window as Window & { EJS_emulator?: unknown }).EJS_emulator;
     });
   });
 
