@@ -56,6 +56,10 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
     // Matches Beetle PSX HW libretro steps (preset "4×" maps to index 2 = 4x).
     values: ["1x(native)", "2x", "4x", "8x", "16x"],
   },
+  nds: {
+    key: "desmume_internal_resolution",
+    values: ["256x192", "512x384", "768x576", "1024x768"],
+  },
 };
 
 /**

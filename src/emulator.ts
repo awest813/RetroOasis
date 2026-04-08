@@ -78,14 +78,64 @@ declare global {
 
 // ── Core Bridge ─────────────────────────────────────────────────────────────
 
+export interface VirtualFileSystem {
+  exists(path: string): boolean;
+  read(path: string): Uint8Array;
+  write(path: string, data: Uint8Array): void;
+  mkdir(path: string): void;
+  unlink(path: string): void;
+  readdir(path: string): string[];
+  stat(path: string): { size: number } | null;
+}
+
+export interface ScreenshotOptions {
+  format: "image/jpeg" | "image/png";
+  quality?: number;
+}
+
+export interface InputEvent {
+  playerIndex: number;
+  buttonIndex: number;
+  value: number;
+}
+
+export interface DiskInfo {
+  current: number;
+  count: number;
+  label?: string;
+}
+
 /**
  * CoreBridge wraps the low-level EmulatorJS global instance to provide a 
  * robust, typed, and asynchronous interface for the frontend.
+ * 
+ * @example
+ * ```typescript
+ * const bridge = emulator.getBridge();
+ * 
+ * // Volume control
+ * bridge.setVolume(0.8);
+ * 
+ * // Screenshot capture
+ * const screenshot = await bridge.captureScreenshot({ format: 'image/jpeg', quality: 0.9 });
+ * 
+ * // VFS operations
+ * const saveData = await bridge.fs.readAsync('/data/saves/mygame.sav');
+ * await bridge.fs.writeAsync('/data/saves/mygame.sav', saveData);
+ * ```
  */
 export class CoreBridge {
   private _instance: EJSEmulatorInstance | null = null;
+  private _canvas: HTMLCanvasElement | null = null;
+  private _playerId: string;
 
-  constructor(instance: EJSEmulatorInstance) {
+  constructor(instance: EJSEmulatorInstance, playerId: string = "ejs-player") {
+    this._instance = instance;
+    this._playerId = playerId;
+  }
+
+  /** @internal */
+  _setInstance(instance: EJSEmulatorInstance): void {
     this._instance = instance;
   }
 
@@ -95,10 +145,17 @@ export class CoreBridge {
   }
 
   /**
+   * Whether the core is currently initialized and ready.
+   */
+  get isReady(): boolean {
+    return this._instance !== null;
+  }
+
+  /**
    * Virtual Filesystem Access.
    * Provides high-performance read/write paths for ROMs, BIOS, and save data.
    */
-  get fs() {
+  get fs(): VirtualFileSystem {
     const fs = this.instance.Module?.FS;
     if (!fs) throw new Error("Emulator VFS is not available.");
     return {
@@ -112,7 +169,40 @@ export class CoreBridge {
         if (fs.analyzePath(path).exists) fs.unlink(path);
       },
       readdir: (path: string) => fs.readdir(path),
+      stat: (path: string) => {
+        try { return fs.stat(path); }
+        catch { return null; }
+      },
     };
+  }
+
+  /**
+   * Async VFS read with error handling.
+   * Returns null on failure instead of throwing.
+   */
+  async readFileAsync(path: string): Promise<Uint8Array | null> {
+    try {
+      return this.fs.read(path);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Async VFS write with directory auto-creation.
+   */
+  async writeFileAsync(path: string, data: Uint8Array): Promise<boolean> {
+    try {
+      const dirMatch = path.match(/^(.+)\/[^/]+$/);
+      if (dirMatch && dirMatch[1]) {
+        const dir = dirMatch[1];
+        this.fs.mkdir(dir);
+      }
+      this.fs.write(path, data);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   setVolume(v: number): void {
@@ -150,6 +240,152 @@ export class CoreBridge {
   get audioContext(): AudioContext | null {
     return this.instance.Module?.AL?.currentCtx?.audioCtx ?? null;
   }
+
+  /**
+   * Capture a screenshot from the emulator canvas.
+   * Returns null if canvas is not available.
+   */
+  async captureScreenshot(options: ScreenshotOptions = { format: "image/jpeg", quality: 0.75 }): Promise<Blob | null> {
+    const playerEl = document.getElementById(this._playerId);
+    if (!playerEl) return null;
+    
+    const canvas = playerEl.querySelector("canvas");
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return null;
+
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => resolve(blob),
+        options.format,
+        options.quality
+      );
+    });
+  }
+
+  /**
+   * Get the canvas element used by the emulator.
+   */
+  getCanvas(): HTMLCanvasElement | null {
+    if (this._canvas) return this._canvas;
+    
+    const playerEl = document.getElementById(this._playerId);
+    if (!playerEl) return null;
+    
+    this._canvas = playerEl.querySelector("canvas");
+    return this._canvas;
+  }
+
+  /**
+   * Simulate input for a player.
+   * @param playerIndex - Player index (0 for single player)
+   * @param buttonIndex - Button index from the input mapping
+   * @param value - Value (0 = release, positive = press with intensity)
+   */
+  simulateInput(playerIndex: number, buttonIndex: number, value: number): void {
+    this.instance.gameManager?.simulateInput?.(playerIndex, buttonIndex, value);
+  }
+
+  /**
+   * Simulate key press.
+   */
+  simulateKey(key: string, pressed: boolean = true): void {
+    this.instance.simulateKey?.(key, pressed);
+  }
+
+  /**
+   * Get current disk information for multi-disk games.
+   */
+  getDiskInfo(): DiskInfo | null {
+    const gm = this.instance.gameManager;
+    if (!gm?.getDiskCount) return null;
+    
+    const count = gm.getDiskCount();
+    if (count <= 1) return null;
+    
+    return {
+      current: gm.getCurrentDisk?.() ?? 0,
+      count,
+      label: gm.getDiskLabel?.(),
+    };
+  }
+
+  /**
+   * Swap to a specific disk (for multi-disc games).
+   */
+  swapDisk(diskIndex: number): void {
+    this.instance.gameManager?.setCurrentDisk?.(diskIndex);
+  }
+
+  /**
+   * Display a message overlay in the emulator.
+   * @param message - Message to display
+   * @param duration - Duration in milliseconds
+   */
+  displayMessage(message: string, duration: number = 3000): void {
+    this.instance.displayMessage?.(message, duration);
+  }
+
+  /**
+   * Get the current game name.
+   */
+  getGameName(): string | null {
+    return this.instance.gameName ?? null;
+  }
+
+  /**
+   * Get the core name being used.
+   */
+  getCoreName(): string | null {
+    return this.instance.core ?? null;
+  }
+
+  /**
+   * Check if save states are supported.
+   */
+  supportsStates(): boolean {
+    return this.instance.gameManager?.supportsStates?.() ?? false;
+  }
+
+  /**
+   * Get the save file data.
+   */
+  getSaveFile(): Uint8Array | null {
+    return this.instance.gameManager?.getSaveFile?.() ?? null;
+  }
+
+  /**
+   * Load save file data into the emulator.
+   */
+  loadSaveFile(data: Uint8Array): void {
+    this.instance.gameManager?.loadSaveFile?.(data);
+  }
+
+  /**
+   * Toggle the display of the emulator's built-in menu.
+   */
+  toggleMenu(): void {
+    this.instance.toggleMenu?.();
+  }
+
+  /**
+   * Take focus for keyboard input.
+   */
+  takeFocus(): void {
+    this.instance.takeFocus?.();
+  }
+
+  /**
+   * Check if the emulator is paused.
+   */
+  get isPaused(): boolean {
+    return this.instance.paused ?? false;
+  }
+
+  /**
+   * Get the current frame count.
+   */
+  get frameCount(): number {
+    return this.instance.frameCount ?? 0;
+  }
 }
 
 declare global {
@@ -186,6 +422,14 @@ interface EJSEmulatorInstance {
   setVolume(volume: number): void;
   pause?(): void;
   resume?(): void;
+  paused?: boolean;
+  core?: string;
+  gameName?: string;
+  frameCount?: number;
+  displayMessage?(message: string, duration: number): void;
+  simulateKey?(key: string, pressed: boolean): void;
+  takeFocus?(): void;
+  toggleMenu?(): void;
   gameManager?: {
     restart(): void;
     quickSave(slot: number): boolean;
@@ -193,6 +437,11 @@ interface EJSEmulatorInstance {
     supportsStates(): boolean;
     getSaveFile?(): Uint8Array | null;
     loadSaveFile?(data: Uint8Array): void;
+    simulateInput?(playerIndex: number, buttonIndex: number, value: number): void;
+    getDiskCount?(): number;
+    getCurrentDisk?(): number;
+    getDiskLabel?(): string;
+    setCurrentDisk?(index: number): void;
   };
   /** Emscripten module — used to access OpenAL audio and the virtual filesystem. */
   Module?: {
@@ -837,6 +1086,12 @@ export class PSPEmulator {
   get thermalPressureState(): string { return this._thermalMonitor.state; }
   /** Startup profiler for the most recent launch attempt. */
   get startupProfiler(): StartupProfiler { return this._startupProfiler; }
+
+  /**
+   * Get the CoreBridge instance for direct emulator access.
+   * Returns null before the emulator is ready (EJS_ready callback fires).
+   */
+  get bridge(): CoreBridge | null { return this._bridge; }
 
   /**
    * Enable or disable Dynamic Resolution Scaling (DRS).
@@ -1972,7 +2227,7 @@ export class PSPEmulator {
       // ── Lifecycle callbacks ───────────────────────────────────────────────
       window.EJS_ready = () => {
         if (window.EJS_emulator) {
-          this._bridge = new CoreBridge(window.EJS_emulator);
+          this._bridge = new CoreBridge(window.EJS_emulator, this._playerId);
         }
         // Ignore stale callbacks from a torn-down/replaced core instance.
         if (this._state !== "loading") return;

@@ -378,6 +378,9 @@ describe('systems performance profiles', () => {
       expect(settings.desmume_frameskip).toBe('2');
       expect(settings.desmume_cpu_mode).toBe('interpreter');
       expect(settings.desmume_pointer_type).toBe('touch');
+      expect(settings.desmume_motion_enabled).toBe('disabled');
+      expect(settings.desmume_gyro_enabled).toBe('disabled');
+      expect(settings.desmume_filtering).toBe('none');
     });
 
     it('returns tier settings for NDS ultra tier', () => {
@@ -385,6 +388,17 @@ describe('systems performance profiles', () => {
       expect(settings.retroarch_core).toBe('desmume2015');
       expect(settings.desmume_internal_resolution).toBe('1024x768');
       expect(settings.desmume_cpu_mode).toBe('jit');
+      expect(settings.desmume_motion_enabled).toBe('enabled');
+      expect(settings.desmume_gyro_enabled).toBe('enabled');
+      expect(settings.desmume_filtering).toBe('bilinear');
+    });
+
+    it('high tier enables advanced timing and OpenGL', () => {
+      const settings = getNDSSettingsForTier('high');
+      expect(settings.desmume_advanced_timing).toBe('enabled');
+      expect(settings.desmume_opengl_mode).toBe('enabled');
+      expect(settings.desmume_color_depth).toBe('32-bit');
+      expect(settings.desmume_mic_mode).toBe('internal');
     });
 
     it('returns a deep copy (mutations do not affect the original)', () => {
