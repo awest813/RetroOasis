@@ -86,6 +86,16 @@ import { checkSystemSupport } from "./netplay/compatibility.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { SaveGameService } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
+import { queryRequired as el, createElement as make } from "./ui/dom.js";
+import {
+  showConfirmDialog as showConfirmDialogImpl,
+  pickSystem as pickSystemImpl,
+  showGamePickerDialog as showGamePickerDialogImpl,
+  showArchiveEntryPickerDialog as showArchiveEntryPickerDialogImpl,
+  showMultiDiscPicker as showMultiDiscPickerImpl,
+  isTopmostOverlay,
+} from "./ui/modals.js";
+import { createDebugConsoleController } from "./ui/debugConsole.js";
 
 // ── PWA install callbacks (set once from initUI) ───────────────────────────────
 let _canInstallPWA: (() => boolean) | undefined;
@@ -99,187 +109,15 @@ export const TOUCH_CONTROLS_CHANGED_EVENT = "retrovault:touchControlsChanged";
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 
-function el<T extends HTMLElement = HTMLElement>(sel: string): T {
-  const node = document.querySelector<T>(sel);
-  if (!node) throw new Error(`UI: element not found: "${sel}"`);
-  return node;
-}
-
-function make<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs: Record<string, string> = {},
-  ...children: (string | Node)[]
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "class") node.className = v;
-    else node.setAttribute(k, v);
-  }
-  for (const child of children) {
-    node.append(typeof child === "string" ? document.createTextNode(child) : child);
-  }
-  return node;
-}
-
 // ── Debug Console State & Logic ──────────────────────────────────────────────
-let _debugConsoleWired = false;
-let _debugConsoleVisible = false;
-let _debugConsolePos: { x: number; y: number } = (() => {
-  try {
-    const saved = localStorage.getItem("rv_debug_console_pos");
-    return saved ? (JSON.parse(saved) as { x: number; y: number }) : { x: 20, y: 80 };
-  } catch { return { x: 20, y: 80 }; }
-})();
-let _lastLoggedEventCount = 0;
+const _debugConsole = createDebugConsoleController({ onToggleDevOverlay: () => toggleDevOverlay() });
 
 function toggleDebugConsole(emulator?: PSPEmulator): void {
-  const consoleEl = document.getElementById("debug-console");
-  if (!consoleEl) return;
-
-  _debugConsoleVisible = !_debugConsoleVisible;
-  consoleEl.hidden = !_debugConsoleVisible;
-
-  if (_debugConsoleVisible) {
-    consoleEl.style.left = `${_debugConsolePos.x}px`;
-    consoleEl.style.top = `${_debugConsolePos.y}px`;
-
-    if (!_debugConsoleWired && emulator) {
-      wireDebugConsole(emulator);
-    }
-    document.getElementById("debug-console-input")?.focus();
-    if (emulator) updateDebugConsoleLog(emulator);
-  }
-}
-
-function wireDebugConsole(emulator: PSPEmulator): void {
-  if (_debugConsoleWired) return;
-  _debugConsoleWired = true;
-
-  const handle = document.getElementById("debug-console-handle");
-  const consoleEl = document.getElementById("debug-console");
-  const closeBtn = document.getElementById("debug-console-close");
-  const clearBtn = document.getElementById("debug-console-clear");
-  const input = document.getElementById("debug-console-input") as HTMLInputElement;
-
-  // Draggable logic
-  if (handle && consoleEl) {
-    let isDragging = false;
-    let startX: number, startY: number;
-
-    handle.addEventListener("mousedown", (e) => {
-      isDragging = true;
-      startX = e.clientX - consoleEl.offsetLeft;
-      startY = e.clientY - consoleEl.offsetTop;
-      handle.style.cursor = "grabbing";
-    });
-
-    window.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
-      const x = e.clientX - startX;
-      const y = e.clientY - startY;
-      consoleEl.style.left = `${x}px`;
-      consoleEl.style.top = `${y}px`;
-      _debugConsolePos = { x, y };
-      localStorage.setItem("rv_debug_console_pos", JSON.stringify(_debugConsolePos));
-    });
-
-    window.addEventListener("mouseup", () => {
-      isDragging = false;
-      if (handle) handle.style.cursor = "grab";
-    });
-  }
-
-  closeBtn?.addEventListener("click", () => toggleDebugConsole());
-  clearBtn?.addEventListener("click", () => {
-    emulator.clearDiagnosticLog();
-    const logEl = document.getElementById("debug-console-log");
-    if (logEl) logEl.innerHTML = "";
-    _lastLoggedEventCount = 0;
-  });
-
-  input?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const cmd = input.value.trim();
-      if (cmd) {
-        handleDebugCommand(cmd, emulator);
-        input.value = "";
-      }
-    }
-    // Prevent emulator from seeing these keys when typing in the console
-    e.stopPropagation();
-  });
-}
-
-function handleDebugCommand(cmd: string, emulator: PSPEmulator): void {
-  const parts = cmd.toLowerCase().split(" ");
-  const action = parts[0];
-
-  emulator.logDiagnostic("system", `> ${cmd}`);
-
-  switch (action) {
-    case "help":
-      emulator.logDiagnostic("system", "Available commands: help, reset, pause, resume, step, stats, log [on|off], clear, close");
-      break;
-    case "reset":
-      emulator.reset();
-      break;
-    case "pause":
-      emulator.pause();
-      break;
-    case "resume":
-      emulator.resume();
-      break;
-    case "step":
-      emulator.pause();
-      // Most EmulatorJS cores don't have a direct "step" API yet, but we can simulate it
-      // or at least show that we are in a paused state.
-      setTimeout(() => emulator.resume(), 16);
-      setTimeout(() => emulator.pause(), 32);
-      break;
-    case "stats":
-      toggleDevOverlay();
-      break;
-    case "log":
-      if (parts[1] === "on" || parts[1] === "verbose") {
-        emulator.verboseLogging = true;
-        emulator.logDiagnostic("system", "Verbose logging enabled.");
-      } else {
-        emulator.verboseLogging = false;
-        emulator.logDiagnostic("system", "Verbose logging disabled.");
-      }
-      break;
-    case "clear":
-      emulator.clearDiagnosticLog();
-      const logEl = document.getElementById("debug-console-log");
-      if (logEl) logEl.innerHTML = "";
-      _lastLoggedEventCount = 0;
-      break;
-    case "close":
-      toggleDebugConsole();
-      break;
-    default:
-      emulator.logDiagnostic("error", `Unknown command: ${action}`);
-  }
-  updateDebugConsoleLog(emulator);
+  _debugConsole.toggle(emulator);
 }
 
 function updateDebugConsoleLog(emulator: PSPEmulator): void {
-  const logEl = document.getElementById("debug-console-log");
-  if (!logEl || !_debugConsoleVisible) return;
-
-  const logs = emulator.diagnosticLog;
-  if (logs.length === _lastLoggedEventCount) return;
-
-  const newLogs = logs.slice(_lastLoggedEventCount);
-  newLogs.forEach(entry => {
-    const row = make("div", { class: `debug-console__log-entry debug-console__log-entry--${entry.category}` });
-    const time = new Date(entry.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    row.textContent = `[${time}] ${entry.message}`;
-    logEl.appendChild(row);
-  });
-
-  _lastLoggedEventCount = logs.length;
-  logEl.scrollTop = logEl.scrollHeight;
+  _debugConsole.update(emulator);
 }
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
@@ -495,7 +333,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <!-- Error banner -->
-      <div id="error-banner" role="alert" aria-live="assertive">
+      <div id="error-banner" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1">
         <span class="error-icon" aria-hidden="true">⚠️</span>
         <span id="error-message"></span>
         <button class="error-close" id="error-close" title="Dismiss" aria-label="Dismiss error">✕</button>
@@ -854,6 +692,16 @@ export function initUI(opts: UIOptions): void {
   // through normally and are handled by EmulatorJS as expected.
   const onGlobalShortcutKeydown = (event: Event) => {
     const e = event as KeyboardEvent;
+    if (
+      ((e.key === "/" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) &&
+      !_isEditableTarget(e.target)
+    ) {
+      if (_focusLibrarySearch()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
     // F9 opens the Debug tab from anywhere (landing or in-game)
     if (e.key === "F9") {
       e.preventDefault();
@@ -1792,97 +1640,33 @@ function toLaunchFile(blob: Blob, fileName: string): File {
  * dialog closes when the user presses Escape — an outer gallery does not
  * collapse while an inner confirm dialog is still open.
  */
-function _isTopmostOverlay(overlay: HTMLElement): boolean {
-  const all = document.querySelectorAll<HTMLElement>(".confirm-overlay");
-  return all.length > 0 && all[all.length - 1] === overlay;
-}
-
 function showConfirmDialog(
   message: string,
   opts: { title?: string; confirmLabel?: string; isDanger?: boolean } = {}
 ): Promise<boolean> {
-  const { title, confirmLabel = "Confirm", isDanger = false } = opts;
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", { class: "confirm-box", role: "dialog", "aria-modal": "true" });
-    if (title) box.setAttribute("aria-label", title);
-    if (title) box.appendChild(make("h3", { class: "confirm-title" }, title));
-    box.appendChild(make("p", { class: "confirm-body" }, message));
+  return showConfirmDialogImpl(message, opts);
+}
 
-    const footer    = make("div", { class: "confirm-footer" });
-    const btnCancel = make("button", { class: "btn" }, "Cancel");
-    const btnConfirm = make("button", { class: isDanger ? "btn btn--danger-filled" : "btn btn--primary" }, confirmLabel);
-    footer.append(btnCancel, btnConfirm);
-    box.appendChild(footer);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+function _isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
 
-    const close = (result: boolean) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) {
-        e.preventDefault();
-        e.stopPropagation();
-        close(false);
-      }
-    };
-    btnCancel.addEventListener("click",  () => close(false));
-    btnConfirm.addEventListener("click", () => close(true));
-    overlay.addEventListener("click",    (e) => { if (e.target === overlay) close(false); });
-    document.addEventListener("keydown", onKey, { capture: true });
-    requestAnimationFrame(() => { overlay.classList.add("confirm-overlay--visible"); btnConfirm.focus(); });
-  });
+function _focusLibrarySearch(): boolean {
+  const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
+  const landing = document.getElementById("landing");
+  if (!searchEl || !landing || landing.classList.contains("hidden")) return false;
+  searchEl.focus();
+  searchEl.select();
+  return true;
 }
 
 
 // ── System picker modal ───────────────────────────────────────────────────────
 
 function pickSystem(fileName: string, candidates: SystemInfo[], subtitleText?: string): Promise<SystemInfo | null> {
-  return new Promise((resolve) => {
-    const panel    = document.getElementById("system-picker")!;
-    const list     = document.getElementById("system-picker-list")!;
-    const subtitle = document.getElementById("system-picker-subtitle")!;
-    const closeBtn = document.getElementById("system-picker-close")!;
-    const backdrop = document.getElementById("system-picker-backdrop")!;
-
-    subtitle.textContent = subtitleText ?? `The file "${fileName}" could belong to several systems. Choose one:`;
-    list.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-    for (const sys of candidates) {
-      const btn   = make("button", { class: "system-pick-btn" });
-      const badge = make("span", { class: "sys-badge" }, sys.shortName);
-      badge.style.background = sys.color;
-      btn.append(badge, document.createTextNode(sys.name));
-      btn.addEventListener("click", () => close(sys));
-      fragment.appendChild(btn);
-    }
-    list.appendChild(fragment);
-    panel.hidden = false;
-    // Move focus into the modal
-    requestAnimationFrame(() => closeBtn.focus());
-
-    let closed = false;
-    const onCloseClick = () => close(null);
-    const onBackdropClick = () => close(null);
-
-    const close = (result: SystemInfo | null) => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onEsc);
-      closeBtn.removeEventListener("click", onCloseClick);
-      backdrop.removeEventListener("click", onBackdropClick);
-      panel.hidden = true;
-      resolve(result);
-    };
-    const onEsc = (e: KeyboardEvent) => { if (e.key !== "Escape") return; close(null); };
-    closeBtn.addEventListener("click", onCloseClick);
-    backdrop.addEventListener("click", onBackdropClick);
-    document.addEventListener("keydown", onEsc);
-  });
+  return pickSystemImpl(fileName, candidates, subtitleText);
 }
 
 // ── Resolve system then add to library and launch ─────────────────────────────
@@ -2387,108 +2171,14 @@ async function handlePatchFileDrop(
 }
 
 function showGamePickerDialog(title: string, message: string, games: GameMetadata[]): Promise<GameMetadata | null> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", { class: "confirm-box", role: "dialog", "aria-modal": "true", "aria-label": title });
-
-    box.appendChild(make("h3", { class: "confirm-title" }, title));
-    box.appendChild(make("p", { class: "confirm-body" }, message));
-
-    const list = make("div", { class: "game-picker-list" });
-    const fragment = document.createDocumentFragment();
-    for (const game of games) {
-      const sys   = getSystemById(game.systemId);
-      const btn   = make("button", { class: "game-picker-btn" });
-      const badge = make("span", { class: "sys-badge" }, sys?.shortName ?? game.systemId);
-      badge.style.background = sys?.color ?? "#555";
-      btn.append(badge, document.createTextNode(" " + game.name));
-      btn.addEventListener("click", () => close(game));
-      fragment.appendChild(btn);
-    }
-    list.appendChild(fragment);
-    box.appendChild(list);
-
-    const cancelBtn = make("button", { class: "btn" }, "Cancel");
-    cancelBtn.addEventListener("click", () => close(null));
-    box.appendChild(cancelBtn);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const close = (result: GameMetadata | null) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close(null); }
-    };
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onKey, { capture: true });
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  });
+  return showGamePickerDialogImpl(title, message, games);
 }
 
 function showArchiveEntryPickerDialog(
   format: ArchiveFormat,
   candidates: Array<{ name: string; blob: Blob; size: number }>
 ): Promise<{ name: string; blob: Blob; size: number } | null> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make(
-      "div",
-      { class: "confirm-box archive-picker-box", role: "dialog", "aria-modal": "true", "aria-label": "Choose archive entry" }
-    );
-
-    const pretty = format === "gzip" ? "GZIP" : format.toUpperCase();
-    box.appendChild(make("h3", { class: "confirm-title" }, "Choose File from Archive"));
-    box.appendChild(make(
-      "p",
-      { class: "confirm-body" },
-      `${pretty} archive contains multiple game files. Choose which one to import:`
-    ));
-
-    const list = make("div", { class: "game-picker-list" });
-    const fragment = document.createDocumentFragment();
-    for (const candidate of candidates) {
-      const btn = make("button", { class: "game-picker-btn" });
-      const badge = make("span", { class: "sys-badge" }, formatBytes(candidate.size));
-      badge.style.background = "var(--c-accent)";
-      btn.append(
-        badge,
-        document.createTextNode(" " + candidate.name),
-      );
-      btn.addEventListener("click", () => close(candidate));
-      fragment.appendChild(btn);
-    }
-    list.appendChild(fragment);
-    box.appendChild(list);
-
-    const footer = make("div", { class: "confirm-footer" });
-    const btnCancel = make("button", { class: "btn" }, "Cancel");
-    footer.appendChild(btnCancel);
-    box.appendChild(footer);
-
-    let closed = false;
-    const close = (picked: { name: string; blob: Blob; size: number } | null) => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onEsc, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 180);
-      resolve(picked);
-    };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close(null); }
-    };
-    btnCancel.addEventListener("click", () => close(null));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onEsc, { capture: true });
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  });
+  return showArchiveEntryPickerDialogImpl(format, candidates);
 }
 
 async function handleM3UFile(
@@ -3168,6 +2858,7 @@ type SettingsTab = "performance" | "display" | "library" | "bios" | "multiplayer
 
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
+let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export function openSettingsPanel(
   settings:         Settings,
@@ -3220,6 +2911,10 @@ export function openSettingsPanel(
       document.removeEventListener("keydown", _settingsPanelFocusTrap);
       _settingsPanelFocusTrap = null;
     }
+    if (_settingsPanelSearchShortcutHandler) {
+      document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
+      _settingsPanelSearchShortcutHandler = null;
+    }
     previousFocus?.focus();
   };
 
@@ -3230,13 +2925,26 @@ export function openSettingsPanel(
   if (_settingsPanelFocusTrap) {
     document.removeEventListener("keydown", _settingsPanelFocusTrap);
   }
+  if (_settingsPanelSearchShortcutHandler) {
+    document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
+  }
   _settingsPanelEscHandler = (e: KeyboardEvent) => { if (e.key !== "Escape") return; close(); };
   _settingsPanelFocusTrap  = focusTrapFn;
+  _settingsPanelSearchShortcutHandler = (e: KeyboardEvent) => {
+    const isSearchShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
+    if (!isSearchShortcut || _isEditableTarget(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const searchEl = content.querySelector<HTMLInputElement>(".settings-search-input");
+    searchEl?.focus();
+    searchEl?.select();
+  };
 
   document.getElementById("settings-close")!.onclick   = close;
   document.getElementById("settings-backdrop")!.onclick = close;
   document.addEventListener("keydown", _settingsPanelEscHandler);
   document.addEventListener("keydown", _settingsPanelFocusTrap);
+  document.addEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
 }
 
 function buildSettingsContent(
@@ -3426,7 +3134,6 @@ function buildSettingsContent(
       ? `${matchedSections} matching section${matchedSections === 1 ? "" : "s"}`
       : "No matching settings";
   };
-
   searchInput.addEventListener("input", applySearchFilter);
 }
 
@@ -4191,7 +3898,7 @@ export function openEasyNetplayModal(opts: {
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && _isTopmostOverlay(overlay)) {
+    if (e.key === "Escape" && isTopmostOverlay(overlay)) {
       e.preventDefault();
       e.stopPropagation();
       close();
@@ -6120,65 +5827,7 @@ export function parseM3U(content: string): string[] {
 }
 
 export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string, File> | null> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", { class: "confirm-box multidisc-box", role: "dialog", "aria-modal": "true", "aria-label": "Multi-Disc Game Setup" });
-
-    box.appendChild(make("h3", { class: "confirm-title" }, "Multi-Disc Game"));
-    box.appendChild(make("p", { class: "confirm-body" },
-      `This game spans ${discFileNames.length} disc${discFileNames.length !== 1 ? "s" : ""}. Please select each disc image file:`
-    ));
-
-    const fileMap = new Map<string, File>();
-
-    for (const fileName of discFileNames) {
-      const row        = make("div", { class: "multidisc-row" });
-      const status     = make("span", { class: "bios-dot bios-dot--missing" });
-      const label2     = make("span", { class: "multidisc-label" }, fileName);
-      const fileInput2 = make("input", { type: "file", style: "display:none", "aria-label": `Select ${fileName}` }) as HTMLInputElement;
-      const btn        = make("button", { class: "btn" }, "Select…");
-
-      btn.addEventListener("click", () => fileInput2.click());
-      fileInput2.addEventListener("change", () => {
-        const f = fileInput2.files?.[0];
-        if (!f) return;
-        fileMap.set(fileName, f);
-        status.className = "bios-dot bios-dot--ok";
-        btn.textContent  = f.name;
-        checkAllSelected();
-      });
-      row.append(status, fileInput2, label2, btn);
-      box.appendChild(row);
-    }
-
-    const footer     = make("div", { class: "confirm-footer" });
-    const btnCancel  = make("button", { class: "btn" }, "Cancel");
-    const btnConfirm = make("button", { class: "btn btn--primary", disabled: "true" }, "Launch Game");
-    footer.append(btnCancel, btnConfirm);
-    box.appendChild(footer);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const checkAllSelected = () => {
-      const allReady = discFileNames.every(fn => fileMap.has(fn));
-      if (allReady) btnConfirm.removeAttribute("disabled"); else btnConfirm.setAttribute("disabled", "true");
-    };
-
-    const close = (result: Map<string, File> | null) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve(result);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && _isTopmostOverlay(overlay)) { e.preventDefault(); e.stopPropagation(); close(null); }
-    };
-    btnCancel.addEventListener("click",  () => close(null));
-    btnConfirm.addEventListener("click", () => close(fileMap));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onKey, { capture: true });
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  });
+  return showMultiDiscPickerImpl(discFileNames);
 }
 
 // ── Tier downgrade prompt ─────────────────────────────────────────────────────
@@ -6557,6 +6206,30 @@ function setStatusTier(tier: PerformanceTier | null): void { const e = document.
 
 let _errorDismissTimer: ReturnType<typeof setTimeout> | null = null;
 const ERROR_DISMISS_TIMEOUT_MS = 12_000;
+let _toastDismissTimer: ReturnType<typeof setTimeout> | null = null;
+const TOAST_DISMISS_TIMEOUT_MS = 5_000;
+
+function _clearErrorDismissTimer(): void {
+  if (_errorDismissTimer !== null) {
+    clearTimeout(_errorDismissTimer);
+    _errorDismissTimer = null;
+  }
+}
+
+function _scheduleErrorDismiss(): void {
+  _clearErrorDismissTimer();
+  _errorDismissTimer = setTimeout(() => {
+    hideError();
+    _errorDismissTimer = null;
+  }, ERROR_DISMISS_TIMEOUT_MS);
+}
+
+function _clearToastDismissTimer(): void {
+  if (_toastDismissTimer !== null) {
+    clearTimeout(_toastDismissTimer);
+    _toastDismissTimer = null;
+  }
+}
 
 /** Map common technical error patterns to more player-friendly messages. */
 function friendlyErrorMessage(msg: string): string {
@@ -6625,23 +6298,56 @@ export function showError(msg: string, onRetry?: () => void): void {
   }
 
   banner.classList.add("visible");
-  if (_errorDismissTimer !== null) clearTimeout(_errorDismissTimer);
-  _errorDismissTimer = setTimeout(() => { hideError(); _errorDismissTimer = null; }, ERROR_DISMISS_TIMEOUT_MS);
+  const firstAction =
+    msgEl.querySelector<HTMLButtonElement>(".error-action-btn") ??
+    document.getElementById("error-close") as HTMLButtonElement | null;
+  requestAnimationFrame(() => {
+    (firstAction ?? banner).focus();
+  });
+
+  const pauseDismiss = () => _clearErrorDismissTimer();
+  const resumeDismiss = () => {
+    const active = document.activeElement;
+    if (active instanceof Node && banner.contains(active)) return;
+    _scheduleErrorDismiss();
+  };
+
+  banner.onmouseenter = pauseDismiss;
+  banner.onmouseleave = resumeDismiss;
+  (banner as HTMLElement & { onfocusin: ((this: GlobalEventHandlers, ev: FocusEvent) => unknown) | null }).onfocusin = pauseDismiss;
+  (banner as HTMLElement & { onfocusout: ((this: GlobalEventHandlers, ev: FocusEvent) => unknown) | null }).onfocusout = () => setTimeout(resumeDismiss, 0);
+  banner.onkeydown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    hideError();
+  };
+
+  _scheduleErrorDismiss();
 }
 
 export function hideError(): void {
-  if (_errorDismissTimer !== null) { clearTimeout(_errorDismissTimer); _errorDismissTimer = null; }
-  document.getElementById("error-banner")?.classList.remove("visible");
+  _clearErrorDismissTimer();
+  const banner = document.getElementById("error-banner");
+  if (!banner) return;
+  banner.classList.remove("visible");
+  banner.onmouseenter = null;
+  banner.onmouseleave = null;
+  (banner as HTMLElement & { onfocusin: ((this: GlobalEventHandlers, ev: FocusEvent) => unknown) | null }).onfocusin = null;
+  (banner as HTMLElement & { onfocusout: ((this: GlobalEventHandlers, ev: FocusEvent) => unknown) | null }).onfocusout = null;
+  banner.onkeydown = null;
 }
 
 export function showInfoToast(msg: string, type: "success" | "info" | "warning" | "error" = "success"): void {
   const existing = document.getElementById("info-toast");
   if (existing) existing.remove();
+  _clearToastDismissTimer();
 
   const toast = document.createElement("div");
   toast.id = "info-toast";
   toast.className = `info-toast info-toast--${type}`;
-  toast.setAttribute("role", "status");
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+  toast.setAttribute("aria-atomic", "true");
 
   // Icon varies by type
   const iconMap: Record<string, string> = { success: "✓", info: "ℹ", warning: "⚠", error: "✕" };
@@ -6660,6 +6366,7 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   closeBtn.addEventListener("click", () => {
     toast.classList.remove("visible");
     setTimeout(() => toast.remove(), 400);
+    _clearToastDismissTimer();
   });
 
   toast.append(icon, text, closeBtn);
@@ -6668,13 +6375,30 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   // Trigger entrance
   requestAnimationFrame(() => toast.classList.add("visible"));
 
-  // Auto-dismiss after 5 seconds
-  setTimeout(() => {
+  const dismissToast = () => {
     if (toast.parentElement) {
       toast.classList.remove("visible");
       setTimeout(() => toast.remove(), 400);
     }
-  }, 5000);
+    _clearToastDismissTimer();
+  };
+  const scheduleToastDismiss = () => {
+    _clearToastDismissTimer();
+    _toastDismissTimer = setTimeout(dismissToast, TOAST_DISMISS_TIMEOUT_MS);
+  };
+  const pauseToastDismiss = () => _clearToastDismissTimer();
+  const resumeToastDismiss = () => {
+    const active = document.activeElement;
+    if (active instanceof Node && toast.contains(active)) return;
+    scheduleToastDismiss();
+  };
+
+  toast.addEventListener("mouseenter", pauseToastDismiss);
+  toast.addEventListener("mouseleave", resumeToastDismiss);
+  toast.addEventListener("focusin", pauseToastDismiss as EventListener);
+  toast.addEventListener("focusout", (() => setTimeout(resumeToastDismiss, 0)) as EventListener);
+
+  scheduleToastDismiss();
 }
 
 // ── Test helpers ──────────────────────────────────────────────────────────────

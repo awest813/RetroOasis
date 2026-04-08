@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { buildDOM, initUI, openSettingsPanel, renderLibrary, toggleDevOverlay, isDevOverlayVisible, buildLandingControls, resolveSystemAndAdd, openEasyNetplayModal, TOUCH_CONTROLS_CHANGED_EVENT, showError, hideError, withRetry, isTransientImportError } from "./ui.js";
+import { buildDOM, initUI, openSettingsPanel, renderLibrary, toggleDevOverlay, isDevOverlayVisible, buildLandingControls, resolveSystemAndAdd, openEasyNetplayModal, TOUCH_CONTROLS_CHANGED_EVENT, showError, hideError, showInfoToast, withRetry, isTransientImportError } from "./ui.js";
 import { NetplayManager, DEFAULT_ICE_SERVERS } from "./multiplayer.js";
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import * as archive from "./archive.js";
@@ -4422,6 +4422,108 @@ describe("showError — retry button", () => {
     const banner = document.getElementById("error-banner");
     expect(banner?.classList.contains("visible")).toBe(false);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("UX polish shortcuts and feedback", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    hideError();
+    document.getElementById("info-toast")?.remove();
+  });
+
+  it("focuses the library search when / is pressed on the landing screen", () => {
+    initUI(makeOpts(makeSettings()));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true, cancelable: true }));
+
+    const search = document.getElementById("library-search") as HTMLInputElement | null;
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("focuses settings search when Ctrl+K is pressed with the settings panel open", async () => {
+    const settings = makeSettings();
+    const opts = makeOpts(settings);
+    const fullCaps: DeviceCapabilities = {
+      isLowSpec: false, isChromOS: false, isIOS: false, isAndroid: false, isMobile: false,
+      isSafari: false, safariVersion: null, gpuRenderer: "unknown", isSoftwareGPU: false,
+      recommendedMode: "quality", tier: "medium", deviceMemoryGB: 4, cpuCores: 4,
+      gpuBenchmarkScore: 50, prefersReducedMotion: false, webgpuAvailable: false,
+      connectionQuality: "unknown", jsHeapLimitMB: null, estimatedVRAMMB: 768,
+      gpuCaps: {
+        renderer: "unknown", vendor: "unknown", maxTextureSize: 4096, maxVertexAttribs: 16,
+        maxVaryingVectors: 30, maxRenderbufferSize: 4096, anisotropicFiltering: false,
+        maxAnisotropy: 0, floatTextures: false, halfFloatTextures: false, instancedArrays: true,
+        webgl2: true, vertexArrayObject: true, compressedTextures: false, etc2Textures: false,
+        astcTextures: false, maxColorAttachments: 4, multiDraw: false,
+      },
+    };
+    initUI({ ...opts, deviceCaps: fullCaps });
+    openSettingsPanel(
+      settings,
+      fullCaps,
+      {
+        ...opts.library,
+        count: vi.fn().mockResolvedValue(0),
+        totalSize: vi.fn().mockResolvedValue(0),
+      } as unknown as GameLibrary,
+      {
+        ...opts.biosLibrary,
+        findBios: vi.fn().mockResolvedValue(null),
+      } as unknown as BiosLibrary,
+      vi.fn(),
+      opts.emulator,
+      opts.onLaunchGame,
+      {
+        ...opts.saveLibrary,
+        count: vi.fn().mockResolvedValue(0),
+      } as unknown as SaveStateLibrary,
+      opts.getNetplayManager,
+    );
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "k",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    await flushUI();
+
+    const search = document.querySelector<HTMLInputElement>(".settings-search-input");
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("focuses the retry action in the error banner and closes on Escape", async () => {
+    const onRetry = vi.fn();
+    showError("Transient import error", onRetry);
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await flushUI();
+
+    const retryBtn = document.querySelector<HTMLButtonElement>(".error-retry-btn");
+    expect(document.activeElement).toBe(retryBtn);
+
+    const banner = document.getElementById("error-banner");
+    banner?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(banner?.classList.contains("visible")).toBe(false);
+  });
+
+  it("uses an assertive live-region toast for error notifications", () => {
+    showInfoToast("Cloud sync failed", "error");
+
+    const toast = document.getElementById("info-toast");
+    expect(toast?.getAttribute("role")).toBe("alert");
+    expect(toast?.getAttribute("aria-live")).toBe("assertive");
+    expect(toast?.getAttribute("aria-atomic")).toBe("true");
   });
 });
 

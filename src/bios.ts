@@ -24,6 +24,8 @@
  *   blob        Blob     — The actual BIOS file
  */
 
+import { createUuid } from "./uuid.js";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface BiosEntry {
@@ -203,15 +205,6 @@ function promisify<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-function uuid(): string {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = crypto.getRandomValues(new Uint8Array(1))[0]! & 0x0f;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 // ── BiosLibrary class ─────────────────────────────────────────────────────────
 
 export class BiosLibrary {
@@ -226,7 +219,7 @@ export class BiosLibrary {
     if (existing) await this.removeBios(existing.id);
 
     const entry: BiosEntry = {
-      id:          uuid(),
+      id:          createUuid(),
       systemId,
       fileName:    normalised,
       displayName: file.name,
