@@ -1667,7 +1667,7 @@ describe('PSPEmulator', () => {
       expect(ndsPerfEntry).toBeUndefined();
     });
 
-    it('is null for a system with no tier settings (NES)', async () => {
+    it('returns the NES (FCEUmm) tier settings after a NES launch', async () => {
       emulator.onError = () => {};
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
         async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
@@ -1680,8 +1680,11 @@ describe('PSPEmulator', () => {
         deviceCaps:      fakeCaps,
       });
 
-      // NES has empty perfSettings and qualitySettings, so no EJS_Settings applied
-      expect(emulator.activeCoreSettings).toBeNull();
+      // NES now has NES_TIER_SETTINGS with FCEUmm core options
+      const nesSettings = emulator.activeCoreSettings;
+      expect(nesSettings).not.toBeNull();
+      expect(nesSettings?.fceumm_overscan).toBe('enabled');
+      expect(nesSettings?.fceumm_sndquality).toBeDefined();
     });
   });
 

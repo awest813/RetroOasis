@@ -140,7 +140,7 @@ describe('NetplayManager', () => {
     localStorage.clear();
   });
 
-  it('starts disabled with no server URL by default', () => {
+  it('starts enabled with the public relay server URL by default', () => {
     const mgr = new NetplayManager();
     expect(mgr.enabled).toBe(true);
     expect(mgr.serverUrl).toBe('wss://relay.emulatorjs.org');

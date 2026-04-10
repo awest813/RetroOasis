@@ -186,9 +186,14 @@ export interface NetplayLobbyRoom {
   latencyMs?:  number;
 }
 
+/** Public relay server operated by the EmulatorJS project. */
+const DEFAULT_RELAY_URL = "wss://relay.emulatorjs.org";
+
 const DEFAULT_NETPLAY_SETTINGS: NetplaySettings = {
-  enabled:    false,
-  serverUrl:  "",
+  // Default to enabled with the community relay so multiplayer works out-of-the-box.
+  // Users can override the server URL or disable netplay in Settings → Multiplayer.
+  enabled:    true,
+  serverUrl:  DEFAULT_RELAY_URL,
   iceServers: DEFAULT_ICE_SERVERS,
   username:   "",
 };

@@ -1663,6 +1663,12 @@ function getSystemFeaturePills(
       title: `${system.name} uses a heavier 3D rendering core and benefits from tuned graphics settings.`,
       tone: "accent",
     });
+  } else {
+    pills.push({
+      label: "2D core",
+      title: `${system.name} uses a lightweight 2D core and is highly performant on all devices.`,
+      tone: "neutral",
+    });
   }
   if (system.needsBios) {
     pills.push({
@@ -2528,11 +2534,6 @@ function buildInGameControls(
   }) as HTMLButtonElement;
   btnGallery.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
   btnGallery.addEventListener("click", () => {
-    const gameId = getCurrentGameId?.();
-    if (!gameId) {
-      showInfoToast("Add this game to your library to save progress.", "info");
-      return;
-    }
     void showInGameMenu({
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
@@ -2556,7 +2557,8 @@ function buildInGameControls(
       "aria-label": "Open multiplayer",
     }) as HTMLButtonElement;
     btnNetplay.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Online`;
-    btnNetplay.disabled = !isSupported || !isActive;
+    // Enable button whenever multiplayer is supported for this system
+    btnNetplay.disabled = !isSupported;
     btnNetplay.addEventListener("click", () => {
       if (getNetplayManager) {
         void getNetplayManager().then(nm => {
@@ -2695,6 +2697,8 @@ async function showInGameMenu(ctx: {
   const gameId = ctx.getCurrentGameId?.() ?? "";
   const gameName = ctx.getCurrentGameName?.() ?? "Unknown Game";
   const systemId = ctx.getCurrentSystemId?.() ?? "unknown";
+  const systemInfo = getSystemById(systemId);
+  const systemDisplayName = systemInfo?.shortName ?? systemId.toUpperCase();
 
   const closeMenu = () => {
     overlay.classList.remove("ingame-menu-overlay--visible");
@@ -2728,7 +2732,7 @@ async function showInGameMenu(ctx: {
     header.innerHTML = `
       <div class="ingame-menu__header-main">
         <h2 class="ingame-menu__game-name">${_escHtml(gameName)}</h2>
-        <span class="ingame-menu__system-tag">${systemId.toUpperCase()}</span>
+        <span class="ingame-menu__system-tag">${systemDisplayName}</span>
       </div>
     `;
     content.appendChild(header);
