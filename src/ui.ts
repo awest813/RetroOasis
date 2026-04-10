@@ -2731,8 +2731,11 @@ async function showInGameMenu(ctx: {
     const header = make("div", { class: "ingame-menu__header" });
     header.innerHTML = `
       <div class="ingame-menu__header-main">
-        <h2 class="ingame-menu__game-name">${_escHtml(gameName)}</h2>
-        <span class="ingame-menu__system-tag">${systemDisplayName}</span>
+        ${systemInfo?.iconUrl ? `<img src="${systemInfo.iconUrl}" class="ingame-menu__system-icon" alt="" />` : ""}
+        <div class="ingame-menu__header-text">
+          <h2 class="ingame-menu__game-name">${_escHtml(gameName)}</h2>
+          <span class="ingame-menu__system-tag">${systemDisplayName}</span>
+        </div>
       </div>
     `;
     content.appendChild(header);
@@ -3423,12 +3426,19 @@ function buildPerfTab(
     const coreSection = make("div", { class: "settings-section" });
     coreSection.appendChild(make("h4", { class: "settings-section__title" }, "Current Core"));
 
-    const heading = make("div", { class: "settings-core-heading" });
-    heading.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
-    const summary = getSystemFeatureSummary(activeSystem).join(" • ");
-    if (summary) {
-      heading.appendChild(make("span", { class: "settings-core-heading__meta" }, summary));
+        const heading = make("div", { class: "settings-core-heading" });
+    if (activeSystem.iconUrl) {
+      heading.appendChild(make("img", { src: activeSystem.iconUrl, class: "settings-core-heading__icon", alt: "" }));
     }
+    const headerText = make("div", { class: "settings-core-heading__text" });
+    headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
+
+    const coreMeta = make("div", { class: "settings-core-heading__meta" },
+      `Core: ${activeSystem.coreId ?? activeSystem.id} · ` +
+      (activeTier ? `Hardware: ${formatTierLabel(activeTier)}` : "Hardware: Auto")
+    );
+    headerText.appendChild(coreMeta);
+    heading.appendChild(headerText);
     coreSection.appendChild(heading);
 
     const profileBits = [

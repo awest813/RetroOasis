@@ -1796,10 +1796,25 @@ body {
 
 .settings-core-heading {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
+
+.settings-core-heading__icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  flex-shrink: 0;
+}
+
+.settings-core-heading__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 
 .settings-core-heading__title {
   font-size: 1rem;
@@ -5996,6 +6011,26 @@ kbd {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+}
+
+.ingame-menu__header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ingame-menu__system-icon {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+  flex-shrink: 0;
+}
+
+.ingame-menu__header-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .ingame-menu__game-name {
