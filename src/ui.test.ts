@@ -54,6 +54,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
   };
   return {
     ...settings,
+
     ...overrides,
     uiMode: overrides.uiMode ?? settings.uiMode,
     coreOptions: overrides.coreOptions ?? settings.coreOptions,
@@ -2774,6 +2775,8 @@ describe.skip("save gallery cloud bar UX", () => {
       currentSystem: { id: "psp", shortName: "PSP", name: "PlayStation Portable" },
       setFPSMonitorEnabled: vi.fn(),
       prefetchCore: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
       quickSave: vi.fn(),
       quickLoad: vi.fn(),
       reset: vi.fn(),
@@ -3080,6 +3083,8 @@ describe("dialog Escape handling when emulator is running", () => {
       currentSystem: { id: "psp", shortName: "PSP", name: "PlayStation Portable" },
       setFPSMonitorEnabled: vi.fn(),
       prefetchCore: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
       quickSave: vi.fn(),
       quickLoad: vi.fn(),
       reset: vi.fn(),
@@ -3131,6 +3136,7 @@ describe("dialog Escape handling when emulator is running", () => {
       (emulator as unknown as { onGameStart: () => void }).onGameStart();
     }
 
+<<<<<<< HEAD
     const headerActions = document.getElementById("header-actions")!;
     const menuButton = Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
       .find((b) => b.getAttribute("aria-label") === "Open Menu");
@@ -3140,6 +3146,13 @@ describe("dialog Escape handling when emulator is running", () => {
 
     const btnReset = Array.from(document.querySelectorAll<HTMLButtonElement>(".ingame-menu__sidebar-btn"))
       .find((b) => b.textContent?.includes("Restart Game"));
+=======
+    // Click Reset — this opens a showConfirmDialog overlay.
+    // Use aria-label to find the emulator reset button specifically, not the
+    // touch-layout "Reset Layout" button which also contains "Reset" in its text.
+    const headerActions = document.getElementById("header-actions")!;
+    const btnReset = headerActions.querySelector<HTMLButtonElement>('[aria-label="Reset emulator"]');
+>>>>>>> origin/main
     expect(btnReset).toBeTruthy();
     btnReset!.click();
 
