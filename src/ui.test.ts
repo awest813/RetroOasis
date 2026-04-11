@@ -2093,7 +2093,7 @@ describe("F5/F7 keyboard shortcuts show toast feedback", () => {
       setFPSMonitorEnabled: vi.fn(),
       quickSave: vi.fn(),
       quickLoad: vi.fn(),
-      readStateData: vi.fn().mockReturnValue(new Uint8Array(0)),
+      readStateData: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
       captureScreenshot: vi.fn().mockResolvedValue(null),
       captureScreenshotAsync: vi.fn().mockResolvedValue(null),
       onStateChange: null,

@@ -142,4 +142,35 @@ describe("SaveGameService", () => {
     const savedEntry = saveState.mock.calls[0]![0];
     expect(savedEntry.label).toBe("Before Final Boss");
   });
+
+  it("does not persist a save when quick-save produces no state bytes", async () => {
+    const events: string[] = [];
+    const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
+    const saveLibrary = {
+      saveState,
+      getState: vi.fn(async () => null),
+    } as unknown as SaveStateLibrary;
+
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => null),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => null),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+    service.onStatus((e) => events.push(e.status));
+
+    const result = await service.saveSlot(1);
+
+    expect(result).toBeNull();
+    expect(saveState).not.toHaveBeenCalled();
+    expect(events).toContain("emulator-not-ready");
+  });
 });

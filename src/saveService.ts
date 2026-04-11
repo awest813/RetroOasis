@@ -140,6 +140,15 @@ export class SaveGameService {
           return null;
         }
         const stateBytes = this.emulator.readStateData(slot);
+        if (!stateBytes || stateBytes.byteLength === 0) {
+          this.emit({
+            status: "emulator-not-ready",
+            gameId: context.gameId,
+            slot,
+            message: "Save data was unavailable after quick-save. Try again in a moment.",
+          });
+          return null;
+        }
         const stateData = stateBytesToBlob(stateBytes);
         const screenshot = this.emulator.captureScreenshotAsync
           ? await this.emulator.captureScreenshotAsync()

@@ -1,7 +1,6 @@
 import type { PSPEmulator } from "../emulator.js";
 
 export function createDebugConsoleController(opts: { onToggleDevOverlay: () => void }) {
-  let wired = false;
   let visible = false;
   let position: { x: number; y: number } = (() => {
     try {
@@ -12,6 +11,12 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
     }
   })();
   let lastLoggedEventCount = 0;
+  let cleanupBindings: (() => void) | null = null;
+  let wiredConsoleEl: HTMLElement | null = null;
+
+  function isBoundToCurrentDOM(): boolean {
+    return wiredConsoleEl !== null && wiredConsoleEl === document.getElementById("debug-console");
+  }
 
   function toggle(emulator?: PSPEmulator): void {
     const consoleEl = document.getElementById("debug-console");
@@ -24,7 +29,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
       consoleEl.style.left = `${position.x}px`;
       consoleEl.style.top = `${position.y}px`;
 
-      if (!wired && emulator) {
+      if (emulator && !isBoundToCurrentDOM()) {
         wire(emulator);
       }
       document.getElementById("debug-console-input")?.focus();
@@ -33,14 +38,17 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
   }
 
   function wire(emulator: PSPEmulator): void {
-    if (wired) return;
-    wired = true;
+    cleanupBindings?.();
 
     const handle = document.getElementById("debug-console-handle");
     const consoleEl = document.getElementById("debug-console");
     const closeBtn = document.getElementById("debug-console-close");
     const clearBtn = document.getElementById("debug-console-clear");
     const input = document.getElementById("debug-console-input") as HTMLInputElement | null;
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    wiredConsoleEl = consoleEl;
 
     if (handle && consoleEl) {
       let isDragging = false;
@@ -52,7 +60,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         startX = e.clientX - consoleEl.offsetLeft;
         startY = e.clientY - consoleEl.offsetTop;
         handle.style.cursor = "grabbing";
-      });
+      }, { signal });
 
       window.addEventListener("mousemove", (e) => {
         if (!isDragging) return;
@@ -62,21 +70,21 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         consoleEl.style.top = `${y}px`;
         position = { x, y };
         localStorage.setItem("rv_debug_console_pos", JSON.stringify(position));
-      });
+      }, { signal });
 
       window.addEventListener("mouseup", () => {
         isDragging = false;
         handle.style.cursor = "grab";
-      });
+      }, { signal });
     }
 
-    closeBtn?.addEventListener("click", () => toggle());
+    closeBtn?.addEventListener("click", () => toggle(), { signal });
     clearBtn?.addEventListener("click", () => {
       emulator.clearDiagnosticLog();
       const logEl = document.getElementById("debug-console-log");
       if (logEl) logEl.innerHTML = "";
       lastLoggedEventCount = 0;
-    });
+    }, { signal });
 
     input?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -87,7 +95,13 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         }
       }
       e.stopPropagation();
-    });
+    }, { signal });
+
+    cleanupBindings = () => {
+      controller.abort();
+      wiredConsoleEl = null;
+      cleanupBindings = null;
+    };
   }
 
   function runCommand(cmd: string, emulator: PSPEmulator): void {

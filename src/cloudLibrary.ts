@@ -222,11 +222,12 @@ export class WebDAVLibraryProvider implements CloudProvider {
       const name = href.split("/").filter(Boolean).pop() || "";
       const isDir = prop?.querySelector("resourcetype, d\\:resourcetype")?.querySelector("collection, d\\:collection") !== null;
       const sizeStr = prop?.querySelector("getcontentlength, d\\:getcontentlength")?.textContent || "0";
+      const parsedSize = Number.parseInt(sizeStr, 10);
       
       return {
         name: decodeURIComponent(name),
         path: href,
-        size: parseInt(sizeStr),
+        size: Number.isFinite(parsedSize) ? parsedSize : 0,
         isDirectory: isDir
       };
     });
@@ -323,7 +324,9 @@ export function createProvider(connection: { provider: string; config: string })
     if (!config) return null;
     switch (connection.provider) {
       case "gdrive":
-        return config.accessToken ? new GoogleDriveLibraryProvider(config.accessToken, config.rootFolderId) : null;
+        return config.accessToken
+          ? new GoogleDriveLibraryProvider(config.accessToken, config.rootFolderId ?? config.rootId)
+          : null;
       case "dropbox":
         return config.accessToken ? new DropboxLibraryProvider(config.accessToken) : null;
       case "webdav":
