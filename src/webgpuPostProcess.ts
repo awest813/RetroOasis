@@ -1442,7 +1442,7 @@ export class WebGPUPostProcessor {
       captureTexture.destroy();
 
       return this._pixelsToBlob(data, width, height, bytesPerRow);
-    } catch (e) {
+    } catch {
       stagingBuffer.unmap();
       stagingBuffer.destroy();
       captureTexture.destroy();
