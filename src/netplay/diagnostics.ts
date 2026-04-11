@@ -73,16 +73,16 @@ export class DiagnosticsLog {
  */
 export const MSG = {
   // Connection lifecycle
-  signalingConnecting:  "Connecting to server…",
-  signalingConnected:   "Connected to server",
-  signalingLost:        "Connection to server lost — trying again",
-  signalingFailed:      "Couldn't reach the server. Check the server URL in settings.",
+  signalingConnecting:  "Connecting to Play Together server…",
+  signalingConnected:   "Connected to Play Together server",
+  signalingLost:        "Connection to the Play Together server lost — trying again",
+  signalingFailed:      "Couldn't reach the Play Together server. Check the server URL in settings.",
 
   // Room lifecycle
   creatingRoom:         "Creating room…",
-  roomCreated:          "Room created — share your code with a friend",
+  roomCreated:          "Play Together room created — share your code with a friend",
   joiningRoom:          "Joining room…",
-  roomJoined:           "Joined room successfully",
+  roomJoined:           "Joined Play Together room successfully",
   roomNotFound:         "Room not found — it may have been closed by the host.",
   roomFull:             "This room is full. Try another room or create your own.",
   roomLeft:             "You left the room.",
@@ -96,7 +96,7 @@ export const MSG = {
   // Compatibility
   gameMismatch:         "Game versions may not match — make sure you and your friend have the same ROM.",
   systemMismatch:       "System mismatch — you and the host are not running the same system.",
-  unsupportedSystem:    "This game doesn't support multiplayer.",
+  unsupportedSystem:    "This game doesn't support RetroVault Play Together multiplayer.",
 
   // Session
   sessionStarting:      "Starting game session…",
@@ -104,7 +104,7 @@ export const MSG = {
 
   // Generic errors
   timeout:              "Connection timed out. Check your network and try again.",
-  serverUnavailable:    "Netplay server is unavailable. Please try again later.",
+  serverUnavailable:    "Play Together server is unavailable. Please try again later.",
   unknownError:         "Something went wrong — please try again.",
 } as const;
 

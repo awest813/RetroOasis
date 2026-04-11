@@ -2506,10 +2506,10 @@ export function buildLandingControls(
 
   const btnMultiplayer = make("button", {
     class: "btn btn--highlight",
-    title: "Open Multiplayer — Host or join a game with friends",
-    "aria-label": "Open multiplayer",
+    title: "Open Play Together — Host or join a game with friends",
+    "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Multiplayer`;
+  btnMultiplayer.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Play Together`;
   btnMultiplayer.addEventListener("click", () => {
     const openWith = (nm: import("./multiplayer.js").NetplayManager) => {
       openEasyNetplayModal({
@@ -2632,7 +2632,7 @@ function buildInGameControls(
     const btnNetplay = make("button", {
       class: isActive ? "btn btn--active" : "btn",
       title: isSupported ? "Online multiplayer" : "Multiplayer not available for this system",
-      "aria-label": "Open multiplayer",
+      "aria-label": "Open Play Together",
     }) as HTMLButtonElement;
     btnNetplay.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Online`;
     // Enable button whenever multiplayer is supported for this system
@@ -3082,8 +3082,8 @@ async function showInGameMenu(ctx: {
         container.innerHTML = `
           <div class="ingame-menu__empty-state">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;margin-bottom:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <p>Multiplayer is currently disabled or unconfigured.</p>
-            <button class="ingame-menu__btn" style="margin-top:16px">Go to Multiplayer Settings</button>
+            <p>Play Together is currently disabled or unconfigured.</p>
+            <button class="ingame-menu__btn" style="margin-top:16px">Go to Play Together Settings</button>
           </div>
         `;
         container.querySelector("button")?.addEventListener("click", () => {
@@ -3109,7 +3109,7 @@ async function showInGameMenu(ctx: {
         const actions = make("div", { class: "ingame-menu__multiplayer-actions" });
         actions.innerHTML = `
           <button class="ingame-menu__btn ingame-menu__btn--primary">Manage Play Together Room</button>
-          <p class="settings-help ingame-menu__multiplayer-help">Use the core's built-in Multiplayer interface to join specific games, or the RetroVault Play Together lobby for automatic matchmaking.</p>
+          <p class="settings-help ingame-menu__multiplayer-help">Use the game's built-in Multiplayer interface to join a specific room, or the RetroVault Play Together lobby for automatic matchmaking. Play Together is separate from in-game Wi-Fi or WFC features built into the ROM.</p>
         `;
         actions.querySelector("button")?.addEventListener("click", () => {
           closeMenu();
@@ -3147,7 +3147,7 @@ async function showInGameMenu(ctx: {
 
   addSideBtn("Resume", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`, "resume");
   addSideBtn("Saves & Gallery", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`, "saves");
-  addSideBtn("Multiplayer", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`, "multiplayer");
+  addSideBtn("Play Together", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`, "multiplayer");
   addSideBtn("Quick Settings", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`, "settings");
   addSideBtn("Restart Game", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>`, "reset", true);
   addSideBtn("Home Console", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`, "library");
@@ -4085,13 +4085,13 @@ export function openEasyNetplayModal(opts: {
     class:      "confirm-box easy-netplay-dialog",
     role:       "dialog",
     "aria-modal": "true",
-    "aria-label": "Multiplayer",
+    "aria-label": "Play Together lobby",
   });
 
   // ── Header ───────────────────────────────────────────────────────────────
   const header = make("div", { class: "enp-header" });
   header.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="22" height="22" style="margin-right:10px" />`;
-  header.appendChild(make("span", { class: "enp-title" }, "Multiplayer Lobby"));
+  header.appendChild(make("span", { class: "enp-title" }, "Play Together Lobby"));
   const btnCopyDiagnostics = make("button", {
     class: "enp-copy-diag",
     "aria-label": "Copy multiplayer diagnostics",
@@ -4131,7 +4131,7 @@ export function openEasyNetplayModal(opts: {
   const needsEnable = !netplayEnabled;
   if (needsServerUrl || needsEnable) {
     const setupStrip = make("div", { class: "enp-setup-strip", role: "region", "aria-label": "Online play setup" });
-    const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up online play (one minute)");
+    const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up Play Together (one minute)");
     const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
     const step1 = needsEnable
       ? "Open Settings → Play Together and turn on Online play."
@@ -5284,7 +5284,7 @@ function buildMultiplayerTab(
   const introSection = make("div", { class: "settings-section" });
   introSection.appendChild(make("h4", { class: "settings-section__title" }, "Online play with friends"));
   introSection.appendChild(make("p", { class: "settings-help" },
-    "Play the same game with someone else over the internet. Turn on Online play below, paste the WebSocket URL from whoever runs your netplay server (often wss://…), " +
+    "RetroVault Play Together lets you play the same game with someone else over the internet. Turn on Online play below, paste the WebSocket URL from whoever runs your server, " +
     "then use Multiplayer on the home screen or Online in the game toolbar to host or join."
   ));
 
@@ -5312,7 +5312,7 @@ function buildMultiplayerTab(
   // Enable toggle
   introSection.appendChild(buildToggleRow(
     "Online play",
-    "Shows Multiplayer on the home screen and Online in the game toolbar. You still need a server URL below for internet play.",
+    "Shows Multiplayer on the home screen and Online in the game toolbar. In-game Wi-Fi or WFC features inside a ROM are separate from this setting.",
     settings.netplayEnabled,
     (v) => {
       currentEnabled = v;
@@ -5330,8 +5330,8 @@ function buildMultiplayerTab(
   serverSection.hidden = !settings.netplayEnabled;
   serverSection.appendChild(make("h4", { class: "settings-section__title" }, "Server address"));
   serverSection.appendChild(make("p", { class: "settings-help" },
-    "One field is enough: paste the full WebSocket URL for your netplay server (for example wss://games.example.com:443/netplay). " +
-    "Include the port if your host gave you one (e.g. :3000). The app uses the same address for rooms over HTTPS and for in-game connection — everyone in your session must use the exact same URL."
+    "Paste the full WebSocket URL for your Play Together server (for example wss://games.example.com:443/netplay). " +
+    "Include the port if your host gave you one (e.g. :3000). Everyone in the session must use the exact same address."
   ));
 
   const urlRow   = make("div", { class: "settings-input-row" });
@@ -5707,7 +5707,7 @@ function buildMultiplayerTab(
   const supportedSysSection = make("div", { class: "settings-section" });
   supportedSysSection.appendChild(make("h4", { class: "settings-section__title" }, "Supported Systems"));
   supportedSysSection.appendChild(make("p", { class: "settings-help" },
-    "Netplay is available for the following systems. Other systems load fine but online play is not yet supported."
+    "RetroVault Play Together is available for the systems below. Other systems still run in the app, but online multiplayer is not yet supported there."
   ));
   const supportedSysList = make("div", { class: "netplay-sys-list" });
   for (const sysId of NETPLAY_SUPPORTED_SYSTEM_IDS) {
@@ -5730,7 +5730,7 @@ function buildMultiplayerTab(
     if (!isNetplaySystem || !isLinkCapable) {
       const sysName = getSystemById(currentSystemId)?.name ?? currentSystemId.toUpperCase();
       gameCompatSection.appendChild(make("p", { class: "settings-help" },
-        `This system (${sysName}) does not currently support netplay in this app.`
+        `This system (${sysName}) does not currently support netplay in this app. RetroVault Play Together isn't available for it yet.`
       ));
     } else {
       const roomKey     = resolveNetplayRoomKey(currentGameName, currentSystemId);
@@ -5758,19 +5758,19 @@ function buildMultiplayerTab(
 
   if (!isNetplayActive()) {
     roomSection.appendChild(make("p", { class: "settings-help" },
-      "Server URL is required — enable Online Play and add a server URL above to start playing with others."
+      "Server URL is required — enable Online play and add a server URL above to start playing with others."
     ));
   } else {
     const hasGame = !!currentGameName;
     roomSection.appendChild(make("p", { class: "settings-help" },
       hasGame
-        ? `Use the Online button in the toolbar while playing ${currentGameName} to create or join a room.`
-        : "Open a game, then use the Online button in the toolbar to create or join a room."
+        ? `Use the Online button in the toolbar while playing ${currentGameName} to create or join a room. RetroVault Play Together uses a separate lobby from in-game Wi-Fi features.`
+        : "Open a game, then use the Online button in the toolbar to create or join a room. RetroVault Play Together uses a separate lobby from in-game Wi-Fi features."
     ));
     const actionRow = make("div", { class: "netplay-room-actions" });
     const createBtn = make("button", {
       class: "btn btn--primary netplay-create-room",
-      title: "Start a game and use the Netplay button to create a room",
+      title: "Start a game and use the Online button to create a Play Together room",
     }) as HTMLButtonElement;
     createBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Room`;
     const joinBtn = make("button", {
@@ -5785,8 +5785,8 @@ function buildMultiplayerTab(
     createBtn.addEventListener("click", () => {
       showInfoToast(
         hasGame
-          ? `Use the Netplay button in the toolbar to create a room for ${currentGameName}.`
-          : "Start a game first, then use the Netplay button in the toolbar to create a room."
+          ? `Use the Online button in the toolbar to create a room for ${currentGameName}.`
+          : "Start a game first, then use the Online button in the toolbar to create a room."
       );
     });
     joinBtn.addEventListener("click", () => {
@@ -6257,7 +6257,7 @@ function buildAboutTab(container: HTMLElement): void {
   const mpSection = make("div", { class: "settings-section" });
   mpSection.appendChild(make("h4", { class: "settings-section__title" }, "Play with friends online"));
   const mpSteps = [
-    "Open ⚙ Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your netplay server — everyone must use the same URL.",
+    "Open ⚙ Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your server — everyone must use the same URL.",
     "Launch the same game as your friend (same title and system when possible).",
     "Click Multiplayer on the home screen, or Online in the game toolbar. Host creates a room and shares the invite code; Join pastes the code from your friend.",
     "If something fails, open Multiplayer and use 📋 Logs to copy connection details for troubleshooting.",
@@ -6268,7 +6268,7 @@ function buildAboutTab(container: HTMLElement): void {
   }
   mpSection.appendChild(mpList);
   mpSection.appendChild(make("p", { class: "settings-help" },
-    "In-game “Wi‑Fi” or Nintendo WFC features inside a ROM are not the same as RetroVault online play — use Host / Join here for link-style multiplayer."
+    "In-game Wi-Fi or Nintendo WFC features inside a ROM are not the same as RetroVault Play Together — use Host / Join here for link-style multiplayer."
   ));
 
   // Troubleshooting section

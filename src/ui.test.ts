@@ -2392,7 +2392,7 @@ describe("buildLandingControls multiplayer button", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a Multiplayer button in the landing header", () => {
+  it("renders a Play Together button in the landing header", () => {
     const settings = makeSettings();
     buildLandingControls(
       settings, fullCapsForTests,
@@ -2401,12 +2401,12 @@ describe("buildLandingControls multiplayer button", () => {
     );
     const headerActions = document.getElementById("header-actions")!;
     const btn = Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
-      .find(b => b.textContent?.includes("Multiplayer"));
+      .find(b => b.textContent?.includes("Play Together"));
     expect(btn).toBeTruthy();
-    expect(btn!.title).toContain("Multiplayer");
+    expect(btn!.title).toContain("Play Together");
   });
 
-  it("clicking the Multiplayer button opens the Easy Netplay modal", async () => {
+  it("clicking the Play Together button opens the Easy Netplay modal", async () => {
     const settings = makeSettings();
     const mgr = new NetplayManager();
     buildLandingControls(
@@ -2418,7 +2418,7 @@ describe("buildLandingControls multiplayer button", () => {
 
     const headerActions = document.getElementById("header-actions")!;
     const btn = Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
-      .find(b => b.textContent?.includes("Multiplayer"))!;
+      .find(b => b.textContent?.includes("Play Together"))!;
     btn.click();
     await flushUI();
 
@@ -2685,7 +2685,7 @@ describe("buildInGameControls — Netplay button", () => {
     expect(btn).toBeTruthy();
   });
 
-  it("opens a Multiplayer section from the in-game menu for unsupported systems", () => {
+  it("opens a Play Together section from the in-game menu for unsupported systems", () => {
     const { emulatorMock } = triggerGameStart({ systemId: "snes" });
     if (typeof (emulatorMock as unknown as { onGameStart: () => void }).onGameStart === "function") {
       (emulatorMock as unknown as { onGameStart: () => void }).onGameStart();
@@ -2696,7 +2696,7 @@ describe("buildInGameControls — Netplay button", () => {
     expect(btn).toBeTruthy();
     btn!.click();
     const multiplayerBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".ingame-menu__sidebar-btn"))
-      .find((button) => button.textContent?.includes("Multiplayer"));
+      .find((button) => button.textContent?.includes("Play Together"));
     expect(multiplayerBtn).toBeTruthy();
   });
 
@@ -2716,7 +2716,7 @@ describe("buildInGameControls — Netplay button", () => {
     btn!.click();
 
     const multiplayerBtn = Array.from(document.querySelectorAll<HTMLButtonElement>(".ingame-menu__sidebar-btn"))
-      .find((button) => button.textContent?.includes("Multiplayer"));
+      .find((button) => button.textContent?.includes("Play Together"));
     expect(multiplayerBtn).toBeTruthy();
     multiplayerBtn!.click();
     await flushUI();

@@ -147,8 +147,8 @@ export class EasyNetplayManager {
     if (!this._sigClient) {
       // No server configured — create a local-only stub room.
       this._diagnostics.warn(
-        "No netplay server configured. Room is local-only.",
-        "Set a server URL in Settings → Play Together (Online play) to share with friends over the internet."
+        "No Play Together server configured. Room is local-only.",
+        "Set a server URL in Settings → Play Together to share with friends over the internet."
       );
       const stubRoom = this._makeLocalStubRoom(options);
       this._room = stubRoom;
@@ -227,7 +227,7 @@ export class EasyNetplayManager {
       const msg = MSG.serverUnavailable;
       this._diagnostics.error(
         msg,
-        "No server URL is configured. Open Settings → Play Together (Online play) and paste your server address."
+        "No server URL is configured. Open Settings → Play Together and paste your server address."
       );
       this._emit({ type: "error", code: "server_unavailable", message: msg });
       this._setState("failed");
@@ -347,7 +347,7 @@ export class EasyNetplayManager {
       const msg = MSG.serverUnavailable;
       this._diagnostics.error(
         msg,
-        "No server URL is configured. Open Settings → Play Together (Online play) and paste your server address."
+        "No server URL is configured. Open Settings → Play Together and paste your server address."
       );
       this._emit({ type: "error", code: "server_unavailable", message: msg });
       this._setState("failed");

@@ -102,12 +102,12 @@ const BUILTIN_COMPAT_DB: CompatibilityDb = {
   // NDS — games with known DeSmuME quirks
   "pokemon_black": {
     title:        "Pokémon Black",
-    knownIssues:  ["Wi-Fi features unavailable (netplay not supported for Gen 5)"],
+    knownIssues:  ["In-game Wi-Fi features unavailable; RetroVault Play Together multiplayer isn't supported for Gen 5."],
     verified:     true,
   },
   "pokemon_white": {
     title:        "Pokémon White",
-    knownIssues:  ["Wi-Fi features unavailable (netplay not supported for Gen 5)"],
+    knownIssues:  ["In-game Wi-Fi features unavailable; RetroVault Play Together multiplayer isn't supported for Gen 5."],
     verified:     true,
   },
 };
