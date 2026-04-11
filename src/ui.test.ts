@@ -1237,6 +1237,18 @@ describe("buildMultiplayerTab", () => {
     expect(urlInput.value).toBe("wss://my.server.com");
   });
 
+  it("status pill does not show ready when Online play is off even if the singleton was previously active", () => {
+    mgr.setEnabled(true);
+    mgr.setServerUrl("wss://netplay.example.com");
+    settings = makeSettings({ netplayEnabled: false, netplayServerUrl: "wss://netplay.example.com" });
+    openMultiplayerTab();
+
+    const panel = document.getElementById("tab-panel-multiplayer")!;
+    const statusPill = panel.querySelector<HTMLElement>(".netplay-status-pill");
+    expect(statusPill).toBeTruthy();
+    expect(statusPill!.textContent).toContain("Turn on Online play");
+  });
+
   it("removing all ICE servers shows an empty-state message", () => {
     openMultiplayerTab();
     const panel = document.getElementById("tab-panel-multiplayer")!;

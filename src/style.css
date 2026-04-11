@@ -6684,9 +6684,19 @@ body {
 }
 
 .drop-zone--prominent {
-  max-width: 620px;
-  min-height: 184px;
-  padding: 36px 32px 34px;
+  width: min(100%, 760px);
+  max-width: 760px;
+  min-height: 196px;
+  padding: 34px 32px 30px;
+  gap: 12px;
+  border-radius: calc(var(--radius-xl) + 6px);
+  background:
+    radial-gradient(circle at top center, rgba(124, 140, 255, 0.12) 0%, transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.036) 0%, rgba(255, 255, 255, 0.012) 100%),
+    linear-gradient(160deg, rgba(20, 26, 38, 0.98) 0%, rgba(13, 17, 26, 0.98) 100%);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .drop-zone:hover,
@@ -6715,8 +6725,10 @@ body {
 }
 
 .drop-zone__label {
-  font-size: 1rem;
-  font-weight: 650;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
 }
 
 .drop-zone__actions {
@@ -6725,7 +6737,8 @@ body {
 }
 
 .drop-zone__cta {
-  min-width: 136px;
+  min-width: 156px;
+  min-height: 42px;
 }
 
 .drop-zone__sub,
@@ -6735,13 +6748,51 @@ body {
   color: var(--c-text-dim);
 }
 
+.drop-zone__sub {
+  max-width: 44ch;
+  line-height: 1.55;
+}
+
+.drop-zone__formats {
+  max-width: 60ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.landing__legal {
+  max-width: 64ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
 .onboarding {
-  max-width: 760px;
+  width: min(100%, 920px);
+  margin-inline: auto;
+  display: grid;
+  gap: 20px;
+  margin-top: 8px;
 }
 
 .welcome-hero {
-  margin-bottom: 16px;
-  padding: 0;
+  margin: 0;
+  padding: 10px 12px 0;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.welcome-hero__eyebrow {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 179, 255, 0.2);
+  background: linear-gradient(180deg, rgba(124, 140, 255, 0.12) 0%, rgba(124, 140, 255, 0.05) 100%);
+  color: var(--c-accent-h);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .welcome-hero__title,
@@ -6752,19 +6803,55 @@ body {
 }
 
 .welcome-hero__title {
-  max-width: 10ch;
+  max-width: 11ch;
   margin-inline: auto;
-  font-size: clamp(2rem, 5vw, 3.25rem);
-  line-height: 1;
-  letter-spacing: -0.055em;
+  margin-block: 0;
+  font-size: clamp(2.3rem, 5vw, 4.4rem);
+  line-height: 0.94;
+  letter-spacing: -0.065em;
 }
 
 .welcome-hero__tagline {
-  max-width: 620px;
-  font-size: 0.96rem;
-  line-height: 1.75;
-  margin-bottom: 0;
+  max-width: 58ch;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin: 0;
   color: var(--c-text-dim);
+}
+
+.onboarding__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.onboarding__card {
+  border-radius: calc(var(--radius-xl) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.012) 100%),
+    linear-gradient(160deg, rgba(20, 26, 38, 0.96) 0%, rgba(13, 17, 26, 0.96) 100%);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
+}
+
+.onboarding__card--main {
+  padding: 22px 24px 24px;
+}
+
+.onboarding__card--main h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--c-text);
+}
+
+.onboarding__card--main p {
+  margin: 0 0 16px;
+  max-width: 54ch;
+  color: var(--c-text-dim);
+  line-height: 1.6;
 }
 
 .welcome-steps {
@@ -6776,13 +6863,21 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(244, 247, 251, 0.82);
+  font-weight: 650;
 }
 
 .onboarding__features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
 .onboarding__feature {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0.012) 100%),
     var(--c-surface);
@@ -6801,6 +6896,8 @@ body {
 .onboarding__feature-icon {
   filter: none;
   opacity: 0.9;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
 .app-footer {
@@ -6906,8 +7003,8 @@ body {
 
 @media (max-width: 640px) {
   #landing {
-    padding: 20px 16px calc(24px + var(--footer-h) + var(--safe-bottom));
-    gap: 26px;
+    padding: 18px 16px calc(24px + var(--footer-h) + var(--safe-bottom));
+    gap: 18px;
   }
 
   .library-search,
@@ -6925,23 +7022,24 @@ body {
 
   .drop-zone--prominent {
     min-height: 0;
-    padding: 24px 18px 20px;
-    gap: 8px;
+    padding: 22px 18px 18px;
+    gap: 10px;
   }
 
   .drop-zone__icon {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
   }
 
   .drop-zone__label {
-    font-size: 0.95rem;
-    line-height: 1.2;
+    font-size: 1rem;
+    line-height: 1.15;
   }
 
   .drop-zone__sub {
+    max-width: 28ch;
     font-size: 0.82rem;
-    line-height: 1.35;
+    line-height: 1.32;
   }
 
   .drop-zone__cta {
@@ -6951,28 +7049,11 @@ body {
   }
 
   .drop-zone__formats {
-    font-size: 0.74rem;
-    line-height: 1.3;
-    margin-top: -2px;
+    display: none;
   }
 
   .welcome-hero {
-    margin-bottom: 10px;
-    padding-top: 2px;
-  }
-
-  .welcome-hero__title {
-    max-width: 13ch;
-    font-size: clamp(1.25rem, 5.8vw, 1.7rem);
-    line-height: 1.04;
-    margin-bottom: 6px;
-  }
-
-  .welcome-hero__tagline {
-    max-width: 32ch;
-    font-size: 0.82rem;
-    line-height: 1.5;
-    margin-bottom: 14px;
+    display: none;
   }
 
   .welcome-steps {
@@ -6987,26 +7068,32 @@ body {
 
   .welcome-step {
     width: 100%;
-    padding: 10px 12px;
+    padding: 11px 12px;
     border-radius: var(--radius-lg);
   }
 
-  .onboarding__card {
-    padding: 16px;
+  .onboarding {
+    gap: 14px;
+    margin-top: 0;
   }
 
-  .onboarding__card h3 {
+  .onboarding__card--main {
+    padding: 18px 16px;
+  }
+
+  .onboarding__card--main h3 {
     font-size: 1rem;
   }
 
-  .onboarding__card p {
-    font-size: 0.88rem;
+  .onboarding__card--main p {
+    font-size: 0.86rem;
     line-height: 1.45;
+    margin-bottom: 14px;
   }
 
   .onboarding__feature {
     padding: 14px 14px;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
   }
 
   .landing__legal {

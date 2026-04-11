@@ -262,52 +262,35 @@ export function buildDOM(app: HTMLElement): void {
         <!-- Onboarding — only visible when library is empty -->
         <div class="onboarding" id="onboarding">
           <div class="welcome-hero">
-            <h2 class="welcome-hero__title">Add one game, then play</h2>
-            <p class="welcome-hero__tagline">Drop a ROM, archive, or disc image to auto-detect the system and boot in seconds.</p>
+            <p class="welcome-hero__eyebrow">Console-ready vault</p>
+            <h2 class="welcome-hero__title">Boot your first game</h2>
+            <p class="welcome-hero__tagline">Bring one ROM, archive, or disc image. RetroVault detects the system, stages the core, and drops you into a premium library experience in seconds.</p>
           </div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
-              <h3>Get started in 3 steps</h3>
-              <p>Choose a file, let RetroVault detect the system, then jump straight into play.</p>
+              <h3>Start like a modern console</h3>
+              <p>Pick a game once, then let RetroVault handle detection, startup, and local-first progress.</p>
               <div class="welcome-steps">
                 <div class="welcome-step">1. Choose a game file</div>
                 <div class="welcome-step">2. RetroVault detects the system</div>
-                <div class="welcome-step">3. Play and save progress locally</div>
+                <div class="welcome-step">3. Launch straight into play</div>
               </div>
-            </div>
-            
-            <div class="onboarding__card">
-              <span class="card-icon">🎮</span>
-              <h3>Controller ready</h3>
-              <p>Use a gamepad, keyboard, or touch controls without extra setup.</p>
-            </div>
-
-            <div class="onboarding__card">
-              <span class="card-icon">💾</span>
-              <h3>Save anywhere</h3>
-              <p>Use quick save, save states, and autosave to keep your progress close.</p>
-            </div>
-            
-            <div class="onboarding__card">
-              <span class="card-icon">🔒</span>
-              <h3>Private by default</h3>
-              <p>Your library stays on this device unless you connect cloud storage.</p>
             </div>
           </div>
 
           <div class="onboarding__features">
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
-              <span><strong>Fast launch</strong><br>RetroVault warms up the core and assets as you start playing</span>
+              <span><strong>Fast launch</strong><br>Warm-started cores and assets keep the first boot feeling intentional.</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
-              <span><strong>Any controller</strong><br>Touch, keyboard, USB gamepad, or Bluetooth with no extra setup</span>
+              <span><strong>Controller ready</strong><br>Keyboard, touch, USB gamepad, or Bluetooth all work without setup rituals.</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
-              <span><strong>Private by default</strong><br>Your library stays on your device with no uploads and no account required</span>
+              <span><strong>Local-first progress</strong><br>Your library and saves stay on this device unless you choose cloud features.</span>
             </div>
           </div>
         </div>
@@ -4337,6 +4320,7 @@ function _buildHostPanel(
   const typeSelect = make("select", {
     id:    "enp-room-type",
     class: "enp-select",
+    name:  "roomType",
   }) as HTMLSelectElement;
   const typeOptions: Array<{ value: string; label: string; desc: string }> = [
     {
@@ -4370,7 +4354,11 @@ function _buildHostPanel(
   }
 
   // Status area (shows after Create is clicked)
-  const statusArea = make("div", { class: "enp-status-area" });
+  const statusArea = make("div", {
+    class: "enp-status-area",
+    role: "status",
+    "aria-live": "polite",
+  });
   statusArea.hidden = true;
   container.appendChild(statusArea);
 
@@ -4387,6 +4375,15 @@ function _buildHostPanel(
     container.appendChild(make("p", { class: "enp-help enp-help--warn" },
       "Open a game first, then click Play Together to host."
     ));
+    const pickGameBtn = make("button", { class: "btn enp-btn-secondary" }, "Choose Game File") as HTMLButtonElement;
+    pickGameBtn.addEventListener("click", () => {
+      document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
+      setTimeout(() => {
+        const picker = document.getElementById("file-input") as HTMLInputElement | null;
+        picker?.click();
+      }, 40);
+    });
+    container.appendChild(pickGameBtn);
   }
 
   let activeUnsub: (() => void) | null = null;
@@ -4474,12 +4471,15 @@ function _buildJoinPanel(
   const codeInput = make("input", {
     type:         "text",
     id:           "enp-join-code",
+    name:         "inviteCode",
     class:        "enp-code-input",
-    placeholder:  "6-letter code",
+    placeholder:  "ABC123…",
     maxlength:    String(INVITE_CODE_LEN),
     autocomplete: "off",
     autocapitalize: "characters",
+    autocorrect:  "off",
     spellcheck:   "false",
+    inputmode:    "text",
   }) as HTMLInputElement;
 
   // Auto-format, uppercase, and sync button state whenever the value changes.
@@ -4504,7 +4504,11 @@ function _buildJoinPanel(
   });
 
   // Error display
-  const codeError = make("p", { class: "enp-diag enp-diag--error" });
+  const codeError = make("p", {
+    class: "enp-diag enp-diag--error",
+    role: "alert",
+    "aria-live": "assertive",
+  });
   codeError.hidden = true;
   container.appendChild(codeError);
 
@@ -4516,7 +4520,11 @@ function _buildJoinPanel(
   }
 
   // Status area
-  const statusArea = make("div", { class: "enp-status-area" });
+  const statusArea = make("div", {
+    class: "enp-status-area",
+    role: "status",
+    "aria-live": "polite",
+  });
   statusArea.hidden = true;
   container.appendChild(statusArea);
 
@@ -4888,12 +4896,15 @@ function _buildWatchPanel(
   const codeInput = make("input", {
     type:          "text",
     id:            "enp-watch-code",
+    name:          "spectatorInviteCode",
     class:         "enp-code-input",
-    placeholder:   "6-letter code",
+    placeholder:   "ABC123…",
     maxlength:     String(INVITE_CODE_LEN),
     autocomplete:  "off",
     autocapitalize: "characters",
+    autocorrect:   "off",
     spellcheck:    "false",
+    inputmode:     "text",
   }) as HTMLInputElement;
 
   const syncCodeInput = () => {
@@ -4913,7 +4924,11 @@ function _buildWatchPanel(
   });
 
   // Error display
-  const codeError = make("p", { class: "enp-diag enp-diag--error" });
+  const codeError = make("p", {
+    class: "enp-diag enp-diag--error",
+    role: "alert",
+    "aria-live": "assertive",
+  });
   codeError.hidden = true;
   container.appendChild(codeError);
 
@@ -4925,7 +4940,11 @@ function _buildWatchPanel(
   }
 
   // Status area
-  const statusArea = make("div", { class: "enp-status-area" });
+  const statusArea = make("div", {
+    class: "enp-status-area",
+    role: "status",
+    "aria-live": "polite",
+  });
   statusArea.hidden = true;
   container.appendChild(statusArea);
 
@@ -5123,8 +5142,15 @@ function buildCloudSaveBar(): HTMLElement {
   const statusSection = make("div", { class: "cloud-bar__status" });
   const statusBody    = make("div", { class: "cloud-bar__status-body" });
 
-  const statusText = make("span", { class: "cloud-bar__status-text" });
-  const lastSync   = make("span", { class: "cloud-bar__last-sync" });
+  const statusText = make("span", {
+    class: "cloud-bar__status-text",
+    role: "status",
+    "aria-live": "polite",
+  });
+  const lastSync   = make("span", {
+    class: "cloud-bar__last-sync",
+    "aria-live": "polite",
+  });
 
   const actions = make("div", { class: "cloud-bar__actions" });
 
@@ -5198,6 +5224,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
     const providerSel = make("select", {
       id:    "cloud-provider-sel",
       class: "settings-input",
+      name:  "cloudProvider",
     }) as HTMLSelectElement;
     const providers: Array<{ value: string; label: string }> = [
       { value: "gdrive",  label: "Google Drive" },
@@ -5215,7 +5242,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
 
   const btnRow = make("div", { class: "confirm-box__actions" });
   const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-  const connectBtn = make("button", { class: "btn btn--primary" }, "Continue") as HTMLButtonElement;
+  const connectBtn = make("button", { class: "btn btn--primary" }, "Open Cloud Settings") as HTMLButtonElement;
   btnRow.append(cancelBtn, connectBtn);
 
     box.append(title, desc, providerRow, btnRow);
@@ -5231,7 +5258,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
     connectBtn.addEventListener("click", () => {
       // Open settings to the cloud tab for full configuration
       _openSettingsFn?.("cloud");
-      close(false);
+      close(true);
     });
 
     const onKeydown = (e: KeyboardEvent) => {
@@ -5278,10 +5305,15 @@ function buildMultiplayerTab(
     return name.trim().length > 32 ? "Display name must be 32 characters or fewer" : null;
   };
 
-  const isNetplayActive = (): boolean => {
-    const netplayManager = peekNetplayManager();
-    if (netplayManager) return netplayManager.isActive;
-    return currentEnabled && currentServerUrl.length > 0 && !validateServerUrl(currentServerUrl);
+  const getNetplayStatus = (): {
+    enabled: boolean;
+    hasUrl: boolean;
+    ready: boolean;
+  } => {
+    const enabled = currentEnabled;
+    const hasUrl = currentServerUrl.length > 0;
+    const ready = enabled && hasUrl && !validateServerUrl(currentServerUrl);
+    return { enabled, hasUrl, ready };
   };
 
   // Sync-first helper: calls a method on the manager synchronously if already loaded,
@@ -5303,18 +5335,15 @@ function buildMultiplayerTab(
   // Status badge — shows whether netplay is ready to use
   const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
   const updateStatusBadge = () => {
-    const netplayManager = peekNetplayManager();
-    const active = netplayManager?.isActive ?? isNetplayActive();
-    const enabled = netplayManager?.enabled ?? currentEnabled;
-    const hasUrl = ((netplayManager?.serverUrl ?? currentServerUrl).trim().length > 0);
-    statusBadge.textContent = active
+    const { enabled, hasUrl, ready } = getNetplayStatus();
+    statusBadge.textContent = ready
       ? "Ready to play online"
       : enabled && !hasUrl
         ? "Add a server URL"
         : !enabled && hasUrl
           ? "Turn on Online play"
           : "Not set up yet";
-    statusBadge.className = active
+    statusBadge.className = ready
       ? "netplay-status-pill netplay-status-pill--active"
       : "netplay-status-pill netplay-status-pill--inactive";
   };
@@ -5351,10 +5380,13 @@ function buildMultiplayerTab(
   const urlInput = make("input", {
     type:         "text",
     id:           "netplay-server-url",
+    name:         "netplayServerUrl",
     class:        "settings-input",
-    placeholder:  "wss://netplay.example.com",
+    placeholder:  "wss://netplay.example.com/room…",
     value:        settings.netplayServerUrl,
     autocomplete: "off",
+    autocorrect:  "off",
+    autocapitalize: "none",
     spellcheck:   "false",
   }) as HTMLInputElement;
   urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
@@ -5391,10 +5423,13 @@ function buildMultiplayerTab(
   const unameInput = make("input", {
     type:         "text",
     id:           "netplay-username",
+    name:         "netplayUsername",
     class:        "settings-input",
-    placeholder:  "Anonymous",
+    placeholder:  "Display name (optional)…",
     value:        settings.netplayUsername,
-    autocomplete: "off",
+    autocomplete: "nickname",
+    autocorrect:  "off",
+    autocapitalize: "words",
     spellcheck:   "false",
     maxlength:    "32",
   }) as HTMLInputElement;
@@ -5470,10 +5505,13 @@ function buildMultiplayerTab(
   const addInput = make("input", {
     type:         "text",
     id:           "netplay-ice-add",
+    name:         "iceServerUrl",
     class:        "settings-input",
-    placeholder:  "stun:stun.example.com:3478",
+    placeholder:  "stun:stun.example.com:3478…",
     "aria-label": "New ICE server URL",
     autocomplete: "off",
+    autocorrect:  "off",
+    autocapitalize: "none",
     spellcheck:   "false",
   }) as HTMLInputElement;
   const addBtn = make("button", { class: "btn btn--primary" }, "Add") as HTMLButtonElement;
@@ -5518,7 +5556,7 @@ function buildMultiplayerTab(
 
   // Lobby browser section — visible only when netplay is active
   const lobbySection = make("div", { class: "settings-section netplay-lobby" });
-  lobbySection.hidden = !isNetplayActive();
+  lobbySection.hidden = !getNetplayStatus().ready;
   lobbySection.appendChild(make("h4", { class: "settings-section__title" }, "Room Browser"));
 
   // Show game-scope hint — if a game is running, name it; otherwise give
@@ -5768,7 +5806,7 @@ function buildMultiplayerTab(
   const roomSection = make("div", { class: "settings-section" });
   roomSection.appendChild(make("h4", { class: "settings-section__title" }, "Room Actions"));
 
-  if (!isNetplayActive()) {
+  if (!getNetplayStatus().ready) {
     roomSection.appendChild(make("p", { class: "settings-help" },
       "Server URL is required — enable Online play and add a server URL above to start playing with others."
     ));
