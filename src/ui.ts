@@ -6962,7 +6962,7 @@ export function showError(msg: string, onRetry?: () => void): void {
   if (isBiosError && _openSettingsFn) {
     const actionBtn = document.createElement("button");
     actionBtn.className = "error-action-btn";
-    actionBtn.textContent = "Open System Files →";
+    actionBtn.textContent = "Open System Files";
     actionBtn.addEventListener("click", () => {
       hideError();
       _openSettingsFn!("bios");
@@ -6975,7 +6975,7 @@ export function showError(msg: string, onRetry?: () => void): void {
   if (onRetry) {
     const retryBtn = document.createElement("button");
     retryBtn.className = "error-action-btn error-retry-btn";
-    retryBtn.textContent = "↩ Retry";
+    retryBtn.textContent = "Retry";
     retryBtn.addEventListener("click", () => {
       hideError();
       onRetry();
