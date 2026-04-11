@@ -237,6 +237,52 @@ export class GameLibrary {
   }
 
   /**
+   * Find a virtual game by its cloud identity.
+   *
+   * Cloud-hosted entries are keyed by the remote source plus remote path so
+   * they can coexist with local ROMs that happen to share the same file name.
+   */
+  async findVirtualGame(cloudId: string, remotePath: string): Promise<GameEntry | null> {
+    const meta = await this.getAllGamesMetadata();
+    const match = meta.find(g => g.cloudId === cloudId && g.remotePath === remotePath);
+    if (!match) return null;
+    return this.getGame(match.id);
+  }
+
+  /**
+   * Insert or refresh a virtual game entry without duplicating an existing
+   * cloud identity.
+   */
+  async upsertVirtualGame(
+    name: string,
+    fileName: string,
+    systemId: string,
+    size: number,
+    cloudId: string,
+    remotePath: string,
+    thumbnailUrl?: string
+  ): Promise<GameEntry> {
+    const db = await openDB();
+    const existing = await this.findVirtualGame(cloudId, remotePath);
+    const entry: GameEntry = {
+      id: existing?.id ?? createUuid(),
+      name,
+      fileName,
+      systemId,
+      size,
+      addedAt: existing?.addedAt ?? Date.now(),
+      lastPlayedAt: existing?.lastPlayedAt ?? null,
+      blob: null,
+      cloudId,
+      remotePath,
+      thumbnailUrl,
+    };
+    await promisify(tx(db, "readwrite").put(entry));
+    invalidateMetadataCache();
+    return entry;
+  }
+
+  /**
    * Find an existing entry with the same fileName and systemId.
    * Uses metadata-only scan instead of loading full blob data.
    */

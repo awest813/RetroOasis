@@ -177,7 +177,7 @@ export class SaveGameService {
           this.emit({ status: "syncing-cloud", gameId: context.gameId, slot });
           try {
             await this.cloudManager.push(saved);
-            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Synced to cloud." });
+            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save mirrored to cloud." });
           } catch (error) {
             this.emit({
               status: "sync-error",
@@ -208,7 +208,7 @@ export class SaveGameService {
       this.emit({ status: "syncing-cloud", gameId: context.gameId });
       try {
         await this.cloudManager!.syncGame(context.gameId, this.saveLibrary);
-        this.emit({ status: "sync-success", gameId: context.gameId, message: "Cloud sync complete." });
+        this.emit({ status: "sync-success", gameId: context.gameId, message: "Local saves mirrored with cloud." });
       } catch (error) {
         this.emit({
           status: "sync-error",

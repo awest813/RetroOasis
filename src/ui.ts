@@ -3323,7 +3323,7 @@ function buildSettingsContent(
     { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
     { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
     { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
-    { id: "cloud",        icon: "☁️", label: "Cloud Library",  ariaLabel: "Cloud Library" },
+    { id: "cloud",        icon: "☁️", label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
     { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
     { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
@@ -5120,21 +5120,21 @@ function buildCloudSaveBar(): HTMLElement {
 
   // Status text
   if (isConnected) {
-    statusText.textContent = cloudManager.activeProvider.displayName;
+    statusText.textContent = `${cloudManager.activeProvider.displayName} backup`;
     statusText.classList.add("cloud-bar__status-text--ok");
   } else {
-    statusText.textContent = "Not connected";
+    statusText.textContent = "Cloud backup off";
   }
 
   // Last-sync hint or timestamp
   if (!isConnected) {
-    lastSync.textContent = "Connect to sync saves across devices";
+    lastSync.textContent = "Local saves stay on this device until you connect a cloud provider.";
     lastSync.classList.add("cloud-bar__last-sync--hint");
   } else {
     const lastSyncAt = cloudManager.lastSyncAt;
     lastSync.textContent = lastSyncAt
       ? `Last sync: ${formatRelativeTime(lastSyncAt)}`
-      : "Not synced yet";
+      : "Local saves will be mirrored here after your next save.";
   }
 
   statusBody.append(statusText, lastSync);
@@ -5178,7 +5178,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
 
     const title = make("h3", { class: "confirm-box__title" }, "Connect Cloud Storage");
     const desc  = make("p", { class: "confirm-box__body" },
-      "Choose a cloud provider to sync your save states across devices."
+      "Choose a cloud provider to sync save states across devices. This only mirrors saves; your local ROM library still stays on this device unless you connect a cloud library source separately."
     );
 
     const providerRow = make("div", { class: "settings-input-row" });
@@ -5201,10 +5201,10 @@ async function showCloudConnectDialog(): Promise<boolean> {
     }
     providerRow.append(providerLabel, providerSel);
 
-    const btnRow = make("div", { class: "confirm-box__actions" });
-    const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-    const connectBtn = make("button", { class: "btn btn--primary" }, "Continue") as HTMLButtonElement;
-    btnRow.append(cancelBtn, connectBtn);
+  const btnRow = make("div", { class: "confirm-box__actions" });
+  const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
+  const connectBtn = make("button", { class: "btn btn--primary" }, "Continue") as HTMLButtonElement;
+  btnRow.append(cancelBtn, connectBtn);
 
     box.append(title, desc, providerRow, btnRow);
     overlay.appendChild(box);
@@ -5218,7 +5218,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
     cancelBtn.addEventListener("click", () => close(false));
     connectBtn.addEventListener("click", () => {
       // Open settings to the cloud tab for full configuration
-      _openSettingsFn?.("library");
+      _openSettingsFn?.("cloud");
       close(false);
     });
 
@@ -6223,7 +6223,7 @@ function buildAboutTab(container: HTMLElement): void {
     "Drop a game file onto the page, or click the upload area to browse for one.",
     "If asked, choose which system to use — this happens with some common file formats.",
     "Your game launches automatically — enjoy!",
-    "Save your progress with F5, load it back with F7, and press Esc to return to your game library.",
+    "Save your progress with F5, load it back with F7, and press Esc to return to your game library. Saves stay local first, and cloud backup can mirror them if you connect it later.",
   ];
   const stepList = make("ol", { class: "help-steps" });
   for (const step of steps) {
@@ -6280,7 +6280,7 @@ function buildAboutTab(container: HTMLElement): void {
     ["PSP game won't start", "PSP games need a special browser feature. Try refreshing the page once — this sets things up automatically."],
     ["No sound", "Make sure the browser tab isn't muted. Some games take a few seconds to start audio."],
     ["Game is slow or choppy", "Open ⚡ Settings → Performance and switch to Performance mode. Closing other browser tabs can also help."],
-    ["Saves aren't working", "Your saves are stored in your browser. Clearing browser data will erase them — export saves as a backup before doing that."],
+    ["Saves aren't working", "Your saves live in your browser on this device. If you connect cloud backup, it mirrors those saves instead of replacing them. Clearing browser data will erase the local copy, so export saves first if you want a backup."],
     ["Controls not responding", "Click on the game screen first to make sure it has focus. Gamepads should be connected before launching a game."],
     ["Stuck on loading screen", "Try refreshing the page. If the issue persists, the game file may be corrupted or an unsupported format."],
     ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try 📋 Logs in the Multiplayer window; strict networks may need a TURN server under Advanced."],
@@ -6301,7 +6301,7 @@ function buildAboutTab(container: HTMLElement): void {
     "right in your browser. No installs, no account, nothing to sign up for."
   ));
   aboutSection.appendChild(make("p", { class: "settings-help" },
-    "Your game files and saves are stored privately in your browser. RetroVault never uploads anything."
+    "Your local game library and saves stay on this device by default. If you connect cloud storage, cloud saves mirror progress and cloud library sources add remote games beside your local ROMs. RetroVault does not upload anything until you connect a provider."
   ));
 
   const links = make("div", { class: "help-links" });
@@ -6727,15 +6727,40 @@ function buildCloudTab(
 ): void {
   container.innerHTML = "";
   const section = make("div", { class: "settings-section" });
-  section.appendChild(make("h4", { class: "settings-section__title" }, "Cloud Library Connections"));
-  section.appendChild(make("p", { class: "settings-section__desc" }, "Keep your ROMs in personal cloud storage and stream them directly. Metadata and progress sync automatically across devices."));
+  section.appendChild(make("h4", { class: "settings-section__title" }, "Cloud Storage"));
+  section.appendChild(make("p", { class: "settings-section__desc" }, "RetroVault uses cloud storage in two independent ways: cloud saves mirror progress, and cloud library sources add remote games beside your local ROMs."));
+
+  const overview = make("div", { class: "cloud-storage-overview" });
+
+  const saveCard = make("div", { class: "cloud-storage-card" });
+  saveCard.innerHTML = `
+    <div class="cloud-storage-card__eyebrow">Cloud saves</div>
+    <h5 class="cloud-storage-card__title">Mirror progress, keep local ownership</h5>
+    <p class="cloud-storage-card__body">Save states stay in your browser first. When cloud backup is connected, RetroVault mirrors those local saves to the provider you chose.</p>
+    <div class="cloud-storage-card__note">Connect this from any game's Saves &amp; Gallery screen.</div>
+  `;
+
+  const libraryCard = make("div", { class: "cloud-storage-card" });
+  libraryCard.innerHTML = `
+    <div class="cloud-storage-card__eyebrow">Cloud library</div>
+    <h5 class="cloud-storage-card__title">Add remote games next to local ROMs</h5>
+    <p class="cloud-storage-card__body">Remote games are indexed as their own entries, so they can sit alongside files stored on this device without replacing them.</p>
+    <div class="cloud-storage-card__note">Use a cloud source to sync playable files into the library.</div>
+  `;
+
+  overview.append(saveCard, libraryCard);
+  section.appendChild(overview);
 
   const list = make("div", { class: "cloud-connection-list" });
-  
+
+  const librarySection = make("div", { class: "cloud-library-section" });
+  librarySection.appendChild(make("h5", { class: "cloud-library-section__title" }, "Cloud Library Sources"));
+  librarySection.appendChild(make("p", { class: "settings-help" }, "Connect a provider below to stream or import remote games into your local library view."));
+
   // Enhanced Connection Management
   if (settings.cloudLibraries.length === 0) {
     const empty = make("div", { class: "cloud-connection-empty" });
-    empty.innerHTML = `<p>No cloud libraries are connected yet.</p><p>Open Cloud Library settings to add one.</p>`;
+    empty.innerHTML = `<p>No cloud library sources are connected yet.</p><p>Your local library still works normally. Add a cloud source to browse remote games alongside it.</p>`;
     list.appendChild(empty);
   } else {
     settings.cloudLibraries.forEach((conn) => {
@@ -6746,12 +6771,12 @@ function buildCloudTab(
       
       const actions = make("div", { class: "cloud-connection-item__actions" });
       
-      const statusDot = make("span", { 
+      const statusDot = make("span", {
         class: "cloud-connection-item__status"
-      }, "● CONNECTED");
+      }, "● READY");
       info.appendChild(statusDot);
 
-      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync");
+      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync Source");
       syncBtn.addEventListener("click", () => syncCloudLibrary(conn, library, onSettingsChange));
       
       const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Remove");
@@ -6766,12 +6791,13 @@ function buildCloudTab(
     });
   }
 
-  const addBtn = make("button", { class: "btn btn--primary cloud-connection-add", type: "button" }, "+ Connect New Library");
+  const addBtn = make("button", { class: "btn btn--primary cloud-connection-add", type: "button" }, "+ Connect New Source");
   addBtn.addEventListener("click", () => {
     _openSettingsFn?.("cloud");
   });
 
-  section.append(list, addBtn);
+  librarySection.append(list, addBtn);
+  section.append(librarySection);
   container.appendChild(section);
 }
 
@@ -6861,23 +6887,21 @@ async function syncCloudLibrary(
          const sys = Array.isArray(res) ? res[0] : res;
          if (!sys) continue;
          const systemId = sys.id;
-         // Check if already exists
-         const existing = await library.findByFileName(f.name, systemId);
-         if (!existing) {
-           await library.addVirtualGame(
-             f.name.replace(/\.[^.]+$/, ""),
-             f.name,
-             systemId,
-             f.size,
-             conn.id,
-             f.path,
-             f.thumbnailUrl
-           );
-         }
+         // Cloud entries are keyed by remote source + remote path so they can
+         // live beside local ROMs without being treated as duplicates.
+         await library.upsertVirtualGame(
+           f.name.replace(/\.[^.]+$/, ""),
+           f.name,
+           systemId,
+           f.size,
+           conn.id,
+           f.path,
+           f.thumbnailUrl
+         );
       }
     }
     
-    showInfoToast(`Successfully synced ${romFiles.length} games from ${conn.name}.`, "success");
+    showInfoToast(`Synced ${romFiles.length} cloud games from ${conn.name}.`, "success");
     onSettingsChange({});
     // We don't need to call onSettingsChange unless we want to trigger a re-render of something specific,
     // but the library grid will re-render automatically if we invalidate/trigger it.
