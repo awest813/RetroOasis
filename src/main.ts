@@ -35,6 +35,7 @@ import { buildDOM, initUI,
           promptAutoSaveRestore,
           resolveSystemAndAdd,
           showError, showInfoToast, showLoadingOverlay,
+          setLoadingMessage, setLoadingSubtitle,
           TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
 import { isTouchDevice } from "./touchControls.js";
 // Initialize Chrome-specific performance optimizations early
@@ -419,6 +420,9 @@ async function main(): Promise<void> {
     const gameName = file.name.replace(/\.[^.]+$/, "");
     settings.lastGameName = gameName;
     saveSettings(settings);
+    showLoadingOverlay();
+    setLoadingMessage(`Starting ${gameName}…`);
+    setLoadingSubtitle("Preparing the emulator and loading your game…");
 
     // Orientation lock
     if (settings.orientationLock && "orientation" in screen) {

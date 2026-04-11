@@ -251,64 +251,59 @@ export function buildDOM(app: HTMLElement): void {
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </div>
-          <p class="drop-zone__label">${touchUI ? "Tap to choose a game and start playing" : "Drop a game file here to start playing"}</p>
-          <p class="drop-zone__sub">${touchUI ? "Browse your device to select a ROM file" : 'or <span class="drop-zone__browse">browse your device</span>'}</p>
+          <p class="drop-zone__label">${touchUI ? "Tap to add a game" : "Drop a game file here to start playing"}</p>
+          <p class="drop-zone__sub">${touchUI ? "Choose a ROM, archive, or disc image from your device" : 'or <span class="drop-zone__browse">browse your device</span>'}</p>
+          <div class="drop-zone__actions">
+            <button class="btn btn--primary btn--sm drop-zone__cta" id="btn-add-game-onboarding" type="button">Choose Files</button>
+          </div>
           <p class="drop-zone__formats" title="Supported file formats">${formatHint}</p>
         </div>
 
         <!-- Onboarding — only visible when library is empty -->
         <div class="onboarding" id="onboarding">
           <div class="welcome-hero">
-            <h2 class="welcome-hero__title">A refined home for your retro library</h2>
-            <p class="welcome-hero__tagline">PSP, N64, PS1, GBA, Saturn, and 20+ more. Locally-powered, cross-device ready.</p>
-            <div class="welcome-hero__badge">
-              <span class="badge-icon">✨</span> Premium Emulation Experience
-            </div>
+            <h2 class="welcome-hero__title">Add one game, then play</h2>
+            <p class="welcome-hero__tagline">Drop a ROM, archive, or disc image to auto-detect the system and boot in seconds.</p>
           </div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
-              <h3>Start Your Collection</h3>
-              <p>Drop a ROM file anywhere or use the button above to add your first game.</p>
+              <h3>Get started in 3 steps</h3>
+              <p>Choose a file, let RetroVault detect the system, then jump straight into play.</p>
               <div class="welcome-steps">
-                <div class="welcome-step">1. Drop your ROM</div>
-                <div class="welcome-step">2. Auto-Detection</div>
-                <div class="welcome-step">3. Play Instantly</div>
+                <div class="welcome-step">1. Choose a game file</div>
+                <div class="welcome-step">2. RetroVault detects the system</div>
+                <div class="welcome-step">3. Play and save progress locally</div>
               </div>
             </div>
             
             <div class="onboarding__card">
-              <span class="card-icon">☁️</span>
-              <h3>Cloud Library</h3>
-              <p>Keep your ROM collection synced in personal cloud storage and open it from any device.</p>
-              <button class="btn btn--outline btn--sm" id="btn-cloud-onboarding" type="button">Open Cloud Settings</button>
+              <span class="card-icon">🎮</span>
+              <h3>Controller ready</h3>
+              <p>Use a gamepad, keyboard, or touch controls without extra setup.</p>
             </div>
 
             <div class="onboarding__card">
-              <span class="card-icon">🎮</span>
-              <h3>Universal Input</h3>
-              <p>Full support for DualSense, Xbox, Switch Pro, and Touch controls with zero configuration.</p>
+              <span class="card-icon">💾</span>
+              <h3>Save anywhere</h3>
+              <p>Use quick save, save states, and autosave to keep your progress close.</p>
             </div>
             
             <div class="onboarding__card">
-              <span class="card-icon">⚡</span>
-              <h3>Smart Performance</h3>
-              <p>Automatically tunes internal resolution and frameskip for your specific device hardware.</p>
+              <span class="card-icon">🔒</span>
+              <h3>Private by default</h3>
+              <p>Your library stays on this device unless you connect cloud storage.</p>
             </div>
           </div>
 
           <div class="onboarding__features">
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">💾</span>
-              <span><strong>Save anytime</strong><br>Keep progress close with up to 8 save slots and quick-save on F5</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
+              <span><strong>Fast launch</strong><br>RetroVault warms up the core and assets as you start playing</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
               <span><strong>Any controller</strong><br>Touch, keyboard, USB gamepad, or Bluetooth with no extra setup</span>
-            </div>
-            <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
-              <span><strong>Auto-optimized</strong><br>Adapts performance settings to your hardware for smooth, stable play</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
@@ -547,6 +542,7 @@ export function initUI(opts: UIOptions): void {
   const dropZone  = el("#drop-zone");
   let dragDepth = 0;
   let dragOverActive = false;
+  const openFilePicker = () => fileInput.click();
   const clearDragOver = () => {
     dragDepth = 0;
     if (!dragOverActive) return;
@@ -565,9 +561,10 @@ export function initUI(opts: UIOptions): void {
     const e = event as KeyboardEvent;
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
-    fileInput.click();
+    openFilePicker();
   };
   bindEvent(dropZone, "keydown", onDropZoneKeydown);
+  bindEvent(dropZone, "click", () => openFilePicker());
 
   const onDragOver = (event: Event) => {
     const e = event as DragEvent;
@@ -656,55 +653,63 @@ export function initUI(opts: UIOptions): void {
   };
   emulator.onError       = (msg)   => { hideLoadingOverlay(); showError(msg); };
   emulator.onGameStart = () => {
-    hideLoadingOverlay();
     transitionToGame();
-    // Hide FAB and show rotate-hint when appropriate
-    mobileFab?.classList.add("mobile-fab--hidden");
-    updateRotateHint();
-    resetPerfSuggestion();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
     setStatusSystem(sys ? sys.shortName : "—");
     setStatusGame(name);
     setStatusTier(emulator.activeTier);
     document.title = `${name} — RetroVault`;
-    const openSettingsWith = (tab?: SettingsTab) =>
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
-    buildInGameControls(
-      emulator, settings, onSettingsChange, onReturnToLibrary,
-      saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
-    );
-    showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-    if (settings.touchControls) {
-      const overlay = getTouchOverlay?.();
-      if (overlay) requestAnimationFrame(() => overlay.show());
-    }
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    afterNextPaint(() => {
+      hideLoadingOverlay();
+      requestAnimationFrame(() => {
+        // Hide FAB and show rotate-hint when appropriate
+        mobileFab?.classList.add("mobile-fab--hidden");
+        updateRotateHint();
+        resetPerfSuggestion();
+        const openSettingsWith = (tab?: SettingsTab) =>
+          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+        buildInGameControls(
+          emulator, settings, onSettingsChange, onReturnToLibrary,
+          saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
+          getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
+        );
+        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+        if (settings.touchControls) {
+          const overlay = getTouchOverlay?.();
+          if (overlay) overlay.show();
+        }
+        document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+      });
+    });
   };
 
   const onResumeGameEvent = () => {
     transitionToGame();
-    // Hide FAB and show rotate-hint when appropriate
-    mobileFab?.classList.add("mobile-fab--hidden");
-    updateRotateHint();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
     document.title = `${name} — RetroVault`;
     setStatusSystem(sys ? sys.shortName : "—");
     setStatusGame(name);
-    const openSettingsWithResume = (tab?: SettingsTab) =>
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
-    buildInGameControls(
-      emulator, settings, onSettingsChange, onReturnToLibrary,
-      saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-      getTouchOverlay, openSettingsWithResume, getNetplayManager, openPlayTogetherSettings
-    );
-    showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-    if (settings.touchControls) {
-      const overlay = getTouchOverlay?.();
-      if (overlay) requestAnimationFrame(() => overlay.show());
-    }
+    afterNextPaint(() => {
+      requestAnimationFrame(() => {
+        // Hide FAB and show rotate-hint when appropriate
+        mobileFab?.classList.add("mobile-fab--hidden");
+        updateRotateHint();
+        const openSettingsWithResume = (tab?: SettingsTab) =>
+          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+        buildInGameControls(
+          emulator, settings, onSettingsChange, onReturnToLibrary,
+          saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
+          getTouchOverlay, openSettingsWithResume, getNetplayManager, openPlayTogetherSettings
+        );
+        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+        if (settings.touchControls) {
+          const overlay = getTouchOverlay?.();
+          if (overlay) overlay.show();
+        }
+      });
+    });
   };
   bindEvent(document, "retrovault:resumeGame", onResumeGameEvent);
 
@@ -1408,6 +1413,12 @@ function _wireLibraryControls(
   if (cloudOnboardingBtn) {
     cloudOnboardingBtn.addEventListener("click", () => {
       _openSettingsFn?.("cloud");
+    });
+  }
+  const addGameOnboardingBtn = document.getElementById("btn-add-game-onboarding");
+  if (addGameOnboardingBtn) {
+    addGameOnboardingBtn.addEventListener("click", () => {
+      (document.getElementById("file-input") as HTMLInputElement | null)?.click();
     });
   }
 
@@ -2542,6 +2553,16 @@ function buildInGameControls(
 ): void {
   const container = el("#header-actions");
   container.innerHTML = "";
+  const currentGameName = getCurrentGameName?.()?.trim() || settings.lastGameName?.trim() || "Unknown";
+
+  const nowPlayingChip = make("div", {
+    class: "now-playing-chip",
+    role: "status",
+    "aria-live": "polite",
+    "aria-label": `Now playing ${currentGameName}`,
+  });
+  nowPlayingChip.textContent = `Now playing · ${currentGameName}`;
+  container.append(nowPlayingChip);
 
   if (_inGameControlsAc) {
     _inGameControlsAc.abort();
@@ -6900,6 +6921,9 @@ export function transitionToGame(): void {
 export function transitionToLibrary(): void {
   hideEjsContainer();
   requestAnimationFrame(() => showLanding());
+}
+function afterNextPaint(callback: () => void): void {
+  requestAnimationFrame(() => requestAnimationFrame(callback));
 }
 export function setLoadingMessage(msg: string): void { const e = document.getElementById("loading-message"); if (e) e.textContent = msg; }
 /** Set a secondary hint shown under the loading message. Pass empty string to hide. */
