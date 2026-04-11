@@ -29,13 +29,13 @@ import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT } from "./saves.js";
 import { detectCapabilitiesCached, formatDetailedSummary, scheduleIdleTask, getResolutionCoreOptions } from "./performance.js";
 import { gameCompatibilityDb } from "./compatibility.js";
-import { buildDOM, initUI, showLanding,
-         hideEjsContainer, renderLibrary, openSettingsPanel,
-         buildLandingControls, showTierDowngradePrompt,
-         promptAutoSaveRestore,
-         resolveSystemAndAdd,
-         showError, showInfoToast,
-         TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
+import { buildDOM, initUI,
+          transitionToLibrary, renderLibrary, openSettingsPanel,
+          buildLandingControls, showTierDowngradePrompt,
+          promptAutoSaveRestore,
+          resolveSystemAndAdd,
+          showError, showInfoToast, showLoadingOverlay,
+          TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
 import { isTouchDevice } from "./touchControls.js";
 // Initialize Chrome-specific performance optimizations early
 import { optimizeChromePerformance } from "./performance.js";
@@ -398,12 +398,17 @@ async function main(): Promise<void> {
   });
 
   // 5. Wire launch handler with warmup trigger
+  let launchLock = false;
+
   const onLaunchGame = async (
     file: File,
     systemId: string,
     gameId?: string,
     tierOverride?: PerformanceTier
   ) => {
+    if (launchLock) return;
+    launchLock = true;
+
     // Trigger warmups if they haven't run yet
     triggerWarmups();
 
@@ -553,6 +558,8 @@ async function main(): Promise<void> {
       } catch { /* orientation lock not supported */ }
       if (typeof biosUrl === "string" && biosUrl.startsWith("blob:")) URL.revokeObjectURL(biosUrl);
     }
+
+    launchLock = false;
   };
 
 
@@ -618,6 +625,7 @@ async function main(): Promise<void> {
     if (!currentGameFile || !currentSystemId) return;
 
     try {
+      showLoadingOverlay();
       const file = currentGameFile instanceof File
         ? currentGameFile
         : new File([currentGameFile], currentGameFileName ?? "game.bin");
@@ -653,8 +661,7 @@ async function main(): Promise<void> {
     // Hide touch controls overlay
     touchOverlay?.hide();
 
-    hideEjsContainer();
-    showLanding();
+    transitionToLibrary();
     document.title = "RetroVault";
 
     void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);

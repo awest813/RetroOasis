@@ -657,8 +657,7 @@ export function initUI(opts: UIOptions): void {
   emulator.onError       = (msg)   => { hideLoadingOverlay(); showError(msg); };
   emulator.onGameStart = () => {
     hideLoadingOverlay();
-    showEjsContainer();
-    hideLanding();
+    transitionToGame();
     // Hide FAB and show rotate-hint when appropriate
     mobileFab?.classList.add("mobile-fab--hidden");
     updateRotateHint();
@@ -685,8 +684,7 @@ export function initUI(opts: UIOptions): void {
   };
 
   const onResumeGameEvent = () => {
-    showEjsContainer();
-    hideLanding();
+    transitionToGame();
     // Hide FAB and show rotate-hint when appropriate
     mobileFab?.classList.add("mobile-fab--hidden");
     updateRotateHint();
@@ -6875,12 +6873,21 @@ export function showLoadingOverlay(): void { document.getElementById("loading-ov
 export function hideLoadingOverlay(): void {
   document.getElementById("loading-overlay")?.classList.remove("visible");
   setLoadingProgress(null);
-  // Clear subtitle when hiding
   const sub = document.getElementById("loading-subtitle");
   if (sub) sub.textContent = "";
 }
 export function showEjsContainer(): void  { document.getElementById("ejs-container")?.classList.add("visible"); }
 export function hideEjsContainer(): void  { document.getElementById("ejs-container")?.classList.remove("visible"); }
+
+export function transitionToGame(): void {
+  hideLanding();
+  requestAnimationFrame(() => showEjsContainer());
+}
+
+export function transitionToLibrary(): void {
+  hideEjsContainer();
+  requestAnimationFrame(() => showLanding());
+}
 export function setLoadingMessage(msg: string): void { const e = document.getElementById("loading-message"); if (e) e.textContent = msg; }
 /** Set a secondary hint shown under the loading message. Pass empty string to hide. */
 export function setLoadingSubtitle(msg: string): void { const e = document.getElementById("loading-subtitle"); if (e) e.textContent = msg; }

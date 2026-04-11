@@ -308,7 +308,7 @@ body {
   gap: 22px;
   background: transparent;
   z-index: 5;
-  transition: opacity var(--transition), visibility var(--transition);
+  transition: opacity 0.28s ease, visibility 0.28s ease;
   scrollbar-width: thin;
   scrollbar-color: var(--c-border) transparent;
 }
@@ -1065,10 +1065,11 @@ body {
   background: #000;
   opacity: 0;
   visibility: hidden;
-  transition: opacity var(--transition), visibility var(--transition);
+  transform: scale(1.01);
+  transition: opacity 0.28s ease, visibility 0.28s ease, transform 0.28s ease;
 }
 
-#ejs-container.visible { opacity: 1; visibility: visible; }
+#ejs-container.visible { opacity: 1; visibility: visible; transform: scale(1); }
 #ejs-player { width: 100%; height: 100%; }
 
 /* ── Touch controls overlay (runtime) ─────────────────────── */
