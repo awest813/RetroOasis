@@ -7409,3 +7409,69 @@ body {
 .loading-progress[hidden] {
   display: none;
 }
+
+/* ── Cloud Library Settings ────────────────────────── */
+.cloud-connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cloud-connection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.cloud-connection-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--c-accent-30);
+}
+
+.cloud-connection-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cloud-connection-item__info strong {
+  font-size: 1.05rem;
+  color: var(--c-text);
+}
+
+.cloud-connection-item__info span {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cloud-connection-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cloud-connection-empty {
+  padding: 40px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: var(--c-text-dim);
+}
+
+.sys-badge--experimental {
+  font-size: 0.65rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--c-warning);
+  color: #000;
+  font-weight: 800;
+  vertical-align: middle;
+}

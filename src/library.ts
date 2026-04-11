@@ -43,7 +43,13 @@ export interface GameEntry {
   size: number;
   addedAt: number;
   lastPlayedAt: number | null;
-  blob: Blob;
+  blob: Blob | null;
+  /** ID of the cloud connection if this is a virtual game. */
+  cloudId?: string;
+  /** Remote path on the provider. */
+  remotePath?: string;
+  /** Remote thumbnail / box art URL. */
+  thumbnailUrl?: string;
 }
 
 /**
@@ -200,6 +206,39 @@ export class GameLibrary {
   }
 
   /**
+   * Add a virtual game (cloud-hosted) to the library.
+   * Remote games are persisted as metadata for listing and tracking, with
+   * the ROM payload fetched only on demand.
+   */
+  async addVirtualGame(
+    name: string,
+    fileName: string,
+    systemId: string,
+    size: number,
+    cloudId: string,
+    remotePath: string,
+    thumbnailUrl?: string
+  ): Promise<GameEntry> {
+    const db = await openDB();
+    const entry: GameEntry = {
+      id:           createUuid(),
+      name,
+      fileName,
+      systemId,
+      size,
+      addedAt:      Date.now(),
+      lastPlayedAt: null,
+      blob:         null,
+      cloudId,
+      remotePath,
+      thumbnailUrl,
+    };
+    await promisify(tx(db, "readwrite").put(entry));
+    invalidateMetadataCache();
+    return entry;
+  }
+
+  /**
    * Find an existing entry with the same fileName and systemId.
    * Uses metadata-only scan instead of loading full blob data.
    */
@@ -213,7 +252,7 @@ export class GameLibrary {
         const idx = store.index(INDEX_FILE_SYSTEM);
         const match = await promisify<GameEntry | undefined>(idx.get([fileName, systemId]));
         if (match) {
-          setCachedBlob(match.id, match.blob);
+          if (match.blob) setCachedBlob(match.id, match.blob);
           return match;
         }
         return null;
@@ -249,7 +288,7 @@ export class GameLibrary {
     if (!result) return null;
     if (cached) {
       result.blob = cached;
-    } else {
+    } else if (result.blob) {
       setCachedBlob(id, result.blob);
     }
     return result;
@@ -306,7 +345,7 @@ export class GameLibrary {
 
     const db     = await openDB();
     const result = await promisify<GameEntry | undefined>(tx(db, "readonly").get(id));
-    if (!result) return null;
+    if (!result || !result.blob) return null;
     setCachedBlob(id, result.blob);
     return result.blob;
   }
@@ -324,7 +363,7 @@ export class GameLibrary {
       try {
         const db     = await openDB();
         const result = await promisify<GameEntry | undefined>(tx(db, "readonly").get(id));
-        if (result) {
+        if (result && result.blob) {
           setCachedBlob(id, result.blob);
           return result.blob;
         }

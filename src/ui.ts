@@ -85,6 +85,8 @@ import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
 import { normaliseInviteCode, INVITE_CODE_LEN } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
+import { createProvider, type CloudProvider, type CloudFile } from "./cloudLibrary.js";
+import type { CloudLibraryConnection } from "./main.js";
 import { SaveGameService } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
 import { queryRequired as el, createElement as make } from "./ui/dom.js";
@@ -1656,7 +1658,15 @@ function buildGameCard(
     setLoadingMessage(`Starting ${game.name}…`);
     setLoadingSubtitle("Getting ready to play");
     try {
-      const blob = await library.getGameBlob(game.id);
+      let blob = await library.getGameBlob(game.id);
+      if (!blob && game.cloudId) {
+        setLoadingMessage("Streaming from cloud…");
+        setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
+        blob = await fetchFromCloud(game, settings);
+        
+        // Optional: Cache it locally for next time?
+        // Actually let's keep it transient for now as per "streaming" intent.
+      }
       if (!blob) {
         hideLoadingOverlay();
         showError(`"${game.name}" could not be found in your library. Try adding it again.`);
@@ -2073,7 +2083,7 @@ export async function resolveSystemAndAdd(
           }
 
           if (!picked) return;
-          resolvedFile = new File([picked.blob], picked.name, { type: picked.blob.type });
+          resolvedFile = new File([picked.blob!], picked.name, { type: picked.blob!.type });
           showLoadingOverlay();
           setLoadingMessage("File selected — detecting game system…");
           setLoadingSubtitle("");
@@ -2083,7 +2093,7 @@ export async function resolveSystemAndAdd(
             `Archive entry selected: "${picked.name}" (${formatBytes(picked.size)})`,
           );
         } else {
-          resolvedFile = new File([extracted.blob], extracted.name, { type: extracted.blob.type });
+          resolvedFile = new File([extracted.blob!], extracted.name, { type: extracted.blob!.type });
         }
         setLoadingMessage("Detecting game system…");
         setLoadingSubtitle("");
@@ -3144,7 +3154,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 
-type SettingsTab = "performance" | "display" | "library" | "bios" | "multiplayer" | "debug" | "about";
+type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "debug" | "about";
 
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
@@ -3288,6 +3298,7 @@ function buildSettingsContent(
     { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
     { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
     { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
+    { id: "cloud",        icon: "☁️", label: "Cloud Library",  ariaLabel: "Cloud Library" },
     { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
     { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
@@ -3402,10 +3413,11 @@ function buildSettingsContent(
   buildPerfTab(panels[0]!, settings, deviceCaps, onSettingsChange, emulatorRef);
   buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef);
   buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef);
-  buildBiosTab(panels[3]!, biosLibrary);
-  buildMultiplayerTab(panels[4]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
-  buildDebugTab(panels[5]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
-  buildAboutTab(panels[6]!);
+  buildCloudTab(panels[3]!, settings, library, onSettingsChange);
+  buildBiosTab(panels[4]!, biosLibrary);
+  buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
+  buildDebugTab(panels[6]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
+  buildAboutTab(panels[7]!);
 
   const applySearchFilter = () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -6674,6 +6686,171 @@ export function setLoadingProgress(percent: number | null): void {
   } else {
     container.hidden = false;
     bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  }
+}
+
+
+function buildCloudTab(
+  container:        HTMLElement,
+  settings:         Settings,
+  library:          GameLibrary,
+  onSettingsChange: (patch: Partial<Settings>) => void,
+): void {
+  container.innerHTML = "";
+  const section = make("div", { class: "settings-section" });
+  section.appendChild(make("h4", { class: "settings-section__title" }, "Cloud Library Connections"));
+  section.appendChild(make("p", { class: "settings-section__desc" }, "Keep your ROMs in personal cloud storage and stream them directly. Metadata and progress sync automatically across devices."));
+
+  const list = make("div", { class: "cloud-connection-list" });
+  
+  if (settings.cloudLibraries.length === 0) {
+    const empty = make("div", { class: "cloud-connection-empty" });
+    empty.innerHTML = `<p>You haven't connected any cloud libraries yet.</p>`;
+    list.appendChild(empty);
+  } else {
+    settings.cloudLibraries.forEach((conn) => {
+      const item = make("div", { class: "cloud-connection-item" });
+      const info = make("div", { class: "cloud-connection-item__info" });
+      info.appendChild(make("strong", {}, conn.name));
+      info.appendChild(make("span", {}, conn.provider.toUpperCase()));
+      
+      const actions = make("div", { class: "cloud-connection-item__actions" });
+      
+      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync");
+      syncBtn.addEventListener("click", () => syncCloudLibrary(conn, library, onSettingsChange));
+      
+      const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Remove");
+      removeBtn.addEventListener("click", () => {
+        const filtered = settings.cloudLibraries.filter(c => c.id !== conn.id);
+        onSettingsChange({ cloudLibraries: filtered });
+      });
+      
+      actions.append(syncBtn, removeBtn);
+      item.append(info, actions);
+      list.appendChild(item);
+    });
+  }
+
+  const addBtn = make("button", { class: "btn btn--primary", style: "margin-top:20px;", type: "button" }, "+ Connect New Library");
+  addBtn.addEventListener("click", () => {
+    showInfoToast("Provider authentication modal coming soon! For now, only WebDAV is supported via manual config.", "info");
+    // Placeholder for actual modal
+  });
+
+  section.append(list, addBtn);
+  container.appendChild(section);
+}
+
+
+async function fetchFromCloud(game: GameMetadata, settings: Settings): Promise<Blob> {
+  const conn = settings.cloudLibraries.find(c => c.id === game.cloudId);
+  if (!conn) throw new Error("Cloud connection not found. Reconnect your library in Settings.");
+  const provider = createProvider(conn);
+  if (!provider) throw new Error("Cloud provider could not be initialized.");
+  
+  const url = await provider.getDownloadUrl(game.remotePath!);
+  const headers: Record<string, string> = {};
+  
+  // Specific auth handling for providers that don't return pre-signed URLs
+  if (conn.provider === "gdrive") {
+    const config = JSON.parse(conn.config);
+    if (config.accessToken) headers["Authorization"] = `Bearer ${config.accessToken}`;
+  } else if (conn.provider === "webdav") {
+    const config = JSON.parse(conn.config);
+    const credentials = `${config.username}:${config.password}`;
+    const utf8Bytes = new TextEncoder().encode(credentials);
+    let binary = "";
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]!);
+    }
+    headers["Authorization"] = "Basic " + btoa(binary);
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+     if (response.status === 401 || response.status === 403) {
+       throw new Error("Cloud authentication failed. Please reconnect your account.");
+     }
+     throw new Error(`Cloud download failed: ${response.statusText} (${response.status})`);
+  }
+  
+  // Stream with progress tracking
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  let loaded = 0;
+
+  const reader = response.body?.getReader();
+  if (!reader) return await response.blob();
+
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    if (total > 0) {
+      setLoadingProgress((loaded / total) * 100);
+    }
+  }
+
+  return new Blob(chunks);
+}
+
+async function syncCloudLibrary(
+  conn: CloudLibraryConnection,
+  library: GameLibrary,
+  onSettingsChange: (patch: Partial<Settings>) => void
+): Promise<void> {
+  const provider = createProvider(conn);
+  if (!provider) {
+    showError("Invalid cloud provider configuration.");
+    return;
+  }
+
+  showLoadingOverlay();
+  setLoadingMessage(`Syncing ${conn.name}…`);
+  try {
+    if (!(await provider.isAvailable())) {
+      throw new Error("Cloud provider is not reachable. Check your connection or credentials.");
+    }
+    
+    setLoadingSubtitle("Scanning for game files…");
+    const files = await provider.listFiles();
+    const romFiles = files.filter(f => !f.isDirectory && detectSystem(f.name));
+    
+    setLoadingSubtitle(`Found ${romFiles.length} games. Integrating into library…`);
+    
+    for (const f of romFiles) {
+      const res = detectSystem(f.name);
+      if (res) {
+         const sys = Array.isArray(res) ? res[0] : res;
+         if (!sys) continue;
+         const systemId = sys.id;
+         // Check if already exists
+         const existing = await library.findByFileName(f.name, systemId);
+         if (!existing) {
+           await library.addVirtualGame(
+             f.name.replace(/\.[^.]+$/, ""),
+             f.name,
+             systemId,
+             f.size,
+             conn.id,
+             f.path,
+             f.thumbnailUrl
+           );
+         }
+      }
+    }
+    
+    showInfoToast(`Successfully synced ${romFiles.length} games from ${conn.name}.`, "success");
+    onSettingsChange({});
+    // We don't need to call onSettingsChange unless we want to trigger a re-render of something specific,
+    // but the library grid will re-render automatically if we invalidate/trigger it.
+    // renderLibrary will be called by the next refresh cycle or we can force it.
+  } catch (e: any) {
+    showError(e.message || "Failed to sync cloud library.");
+  } finally {
+    hideLoadingOverlay();
   }
 }
 

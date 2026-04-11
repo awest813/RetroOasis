@@ -43,6 +43,15 @@ optimizeChromePerformance();
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import type { PostProcessEffect } from "./webgpuPostProcess.js";
 
+export interface CloudLibraryConnection {
+  id: string;
+  provider: "gdrive" | "dropbox" | "onedrive" | "pcloud" | "mega" | "webdav";
+  name: string;
+  enabled: boolean;
+  /** JSON-stringified provider-specific settings (tokens, URLs, etc.) */
+  config: string;
+}
+
 // ── Settings schema ───────────────────────────────────────────────────────────
 
 export interface Settings {
@@ -85,6 +94,8 @@ export interface Settings {
   netplayUsername: string;
   /** Whether verbose debug logging is written to the browser console. */
   verboseLogging:  boolean;
+  /** Configured cloud library sources. */
+  cloudLibraries:  CloudLibraryConnection[];
   /**
    * Audio enhancement filter type.
    * `"none"` disables filtering; `"lowpass"` reduces high-frequency crunch
@@ -125,6 +136,7 @@ const DEFAULT_SETTINGS: Settings = {
   netplayServerUrl: "",
   netplayUsername: "",
   verboseLogging:  false,
+  cloudLibraries:  [],
   audioFilterType: "none" as "none" | "lowpass" | "highpass",
   audioFilterCutoff: 10_000,
   uiMode: "auto",
@@ -155,6 +167,7 @@ function loadSettings(): Settings {
       showAudioVis: typeof parsed.showAudioVis === "boolean"
         ? parsed.showAudioVis
         : DEFAULT_SETTINGS.showAudioVis,
+      cloudLibraries: Array.isArray(parsed.cloudLibraries) ? parsed.cloudLibraries : DEFAULT_SETTINGS.cloudLibraries,
       useWebGPU: typeof parsed.useWebGPU === "boolean"
         ? parsed.useWebGPU
         : DEFAULT_SETTINGS.useWebGPU,
@@ -547,6 +560,7 @@ async function main(): Promise<void> {
   const onApplyPatch = async (gameId: string, patchFile: File): Promise<void> => {
     const entry = await library.getGame(gameId);
     if (!entry) throw new Error("Game not found in library");
+    if (!entry.blob) throw new Error("This game is currently in the cloud. Please launch it once to download it before applying patches.");
 
     const romBuffer   = await entry.blob.arrayBuffer();
     const patchBuffer = await patchFile.arrayBuffer();
@@ -554,8 +568,8 @@ async function main(): Promise<void> {
     const { applyPatch } = await import("./patcher.js");
     const patched = applyPatch(romBuffer, patchBuffer);
 
-    const patchedBlob = new Blob([patched], { type: entry.blob.type });
-    const patchedFile = new File([patchedBlob], entry.fileName, { type: entry.blob.type });
+    const patchedBlob = new Blob([patched], { type: entry.blob!.type });
+    const patchedFile = new File([patchedBlob], entry.fileName, { type: entry.blob!.type });
 
     // Update the stored blob in-place so game identity (save states, tier
     // profile, history) is preserved.
@@ -758,7 +772,7 @@ async function main(): Promise<void> {
     if (currentGameId && currentSystemId) {
       const entry = await library.getGame(currentGameId);
       if (entry) {
-        const file = new File([entry.blob], entry.fileName, { type: entry.blob.type });
+        const file = new File([entry.blob!], entry.fileName, { type: entry.blob!.type });
         void onLaunchGame(file, currentSystemId, currentGameId);
       }
     }
