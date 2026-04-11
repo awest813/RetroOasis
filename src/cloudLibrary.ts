@@ -275,7 +275,7 @@ export class MegaLibraryProvider implements CloudProvider {
   }
 
   async listFiles(_folderId?: string): Promise<CloudFile[]> {
-    if (this.isPublic) {
+    if (this._isPublic) {
         // Public folders have a specific structure. 
         // Note: Full crypto is needed to decode filenames in private mode.
         // For public mode, we can often fetch metadata but decoding is still needed.
