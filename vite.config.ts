@@ -4,6 +4,10 @@ export default defineConfig({
   // Serve from repo root; Vite will pick up index.html automatically.
   root: ".",
 
+  // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
+  // Has no effect during local `vite dev` because the dev server serves from /.
+  base: "/WebPPSSPP/",
+
   server: {
     port: 5173,
     // PPSSPP core requires SharedArrayBuffer, which is gated behind
