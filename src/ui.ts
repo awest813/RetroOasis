@@ -3741,7 +3741,7 @@ function buildDisplayTab(
 
   mobileSection.appendChild(buildToggleRow(
     "On-screen buttons",
-    "Show touch controls while playing — tap the \"🎮 Edit\" button in the game toolbar to reposition buttons",
+    "Off by default on phones and tablets so core-provided controls do not overlap. Turn this on to show RetroVault's on-screen buttons, then tap the \"🎮 Edit\" button in the game toolbar to reposition them.",
     settings.touchControls,
     (v) => onSettingsChange({ touchControls: v })
   ));

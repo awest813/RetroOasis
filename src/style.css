@@ -102,6 +102,10 @@
 }
 
 html, body { height: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 @supports (height: 100dvh) {
   html, body { height: 100dvh; }
@@ -6903,7 +6907,7 @@ body {
 @media (max-width: 640px) {
   #landing {
     padding: 20px 16px calc(24px + var(--footer-h) + var(--safe-bottom));
-    gap: 22px;
+    gap: 26px;
   }
 
   .library-search,
@@ -6919,8 +6923,95 @@ body {
     font-size: 2.1rem;
   }
 
+  .drop-zone--prominent {
+    min-height: 0;
+    padding: 24px 18px 20px;
+    gap: 8px;
+  }
+
+  .drop-zone__icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .drop-zone__label {
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  .drop-zone__sub {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .drop-zone__cta {
+    min-width: 0;
+    width: 100%;
+    max-width: 220px;
+  }
+
+  .drop-zone__formats {
+    font-size: 0.74rem;
+    line-height: 1.3;
+    margin-top: -2px;
+  }
+
+  .welcome-hero {
+    margin-bottom: 10px;
+    padding-top: 2px;
+  }
+
+  .welcome-hero__title {
+    max-width: 13ch;
+    font-size: clamp(1.25rem, 5.8vw, 1.7rem);
+    line-height: 1.04;
+    margin-bottom: 6px;
+  }
+
+  .welcome-hero__tagline {
+    max-width: 32ch;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .welcome-steps {
+    flex-direction: column;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  .welcome-step + .welcome-step::before {
+    display: none;
+  }
+
   .welcome-step {
+    width: 100%;
+    padding: 10px 12px;
     border-radius: var(--radius-lg);
+  }
+
+  .onboarding__card {
+    padding: 16px;
+  }
+
+  .onboarding__card h3 {
+    font-size: 1rem;
+  }
+
+  .onboarding__card p {
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .onboarding__feature {
+    padding: 14px 14px;
+    font-size: 0.88rem;
+  }
+
+  .landing__legal {
+    font-size: 0.78rem;
+    line-height: 1.45;
   }
 }
 

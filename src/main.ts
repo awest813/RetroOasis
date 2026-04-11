@@ -128,7 +128,9 @@ const DEFAULT_SETTINGS: Settings = {
   useWebGPU:       false,
   postProcessEffect: "none" as PostProcessEffect,
   autoSaveEnabled: true,
-  touchControls:   isTouchDevice(),
+  // Keep touch controls opt-in on mobile so they don't compete with cores that
+  // already provide their own on-screen inputs.
+  touchControls:   false,
   hapticFeedback:  true,
   touchOpacity:    0.85,
   touchButtonScale: 1.0,
