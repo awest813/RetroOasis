@@ -660,6 +660,18 @@ export function initUI(opts: UIOptions): void {
     setStatusGame(name);
     setStatusTier(emulator.activeTier);
     document.title = `${name} — RetroVault`;
+    const openSettingsWith = (tab?: SettingsTab) =>
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+    buildInGameControls(
+      emulator, settings, onSettingsChange, onReturnToLibrary,
+      saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
+      getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
+    );
+    showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+    if (settings.touchControls) {
+      const overlay = getTouchOverlay?.();
+      if (overlay) overlay.show();
+    }
     afterNextPaint(() => {
       hideLoadingOverlay();
       requestAnimationFrame(() => {
@@ -667,18 +679,6 @@ export function initUI(opts: UIOptions): void {
         mobileFab?.classList.add("mobile-fab--hidden");
         updateRotateHint();
         resetPerfSuggestion();
-        const openSettingsWith = (tab?: SettingsTab) =>
-          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
-        buildInGameControls(
-          emulator, settings, onSettingsChange, onReturnToLibrary,
-          saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-          getTouchOverlay, openSettingsWith, getNetplayManager, openPlayTogetherSettings
-        );
-        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-        if (settings.touchControls) {
-          const overlay = getTouchOverlay?.();
-          if (overlay) overlay.show();
-        }
         document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
       });
     });
@@ -691,23 +691,23 @@ export function initUI(opts: UIOptions): void {
     document.title = `${name} — RetroVault`;
     setStatusSystem(sys ? sys.shortName : "—");
     setStatusGame(name);
+    const openSettingsWithResume = (tab?: SettingsTab) =>
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+    buildInGameControls(
+      emulator, settings, onSettingsChange, onReturnToLibrary,
+      saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
+      getTouchOverlay, openSettingsWithResume, getNetplayManager, openPlayTogetherSettings
+    );
+    showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+    if (settings.touchControls) {
+      const overlay = getTouchOverlay?.();
+      if (overlay) overlay.show();
+    }
     afterNextPaint(() => {
       requestAnimationFrame(() => {
         // Hide FAB and show rotate-hint when appropriate
         mobileFab?.classList.add("mobile-fab--hidden");
         updateRotateHint();
-        const openSettingsWithResume = (tab?: SettingsTab) =>
-          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
-        buildInGameControls(
-          emulator, settings, onSettingsChange, onReturnToLibrary,
-          saveLibrary, saveService, getCurrentGameId, getCurrentGameName, getCurrentSystemId,
-          getTouchOverlay, openSettingsWithResume, getNetplayManager, openPlayTogetherSettings
-        );
-        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
-        if (settings.touchControls) {
-          const overlay = getTouchOverlay?.();
-          if (overlay) overlay.show();
-        }
       });
     });
   };
