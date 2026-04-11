@@ -703,6 +703,194 @@ export function getPSXSettingsForTier(tier: PerformanceTier): Record<string, str
 }
 
 
+// ── NES (FCEUmm) tier-specific core options ───────────────────────────────────
+//
+// EmulatorJS uses FCEUmm for NES. Key options:
+//   fceumm_overscan           — crop the 8-px overscan borders
+//   fceumm_palettes           — colour palette (default → NES Classic → Wavebeam → CXA2025AS)
+//   fceumm_sndquality         — audio resampling quality (Low / High)
+//   fceumm_no_sprite_limit    — remove 8 sprites/scanline HW limit (reduces flicker)
+//   fceumm_use_official_overclocking — PPU overclock (reduces scanline flicker)
+
+const NES_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    fceumm_overscan: "enabled",
+    fceumm_palettes: "default",
+    fceumm_sndquality: "Low",
+    fceumm_no_sprite_limit: "disabled",
+    fceumm_gamepad_p1: "gamepad",
+    fceumm_gamepad_p2: "gamepad",
+    fceumm_use_official_overclocking: "disabled",
+  },
+  medium: {
+    fceumm_overscan: "enabled",
+    fceumm_palettes: "nes-classic",
+    fceumm_sndquality: "High",
+    fceumm_no_sprite_limit: "disabled",
+    fceumm_gamepad_p1: "gamepad",
+    fceumm_gamepad_p2: "gamepad",
+    fceumm_use_official_overclocking: "disabled",
+  },
+  high: {
+    fceumm_overscan: "enabled",
+    // Wavebeam palette is vibrant and well-suited for HD displays
+    fceumm_palettes: "wavebeam",
+    fceumm_sndquality: "High",
+    // Removing the sprite limit reduces flickering in multi-sprite games (e.g. Battletoads)
+    fceumm_no_sprite_limit: "enabled",
+    fceumm_gamepad_p1: "gamepad",
+    fceumm_gamepad_p2: "gamepad",
+    fceumm_use_official_overclocking: "disabled",
+  },
+  ultra: {
+    fceumm_overscan: "enabled",
+    // Sony CXA2025AS is the most colour-accurate consumer CRT palette
+    fceumm_palettes: "sony-cxa2025as",
+    fceumm_sndquality: "High",
+    fceumm_no_sprite_limit: "enabled",
+    fceumm_gamepad_p1: "gamepad",
+    fceumm_gamepad_p2: "gamepad",
+    // PPU overclocking reduces scanline flicker at the cost of minor accuracy
+    fceumm_use_official_overclocking: "enabled",
+  },
+};
+
+// ── SNES (Snes9x) tier-specific core options ──────────────────────────────────
+//
+// EmulatorJS uses Snes9x for SNES. Key options:
+//   snes9x_frameskip          — "auto" | "disabled"
+//   snes9x_audio_interpolation — "none" | "gaussian" | "cubic" | "sinc"
+//   snes9x_overclock_cycles   — "disabled" | "compatible" | "max"
+//   snes9x_blargg_ntsc_filter — NTSC scanline emulation
+
+const SNES_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    snes9x_frameskip: "auto",
+    snes9x_frameskip_threshold: "33",
+    // Gaussian is the reference SNES SPC700 audio algorithm — minimal CPU cost
+    snes9x_audio_interpolation: "gaussian",
+    snes9x_overclock_cycles: "disabled",
+    snes9x_blargg_ntsc_filter: "disabled",
+    snes9x_overscan: "enabled",
+    snes9x_gfx_hires: "enabled",
+    snes9x_gfx_transp: "enabled",
+  },
+  medium: {
+    snes9x_frameskip: "auto",
+    snes9x_frameskip_threshold: "33",
+    snes9x_audio_interpolation: "gaussian",
+    snes9x_overclock_cycles: "disabled",
+    snes9x_blargg_ntsc_filter: "disabled",
+    snes9x_overscan: "enabled",
+    snes9x_gfx_hires: "enabled",
+    snes9x_gfx_transp: "enabled",
+  },
+  high: {
+    snes9x_frameskip: "disabled",
+    // Sinc is the highest-quality audio resampler in Snes9x
+    snes9x_audio_interpolation: "sinc",
+    // "compatible" overclock helps SA-1/SuperFX titles without compatibility issues
+    snes9x_overclock_cycles: "compatible",
+    snes9x_blargg_ntsc_filter: "disabled",
+    snes9x_overscan: "enabled",
+    snes9x_gfx_hires: "enabled",
+    snes9x_gfx_transp: "enabled",
+  },
+  ultra: {
+    snes9x_frameskip: "disabled",
+    snes9x_audio_interpolation: "sinc",
+    // Max overclock: Star Fox / Yoshi's Island run remarkably smoother
+    snes9x_overclock_cycles: "max",
+    snes9x_blargg_ntsc_filter: "disabled",
+    snes9x_overscan: "enabled",
+    snes9x_gfx_hires: "enabled",
+    snes9x_gfx_transp: "enabled",
+  },
+};
+
+// ── Game Boy / Game Boy Color (Gambatte) tier settings ────────────────────────
+//
+// Gambatte is the precision GB/GBC core. Key options:
+//   gambatte_gb_colorization  — GBC palette colorisation for monochrome GB titles
+//   gambatte_gb_internal_palette — built-in DMG palette name
+//   gambatte_mix_frames       — LCD ghosting simulation ("disabled" | "mix")
+//   gambatte_dark_filter_level — darkness filter 0–100 (mimics original screen bias)
+
+const GAMBATTE_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    gambatte_gb_colorization: "disabled",
+    gambatte_gb_internal_palette: "GB - DMG",
+    gambatte_mix_frames: "disabled",
+    gambatte_up_down_allowed: "disabled",
+    gambatte_turbo_period: "4",
+    gambatte_dark_filter_level: "0",
+  },
+  medium: {
+    // Use GBC built-in colorisation for monochrome GB titles in GBC mode
+    gambatte_gb_colorization: "internal",
+    gambatte_gb_internal_palette: "GB - DMG",
+    gambatte_mix_frames: "disabled",
+    gambatte_up_down_allowed: "disabled",
+    gambatte_turbo_period: "4",
+    gambatte_dark_filter_level: "0",
+  },
+  high: {
+    gambatte_gb_colorization: "internal",
+    gambatte_gb_internal_palette: "GB - DMG",
+    // "mix" blending replicates the DMG LCD motion handling most faithfully
+    gambatte_mix_frames: "mix",
+    gambatte_up_down_allowed: "disabled",
+    gambatte_turbo_period: "4",
+    gambatte_dark_filter_level: "0",
+  },
+  ultra: {
+    gambatte_gb_colorization: "internal",
+    gambatte_gb_internal_palette: "GB - DMG",
+    gambatte_mix_frames: "mix",
+    gambatte_up_down_allowed: "disabled",
+    gambatte_turbo_period: "4",
+    // 10% darkness mimics the slight greenish bias of original DMG screens
+    gambatte_dark_filter_level: "10",
+  },
+};
+
+// ── Atari 2600 (Stella) tier settings ─────────────────────────────────────────
+//
+// Stella's main visual quality options are TV signal filter type and phosphor glow.
+
+const ATARI2600_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    stella_filter: "none",
+    stella_palette: "standard",
+    stella_phosphor: "byrom",
+    stella_phosphor_blend: "40",
+    stella_crop_hoverscan: "enabled",
+  },
+  medium: {
+    stella_filter: "none",
+    stella_palette: "z26",
+    stella_phosphor: "byrom",
+    stella_phosphor_blend: "50",
+    stella_crop_hoverscan: "enabled",
+  },
+  high: {
+    // "composite" adds gentle RF-style bloom to the image
+    stella_filter: "composite",
+    stella_palette: "z26",
+    stella_phosphor: "byrom",
+    stella_phosphor_blend: "60",
+    stella_crop_hoverscan: "enabled",
+  },
+  ultra: {
+    // "svideo" gives the warmest CRT look without the harshness of RF noise
+    stella_filter: "svideo",
+    stella_palette: "standard",
+    stella_phosphor: "byrom",
+    stella_phosphor_blend: "70",
+    stella_crop_hoverscan: "enabled",
+  },
+};
+
 // ── Sega Saturn (Yabause) tier settings ───────────────────────────────────────
 //
 // EmulatorJS maps `segaSaturn` → Yabause (not Beetle Saturn). Options follow
@@ -934,8 +1122,9 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#e52b2b",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {},
+    qualitySettings: NES_TIER_SETTINGS.high,
+    perfSettings: NES_TIER_SETTINGS.low,
+    tierSettings: NES_TIER_SETTINGS,
   },
   {
     id: "snes",
@@ -946,8 +1135,9 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#7b3fae",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {},
+    qualitySettings: SNES_TIER_SETTINGS.high,
+    perfSettings: SNES_TIER_SETTINGS.low,
+    tierSettings: SNES_TIER_SETTINGS,
   },
   {
     id: "gba",
@@ -966,29 +1156,33 @@ export const SYSTEMS: SystemInfo[] = [
     id: "gbc",
     name: "Game Boy Color",
     shortName: "GBC",
+    iconUrl: "/assets/gbc_system_icon_premium.png",
     extensions: ["gbc"],
     color: "#e87d2a",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {},
+    qualitySettings: GAMBATTE_TIER_SETTINGS.high,
+    perfSettings: GAMBATTE_TIER_SETTINGS.low,
+    tierSettings: GAMBATTE_TIER_SETTINGS,
   },
   {
     id: "gb",
     name: "Game Boy",
     shortName: "GB",
+    iconUrl: "/assets/gb_system_icon_premium_v2.png",
     extensions: ["gb"],
     color: "#7a9e27",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {},
+    qualitySettings: GAMBATTE_TIER_SETTINGS.high,
+    perfSettings: GAMBATTE_TIER_SETTINGS.low,
+    tierSettings: GAMBATTE_TIER_SETTINGS,
   },
   {
     id: "nds",
     name: "Nintendo DS",
     shortName: "DS",
-    iconUrl: "/assets/nds_system_icon_premium_1775435000887.png",
+    iconUrl: "/assets/gb_system_icon_premium_v2.png",
     extensions: ["nds"],
     color: "#4b5d7a",
     needsThreads: false,
@@ -1043,6 +1237,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "segaGG",
     name: "Game Gear",
     shortName: "GG",
+    iconUrl: "/assets/gg_system_icon_premium.png",
     extensions: ["gg"],
     color: "#e64a1a",
     needsThreads: false,
@@ -1055,6 +1250,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "segaMS",
     name: "Sega Master System",
     shortName: "SMS",
+    iconUrl: "/assets/sms_system_icon_premium.png",
     extensions: ["sms"],
     color: "#2255cc",
     needsThreads: false,
@@ -1067,17 +1263,20 @@ export const SYSTEMS: SystemInfo[] = [
     id: "atari2600",
     name: "Atari 2600",
     shortName: "2600",
+    iconUrl: "/assets/atari2600_system_icon_premium.png",
     extensions: ["a26"],
     color: "#c0392b",
     needsThreads: false,
     needsWebGL2: false,
-    qualitySettings: {},
-    perfSettings: {},
+    qualitySettings: ATARI2600_TIER_SETTINGS.high,
+    perfSettings: ATARI2600_TIER_SETTINGS.low,
+    tierSettings: ATARI2600_TIER_SETTINGS,
   },
   {
     id: "arcade",
     name: "Arcade (MAME)",
     shortName: "Arcade",
+    iconUrl: "/assets/arcade_system_icon_premium.png",
     extensions: ["zip"],
     color: "#e67e22",
     needsThreads: false,
@@ -1092,6 +1291,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "segaSaturn",
     name: "Sega Saturn",
     shortName: "Saturn",
+    iconUrl: "/assets/saturn_system_icon_premium.png",
     extensions: ["cue", "chd", "mdf", "img", "ccd", "m3u"],
     color: "#6b4c9a",
     needsThreads: false,
@@ -1108,6 +1308,10 @@ export const SYSTEMS: SystemInfo[] = [
     corePath: "https://github.com/nasomers/flycast-wasm/releases/download/v1.0.0/flycast-wasm.data",
     name: "Dreamcast",
     shortName: "DC",
+<<<<<<< codex/fix-test-suite-and-ui
+    iconUrl: "/assets/saturn_system_icon_premium.png",
+=======
+>>>>>>> main
     experimental: true,
     stabilityNotice: "Experimental: Dreamcast support is still being stabilized. Some games may boot slowly, glitch, or crash.",
     extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf"],
@@ -1124,6 +1328,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "mame2003",
     name: "Arcade (MAME 2003+)",
     shortName: "MAME+",
+    iconUrl: "/assets/arcade_system_icon_premium.png",
     extensions: ["zip", "7z"],
     color: "#8b1a1a",
     needsThreads: false,
@@ -1135,6 +1340,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "atari7800",
     name: "Atari 7800",
     shortName: "7800",
+    iconUrl: "/assets/atari7800_system_icon_premium.png",
     extensions: ["a78", "bin"],
     color: "#8b6000",
     needsThreads: false,
@@ -1146,6 +1352,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "lynx",
     name: "Atari Lynx",
     shortName: "Lynx",
+    iconUrl: "/assets/lynx_system_icon_premium.png",
     extensions: ["lnx", "lyx"],
     color: "#2a8b6e",
     needsThreads: false,
@@ -1158,6 +1365,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "ngp",
     name: "Neo Geo Pocket",
     shortName: "NGP",
+    iconUrl: "/assets/ngp_system_icon_premium.png",
     extensions: ["ngp", "ngc", "ngpc"],
     color: "#cc2222",
     needsThreads: false,
@@ -1222,4 +1430,22 @@ export function detectSystem(
 /** Look up a system by its EJS core identifier (O(1) via Map). */
 export function getSystemById(id: string): SystemInfo | undefined {
   return SYSTEM_BY_ID.get(id);
+}
+
+/**
+ * Human-readable system capabilities used across the UI for consistent
+ * messaging in cards, pickers, and settings.
+ */
+export function getSystemFeatureSummary(
+  system: SystemInfo,
+  opts: { includeExperimental?: boolean } = {},
+): string[] {
+  const { includeExperimental = true } = opts;
+  const features: string[] = [];
+  if (includeExperimental && system.experimental) features.push("Experimental");
+  if (system.is3D) features.push("3D core");
+  else features.push("2D core");
+  if (system.needsBios) features.push("BIOS");
+  if (system.needsWebGL2) features.push("WebGL 2");
+  return features;
 }

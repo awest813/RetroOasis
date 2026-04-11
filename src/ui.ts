@@ -36,6 +36,7 @@ import {
   ALL_EXTENSIONS,
   detectSystem,
   getSystemById,
+  getSystemFeatureSummary,
   type SystemInfo,
 } from "./systems.js";
 import {
@@ -84,6 +85,9 @@ import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
 import { normaliseInviteCode, INVITE_CODE_LEN } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
+// Cloud library types moved to lazy functions to satisfy strict TSC
+import { createProvider } from "./cloudLibrary.js";
+import type { CloudLibraryConnection } from "./main.js";
 import { SaveGameService } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
 import { queryRequired as el, createElement as make } from "./ui/dom.js";
@@ -255,21 +259,43 @@ export function buildDOM(app: HTMLElement): void {
         <div class="onboarding" id="onboarding">
           <div class="welcome-hero">
             <h2 class="welcome-hero__title">A refined home for your retro library</h2>
-            <p class="welcome-hero__tagline">PSP, N64, PS1, GBA, SNES, NES, and 20+ more systems. Local-first, instant to launch, and designed to stay out of the way.</p>
-            <div class="welcome-steps">
-              <div class="welcome-step">
-                <span class="welcome-step__num" aria-hidden="true">1</span>
-                <span class="welcome-step__text">Drop or choose a game ROM</span>
-              </div>
-              <div class="welcome-step">
-                <span class="welcome-step__num" aria-hidden="true">2</span>
-                <span class="welcome-step__text">Pick a system if prompted</span>
-              </div>
-              <div class="welcome-step">
-                <span class="welcome-step__num" aria-hidden="true">3</span>
-                <span class="welcome-step__text">Launch and keep playing</span>
+            <p class="welcome-hero__tagline">PSP, N64, PS1, GBA, Saturn, and 20+ more. Locally-powered, cross-device ready.</p>
+            <div class="welcome-hero__badge">
+              <span class="badge-icon">✨</span> Premium Emulation Experience
+            </div>
+          </div>
+
+          <div class="onboarding__grid">
+            <div class="onboarding__card onboarding__card--main">
+              <h3>Start Your Collection</h3>
+              <p>Drop a ROM file anywhere or use the button above to add your first game.</p>
+              <div class="welcome-steps">
+                <div class="welcome-step">1. Drop your ROM</div>
+                <div class="welcome-step">2. Auto-Detection</div>
+                <div class="welcome-step">3. Play Instantly</div>
               </div>
             </div>
+            
+            <div class="onboarding__card">
+              <span class="card-icon">☁️</span>
+              <h3>Cloud Library</h3>
+              <p>Keep your entire ROM collection in the cloud. Access from any device without eating local storage.</p>
+              <button class="btn btn--outline btn--sm" id="btn-cloud-onboarding" type="button">Connect Cloud Library</button>
+            </div>
+
+            <div class="onboarding__card">
+              <span class="card-icon">🎮</span>
+              <h3>Universal Input</h3>
+              <p>Full support for DualSense, Xbox, Switch Pro, and Touch controls with zero configuration.</p>
+            </div>
+            
+            <div class="onboarding__card">
+              <span class="card-icon">⚡</span>
+              <h3>Smart Performance</h3>
+              <p>Automatically tunes internal resolution and frameskip for your specific device hardware.</p>
+            </div>
+          </div>
+        </div>
           </div>
           <div class="onboarding__features">
             <div class="onboarding__feature">
@@ -330,8 +356,13 @@ export function buildDOM(app: HTMLElement): void {
       <!-- Loading overlay -->
       <div id="loading-overlay" role="status" aria-live="polite">
         <div class="loading-spinner" aria-hidden="true"></div>
-        <p id="loading-message">Loading…</p>
-        <p id="loading-subtitle"></p>
+        <div class="loading-content">
+          <p id="loading-message">Loading…</p>
+          <p id="loading-subtitle"></p>
+          <div class="loading-progress" id="loading-progress-container" hidden>
+            <div class="loading-progress-bar" id="loading-progress-bar"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Error banner -->
@@ -822,7 +853,9 @@ function buildLibraryHero(
   
   const meta = make("div", { class: "library-hero__meta" });
   const sysName = system?.shortName ?? game.systemId.toUpperCase();
-  meta.innerHTML = `<span>${systemIcon(game.systemId)} ${sysName}</span> <span>🕒 ${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
+  const iconOutput = systemIcon(game.systemId);
+  const iconHtml = iconOutput.includes("/assets/") ? `<img src="${iconOutput}" alt="" class="hero-sys-icon" />` : iconOutput;
+  meta.innerHTML = `<span>${iconHtml} ${sysName}</span> <span>🕒 ${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
   
   const actions = make("div", { class: "library-hero__actions" });
   const playBtn = make("button", { class: "btn--hero" });
@@ -853,7 +886,13 @@ function buildLibraryRow(
   
   const header = make("div", { class: "library-row__header" });
   if (systemId) {
-    const icon = make("span", { class: "library-row__icon-span" }, systemIcon(systemId));
+    const iconOutput = systemIcon(systemId);
+    const icon = make("span", { class: "library-row__icon-span" });
+    if (iconOutput.includes("/assets/")) {
+      icon.innerHTML = `<img src="${iconOutput}" alt="" class="row-sys-icon" />`;
+    } else {
+      icon.textContent = iconOutput;
+    }
     const sys = getSystemById(systemId);
     if (sys) icon.style.color = sys.color;
     header.appendChild(icon);
@@ -1367,6 +1406,13 @@ function _wireLibraryControls(
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
 ): void {
   if (_libraryControlsWired) return;
+  const cloudOnboardingBtn = document.getElementById("btn-cloud-onboarding");
+  if (cloudOnboardingBtn) {
+    cloudOnboardingBtn.addEventListener("click", () => {
+      showInfoToast("Cloud Library features are currently in development. Your progress remains local for now!", "info");
+    });
+  }
+
   _libraryControlsWired = true;
 
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
@@ -1488,6 +1534,11 @@ function buildGameCard(
     icon.textContent = iconOutput;
   }
 
+    if (game.cloudId) {
+    const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" }, "☁");
+    icon.appendChild(cloudBadge);
+  }
+
   if (isNew) {
     const newBadge = make("div", { class: "game-card__new-badge", "aria-hidden": "true" }, "NEW");
     icon.appendChild(newBadge);
@@ -1504,6 +1555,7 @@ function buildGameCard(
     meta.append(make("span", { class: "sys-badge sys-badge--experimental", title: system.stabilityNotice ?? "Experimental support" }, "EXP"));
   }
 
+  const featureRow = buildSystemFeatureRow(system, { includeExperimental: false, max: 3, includeOnline: true });
   const played = make("div", { class: "game-card__played" },
     game.lastPlayedAt
       ? `Played ${formatRelativeTime(game.lastPlayedAt)}`
@@ -1511,7 +1563,9 @@ function buildGameCard(
   );
   if (!game.lastPlayedAt && isNew) played.classList.add("game-card__played--fresh");
 
-  info.append(name, meta, played);
+  info.append(name, meta);
+  if (featureRow) info.append(featureRow);
+  info.append(played);
 
   const btnRemove = make("button", {
     class: "game-card__remove",
@@ -1610,7 +1664,15 @@ function buildGameCard(
     setLoadingMessage(`Starting ${game.name}…`);
     setLoadingSubtitle("Getting ready to play");
     try {
-      const blob = await library.getGameBlob(game.id);
+      let blob = await library.getGameBlob(game.id);
+      if (!blob && game.cloudId) {
+        setLoadingMessage("Streaming from cloud…");
+        setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
+        blob = await fetchFromCloud(game, settings);
+        
+        // Optional: Cache it locally for next time?
+        // Actually let's keep it transient for now as per "streaming" intent.
+      }
       if (!blob) {
         hideLoadingOverlay();
         showError(`"${game.name}" could not be found in your library. Try adding it again.`);
@@ -1629,6 +1691,82 @@ function buildGameCard(
   card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void launch(); } });
 
   return card;
+}
+
+type SystemFeaturePill = {
+  label: string;
+  title: string;
+  tone?: "accent" | "warn" | "neutral";
+};
+
+function getSystemFeaturePills(
+  system: SystemInfo | undefined,
+  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number } = {},
+): SystemFeaturePill[] {
+  if (!system) return [];
+
+  const { includeExperimental = true, includeOnline = false, max } = opts;
+  const pills: SystemFeaturePill[] = [];
+
+  if (includeExperimental && system.experimental) {
+    pills.push({
+      label: "Experimental",
+      title: system.stabilityNotice ?? "Support for this system is still being stabilized.",
+      tone: "warn",
+    });
+  }
+  if (system.is3D) {
+    pills.push({
+      label: "3D core",
+      title: `${system.name} uses a heavier 3D rendering core and benefits from tuned graphics settings.`,
+      tone: "accent",
+    });
+  } else {
+    pills.push({
+      label: "2D core",
+      title: `${system.name} uses a lightweight 2D core and is highly performant on all devices.`,
+      tone: "neutral",
+    });
+  }
+  if (system.needsBios) {
+    pills.push({
+      label: "BIOS",
+      title: `${system.name} needs system files for the best compatibility.`,
+      tone: "neutral",
+    });
+  }
+  if (system.needsWebGL2) {
+    pills.push({
+      label: "WebGL 2",
+      title: `${system.name} needs WebGL 2 support in the browser.`,
+      tone: "neutral",
+    });
+  }
+  if (includeOnline && NETPLAY_SUPPORTED_SYSTEM_IDS.includes(system.id as typeof NETPLAY_SUPPORTED_SYSTEM_IDS[number])) {
+    pills.push({
+      label: "Online",
+      title: `${system.name} supports RetroVault online play.`,
+      tone: "accent",
+    });
+  }
+
+  return typeof max === "number" ? pills.slice(0, max) : pills;
+}
+
+function buildSystemFeatureRow(
+  system: SystemInfo | undefined,
+  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number; className?: string } = {},
+): HTMLElement | null {
+  const pills = getSystemFeaturePills(system, opts);
+  if (pills.length === 0) return null;
+
+  const row = make("div", { class: opts.className ?? "system-feature-row" });
+  for (const pill of pills) {
+    const cls = ["system-feature-chip"];
+    if (pill.tone) cls.push(`system-feature-chip--${pill.tone}`);
+    row.appendChild(make("span", { class: cls.join(" "), title: pill.title }, pill.label));
+  }
+  return row;
 }
 
 function systemIcon(systemId: string): string {
@@ -1926,6 +2064,7 @@ export async function resolveSystemAndAdd(
         : await archiveModule.extractFromArchive(file, {
             onProgress: (progress) => {
               setLoadingMessage(formatArchiveProgressMessage(progress));
+              if (progress.percent != null) setLoadingProgress(progress.percent);
             },
           });
 
@@ -1950,7 +2089,7 @@ export async function resolveSystemAndAdd(
           }
 
           if (!picked) return;
-          resolvedFile = new File([picked.blob], picked.name, { type: picked.blob.type });
+          resolvedFile = new File([picked.blob!], picked.name, { type: picked.blob!.type });
           showLoadingOverlay();
           setLoadingMessage("File selected — detecting game system…");
           setLoadingSubtitle("");
@@ -1960,7 +2099,7 @@ export async function resolveSystemAndAdd(
             `Archive entry selected: "${picked.name}" (${formatBytes(picked.size)})`,
           );
         } else {
-          resolvedFile = new File([extracted.blob], extracted.name, { type: extracted.blob.type });
+          resolvedFile = new File([extracted.blob!], extracted.name, { type: extracted.blob!.type });
         }
         setLoadingMessage("Detecting game system…");
         setLoadingSubtitle("");
@@ -2098,7 +2237,7 @@ export async function resolveSystemAndAdd(
       setLoadingMessage(`Starting ${existing.name}…`);
       setLoadingSubtitle("Getting ready to play");
       try {
-        const existingFile = toLaunchFile(existing.blob, existing.fileName);
+        const existingFile = toLaunchFile(existing.blob!, existing.fileName);
         await library.markPlayed(existing.id);
         logImport(
           emulatorRef,
@@ -2223,7 +2362,7 @@ async function handleM3UFile(
     discFileNames.map(async (fn) => {
       try {
         const entry = await library.findByFileName(fn, system.id);
-        if (entry) storedDiscs.set(fn, { id: entry.id, blob: entry.blob });
+        if (entry) storedDiscs.set(fn, { id: entry.id, blob: entry.blob! });
       } catch { /* ignore */ }
     })
   );
@@ -2454,11 +2593,6 @@ function buildInGameControls(
   }) as HTMLButtonElement;
   btnGallery.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
   btnGallery.addEventListener("click", () => {
-    const gameId = getCurrentGameId?.();
-    if (!gameId) {
-      showInfoToast("Add this game to your library to save progress.", "info");
-      return;
-    }
     void showInGameMenu({
       emulator, settings, onSettingsChange, onReturnToLibrary,
       saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
@@ -2482,7 +2616,8 @@ function buildInGameControls(
       "aria-label": "Open multiplayer",
     }) as HTMLButtonElement;
     btnNetplay.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Online`;
-    btnNetplay.disabled = !isSupported || !isActive;
+    // Enable button whenever multiplayer is supported for this system
+    btnNetplay.disabled = !isSupported;
     btnNetplay.addEventListener("click", () => {
       if (getNetplayManager) {
         void getNetplayManager().then(nm => {
@@ -2621,6 +2756,8 @@ async function showInGameMenu(ctx: {
   const gameId = ctx.getCurrentGameId?.() ?? "";
   const gameName = ctx.getCurrentGameName?.() ?? "Unknown Game";
   const systemId = ctx.getCurrentSystemId?.() ?? "unknown";
+  const systemInfo = getSystemById(systemId);
+  const systemDisplayName = systemInfo?.shortName ?? systemId.toUpperCase();
 
   const closeMenu = () => {
     overlay.classList.remove("ingame-menu-overlay--visible");
@@ -2653,8 +2790,11 @@ async function showInGameMenu(ctx: {
     const header = make("div", { class: "ingame-menu__header" });
     header.innerHTML = `
       <div class="ingame-menu__header-main">
-        <h2 class="ingame-menu__game-name">${_escHtml(gameName)}</h2>
-        <span class="ingame-menu__system-tag">${systemId.toUpperCase()}</span>
+        ${systemInfo?.iconUrl ? `<img src="${systemInfo.iconUrl}" class="ingame-menu__system-icon" alt="" />` : ""}
+        <div class="ingame-menu__header-text">
+          <h2 class="ingame-menu__game-name">${_escHtml(gameName)}</h2>
+          <span class="ingame-menu__system-tag">${systemDisplayName}</span>
+        </div>
       </div>
     `;
     content.appendChild(header);
@@ -3020,7 +3160,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 
-type SettingsTab = "performance" | "display" | "library" | "bios" | "multiplayer" | "debug" | "about";
+type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "debug" | "about";
 
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
@@ -3164,6 +3304,7 @@ function buildSettingsContent(
     { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
     { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
     { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
+    { id: "cloud",        icon: "☁️", label: "Cloud Library",  ariaLabel: "Cloud Library" },
     { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
     { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
@@ -3278,10 +3419,11 @@ function buildSettingsContent(
   buildPerfTab(panels[0]!, settings, deviceCaps, onSettingsChange, emulatorRef);
   buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef);
   buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef);
-  buildBiosTab(panels[3]!, biosLibrary);
-  buildMultiplayerTab(panels[4]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
-  buildDebugTab(panels[5]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
-  buildAboutTab(panels[6]!);
+  buildCloudTab(panels[3]!, settings, library, onSettingsChange);
+  buildBiosTab(panels[4]!, biosLibrary);
+  buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
+  buildDebugTab(panels[6]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
+  buildAboutTab(panels[7]!);
 
   const applySearchFilter = () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -3339,6 +3481,43 @@ function buildPerfTab(
   onSettingsChange: (patch: Partial<Settings>) => void,
   emulatorRef?:     import("./emulator.js").PSPEmulator
 ): void {
+  const activeSystem = emulatorRef?.currentSystem ?? null;
+  const activeTier = emulatorRef?.activeTier ?? null;
+  if (activeSystem) {
+    const coreSection = make("div", { class: "settings-section" });
+    coreSection.appendChild(make("h4", { class: "settings-section__title" }, "Current Core"));
+
+        const heading = make("div", { class: "settings-core-heading" });
+    if (activeSystem.iconUrl) {
+      heading.appendChild(make("img", { src: activeSystem.iconUrl, class: "settings-core-heading__icon", alt: "" }));
+    }
+    const headerText = make("div", { class: "settings-core-heading__text" });
+    headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
+
+    const coreMeta = make("div", { class: "settings-core-heading__meta" },
+      `Core: ${activeSystem.coreId ?? activeSystem.id} · ` +
+      (activeTier ? `Hardware: ${formatTierLabel(activeTier)}` : "Hardware: Auto")
+    );
+    headerText.appendChild(coreMeta);
+    heading.appendChild(headerText);
+    coreSection.appendChild(heading);
+
+    const profileBits = [
+      activeTier ? `${formatTierLabel(activeTier)} tier` : null,
+      settings.performanceMode === "auto" ? "Auto graphics mode" : `${settings.performanceMode === "performance" ? "Performance" : "Quality"} graphics mode`,
+      activeSystem.is3D ? "3D visuals tuned for heavier rendering" : "Lightweight core profile",
+    ].filter((bit): bit is string => Boolean(bit));
+    coreSection.appendChild(make("p", { class: "settings-help" }, profileBits.join(" • ")));
+
+    const featureRow = buildSystemFeatureRow(activeSystem, {
+      includeExperimental: true,
+      includeOnline: true,
+      className: "system-feature-row system-feature-row--settings",
+    });
+    if (featureRow) coreSection.appendChild(featureRow);
+    container.appendChild(coreSection);
+  }
+
   // Performance mode
   const perfSection = make("div", { class: "settings-section" });
   perfSection.appendChild(make("h4", { class: "settings-section__title" }, "Graphics Mode"));
@@ -3755,7 +3934,7 @@ function buildLibraryTab(
   for (const sys of SYSTEMS) {
     const chip = make("span", { class: "sys-chip" }, sys.shortName);
     chip.style.background = sys.color;
-    chip.title = sys.name;
+    chip.title = [sys.name, ...getSystemFeatureSummary(sys)].join(" • ");
     sysList.appendChild(chip);
   }
   sysSection.appendChild(sysList);
@@ -6502,6 +6681,192 @@ function updateStatusDot(state: EmulatorState): void {
   if (state === "idle" || state === "error") { setStatusGame("—"); setStatusSystem("—"); setStatusTier(null); }
 }
 
+
+/** Set the current progress percent (0-100) shown on the loading overlay. Pass null to hide. */
+export function setLoadingProgress(percent: number | null): void {
+  const container = document.getElementById("loading-progress-container");
+  const bar       = document.getElementById("loading-progress-bar");
+  if (!container || !bar) return;
+  if (percent === null) {
+    container.hidden = true;
+  } else {
+    container.hidden = false;
+    bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  }
+}
+
+
+function buildCloudTab(
+  container:        HTMLElement,
+  settings:         Settings,
+  library:          GameLibrary,
+  onSettingsChange: (patch: Partial<Settings>) => void,
+): void {
+  container.innerHTML = "";
+  const section = make("div", { class: "settings-section" });
+  section.appendChild(make("h4", { class: "settings-section__title" }, "Cloud Library Connections"));
+  section.appendChild(make("p", { class: "settings-section__desc" }, "Keep your ROMs in personal cloud storage and stream them directly. Metadata and progress sync automatically across devices."));
+
+  const list = make("div", { class: "cloud-connection-list" });
+  
+  // Enhanced Connection Management
+  if (settings.cloudLibraries.length === 0) {
+    const empty = make("div", { class: "cloud-connection-empty" });
+    empty.innerHTML = `<p>You haven't connected any cloud libraries yet.</p>`;
+    list.appendChild(empty);
+  } else {
+    settings.cloudLibraries.forEach((conn) => {
+      const item = make("div", { class: "cloud-connection-item" });
+      const info = make("div", { class: "cloud-connection-item__info" });
+      info.appendChild(make("strong", {}, conn.name));
+      info.appendChild(make("span", {}, conn.provider.toUpperCase()));
+      
+      const actions = make("div", { class: "cloud-connection-item__actions" });
+      
+      const statusDot = make("span", { 
+        class: "cloud-connection-item__status", 
+        style: "margin-right:12px; font-size: 0.65rem; color: #4ade80;" 
+      }, "● CONNECTED");
+      info.appendChild(statusDot);
+
+      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync");
+      syncBtn.addEventListener("click", () => syncCloudLibrary(conn, library, onSettingsChange));
+      
+      const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Remove");
+      removeBtn.addEventListener("click", () => {
+        const filtered = settings.cloudLibraries.filter(c => c.id !== conn.id);
+        onSettingsChange({ cloudLibraries: filtered });
+      });
+      
+      actions.append(syncBtn, removeBtn);
+      item.append(info, actions);
+      list.appendChild(item);
+    });
+  }
+
+  const addBtn = make("button", { class: "btn btn--primary", style: "margin-top:20px;", type: "button" }, "+ Connect New Library");
+  addBtn.addEventListener("click", () => {
+    showInfoToast("Provider authentication modal coming soon! For now, only WebDAV is supported via manual config.", "info");
+    // Placeholder for actual modal
+  });
+
+  section.append(list, addBtn);
+  container.appendChild(section);
+}
+
+
+async function fetchFromCloud(game: GameMetadata, settings: Settings): Promise<Blob> {
+  const conn = settings.cloudLibraries.find(c => c.id === game.cloudId);
+  if (!conn) throw new Error("Cloud connection not found. Reconnect your library in Settings.");
+  const provider = createProvider(conn);
+  if (!provider) throw new Error("Cloud provider could not be initialized.");
+  
+  const url = await provider.getDownloadUrl(game.remotePath!);
+  const headers: Record<string, string> = {};
+  
+  // Specific auth handling for providers that don't return pre-signed URLs
+  if (conn.provider === "gdrive") {
+    const config = JSON.parse(conn.config);
+    if (config.accessToken) headers["Authorization"] = `Bearer ${config.accessToken}`;
+  } else if (conn.provider === "webdav") {
+    const config = JSON.parse(conn.config);
+    const credentials = `${config.username}:${config.password}`;
+    const utf8Bytes = new TextEncoder().encode(credentials);
+    let binary = "";
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]!);
+    }
+    headers["Authorization"] = "Basic " + btoa(binary);
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+     if (response.status === 401 || response.status === 403) {
+       throw new Error("Cloud authentication failed. Please reconnect your account.");
+     }
+     throw new Error(`Cloud download failed: ${response.statusText} (${response.status})`);
+  }
+  
+  // Stream with progress tracking
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  let loaded = 0;
+
+  const reader = response.body?.getReader();
+  if (!reader) return await response.blob();
+
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    if (total > 0) {
+      setLoadingProgress((loaded / total) * 100);
+    }
+  }
+
+  return new Blob(chunks);
+}
+
+async function syncCloudLibrary(
+  conn: CloudLibraryConnection,
+  library: GameLibrary,
+  onSettingsChange: (patch: Partial<Settings>) => void
+): Promise<void> {
+  const provider = createProvider(conn);
+  if (!provider) {
+    showError("Invalid cloud provider configuration.");
+    return;
+  }
+
+  showLoadingOverlay();
+  setLoadingMessage(`Syncing ${conn.name}…`);
+  try {
+    if (!(await provider.isAvailable())) {
+      throw new Error("Cloud provider is not reachable. Check your connection or credentials.");
+    }
+    
+    setLoadingSubtitle("Scanning for game files…");
+    const files = await provider.listFiles();
+    const romFiles = files.filter(f => !f.isDirectory && detectSystem(f.name));
+    
+    setLoadingSubtitle(`Found ${romFiles.length} games. Integrating into library…`);
+    
+    for (const f of romFiles) {
+      const res = detectSystem(f.name);
+      if (res) {
+         const sys = Array.isArray(res) ? res[0] : res;
+         if (!sys) continue;
+         const systemId = sys.id;
+         // Check if already exists
+         const existing = await library.findByFileName(f.name, systemId);
+         if (!existing) {
+           await library.addVirtualGame(
+             f.name.replace(/\.[^.]+$/, ""),
+             f.name,
+             systemId,
+             f.size,
+             conn.id,
+             f.path,
+             f.thumbnailUrl
+           );
+         }
+      }
+    }
+    
+    showInfoToast(`Successfully synced ${romFiles.length} games from ${conn.name}.`, "success");
+    onSettingsChange({});
+    // We don't need to call onSettingsChange unless we want to trigger a re-render of something specific,
+    // but the library grid will re-render automatically if we invalidate/trigger it.
+    // renderLibrary will be called by the next refresh cycle or we can force it.
+  } catch (e: any) {
+    showError(e.message || "Failed to sync cloud library.");
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+
 // ── Visibility helpers ────────────────────────────────────────────────────────
 
 export function hideLanding(): void    { el("#landing").classList.add("hidden"); }
@@ -6509,6 +6874,7 @@ export function showLanding(): void    { el("#landing").classList.remove("hidden
 export function showLoadingOverlay(): void { document.getElementById("loading-overlay")?.classList.add("visible"); }
 export function hideLoadingOverlay(): void {
   document.getElementById("loading-overlay")?.classList.remove("visible");
+  setLoadingProgress(null);
   // Clear subtitle when hiding
   const sub = document.getElementById("loading-subtitle");
   if (sub) sub.textContent = "";

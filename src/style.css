@@ -686,6 +686,44 @@ body {
   flex-wrap: wrap;
 }
 
+.system-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.system-feature-row--settings {
+  margin-top: 2px;
+}
+
+.system-feature-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--c-border) 82%, transparent);
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
+  color: var(--c-text-dim);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.system-feature-chip--accent {
+  border-color: color-mix(in srgb, var(--c-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 12%, var(--c-surface2));
+  color: color-mix(in srgb, var(--c-accent-h) 72%, white 28%);
+}
+
+.system-feature-chip--warn {
+  border-color: color-mix(in srgb, var(--c-warn) 40%, transparent);
+  background: color-mix(in srgb, var(--c-warn) 14%, var(--c-surface2));
+  color: #ffd89d;
+}
+
 .game-card__size {
   font-size: 0.71rem;
   color: var(--c-text-faint);
@@ -1754,6 +1792,40 @@ body {
   margin-bottom: 12px;
   line-height: 1.6;
   white-space: pre-line;
+}
+
+.settings-core-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.settings-core-heading__icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  flex-shrink: 0;
+}
+
+.settings-core-heading__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+
+.settings-core-heading__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.settings-core-heading__meta {
+  font-size: 0.78rem;
+  color: var(--c-text-dim);
+  letter-spacing: 0.01em;
 }
 
 /* Radio rows */
@@ -5941,6 +6013,26 @@ kbd {
   align-items: flex-start;
 }
 
+.ingame-menu__header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ingame-menu__system-icon {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+  flex-shrink: 0;
+}
+
+.ingame-menu__header-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .ingame-menu__game-name {
   font-size: 1.5rem;
   font-weight: 800;
@@ -7136,3 +7228,531 @@ body {
     border-radius: var(--radius-lg);
   }
 }
+<<<<<<< codex/fix-test-suite-and-ui
+
+/* Premium Icon Rendering Support */
+.hero-sys-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
+  vertical-align: middle;
+  margin-top: -3px;
+  margin-right: 6px;
+}
+
+.row-sys-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.4));
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ── Updated Onboarding / First-time Load Experience ────────── */
+.onboarding {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.welcome-hero {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.welcome-hero__title {
+  font-size: 3.5rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #fff 30%, var(--c-accent-h) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.welcome-hero__tagline {
+  font-size: 1.25rem;
+  color: var(--c-text-dim);
+  max-width: 600px;
+  margin: 0 auto 32px;
+  line-height: 1.6;
+}
+
+.welcome-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-accent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.onboarding__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: 24px;
+}
+
+.onboarding__card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.onboarding__card:hover {
+  border-color: var(--c-accent-glow);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+
+.onboarding__card--main {
+  grid-column: span 2;
+  grid-row: span 1;
+  background: linear-gradient(135deg, rgba(124, 77, 255, 0.1), rgba(0, 0, 0, 0));
+}
+
+.onboarding__card h3 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.onboarding__card p {
+  color: var(--c-text-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.card-icon {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.welcome-steps {
+  display: flex;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.welcome-step {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 900px) {
+  .onboarding__grid { grid-template-columns: 1fr; }
+  .onboarding__card--main { grid-column: auto; }
+  .welcome-hero__title { font-size: 2.5rem; }
+}
+
+/* ── Loading Overlay Progress Enhancements ────────── */
+#loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.loading-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+#loading-message {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+#loading-subtitle {
+  font-size: 0.9rem;
+  color: var(--c-text-dim);
+  margin: 0;
+}
+
+.loading-progress {
+  width: 280px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin: 24px auto 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.loading-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-accent-2));
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px var(--c-accent-glow);
+}
+
+.loading-progress[hidden] {
+  display: none;
+}
+
+/* ── Cloud Library Settings ────────────────────────── */
+.cloud-connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cloud-connection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.cloud-connection-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--c-accent-30);
+}
+
+.cloud-connection-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cloud-connection-item__info strong {
+  font-size: 1.05rem;
+  color: var(--c-text);
+}
+
+.cloud-connection-item__info span {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cloud-connection-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cloud-connection-empty {
+  padding: 40px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: var(--c-text-dim);
+}
+
+.sys-badge--experimental {
+  font-size: 0.65rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--c-warning);
+  color: #000;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+/* ── Cloud UI Overhaul ──────────────────────────────── */
+.game-card__cloud-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 150, 255, 0.9);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  z-index: 2;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.cloud-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 300px;
+}
+
+.cloud-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.cloud-provider-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cloud-provider-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  border-color: var(--c-accent-50);
+}
+
+.cloud-provider-card i {
+  font-size: 2rem;
+}
+
+.cloud-connection-item__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status--online { color: #4ade80; }
+.status--offline { color: #f87171; }
+.status--syncing { 
+  color: #60a5fa;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.settings-section--premium {
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 24px;
+  border-radius: 20px;
+}
+
+/* ── Unified Cloud Styling Premium ──────────────────── */
+.cloud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.cloud-bar__status-text {
+  font-size: 0.95rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cloud-bar__last-sync {
+  font-size: 0.75rem;
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+.cloud-bar__status-text--ok {
+  color: #fff;
+}
+
+.cloud-connection-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cloud-connection-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(4px);
+}
+
+.cloud-connection-item__info strong {
+  font-size: 1rem;
+  color: var(--c-accent-50);
+}
+
+.btn-cloud-sync {
+  background: var(--c-accent);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-cloud-sync:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 15px var(--c-accent-30);
+}
+
+/* ── Lite UI Overhaul: Snappy & Professional ────────── */
+.lite-ui .app-header,
+.lite-ui .status-panel,
+.lite-ui .fps-overlay,
+.lite-ui .dev-overlay,
+.lite-ui .game-card__remove,
+.lite-ui .game-card__patch,
+.lite-ui .game-card__change-sys,
+.lite-ui .perf-suggestion,
+.lite-ui .info-toast,
+.lite-ui .settings-modal-box,
+.lite-ui .modal-box,
+.lite-ui .confirm-box,
+.lite-ui .cloud-bar,
+.lite-ui .library-hero__content {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #0f172a !important; /* Solid Slate-900 */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3) !important; /* Sharp solid shadow */
+}
+
+.lite-ui .game-card {
+  background: #1e293b !important; /* Solid Slate-800 */
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+  transition: background 0.1s ease !important;
+}
+
+.lite-ui .game-card:hover,
+.lite-ui .game-card:focus-visible {
+  background: #334155 !important; /* Solid Slate-700 */
+  border-color: var(--c-accent) !important;
+  transform: translateY(-2px) !important; /* Keep slight lift but no shadow change */
+}
+
+.lite-ui .library-hero {
+  background: #1e293b !important;
+  border-bottom: 2px solid var(--c-accent) !important;
+  box-shadow: none !important;
+}
+
+.lite-ui .btn {
+  transition: transform 0.1s ease, background 0.1s ease !important;
+}
+
+.lite-ui .animate-fade,
+.lite-ui .animate-slide-up,
+.lite-ui .animate-slide-in-right {
+  animation-duration: 0.15s !important; /* Snappy instead of off */
+  animation-timing-function: cubic-bezier(0, 0, 0.2, 1) !important;
+}
+
+.lite-ui .settings-sidebar {
+  background: #020617 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.lite-ui .settings-sidebar__item--active {
+  background: var(--c-accent) !important;
+  border-radius: 0 !important; /* Sharp corners for Lite look */
+}
+
+/* ── Final Cross-Mode Audit: Polish & Consistency ───── */
+
+/* 1. Global Refined Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* 2. Noise Texture for Quality UI */
+:root:not(.lite-ui) body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+}
+
+/* 3. Cross-Mode Status Indicator Consistency */
+.cloud-connection-item__status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(74, 222, 128, 0.1);
+  letter-spacing: 0.02em;
+}
+
+:not(.lite-ui) .cloud-connection-item__status {
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+}
+
+.lite-ui .cloud-connection-item__status {
+  background: #064e3b !important;
+  color: #4ade80 !important;
+  font-weight: 800 !important;
+}
+
+/* 4. Settings tab active state consistency */
+.settings-tab--active {
+  box-shadow: 0 0 20px var(--c-accent-glow);
+}
+
+.lite-ui .settings-tab--active {
+  box-shadow: none !important;
+  outline: 2px solid var(--c-accent) !important;
+}
+=======
+>>>>>>> main
