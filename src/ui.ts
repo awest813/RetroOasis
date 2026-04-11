@@ -4373,7 +4373,7 @@ function _buildHostPanel(
     btnCreate.disabled = true;
     btnCreate.title    = "Open a game first, then come back to host";
     container.appendChild(make("p", { class: "enp-help enp-help--warn" },
-      "Open a game first, then click Multiplayer to host."
+      "Open a game first, then click Play Together to host."
     ));
   }
 
@@ -5312,7 +5312,7 @@ function buildMultiplayerTab(
   // Enable toggle
   introSection.appendChild(buildToggleRow(
     "Online play",
-    "Shows Multiplayer on the home screen and Online in the game toolbar. In-game Wi-Fi or WFC features inside a ROM are separate from this setting.",
+    "Shows Play Together on the home screen and Online in the game toolbar. In-game Wi-Fi or WFC features inside a ROM are separate from this setting.",
     settings.netplayEnabled,
     (v) => {
       currentEnabled = v;
@@ -6259,8 +6259,8 @@ function buildAboutTab(container: HTMLElement): void {
   const mpSteps = [
     "Open ⚙ Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your server — everyone must use the same URL.",
     "Launch the same game as your friend (same title and system when possible).",
-    "Click Multiplayer on the home screen, or Online in the game toolbar. Host creates a room and shares the invite code; Join pastes the code from your friend.",
-    "If something fails, open Multiplayer and use 📋 Logs to copy connection details for troubleshooting.",
+    "Click Play Together on the home screen, or Online in the game toolbar. Host creates a room and shares the invite code; Join pastes the code from your friend.",
+    "If something fails, open Play Together and use 📋 Logs to copy connection details for troubleshooting.",
   ];
   const mpList = make("ol", { class: "help-steps" });
   for (const step of mpSteps) {
@@ -6283,7 +6283,7 @@ function buildAboutTab(container: HTMLElement): void {
     ["Saves aren't working", "Your saves live in your browser on this device. If you connect cloud backup, it mirrors those saves instead of replacing them. Clearing browser data will erase the local copy, so export saves first if you want a backup."],
     ["Controls not responding", "Click on the game screen first to make sure it has focus. Gamepads should be connected before launching a game."],
     ["Stuck on loading screen", "Try refreshing the page. If the issue persists, the game file may be corrupted or an unsupported format."],
-    ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try 📋 Logs in the Multiplayer window; strict networks may need a TURN server under Advanced."],
+    ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try 📋 Logs in the Play Together window; strict networks may need a TURN server under Advanced."],
   ];
 
   for (const [problem, solution] of troubles) {
