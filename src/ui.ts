@@ -5168,9 +5168,19 @@ const CLOUD_LIBRARY_PROVIDERS: CloudProviderMeta[] = [
   { id: "box",      label: "Box",          icon: "📫" },
 ];
 
+/** Combined lookup table for display name resolution (dedupes gdrive, dropbox etc.). */
+const ALL_CLOUD_PROVIDERS: CloudProviderMeta[] = [
+  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
+  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
+  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
+  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
+  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
+  { id: "blomp",    label: "Blomp",        icon: "💧" },
+  { id: "box",      label: "Box",          icon: "📫" },
+];
+
 function getCloudProviderLabel(id: string): string {
-  const found = [...CLOUD_SAVE_PROVIDERS, ...CLOUD_LIBRARY_PROVIDERS].find(p => p.id === id);
-  return found?.label ?? id;
+  return ALL_CLOUD_PROVIDERS.find(p => p.id === id)?.label ?? id;
 }
 
 
@@ -5430,7 +5440,7 @@ async function showCloudConnectDialog(): Promise<boolean> {
       connectBtn.addEventListener("click", async () => {
         const creds = getCredentials();
         if (!creds.ok) {
-          errorMsg.textContent = creds.error ?? "Please fill in all required fields.";
+          errorMsg.textContent = creds.error;
           errorMsg.hidden = false;
           return;
         }
@@ -7069,7 +7079,8 @@ async function showAddCloudLibraryDialog(
       nameRow.append(make("label", { class: "settings-input-label", for: "cld-name" }, "Connection name"), nameInp);
       form.appendChild(nameRow);
 
-      let getCredentials: () => { ok: boolean; error?: string; config: CloudLibraryConnection["config"] } = () => ({
+      type LibCredResult = { ok: false; error: string } | { ok: true; config: CloudLibraryConnection["config"] };
+      let getCredentials: () => LibCredResult = () => ({
         ok: true,
         config: "{}",
       });
@@ -7198,7 +7209,7 @@ async function showAddCloudLibraryDialog(
       saveBtn.addEventListener("click", () => {
         const creds = getCredentials();
         if (!creds.ok) {
-          errorMsg.textContent = creds.error ?? "Please fill in all required fields.";
+          errorMsg.textContent = creds.error;
           errorMsg.hidden = false;
           return;
         }
