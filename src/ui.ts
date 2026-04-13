@@ -829,9 +829,19 @@ export function initUI(opts: UIOptions): void {
 
 // ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
 
+/**
+ * Build the cinematic hero card for the most-recently played game.
+ *
+ * @param game         Metadata of the game to feature.
+ * @param library      Game library instance for blob retrieval and play-tracking.
+ * @param settings     App settings; needed for cloud-streaming fallback when the
+ *                     local blob is unavailable (virtual / cloud-hosted games).
+ * @param onLaunchGame Callback to start the emulator with the resolved file.
+ */
 function buildLibraryHero(
   game: GameMetadata,
   library: GameLibrary,
+  settings: Settings,
   onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>
 ): HTMLElement {
   const hero = make("div", { class: "library-hero" });
@@ -856,8 +866,27 @@ function buildLibraryHero(
   const playBtn = make("button", { class: "btn--hero" });
   playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Now`;
   playBtn.addEventListener("click", async () => {
-    const blob = await library.getGameBlob(game.id);
-    if (blob) void onLaunchGame(blob as File, game.systemId, game.id);
+    showLoadingOverlay();
+    setLoadingMessage(`Starting ${game.name}…`);
+    setLoadingSubtitle("Getting ready to play");
+    try {
+      let blob = await library.getGameBlob(game.id);
+      if (!blob && game.cloudId) {
+        setLoadingMessage("Streaming from cloud…");
+        setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
+        blob = await fetchFromCloud(game, settings);
+      }
+      if (!blob) {
+        hideLoadingOverlay();
+        showError(`"${game.name}" could not be found in your library. Try adding it again.`);
+        return;
+      }
+      await library.markPlayed(game.id);
+      await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
+    } catch (err) {
+      hideLoadingOverlay();
+      showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
   
   actions.appendChild(playBtn);
@@ -1075,7 +1104,7 @@ export async function renderLibrary(
     
     // 1. Hero (Last Played)
     const lastPlayed = displayed[0]!;
-    const hero = buildLibraryHero(lastPlayed, library, onLaunchGame);
+    const hero = buildLibraryHero(lastPlayed, library, settings, onLaunchGame);
     hero.style.setProperty("--row-i", "0");
     hero.classList.add("library-hero--entering");
     grid.appendChild(hero);
@@ -1535,7 +1564,7 @@ function buildGameCard(
     icon.textContent = iconOutput;
   }
 
-    if (game.cloudId) {
+  if (game.cloudId) {
     const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" }, "☁");
     icon.appendChild(cloudBadge);
   }
@@ -2238,7 +2267,17 @@ export async function resolveSystemAndAdd(
       setLoadingMessage(`Starting ${existing.name}…`);
       setLoadingSubtitle("Getting ready to play");
       try {
-        const existingFile = toLaunchFile(existing.blob!, existing.fileName);
+        let blob = existing.blob;
+        if (!blob && existing.cloudId) {
+          setLoadingSubtitle(`Downloading from ${existing.cloudId}…`);
+          blob = await fetchFromCloud(existing, settings);
+        }
+        if (!blob) {
+          hideLoadingOverlay();
+          showError(`"${existing.name}" could not be loaded. It may be missing from your library or cloud connection.`);
+          return;
+        }
+        const existingFile = toLaunchFile(blob, existing.fileName);
         await library.markPlayed(existing.id);
         logImport(
           emulatorRef,
@@ -2363,7 +2402,7 @@ async function handleM3UFile(
     discFileNames.map(async (fn) => {
       try {
         const entry = await library.findByFileName(fn, system.id);
-        if (entry) storedDiscs.set(fn, { id: entry.id, blob: entry.blob! });
+        if (entry && entry.blob) storedDiscs.set(fn, { id: entry.id, blob: entry.blob });
       } catch { /* ignore */ }
     })
   );
