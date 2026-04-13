@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { buildDOM, initUI, openSettingsPanel, renderLibrary, toggleDevOverlay, isDevOverlayVisible, buildLandingControls, resolveSystemAndAdd, openEasyNetplayModal, TOUCH_CONTROLS_CHANGED_EVENT, showError, hideError, showInfoToast, withRetry, isTransientImportError } from "./ui.js";
 import { NetplayManager, DEFAULT_ICE_SERVERS } from "./multiplayer.js";
+import { registerNetplayInstance } from "./netplaySingleton.js";
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import * as archive from "./archive.js";
 import type { PSPEmulator } from "./emulator.js";
@@ -888,7 +889,7 @@ describe("ui in-game touch controls toolbar", () => {
     }
   });
 
-  it.skip("refreshes touch edit controls when touch controls are toggled mid-game", () => {
+  it("refreshes touch edit controls when touch controls are toggled mid-game", () => {
     const emulatorMock = {
       state: "running",
       activeTier: "medium",
@@ -936,8 +937,8 @@ describe("ui in-game touch controls toolbar", () => {
 
     document.querySelector<HTMLElement>(".ingame-menu-overlay")?.remove();
     const menuAfterDisable = document.querySelector<HTMLButtonElement>('#header-actions button[aria-label="Open Menu"]');
-    const editAfterDisable = { textContent: "ðŸŽ® Edit" };
-    const resetAfterDisable = { style: { display: "none" } };
+    const editAfterDisable = document.querySelector<HTMLButtonElement>('[aria-label="Edit touch control layout"]');
+    const resetAfterDisable = document.querySelector<HTMLButtonElement>('[aria-label="Reset touch control layout"]');
     expect(menuAfterDisable).toBeTruthy();
     expect(editAfterDisable?.textContent).toBe("🎮 Edit");
     expect(resetAfterDisable?.style.display).toBe("none");
@@ -1017,11 +1018,13 @@ describe("buildMultiplayerTab", () => {
     settings = makeSettings();
     onSettingsChange = vi.fn();
     mgr = new NetplayManager();
+    registerNetplayInstance(mgr);
   });
 
   afterEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    registerNetplayInstance(null);
   });
 
   it("server section is hidden when netplay is disabled by default", () => {
@@ -1292,7 +1295,7 @@ describe("buildMultiplayerTab", () => {
 
 
 
-  it.skip("renders a lock indicator for password-protected lobby rooms", async () => {
+  it("renders a lock indicator for password-protected lobby rooms", async () => {
     settings = makeSettings({ netplayEnabled: true, netplayServerUrl: "wss://netplay.example.com" });
     mgr.setEnabled(true);
     mgr.setServerUrl("wss://netplay.example.com");
@@ -1307,9 +1310,9 @@ describe("buildMultiplayerTab", () => {
     await flushUI(20);
 
     const roomStatus = panel.querySelector<HTMLElement>(".netplay-room-status--locked");
-    const roomName = { textContent: "ðŸ”’ Password" };
+    const roomName = panel.querySelector<HTMLElement>(".netplay-lobby-name");
     expect(roomStatus).toBeTruthy();
-    expect(roomName!.textContent).toContain("🔒");
+    expect(roomName?.textContent).toContain("🔒");
   });
   it("lobby browser section is hidden when netplay is not active", () => {
     openMultiplayerTab();
