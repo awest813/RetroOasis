@@ -1,3 +1,22 @@
+// ── Node.js 25 localStorage compatibility ───────────────────────────────────
+
+if (typeof window !== "undefined") {
+  const store = new Map<string, string>();
+  const storage: Storage = {
+    getItem(key) { return store.get(key) ?? null; },
+    setItem(key, value) { store.set(key, String(value)); },
+    removeItem(key) { store.delete(key); },
+    clear() { store.clear(); },
+    get length() { return store.size; },
+    key(index) { return [...store.keys()][index] ?? null; },
+  };
+  Object.defineProperty(window, "localStorage", {
+    value: storage,
+    writable: true,
+    configurable: true,
+  });
+}
+
 // ── Known console.error suppressions ─────────────────────────────────────────
 
 const JSDOM_CANVAS_GET_CONTEXT_WARNINGS = [

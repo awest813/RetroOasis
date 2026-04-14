@@ -122,6 +122,14 @@ let _openSettingsFn: ((tab?: string) => void) | null = null;
 let _initUICleanup: (() => void) | null = null;
 export const TOUCH_CONTROLS_CHANGED_EVENT = "retrovault:touchControlsChanged";
 
+let _libGpCachedCards: HTMLElement[] | null = null;
+let _devOverlayEls: Record<string, HTMLElement | null> | null = null;
+let _fpsOverlayEls: Record<string, HTMLElement | null> | null = null;
+let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
+let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
+let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
+let _settingsTabBarRo: ResizeObserver | null = null;
+
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 
 // ── Debug Console State & Logic ──────────────────────────────────────────────
@@ -271,21 +279,21 @@ export function buildDOM(app: HTMLElement): void {
         </div>
 
         <!-- Onboarding — only visible when library is empty -->
-        <div class="onboarding" id="onboarding">
+        <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
-            <p class="welcome-hero__eyebrow">Console-ready vault</p>
-            <h2 class="welcome-hero__title">Boot your first game</h2>
-            <p class="welcome-hero__tagline">Bring one ROM, archive, or disc image. RetroVault detects the system, stages the core, and drops you into a premium library experience in seconds.</p>
+            <p class="welcome-hero__eyebrow">First run</p>
+            <h2 class="welcome-hero__title" id="onboarding-title">Add a game to begin</h2>
+            <p class="welcome-hero__tagline">Drop a ROM, archive, or disc image here, or use Choose Files. RetroVault will detect the system and launch it.</p>
           </div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
-              <h3>Start like a modern console</h3>
-              <p>Pick a game once, then let RetroVault handle detection, startup, and local-first progress.</p>
+              <h3>What to do next</h3>
+              <p>Choose one file and RetroVault handles detection, startup, and save management locally.</p>
               <div class="welcome-steps">
                 <div class="welcome-step">1. Choose a game file</div>
-                <div class="welcome-step">2. RetroVault detects the system</div>
-                <div class="welcome-step">3. Launch straight into play</div>
+                <div class="welcome-step">2. System detection runs automatically</div>
+                <div class="welcome-step">3. Play and save locally</div>
               </div>
             </div>
           </div>
@@ -293,15 +301,15 @@ export function buildDOM(app: HTMLElement): void {
           <div class="onboarding__features">
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
-              <span><strong>Fast launch</strong><br>Warm-started cores and assets keep the first boot feeling intentional.</span>
+              <span><strong>Automatic setup</strong><br>No extra wizard. Pick a file and keep going.</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
-              <span><strong>Controller ready</strong><br>Keyboard, touch, USB gamepad, or Bluetooth all work without setup rituals.</span>
+              <span><strong>Inputs ready</strong><br>Keyboard, touch, USB gamepad, and Bluetooth are supported.</span>
             </div>
             <div class="onboarding__feature">
               <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
-              <span><strong>Local-first progress</strong><br>Your library and saves stay on this device unless you choose cloud features.</span>
+              <span><strong>Local saves</strong><br>Your library and saves stay on this device unless you enable cloud features.</span>
             </div>
           </div>
         </div>
@@ -746,7 +754,8 @@ export function initUI(opts: UIOptions): void {
     const e = event as KeyboardEvent;
     if (
       ((e.key === "/" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) &&
-      !_isEditableTarget(e.target)
+      !_isEditableTarget(e.target) &&
+      !isTopmostOverlay()
     ) {
       if (_focusLibrarySearch()) {
         e.preventDefault();
@@ -790,6 +799,16 @@ export function initUI(opts: UIOptions): void {
           else showError("Nothing saved in Slot 1 yet, or the emulator is still starting.");
         });
         break;
+      case "F8":
+        e.preventDefault();
+        e.stopPropagation();
+        void saveService.findNextSlot().then((slot) => {
+          void saveService.saveSlot(slot).then((entry) => {
+            if (entry) showInfoToast(`Saved to Slot ${slot}`);
+            else showError("Save failed — wait for the core to finish starting.");
+          });
+        });
+        break;
       case "F1":
         e.preventDefault();
         e.stopPropagation();
@@ -820,7 +839,9 @@ export function initUI(opts: UIOptions): void {
   if (typeof ResizeObserver !== "undefined") {
     const headerActions = document.getElementById("header-actions");
     if (headerActions) {
-      new ResizeObserver(updateHeaderOverflow).observe(headerActions);
+      const ro = new ResizeObserver(updateHeaderOverflow);
+      ro.observe(headerActions);
+      cleanupFns.push(() => ro.disconnect());
     }
   }
 
@@ -1076,7 +1097,11 @@ export async function renderLibrary(
 
   // Show/hide onboarding section
   const onboardingEl = document.getElementById("onboarding");
-  if (onboardingEl) onboardingEl.classList.toggle("hidden-section", allGames.length > 0);
+  const showOnboarding = allGames.length === 0;
+  if (onboardingEl) {
+    onboardingEl.classList.toggle("hidden-section", !showOnboarding);
+    onboardingEl.setAttribute("aria-hidden", String(!showOnboarding));
+  }
 
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
@@ -1084,6 +1109,7 @@ export async function renderLibrary(
   }
 
   grid.innerHTML = "";
+  _libGpCachedCards = null;
 
   const isCinematicMode = !_librarySearchQuery && !_librarySystemFilter && _librarySortMode === "lastPlayed" && displayed.length >= 5;
 
@@ -1099,7 +1125,7 @@ export async function renderLibrary(
     } else if (activeSystem) {
       message = `No games available for <em>${_escHtml(activeSystem)}</em>.`;
     }
-    empty.innerHTML = `<p>${message} Try a broader search, choose another system, or reset the filters.</p>`;
+    empty.innerHTML = `<p>${message} Try a broader search, choose another system, or clear filters to see every game again.</p>`;
     const resetBtn = make("button", { class: "btn library-empty__reset", type: "button" }, "Reset filters");
     resetBtn.addEventListener("click", () => {
       _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
@@ -1364,7 +1390,13 @@ function _wireLibraryNavigation(): void {
     }
     _libGpPrevAxes[0] = anyDir ? 1 : 0;
 
-    const cards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+    const needCards = pressedA || pressedB || doMove;
+    if (!needCards) return;
+
+    if (!_libGpCachedCards) {
+      _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+    }
+    const cards = _libGpCachedCards;
 
     if (pressedA && cards.length) {
       const focused = document.activeElement as HTMLElement | null;
@@ -1824,7 +1856,30 @@ function systemIcon(systemId: string): string {
 
 
 function _escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s.replace(/[&<>"]/g, (c) => {
+    switch (c) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      default: return c;
+    }
+  });
+}
+
+const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function trapFocus(container: HTMLElement, e: KeyboardEvent): void {
+  if (e.key !== "Tab") return;
+  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => !el.closest("[hidden]"));
+  if (focusable.length === 0) return;
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+  } else {
+    if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
 }
 
 /** Reuse stored File objects when possible to avoid unnecessary allocations. */
@@ -2816,7 +2871,7 @@ async function showInGameMenu(ctx: {
   const ac = new AbortController();
   const signal = ac.signal;
 
-  const overlay = make("div", { class: "ingame-menu-overlay" });
+  const overlay = make("div", { class: "ingame-menu-overlay", role: "dialog", "aria-modal": "true", "aria-label": "In-Game Menu" });
   document.body.appendChild(overlay);
 
   // Transition in
@@ -2879,6 +2934,9 @@ async function showInGameMenu(ctx: {
       const states = Array.isArray(statesResult) ? statesResult : [];
       const slots = Array.from({ length: 8 }, (_, i) => i + 1);
 
+      const slotCountEl = make("span", { class: "ingame-menu__saves-count" }, `${states.length}/8 used`);
+      header.querySelector(".ingame-menu__header-main")?.appendChild(slotCountEl);
+
       const grid = make("div", { class: "ingame-menu__saves-grid" });
       body.appendChild(grid);
 
@@ -2898,26 +2956,34 @@ async function showInGameMenu(ctx: {
           <div class="ingame-menu__save-visual">
             ${thumbHtml}
             <div class="ingame-menu__save-badge">Slot ${slotIdx}</div>
+            <span class="ingame-menu__save-busy" aria-hidden="true"></span>
           </div>
           <div class="ingame-menu__save-details">
             <div class="ingame-menu__save-label">${entry ? _escHtml(entry.label) : "Empty Slot"}</div>
             <div class="ingame-menu__save-time">${entry ? formatRelativeTime(entry.timestamp) : "No data saved"}</div>
           </div>
           <div class="ingame-menu__save-overlay">
-            <button class="ingame-menu__save-action-btn btn-save" title="Overwrite current progress to this slot">Save</button>
-            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state">Load</button>` : ""}
+            <button class="ingame-menu__save-action-btn btn-save" title="Save to this slot">Save</button>
+            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state">Load</button><button class="ingame-menu__save-action-btn btn-rename" title="Rename this slot" aria-label="Rename Slot ${slotIdx}"></button><button class="ingame-menu__save-action-btn btn-delete" title="Delete this save" aria-label="Delete Slot ${slotIdx}"></button>` : ""}
           </div>
         `;
+
+        const busyEl = card.querySelector(".ingame-menu__save-busy") as HTMLElement | null;
         
         card.querySelector(".btn-save")?.addEventListener("click", async (e) => {
           e.stopPropagation();
           if (ctx.saveService) {
-            const result = await ctx.saveService.saveSlot(slotIdx);
-            if (result) {
-              showInfoToast(`Saved to Slot ${slotIdx}`, "success");
-              void renderContent("saves"); // Refresh
-            } else {
-              showError("Save failed — the emulator may still be starting up, or the game state is unavailable. Please try again.");
+            busyEl?.classList.add("active");
+            try {
+              const result = await ctx.saveService.saveSlot(slotIdx);
+              if (result) {
+                showInfoToast(`Saved to Slot ${slotIdx}`, "success");
+                void renderContent("saves");
+              } else {
+                showError("Save failed — the emulator may still be starting up, or the game state is unavailable. Please try again.");
+              }
+            } finally {
+              busyEl?.classList.remove("active");
             }
           }
         }, { signal });
@@ -2925,12 +2991,63 @@ async function showInGameMenu(ctx: {
         card.querySelector(".btn-load")?.addEventListener("click", async (e) => {
           e.stopPropagation();
           if (ctx.saveService) {
-            const ok = await ctx.saveService.loadSlot(slotIdx);
-            if (ok) {
-              showInfoToast(`Loaded Slot ${slotIdx}`, "success");
-              closeMenu();
+            busyEl?.classList.add("active");
+            try {
+              const ok = await ctx.saveService.loadSlot(slotIdx);
+              if (ok) {
+                showInfoToast(`Loaded Slot ${slotIdx}`, "success");
+                closeMenu();
+              }
+            } finally {
+              busyEl?.classList.remove("active");
             }
           }
+        }, { signal });
+
+        card.querySelector(".btn-delete")?.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (!ctx.saveService) return;
+          const confirmed = await showConfirmDialog(
+            `Permanently delete Slot ${slotIdx}${entry?.label ? ` \"${entry.label}\"` : ""}? This cannot be undone.`,
+            { title: "Delete Save?", confirmLabel: "Delete", isDanger: true }
+          );
+          if (!confirmed) return;
+          const ok = await ctx.saveService.deleteSlot(slotIdx);
+          if (ok) {
+            showInfoToast(`Deleted Slot ${slotIdx}`, "info");
+            void renderContent("saves");
+          }
+        }, { signal });
+
+        card.querySelector(".btn-rename")?.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (!ctx.saveService || !entry || !ctx.saveLibrary) return;
+          const labelEl = card.querySelector(".ingame-menu__save-label") as HTMLElement | null;
+          if (!labelEl) return;
+
+          const currentLabel = entry.label;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = currentLabel;
+          input.className = "ingame-menu__save-rename-input";
+          input.setAttribute("aria-label", `New name for Slot ${slotIdx}`);
+          input.maxLength = 40;
+
+          labelEl.replaceWith(input);
+          input.focus();
+          input.select();
+
+          const finish = async () => {
+            const newLabel = input.value.trim();
+            await ctx.saveLibrary!.updateStateLabel(gameId, slotIdx, newLabel);
+            void renderContent("saves");
+          };
+
+          input.addEventListener("blur", finish, { once: true, signal });
+          input.addEventListener("keydown", (ke) => {
+            if (ke.key === "Enter") { ke.preventDefault(); input.blur(); }
+            if (ke.key === "Escape") { ke.preventDefault(); input.value = currentLabel; input.blur(); }
+          }, { signal });
         }, { signal });
 
         grid.appendChild(card);
@@ -3214,6 +3331,8 @@ async function showInGameMenu(ctx: {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeMenu();
   }, { signal, once: true });
+
+  overlay.addEventListener("keydown", (e: KeyboardEvent) => trapFocus(overlay, e), { signal });
 }
 
 // ── Auto-save restore prompt ──────────────────────────────────────────────────
@@ -3232,10 +3351,6 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 // ── Settings panel ────────────────────────────────────────────────────────────
 
 type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "debug" | "about";
-
-let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
-let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
-let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export function openSettingsPanel(
   settings:         Settings,
@@ -3274,22 +3389,7 @@ export function openSettingsPanel(
   });
 
   // Focus trap: keep Tab navigation inside the settings panel
-  const focusTrapFn = (e: KeyboardEvent) => {
-    if (e.key !== "Tab") return;
-    const focusable = Array.from(
-      panel.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )
-    ).filter(el => !el.closest("[hidden]"));
-    if (focusable.length === 0) return;
-    const first = focusable[0]!;
-    const last  = focusable[focusable.length - 1]!;
-    if (e.shiftKey) {
-      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-    } else {
-      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
-    }
-  };
+  const focusTrapFn = (e: KeyboardEvent) => trapFocus(panel, e);
 
   const close = () => {
     panel.hidden = true;
@@ -3305,6 +3405,8 @@ export function openSettingsPanel(
       document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
       _settingsPanelSearchShortcutHandler = null;
     }
+    _settingsTabBarRo?.disconnect();
+    _settingsTabBarRo = null;
     previousFocus?.focus();
   };
 
@@ -3318,7 +3420,11 @@ export function openSettingsPanel(
   if (_settingsPanelSearchShortcutHandler) {
     document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
   }
-  _settingsPanelEscHandler = (e: KeyboardEvent) => { if (e.key !== "Escape") return; close(); };
+  _settingsPanelEscHandler = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    if (document.querySelector(".confirm-overlay--visible")) return;
+    close();
+  };
   _settingsPanelFocusTrap  = focusTrapFn;
   _settingsPanelSearchShortcutHandler = (e: KeyboardEvent) => {
     const isSearchShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
@@ -3480,7 +3586,9 @@ function buildSettingsContent(
   };
   updateTabBarOverflow();
   if (typeof ResizeObserver !== "undefined") {
-    new ResizeObserver(updateTabBarOverflow).observe(tabBar);
+    _settingsTabBarRo?.disconnect();
+    _settingsTabBarRo = new ResizeObserver(updateTabBarOverflow);
+    _settingsTabBarRo.observe(tabBar);
   }
 
   // Ensure tab button classes and panel visibility match the active tab
@@ -5318,7 +5426,7 @@ function buildCloudSaveBar(): HTMLElement {
  * On success, saves credentials via CloudSaveManager helpers and calls
  * cloudManager.connect(provider).  Returns true when connected.
  */
-async function showCloudConnectDialog(): Promise<boolean> {
+function showCloudConnectDialog(): Promise<boolean> {
   const cloudManager = getCloudSaveManager();
 
   return new Promise((resolve) => {
@@ -6875,28 +6983,24 @@ function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
   if (!_uiDirtyTracker.consume(UIDirtyFlags.DEV_OVERLAY)) return;
 
   // ── Scalar Metrics ────────────────────────────────────────────────────────
-  const ftEl     = document.getElementById("dev-frame-time");
-  const fpsEl    = document.getElementById("dev-fps");
-  const p95El    = document.getElementById("dev-p95");
-  const memEl    = document.getElementById("dev-memory");
-  const stateEl  = document.getElementById("dev-state");
+  const els = _getDevOverlayEls();
 
-  if (ftEl)    ftEl.textContent    = `${frameTimeMs}ms`;
-  if (fpsEl)   fpsEl.textContent   = `${snapshot.current} FPS`;
-  if (p95El)   p95El.textContent   = `${snapshot.p95FrameTimeMs}ms`;
+  if (els.ft) els.ft.textContent = `${frameTimeMs}ms`;
+  if (els.fps) els.fps.textContent = `${snapshot.current} FPS`;
+  if (els.p95) els.p95.textContent = `${snapshot.p95FrameTimeMs}ms`;
 
-  if (memEl) {
+  if (els.mem) {
     const perf = performance as Performance & { memory?: { usedJSHeapSize?: number } };
     const used = perf.memory?.usedJSHeapSize;
-    memEl.textContent = used ? `${Math.round(used / (1024 * 1024))}MB` : "n/a";
+    els.mem.textContent = used ? `${Math.round(used / (1024 * 1024))}MB` : "n/a";
   }
 
-  if (stateEl) {
-    stateEl.textContent = emulator.state;
+  if (els.state) {
+    els.state.textContent = emulator.state;
   }
 
   // ── Frame-time mini graph ─────────────────────────────────────────────────
-  const canvas = document.getElementById("dev-framegraph") as HTMLCanvasElement | null;
+  const canvas = els.canvas as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -6940,11 +7044,30 @@ let _perfSuggestionShown = false;
 const LOW_FPS_THRESHOLD = 25;
 const LOW_FPS_TRIGGER   = 6;
 
+function _getDevOverlayEls(): Record<string, HTMLElement | null> {
+  if (!_devOverlayEls) {
+    _devOverlayEls = {
+      ft: document.getElementById("dev-frame-time"),
+      fps: document.getElementById("dev-fps"),
+      p95: document.getElementById("dev-p95"),
+      mem: document.getElementById("dev-memory"),
+      state: document.getElementById("dev-state"),
+      canvas: document.getElementById("dev-framegraph"),
+    };
+  }
+  return _devOverlayEls;
+}
+
 function updateFPSOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
-  const valEl     = document.getElementById("fps-current-val");
-  const avgEl     = document.getElementById("fps-avg");
-  const tierEl    = document.getElementById("fps-tier");
-  const droppedEl = document.getElementById("fps-dropped");
+  if (!_fpsOverlayEls) {
+    _fpsOverlayEls = {
+      val: document.getElementById("fps-current-val"),
+      avg: document.getElementById("fps-avg"),
+      tier: document.getElementById("fps-tier"),
+      dropped: document.getElementById("fps-dropped"),
+    };
+  }
+  const { val: valEl, avg: avgEl, tier: tierEl, dropped: droppedEl } = _fpsOverlayEls;
 
   if (valEl) {
     valEl.textContent = `${snapshot.current}`;
@@ -7056,7 +7179,7 @@ export function setLoadingProgress(percent: number | null): void {
  * On success, appends the new CloudLibraryConnection to settings and calls
  * onSettingsChange so the tab re-renders.
  */
-async function showAddCloudLibraryDialog(
+function showAddCloudLibraryDialog(
   settings:         Settings,
   onSettingsChange: (patch: Partial<Settings>) => void,
   rebuildTab:       () => void,

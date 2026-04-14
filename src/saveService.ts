@@ -258,4 +258,37 @@ export class SaveGameService {
       return true;
     });
   }
+
+  async deleteSlot(slot: number, override?: Partial<SaveGameContext>): Promise<boolean> {
+    const context = this.resolveContext(override);
+    if (!context) return false;
+
+    const entry = await this.saveLibrary.getState(context.gameId, slot);
+    if (!entry) return false;
+
+    await this.saveLibrary.deleteState(context.gameId, slot);
+    this.emit({ status: "idle", gameId: context.gameId, slot });
+    return true;
+  }
+
+  async findNextSlot(override?: Partial<SaveGameContext>): Promise<number> {
+    const context = this.resolveContext(override);
+    if (!context) return 1;
+
+    const states = await this.saveLibrary.getStatesForGame(context.gameId);
+    const occupied = new Set(states.map((s) => s.slot));
+    for (let s = 1; s <= 8; s++) {
+      if (!occupied.has(s)) return s;
+    }
+    return 1;
+  }
+
+  async getLastSavedSlot(override?: Partial<SaveGameContext>): Promise<number> {
+    const context = this.resolveContext(override);
+    if (!context) return 1;
+
+    const states = await this.saveLibrary.getStatesForGame(context.gameId);
+    if (states.length === 0) return 1;
+    return states.reduce((newest, s) => s.timestamp > newest.timestamp ? s : newest).slot;
+  }
 }

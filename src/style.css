@@ -5877,13 +5877,13 @@ kbd {
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   opacity: 0;
   transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 24px;
+  padding: 16px;
   transform: scale(1.05);
 }
 
@@ -5893,11 +5893,13 @@ kbd {
 }
 
 .ingame-menu__save-action-btn {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 70px;
+  max-width: 130px;
+  padding: 8px 6px;
+  border-radius: 8px;
   border: none;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -5922,6 +5924,94 @@ kbd {
 
 .ingame-menu__save-action-btn.btn-load:hover {
   filter: brightness(1.1);
+}
+
+.ingame-menu__save-action-btn.btn-rename {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--c-text);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 8px;
+  min-width: 40px;
+  max-width: 40px;
+  flex: 0 0 40px;
+}
+
+.ingame-menu__save-action-btn.btn-rename::after { content: "\270E"; }
+
+.ingame-menu__save-action-btn.btn-rename:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ingame-menu__save-action-btn.btn-delete {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 8px;
+  min-width: 40px;
+  max-width: 40px;
+  flex: 0 0 40px;
+}
+
+.ingame-menu__save-action-btn.btn-delete::after { content: "\2715"; }
+
+.ingame-menu__save-action-btn.btn-delete:hover {
+  background: rgba(248, 113, 113, 0.35);
+}
+
+.ingame-menu__save-busy {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+}
+
+.ingame-menu__save-busy::after {
+  content: "";
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--c-accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.ingame-menu__save-busy.active {
+  display: flex;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ingame-menu__save-rename-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--c-accent);
+  border-radius: 6px;
+  color: var(--c-text);
+  font-size: inherit;
+  font-family: inherit;
+  padding: 3px 8px;
+  width: 100%;
+  outline: none;
+}
+
+.ingame-menu__save-rename-input:focus {
+  box-shadow: 0 0 0 2px var(--c-accent-glow);
+}
+
+.ingame-menu__saves-count {
+  font-size: 0.7rem;
+  color: var(--c-text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-left: 10px;
+  font-weight: 600;
 }
 
 /* Settings */
@@ -6847,56 +6937,138 @@ body {
   color: var(--c-text);
 }
 
+.onboarding {
+  width: min(100%, 920px);
+  margin-inline: auto;
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.onboarding[aria-hidden="true"] {
+  display: none;
+}
+
+.welcome-hero {
+  margin: 0;
+  padding: 6px 4px 0;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.welcome-hero__eyebrow {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 179, 255, 0.14);
+  background: rgba(124, 140, 255, 0.06);
+  color: var(--c-accent-h);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.welcome-hero__title {
+  max-width: 11ch;
+  margin-inline: auto;
+  margin-block: 0;
+  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.welcome-hero__tagline {
+  max-width: 58ch;
+  font-size: 0.96rem;
+  line-height: 1.55;
+  margin: 0;
+  color: var(--c-text-dim);
+}
+
+.onboarding__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.onboarding__card {
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: none;
+}
+
+.onboarding__card--main {
+  padding: 18px 20px 20px;
+}
+
+.onboarding__card--main:focus-within,
+.drop-zone:focus-visible,
+.drop-zone:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 140, 255, 0.38), var(--shadow-lg);
+}
+
+.onboarding__card--main h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--c-text);
+}
+
 .onboarding__card--main p {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   max-width: 54ch;
   color: var(--c-text-dim);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .welcome-steps {
-  gap: 10px;
+  gap: 8px;
   max-width: 720px;
 }
 
 .welcome-step {
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(244, 247, 251, 0.82);
-  font-weight: 650;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(244, 247, 251, 0.78);
+  font-weight: 600;
 }
 
 .onboarding__features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .onboarding__feature {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 12px;
+  gap: 10px;
   align-items: start;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0.012) 100%),
-    var(--c-surface);
-  border-color: rgba(255, 255, 255, 0.08);
-  padding: 18px 18px;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+  padding: 14px 14px;
+  box-shadow: none;
 }
 
 .onboarding__feature:hover {
-  border-color: rgba(167, 179, 255, 0.22);
-  background: linear-gradient(180deg, rgba(124, 140, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%), var(--c-surface);
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.16);
+  border-color: rgba(167, 179, 255, 0.14);
+  background: rgba(124, 140, 255, 0.045);
+  transform: none;
+  box-shadow: none;
 }
 
 .onboarding__feature-icon {
   filter: none;
-  opacity: 0.9;
-  font-size: 1.05rem;
+  opacity: 0.78;
+  font-size: 0.95rem;
   line-height: 1.2;
 }
 

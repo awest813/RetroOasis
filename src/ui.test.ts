@@ -215,6 +215,28 @@ describe("buildDOM", () => {
     expect(hint!.textContent).toMatch(/ZIP auto-extracted/i);
   });
 
+  it("adds onboarding semantics when the library is empty", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const onboarding = app.querySelector("#onboarding");
+    expect(onboarding).toBeTruthy();
+    expect(onboarding?.getAttribute("role")).toBe("region");
+    expect(onboarding?.getAttribute("aria-labelledby")).toBe("onboarding-title");
+  });
+
+  it("uses minimal onboarding copy", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const onboarding = app.querySelector("#onboarding");
+    expect(onboarding?.textContent).toMatch(/Add a game to begin/i);
+    expect(onboarding?.textContent).toMatch(/What to do next/i);
+    expect(onboarding?.textContent).toMatch(/Play and save locally/i);
+  });
+
   it("includes expanded archive extensions in file input accept list", () => {
     const app = document.createElement("div");
     document.body.appendChild(app);
@@ -563,7 +585,7 @@ describe("library stale system filter recovery", () => {
     await new Promise(r => setTimeout(r, 150));
 
     const empty = document.querySelector(".library-empty");
-    expect(empty?.textContent).toMatch(/reset the filters/i);
+    expect(empty?.textContent).toMatch(/clear filters/i);
     expect(empty?.textContent).toMatch(/PSP/i);
     const resetButton = document.querySelector(".library-empty__reset") as HTMLButtonElement | null;
     expect(resetButton).toBeTruthy();

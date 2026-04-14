@@ -113,11 +113,7 @@ describe("SaveGameService", () => {
     existingEntry.label = "Before Final Boss";
 
     const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
-    const getState = vi.fn().mockImplementation(async (_gameId: string, slot: number) => {
-      // First call (readback to get existing label) returns the entry with custom label.
-      // Second call (readback after save) also returns it.
-      return { ...existingEntry, slot };
-    });
+    const getState = vi.fn().mockImplementation(async (_gameId: string, slot: number) => ({ ...existingEntry, slot }));
     const saveLibrary = { saveState, getState } as unknown as SaveStateLibrary;
 
     const emulator = {
@@ -137,7 +133,6 @@ describe("SaveGameService", () => {
 
     await service.saveSlot(2);
 
-    // The entry passed to saveState must carry the preserved label.
     expect(saveState).toHaveBeenCalledTimes(1);
     const savedEntry = saveState.mock.calls[0]![0];
     expect(savedEntry.label).toBe("Before Final Boss");
@@ -172,5 +167,121 @@ describe("SaveGameService", () => {
     expect(result).toBeNull();
     expect(saveState).not.toHaveBeenCalled();
     expect(events).toContain("emulator-not-ready");
+  });
+
+  it("deletes an occupied slot via deleteSlot", async () => {
+    const deleteState = vi.fn().mockResolvedValue(undefined);
+    const saveLibrary = {
+      deleteState,
+      getState: vi.fn(async () => makeEntry(3)),
+    } as unknown as SaveStateLibrary;
+
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([1])),
+      writeStateData: vi.fn(() => true),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const ok = await service.deleteSlot(3);
+    expect(ok).toBe(true);
+    expect(deleteState).toHaveBeenCalledWith("g", 3);
+  });
+
+  it("returns false when deleting an empty slot", async () => {
+    const saveLibrary = {
+      getState: vi.fn(async () => null),
+      deleteState: vi.fn(),
+    } as unknown as SaveStateLibrary;
+
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => null),
+      writeStateData: vi.fn(() => true),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const ok = await service.deleteSlot(5);
+    expect(ok).toBe(false);
+    expect(saveLibrary.deleteState).not.toHaveBeenCalled();
+  });
+
+  it("findNextSlot returns the first unoccupied slot", async () => {
+    const saveLibrary = {
+      getStatesForGame: vi.fn(async () => [makeEntry(1), makeEntry(3)]),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const next = await service.findNextSlot();
+    expect(next).toBe(2);
+  });
+
+  it("findNextSlot returns 1 when all slots are full", async () => {
+    const saveLibrary = {
+      getStatesForGame: vi.fn(async () => Array.from({ length: 8 }, (_, i) => makeEntry(i + 1))),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const next = await service.findNextSlot();
+    expect(next).toBe(1);
+  });
+
+  it("getLastSavedSlot returns the most recently saved slot", async () => {
+    const entry3 = makeEntry(3);
+    entry3.timestamp = Date.now() - 5000;
+    const entry1 = makeEntry(1);
+    entry1.timestamp = Date.now() - 1000;
+
+    const saveLibrary = {
+      getStatesForGame: vi.fn(async () => [entry3, entry1]),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const last = await service.getLastSavedSlot();
+    expect(last).toBe(1);
+  });
+
+  it("getLastSavedSlot returns 1 when no saves exist", async () => {
+    const saveLibrary = {
+      getStatesForGame: vi.fn(async () => []),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const last = await service.getLastSavedSlot();
+    expect(last).toBe(1);
   });
 });
