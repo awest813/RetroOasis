@@ -388,6 +388,11 @@ body {
   flex-wrap: wrap;
 }
 
+.library-controls__reset {
+  min-height: 36px;
+  padding-inline: 14px;
+}
+
 .library-search-wrap {
   position: relative;
   display: flex;
@@ -556,6 +561,10 @@ body {
 
 .library-empty__reset {
   min-width: 148px;
+}
+
+.library-empty p {
+  max-width: 52ch;
 }
 
 /* ── Game grid ────────────────────────────────────────────── */
@@ -1485,6 +1494,41 @@ body {
   min-height: 1em;
 }
 
+.settings-active-tab-label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--c-text);
+  font-weight: 700;
+}
+
+.settings-search-clear {
+  align-self: flex-start;
+}
+
+.settings-jumpbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-jumpbar__btn {
+  border: 1px solid color-mix(in srgb, var(--c-accent) 28%, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-surface2));
+  color: var(--c-text);
+  border-radius: var(--radius-pill);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.settings-jumpbar__btn:hover,
+.settings-jumpbar__btn:focus-visible {
+  border-color: var(--c-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--c-accent-dim);
+}
+
 /* Shell wraps sidebar + content body side by side */
 .settings-shell {
   flex: 1;
@@ -1629,6 +1673,20 @@ body {
   margin-bottom: 12px;
 }
 
+.settings-panel-content:focus-within .settings-section {
+  opacity: 0.9;
+}
+
+.settings-panel-content:focus-within .settings-section:focus-within {
+  opacity: 1;
+}
+
+@supports selector(:has(*)) {
+  .settings-panel-content:focus-within .settings-section:not(:has(:focus-visible)) {
+    opacity: 0.9;
+  }
+}
+
 .settings-help {
   font-size: 0.84rem;
   color: var(--c-text-dim);
@@ -1730,10 +1788,18 @@ body {
   transition: background var(--transition), border-color var(--transition);
 }
 
-.toggle-switch:has(input:checked) {
+.toggle-switch.is-checked {
   background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 100%);
   border-color: var(--c-accent);
   box-shadow: 0 0 10px color-mix(in srgb, var(--c-accent) 40%, transparent);
+}
+
+@supports selector(:has(*)) {
+  .toggle-switch:has(input:checked) {
+    background: linear-gradient(135deg, var(--c-accent-h) 0%, var(--c-accent) 100%);
+    border-color: var(--c-accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--c-accent) 40%, transparent);
+  }
 }
 
 .toggle-switch__knob {
@@ -1748,9 +1814,16 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
-.toggle-switch:has(input:checked) .toggle-switch__knob {
+.toggle-switch.is-checked .toggle-switch__knob {
   transform: translateX(20px);
   background: #fff;
+}
+
+@supports selector(:has(*)) {
+  .toggle-switch:has(input:checked) .toggle-switch__knob {
+    transform: translateX(20px);
+    background: #fff;
+  }
 }
 
 /* Device info */
@@ -1933,6 +2006,18 @@ body {
 .btn--primary:active:not(:disabled) {
   transform: translateY(1px) scale(0.98);
   box-shadow: 0 1px 8px color-mix(in srgb, var(--c-accent) 35%, transparent);
+}
+
+.btn--ghost {
+  background: color-mix(in srgb, var(--c-surface2) 84%, transparent);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--c-text);
+}
+
+.btn--ghost:hover {
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-surface2));
+  border-color: color-mix(in srgb, var(--c-accent) 38%, rgba(255, 255, 255, 0.12));
+  color: var(--c-text);
 }
 
 .btn--danger  { border-color: var(--c-danger); color: var(--c-danger); }
@@ -2291,6 +2376,9 @@ body {
 
   .library-toolbar { flex-direction: column; align-items: flex-start; }
   .library-controls { width: 100%; }
+  .library-search-wrap,
+  .library-sort,
+  .library-controls__reset { width: 100%; }
   .library-search { width: 100%; flex: 1; }
   .library-search:focus { width: 100%; }
   .library-sort { flex: 1; min-width: 0; }
@@ -4093,6 +4181,11 @@ kbd {
   letter-spacing: -0.01em;
 }
 
+.header-priority-primary { order: 100; }
+.header-priority-secondary { order: 80; }
+.header-priority-optional { order: 60; }
+.header-priority-chip { order: 10; }
+
 .now-playing-chip::before {
   content: "";
   width: 6px;
@@ -4193,6 +4286,10 @@ kbd {
     max-width: 62vw;
   }
 
+  .now-playing-chip {
+    max-width: 34vw;
+  }
+
   .library-controls {
     gap: 8px;
   }
@@ -4205,6 +4302,22 @@ kbd {
   .library-sort {
     flex: 1 1 140px;
     min-width: 120px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header__actions .header-priority-optional {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-header__actions .header-priority-secondary:not(.header-priority-primary) {
+    display: none;
+  }
+
+  .now-playing-chip {
+    display: none;
   }
 }
 
@@ -4525,6 +4638,20 @@ kbd {
     font-size: 1.15rem;
     width: auto;
   }
+
+  .settings-search-clear {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .settings-jumpbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .settings-active-tab-label {
+    display: block;
+  }
 }
 
 /* ── Confirm dialog footer — wrap on very narrow screens ───── */
@@ -4550,6 +4677,10 @@ kbd {
     max-width: min(30vw, 150px);
     font-size: 0.68rem;
     padding: 2px 8px;
+  }
+
+  .app-header__actions {
+    gap: 6px;
   }
 }
 
@@ -6815,11 +6946,29 @@ body {
 .drop-zone__actions {
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .drop-zone__cta {
   min-width: 156px;
   min-height: 42px;
+}
+
+.drop-zone--compact {
+  width: min(100%, 1020px);
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border-radius: calc(var(--radius-lg) + 2px);
+}
+
+.drop-zone--compact .drop-zone__actions {
+  width: auto;
+}
+
+.drop-zone--compact .drop-zone__cta {
+  min-width: 132px;
+  min-height: 38px;
 }
 
 .drop-zone__sub,
@@ -6904,6 +7053,13 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+}
+
+.onboarding__quick-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .onboarding__card {
@@ -7238,6 +7394,11 @@ body {
   .onboarding {
     gap: 14px;
     margin-top: 0;
+  }
+
+  .onboarding__quick-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .onboarding__card--main {

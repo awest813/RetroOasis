@@ -4607,6 +4607,42 @@ describe("UX polish shortcuts and feedback", () => {
     expect(document.activeElement).toBe(search);
   });
 
+  it("shows settings search jump targets and clears search state", async () => {
+    openSettingsPanel(makeSettings(), fullCapsForTests, makeFullLibForTests(), makeBiosLibForTests(), vi.fn());
+
+    const search = document.querySelector<HTMLInputElement>(".settings-search-input");
+    expect(search).toBeTruthy();
+
+    search!.value = "audio";
+    search!.dispatchEvent(new Event("input", { bubbles: true }));
+    await flushUI();
+
+    const jumpButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".settings-jumpbar__btn"));
+    expect(jumpButtons.length).toBeGreaterThan(0);
+
+    const clearButton = document.querySelector<HTMLButtonElement>(".settings-search-clear");
+    expect(clearButton?.hidden).toBe(false);
+
+    clearButton!.click();
+    await flushUI();
+
+    expect(search!.value).toBe("");
+    expect(document.querySelectorAll(".settings-jumpbar__btn").length).toBe(0);
+  });
+
+  it("updates the active settings tab label when switching tabs", async () => {
+    openSettingsPanel(makeSettings(), fullCapsForTests, makeFullLibForTests(), makeBiosLibForTests(), vi.fn());
+
+    const label = document.querySelector<HTMLElement>(".settings-active-tab-label");
+    expect(label?.textContent).toContain("Performance");
+
+    const aboutTab = document.getElementById("tab-about") as HTMLButtonElement | null;
+    aboutTab?.click();
+    await flushUI();
+
+    expect(label?.textContent).toContain("Help");
+  });
+
   it("focuses the retry action in the error banner and closes on Escape", async () => {
     const onRetry = vi.fn();
     showError("Transient import error", onRetry);

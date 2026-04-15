@@ -227,7 +227,7 @@ export function buildDOM(app: HTMLElement): void {
               <h2 class="library-title">My Library</h2>
               <span class="library-count" id="library-count" aria-live="polite" aria-atomic="true"></span>
             </div>
-            <div class="library-controls">
+            <div class="library-controls" aria-label="Library controls">
               <div class="library-search-wrap">
                 <svg class="library-search-icon" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5"
@@ -246,6 +246,10 @@ export function buildDOM(app: HTMLElement): void {
                 <option value="added">Date Added</option>
                 <option value="system">System</option>
               </select>
+              <button class="btn btn--ghost library-controls__reset" id="library-controls-reset"
+                      type="button" hidden aria-label="Reset all library filters">
+                Reset
+              </button>
             </div>
           </div>
           <div class="system-filter" id="system-filter">
@@ -257,7 +261,7 @@ export function buildDOM(app: HTMLElement): void {
         </div>
 
         <!-- Drop zone -->
-        <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Add a game file">
+          <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Add a game file" aria-describedby="drop-zone-subtitle drop-zone-formats">
           <input type="file"
                  id="file-input"
                  accept="${acceptList}"
@@ -271,11 +275,11 @@ export function buildDOM(app: HTMLElement): void {
             </svg>
           </div>
           <p class="drop-zone__label">${touchUI ? "Tap to add a game" : "Drop a game file here to start playing"}</p>
-          <p class="drop-zone__sub">${touchUI ? "Choose a ROM, archive, or disc image from your device" : 'or <span class="drop-zone__browse">browse your device</span>'}</p>
+          <p class="drop-zone__sub" id="drop-zone-subtitle">${touchUI ? "Choose a ROM, archive, or disc image from your device" : 'or <span class="drop-zone__browse">browse your device</span>'}</p>
           <div class="drop-zone__actions">
             <button class="btn btn--primary btn--sm drop-zone__cta" id="btn-add-game-onboarding" type="button">Choose Files</button>
           </div>
-          <p class="drop-zone__formats" title="Supported file formats">${formatHint}</p>
+          <p class="drop-zone__formats" id="drop-zone-formats" title="Supported file formats">${formatHint}</p>
         </div>
 
         <!-- Onboarding — only visible when library is empty -->
@@ -296,6 +300,11 @@ export function buildDOM(app: HTMLElement): void {
                 <div class="welcome-step">3. Play and save locally</div>
               </div>
             </div>
+          </div>
+
+          <div class="onboarding__quick-actions" aria-label="Quick start actions">
+            <button class="btn btn--primary" id="btn-add-game-secondary" type="button">Choose Files</button>
+            <button class="btn btn--ghost" id="btn-open-help-onboarding" type="button">View Guide</button>
           </div>
 
           <div class="onboarding__features">
@@ -755,7 +764,7 @@ export function initUI(opts: UIOptions): void {
     if (
       ((e.key === "/" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) &&
       !_isEditableTarget(e.target) &&
-      !isTopmostOverlay()
+      !document.querySelector(".confirm-overlay, .easy-netplay-overlay, #settings-panel:not([hidden]), #system-picker:not([hidden])")
     ) {
       if (_focusLibrarySearch()) {
         e.preventDefault();
@@ -1114,7 +1123,7 @@ export async function renderLibrary(
   const isCinematicMode = !_librarySearchQuery && !_librarySystemFilter && _librarySortMode === "lastPlayed" && displayed.length >= 5;
 
   if (displayed.length === 0 && allGames.length > 0) {
-    const empty = make("div", { class: "library-empty" });
+    const empty = make("div", { class: "library-empty", role: "status", "aria-live": "polite" });
     const hasSearch = _librarySearchQuery.trim().length > 0;
     const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
     let message = "No games match your current filters.";
@@ -1332,7 +1341,7 @@ function _wireLibraryNavigation(): void {
 
     if (nextIdx !== idx) {
       cards[nextIdx]!.focus();
-      cards[nextIdx]!.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
     }
   });
 
@@ -1423,7 +1432,7 @@ function _wireLibraryNavigation(): void {
     if (idx === -1) {
       // Nothing focused yet — focus the first card
       cards[0]!.focus();
-      cards[0]!.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      _safeScrollIntoView(cards[0]!, { block: "nearest", behavior: "smooth" });
       return;
     }
 
@@ -1454,7 +1463,7 @@ function _wireLibraryNavigation(): void {
 
     if (nextIdx !== idx) {
       cards[nextIdx]!.focus();
-      cards[nextIdx]!.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
     }
   }
 
@@ -1484,14 +1493,33 @@ function _wireLibraryControls(
       (document.getElementById("file-input") as HTMLInputElement | null)?.click();
     });
   }
+  const addGameSecondaryBtn = document.getElementById("btn-add-game-secondary");
+  if (addGameSecondaryBtn) {
+    addGameSecondaryBtn.addEventListener("click", () => {
+      (document.getElementById("file-input") as HTMLInputElement | null)?.click();
+    });
+  }
+  const onboardingHelpBtn = document.getElementById("btn-open-help-onboarding");
+  if (onboardingHelpBtn) {
+    onboardingHelpBtn.addEventListener("click", () => {
+      _openSettingsFn?.("about");
+    });
+  }
 
   _libraryControlsWired = true;
 
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
   const sortEl   = document.getElementById("library-sort") as HTMLSelectElement | null;
   const clearBtn = document.getElementById("library-search-clear") as HTMLButtonElement | null;
+  const resetBtn = document.getElementById("library-controls-reset") as HTMLButtonElement | null;
 
   _syncLibraryControlState();
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    });
+  }
 
   if (searchEl) {
     searchEl.addEventListener("input", () => {
@@ -1868,7 +1896,6 @@ function _escHtml(s: string): string {
 }
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const MENU_CLOSE_DELAY_MS = 400;
 const OVERLAY_FADE_DELAY_MS = 200;
 const PERF_SUGGESTION_FADE_DELAY_MS = 300;
 const TOAST_REMOVE_DELAY_MS = 400;
@@ -1920,6 +1947,14 @@ function _focusLibrarySearch(): boolean {
   searchEl.focus();
   searchEl.select();
   return true;
+}
+
+function _safeScrollIntoView(target: HTMLElement, options: ScrollIntoViewOptions): void {
+  try {
+    target.scrollIntoView(options);
+  } catch {
+    target.scrollIntoView();
+  }
 }
 
 
@@ -2661,7 +2696,7 @@ function buildInGameControls(
     : settings.touchControls;
 
   const nowPlayingChip = make("div", {
-    class: "now-playing-chip",
+    class: "now-playing-chip header-priority-chip",
     role: "status",
     "aria-live": "polite",
     "aria-label": `Now playing ${currentGameName}`,
@@ -2678,7 +2713,7 @@ function buildInGameControls(
   // ── Quick Save button ──────────────────────────────────────────────────────
   if (saveService) {
     const btnSave = make("button", {
-      class: "btn",
+      class: "btn header-priority-optional",
       title: "Quick save (F5)",
       "aria-label": "Quick save to slot 1",
     }) as HTMLButtonElement;
@@ -2695,7 +2730,7 @@ function buildInGameControls(
   // ── Quick Load button ──────────────────────────────────────────────────────
   if (saveService) {
     const btnLoad = make("button", {
-      class: "btn",
+      class: "btn header-priority-optional",
       title: "Quick load (F7)",
       "aria-label": "Quick load from slot 1",
     }) as HTMLButtonElement;
@@ -2711,7 +2746,7 @@ function buildInGameControls(
 
   // ── Save Gallery button ────────────────────────────────────────────────────
   const btnGallery = make("button", {
-    class: "btn",
+    class: "btn header-priority-secondary",
     title: "Save slots",
     "aria-label": "Open save state gallery",
   }) as HTMLButtonElement;
@@ -2739,7 +2774,7 @@ function buildInGameControls(
     );
     const isActive = (nm?.isActive === true) || (settings.netplayEnabled && settings.netplayServerUrl.trim().length > 0);
     const btnNetplay = make("button", {
-      class: isActive ? "btn btn--active" : "btn",
+      class: isActive ? "btn btn--active header-priority-secondary" : "btn header-priority-secondary",
       title: isSupported ? "Online multiplayer" : "Multiplayer not available for this system",
       "aria-label": "Open Play Together",
     }) as HTMLButtonElement;
@@ -2765,7 +2800,7 @@ function buildInGameControls(
   // ── Touch controls edit/reset buttons (touch devices only) ───────────────────
   if (isTouchDevice()) {
     const btnEditTouch = make("button", {
-      class: "btn",
+      class: "btn header-priority-optional",
       title: "Edit touch control layout",
       "aria-label": "Edit touch control layout",
     }) as HTMLButtonElement;
@@ -2780,7 +2815,7 @@ function buildInGameControls(
     }, { signal });
 
     const btnResetTouch = make("button", {
-      class: "btn",
+      class: "btn header-priority-optional",
       title: "Reset touch control layout to defaults",
       "aria-label": "Reset touch control layout",
     }) as HTMLButtonElement;
@@ -2796,7 +2831,7 @@ function buildInGameControls(
 
   // ── Reset button ─────────────────────────────────────────────────────────────
   const btnReset = make("button", {
-    class: "btn btn--warn",
+    class: "btn btn--warn header-priority-secondary",
     title: "Reset emulator (F1)",
     "aria-label": "Reset emulator",
   }) as HTMLButtonElement;
@@ -2812,7 +2847,7 @@ function buildInGameControls(
 
   // ── Menu button ─────────────────────────────────────────────────────────────
   const btnMenu = make("button", {
-    class: "btn btn--gradient",
+    class: "btn btn--gradient header-priority-primary",
     title: "Open Menu (Esc)",
     "aria-label": "Open Menu",
     "data-tooltip": "Open Menu (Esc)",
@@ -3480,6 +3515,8 @@ function buildSettingsContent(
   }) as HTMLInputElement;
   const searchStatus = make("p", { class: "settings-search-status", "aria-live": "polite" });
   quickBar.append(quickInfo, searchInput, searchStatus);
+  const activeTabLabel = make("p", { class: "settings-active-tab-label", "aria-live": "polite" });
+  quickBar.append(activeTabLabel);
 
   const tabs: Array<{ id: SettingsTab; icon: string; label: string; ariaLabel: string }> = [
     { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
@@ -3497,11 +3534,23 @@ function buildSettingsContent(
   let activeTab: SettingsTab = tabIndexById.has(requestedTab) ? requestedTab : "performance";
 
   // Sidebar nav (replaces horizontal tab bar)
-  const tabBar = make("div", { class: "settings-sidebar", role: "tablist" });
+  const tabBar = make("div", {
+    class: "settings-sidebar",
+    role: "tablist",
+    "aria-label": "Settings sections",
+  });
   // Content body wrapper
   const bodyEl = make("div", { class: "settings-body" });
   // Tab panels container
   const panelsEl = make("div", { class: "settings-panels" });
+  const jumpBar = make("div", { class: "settings-jumpbar", hidden: "true", "aria-label": "Search results" });
+  const clearSearchBtn = make("button", {
+    class: "btn btn--ghost settings-search-clear",
+    type: "button",
+    hidden: "true",
+    "aria-label": "Clear settings search",
+  }, "Clear search") as HTMLButtonElement;
+  quickBar.append(clearSearchBtn, jumpBar);
 
   const tabBtns: HTMLButtonElement[] = [];
   const panels: HTMLElement[] = [];
@@ -3522,6 +3571,7 @@ function buildSettingsContent(
       panel.setAttribute("aria-hidden", String(!isActive));
     });
     const activeBtn = activeIndex >= 0 ? tabBtns[activeIndex] : null;
+    activeTabLabel.textContent = activeIndex >= 0 ? `Viewing: ${tabs[activeIndex]!.label}` : "";
     if (activeBtn) {
       const scrollIntoViewFn = (activeBtn as HTMLElement & { scrollIntoView?: unknown }).scrollIntoView;
       if (typeof scrollIntoViewFn === "function") {
@@ -3611,34 +3661,67 @@ function buildSettingsContent(
   const applySearchFilter = () => {
     const query = searchInput.value.trim().toLowerCase();
     let matchedSections = 0;
+    jumpBar.innerHTML = "";
+    jumpBar.hidden = true;
+    clearSearchBtn.hidden = query.length === 0;
 
     for (let i = 0; i < panels.length; i++) {
       const panel = panels[i]!;
       const sections = Array.from(panel.querySelectorAll<HTMLElement>(".settings-section"));
       let panelMatched = false;
+      let firstMatchLabel = "";
 
       for (const section of sections) {
-        const haystack = (section.textContent ?? "").toLowerCase();
+        const indexedEls = Array.from(section.querySelectorAll<HTMLElement>(
+          ".settings-section__title, .radio-row__label, .radio-row__desc, .settings-help, .toggle-row__text, label, button, summary"
+        ));
+        const haystack = indexedEls.map((el) => el.textContent ?? "").join(" ").toLowerCase();
         const match = query.length === 0 || haystack.includes(query);
         section.hidden = !match;
         if (match) {
           panelMatched = true;
           matchedSections += 1;
+          if (!firstMatchLabel) {
+            firstMatchLabel = section.querySelector<HTMLElement>(".settings-section__title")?.textContent?.trim() ?? "Section";
+          }
         }
       }
 
       tabBtns[i]!.classList.toggle("settings-tab--match", panelMatched && query.length > 0);
+      if (query.length > 0 && panelMatched) {
+        const jumpBtn = make("button", {
+          class: "settings-jumpbar__btn",
+          type: "button",
+          "aria-label": `Jump to ${tabs[i]!.label} settings`,
+        }, `${tabs[i]!.label}${firstMatchLabel ? ` · ${firstMatchLabel}` : ""}`) as HTMLButtonElement;
+        jumpBtn.addEventListener("click", () => {
+          switchTab(tabs[i]!.id);
+          requestAnimationFrame(() => {
+            const firstVisibleSection = panel.querySelector<HTMLElement>(".settings-section:not([hidden])");
+            if (firstVisibleSection) _safeScrollIntoView(firstVisibleSection, { block: "start", behavior: "smooth" });
+            const firstFocusable = firstVisibleSection?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+            firstFocusable?.focus();
+          });
+        });
+        jumpBar.appendChild(jumpBtn);
+      }
     }
 
     if (query.length === 0) {
       searchStatus.textContent = "";
       return;
     }
+    jumpBar.hidden = matchedSections === 0;
     searchStatus.textContent = matchedSections > 0
       ? `${matchedSections} matching section${matchedSections === 1 ? "" : "s"}`
       : "No matching settings";
   };
   searchInput.addEventListener("input", applySearchFilter);
+  clearSearchBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    applySearchFilter();
+    searchInput.focus();
+  });
 }
 
 // ── Performance tab ───────────────────────────────────────────────────────────
@@ -6770,9 +6853,13 @@ function buildToggleRow(label: string, desc: string, checked: boolean, onChange:
   const input  = make("input", { type: "checkbox" }) as HTMLInputElement;
   input.checked = checked;
   const knob = make("span", { class: "toggle-switch__knob" });
+  toggle.classList.toggle("is-checked", checked);
   toggle.append(input, knob);
 
-  input.addEventListener("change", () => onChange(input.checked));
+  input.addEventListener("change", () => {
+    toggle.classList.toggle("is-checked", input.checked);
+    onChange(input.checked);
+  });
   row.append(left, toggle);
   return row;
 }
