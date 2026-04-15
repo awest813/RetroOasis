@@ -1592,6 +1592,8 @@ body {
 .settings-panel-content {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  padding: 12px;
 }
 
 .settings-panel-content[hidden] { display: none; }
@@ -1611,11 +1613,6 @@ body {
 .pwa-install-row { padding: 4px 0 6px; }
 
 .pwa-install-btn { margin-top: 4px; }
-
-.settings-panel-content {
-  gap: 10px;
-  padding: 12px;
-}
 
 .settings-panel-content .settings-section {
   border: 1.5px solid color-mix(in srgb, var(--c-border) 70%, transparent);
@@ -3371,8 +3368,6 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
-@keyframes spin { to { transform: rotate(360deg); } }
 
 .save-slot-card__empty {
   display: flex;
@@ -5982,10 +5977,6 @@ kbd {
 
 .ingame-menu__save-busy.active {
   display: flex;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .ingame-menu__save-rename-input {

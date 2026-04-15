@@ -817,7 +817,7 @@ export class TouchControlsOverlay {
       }
       if (dragPointerId !== -1) {
         dragPointerId = -1;
-        knob.style.transform = "translate(0, 0)";
+        knob.style.transform = "translate(-50%, -50%)";
       }
     });
   }

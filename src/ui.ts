@@ -1152,9 +1152,9 @@ export async function renderLibrary(
     }
     
     // 3. System Groups
-    const systemIds = [...new Set(allGames.map(g => g.systemId))].sort();
+    const systemIds = [...new Set(displayed.map(g => g.systemId))].sort();
     systemIds.forEach((sid, idx) => {
-      const sysGames = allGames.filter(g => g.systemId === sid);
+      const sysGames = displayed.filter(g => g.systemId === sid);
       if (sysGames.length > 0) {
         const sys = getSystemById(sid);
         const row = buildLibraryRow(sys?.name ?? sid.toUpperCase(), sid, sysGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
@@ -1868,6 +1868,10 @@ function _escHtml(s: string): string {
 }
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const MENU_CLOSE_DELAY_MS = 400;
+const OVERLAY_FADE_DELAY_MS = 200;
+const PERF_SUGGESTION_FADE_DELAY_MS = 300;
+const TOAST_REMOVE_DELAY_MS = 400;
 
 function trapFocus(container: HTMLElement, e: KeyboardEvent): void {
   if (e.key !== "Tab") return;
@@ -2708,7 +2712,7 @@ function buildInGameControls(
   // ── Save Gallery button ────────────────────────────────────────────────────
   const btnGallery = make("button", {
     class: "btn",
-    title: "Save states",
+    title: "Save slots",
     "aria-label": "Open save state gallery",
   }) as HTMLButtonElement;
   btnGallery.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
@@ -3278,7 +3282,7 @@ async function showInGameMenu(ctx: {
         const actions = make("div", { class: "ingame-menu__multiplayer-actions" });
         actions.innerHTML = `
           <button class="ingame-menu__btn ingame-menu__btn--primary">Manage Play Together Room</button>
-          <p class="settings-help ingame-menu__multiplayer-help">Use the game's built-in Multiplayer interface to join a specific room, or the RetroVault Play Together lobby for automatic matchmaking. Play Together is separate from in-game Wi-Fi or WFC features built into the ROM.</p>
+          <p class="settings-help ingame-menu__multiplayer-help">Use the game's built-in multiplayer interface to join a specific room, or the RetroVault Play Together lobby for automatic matchmaking. Play Together is separate from in-game Wi-Fi or WFC features built into the ROM.</p>
         `;
         actions.querySelector("button")?.addEventListener("click", () => {
           closeMenu();
@@ -4298,7 +4302,7 @@ export function openEasyNetplayModal(opts: {
   const needsEnable = !netplayEnabled;
   if (needsServerUrl || needsEnable) {
     const setupStrip = make("div", { class: "enp-setup-strip", role: "region", "aria-label": "Online play setup" });
-    const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up Play Together (one minute)");
+    const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up multiplayer (one minute)");
     const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
     const step1 = needsEnable
       ? "Open Settings → Play Together and turn on Online play."
@@ -4443,7 +4447,7 @@ export function openEasyNetplayModal(opts: {
     });
     easyMgr.cancelPendingOperations();
     overlay.classList.remove("confirm-overlay--visible");
-    setTimeout(() => overlay.remove(), 200);
+    setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
   };
 
   const onKey = (e: KeyboardEvent) => {
@@ -5441,7 +5445,7 @@ function showCloudConnectDialog(): Promise<boolean> {
     const close = (result: boolean) => {
       document.removeEventListener("keydown", onKeydown, { capture: true });
       overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
+      setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
       resolve(result);
     };
 
@@ -7105,7 +7109,7 @@ function showPerfSuggestion(): void {
     `<button class="perf-suggestion__close" aria-label="Dismiss">✕</button>`;
   document.body.appendChild(toast);
 
-  const dismiss = () => { toast.classList.add("perf-suggestion--hiding"); setTimeout(() => toast.remove(), 300); };
+  const dismiss = () => { toast.classList.add("perf-suggestion--hiding"); setTimeout(() => toast.remove(), PERF_SUGGESTION_FADE_DELAY_MS); };
   toast.querySelector(".perf-suggestion__close")?.addEventListener("click", dismiss);
   setTimeout(dismiss, 10_000);
   requestAnimationFrame(() => toast.classList.add("perf-suggestion--visible"));
@@ -7196,7 +7200,7 @@ function showAddCloudLibraryDialog(
     const close = () => {
       document.removeEventListener("keydown", onKeydown, { capture: true });
       overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
+      setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
       resolve();
     };
     const onKeydown = (e: KeyboardEvent) => {
@@ -7886,7 +7890,7 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   closeBtn.setAttribute("aria-label", "Dismiss");
   closeBtn.addEventListener("click", () => {
     toast.classList.remove("visible");
-    setTimeout(() => toast.remove(), 400);
+    setTimeout(() => toast.remove(), TOAST_REMOVE_DELAY_MS);
     _clearToastDismissTimer();
   });
 
@@ -7899,7 +7903,7 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   const dismissToast = () => {
     if (toast.parentElement) {
       toast.classList.remove("visible");
-      setTimeout(() => toast.remove(), 400);
+      setTimeout(() => toast.remove(), TOAST_REMOVE_DELAY_MS);
     }
     _clearToastDismissTimer();
   };

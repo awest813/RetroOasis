@@ -237,6 +237,23 @@ describe("buildDOM", () => {
     expect(onboarding?.textContent).toMatch(/Play and save locally/i);
   });
 
+  it("hides onboarding when the library is not empty", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const settings = makeSettings();
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([makeGame("g1", "Mario", "nes")]),
+    } as unknown as GameLibrary;
+    initUI({ ...makeOpts(settings), library });
+    await new Promise((r) => setTimeout(r, 0));
+
+    const onboarding = app.querySelector("#onboarding");
+    expect(onboarding?.classList.contains("hidden-section")).toBe(true);
+    expect(onboarding?.getAttribute("aria-hidden")).toBe("true");
+  });
+
   it("includes expanded archive extensions in file input accept list", () => {
     const app = document.createElement("div");
     document.body.appendChild(app);
@@ -2431,7 +2448,7 @@ describe("buildLandingControls multiplayer button", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a Play Together button in the landing header", () => {
+  it("renders a multiplayer button in the landing header", () => {
     const settings = makeSettings();
     buildLandingControls(
       settings, fullCapsForTests,
@@ -2442,7 +2459,7 @@ describe("buildLandingControls multiplayer button", () => {
     const btn = Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
       .find(b => b.textContent?.includes("Play Together"));
     expect(btn).toBeTruthy();
-    expect(btn!.title).toContain("Play Together");
+    expect(btn!.title).toContain("Open Play Together");
   });
 
   it("clicking the Play Together button opens the Easy Netplay modal", async () => {

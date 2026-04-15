@@ -108,6 +108,46 @@ describe("SaveGameService", () => {
     expect(emulator.quickLoad).toHaveBeenCalledWith(1);
   });
 
+  it("emits a friendly sync success message when cloud sync succeeds", async () => {
+    const entry = makeEntry(1);
+    const push = vi.fn().mockResolvedValue(undefined);
+    const cloudManager = {
+      isConnected: () => true,
+      autoSyncEnabled: true,
+      push,
+      syncGame: vi.fn(),
+    } as unknown as import("./cloudSave.js").CloudSaveManager;
+
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([1, 2, 3])),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => null),
+    };
+
+    const saveLibrary = {
+      getState: vi.fn(async () => entry),
+      saveState: vi.fn(async () => undefined),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      cloudManager,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const events: string[] = [];
+    service.onStatus((e) => {
+      if (e.status === "sync-success") events.push(e.message ?? "");
+    });
+
+    await service.saveSlot(1);
+    expect(events.some((m) => m.includes("synced to cloud"))).toBe(true);
+  });
+
   it("preserves user-defined slot label when resaving an occupied slot", async () => {
     const existingEntry = makeEntry(2);
     existingEntry.label = "Before Final Boss";
@@ -166,7 +206,34 @@ describe("SaveGameService", () => {
 
     expect(result).toBeNull();
     expect(saveState).not.toHaveBeenCalled();
-    expect(events).toContain("emulator-not-ready");
+    expect(events).toContain("idle");
+  });
+
+  it("emits an integrity warning but still loads a valid slot", async () => {
+    const entry = makeEntry(1);
+    entry.checksum = "00000000";
+
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([1, 2, 3])),
+      writeStateData: vi.fn(() => true),
+    };
+
+    const saveLibrary = {
+      getState: vi.fn(async () => entry),
+    } as unknown as SaveStateLibrary;
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    const ok = await service.loadSlot(1);
+    expect(ok).toBe(true);
+    expect(emulator.quickLoad).toHaveBeenCalledWith(1);
   });
 
   it("deletes an occupied slot via deleteSlot", async () => {

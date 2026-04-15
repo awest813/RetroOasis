@@ -142,10 +142,10 @@ export class SaveGameService {
         const stateBytes = this.emulator.readStateData(slot);
         if (!stateBytes || stateBytes.byteLength === 0) {
           this.emit({
-            status: "emulator-not-ready",
+            status: "idle",
             gameId: context.gameId,
             slot,
-            message: "Save data was unavailable after quick-save. Try again in a moment.",
+            message: "Could not capture save data after quick-save. Try again in a moment.",
           });
           return null;
         }
@@ -177,7 +177,7 @@ export class SaveGameService {
           this.emit({ status: "syncing-cloud", gameId: context.gameId, slot });
           try {
             await this.cloudManager.push(saved);
-            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save mirrored to cloud." });
+            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save synced to cloud." });
           } catch (error) {
             this.emit({
               status: "sync-error",
@@ -208,7 +208,7 @@ export class SaveGameService {
       this.emit({ status: "syncing-cloud", gameId: context.gameId });
       try {
         await this.cloudManager!.syncGame(context.gameId, this.saveLibrary);
-        this.emit({ status: "sync-success", gameId: context.gameId, message: "Local saves mirrored with cloud." });
+        this.emit({ status: "sync-success", gameId: context.gameId, message: "Local saves synced with cloud." });
       } catch (error) {
         this.emit({
           status: "sync-error",

@@ -143,9 +143,8 @@ export class DropboxLibraryProvider implements CloudProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const r = await fetch("https://api.dropboxapi.com/2/users/get_current_account", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${this.accessToken}` }
+      const r = await fetch("https://api.dropboxapi.com/2/check/user", {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
       });
       return r.status === 200;
     } catch { return false; }
@@ -299,13 +298,17 @@ export class pCloudLibraryProvider implements CloudProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const r = await fetch(`${this.apiBase}/userinfo?access_token=${this.accessToken}`);
+      const r = await fetch(`${this.apiBase}/userinfo`, {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+      });
       return r.status === 200;
     } catch { return false; }
   }
 
   async listFiles(folderId = "0"): Promise<CloudFile[]> {
-    const r = await fetch(`${this.apiBase}/listfolder?access_token=${this.accessToken}&folderid=${folderId}`);
+    const r = await fetch(`${this.apiBase}/listfolder?folderid=${folderId}`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
     if (!r.ok) throw new Error(`pCloud list failed: ${r.status}`);
     const data = await r.json() as PCloudListResponse;
     if (!data.metadata) throw new Error("pCloud data error");
@@ -319,7 +322,9 @@ export class pCloudLibraryProvider implements CloudProvider {
   }
 
   async getDownloadUrl(fileId: string): Promise<string> {
-    const r = await fetch(`${this.apiBase}/getfilelink?access_token=${this.accessToken}&fileid=${fileId}`);
+    const r = await fetch(`${this.apiBase}/getfilelink?fileid=${fileId}`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
     if (!r.ok) throw new Error(`pCloud link failed: ${r.status}`);
     const data = await r.json() as { path: string; hosts: string[] };
     return `https://${data.hosts[0]}${data.path}`;
