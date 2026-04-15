@@ -5,7 +5,7 @@
  * definition here maps to an EmulatorJS core identifier plus metadata
  * used throughout the UI (badges, colours, performance settings).
  *
- * Performance-heavy systems (PSP / NDS / N64 / Saturn) use tier-aware settings;
+ * Performance-heavy systems (PSP / NDS / N64 / Saturn / Dreamcast) use tier-aware settings;
  * low / medium / high / ultra map to progressively heavier core options so
  * low-end devices prioritize playability while high-end devices raise quality.
  */

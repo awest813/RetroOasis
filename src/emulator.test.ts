@@ -303,6 +303,26 @@ describe('PSPEmulator', () => {
       expect(link?.getAttribute('rel')).toBe('prefetch');
       expect(link?.getAttribute('as')).toBe('fetch');
     });
+
+    it('prefetches the Flycast core for segaDC using the system corePath fallback', () => {
+      // segaDC has no CDN entry in CORE_PREFETCH_MAP; prefetchCore must fall back
+      // to the system definition's corePath (the external flycast-wasm bundle URL).
+      emulator.prefetchCore('segaDC');
+
+      // The link href must be the absolute flycast-wasm URL from systems.ts
+      const links = Array.from(document.head.querySelectorAll('link[rel="prefetch"]'));
+      const dcLink = links.find(l => l.getAttribute('href')?.includes('flycast-wasm'));
+      expect(dcLink).not.toBeNull();
+      expect(dcLink?.getAttribute('as')).toBe('fetch');
+    });
+
+    it('does not prefetch the same system twice', () => {
+      emulator.prefetchCore('gba');
+      emulator.prefetchCore('gba');
+
+      const links = document.head.querySelectorAll(`link[href="${EJS_CDN_BASE}cores/mgba-wasm.data"]`);
+      expect(links.length).toBe(1);
+    });
   });
 
   // ── Launch guards ─────────────────────────────────────────────────────────

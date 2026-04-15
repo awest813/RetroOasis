@@ -525,7 +525,6 @@ const CORE_PREFETCH_MAP: Record<string, string> = {
   segaMS:     "cores/genesis_plus_gx-wasm.data",
   arcade:     "cores/fbneo-wasm.data",
   segaSaturn: "cores/yabause-wasm.data",
-  segaDC:     "https://github.com/nasomers/flycast-wasm/releases/download/v1.0.0/flycast-wasm.data",
   mame2003:   "cores/mame2003_plus-wasm.data",
   atari7800:  "cores/prosystem-wasm.data",
   lynx:       "cores/handy-wasm.data",
@@ -1207,13 +1206,19 @@ export class PSPEmulator {
   prefetchCore(systemId: string): void {
     if (this._prefetchedCores.has(systemId)) return;
     const relPath = CORE_PREFETCH_MAP[systemId];
-    if (!relPath) return;
+    // For systems not in the CDN map (e.g. Flycast/Dreamcast), fall back to the
+    // system-level corePath which already contains the absolute bundle URL.
+    const sys = !relPath ? getSystemById(systemId) : null;
+    const fallbackUrl = sys?.corePath ?? null;
+    if (!relPath && !fallbackUrl) return;
 
     this._prefetchedCores.add(systemId);
 
     // Entries starting with "https://" are absolute URLs (e.g. external WASM cores);
     // all others are CDN-relative paths.
-    const blobUrl = relPath.startsWith("https://") ? relPath : `${EJS_CDN_BASE}${relPath}`;
+    const blobUrl = relPath
+      ? (relPath.startsWith("https://") ? relPath : `${EJS_CDN_BASE}${relPath}`)
+      : fallbackUrl!;
 
     if (!document.querySelector(`link[href="${blobUrl}"]`)) {
       const link = document.createElement("link");
@@ -2043,8 +2048,10 @@ export class PSPEmulator {
       // minimum buffer on DACs with very low output latency.
       //
       // Applies to 3D and audio-sensitive cores: PSP, N64, PS1, GBA, and NDS —
-      // each exposes audio buffer or timing knobs that
-      // benefit from hardware-aware tuning.
+      // each exposes audio buffer or timing knobs that benefit from
+      // hardware-aware tuning.  Dreamcast (Flycast/reicast) is excluded because
+      // the reicast core does not expose an audio-buffer size option via
+      // RetroArch core options.
       const audioCaps = await audioCapabilitiesPromise;
       if (audioCaps && opts.systemId === "psp" && "ppsspp_audio_latency" in ejsSettings) {
         const tierLatency = ejsSettings["ppsspp_audio_latency"];
@@ -2171,6 +2178,38 @@ export class PSPEmulator {
             `resolution: ${dsResolution}, opengl: ${dsOpenGL}, ` +
             `advanced_timing: ${dsTiming}, color_depth: ${dsColorDepth}, ` +
             `pointer_type: ${dsPointer}, mic_mode: ${dsMicMode}`
+          );
+        }
+      }
+
+      // ── Dreamcast performance diagnostics ────────────────────────────────
+      // Log key Flycast/reicast settings chosen for this session.  Dreamcast
+      // does not have an audio-buffer core option exposed by the reicast/Flycast
+      // core, so no audio hardware adaptation is applied (unlike PSP/N64/PS1/
+      // GBA/NDS).
+      if (opts.systemId === "segaDC") {
+        const dcResolution         = ejsSettings["reicast_internal_resolution"]   ?? "?";
+        const dcThreaded           = ejsSettings["reicast_threaded_rendering"]    ?? "?";
+        const dcMipmap             = ejsSettings["reicast_mipmapping"]            ?? "?";
+        const dcAnisotropic        = ejsSettings["reicast_anisotropic_filtering"] ?? "?";
+        const dcTexUpscale         = ejsSettings["reicast_texupscale"]            ?? "?";
+        const dcEnableRttb         = ejsSettings["reicast_enable_rttb"]           ?? "?";
+        const dcAlphaSorting       = ejsSettings["reicast_alpha_sorting"]         ?? "?";
+        const dcFrameSkipping      = ejsSettings["reicast_frame_skipping"]        ?? "?";
+        this.logDiagnostic(
+          "performance",
+          `DC tier=${tier}: ` +
+          `res=${dcResolution} threaded=${dcThreaded} mipmap=${dcMipmap} ` +
+          `af=${dcAnisotropic} texup=${dcTexUpscale} rttb=${dcEnableRttb} ` +
+          `alpha=${dcAlphaSorting} frameskip=${dcFrameSkipping}`
+        );
+        if (this.verboseLogging) {
+          console.info(
+            `[RetroVault] Dreamcast performance settings — ` +
+            `resolution: ${dcResolution}, threaded_rendering: ${dcThreaded}, ` +
+            `mipmapping: ${dcMipmap}, anisotropic_filtering: ${dcAnisotropic}, ` +
+            `texupscale: ${dcTexUpscale}, enable_rttb: ${dcEnableRttb}, ` +
+            `alpha_sorting: ${dcAlphaSorting}, frame_skipping: ${dcFrameSkipping}`
           );
         }
       }
