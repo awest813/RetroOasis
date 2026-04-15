@@ -112,6 +112,12 @@ import {
 import { createDebugConsoleController } from "./ui/debugConsole.js";
 import { ArchiveSelectionStore } from "./archiveStore.js";
 
+const APP_BASE_URL = import.meta.env.BASE_URL;
+const resolveAssetUrl = (path: string): string => {
+  const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
+  return `${base}${path}`;
+};
+
 // ── PWA install callbacks (set once from initUI) ───────────────────────────────
 let _canInstallPWA: (() => boolean) | undefined;
 let _onInstallPWA:  (() => Promise<boolean>) | undefined;
@@ -204,7 +210,7 @@ export function buildDOM(app: HTMLElement): void {
     <!-- ── Header ── -->
     <header class="app-header">
       <div class="app-header__brand">
-        <img src="/assets/logo_premium.png" alt="RetroVault" class="brand-logo" width="36" height="36" decoding="async" fetchpriority="high" draggable="false" />
+        <img src="${resolveAssetUrl("assets/logo_premium.png")}" alt="RetroVault" class="brand-logo" width="36" height="36" decoding="async" fetchpriority="high" draggable="false" />
         <span class="brand-long">RetroVault</span>
         <span class="brand-short" aria-hidden="true">RV</span>
       </div>
@@ -2644,7 +2650,7 @@ export function buildLandingControls(
     title: "Open Play Together — Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Play Together`;
+  btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Play Together`;
   btnMultiplayer.addEventListener("click", () => {
     const openWith = (nm: import("./multiplayer.js").NetplayManager) => {
       openEasyNetplayModal({
@@ -4344,7 +4350,7 @@ export function openEasyNetplayModal(opts: {
 
   // ── Header ───────────────────────────────────────────────────────────────
   const header = make("div", { class: "enp-header" });
-  header.innerHTML = `<img src="/assets/netplay_icon_premium_1775434064140.png" width="22" height="22" style="margin-right:10px" />`;
+  header.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="22" height="22" style="margin-right:10px" />`;
   header.appendChild(make("span", { class: "enp-title" }, "Play Together Lobby"));
   const btnCopyDiagnostics = make("button", {
     class: "enp-copy-diag",

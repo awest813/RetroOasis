@@ -6,7 +6,7 @@ export default defineConfig({
 
   // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
   // Has no effect during local `vite dev` because the dev server serves from /.
-  base: "/WebPPSSPP/",
+  base: "./",
 
   server: {
     port: 5173,

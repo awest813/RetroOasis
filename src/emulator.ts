@@ -1714,7 +1714,7 @@ export class PSPEmulator {
         await ctx.resume().catch(() => { /* best-effort */ });
       }
 
-      const processorUrl = new URL("/audio-processor.js", workletBaseUrl).href;
+      const processorUrl = new URL("audio-processor.js", workletBaseUrl).href;
       await ctx.audioWorklet.addModule(processorUrl);
 
       const workletNode = new AudioWorkletNode(ctx, "retrovault-audio-processor");
