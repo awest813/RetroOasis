@@ -7858,7 +7858,7 @@ function friendlyErrorMessage(msg: string): string {
   if (m.includes("network") || m.includes("fetch") || m.includes("failed to load")) {
     return "Couldn't load a required file. Check your internet connection and try again.";
   }
-  if (m.includes("dreamcast") && (m.includes("experimental") || m.includes("stabil"))) {
+  if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("experimental") || m.includes("stabil"))) {
     return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nIf it fails, try another title, lower the load on your device, and make sure both Dreamcast BIOS files are installed.";
   }
   if (m.includes("bios") || m.includes("startup file")) {

@@ -2223,6 +2223,19 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('segaDC', '4x')).toEqual({ reicast_internal_resolution: '1920x1440' });
     });
 
+    it('returns empty object for Dreamcast native resolution', () => {
+      expect(getResolutionCoreOptions('segaDC', 'native')).toEqual({});
+    });
+
+    it('display_match returns a valid resolution option for Dreamcast', () => {
+      const result = getResolutionCoreOptions('segaDC', 'display_match');
+      // Must be either {} (native) or { reicast_internal_resolution: ... }
+      expect(typeof result).toBe('object');
+      if (Object.keys(result).length > 0) {
+        expect(Object.keys(result)[0]).toBe('reicast_internal_resolution');
+      }
+    });
+
     it('clamps 4× to the ladder maximum when the system only has fewer steps', () => {
       // N64 ladder: ["1","2","4"] — 3 entries; index 2 is "4"
       expect(getResolutionCoreOptions('n64', '4x')).toEqual({ 'mupen64plus-resolution-factor': '4' });
