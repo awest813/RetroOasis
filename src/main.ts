@@ -118,6 +118,10 @@ export interface Settings {
    * `"lite"`    — simplified UI with blurs and heavy animations disabled
    */
   uiMode: "auto" | "quality" | "lite";
+  /** Library layout mode: "grid", "list", or "compact". */
+  libraryLayout: "grid" | "list" | "compact";
+  /** Whether to group games by system in the library. */
+  libraryGrouped: boolean;
 }
 
 const STORAGE_KEY = "retrovault-settings";
@@ -145,6 +149,8 @@ const DEFAULT_SETTINGS: Settings = {
   audioFilterType: "none" as "none" | "lowpass" | "highpass",
   audioFilterCutoff: 10_000,
   uiMode: "auto",
+  libraryLayout: "grid",
+  libraryGrouped: true,
   coreOptions: {},
 };
 
@@ -224,6 +230,12 @@ function loadSettings(): Settings {
       coreOptions: (typeof parsed.coreOptions === "object" && parsed.coreOptions !== null)
         ? (parsed.coreOptions as Record<string, string>)
         : DEFAULT_SETTINGS.coreOptions,
+      libraryLayout: (["grid", "list", "compact"] as Array<Settings["libraryLayout"]>).includes(parsed.libraryLayout as Settings["libraryLayout"])
+        ? (parsed.libraryLayout as Settings["libraryLayout"])
+        : DEFAULT_SETTINGS.libraryLayout,
+      libraryGrouped: typeof parsed.libraryGrouped === "boolean"
+        ? parsed.libraryGrouped
+        : DEFAULT_SETTINGS.libraryGrouped,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

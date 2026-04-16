@@ -17,7 +17,7 @@
  * Schema
  * ------
  * Database : "retrovault"
- * Version  : 2
+ * Version  : 3
  * Store    : "games"  (keyPath = "id")
  *   id          string   — UUID v4
  *   name        string   — display name (filename without extension)
@@ -27,6 +27,7 @@
  *   addedAt     number   — Unix timestamp (ms) when added
  *   lastPlayedAt number | null
  *   blob        Blob     — the actual ROM file stored in IDB
+ *   isFavorite  boolean  — whether the game is marked as a favorite
  */
 
 import type { PerformanceTier, ResolutionPreset } from "./performance.js";
@@ -50,6 +51,8 @@ export interface GameEntry {
   remotePath?: string;
   /** Remote thumbnail / box art URL. */
   thumbnailUrl?: string;
+  /** Whether the game is marked as a favorite. */
+  isFavorite?: boolean;
 }
 
 /**
@@ -64,7 +67,7 @@ export type GameMetadata = Omit<GameEntry, "blob">;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DB_NAME    = "retrovault";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = "games";
 const INDEX_FILE_SYSTEM = "fileNameSystemId";
 
@@ -96,6 +99,13 @@ function openDB(): Promise<IDBDatabase> {
         const store = req.transaction?.objectStore(STORE_NAME);
         if (store && !store.indexNames.contains(INDEX_FILE_SYSTEM)) {
           store.createIndex(INDEX_FILE_SYSTEM, ["fileName", "systemId"], { unique: false });
+        }
+      }
+
+      if (oldVersion < 3) {
+        const store = req.transaction?.objectStore(STORE_NAME);
+        if (store && !store.indexNames.contains("isFavorite")) {
+          store.createIndex("isFavorite", "isFavorite", { unique: false });
         }
       }
     };
@@ -196,6 +206,7 @@ export class GameLibrary {
       addedAt:      Date.now(),
       lastPlayedAt: null,
       blob:         file,
+      isFavorite:   false,
     };
     await promisify(tx(db, "readwrite").put(entry));
     invalidateMetadataCache();
@@ -230,6 +241,7 @@ export class GameLibrary {
       cloudId,
       remotePath,
       thumbnailUrl,
+      isFavorite:   false,
     };
     await promisify(tx(db, "readwrite").put(entry));
     invalidateMetadataCache();
@@ -276,6 +288,7 @@ export class GameLibrary {
       cloudId,
       remotePath,
       thumbnailUrl,
+      isFavorite: existing?.isFavorite ?? false,
     };
     await promisify(tx(db, "readwrite").put(entry));
     invalidateMetadataCache();
@@ -493,6 +506,18 @@ export class GameLibrary {
     const entry = await promisify<GameEntry | undefined>(tx(db, "readonly").get(id));
     if (!entry) return;
     entry.lastPlayedAt = Date.now();
+    await promisify(tx(db, "readwrite").put(entry));
+    invalidateMetadataCache();
+  }
+
+  /**
+   * Toggle the favorite status of a game.
+   */
+  async setFavorite(id: string, isFavorite: boolean): Promise<void> {
+    const db = await openDB();
+    const entry = await promisify<GameEntry | undefined>(tx(db, "readonly").get(id));
+    if (!entry) return;
+    entry.isFavorite = isFavorite;
     await promisify(tx(db, "readwrite").put(entry));
     invalidateMetadataCache();
   }

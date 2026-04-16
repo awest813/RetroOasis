@@ -246,6 +246,17 @@ export function buildDOM(app: HTMLElement): void {
                 <button class="library-search-clear" id="library-search-clear"
                         type="button" aria-label="Clear search" hidden>✕</button>
               </div>
+              <div class="library-layout-toggle" id="library-layouts" role="radiogroup" aria-label="Layout">
+                <button class="btn btn--ghost btn--icon layout-btn" data-layout="grid" title="Grid view" role="radio" aria-checked="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button class="btn btn--ghost btn--icon layout-btn" data-layout="list" title="List view" role="radio" aria-checked="false">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+              </div>
+              <button class="btn btn--ghost btn--icon library-fav-filter" id="library-fav-filter" title="Show favorites only" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </button>
               <select class="library-sort" id="library-sort" aria-label="Sort games">
                 <option value="lastPlayed">Last Played</option>
                 <option value="name">Name</option>
@@ -950,7 +961,8 @@ function buildLibraryRow(
   settings: Settings,
   onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
   emulatorRef?: PSPEmulator,
-  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
+  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>,
+  isScroll = true
 ): HTMLElement {
   const row = make("div", { class: "library-row" });
   
@@ -969,13 +981,13 @@ function buildLibraryRow(
   }
   header.appendChild(make("h3", { class: "library-row__title" }, title));
   
-  const scroll = make("div", { class: "library-row__scroll" });
+  const container = make("div", { class: isScroll ? "library-row__scroll" : "library-row__grid" });
   games.forEach(game => {
     const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    scroll.appendChild(card);
+    container.appendChild(card);
   });
   
-  row.append(header, scroll);
+  row.append(header, container);
   return row;
 }
 
@@ -986,6 +998,7 @@ type SortMode = "lastPlayed" | "name" | "added" | "system";
 let _librarySearchQuery = "";
 let _librarySortMode: SortMode = "lastPlayed";
 let _librarySystemFilter = "";
+let _libraryShowFavorites = false;
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 function _syncLibraryControlState(): void {
@@ -996,6 +1009,22 @@ function _syncLibraryControlState(): void {
   if (searchEl) searchEl.value = _librarySearchQuery;
   if (sortEl) sortEl.value = _librarySortMode;
   if (clearBtn) clearBtn.hidden = _librarySearchQuery.length === 0;
+
+  const favBtn = document.getElementById("library-fav-filter") as HTMLButtonElement | null;
+  if (favBtn) {
+    favBtn.classList.toggle("active", _libraryShowFavorites);
+    favBtn.setAttribute("aria-pressed", String(_libraryShowFavorites));
+  }
+
+  const layoutContainer = document.getElementById("library-layouts");
+  if (layoutContainer) {
+    const currentLayout = (layoutContainer as any)._lastLayout || "grid";
+    layoutContainer.querySelectorAll(".layout-btn").forEach(btn => {
+      const layout = btn.getAttribute("data-layout");
+      btn.setAttribute("aria-checked", String(layout === currentLayout));
+      btn.classList.toggle("active", layout === currentLayout);
+    });
+  }
 }
 
 function _scheduleLibraryRender(
@@ -1034,6 +1063,7 @@ function _resetLibraryFilters(
   _librarySearchQuery = "";
   _librarySystemFilter = "";
   _librarySortMode = "lastPlayed";
+  _libraryShowFavorites = false;
   _syncLibraryControlState();
   _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 }
@@ -1126,7 +1156,13 @@ export async function renderLibrary(
   grid.innerHTML = "";
   _libGpCachedCards = null;
 
-  const isCinematicMode = !_librarySearchQuery && !_librarySystemFilter && _librarySortMode === "lastPlayed" && displayed.length >= 5;
+  const layout = settings.libraryLayout;
+  (document.getElementById("library-layouts") as any)._lastLayout = layout;
+  _syncLibraryControlState();
+
+  grid.className = `library-grid library-grid--${layout}`;
+
+  const isCinematicMode = settings.libraryGrouped && !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites && _librarySortMode === "lastPlayed" && displayed.length >= 5;
 
   if (displayed.length === 0 && allGames.length > 0) {
     const empty = make("div", { class: "library-empty", role: "status", "aria-live": "polite" });
@@ -1176,6 +1212,28 @@ export async function renderLibrary(
         row.style.setProperty("--row-i", String(idx + 1));
         row.classList.add("library-row--entering");
         grid.appendChild(row);
+      }
+    });
+    return;
+  }
+
+  // Favorites grouping if enabled and not in cinematic mode
+  const hasFavorites = displayed.some(g => g.isFavorite);
+  if (settings.libraryGrouped && !isCinematicMode && (hasFavorites || [...new Set(displayed.map(g => g.systemId))].length > 1)) {
+    let pool = [...displayed];
+    
+    if (hasFavorites) {
+      const favorites = pool.filter(g => g.isFavorite);
+      grid.appendChild(buildLibraryRow("Favorites", null, favorites, library, settings, onLaunchGame, emulatorRef, onApplyPatch, false));
+      pool = pool.filter(g => !g.isFavorite);
+    }
+
+    const systemIds = [...new Set(pool.map(g => g.systemId))].sort();
+    systemIds.forEach((sid) => {
+      const sysGames = pool.filter(g => g.systemId === sid);
+      if (sysGames.length > 0) {
+        const sys = getSystemById(sid);
+        grid.appendChild(buildLibraryRow(sys?.name ?? sid.toUpperCase(), sid, sysGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch, false));
       }
     });
     return;
@@ -1246,7 +1304,11 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
 
   if (_librarySearchQuery) {
     const q = _librarySearchQuery.toLowerCase();
-    result = result.filter(g => g.name.toLowerCase().includes(q) || g.systemId.toLowerCase().includes(q));
+    result = result.filter(g => g.name.toLowerCase().includes(q) || (getSystemById(g.systemId)?.name ?? "").toLowerCase().includes(q) || g.systemId.toLowerCase().includes(q));
+  }
+
+  if (_libraryShowFavorites) {
+    result = result.filter(g => g.isFavorite);
   }
 
   switch (_librarySortMode) {
@@ -1560,6 +1622,26 @@ function _wireLibraryControls(
       _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
   }
+
+  const favFilterBtn = document.getElementById("library-fav-filter");
+  if (favFilterBtn) {
+    favFilterBtn.addEventListener("click", () => {
+      _libraryShowFavorites = !_libraryShowFavorites;
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    });
+  }
+
+  const layoutBtns = document.querySelectorAll(".layout-btn");
+  layoutBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const layout = btn.getAttribute("data-layout") as Settings["libraryLayout"];
+      if (layout) {
+        onSettingsChange({ libraryLayout: layout });
+        _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      }
+    });
+  });
 }
 
 function _renderSystemFilterChips(
@@ -1690,6 +1772,23 @@ function buildGameCard(
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
   });
 
+  const btnFav = make("button", {
+    class: `game-card__fav${game.isFavorite ? " active" : ""}`,
+    title: game.isFavorite ? "Remove from favorites" : "Add to favorites",
+    "aria-label": game.isFavorite ? `Remove ${game.name} from favorites` : `Add ${game.name} to favorites`,
+  }, "★");
+  btnFav.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const next = !game.isFavorite;
+    await library.setFavorite(game.id, next);
+    game.isFavorite = next;
+    btnFav.classList.toggle("active", next);
+    btnFav.title = next ? "Remove from favorites" : "Add to favorites";
+    if (_libraryShowFavorites || settings.libraryGrouped) {
+      void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    }
+  });
+
   let patchInput: HTMLInputElement | null = null;
   let btnPatch: HTMLButtonElement | null = null;
   if (onApplyPatch) {
@@ -1753,7 +1852,7 @@ function buildGameCard(
 
   card.append(icon, info);
   if (patchInput && btnPatch) card.append(patchInput, btnPatch);
-  card.append(btnChangeSystem, btnRemove, playOverlay);
+  card.append(btnChangeSystem, btnFav, btnRemove, playOverlay);
 
   let preloadTriggered = false;
   const triggerPreload = () => {
@@ -4146,6 +4245,18 @@ function buildLibraryTab(
   });
   libSection.appendChild(btnClear);
   container.appendChild(libSection);
+
+  // Organization
+  const orgSection = make("div", { class: "settings-section" });
+  orgSection.appendChild(make("h4", { class: "settings-section__title" }, "Organization"));
+
+  orgSection.appendChild(buildToggleRow(
+    "Group by system",
+    "Enable this to group games by their system (PSP, NES, etc.) or favorites when browsing your library.",
+    settings.libraryGrouped,
+    (v) => onSettingsChange({ libraryGrouped: v })
+  ));
+  container.appendChild(orgSection);
 
   // Save states
   if (saveLibrary) {
