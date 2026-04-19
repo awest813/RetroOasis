@@ -291,8 +291,7 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
 
     const checkAllSelected = () => {
       const allReady = discFileNames.every((fileName) => fileMap.has(fileName));
-      if (allReady) btnConfirm.removeAttribute("disabled");
-      else btnConfirm.setAttribute("disabled", "true");
+      btnConfirm.disabled = !allReady;
     };
 
     const close = (result: Map<string, File> | null) => {

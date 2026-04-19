@@ -4093,7 +4093,7 @@ function buildDisplayTab(
     btnInstall.addEventListener("click", async () => {
       if (!_onInstallPWA) return;
       const installed = await _onInstallPWA();
-      if (installed) { btnInstall.textContent = "✓ Installing…"; btnInstall.setAttribute("disabled", "true"); }
+      if (installed) { btnInstall.textContent = "✓ Installing…"; btnInstall.disabled = true; }
     });
     installRow.appendChild(btnInstall);
   };
@@ -6128,7 +6128,10 @@ function buildMultiplayerTab(
     renderIceList();
   });
   addInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") addBtn.click();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addBtn.click();
+    }
   });
   addInput.addEventListener("input", () => addInput.setCustomValidity(""));
   addRow.append(addInput, addBtn);
