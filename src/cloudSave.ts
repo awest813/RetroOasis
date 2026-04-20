@@ -2249,7 +2249,17 @@ export class MegaProvider implements CloudSaveProvider {
         const keyParts = n.k.split(":");
         const encNodeKey = MegaLibraryProvider._base64ToUint8(keyParts[keyParts.length - 1]!);
         const decNodeKey = MegaLibraryProvider._aesEcbDecrypt(encNodeKey, this._masterKey!);
-        const attrKey = decNodeKey.slice(0, 16);
+        // Derive attribute key: for folders (16 bytes) use directly;
+        // for files (32 bytes) XOR the two halves.
+        let attrKey: Uint8Array;
+        if (decNodeKey.length >= 32) {
+          attrKey = new Uint8Array(16);
+          for (let i = 0; i < 16; i++) {
+            attrKey[i] = (decNodeKey[i] ?? 0) ^ (decNodeKey[i + 16] ?? 0);
+          }
+        } else {
+          attrKey = decNodeKey.slice(0, 16);
+        }
         const encAttrs = MegaLibraryProvider._base64ToUint8(n.a);
         const decAttrs = MegaLibraryProvider._aesEcbDecrypt(encAttrs, attrKey);
         const attrStr = new TextDecoder().decode(decAttrs);
@@ -2392,7 +2402,7 @@ export class MegaProvider implements CloudSaveProvider {
     }
     // XOR hash with password key before extracting bytes.
     for (let i = 0; i < 16; i++) {
-      hash[i]! ^= passwordKey[i % passwordKey.length]!;
+      hash[i]! ^= passwordKey[i]!;
     }
     // Return base64url of first 4 + last 4 bytes.
     const uhBytes = new Uint8Array(8);
