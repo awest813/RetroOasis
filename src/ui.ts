@@ -3186,7 +3186,7 @@ async function showInGameMenu(ctx: {
           <div class="ingame-menu__setting-name">Master Volume</div>
         </div>
         <div class="ingame-menu__setting-control">
-          <input type="range" class="ingame-menu__range" min="0" max="1" step="0.05" value="${ctx.settings.volume}" />
+          <input type="range" class="ingame-menu__range" min="0" max="1" step="0.05" value="${ctx.settings.volume}" aria-label="Master Volume" />
           <span class="ingame-menu__range-val">${Math.round(ctx.settings.volume * 100)}%</span>
         </div>
       `;
@@ -3207,7 +3207,7 @@ async function showInGameMenu(ctx: {
           <div class="ingame-menu__setting-name">Show FPS Counter</div>
         </div>
         <div class="ingame-menu__setting-control">
-          <button class="ingame-menu__toggle ${ctx.settings.showFPS ? "on" : "off"}">${ctx.settings.showFPS ? "Enabled" : "Disabled"}</button>
+          <button class="ingame-menu__toggle ${ctx.settings.showFPS ? "on" : "off"}" aria-pressed="${ctx.settings.showFPS ? "true" : "false"}">${ctx.settings.showFPS ? "Enabled" : "Disabled"}</button>
         </div>
       `;
       const fpsBtn = fpsRow.querySelector("button")!;
@@ -3218,6 +3218,7 @@ async function showInGameMenu(ctx: {
         showFPSOverlay(v, ctx.emulator, ctx.settings.showAudioVis);
         fpsBtn.className = `ingame-menu__toggle ${v ? "on" : "off"}`;
         fpsBtn.textContent = v ? "Enabled" : "Disabled";
+        fpsBtn.setAttribute("aria-pressed", String(v));
       }, { signal });
       grid.appendChild(fpsRow);
 
@@ -3228,7 +3229,7 @@ async function showInGameMenu(ctx: {
           <div class="ingame-menu__setting-name">Performance Profile</div>
         </div>
         <div class="ingame-menu__setting-control">
-          <select class="ingame-menu__select">
+          <select class="ingame-menu__select" aria-label="Performance Profile">
             <option value="auto" ${ctx.settings.performanceMode === "auto" ? "selected" : ""}>Adaptive (Auto)</option>
             <option value="quality" ${ctx.settings.performanceMode === "quality" ? "selected" : ""}>Quality</option>
             <option value="performance" ${ctx.settings.performanceMode === "performance" ? "selected" : ""}>Performance (Fast)</option>
@@ -3249,7 +3250,7 @@ async function showInGameMenu(ctx: {
           <div class="ingame-menu__setting-name">Visual Filter</div>
         </div>
         <div class="ingame-menu__setting-control">
-          <select class="ingame-menu__select">
+          <select class="ingame-menu__select" aria-label="Visual Filter">
             <option value="none" ${ctx.settings.postProcessEffect === "none" ? "selected" : ""}>None (Raw)</option>
             <option value="crt" ${ctx.settings.postProcessEffect === "crt" ? "selected" : ""}>CRT Simulation</option>
             <option value="lcd" ${ctx.settings.postProcessEffect === "lcd" ? "selected" : ""}>Handheld LCD</option>
@@ -3322,7 +3323,7 @@ async function showInGameMenu(ctx: {
               <div class="ingame-menu__setting-desc">Higher values increase clarity but require more GPU power.</div>
             </div>
             <div class="ingame-menu__setting-control">
-              <select class="ingame-menu__select">
+              <select class="ingame-menu__select" aria-label="Internal Resolution">
                 ${config.options.map(opt => `<option value="${opt.value}" ${currentVal === opt.value ? "selected" : ""}>${opt.label}</option>`).join("")}
               </select>
             </div>
@@ -3387,7 +3388,7 @@ async function showInGameMenu(ctx: {
         
         stats.innerHTML = `
           <div class="ingame-menu__stat-card">
-            <div class="ingame-menu__stat-val">${roomDisplayNameForKey(roomKey)}</div>
+            <div class="ingame-menu__stat-val">${_escHtml(roomDisplayNameForKey(roomKey))}</div>
             <div class="ingame-menu__stat-label">Service Namespace</div>
           </div>
           <div class="ingame-menu__stat-card">
@@ -3414,7 +3415,8 @@ async function showInGameMenu(ctx: {
   const addSideBtn = (label: string, icon: string, tab: string, isDanger = false) => {
     const btn = make("button", { 
       class: isDanger ? "ingame-menu__sidebar-btn ingame-menu__sidebar-btn--danger" : "ingame-menu__sidebar-btn",
-      "data-tab": tab
+      "data-tab": tab,
+      "aria-label": label,
     });
     btn.innerHTML = `${icon} <span>${label}</span>`;
     btn.addEventListener("click", () => {
