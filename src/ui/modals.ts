@@ -99,7 +99,10 @@ export function pickSystem(
     }
     list.appendChild(fragment);
     panel.hidden = false;
-    requestAnimationFrame(() => closeBtn.focus());
+    requestAnimationFrame(() => {
+      const firstBtn = list.querySelector<HTMLButtonElement>(".system-pick-btn");
+      (firstBtn ?? closeBtn).focus();
+    });
 
     let closed = false;
     const onCloseClick = () => close(null);
@@ -116,6 +119,7 @@ export function pickSystem(
     };
     const onEsc = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      e.stopPropagation();
       close(null);
     };
     closeBtn.addEventListener("click", onCloseClick);

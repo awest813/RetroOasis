@@ -662,8 +662,6 @@ describe("MegaLibraryProvider — static crypto helpers", () => {
   it("_aesEcbDecrypt round-trips with all-zero key and data", () => {
     const key  = new Uint8Array(16); // all zeros
     const data = new Uint8Array(16); // all zeros
-    // Encrypting all-zeros with all-zero key then decrypting should recover all-zeros.
-    const encrypted = new Uint8Array(16);
     // We don't have encrypt exposed, but decryption of AES(data, key) should equal data.
     // Just verify the function returns the same length.
     const result = MegaLibraryProvider._aesEcbDecrypt(data, key);
