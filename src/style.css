@@ -8167,6 +8167,69 @@ body {
   box-shadow: none !important;
 }
 
+/* ── Lite UI: strip remaining backdrop-filters ───────────── */
+.lite-ui .game-card__fav,
+.lite-ui .game-card__art-btn,
+.lite-ui #loading-overlay,
+.lite-ui #error-banner,
+.lite-ui .modal-backdrop,
+.lite-ui .confirm-overlay,
+.lite-ui .app-footer,
+.lite-ui .save-slot-card__slot-badge,
+.lite-ui .save-slot-card__thumb-play,
+.lite-ui .rotate-hint,
+.lite-ui .debug-console,
+.lite-ui .ingame-menu-overlay,
+.lite-ui .ingame-menu__save-badge {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Lite UI: hide bokeh particles ───────────────────────── */
+.lite-ui .bokeh-container {
+  display: none !important;
+}
+
+/* ── Lite UI: disable expensive entry animations ─────────── */
+.lite-ui .game-card--entering,
+.lite-ui .library-hero--entering,
+.lite-ui .library-row--entering {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+.lite-ui .library-hero {
+  animation: none !important;
+}
+
+/* ── Lite UI: disable pulsing badge animation ────────────── */
+.lite-ui .game-card__new-badge {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Lite UI: snappier modal entrance ────────────────────── */
+.lite-ui .modal-box {
+  transition: transform 0.12s ease !important;
+  will-change: auto !important;
+}
+
+.lite-ui .confirm-box {
+  will-change: auto !important;
+}
+
+/* ── Lite UI: faster in-game overlay, solid background ───── */
+.lite-ui .ingame-menu-overlay {
+  background: rgba(0, 0, 0, 0.88) !important;
+  transition: opacity 0.12s ease, visibility 0.12s !important;
+}
+
+/* ── Lite UI: disable will-change on toast/suggestion ───── */
+.lite-ui .info-toast,
+.lite-ui .perf-suggestion {
+  will-change: auto !important;
+}
+
 /* ── Final Cross-Mode Audit: Polish & Consistency ───── */
 
 /* 1. Global Refined Scrollbars */
