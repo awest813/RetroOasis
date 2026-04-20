@@ -1669,6 +1669,7 @@ function buildGameCard(
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
 ): HTMLElement {
   const system = getSystemById(game.systemId);
+  const sysColor = system?.color ?? "#555";
 
   // A game is considered "new" for 24 hours after it is added to the library.
   const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000;
@@ -1679,11 +1680,11 @@ function buildGameCard(
     : `Play ${game.name} (${system?.shortName ?? game.systemId})`;
   const card = make("div", { class: "game-card", role: "button", tabindex: "0", "aria-label": ariaLabel });
   if (isNew) card.classList.add("game-card--new");
-  card.style.setProperty("--sys-color", system?.color ?? "#555");
+  card.style.setProperty("--sys-color", sysColor);
 
   const icon = make("div", { class: "game-card__icon" });
   icon.setAttribute("aria-hidden", "true");
-  icon.style.background = `linear-gradient(135deg, ${system?.color ?? "#555"}33, ${system?.color ?? "#555"}11)`;
+  icon.style.background = `linear-gradient(135deg, ${sysColor}33, ${sysColor}11)`;
 
   const iconOutput = systemIcon(game.systemId);
   if (iconOutput.includes("/assets/")) {
@@ -1706,7 +1707,7 @@ function buildGameCard(
   const name = make("div", { class: "game-card__name" }, game.name);
   const meta = make("div", { class: "game-card__meta" });
   const badge = make("span", { class: "sys-badge" }, system?.shortName ?? game.systemId);
-  badge.style.background = system?.color ?? "#555";
+  badge.style.background = sysColor;
   const size = make("span", { class: "game-card__size" }, formatBytes(game.size));
   meta.append(badge, size);
   if (system?.experimental) {
@@ -2706,7 +2707,7 @@ export function buildLandingControls(
     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg> Settings <kbd style="font-size:0.7em;opacity:0.5;margin-left:2px">F9</kbd>`;
+  </svg> Settings <kbd class="kbd--inline">F9</kbd>`;
 
   btnSettings.addEventListener("click", () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager);
@@ -2727,7 +2728,7 @@ export function buildLandingControls(
     title: "Open Play Together — Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Play Together`;
+  btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" class="btn__icon" alt="" /> Play Together`;
   btnMultiplayer.addEventListener("click", () => {
     const openWith = (nm: import("./multiplayer.js").NetplayManager) => {
       openEasyNetplayModal({
@@ -2893,7 +2894,7 @@ function buildInGameControls(
       const overlay = getTouchOverlay?.();
       if (overlay) {
         overlay.setEditing(true);
-        btnResetTouch.style.display = "";
+        btnResetTouch.hidden = false;
       }
     }, { signal });
 
@@ -2903,7 +2904,7 @@ function buildInGameControls(
       "aria-label": "Reset touch control layout",
     }) as HTMLButtonElement;
     btnResetTouch.textContent = "Reset Layout";
-    btnResetTouch.style.display = "none";
+    btnResetTouch.hidden = true;
     btnResetTouch.addEventListener("click", () => {
       const overlay = getTouchOverlay?.();
       if (overlay) overlay.resetToDefaults();
@@ -3373,9 +3374,9 @@ async function showInGameMenu(ctx: {
       if (!isConfigured) {
         container.innerHTML = `
           <div class="ingame-menu__empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;margin-bottom:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <p>Play Together is currently disabled or unconfigured.</p>
-            <button class="ingame-menu__btn" style="margin-top:16px">Go to Play Together Settings</button>
+            <button class="ingame-menu__btn">Go to Play Together Settings</button>
           </div>
         `;
         container.querySelector("button")?.addEventListener("click", () => {
