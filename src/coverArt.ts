@@ -620,7 +620,31 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
  *
  * Network / runtime errors from individual providers are silently swallowed so
  * that one failing source does not prevent results from the others.
+ *
+ * A module-level in-flight counter (`_chainedSearchInFlight`) caps concurrent
+ * bulk searches at {@link CHAINED_SEARCH_MAX_CONCURRENCY} to avoid hammering
+ * third-party APIs when many games are searched in parallel.
  */
+
+/** Maximum number of concurrent `ChainedCoverArtProvider.search()` calls. */
+export const CHAINED_SEARCH_MAX_CONCURRENCY = 4;
+
+let _chainedSearchInFlight = 0;
+
+/**
+ * Wait until the global in-flight count drops below the concurrency cap,
+ * then increment it. Returns a cleanup function that must be called when
+ * the search completes (success or failure).
+ */
+async function acquireConcurrencySlot(): Promise<() => void> {
+  while (_chainedSearchInFlight >= CHAINED_SEARCH_MAX_CONCURRENCY) {
+    // Poll every 200 ms — fine for a cover-art fetch use case.
+    await new Promise<void>(res => setTimeout(res, 200));
+  }
+  _chainedSearchInFlight++;
+  return () => { _chainedSearchInFlight = Math.max(0, _chainedSearchInFlight - 1); };
+}
+
 export class ChainedCoverArtProvider implements CoverArtProvider {
   readonly id = "chained";
   readonly name = "All Sources";
@@ -636,25 +660,30 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
     const all: CoverArtCandidate[] = [];
     const seenUrls = new Set<string>();
 
-    for (const provider of this.providers) {
-      if (opts.signal?.aborted) break;
-      // Providers that require user configuration (e.g. an API key) may
-      // advertise themselves as unavailable. Skip silently — treating this
-      // as an error would spam logs every time the chain runs.
-      if (typeof provider.isAvailable === "function" && !provider.isAvailable()) {
-        continue;
-      }
-      try {
-        const results = await provider.search(name, systemId, { ...opts, limit });
-        for (const c of results) {
-          if (!seenUrls.has(c.imageUrl)) {
-            seenUrls.add(c.imageUrl);
-            all.push(c);
-          }
+    const release = await acquireConcurrencySlot();
+    try {
+      for (const provider of this.providers) {
+        if (opts.signal?.aborted) break;
+        // Providers that require user configuration (e.g. an API key) may
+        // advertise themselves as unavailable. Skip silently — treating this
+        // as an error would spam logs every time the chain runs.
+        if (typeof provider.isAvailable === "function" && !provider.isAvailable()) {
+          continue;
         }
-      } catch {
-        // A single provider failing must not abort the chain.
+        try {
+          const results = await provider.search(name, systemId, { ...opts, limit });
+          for (const c of results) {
+            if (!seenUrls.has(c.imageUrl)) {
+              seenUrls.add(c.imageUrl);
+              all.push(c);
+            }
+          }
+        } catch {
+          // A single provider failing must not abort the chain.
+        }
       }
+    } finally {
+      release();
     }
 
     all.sort((a, b) => b.score - a.score);

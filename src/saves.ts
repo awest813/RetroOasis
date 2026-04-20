@@ -74,8 +74,8 @@ function openDB(): Promise<IDBDatabase> {
       }
 
       if (oldVersion < 2) {
-        const store = req.transaction!.objectStore(STORE_NAME);
-        if (!store.indexNames.contains("label")) {
+        const store = req.transaction?.objectStore(STORE_NAME);
+        if (store && !store.indexNames.contains("label")) {
           store.createIndex("label", "label", { unique: false });
         }
       }

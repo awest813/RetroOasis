@@ -7,6 +7,7 @@ import {
   looksLikePlaceholderOrUrl,
   type ApiKeyProviderConfig,
 } from "../apiKeyStore.js";
+import { getStorageEstimate, formatBytes } from "../library.js";
 
 export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, opts: {
   appName: string;
@@ -165,6 +166,24 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     `Your local game library and saves stay on this device by default. If you connect cloud storage, cloud saves mirror progress and cloud library sources add remote games beside your local ROMs. ${appName} does not upload anything until you connect a provider.`
   ));
 
+  // Storage usage estimate
+  const storageSection = make("div", { class: "settings-section" });
+  storageSection.appendChild(make("h4", { class: "settings-section__title" }, "Storage Usage"));
+  const storageInfo = make("p", { class: "settings-help", "aria-live": "polite" }, "Calculating storage…");
+  storageSection.appendChild(storageInfo);
+  void getStorageEstimate().then((est) => {
+    let text = `This browser is using approximately ${formatBytes(est.used)} of storage for ${appName} data (ROMs, saves, BIOS files).`;
+    if (est.quota !== null && est.percentUsed !== null) {
+      text += ` Your browser has allocated ${formatBytes(est.quota)} to this site; ${est.percentUsed}% is in use.`;
+      if (est.percentUsed >= 80) {
+        text += " ⚠️ You are approaching your storage limit — consider removing games you no longer need.";
+      }
+    } else {
+      text += " Your browser does not report a storage quota for this site.";
+    }
+    storageInfo.textContent = text;
+  });
+
   const links = make("div", { class: "help-links" });
   links.appendChild(make("a", {
     href: "https://emulatorjs.org",
@@ -172,9 +191,21 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     rel: "noopener",
     class: "btn help-link-btn",
   }, "Powered by EmulatorJS"));
+  links.appendChild(make("a", {
+    href: "https://github.com/awest813/RetroOasis/issues/new?labels=bug&template=bug_report.md",
+    target: "_blank",
+    rel: "noopener noreferrer",
+    class: "btn help-link-btn",
+  }, "🐛 Report a Bug"));
+  links.appendChild(make("a", {
+    href: "https://github.com/awest813/RetroOasis/blob/main/PRIVACY.md",
+    target: "_blank",
+    rel: "noopener noreferrer",
+    class: "btn help-link-btn",
+  }, "🔒 Privacy Policy"));
   aboutSection.appendChild(links);
 
-  container.append(quickStartSection, shortcutsSection, mpSection, troubleSection, aboutSection);
+  container.append(quickStartSection, shortcutsSection, mpSection, troubleSection, storageSection, aboutSection);
 }
 
 // ── API Keys tab ─────────────────────────────────────────────────────────────

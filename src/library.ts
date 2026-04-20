@@ -727,3 +727,42 @@ export function formatRelativeTime(ts: number): string {
   if (months  < 12)  return `${months}mo ago`;
   return `${Math.floor(months / 12)}yr ago`;
 }
+
+// ── Storage quota utilities ───────────────────────────────────────────────────
+
+export interface StorageEstimate {
+  /** Bytes used across all origin storage (IndexedDB, Cache API, service workers). */
+  used: number;
+  /** Total bytes available to the origin, or null when the browser doesn't report it. */
+  quota: number | null;
+  /** Usage as a percentage of quota (0–100), or null when quota is unavailable. */
+  percentUsed: number | null;
+}
+
+/**
+ * Estimate storage used by the origin using the Storage Manager API.
+ *
+ * Falls back to a partial estimate from the ROM library's total ROM size when
+ * the Storage Manager API is unavailable (e.g. Firefox private browsing mode,
+ * older WebKit).
+ *
+ * @param fallbackRomBytes  Optional fallback: total ROM bytes from `GameLibrary.totalSize()`.
+ */
+export async function getStorageEstimate(fallbackRomBytes?: number): Promise<StorageEstimate> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
+      const raw = await navigator.storage.estimate();
+      const used  = raw.usage  ?? fallbackRomBytes ?? 0;
+      const quota = raw.quota  ?? null;
+      return {
+        used,
+        quota,
+        percentUsed: quota && quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : null,
+      };
+    }
+  } catch {
+    // Storage Manager API may throw in some environments.
+  }
+  // Fallback: use only the known ROM bytes.
+  return { used: fallbackRomBytes ?? 0, quota: null, percentUsed: null };
+}
