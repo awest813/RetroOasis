@@ -10,6 +10,20 @@
  * (image bytes), both of which send permissive CORS headers and cost the
  * user nothing to access.
  *
+ * ── Reference: additional cover collections ────────────────────────────────
+ *
+ * The GBATemp "Cover Collections for emulators with cover support" thread
+ * (https://gbatemp.net/threads/cover-collections-for-emulators-with-cover-support.324714/)
+ * indexes many community-maintained boxart / titlescreen sets beyond the
+ * sources wired up here (Libretro Thumbnails, cover-art-collection). Any
+ * additional collection with permissive CORS or a reachable static CDN can
+ * be added behind the `CoverArtProvider` interface and composed into the
+ * chain without touching the UI layer.
+ *
+ * Credentialed metadata sources (RAWG, MobyGames) implement the same
+ * interface but declare `requiresApiKey: true` and read their key from
+ * {@link ./apiKeyStore.ts}.
+ *
  * No ROM / BIOS bytes are ever sent to the network — only the game's
  * display name and system id are used to build the query.
  *
@@ -57,6 +71,12 @@ export interface CoverArtProvider {
   /** Short label shown in the candidate picker UI. */
   readonly name: string;
   /**
+   * Optional: providers that require user configuration (typically an API
+   * key) return `false` until that configuration is supplied. The chain
+   * skips unavailable providers silently instead of treating them as errors.
+   */
+  isAvailable?(): boolean;
+  /**
    * Return up to `limit` candidates ranked by score descending. Must not
    * throw on network errors — return an empty array instead so that the
    * caller treats "no matches" and "network failure" consistently.
@@ -66,6 +86,24 @@ export interface CoverArtProvider {
     systemId: string,
     opts?: { limit?: number; signal?: AbortSignal },
   ): Promise<CoverArtCandidate[]>;
+}
+
+/**
+ * Optional contract implemented by providers that require a user-supplied
+ * API key. The Settings UI uses these fields to render a consistent
+ * "bring your own key" row (signup link + test button + status pill).
+ */
+export interface ApiKeyedProvider extends CoverArtProvider {
+  readonly requiresApiKey: true;
+  /** Stable id for the key store, matches {@link ApiKeyProviderConfig.id}. */
+  readonly providerId: string;
+  /** Human-readable URL where the user can sign up for a free key. */
+  readonly signupUrl: string;
+  /**
+   * Issue a cheap request to confirm the configured key works. Returns
+   * `true` on success or an error message suitable for display.
+   */
+  testConnection(opts?: { signal?: AbortSignal }): Promise<true | string>;
 }
 
 // ── Name / platform normalisation ────────────────────────────────────────────
@@ -466,10 +504,24 @@ export function cleanRomNameForLibretro(raw: string): string {
   return s;
 }
 
+/**
+ * Apply the Libretro thumbnails repository's filename-safety substitution:
+ * the characters &, *, /, :, backtick, <, >, ?, backslash, and | cannot
+ * appear in filenames on common filesystems and are each replaced with a
+ * single underscore in the thumbnail files on the CDN. Without this
+ * substitution titles like "Mega Man X: Command Mission (USA)" yield a
+ * 404 because the actual file on the server is named
+ * "Mega Man X_ Command Mission (USA).png".
+ *
+ * Reference: Libretro thumbnails guide — "Thumbnail file name convention".
+ */
+export function libretroFilenameSafe(name: string): string {
+  // Order does not matter — none of the targets overlap.
+  return name.replace(/[&*/:`<>?\\|]/g, "_");
+}
+
 /** Tunable options for `LibretroCoverArtProvider`. Exposed mainly for tests. */
 export interface LibretroProviderOptions {
-  /** Override `fetch` (useful for unit tests). */
-  fetchImpl?: typeof fetch;
   /**
    * Image categories to search, in priority order.
    * Defaults to `["Named_Boxarts", "Named_Titles"]`.
@@ -487,6 +539,9 @@ export interface LibretroProviderOptions {
  *   1. The No-Intro-style name (region tags preserved) — higher confidence.
  *   2. The fully-normalised name (all tags stripped) — lower confidence fallback.
  *
+ * Filename-unsafe characters are substituted per the Libretro thumbnails
+ * naming convention (see {@link libretroFilenameSafe}).
+ *
  * Candidates are returned without prior network validation so the search is
  * instantaneous. The caller's `fetchAndValidateCoverArt` call handles the
  * actual download and will surface any 404 / unreachable errors gracefully.
@@ -495,11 +550,9 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
   readonly id = "libretro";
   readonly name = "Libretro Thumbnails";
 
-  private readonly fetchImpl: typeof fetch;
   private readonly imageTypes: readonly LibretroImageType[];
 
   constructor(opts: LibretroProviderOptions = {}) {
-    this.fetchImpl  = opts.fetchImpl  ?? fetch.bind(globalThis);
     this.imageTypes = opts.imageTypes ?? LIBRETRO_IMAGE_TYPES;
   }
 
@@ -534,9 +587,10 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
         for (const variant of variants) {
           if (candidates.length >= limit) break;
 
+          const safeVariant = libretroFilenameSafe(variant);
           const url =
             `${LIBRETRO_BASE_URL}/${encodeURIComponent(system)}` +
-            `/${imageType}/${encodeURIComponent(variant)}.png`;
+            `/${imageType}/${encodeURIComponent(safeVariant)}.png`;
 
           if (seenUrls.has(url)) continue;
           seenUrls.add(url);
@@ -584,6 +638,12 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
 
     for (const provider of this.providers) {
       if (opts.signal?.aborted) break;
+      // Providers that require user configuration (e.g. an API key) may
+      // advertise themselves as unavailable. Skip silently — treating this
+      // as an error would spam logs every time the chain runs.
+      if (typeof provider.isAvailable === "function" && !provider.isAvailable()) {
+        continue;
+      }
       try {
         const results = await provider.search(name, systemId, { ...opts, limit });
         for (const c of results) {
@@ -599,5 +659,571 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
 
     all.sort((a, b) => b.score - a.score);
     return all.slice(0, limit);
+  }
+}
+
+// ── API-key-backed providers (RAWG, MobyGames) ───────────────────────────────
+
+/**
+ * Simple in-memory response cache shared by keyed providers. Keyed on
+ * `providerId|systemId|normalized-name` so rapid re-queries for the same
+ * game don't spend the user's monthly quota.
+ */
+class KeyedProviderCache {
+  private readonly ttlMs: number;
+  private readonly entries = new Map<string, { at: number; value: CoverArtCandidate[] }>();
+  constructor(ttlMs = 5 * 60 * 1000) { this.ttlMs = ttlMs; }
+  get(key: string): CoverArtCandidate[] | null {
+    const hit = this.entries.get(key);
+    if (!hit) return null;
+    if (Date.now() - hit.at > this.ttlMs) {
+      this.entries.delete(key);
+      return null;
+    }
+    return hit.value;
+  }
+  set(key: string, value: CoverArtCandidate[]): void {
+    this.entries.set(key, { at: Date.now(), value });
+  }
+}
+
+/**
+ * RetroOasis systemId → RAWG platform id. Covers the most common consoles;
+ * systems without a stable RAWG mapping (arcade/mame) are intentionally
+ * omitted so the provider returns [] instead of guessing wrong.
+ */
+const RAWG_PLATFORM_MAP: Readonly<Record<string, number>> = Object.freeze({
+  nes:        49,
+  snes:       79,
+  gb:         26,
+  gbc:        43,
+  gba:        24,
+  nds:        9,
+  n64:        83,
+  segaMD:     167,
+  segaMS:     74,
+  segaGG:     77,
+  segaSaturn: 107,
+  segaDC:     106,
+  psx:        27,
+  psp:        17,
+  atari2600:  23,
+  atari7800:  31,
+  lynx:       28,
+  ngp:        115,
+});
+
+/** Return the RAWG platform id for a systemId, or undefined. */
+export function systemIdToRawgPlatformId(systemId: string): number | undefined {
+  return RAWG_PLATFORM_MAP[systemId];
+}
+
+/** Tunable options for `RawgCoverArtProvider`. */
+export interface RawgProviderOptions {
+  /** Callable that returns the current API key, or "" when unconfigured. */
+  getApiKey: () => string;
+  /** Override `fetch` (useful for unit tests). */
+  fetchImpl?: typeof fetch;
+  /** Response cache TTL in ms. Default 5 minutes. */
+  cacheTtlMs?: number;
+}
+
+/** Shape (subset) of the RAWG `/games` response we rely on. */
+interface RawgGamesResponse {
+  results?: Array<{
+    id?: number;
+    name?: string;
+    slug?: string;
+    background_image?: string | null;
+    short_screenshots?: Array<{ id?: number; image?: string | null }>;
+  }>;
+}
+
+/**
+ * RAWG-backed cover-art / screenshot provider. Requires the user to supply
+ * their own RAWG API key via the Settings "API Keys" tab. Free tier allows
+ * ~20,000 requests/month.
+ */
+export class RawgCoverArtProvider implements ApiKeyedProvider {
+  readonly id = "rawg";
+  readonly name = "RAWG";
+  readonly requiresApiKey = true as const;
+  readonly providerId = "rawg";
+  readonly signupUrl = "https://rawg.io/apidocs";
+
+  private readonly getApiKey: () => string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly cache: KeyedProviderCache;
+
+  constructor(opts: RawgProviderOptions) {
+    this.getApiKey = opts.getApiKey;
+    this.fetchImpl = opts.fetchImpl ?? fetch.bind(globalThis);
+    this.cache = new KeyedProviderCache(opts.cacheTtlMs);
+  }
+
+  isAvailable(): boolean {
+    return this.getApiKey().trim() !== "";
+  }
+
+  async search(
+    name: string,
+    systemId: string,
+    opts: { limit?: number; signal?: AbortSignal } = {},
+  ): Promise<CoverArtCandidate[]> {
+    if (opts.signal?.aborted) return [];
+    const key = this.getApiKey().trim();
+    if (!key) return [];
+    const platform = systemIdToRawgPlatformId(systemId);
+    if (platform === undefined) return [];
+    const normQuery = normalizeRomName(name);
+    if (!normQuery) return [];
+
+    const limit = Math.max(1, Math.min(20, opts.limit ?? 6));
+    const cacheKey = `rawg|${systemId}|${normQuery}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached.slice(0, limit);
+
+    const url =
+      "https://api.rawg.io/api/games" +
+      `?search=${encodeURIComponent(normQuery)}` +
+      `&platforms=${platform}` +
+      `&page_size=${limit}` +
+      `&key=${encodeURIComponent(key)}`;
+
+    let body: RawgGamesResponse;
+    try {
+      const resp = await this.fetchImpl(url, { signal: opts.signal });
+      if (!resp.ok) return [];
+      body = (await resp.json()) as RawgGamesResponse;
+    } catch {
+      return [];
+    }
+
+    const out: CoverArtCandidate[] = [];
+    const seen = new Set<string>();
+    for (const g of body.results ?? []) {
+      const title = typeof g.name === "string" ? g.name : "";
+      if (!title) continue;
+      const normCandidate = normalizeRomName(title);
+      const score = diceCoefficient(normQuery, normCandidate);
+      if (score <= 0) continue;
+
+      // Primary box/header image.
+      if (typeof g.background_image === "string" && g.background_image && !seen.has(g.background_image)) {
+        seen.add(g.background_image);
+        out.push({ title, systemId, imageUrl: g.background_image, sourceName: this.name, score });
+      }
+      // Supplementary screenshots — lower score so backgrounds rank higher.
+      if (Array.isArray(g.short_screenshots)) {
+        for (const s of g.short_screenshots) {
+          const img = typeof s.image === "string" ? s.image : "";
+          if (!img || seen.has(img)) continue;
+          seen.add(img);
+          out.push({ title, systemId, imageUrl: img, sourceName: this.name, score: Math.max(0, score - 0.1) });
+        }
+      }
+    }
+    out.sort((a, b) => b.score - a.score);
+    const trimmed = out.slice(0, limit);
+    this.cache.set(cacheKey, trimmed);
+    return trimmed;
+  }
+
+  /** Cheap probe: ask RAWG for a single game record to validate the key. */
+  async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
+    const key = this.getApiKey().trim();
+    if (!key) return "No API key configured.";
+    const url = `https://api.rawg.io/api/games?page_size=1&key=${encodeURIComponent(key)}`;
+    try {
+      const resp = await this.fetchImpl(url, { signal: opts.signal });
+      if (resp.status === 401 || resp.status === 403) return "RAWG rejected the API key.";
+      if (!resp.ok) return `RAWG returned HTTP ${resp.status}.`;
+      return true;
+    } catch (err) {
+      return `Could not reach RAWG: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+}
+
+// ── MobyGames ────────────────────────────────────────────────────────────────
+
+/**
+ * RetroOasis systemId → MobyGames platform id. Values are from the
+ * MobyGames API platform catalogue. Systems without a clean 1:1 mapping
+ * are omitted.
+ */
+const MOBYGAMES_PLATFORM_MAP: Readonly<Record<string, number>> = Object.freeze({
+  nes:        22,
+  snes:       15,
+  gb:         10,
+  gbc:        57,
+  gba:        12,
+  nds:        44,
+  n64:        9,
+  segaMD:     16,
+  segaMS:     26,
+  segaGG:     25,
+  segaSaturn: 23,
+  segaDC:     8,
+  psx:        6,
+  psp:        46,
+  atari2600:  28,
+  atari7800:  34,
+  lynx:       18,
+  ngp:        52,
+});
+
+/** Return the MobyGames platform id for a systemId, or undefined. */
+export function systemIdToMobyPlatformId(systemId: string): number | undefined {
+  return MOBYGAMES_PLATFORM_MAP[systemId];
+}
+
+/** Tunable options for `MobyGamesCoverArtProvider`. */
+export interface MobyGamesProviderOptions {
+  getApiKey: () => string;
+  fetchImpl?: typeof fetch;
+  cacheTtlMs?: number;
+}
+
+/** Shape (subset) of the MobyGames `/games` response we rely on. */
+interface MobyGamesGamesResponse {
+  games?: Array<{
+    game_id?: number;
+    title?: string;
+    sample_cover?: {
+      image?: string | null;
+      thumbnail_image?: string | null;
+    } | null;
+  }>;
+}
+
+/**
+ * MobyGames-backed cover art provider. Requires the user to supply their
+ * own MobyGames API key via the Settings "API Keys" tab.
+ *
+ * Per MobyGames API terms, results include an attribution label — the
+ * `sourceName` ("MobyGames") is surfaced in the candidate picker.
+ */
+export class MobyGamesCoverArtProvider implements ApiKeyedProvider {
+  readonly id = "mobygames";
+  readonly name = "MobyGames";
+  readonly requiresApiKey = true as const;
+  readonly providerId = "mobygames";
+  readonly signupUrl = "https://www.mobygames.com/info/api/";
+
+  private readonly getApiKey: () => string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly cache: KeyedProviderCache;
+
+  constructor(opts: MobyGamesProviderOptions) {
+    this.getApiKey = opts.getApiKey;
+    this.fetchImpl = opts.fetchImpl ?? fetch.bind(globalThis);
+    this.cache = new KeyedProviderCache(opts.cacheTtlMs);
+  }
+
+  isAvailable(): boolean {
+    return this.getApiKey().trim() !== "";
+  }
+
+  async search(
+    name: string,
+    systemId: string,
+    opts: { limit?: number; signal?: AbortSignal } = {},
+  ): Promise<CoverArtCandidate[]> {
+    if (opts.signal?.aborted) return [];
+    const key = this.getApiKey().trim();
+    if (!key) return [];
+    const platform = systemIdToMobyPlatformId(systemId);
+    if (platform === undefined) return [];
+    const normQuery = normalizeRomName(name);
+    if (!normQuery) return [];
+
+    const limit = Math.max(1, Math.min(20, opts.limit ?? 6));
+    const cacheKey = `moby|${systemId}|${normQuery}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached.slice(0, limit);
+
+    const url =
+      "https://api.mobygames.com/v1/games" +
+      `?title=${encodeURIComponent(normQuery)}` +
+      `&platform=${platform}` +
+      `&format=normal` +
+      `&api_key=${encodeURIComponent(key)}`;
+
+    let body: MobyGamesGamesResponse;
+    try {
+      const resp = await this.fetchImpl(url, { signal: opts.signal });
+      if (!resp.ok) return [];
+      body = (await resp.json()) as MobyGamesGamesResponse;
+    } catch {
+      return [];
+    }
+
+    const out: CoverArtCandidate[] = [];
+    const seen = new Set<string>();
+    for (const g of body.games ?? []) {
+      const title = typeof g.title === "string" ? g.title : "";
+      if (!title) continue;
+      const cover = g.sample_cover;
+      const img = cover && typeof cover.image === "string" ? cover.image : null;
+      if (!img || seen.has(img)) continue;
+      seen.add(img);
+      const normCandidate = normalizeRomName(title);
+      const score = diceCoefficient(normQuery, normCandidate);
+      if (score <= 0) continue;
+      out.push({ title, systemId, imageUrl: img, sourceName: this.name, score });
+    }
+    out.sort((a, b) => b.score - a.score);
+    const trimmed = out.slice(0, limit);
+    this.cache.set(cacheKey, trimmed);
+    return trimmed;
+  }
+
+  async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
+    const key = this.getApiKey().trim();
+    if (!key) return "No API key configured.";
+    const url = `https://api.mobygames.com/v1/games?limit=1&api_key=${encodeURIComponent(key)}`;
+    try {
+      const resp = await this.fetchImpl(url, { signal: opts.signal });
+      if (resp.status === 401 || resp.status === 403) return "MobyGames rejected the API key.";
+      if (!resp.ok) return `MobyGames returned HTTP ${resp.status}.`;
+      return true;
+    } catch (err) {
+      return `Could not reach MobyGames: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+}
+
+/**
+ * Type guard for providers that declare `requiresApiKey`. Useful in the
+ * Settings UI when rendering a row per keyed provider.
+ */
+export function isApiKeyedProvider(p: CoverArtProvider): p is ApiKeyedProvider {
+  return (p as Partial<ApiKeyedProvider>).requiresApiKey === true;
+}
+
+// ── TheGamesDB ──────────────────────────────────────────────────────────────
+
+/**
+ * RetroOasis systemId → TheGamesDB platform id. Values are from
+ * TheGamesDB's public platform catalogue (https://api.thegamesdb.net/v1/Platforms).
+ * Systems without a stable TGDB mapping are omitted; the provider returns
+ * `[]` for unmapped systems rather than guessing.
+ */
+const TGDB_PLATFORM_MAP: Readonly<Record<string, number>> = Object.freeze({
+  nes:        7,
+  snes:       6,
+  gb:         4,
+  gbc:        41,
+  gba:        5,
+  nds:        8,
+  n64:        3,
+  segaMD:     36,   // Sega Genesis / Mega Drive
+  segaMS:     35,
+  segaGG:     20,
+  segaSaturn: 17,
+  segaDC:     16,
+  psx:        10,   // Sony PlayStation
+  psp:        13,
+  atari2600:  22,
+  atari7800:  27,
+  lynx:       4924,
+  ngp:        4922,
+  arcade:     23,
+});
+
+/** Return the TheGamesDB platform id for a systemId, or undefined. */
+export function systemIdToTgdbPlatformId(systemId: string): number | undefined {
+  return TGDB_PLATFORM_MAP[systemId];
+}
+
+/** Tunable options for `TheGamesDBCoverArtProvider`. */
+export interface TheGamesDBProviderOptions {
+  getApiKey: () => string;
+  fetchImpl?: typeof fetch;
+  cacheTtlMs?: number;
+}
+
+/** Subset of TheGamesDB `/v1/Games/ByGameName` response we rely on. */
+interface TgdbGamesByNameResponse {
+  data?: {
+    games?: Array<{
+      id?: number;
+      game_title?: string;
+      platform?: number;
+    }>;
+  };
+}
+
+/** Subset of TheGamesDB `/v1/Games/Images` response we rely on. */
+interface TgdbImagesResponse {
+  data?: {
+    base_url?: {
+      original?: string;
+      large?: string;
+      medium?: string;
+      small?: string;
+      thumb?: string;
+    };
+    images?: Record<string, Array<{
+      id?: number;
+      type?: string;
+      side?: string | null;
+      filename?: string;
+    }>>;
+  };
+}
+
+/**
+ * TheGamesDB-backed cover art provider. Requires the user to supply their
+ * own TheGamesDB API key via the Settings "API Keys" tab (free for personal
+ * use; request at https://thegamesdb.net/).
+ *
+ * Strategy:
+ *   1. Call `/v1/Games/ByGameName?name=<q>&filter[platform]=<id>&apikey=<key>`.
+ *   2. Collect up to `limit` game ids.
+ *   3. Call `/v1/Games/Images?games_id=<comma-list>&filter[type]=boxart`
+ *      to batch-fetch the box-art URLs for those ids.
+ *   4. Score against the normalised query name with the existing Dice
+ *      coefficient, prefer "front" boxart over "back".
+ */
+export class TheGamesDBCoverArtProvider implements ApiKeyedProvider {
+  readonly id = "thegamesdb";
+  readonly name = "TheGamesDB";
+  readonly requiresApiKey = true as const;
+  readonly providerId = "thegamesdb";
+  readonly signupUrl = "https://thegamesdb.net/";
+
+  private readonly getApiKey: () => string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly cache: KeyedProviderCache;
+
+  constructor(opts: TheGamesDBProviderOptions) {
+    this.getApiKey = opts.getApiKey;
+    this.fetchImpl = opts.fetchImpl ?? fetch.bind(globalThis);
+    this.cache = new KeyedProviderCache(opts.cacheTtlMs);
+  }
+
+  isAvailable(): boolean {
+    return this.getApiKey().trim() !== "";
+  }
+
+  async search(
+    name: string,
+    systemId: string,
+    opts: { limit?: number; signal?: AbortSignal } = {},
+  ): Promise<CoverArtCandidate[]> {
+    if (opts.signal?.aborted) return [];
+    const key = this.getApiKey().trim();
+    if (!key) return [];
+    const platform = systemIdToTgdbPlatformId(systemId);
+    if (platform === undefined) return [];
+    const normQuery = normalizeRomName(name);
+    if (!normQuery) return [];
+
+    const limit = Math.max(1, Math.min(20, opts.limit ?? 6));
+    const cacheKey = `tgdb|${systemId}|${normQuery}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached.slice(0, limit);
+
+    // Step 1 — game list.
+    const listUrl =
+      "https://api.thegamesdb.net/v1/Games/ByGameName" +
+      `?name=${encodeURIComponent(normQuery)}` +
+      `&filter%5Bplatform%5D=${platform}` +
+      `&apikey=${encodeURIComponent(key)}`;
+
+    let listBody: TgdbGamesByNameResponse;
+    try {
+      const resp = await this.fetchImpl(listUrl, { signal: opts.signal });
+      if (!resp.ok) return [];
+      listBody = (await resp.json()) as TgdbGamesByNameResponse;
+    } catch {
+      return [];
+    }
+
+    const games = listBody.data?.games ?? [];
+    if (games.length === 0) return [];
+
+    // Keep the best `limit` candidates by title similarity before we spend a
+    // second round-trip asking for images.
+    const ranked = games
+      .map((g) => {
+        const title = typeof g.game_title === "string" ? g.game_title : "";
+        const id = typeof g.id === "number" ? g.id : NaN;
+        const score = diceCoefficient(normQuery, normalizeRomName(title));
+        return { id, title, score };
+      })
+      .filter((g) => Number.isFinite(g.id) && g.title && g.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    if (ranked.length === 0) return [];
+    if (opts.signal?.aborted) return [];
+
+    // Step 2 — fetch boxart URLs for those ids.
+    const idsCsv = ranked.map((r) => r.id).join(",");
+    const imgUrl =
+      "https://api.thegamesdb.net/v1/Games/Images" +
+      `?games_id=${encodeURIComponent(idsCsv)}` +
+      `&filter%5Btype%5D=boxart` +
+      `&apikey=${encodeURIComponent(key)}`;
+
+    let imgBody: TgdbImagesResponse;
+    try {
+      const resp = await this.fetchImpl(imgUrl, { signal: opts.signal });
+      if (!resp.ok) return [];
+      imgBody = (await resp.json()) as TgdbImagesResponse;
+    } catch {
+      return [];
+    }
+
+    const baseUrl =
+      imgBody.data?.base_url?.original ||
+      imgBody.data?.base_url?.large ||
+      imgBody.data?.base_url?.medium ||
+      "";
+    const imagesByGame = imgBody.data?.images ?? {};
+
+    const out: CoverArtCandidate[] = [];
+    const seen = new Set<string>();
+    for (const r of ranked) {
+      const entries = imagesByGame[String(r.id)] ?? [];
+      // Prefer the front cover, then any boxart, then fall back to no-side.
+      const front = entries.find((e) => e.type === "boxart" && e.side === "front");
+      const back  = entries.find((e) => e.type === "boxart" && e.side === "back");
+      const any   = entries.find((e) => e.type === "boxart");
+      const chosen = front ?? any ?? back ?? null;
+      if (!chosen || typeof chosen.filename !== "string" || !chosen.filename) continue;
+      // base_url may end with "/" already — handle both shapes safely.
+      const fullUrl = baseUrl.endsWith("/")
+        ? `${baseUrl}${chosen.filename}`
+        : `${baseUrl}/${chosen.filename}`;
+      if (!fullUrl || seen.has(fullUrl)) continue;
+      seen.add(fullUrl);
+      // Front cover is full score; back cover gets a small penalty so the
+      // front image is surfaced first in the picker.
+      const score = chosen === back && !front ? Math.max(0, r.score - 0.1) : r.score;
+      out.push({ title: r.title, systemId, imageUrl: fullUrl, sourceName: this.name, score });
+    }
+    out.sort((a, b) => b.score - a.score);
+    const trimmed = out.slice(0, limit);
+    this.cache.set(cacheKey, trimmed);
+    return trimmed;
+  }
+
+  async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
+    const key = this.getApiKey().trim();
+    if (!key) return "No API key configured.";
+    // Minimal probe: the platforms endpoint is fixed-size and cheap.
+    const url = `https://api.thegamesdb.net/v1/Platforms?apikey=${encodeURIComponent(key)}`;
+    try {
+      const resp = await this.fetchImpl(url, { signal: opts.signal });
+      if (resp.status === 401 || resp.status === 403) return "TheGamesDB rejected the API key.";
+      if (!resp.ok) return `TheGamesDB returned HTTP ${resp.status}.`;
+      return true;
+    } catch (err) {
+      return `Could not reach TheGamesDB: ${err instanceof Error ? err.message : String(err)}`;
+    }
   }
 }

@@ -9,9 +9,17 @@ import {
   GitHubCoverArtProvider,
   AUTO_APPLY_CONFIDENCE_THRESHOLD,
   cleanRomNameForLibretro,
+  libretroFilenameSafe,
   systemIdToLibretroSystems,
   LibretroCoverArtProvider,
   ChainedCoverArtProvider,
+  RawgCoverArtProvider,
+  MobyGamesCoverArtProvider,
+  TheGamesDBCoverArtProvider,
+  systemIdToRawgPlatformId,
+  systemIdToMobyPlatformId,
+  systemIdToTgdbPlatformId,
+  isApiKeyedProvider,
 } from "./coverArt.js";
 import type { GameMetadata } from "./library.js";
 
@@ -405,36 +413,20 @@ describe("systemIdToLibretroSystems", () => {
 
 describe("LibretroCoverArtProvider", () => {
   it("returns [] for unknown systems without calling fetch", async () => {
-    let called = 0;
-    const fetchImpl = (async (): Promise<Response> => {
-      called++;
-      return new Response("", { status: 200 });
-    }) as unknown as typeof fetch;
-    const p = new LibretroCoverArtProvider({ fetchImpl });
+    const p = new LibretroCoverArtProvider();
     expect(await p.search("Zelda", "unknown-system")).toEqual([]);
-    expect(called).toBe(0);
   });
 
   it("returns [] when the name is empty after cleaning", async () => {
-    let called = 0;
-    const fetchImpl = (async (): Promise<Response> => {
-      called++;
-      return new Response("", { status: 200 });
-    }) as unknown as typeof fetch;
-    const p = new LibretroCoverArtProvider({ fetchImpl });
+    const p = new LibretroCoverArtProvider();
     // Only bracketed dump tags — nothing left after cleaning.
     expect(await p.search("[!][b1]", "snes")).toEqual([]);
-    expect(called).toBe(0);
   });
 
   it("constructs valid Libretro CDN URLs", async () => {
-    const urls: string[] = [];
-    const fetchImpl = (() => {
-      // No-op fetch — we only care what URLs are constructed.
-      return Promise.resolve(new Response("", { status: 200 }));
-    }) as unknown as typeof fetch;
-    const p = new LibretroCoverArtProvider({ fetchImpl, imageTypes: ["Named_Boxarts"] });
+    const p = new LibretroCoverArtProvider({ imageTypes: ["Named_Boxarts"] });
     const results = await p.search("Super Mario World (USA).smc", "snes");
+    const urls: string[] = [];
     for (const r of results) urls.push(r.imageUrl);
     // Every URL must start with the Libretro base URL.
     for (const url of urls) {
@@ -542,5 +534,392 @@ describe("ChainedCoverArtProvider", () => {
     const chain = new ChainedCoverArtProvider([p]);
     const results = await chain.search("Game", "snes", { limit: 3 });
     expect(results.length).toBe(3);
+  });
+});
+
+// ── RawgCoverArtProvider ──────────────────────────────────────────────────────
+
+describe("RawgCoverArtProvider", () => {
+  it("isAvailable() is false when no key is set", () => {
+    const p = new RawgCoverArtProvider({ getApiKey: () => "" });
+    expect(p.isAvailable()).toBe(false);
+  });
+
+  it("search() returns [] with no key without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new RawgCoverArtProvider({ getApiKey: () => "", fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() returns [] for unknown systemId without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "not-a-system")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() parses RAWG results and includes background + screenshots", async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: unknown) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({
+        results: [
+          {
+            id: 1, name: "Super Mario World",
+            background_image: "https://rawg.example/bg.jpg",
+            short_screenshots: [{ id: 1, image: "https://rawg.example/s1.jpg" }],
+          },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+
+    const p = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    const results = await p.search("Super Mario World", "snes");
+    expect(results.length).toBe(2);
+    expect(results[0]!.imageUrl).toBe("https://rawg.example/bg.jpg");
+    expect(results[0]!.sourceName).toBe("RAWG");
+    expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
+    // URL must include the key and the RAWG platform id for SNES (79).
+    expect(urls[0]).toContain("platforms=79");
+    expect(urls[0]).toContain("key=");
+  });
+
+  it("search() returns [] on HTTP error", async () => {
+    const fetchImpl = (async () => new Response("", { status: 500 })) as unknown as typeof fetch;
+    const p = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] when fetch throws (network failure)", async () => {
+    const fetchImpl = (async () => { throw new Error("offline"); }) as unknown as typeof fetch;
+    const p = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] when aborted before start", async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const p = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32) });
+    expect(await p.search("Zelda", "snes", { signal: ctrl.signal })).toEqual([]);
+  });
+
+  it("testConnection() reports success, auth failure, and network errors", async () => {
+    const ok = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const unauth = (async () => new Response("", { status: 401 })) as unknown as typeof fetch;
+    const boom = (async () => { throw new Error("dns"); }) as unknown as typeof fetch;
+
+    const p1 = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok });
+    expect(await p1.testConnection()).toBe(true);
+
+    const p2 = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: unauth });
+    expect(await p2.testConnection()).toMatch(/rejected/i);
+
+    const p3 = new RawgCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom });
+    expect(await p3.testConnection()).toMatch(/Could not reach/i);
+
+    const p4 = new RawgCoverArtProvider({ getApiKey: () => "" });
+    expect(await p4.testConnection()).toMatch(/No API key/);
+  });
+
+  it("systemIdToRawgPlatformId maps common consoles", () => {
+    expect(systemIdToRawgPlatformId("snes")).toBe(79);
+    expect(systemIdToRawgPlatformId("psx")).toBe(27);
+    expect(systemIdToRawgPlatformId("unknown")).toBeUndefined();
+  });
+
+  it("is detected by isApiKeyedProvider", () => {
+    const p = new RawgCoverArtProvider({ getApiKey: () => "" });
+    expect(isApiKeyedProvider(p)).toBe(true);
+  });
+});
+
+// ── MobyGamesCoverArtProvider ─────────────────────────────────────────────────
+
+describe("MobyGamesCoverArtProvider", () => {
+  it("isAvailable() reflects key presence", () => {
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "" });
+    expect(p.isAvailable()).toBe(false);
+    const q = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32) });
+    expect(q.isAvailable()).toBe(true);
+  });
+
+  it("search() returns [] with no key without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "", fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() returns [] for unknown systemId without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "not-a-system")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() parses Moby results and uses sample_cover.image", async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: unknown) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({
+        games: [
+          {
+            game_id: 1, title: "Super Mario World",
+            sample_cover: { image: "https://moby.example/cover.jpg", thumbnail_image: "https://moby.example/t.jpg" },
+          },
+          {
+            game_id: 2, title: "Unrelated",
+            sample_cover: null,
+          },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    const results = await p.search("Super Mario World", "snes");
+    expect(results.length).toBe(1);
+    expect(results[0]!.imageUrl).toBe("https://moby.example/cover.jpg");
+    expect(results[0]!.sourceName).toBe("MobyGames");
+    expect(urls[0]).toContain("platform=15"); // SNES Moby id
+    expect(urls[0]).toContain("api_key=");
+  });
+
+  it("search() returns [] on HTTP error", async () => {
+    const fetchImpl = (async () => new Response("", { status: 500 })) as unknown as typeof fetch;
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] when fetch throws", async () => {
+    const fetchImpl = (async () => { throw new Error("offline"); }) as unknown as typeof fetch;
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] when aborted before start", async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const p = new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32) });
+    expect(await p.search("Zelda", "snes", { signal: ctrl.signal })).toEqual([]);
+  });
+
+  it("testConnection() covers ok / auth / network error", async () => {
+    const ok = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const bad = (async () => new Response("", { status: 401 })) as unknown as typeof fetch;
+    const boom = (async () => { throw new Error("x"); }) as unknown as typeof fetch;
+    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok }).testConnection()).toBe(true);
+    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: bad }).testConnection()).toMatch(/rejected/i);
+    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom }).testConnection()).toMatch(/Could not reach/i);
+    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No API key/);
+  });
+
+  it("systemIdToMobyPlatformId maps common consoles", () => {
+    expect(systemIdToMobyPlatformId("snes")).toBe(15);
+    expect(systemIdToMobyPlatformId("psx")).toBe(6);
+    expect(systemIdToMobyPlatformId("unknown")).toBeUndefined();
+  });
+});
+
+// ── ChainedCoverArtProvider — skip unavailable providers ─────────────────────
+
+describe("ChainedCoverArtProvider (availability)", () => {
+  it("skips providers whose isAvailable() returns false and does not call search", async () => {
+    let searched = 0;
+    const unavailable = {
+      id: "u", name: "U",
+      isAvailable: () => false,
+      search: async () => { searched++; return []; },
+    };
+    const good = {
+      id: "g", name: "G",
+      search: async () => [{ title: "T", systemId: "nes", imageUrl: "https://x/y.png", sourceName: "G", score: 0.8 }],
+    };
+    const chain = new ChainedCoverArtProvider([unavailable, good]);
+    const results = await chain.search("Zelda", "nes");
+    expect(searched).toBe(0);
+    expect(results.length).toBe(1);
+    expect(results[0]!.sourceName).toBe("G");
+  });
+
+  it("runs providers whose isAvailable() returns true", async () => {
+    const p = {
+      id: "p", name: "P",
+      isAvailable: () => true,
+      search: async () => [{ title: "T", systemId: "nes", imageUrl: "https://x/y.png", sourceName: "P", score: 0.5 }],
+    };
+    const chain = new ChainedCoverArtProvider([p]);
+    const results = await chain.search("Z", "nes");
+    expect(results.length).toBe(1);
+  });
+});
+
+// ── libretroFilenameSafe ──────────────────────────────────────────────────────
+
+describe("libretroFilenameSafe", () => {
+  it("replaces colons (as in subtitles) with underscores", () => {
+    expect(libretroFilenameSafe("Mega Man X: Command Mission"))
+      .toBe("Mega Man X_ Command Mission");
+  });
+
+  it("replaces all filename-unsafe characters with underscores", () => {
+    // Each of & * / : ` < > ? \ | must be substituted.
+    expect(libretroFilenameSafe("a&b*c/d:e`f<g>h?i\\j|k")).toBe("a_b_c_d_e_f_g_h_i_j_k");
+  });
+
+  it("is idempotent and leaves safe characters alone", () => {
+    const safe = "Super Mario World (USA) (En,Fr,De)";
+    expect(libretroFilenameSafe(safe)).toBe(safe);
+    expect(libretroFilenameSafe(libretroFilenameSafe("A:B"))).toBe("A_B");
+  });
+
+  it("is used by LibretroCoverArtProvider when constructing URLs", async () => {
+    const p = new LibretroCoverArtProvider({ imageTypes: ["Named_Boxarts"] });
+    const results = await p.search("Mega Man X: Command Mission (USA).smc", "snes");
+    // Url-encoded form of the underscore-substituted filename.
+    const urls = results.map((r) => r.imageUrl);
+    // URL-encoded colon (%3A) must NOT appear — the colon is replaced with _
+    // before encoding.
+    for (const url of urls) {
+      expect(url).not.toContain("%3A");
+    }
+    // The expected substituted path segment is present somewhere.
+    expect(urls.some((u) => u.includes("Mega%20Man%20X_%20Command%20Mission%20(USA)"))).toBe(true);
+  });
+});
+
+// ── TheGamesDBCoverArtProvider ────────────────────────────────────────────────
+
+describe("TheGamesDBCoverArtProvider", () => {
+  it("isAvailable() tracks the key", () => {
+    expect(new TheGamesDBCoverArtProvider({ getApiKey: () => "" }).isAvailable()).toBe(false);
+    expect(new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32) }).isAvailable()).toBe(true);
+  });
+
+  it("search() returns [] with no key without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "", fetchImpl });
+    expect(await p.search("Zelda", "snes")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() returns [] for unknown systemId without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async () => { called++; return new Response("", { status: 200 }); }) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Zelda", "not-a-system")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("search() issues two requests (games, then images) and resolves front boxart", async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: unknown) => {
+      const u = String(url);
+      urls.push(u);
+      if (u.includes("/v1/Games/ByGameName")) {
+        return new Response(JSON.stringify({
+          data: { games: [{ id: 7, game_title: "Super Mario World", platform: 6 }] },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (u.includes("/v1/Games/Images")) {
+        return new Response(JSON.stringify({
+          data: {
+            base_url: { original: "https://cdn.thegamesdb.net/images/original/" },
+            images: {
+              "7": [
+                { id: 1, type: "boxart", side: "back",  filename: "boxart/back/7-1.jpg" },
+                { id: 2, type: "boxart", side: "front", filename: "boxart/front/7-1.jpg" },
+              ],
+            },
+          },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    const results = await p.search("Super Mario World", "snes");
+    expect(results.length).toBe(1);
+    expect(results[0]!.imageUrl).toBe("https://cdn.thegamesdb.net/images/original/boxart/front/7-1.jpg");
+    expect(results[0]!.sourceName).toBe("TheGamesDB");
+    // SNES TGDB platform id is 6.
+    expect(urls[0]).toContain("filter%5Bplatform%5D=6");
+    // Images call batches ids as csv.
+    expect(urls[1]).toContain("games_id=7");
+    expect(urls[1]).toContain("filter%5Btype%5D=boxart");
+  });
+
+  it("search() returns [] if the list call fails", async () => {
+    const fetchImpl = (async () => new Response("", { status: 500 })) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Z", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] if fetch throws (network failure)", async () => {
+    const fetchImpl = (async () => { throw new Error("offline"); }) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("Z", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] if the images call fails", async () => {
+    const fetchImpl = (async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("/v1/Games/ByGameName")) {
+        return new Response(JSON.stringify({ data: { games: [{ id: 1, game_title: "X" }] } }), { status: 200 });
+      }
+      return new Response("", { status: 500 });
+    }) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    expect(await p.search("X", "snes")).toEqual([]);
+  });
+
+  it("search() returns [] when aborted before starting", async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32) });
+    expect(await p.search("Z", "snes", { signal: ctrl.signal })).toEqual([]);
+  });
+
+  it("search() falls back to back cover when no front cover exists", async () => {
+    const fetchImpl = (async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("ByGameName")) {
+        return new Response(JSON.stringify({
+          data: { games: [{ id: 3, game_title: "Some Game" }] },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        data: {
+          base_url: { original: "https://cdn.thegamesdb.net/images/original" },
+          images: {
+            "3": [{ type: "boxart", side: "back", filename: "boxart/back/3-1.jpg" }],
+          },
+        },
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const p = new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl });
+    const results = await p.search("Some Game", "snes");
+    expect(results.length).toBe(1);
+    expect(results[0]!.imageUrl).toMatch(/back\/3-1\.jpg$/);
+  });
+
+  it("testConnection() reports success, auth failure, and network error", async () => {
+    const ok = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const bad = (async () => new Response("", { status: 403 })) as unknown as typeof fetch;
+    const boom = (async () => { throw new Error("x"); }) as unknown as typeof fetch;
+    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok }).testConnection()).toBe(true);
+    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: bad }).testConnection()).toMatch(/rejected/i);
+    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom }).testConnection()).toMatch(/Could not reach/i);
+    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No API key/);
+  });
+
+  it("systemIdToTgdbPlatformId maps common consoles", () => {
+    expect(systemIdToTgdbPlatformId("snes")).toBe(6);
+    expect(systemIdToTgdbPlatformId("psx")).toBe(10);
+    expect(systemIdToTgdbPlatformId("unknown")).toBeUndefined();
   });
 });
