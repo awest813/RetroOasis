@@ -279,7 +279,7 @@ body {
 
 .app-header__brand svg {
   color: var(--c-accent);
-  filter: drop-shadow(0 0 12px rgba(74, 127, 192, 0.9));
+  filter: drop-shadow(0 0 12px var(--c-accent));
   flex-shrink: 0;
 }
 
@@ -3014,7 +3014,7 @@ details.netplay-advanced[open] > summary::before { transform: rotate(90deg); }
   box-shadow:
     var(--shadow),
     0 0 0 1px rgba(255,255,255,0.06) inset,
-    0 0 60px rgba(74, 127, 192, 0.05);
+    0 0 60px color-mix(in srgb, var(--c-accent) 5%, transparent);
   width: min(92vw, 380px);
   padding: 26px;
   display: flex;
@@ -5750,7 +5750,7 @@ kbd.kbd--inline {
 
 /* ── Header brand — glow boost on hover ────────────────────── */
 .app-header__brand:hover svg {
-  filter: drop-shadow(0 0 18px rgba(102, 153, 216, 1.0));
+  filter: drop-shadow(0 0 18px var(--c-accent-h));
   transition: filter 0.2s ease;
 }
 

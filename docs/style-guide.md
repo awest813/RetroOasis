@@ -98,7 +98,7 @@ All colours are defined as CSS custom properties on `:root` in `src/style.css`. 
 ### Colour Usage Rules
 
 - **Backgrounds** → use `color-mix(in srgb, var(--c-TOKEN) PERCENT%, transparent)` (e.g. `color-mix(in srgb, var(--c-danger) 12%, transparent)`)
-- **Glows / drop-shadows** → use the corresponding `--c-TOKEN-glow` or `-dim` variable, or an explicit `rgba()` derived from the token's RGB values
+- **Glows / drop-shadows** → use `var(--c-TOKEN)` directly in `filter: drop-shadow()`, or use `color-mix(in srgb, var(--c-TOKEN) N%, transparent)` in `box-shadow`
 - **No raw `rgba()` with off-palette RGB values** — all raw values must match a token's underlying RGB
 
 ---
