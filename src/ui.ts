@@ -3331,9 +3331,9 @@ async function showInGameMenu(ctx: {
           segaDC: {
             key: "reicast_internal_resolution",
             options: [
-              { label: "640×480 (Native)", value: "640x480" },
-              { label: "1280×960 (2x)", value: "1280x960" },
-              { label: "1920×1440 (3x)", value: "1920x1440" },
+              { label: "640x480 (Native)", value: "640x480" },
+              { label: "1280x960 (2x)", value: "1280x960" },
+              { label: "1920x1440 (3x)", value: "1920x1440" },
             ]
           },
         };
