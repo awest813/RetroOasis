@@ -660,7 +660,10 @@ class KeyedProviderCache {
   get(key: string): CoverArtCandidate[] | null {
     const hit = this.entries.get(key);
     if (!hit) return null;
-    if (Date.now() - hit.at > this.ttlMs) { this.entries.delete(key); return null; }
+    if (Date.now() - hit.at > this.ttlMs) {
+      this.entries.delete(key);
+      return null;
+    }
     return hit.value;
   }
   set(key: string, value: CoverArtCandidate[]): void {
