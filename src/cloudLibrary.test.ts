@@ -27,6 +27,17 @@ describe("parseCloudLibraryConnectionConfig", () => {
   it("returns null for empty string", () => {
     expect(parseCloudLibraryConnectionConfig("")).toBeNull();
   });
+
+  it("returns null for a JSON array", () => {
+    expect(parseCloudLibraryConnectionConfig('[1,2,3]')).toBeNull();
+  });
+
+  it("returns null for a JSON primitive", () => {
+    expect(parseCloudLibraryConnectionConfig('"just a string"')).toBeNull();
+    expect(parseCloudLibraryConnectionConfig("42")).toBeNull();
+    expect(parseCloudLibraryConnectionConfig("true")).toBeNull();
+    expect(parseCloudLibraryConnectionConfig("null")).toBeNull();
+  });
 });
 
 // ── createProvider ─────────────────────────────────────────────────────────────
@@ -166,6 +177,12 @@ describe("GoogleDriveLibraryProvider — listFiles", () => {
       ok: true, status: 200, json: async () => ({ files: [] }),
     }));
     expect(await new GoogleDriveLibraryProvider("tok").listFiles()).toEqual([]);
+  });
+
+  it("rejects folder IDs with unsafe characters", async () => {
+    await expect(
+      new GoogleDriveLibraryProvider("tok").listFiles("it's a test")
+    ).rejects.toThrow(/Invalid Google Drive folder ID/);
   });
 });
 
@@ -470,6 +487,14 @@ describe("pCloudLibraryProvider — getDownloadUrl", () => {
   it("throws when the link request fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400 }));
     await expect(new pCloudLibraryProvider("tok").getDownloadUrl("bad")).rejects.toThrow(/pCloud link failed/);
+  });
+
+  it("throws when the hosts array is empty", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ path: "/file.rom", hosts: [] }),
+    }));
+    await expect(new pCloudLibraryProvider("tok").getDownloadUrl("123")).rejects.toThrow(/missing host/);
   });
 });
 

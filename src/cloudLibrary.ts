@@ -43,7 +43,9 @@ export interface CloudLibraryConnectionConfig {
 
 export function parseCloudLibraryConnectionConfig(raw: string): CloudLibraryConnectionConfig | null {
   try {
-    return JSON.parse(raw) as CloudLibraryConnectionConfig;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as CloudLibraryConnectionConfig;
   } catch {
     return null;
   }
@@ -117,6 +119,12 @@ export class GoogleDriveLibraryProvider implements CloudProvider {
 
   async listFiles(folderId?: string): Promise<CloudFile[]> {
     const parentId = folderId || this.rootFolderId || "root";
+    // Google Drive folder IDs are alphanumeric with hyphens and underscores.
+    // Reject anything that doesn't match to prevent query injection in the
+    // Drive API query language.  The special value "root" is always allowed.
+    if (parentId !== "root" && !/^[\w-]+$/.test(parentId)) {
+      throw new Error("Invalid Google Drive folder ID");
+    }
     const q = encodeURIComponent(`'${parentId}' in parents and trashed = false`);
     const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,size,mimeType,thumbnailLink)`, {
       headers: { Authorization: `Bearer ${this.accessToken}` }
@@ -321,7 +329,7 @@ export class pCloudLibraryProvider implements CloudProvider {
     
     return (data.metadata.contents ?? []).map(item => ({
       name: item.name ?? "Untitled",
-      path: item.fileid || item.folderid || folderId,
+      path: item.fileid ?? item.folderid ?? folderId,
       size: item.size ?? 0,
       isDirectory: !!item.isfolder
     }));
@@ -333,7 +341,9 @@ export class pCloudLibraryProvider implements CloudProvider {
     });
     if (!r.ok) throw new Error(`pCloud link failed: ${r.status}`);
     const data = await r.json() as { path: string; hosts: string[] };
-    return `https://${data.hosts[0]}${data.path}`;
+    const host = data.hosts?.[0];
+    if (!host) throw new Error("pCloud link response missing host");
+    return `https://${host}${data.path}`;
   }
 }
 

@@ -204,7 +204,10 @@ export class PeerDataChannel {
     if (!this._dc || this._dc.readyState !== "open") {
       throw new Error("Data channel is not open.");
     }
-    this._dc.send(data);
+    // RTCDataChannel.send() accepts string, ArrayBuffer, and typed array views.
+    // The union type is narrowed via the cast so newer TS overload resolution
+    // picks the correct signature without redundant branching.
+    (this._dc as { send(data: string | ArrayBuffer): void }).send(data);
   }
 
   /**
@@ -303,7 +306,7 @@ export class PeerDataChannel {
     this._pc.onconnectionstatechange = () => {
       const cs = this._pc?.connectionState;
       if (cs === "failed") {
-        void this._handleConnectionFailure();
+        this._handleConnectionFailure();
       } else if (cs === "disconnected") {
         this._setState("reconnecting");
       }
@@ -332,7 +335,7 @@ export class PeerDataChannel {
 
     dc.onclose = () => {
       if (this._state !== "closed" && this._state !== "failed") {
-        void this._handleConnectionFailure();
+        this._handleConnectionFailure();
       }
     };
 
@@ -361,12 +364,15 @@ export class PeerDataChannel {
     };
   }
 
-  private async _handleConnectionFailure(): Promise<void> {
+  private _handleConnectionFailure(): void {
     if (this._reconnectAttempts < this._maxReconnectAttempts) {
       this._reconnectAttempts++;
       this._setState("reconnecting");
       try {
-        await this._pc?.restartIce();
+        // restartIce() is synchronous — it restarts ICE gathering but does not
+        // return a Promise.  A full reconnection requires re-negotiation via
+        // createOffer/createAnswer which is driven by the caller.
+        this._pc?.restartIce();
       } catch {
         // ICE restart not supported or connection already gone — fall through to failed.
         this._setState("failed");
