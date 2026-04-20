@@ -21,6 +21,7 @@
  *   - Memory-aware blob management: revokes URLs promptly, warns on large ROMs
  */
 
+import { LEGACY_PERF_MARKS } from "./legacy.js";
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
   resolveMode, resolveTier, detectAudioCapabilities,
@@ -1937,7 +1938,7 @@ export class PSPEmulator {
     // Mark the launch start time for DevTools Performance timeline profiling.
     // Measures "retrovault:launch-to-ready" and "retrovault:ready-to-game-start"
     // will be recorded when EJS_ready and EJS_onGameStart fire respectively.
-    try { performance.mark("retrovault:launch"); } catch { /* best-effort */ }
+    try { performance.mark(LEGACY_PERF_MARKS.launch); } catch { /* best-effort */ }
 
     if (this.verboseLogging) {
       console.info(
@@ -2284,8 +2285,8 @@ export class PSPEmulator {
         }
         // Mark the moment the core finished loading — useful in DevTools timeline.
         try {
-          performance.mark("retrovault:core-ready");
-          performance.measure("retrovault:launch-to-ready", "retrovault:launch", "retrovault:core-ready");
+          performance.mark(LEGACY_PERF_MARKS.coreReady);
+          performance.measure(LEGACY_PERF_MARKS.launchToReady, LEGACY_PERF_MARKS.launch, LEGACY_PERF_MARKS.coreReady);
         } catch { /* marks may be unavailable in some sandboxed contexts */ }
       };
 
@@ -2308,8 +2309,8 @@ export class PSPEmulator {
         }
         // Mark the moment the first game frame rendered.
         try {
-          performance.mark("retrovault:game-start");
-          performance.measure("retrovault:ready-to-game-start", "retrovault:core-ready", "retrovault:game-start");
+          performance.mark(LEGACY_PERF_MARKS.gameStart);
+          performance.measure(LEGACY_PERF_MARKS.readyToGameStart, LEGACY_PERF_MARKS.coreReady, LEGACY_PERF_MARKS.gameStart);
         } catch { /* marks may be unavailable or a previous mark was missing */ }
         this._setState("running");
         this._fpsMonitor.onUpdate = (snap) => {

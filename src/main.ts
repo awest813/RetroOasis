@@ -19,6 +19,7 @@
  */
 
 import "./style.css";
+import { registerCOIServiceWorker } from "./coiBootstrap.js";
 import { PSPEmulator }   from "./emulator.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
 import { SaveGameService } from "./saveService.js";
@@ -29,6 +30,7 @@ import { getSystemById } from "./systems.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT } from "./saves.js";
 import { detectCapabilitiesCached, formatDetailedSummary, scheduleIdleTask, getResolutionCoreOptions } from "./performance.js";
+import { LEGACY_APP_GLOBALS, LEGACY_EVENTS, LEGACY_STORAGE_KEYS } from "./legacy.js";
 import { gameCompatibilityDb } from "./compatibility.js";
 import { buildDOM, initUI,
           transitionToLibrary, renderLibrary, openSettingsPanel,
@@ -46,6 +48,7 @@ import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import type { PostProcessEffect } from "./webgpuPostProcess.js";
 
 const APP_NAME = "RetroOasis";
+registerCOIServiceWorker();
 
 export interface CloudLibraryConnection {
   id: string;
@@ -126,7 +129,7 @@ export interface Settings {
   libraryGrouped: boolean;
 }
 
-const STORAGE_KEY = "retrovault-settings";
+const STORAGE_KEY = LEGACY_STORAGE_KEYS.settings;
 
 const DEFAULT_SETTINGS: Settings = {
   volume:          0.7,
@@ -299,7 +302,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   _deferredInstallEvent = e as unknown as { prompt(): Promise<void> };
   // Notify any already-rendered settings panel that the install button can appear
-  document.dispatchEvent(new CustomEvent("retrovault:installPromptReady"));
+  document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.installPromptReady));
 });
 
 /** Call from the UI to show the browser's "Add to Home Screen" dialog. */
@@ -695,7 +698,7 @@ async function main(): Promise<void> {
   const onResumeGame = (): void => {
     if (emulator.state !== "paused") return;
     emulator.resume();
-    document.dispatchEvent(new CustomEvent("retrovault:resumeGame"));
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.resumeGame));
   };
 
   // 6b. Wire "return to library" — pauses and hides the emulator, shows library
@@ -715,7 +718,7 @@ async function main(): Promise<void> {
     document.title = APP_NAME;
 
     void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
-    document.dispatchEvent(new CustomEvent("retrovault:returnToLibrary"));
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.returnToLibrary));
   };
 
   // 7. Wire UI
@@ -826,7 +829,7 @@ async function main(): Promise<void> {
   });
 
   // Handle core restart requests (e.g. from internal resolution changes)
-  document.addEventListener("retrovault:restart-required", async () => {
+  document.addEventListener(LEGACY_EVENTS.restartRequired, async () => {
     if (currentGameId && currentSystemId) {
       const entry = await library.getGame(currentGameId);
       if (entry) {
@@ -837,22 +840,22 @@ async function main(): Promise<void> {
   });
 
   // 8. If user returns to landing, rebuild landing header controls with a Resume button
-  document.addEventListener("retrovault:returnToLibrary", () => {
+  document.addEventListener(LEGACY_EVENTS.returnToLibrary, () => {
     const openPlayTogetherSettings = () => {
-      document.dispatchEvent(new CustomEvent("retrovault:closeEasyNetplay"));
+      document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.closeEasyNetplay));
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "multiplayer");
     };
     buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, getNetplayManager, openPlayTogetherSettings);
   });
 
-  document.addEventListener("retrovault:openSettings", () => {
+  document.addEventListener(LEGACY_EVENTS.openSettings, () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager);
   });
 
   // 9. Dev helpers
   if (import.meta.env.DEV) {
-    window.__retrovault = { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps };
-    console.info(`[${APP_NAME}] Dev mode. Access \`window.__retrovault\` in the console.`);
+    window[LEGACY_APP_GLOBALS.devConsole] = { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps };
+    console.info(`[${APP_NAME}] Dev mode. Access \`window.${LEGACY_APP_GLOBALS.devConsole}\` in the console.`);
     console.info("Device capabilities:", deviceCaps);
     console.info(`Hardware tier: ${deviceCaps.tier} (GPU score: ${deviceCaps.gpuBenchmarkScore}/100)`);
     console.info(formatDetailedSummary(deviceCaps));

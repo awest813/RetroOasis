@@ -24,13 +24,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Exo+2:wght@600;700;800;900&display=swap" rel="stylesheet" />
 
-    <!--
-      coi-serviceworker.js injects Cross-Origin-Isolation headers (COOP + COEP)
-      via a service worker. This is required for SharedArrayBuffer, which the
-      PPSSPP (PSP) core needs. Other systems (NES, SNES, GBA, etc.) work fine
-      without it. The Vite dev server sets the headers directly.
-    -->
-    <script src="./coi-serviceworker.js"></script>
   </head>
   <body>
     <!--

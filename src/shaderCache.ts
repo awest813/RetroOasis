@@ -25,8 +25,9 @@
  */
 
 import type { PerformanceTier } from "./performance.js";
+import { LEGACY_STORAGE_KEYS } from "./legacy.js";
 
-const CACHE_DB_NAME    = "retrovault-shaders";
+const CACHE_DB_NAME    = LEGACY_STORAGE_KEYS.shaderCacheDb;
 const CACHE_DB_VERSION = 3;
 const CACHE_STORE      = "programs";
 const WGSL_STORE       = "wgslModules";

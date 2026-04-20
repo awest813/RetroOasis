@@ -1,29 +1,29 @@
-/**
- * ui.ts — Build and wire the full application UI
+﻿/**
+ * ui.ts â€” Build and wire the full application UI
  *
  * Views:
- *   landing    — game library grid + "Add Game" drop zone (shown on startup)
- *   emulator   — EmulatorJS fills the screen (shown while a game runs)
+ *   landing    â€” game library grid + "Add Game" drop zone (shown on startup)
+ *   emulator   â€” EmulatorJS fills the screen (shown while a game runs)
  *
  * Panels (overlays over the current view):
- *   settings   — tabbed: Performance, Display, Library, BIOS
- *   systemPicker — shown when a file extension maps to multiple systems
- *   loading    — spinner during emulator boot
- *   error      — dismissible error banner
+ *   settings   â€” tabbed: Performance, Display, Library, BIOS
+ *   systemPicker â€” shown when a file extension maps to multiple systems
+ *   loading    â€” spinner during emulator boot
+ *   error      â€” dismissible error banner
  *
  * Keyboard shortcuts (global, while emulator is running):
- *   F5  → Quick Save slot 1
- *   F7  → Quick Load slot 1
- *   F1  → Reset (confirmation dialog — same as toolbar)
- *   Esc → Return to library
+ *   F5  â†’ Quick Save slot 1
+ *   F7  â†’ Quick Load slot 1
+ *   F1  â†’ Reset (confirmation dialog â€” same as toolbar)
+ *   Esc â†’ Return to library
  *
  * All shortcut handlers use the capture phase and stopPropagation() so the
  * intercepted keys never reach the EmulatorJS key-input handler, while all
  * regular game-control keys (arrows, letters, etc.) pass through untouched.
  *
  * Global keyboard shortcuts (always active):
- *   F9  → Open Settings → Debug tab
- *   F3  → Toggle developer debug overlay (FPS, frame time, memory, draw calls)
+ *   F9  â†’ Open Settings â†’ Debug tab
+ *   F3  â†’ Toggle developer debug overlay (FPS, frame time, memory, draw calls)
  */
 
 import {
@@ -141,11 +141,11 @@ const resolveAssetUrl = (path: string): string => {
   return `${base}${path}`;
 };
 
-// ── PWA install callbacks (set once from initUI) ───────────────────────────────
+// â”€â”€ PWA install callbacks (set once from initUI) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _canInstallPWA: (() => boolean) | undefined;
 let _onInstallPWA:  (() => Promise<boolean>) | undefined;
 
-// ── Settings opener callback (set once from initUI, used by showError action buttons) ──
+// â”€â”€ Settings opener callback (set once from initUI, used by showError action buttons) â”€â”€
 let _openSettingsFn: ((tab?: string) => void) | null = null;
 
 let _initUICleanup: (() => void) | null = null;
@@ -159,9 +159,9 @@ let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsTabBarRo: ResizeObserver | null = null;
 
-// ── DOM helpers ───────────────────────────────────────────────────────────────
+// â”€â”€ DOM helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Debug Console State & Logic ──────────────────────────────────────────────
+// â”€â”€ Debug Console State & Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _debugConsole = createDebugConsoleController({ onToggleDevOverlay: () => toggleDevOverlay() });
 
 function toggleDebugConsole(emulator?: PSPEmulator): void {
@@ -172,7 +172,7 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
   _debugConsole.update(emulator);
 }
 
-// ── Build DOM ─────────────────────────────────────────────────────────────────
+// â”€â”€ Build DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Mini controller SVG icon (reused in header brand and footer) */
 const _CTRL_SVG_MINI = `<svg width="12" height="12" viewBox="0 0 28 28" fill="none"
@@ -217,15 +217,15 @@ export function buildDOM(app: HTMLElement): void {
   const acceptExts = [...new Set([...ALL_EXTENSIONS, ...archivePickerExts])];
   const acceptList = acceptExts.map(e => `.${e}`).join(",");
   // Build a concise format hint: first extension of the first 8 systems + archive note
-  const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" · ");
-  const formatHint = `${hintExts} + more · ZIP auto-extracted · 7Z/RAR/TAR/GZ supported`;
+  const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" Â· ");
+  const formatHint = `${hintExts} + more Â· ZIP auto-extracted Â· 7Z/RAR/TAR/GZ supported`;
   const touchUI = isTouchDevice();
 
   app.innerHTML = `
     <!-- Skip navigation link for keyboard users -->
     <a class="skip-link" href="#landing">Skip to content</a>
 
-    <!-- ── Header ── -->
+    <!-- â”€â”€ Header â”€â”€ -->
     <header class="app-header">
       <div class="app-header__brand">
         <img src="${resolveAssetUrl("assets/logo_premium.png")}" alt="${APP_NAME}" class="brand-logo" width="36" height="36" decoding="async" fetchpriority="high" draggable="false" />
@@ -241,7 +241,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
     </header>
 
-    <!-- ── Main content area ── -->
+    <!-- â”€â”€ Main content area â”€â”€ -->
     <main class="app-main">
 
       <!-- Library / landing view -->
@@ -262,10 +262,10 @@ export function buildDOM(app: HTMLElement): void {
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input class="library-search" id="library-search"
-                       type="search" placeholder="Search games…" autocomplete="off"
+                       type="search" placeholder="Search gamesâ€¦" autocomplete="off"
                        aria-label="Search games" />
                 <button class="library-search-clear" id="library-search-clear"
-                        type="button" aria-label="Clear search" hidden>✕</button>
+                        type="button" aria-label="Clear search" hidden>âœ•</button>
               </div>
               <div class="library-layout-toggle" id="library-layouts" role="radiogroup" aria-label="Layout">
                 <button class="btn btn--ghost btn--icon layout-btn" data-layout="grid" title="Grid view" role="radio" aria-checked="true">
@@ -291,7 +291,7 @@ export function buildDOM(app: HTMLElement): void {
             </div>
           </div>
           <div class="system-filter" id="system-filter">
-            <!-- System filter chips — populated by renderLibrary() -->
+            <!-- System filter chips â€” populated by renderLibrary() -->
           </div>
           <div class="library-grid" id="library-grid">
             <!-- Cards populated by renderLibrary() -->
@@ -320,7 +320,7 @@ export function buildDOM(app: HTMLElement): void {
           <p class="drop-zone__formats" id="drop-zone-formats" title="Supported file formats">${formatHint}</p>
         </div>
 
-        <!-- Onboarding — only visible when library is empty -->
+        <!-- Onboarding â€” only visible when library is empty -->
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
             <p class="welcome-hero__eyebrow">First run</p>
@@ -347,15 +347,15 @@ export function buildDOM(app: HTMLElement): void {
 
           <div class="onboarding__features">
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">âš¡</span>
               <span><strong>Automatic setup</strong><br>No extra wizard. Bring one file and keep moving.</span>
             </div>
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">ðŸŽ®</span>
               <span><strong>Inputs ready</strong><br>Keyboard, touch, USB gamepad, and Bluetooth all feel at home here.</span>
             </div>
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">ðŸ”’</span>
               <span><strong>Private by default</strong><br>Your library and saves stay on this device unless you opt into cloud features.</span>
             </div>
           </div>
@@ -401,7 +401,7 @@ export function buildDOM(app: HTMLElement): void {
       <div id="loading-overlay" role="status" aria-live="polite" aria-hidden="true">
         <div class="loading-spinner" aria-hidden="true"></div>
         <div class="loading-content">
-          <p id="loading-message">Loading…</p>
+          <p id="loading-message">Loadingâ€¦</p>
           <p id="loading-subtitle" hidden></p>
           <div class="loading-progress" id="loading-progress-container" hidden>
             <div class="loading-progress-bar" id="loading-progress-bar"></div>
@@ -411,9 +411,9 @@ export function buildDOM(app: HTMLElement): void {
 
       <!-- Error banner -->
       <div id="error-banner" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1">
-        <span class="error-icon" aria-hidden="true">⚠️</span>
+        <span class="error-icon" aria-hidden="true">âš ï¸</span>
         <span id="error-message"></span>
-        <button class="error-close" id="error-close" title="Dismiss" aria-label="Dismiss error">✕</button>
+        <button class="error-close" id="error-close" title="Dismiss" aria-label="Dismiss error">âœ•</button>
       </div>
 
       <!-- System picker modal -->
@@ -422,7 +422,7 @@ export function buildDOM(app: HTMLElement): void {
         <div class="modal-box">
           <div class="modal-header">
             <h3 class="modal-title" id="system-picker-title">Choose System</h3>
-            <button class="modal-close" id="system-picker-close" aria-label="Cancel">✕</button>
+            <button class="modal-close" id="system-picker-close" aria-label="Cancel">âœ•</button>
           </div>
           <p class="modal-subtitle" id="system-picker-subtitle">
             This file extension is compatible with multiple systems.
@@ -439,7 +439,7 @@ export function buildDOM(app: HTMLElement): void {
         <div class="modal-box settings-modal-box">
           <div class="modal-header">
             <h3 class="modal-title" id="settings-panel-title">Settings</h3>
-            <button class="modal-close" id="settings-close" aria-label="Close settings">✕</button>
+            <button class="modal-close" id="settings-close" aria-label="Close settings">âœ•</button>
           </div>
           <div id="settings-content">
             <!-- Populated by buildSettingsContent() -->
@@ -450,32 +450,32 @@ export function buildDOM(app: HTMLElement): void {
       <!-- Debug console (toggled with Shift+F3 or Debug button) -->
       <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog">
         <div class="debug-console__header" id="debug-console-handle">
-          <div class="debug-console__title">🔧 Debug Console</div>
+          <div class="debug-console__title">ðŸ”§ Debug Console</div>
           <div class="debug-console__actions">
             <button class="debug-console__btn" id="debug-console-clear" title="Clear log">Clear</button>
-            <button class="debug-console__btn" id="debug-console-close" aria-label="Close">✕</button>
+            <button class="debug-console__btn" id="debug-console-close" aria-label="Close">âœ•</button>
           </div>
         </div>
         <div class="debug-console__body" id="debug-console-log"></div>
         <div class="debug-console__footer">
           <input type="text" class="debug-console__input" id="debug-console-input" 
-                 placeholder="Type a command (reset, pause, step, help)…" 
+                 placeholder="Type a command (reset, pause, step, help)â€¦" 
                  spellcheck="false" autocomplete="off" />
         </div>
       </div>
 
-      <!-- Mobile floating action button — touch devices only (CSS hides on pointer:fine) -->
+      <!-- Mobile floating action button â€” touch devices only (CSS hides on pointer:fine) -->
       <button class="mobile-fab mobile-fab--hidden" id="mobile-fab"
-              aria-label="Add a game" title="Add a game file">＋</button>
+              aria-label="Add a game" title="Add a game file">ï¼‹</button>
 
-      <!-- Portrait rotation hint — visible when playing in portrait orientation -->
+      <!-- Portrait rotation hint â€” visible when playing in portrait orientation -->
       <div class="rotate-hint" id="rotate-hint" aria-live="polite" aria-atomic="true">
-        <span aria-hidden="true">📱</span>Rotate for best experience
+        <span aria-hidden="true">ðŸ“±</span>Rotate for best experience
       </div>
 
     </main>
 
-    <!-- ── Footer ── -->
+    <!-- â”€â”€ Footer â”€â”€ -->
     <footer class="app-footer">
       <div class="status-item">
         <div class="status-dot idle" id="status-dot"></div>
@@ -483,13 +483,13 @@ export function buildDOM(app: HTMLElement): void {
       </div>
       <div class="status-item hide-mobile" id="status-system-item" style="display:none">
         <span class="status-item__label">Playing:</span>
-        <span class="status-item__value" id="status-game">—</span>
+        <span class="status-item__value" id="status-game">â€”</span>
       </div>
       <div class="status-item hide-mobile" id="status-system-label" style="display:none">
-        <span class="status-item__value" id="status-system" style="opacity:0.55;font-size:0.72rem">—</span>
+        <span class="status-item__value" id="status-system" style="opacity:0.55;font-size:0.72rem">â€”</span>
       </div>
       <div class="status-item hide-mobile" id="status-tier-item" style="display:none">
-        <span class="status-item__value" id="status-tier">—</span>
+        <span class="status-item__value" id="status-tier">â€”</span>
       </div>
       <div class="status-item hide-mobile" style="margin-left:auto;gap:6px">
         ${_CTRL_SVG_MINI}
@@ -507,7 +507,7 @@ export function buildDOM(app: HTMLElement): void {
   }
 }
 
-// ── Public init ───────────────────────────────────────────────────────────────
+// â”€â”€ Public init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface UIOptions {
   emulator:          PSPEmulator;
@@ -532,7 +532,7 @@ export interface UIOptions {
   onUpdateCoreOption?: (key: string, value: string) => void;
   getTouchOverlay?:    () => TouchControlsOverlay | null;
   getNetplayManager?:  () => Promise<import("./multiplayer.js").NetplayManager>;
-  /** Pre-existing NetplayManager instance — registers it as the singleton when provided (useful for tests). */
+  /** Pre-existing NetplayManager instance â€” registers it as the singleton when provided (useful for tests). */
   netplayManager?:    import("./multiplayer.js").NetplayManager;
   canInstallPWA?:     () => boolean;
   onInstallPWA?:      () => Promise<boolean>;
@@ -594,7 +594,7 @@ export function initUI(opts: UIOptions): void {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "multiplayer");
   };
 
-  // ── File drop / pick ──────────────────────────────────────────────────────
+  // â”€â”€ File drop / pick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fileInput = el<HTMLInputElement>("#file-input");
   const dropZone  = el("#drop-zone");
   let dragDepth = 0;
@@ -654,7 +654,7 @@ export function initUI(opts: UIOptions): void {
     const file = e.dataTransfer?.files[0];
     if (!file) return;
     if (emulator.state === "running") {
-      showError("Return to the library first (Esc or ← Library) before loading a new game.");
+      showError("Return to the library first (Esc or â† Library) before loading a new game.");
       return;
     }
     void onFileChosen(file);
@@ -665,10 +665,10 @@ export function initUI(opts: UIOptions): void {
   bindEvent(document, "drop", onDrop);
   bindEvent(window, "blur", clearDragOver);
 
-  // ── Error banner ──────────────────────────────────────────────────────────
+  // â”€â”€ Error banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   bindEvent(el("#error-close"), "click", hideError);
 
-  // ── Mobile FAB — "Add Game" button (touch devices) ───────────────────────
+  // â”€â”€ Mobile FAB â€” "Add Game" button (touch devices) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // The FAB is visible on the library page; hidden during gameplay.
   // It is rendered in the DOM for all builds and hidden via CSS (pointer: fine).
   const mobileFab = document.getElementById("mobile-fab");
@@ -676,7 +676,7 @@ export function initUI(opts: UIOptions): void {
     bindEvent(mobileFab, "click", () => fileInput.click());
   }
 
-  // ── Portrait rotation hint ────────────────────────────────────────────────
+  // â”€â”€ Portrait rotation hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Shown on touch devices when a game is running in portrait orientation.
   const rotateHintEl = document.getElementById("rotate-hint");
   const updateRotateHint = () => {
@@ -688,7 +688,7 @@ export function initUI(opts: UIOptions): void {
   bindEvent(window, "orientationchange", updateRotateHint);
   bindEvent(window, "resize", updateRotateHint);
 
-  // ── FPS overlay wiring ────────────────────────────────────────────────────
+  // â”€â”€ FPS overlay wiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   emulator.setFPSMonitorEnabled(settings.showFPS);
   emulator.onFPSUpdate = (snapshot) => {
     updateFPSOverlay(snapshot, emulator);
@@ -696,7 +696,7 @@ export function initUI(opts: UIOptions): void {
     updateDebugConsoleLog(emulator);
   };
 
-  // ── Emulator lifecycle → DOM ──────────────────────────────────────────────
+  // â”€â”€ Emulator lifecycle â†’ DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   emulator.onStateChange = (state) => {
     updateStatusDot(state);
     updateRotateHint();
@@ -713,10 +713,10 @@ export function initUI(opts: UIOptions): void {
     transitionToGame();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
-    setStatusSystem(sys ? sys.shortName : "—");
+    setStatusSystem(sys ? sys.shortName : "â€”");
     setStatusGame(name);
     setStatusTier(emulator.activeTier);
-    document.title = `${name} — ${APP_NAME}`;
+    document.title = `${name} â€” ${APP_NAME}`;
     const openSettingsWith = (tab?: SettingsTab) =>
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
     buildInGameControls(
@@ -745,8 +745,8 @@ export function initUI(opts: UIOptions): void {
     transitionToGame();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
-    document.title = `${name} — ${APP_NAME}`;
-    setStatusSystem(sys ? sys.shortName : "—");
+    document.title = `${name} â€” ${APP_NAME}`;
+    setStatusSystem(sys ? sys.shortName : "â€”");
     setStatusGame(name);
     const openSettingsWithResume = (tab?: SettingsTab) =>
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
@@ -791,7 +791,7 @@ export function initUI(opts: UIOptions): void {
   };
   bindEvent(document, LEGACY_EVENTS.returnToLibrary, onReturnToLibraryEvent);
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Register in the capture phase (third argument `true`) so our shortcuts
   // are processed before the EmulatorJS keydown handler (which listens on the
   // player element). Calling stopPropagation() here prevents F5/F7/F1/F9/Esc
@@ -835,7 +835,7 @@ export function initUI(opts: UIOptions): void {
         e.stopPropagation();
         void saveService.saveSlot(1).then((entry) => {
           if (entry) showInfoToast("Saved to Slot 1");
-          else showError("Quick save failed — add this game to your library or wait for the core to finish starting.");
+          else showError("Quick save failed â€” add this game to your library or wait for the core to finish starting.");
         });
         break;
       case "F7":
@@ -852,7 +852,7 @@ export function initUI(opts: UIOptions): void {
         void saveService.findNextSlot().then((slot) => {
           void saveService.saveSlot(slot).then((entry) => {
             if (entry) showInfoToast(`Saved to Slot ${slot}`);
-            else showError("Save failed — wait for the core to finish starting.");
+            else showError("Save failed â€” wait for the core to finish starting.");
           });
         });
         break;
@@ -880,7 +880,7 @@ export function initUI(opts: UIOptions): void {
   };
   bindEvent(document, "keydown", onGlobalShortcutKeydown, { capture: true });
 
-  // ── Landing header controls ───────────────────────────────────────────────
+  // â”€â”€ Landing header controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, getNetplayManager, openPlayTogetherSettings);
 
   if (typeof ResizeObserver !== "undefined") {
@@ -892,7 +892,7 @@ export function initUI(opts: UIOptions): void {
     }
   }
 
-  // ── Initial library render ────────────────────────────────────────────────
+  // â”€â”€ Initial library render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _initUICleanup = () => {
     cleanupFns.forEach((cleanup) => cleanup());
     cleanupFns.length = 0;
@@ -905,7 +905,7 @@ export function initUI(opts: UIOptions): void {
   void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
 }
 
-// ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
+// â”€â”€ Cinematic Overhaul Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Build the cinematic hero card for the most-recently played game.
@@ -1301,7 +1301,7 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
 
 let _libraryControlsWired = false;
 
-// ── Library keyboard / gamepad navigation ─────────────────────────────────────
+// â”€â”€ Library keyboard / gamepad navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _libraryNavWired = false;
 let _libraryGamepadRafId: number | null = null;
 // Tracks per-axis/button state for gamepad repeat logic
@@ -1330,7 +1330,7 @@ function _wireLibraryNavigation(): void {
   const grid = document.getElementById("library-grid");
   if (!grid) return;
 
-  // ── Arrow key navigation on the grid container ────────────────────────────
+  // â”€â”€ Arrow key navigation on the grid container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   grid.addEventListener("keydown", (e: KeyboardEvent) => {
     const key = e.key;
     if (key !== "ArrowLeft" && key !== "ArrowRight" &&
@@ -1356,7 +1356,7 @@ function _wireLibraryNavigation(): void {
     } else if (key === "End") {
       nextIdx = cards.length - 1;
     } else {
-      // ArrowUp / ArrowDown — find closest card in the row above/below
+      // ArrowUp / ArrowDown â€” find closest card in the row above/below
       const curRect = cards[idx]!.getBoundingClientRect();
       const curMidX = curRect.left + curRect.width / 2;
       const curTop  = curRect.top;
@@ -1382,7 +1382,7 @@ function _wireLibraryNavigation(): void {
     }
   });
 
-  // ── Gamepad polling loop ──────────────────────────────────────────────────
+  // â”€â”€ Gamepad polling loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Runs continuously but only acts when the landing page is visible.
   function _libGamepadTick(): void {
     _libraryGamepadRafId = requestAnimationFrame(_libGamepadTick);
@@ -1399,7 +1399,7 @@ function _wireLibraryNavigation(): void {
 
     const now = performance.now();
 
-    // Read directional inputs (D-pad buttons 12–15 and left analogue stick)
+    // Read directional inputs (D-pad buttons 12â€“15 and left analogue stick)
     const rawUp    = (gp.buttons[12]?.pressed ?? false) || (gp.axes[1] ?? 0) < -0.5;
     const rawDown  = (gp.buttons[13]?.pressed ?? false) || (gp.axes[1] ?? 0) >  0.5;
     const rawLeft  = (gp.buttons[14]?.pressed ?? false) || (gp.axes[0] ?? 0) < -0.5;
@@ -1425,11 +1425,11 @@ function _wireLibraryNavigation(): void {
     let doMove = false;
     if (anyDir) {
       if (_libGpPrevAxes[0] !== 1) {
-        // First frame the direction was pressed → move immediately
+        // First frame the direction was pressed â†’ move immediately
         doMove = true;
         _libGpRepeatTimer = now + _LIB_NAV_INITIAL_DELAY;
       } else if (now >= _libGpRepeatTimer) {
-        // Held long enough → auto-repeat
+        // Held long enough â†’ auto-repeat
         doMove = true;
         _libGpRepeatTimer = now + _LIB_NAV_REPEAT_RATE;
       }
@@ -1448,7 +1448,7 @@ function _wireLibraryNavigation(): void {
       const focused = document.activeElement as HTMLElement | null;
       const idx = focused ? cards.indexOf(focused) : -1;
       if (idx !== -1) { cards[idx]!.click(); return; }
-      // No card focused — focus & launch first card
+      // No card focused â€” focus & launch first card
       cards[0]!.focus();
       cards[0]!.click();
       return;
@@ -1467,7 +1467,7 @@ function _wireLibraryNavigation(): void {
     const idx = focused ? cards.indexOf(focused) : -1;
 
     if (idx === -1) {
-      // Nothing focused yet — focus the first card
+      // Nothing focused yet â€” focus the first card
       cards[0]!.focus();
       _safeScrollIntoView(cards[0]!, { block: "nearest", behavior: "smooth" });
       return;
@@ -1479,7 +1479,7 @@ function _wireLibraryNavigation(): void {
     } else if (rawRight) {
       nextIdx = Math.min(cards.length - 1, idx + 1);
     } else {
-      // Up / Down — same column-detection logic as keyboard
+      // Up / Down â€” same column-detection logic as keyboard
       const curRect = cards[idx]!.getBoundingClientRect();
       const curMidX = curRect.left + curRect.width / 2;
       const curTop  = curRect.top;
@@ -1693,7 +1693,7 @@ function buildGameCard(
   }
 
   if (game.cloudId) {
-    const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" }, "☁");
+    const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" }, "â˜");
     icon.appendChild(cloudBadge);
   }
 
@@ -1729,7 +1729,7 @@ function buildGameCard(
     class: "game-card__remove",
     title: "Remove from library",
     "aria-label": `Remove ${game.name}`,
-  }, "✕");
+  }, "âœ•");
   btnRemove.addEventListener("click", async (e) => {
     e.stopPropagation();
     const confirmed = await showConfirmDialog(
@@ -1746,7 +1746,7 @@ function buildGameCard(
     class: `game-card__fav${game.isFavorite ? " active" : ""}`,
     title: game.isFavorite ? "Remove from favorites" : "Add to favorites",
     "aria-label": game.isFavorite ? `Remove ${game.name} from favorites` : `Add ${game.name} to favorites`,
-  }, "★");
+  }, "â˜…");
   btnFav.addEventListener("click", async (e) => {
     e.stopPropagation();
     const next = !game.isFavorite;
@@ -1773,7 +1773,7 @@ function buildGameCard(
       class: "game-card__patch",
       title: "Apply IPS/BPS/UPS patch",
       "aria-label": `Apply patch to ${game.name}`,
-    }, "⊕") as HTMLButtonElement;
+    }, "âŠ•") as HTMLButtonElement;
 
     btnPatch.addEventListener("click", (e) => { e.stopPropagation(); patchInput!.click(); });
     patchInput.addEventListener("change", async () => {
@@ -1782,7 +1782,7 @@ function buildGameCard(
       patchInput!.value = "";
       try {
         showLoadingOverlay();
-        setLoadingMessage(`Applying patch to ${game.name}…`);
+        setLoadingMessage(`Applying patch to ${game.name}â€¦`);
         await onApplyPatch(game.id, patchFile);
         hideLoadingOverlay();
         showInfoToast(`Patch applied to "${game.name}".`, "success");
@@ -1798,7 +1798,7 @@ function buildGameCard(
     class: "game-card__change-sys",
     title: "Change system / emulator",
     "aria-label": `Change system for ${game.name}`,
-  }, "⟳");
+  }, "âŸ³");
 
   btnChangeSystem.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -1817,7 +1817,7 @@ function buildGameCard(
   });
 
   const playOverlay = make("div", { class: "game-card__play-overlay", "aria-hidden": "true" });
-  const playBtn     = make("div", { class: "game-card__play-btn" }, "▶");
+  const playBtn     = make("div", { class: "game-card__play-btn" }, "â–¶");
   playOverlay.appendChild(playBtn);
 
   card.append(icon, info);
@@ -1836,12 +1836,12 @@ function buildGameCard(
 
   const launch = async () => {
     showLoadingOverlay();
-    setLoadingMessage(`Starting ${game.name}…`);
+    setLoadingMessage(`Starting ${game.name}â€¦`);
     setLoadingSubtitle("Getting ready to play");
     try {
       let blob = await library.getGameBlob(game.id);
       if (!blob && game.cloudId) {
-        setLoadingMessage("Streaming from cloud…");
+        setLoadingMessage("Streaming from cloudâ€¦");
         setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
         blob = await fetchFromCloud(game, settings);
         
@@ -1949,12 +1949,12 @@ function systemIcon(systemId: string): string {
   if (sys?.iconUrl) return sys.iconUrl;
 
   const icons: Record<string, string> = {
-    psp: "🎮", nes: "🕹", snes: "🕹", gba: "🎯", gbc: "🟢", gb: "⬜",
-    nds: "📱", n64: "🎮", psx: "🔵", segaMD: "⚡", segaGG: "🔶",
-    segaMS: "📺", atari2600: "👾", arcade: "🕹", segaSaturn: "💫",
-    segaDC: "🌀", mame2003: "🕹", atari7800: "👾", lynx: "📟", ngp: "🔴",
+    psp: "ðŸŽ®", nes: "ðŸ•¹", snes: "ðŸ•¹", gba: "ðŸŽ¯", gbc: "ðŸŸ¢", gb: "â¬œ",
+    nds: "ðŸ“±", n64: "ðŸŽ®", psx: "ðŸ”µ", segaMD: "âš¡", segaGG: "ðŸ”¶",
+    segaMS: "ðŸ“º", atari2600: "ðŸ‘¾", arcade: "ðŸ•¹", segaSaturn: "ðŸ’«",
+    segaDC: "ðŸŒ€", mame2003: "ðŸ•¹", atari7800: "ðŸ‘¾", lynx: "ðŸ“Ÿ", ngp: "ðŸ”´",
   };
-  return icons[systemId] ?? "🎮";
+  return icons[systemId] ?? "ðŸŽ®";
 }
 
 
@@ -1975,7 +1975,7 @@ const OVERLAY_FADE_DELAY_MS = 200;
 const PERF_SUGGESTION_FADE_DELAY_MS = 300;
 const TOAST_REMOVE_DELAY_MS = 400;
 
-// ── Performance & Network Constants ──────────────────────────────────────────
+// â”€â”€ Performance & Network Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LATENCY_GOOD_THRESHOLD_MS = 80;
 const LATENCY_WARN_THRESHOLD_MS = 200;
 const FILE_SIZE_DECIMALS = 1;
@@ -2002,12 +2002,12 @@ function toLaunchFile(blob: Blob, fileName: string): File {
   return new File([blob], fileName, { type: blob.type });
 }
 
-// ── Custom confirm dialog ─────────────────────────────────────────────────────
+// â”€â”€ Custom confirm dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Returns true when `overlay` is the most recently appended `.confirm-overlay`
  * in the document.  Used by all modal Escape handlers so only the *topmost*
- * dialog closes when the user presses Escape — an outer gallery does not
+ * dialog closes when the user presses Escape â€” an outer gallery does not
  * collapse while an inner confirm dialog is still open.
  */
 function showConfirmDialog(
@@ -2041,13 +2041,13 @@ function _safeScrollIntoView(target: HTMLElement, options: ScrollIntoViewOptions
 }
 
 
-// ── System picker modal ───────────────────────────────────────────────────────
+// â”€â”€ System picker modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function pickSystem(fileName: string, candidates: SystemInfo[], subtitleText?: string): Promise<SystemInfo | null> {
   return pickSystemImpl(fileName, candidates, subtitleText);
 }
 
-// ── Resolve system then add to library and launch ─────────────────────────────
+// â”€â”€ Resolve system then add to library and launch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PATCH_EXT_SET = new Set(["ips", "bps", "ups"]);
 const IMPORT_ARCHIVE_EXT_SET = new Set([
@@ -2112,7 +2112,7 @@ function logImportWarn(
   if (settings.verboseLogging) console.warn(`[${APP_NAME}] ${message}`);
 }
 
-// ── Import retry helpers ───────────────────────────────────────────────────────
+// â”€â”€ Import retry helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Maximum automatic retry attempts for transient import errors. */
 const IMPORT_MAX_ATTEMPTS = 3;
@@ -2121,11 +2121,11 @@ const IMPORT_RETRY_BASE_DELAY_MS = 300;
 
 /**
  * Returns true when the error is likely transient and worth retrying automatically.
- * Quota / storage exhaustion errors are excluded — those require user action.
+ * Quota / storage exhaustion errors are excluded â€” those require user action.
  */
 export function isTransientImportError(err: Error): boolean {
   const msg = err.message.toLowerCase();
-  // Quota exceeded is permanent until the user frees space — do not auto-retry.
+  // Quota exceeded is permanent until the user frees space â€” do not auto-retry.
   if (msg.includes("quota") || msg.includes("no space") || msg.includes("storage full")) return false;
   // IDB lock / transaction errors, network hiccups, and generic unknown errors are transient.
   return (
@@ -2145,7 +2145,7 @@ interface RetryOptions {
   maxAttempts?: number;
   /** Base delay between attempts in ms. Actual delay scales linearly with attempt index. */
   delayMs?: number;
-  /** Called before each retry (attempt ≥ 2). Receives the 1-based attempt index and last error. */
+  /** Called before each retry (attempt â‰¥ 2). Receives the 1-based attempt index and last error. */
   onRetry?: (attempt: number, err: Error) => void;
   /** Predicate deciding whether an error should trigger a retry. Defaults to always retry. */
   isRetryable?: (err: Error) => boolean;
@@ -2262,8 +2262,8 @@ export async function resolveSystemAndAdd(
   if (EXTRACTABLE_ARCHIVE_FORMATS.has(archiveFormat)) {
     const archiveModule = await getArchiveModule();
     showLoadingOverlay();
-    setLoadingMessage(`Opening ${archiveFormat.toUpperCase()} archive…`);
-    setLoadingSubtitle("Extracting game files — this may take a moment");
+    setLoadingMessage(`Opening ${archiveFormat.toUpperCase()} archiveâ€¦`);
+    setLoadingSubtitle("Extracting game files â€” this may take a moment");
     logImport(
       emulatorRef,
       settings,
@@ -2273,7 +2273,7 @@ export async function resolveSystemAndAdd(
     try {
       // Mobile file pickers (ext === "") strip extensions, so the file was
       // detected purely by magic bytes.  For that path we call extractFromZip
-      // directly — it has no progress API but the extraction is lightweight.
+      // directly â€” it has no progress API but the extraction is lightweight.
       // Named-extension ZIPs go through extractFromArchive to get progress
       // callbacks and multi-candidate support.
       const extracted = archiveFormat === "zip" && ext === ""
@@ -2308,7 +2308,7 @@ export async function resolveSystemAndAdd(
           if (!picked) return;
           resolvedFile = new File([picked.blob!], picked.name, { type: picked.blob!.type });
           showLoadingOverlay();
-          setLoadingMessage("File selected — detecting game system…");
+          setLoadingMessage("File selected â€” detecting game systemâ€¦");
           setLoadingSubtitle("");
           logImport(
             emulatorRef,
@@ -2318,7 +2318,7 @@ export async function resolveSystemAndAdd(
         } else {
           resolvedFile = new File([extracted.blob!], extracted.name, { type: extracted.blob!.type });
         }
-        setLoadingMessage("Detecting game system…");
+        setLoadingMessage("Detecting game systemâ€¦");
         setLoadingSubtitle("");
         logImport(
           emulatorRef,
@@ -2374,7 +2374,7 @@ export async function resolveSystemAndAdd(
     }
   } else if (IMPORT_ARCHIVE_EXT_SET.has(ext) && archiveFormat === "unknown") {
     // Extension says "archive", but content signature was unrecognised.
-    // Keep going — this may still be a native package for arcade cores.
+    // Keep going â€” this may still be a native package for arcade cores.
     logImportWarn(
       emulatorRef,
       settings,
@@ -2415,7 +2415,7 @@ export async function resolveSystemAndAdd(
       showError(
         `"${resolvedFile.name}" isn't a recognised ROM format.\n\n` +
         `Try a common format like .iso, .gba, .sfc, .nes, or .nds.\n` +
-        `See Settings → ❓ Help for the full list of supported formats.`
+        `See Settings â†’ â“ Help for the full list of supported formats.`
       );
       return;
     }
@@ -2424,7 +2424,7 @@ export async function resolveSystemAndAdd(
     system = await pickSystem(resolvedFile.name, detected);
     if (!system) return;
   } else {
-    // Single system detected — do not hide the overlay here.
+    // Single system detected â€” do not hide the overlay here.
     // If an archive was just extracted the overlay may still be showing;
     // keeping it visible avoids hide/show flicker on the happy path.
     system = detected;
@@ -2451,12 +2451,12 @@ export async function resolveSystemAndAdd(
       );
       if (!playExisting) return;
       showLoadingOverlay();
-      setLoadingMessage(`Starting ${existing.name}…`);
+      setLoadingMessage(`Starting ${existing.name}â€¦`);
       setLoadingSubtitle("Getting ready to play");
       try {
         let blob = existing.blob;
         if (!blob && existing.cloudId) {
-          setLoadingSubtitle(`Downloading from ${existing.cloudId}…`);
+          setLoadingSubtitle(`Downloading from ${existing.cloudId}â€¦`);
           blob = await fetchFromCloud(existing, settings);
         }
         if (!blob) {
@@ -2481,7 +2481,7 @@ export async function resolveSystemAndAdd(
   } catch { /* fall through */ }
 
   showLoadingOverlay();
-  setLoadingMessage("Saving game to library…");
+  setLoadingMessage("Saving game to libraryâ€¦");
   setLoadingSubtitle("This only takes a moment the first time");
 
   try {
@@ -2490,11 +2490,11 @@ export async function resolveSystemAndAdd(
       {
         isRetryable: isTransientImportError,
         onRetry: (attempt, _err) => {
-          setLoadingMessage(`Saving game to library… (retry ${attempt})`);
+          setLoadingMessage(`Saving game to libraryâ€¦ (retry ${attempt})`);
           logImportWarn(
             emulatorRef,
             settings,
-            `library.addGame failed on attempt ${attempt}; retrying…`,
+            `library.addGame failed on attempt ${attempt}; retryingâ€¦`,
           );
         },
       },
@@ -2506,7 +2506,7 @@ export async function resolveSystemAndAdd(
       `Game added to library: "${entry.name}" (id: ${entry.id}, system: ${entry.systemId})`,
     );
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    setLoadingMessage(`Starting ${entry.name}…`);
+    setLoadingMessage(`Starting ${entry.name}â€¦`);
     setLoadingSubtitle("Getting ready to play");
     logImport(
       emulatorRef,
@@ -2548,7 +2548,7 @@ async function handlePatchFileDrop(
 
   try {
     showLoadingOverlay();
-    setLoadingMessage(`Applying patch to ${chosen.name}…`);
+    setLoadingMessage(`Applying patch to ${chosen.name}â€¦`);
     await onApplyPatch(chosen.id, patchFile);
     hideLoadingOverlay();
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
@@ -2601,7 +2601,7 @@ async function handleM3UFile(
     const userPicked = await showMultiDiscPicker(missingDiscs);
     if (!userPicked) return;
     showLoadingOverlay();
-    setLoadingMessage("Storing disc images…");
+    setLoadingMessage("Storing disc imagesâ€¦");
     for (const [fn, f] of userPicked) {
       try {
         const entry = await library.addGame(f, system.id);
@@ -2613,7 +2613,7 @@ async function handleM3UFile(
     discFiles = new Map();
     for (const [fn, { blob }] of storedDiscs) { discFiles.set(fn, blob); }
     showLoadingOverlay();
-    setLoadingMessage("Preparing multi-disc game…");
+    setLoadingMessage("Preparing multi-disc gameâ€¦");
   }
 
   const blobUrls: string[] = [];
@@ -2649,7 +2649,7 @@ async function handleM3UFile(
     }
     // Revoke the disc blob URLs when the user returns to the library. The emulator
     // core keeps its own reference via the loaded game URL, so revoking here is
-    // safe once the game has started — the emulator holds the data, not the URL.
+    // safe once the game has started â€” the emulator holds the data, not the URL.
     const revokeOnReturn = () => { blobUrls.forEach(u => URL.revokeObjectURL(u)); };
     document.addEventListener(LEGACY_EVENTS.returnToLibrary, revokeOnReturn, { once: true });
   } catch (err) {
@@ -2660,7 +2660,7 @@ async function handleM3UFile(
   }
 }
 
-// ── Header controls ───────────────────────────────────────────────────────────
+// â”€â”€ Header controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function buildLandingControls(
   settings:         Settings,
@@ -2690,14 +2690,14 @@ export function buildLandingControls(
   container.innerHTML = "";
 
   if (onResumeGame) {
-    const btnResume = make("button", { class: "btn btn--primary", title: "Return to the paused game" }, "▶ Resume");
+    const btnResume = make("button", { class: "btn btn--primary", title: "Return to the paused game" }, "â–¶ Resume");
     btnResume.addEventListener("click", onResumeGame);
     container.appendChild(btnResume);
   }
 
   if (deviceCaps.isLowSpec || deviceCaps.isChromOS) {
-    const label = deviceCaps.isChromOS ? "⚡ Chromebook" : "⚡ Low-spec";
-    const tip   = deviceCaps.isChromOS ? "Chromebook detected — Performance mode recommended" : "Performance mode recommended for this device";
+    const label = deviceCaps.isChromOS ? "âš¡ Chromebook" : "âš¡ Low-spec";
+    const tip   = deviceCaps.isChromOS ? "Chromebook detected â€” Performance mode recommended" : "Performance mode recommended for this device";
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
   }
 
@@ -2717,14 +2717,14 @@ export function buildLandingControls(
     title: "Getting started guide and keyboard shortcuts",
     "aria-label": "Open help and getting started guide",
   });
-  btnHelp.textContent = "❓ Help";
+  btnHelp.textContent = "â“ Help";
   btnHelp.addEventListener("click", () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "about");
   });
 
   const btnMultiplayer = make("button", {
     class: "btn btn--highlight",
-    title: "Open Play Together — Host or join a game with friends",
+    title: "Open Play Together â€” Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
   btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" style="vertical-align:middle;margin-right:6px" /> Play Together`;
@@ -2784,7 +2784,7 @@ function buildInGameControls(
     "aria-live": "polite",
     "aria-label": `Now playing ${currentGameName}`,
   });
-  nowPlayingChip.textContent = `Now playing · ${currentGameName}`;
+  nowPlayingChip.textContent = `Now playing Â· ${currentGameName}`;
   container.append(nowPlayingChip);
 
   if (_inGameControlsAc) {
@@ -2793,7 +2793,7 @@ function buildInGameControls(
   _inGameControlsAc = new AbortController();
   const signal = _inGameControlsAc.signal;
 
-  // ── Quick Save button ──────────────────────────────────────────────────────
+  // â”€â”€ Quick Save button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (saveService) {
     const btnSave = make("button", {
       class: "btn header-priority-optional",
@@ -2804,13 +2804,13 @@ function buildInGameControls(
     btnSave.addEventListener("click", () => {
       void saveService.saveSlot(1).then((entry) => {
         if (entry) showInfoToast("Saved to Slot 1");
-        else showError("Quick save failed — add this game to your library or wait for the core to finish starting.");
+        else showError("Quick save failed â€” add this game to your library or wait for the core to finish starting.");
       });
     }, { signal });
     container.append(btnSave);
   }
 
-  // ── Quick Load button ──────────────────────────────────────────────────────
+  // â”€â”€ Quick Load button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (saveService) {
     const btnLoad = make("button", {
       class: "btn header-priority-optional",
@@ -2827,7 +2827,7 @@ function buildInGameControls(
     container.append(btnLoad);
   }
 
-  // ── Save Gallery button ────────────────────────────────────────────────────
+  // â”€â”€ Save Gallery button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const btnGallery = make("button", {
     class: "btn header-priority-secondary",
     title: "Save slots",
@@ -2848,7 +2848,7 @@ function buildInGameControls(
   }, { signal });
   container.append(btnGallery);
 
-  // ── Netplay button ─────────────────────────────────────────────────────────
+  // â”€â”€ Netplay button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (onOpenSettings || getNetplayManager) {
     const currentSys = getCurrentSystemId?.() ?? null;
     const nm = peekNetplayManager();
@@ -2880,14 +2880,14 @@ function buildInGameControls(
     container.append(btnNetplay);
   }
 
-  // ── Touch controls edit/reset buttons (touch devices only) ───────────────────
+  // â”€â”€ Touch controls edit/reset buttons (touch devices only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isTouchDevice()) {
     const btnEditTouch = make("button", {
       class: "btn header-priority-optional",
       title: "Edit touch control layout",
       "aria-label": "Edit touch control layout",
     }) as HTMLButtonElement;
-    btnEditTouch.textContent = "🎮 Edit";
+    btnEditTouch.textContent = "ðŸŽ® Edit";
     btnEditTouch.disabled = !touchControlsEnabled;
     btnEditTouch.addEventListener("click", () => {
       const overlay = getTouchOverlay?.();
@@ -2912,13 +2912,13 @@ function buildInGameControls(
     container.append(btnEditTouch, btnResetTouch);
   }
 
-  // ── Reset button ─────────────────────────────────────────────────────────────
+  // â”€â”€ Reset button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const btnReset = make("button", {
     class: "btn btn--warn header-priority-secondary",
     title: "Reset emulator (F1)",
     "aria-label": "Reset emulator",
   }) as HTMLButtonElement;
-  btnReset.textContent = "↺ Reset";
+  btnReset.textContent = "â†º Reset";
   btnReset.addEventListener("click", async () => {
     const confirmed = await showConfirmDialog(
       "This will restart the game from the beginning. Unsaved progress will be lost.",
@@ -2928,7 +2928,7 @@ function buildInGameControls(
   }, { signal });
   container.append(btnReset);
 
-  // ── Menu button ─────────────────────────────────────────────────────────────
+  // â”€â”€ Menu button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const btnMenu = make("button", {
     class: "btn btn--gradient header-priority-primary",
     title: "Open Menu (Esc)",
@@ -3102,7 +3102,7 @@ async function showInGameMenu(ctx: {
                 showInfoToast(`Saved to Slot ${slotIdx}`, "success");
                 void renderContent("saves");
               } else {
-                showError("Save failed — the emulator may still be starting up, or the game state is unavailable. Please try again.");
+                showError("Save failed â€” the emulator may still be starting up, or the game state is unavailable. Please try again.");
               }
             } finally {
               busyEl?.classList.remove("active");
@@ -3457,7 +3457,7 @@ async function showInGameMenu(ctx: {
   overlay.addEventListener("keydown", (e: KeyboardEvent) => trapFocus(overlay, e), { signal });
 }
 
-// ── Auto-save restore prompt ──────────────────────────────────────────────────
+// â”€â”€ Auto-save restore prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameId: string): Promise<boolean> {
   const hasAuto = await saveLibrary.hasAutoSave(gameId);
@@ -3470,7 +3470,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 
 
-// ── Settings panel ────────────────────────────────────────────────────────────
+// â”€â”€ Settings panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "debug" | "about";
 
@@ -3492,7 +3492,7 @@ export function openSettingsPanel(
 
   // Normalise: accept either a factory function or a direct NetplayManager instance.
   // When a direct instance is passed, register it as the global singleton so that
-  // peekNetplayManager() returns it — enabling synchronous calls in tab builders.
+  // peekNetplayManager() returns it â€” enabling synchronous calls in tab builders.
   if (typeof getNetplayManagerOrInstance !== "function" && getNetplayManagerOrInstance != null) {
     registerNetplayInstance(getNetplayManagerOrInstance);
   }
@@ -3588,12 +3588,12 @@ function buildSettingsContent(
   const tierFriendlyMap: Record<string, string> = { low: "entry-level", medium: "mid-range", high: "high-end" };
   const tierFriendly = tierFriendlyMap[deviceCaps.tier] ?? "unknown";
   const quickInfo = make("p", { class: "settings-quickbar__summary" },
-    `Graphics: ${perfModeLabel} · ${tierFriendly} device${deviceCaps.isLowSpec ? " · optimised mode active" : ""}`
+    `Graphics: ${perfModeLabel} Â· ${tierFriendly} device${deviceCaps.isLowSpec ? " Â· optimised mode active" : ""}`
   );
   const searchInput = make("input", {
     class: "settings-search-input",
     type: "search",
-    placeholder: "Search settings…",
+    placeholder: "Search settingsâ€¦",
     "aria-label": "Search settings",
   }) as HTMLInputElement;
   const searchStatus = make("p", { class: "settings-search-status", "aria-live": "polite" });
@@ -3602,14 +3602,14 @@ function buildSettingsContent(
   quickBar.append(activeTabLabel);
 
   const tabs: Array<{ id: SettingsTab; icon: string; label: string; ariaLabel: string }> = [
-    { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
-    { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
-    { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
-    { id: "cloud",        icon: "☁️", label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
-    { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
-    { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
-    { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
-    { id: "about",        icon: "❓", label: "Help",            ariaLabel: "Help" },
+    { id: "performance",  icon: "âš¡", label: "Performance",   ariaLabel: "Performance" },
+    { id: "display",      icon: "ðŸ–¥", label: "Display",        ariaLabel: "Display" },
+    { id: "library",      icon: "ðŸ“š", label: "My Games",       ariaLabel: "My Games" },
+    { id: "cloud",        icon: "â˜ï¸", label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
+    { id: "bios",         icon: "ðŸ’¾", label: "System Files",   ariaLabel: "System Files" },
+    { id: "multiplayer",  icon: "ðŸŒ", label: "Play Together",  ariaLabel: "Play Together" },
+    { id: "debug",        icon: "ðŸ”§", label: "Advanced",       ariaLabel: "Advanced" },
+    { id: "about",        icon: "â“", label: "Help",            ariaLabel: "Help" },
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
@@ -3776,7 +3776,7 @@ function buildSettingsContent(
           class: "settings-jumpbar__btn",
           type: "button",
           "aria-label": `Jump to ${tabs[i]!.label} settings`,
-        }, `${tabs[i]!.label}${firstMatchLabel ? ` · ${firstMatchLabel}` : ""}`) as HTMLButtonElement;
+        }, `${tabs[i]!.label}${firstMatchLabel ? ` Â· ${firstMatchLabel}` : ""}`) as HTMLButtonElement;
         jumpBtn.addEventListener("click", () => {
           switchTab(tabs[i]!.id);
           requestAnimationFrame(() => {
@@ -3807,20 +3807,20 @@ function buildSettingsContent(
   });
 }
 
-// ── Performance tab ───────────────────────────────────────────────────────────
+// â”€â”€ Performance tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Format a WebGPU availability status string for the technical details panel. */
 function formatWebGPUStatus(
   available: boolean,
   adapterInfo?: { device?: string; vendor?: string; isFallbackAdapter?: boolean } | null
 ): string {
-  if (!available) return "✗ Not available (Chrome 113+ required)";
+  if (!available) return "âœ— Not available (Chrome 113+ required)";
   if (adapterInfo?.device) {
     const suffix = adapterInfo.isFallbackAdapter ? " (software fallback)" : "";
-    return `✓ ${adapterInfo.device}${suffix}`;
+    return `âœ“ ${adapterInfo.device}${suffix}`;
   }
-  if (adapterInfo?.vendor) return `✓ ${adapterInfo.vendor}`;
-  return "✓ Available";
+  if (adapterInfo?.vendor) return `âœ“ ${adapterInfo.vendor}`;
+  return "âœ“ Available";
 }
 
 function buildPerfTab(
@@ -3844,7 +3844,7 @@ function buildPerfTab(
     headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
 
     const coreMeta = make("div", { class: "settings-core-heading__meta" },
-      `Core: ${activeSystem.coreId ?? activeSystem.id} · ` +
+      `Core: ${activeSystem.coreId ?? activeSystem.id} Â· ` +
       (activeTier ? `Hardware: ${formatTierLabel(activeTier)}` : "Hardware: Auto")
     );
     headerText.appendChild(coreMeta);
@@ -3856,7 +3856,7 @@ function buildPerfTab(
       settings.performanceMode === "auto" ? "Auto graphics mode" : `${settings.performanceMode === "performance" ? "Performance" : "Quality"} graphics mode`,
       activeSystem.is3D ? "3D visuals tuned for heavier rendering" : "Lightweight core profile",
     ].filter((bit): bit is string => Boolean(bit));
-    coreSection.appendChild(make("p", { class: "settings-help" }, profileBits.join(" • ")));
+    coreSection.appendChild(make("p", { class: "settings-help" }, profileBits.join(" â€¢ ")));
 
     const featureRow = buildSystemFeatureRow(activeSystem, {
       includeExperimental: true,
@@ -3877,9 +3877,9 @@ function buildPerfTab(
 
   const autoModeActive = deviceCaps.isLowSpec || deviceCaps.tier === "medium" ? "Performance" : "Quality";
   const modes: Array<{ value: PerformanceMode; label: string; desc: string }> = [
-    { value: "auto",        label: "Auto  (Recommended)", desc: `Let ${APP_NAME} choose — right now using ${autoModeActive} mode for your device` },
-    { value: "performance", label: "Performance — smoother gameplay",  desc: "Lower-resolution but faster. Great for older devices or when games feel sluggish." },
-    { value: "quality",     label: "Quality — sharper visuals",        desc: "Higher-resolution graphics for powerful devices. May slow down on older hardware." },
+    { value: "auto",        label: "Auto  (Recommended)", desc: `Let ${APP_NAME} choose â€” right now using ${autoModeActive} mode for your device` },
+    { value: "performance", label: "Performance â€” smoother gameplay",  desc: "Lower-resolution but faster. Great for older devices or when games feel sluggish." },
+    { value: "quality",     label: "Quality â€” sharper visuals",        desc: "Higher-resolution graphics for powerful devices. May slow down on older hardware." },
   ];
 
   for (const m of modes) {
@@ -3919,12 +3919,12 @@ function buildPerfTab(
   const adapterInfo = emulatorRef?.webgpuAdapterInfo;
   const webgpuStatusText = formatWebGPUStatus(deviceCaps.webgpuAvailable, adapterInfo);
   gpuDetails.appendChild(make("p", { class: "device-info" }, `GPU score: ${deviceCaps.gpuBenchmarkScore}/100`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `Max texture size: ${deviceCaps.gpuCaps.maxTextureSize}px · VRAM: ~${deviceCaps.estimatedVRAMMB} MB`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `Max texture size: ${deviceCaps.gpuCaps.maxTextureSize}px Â· VRAM: ~${deviceCaps.estimatedVRAMMB} MB`));
   if (deviceCaps.gpuCaps.anisotropicFiltering) {
-    gpuDetails.appendChild(make("p", { class: "device-info" }, `Anisotropic filtering: ${deviceCaps.gpuCaps.maxAnisotropy}×`));
+    gpuDetails.appendChild(make("p", { class: "device-info" }, `Anisotropic filtering: ${deviceCaps.gpuCaps.maxAnisotropy}Ã—`));
   }
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "✓" : "✗"} · WebGPU: ${webgpuStatusText}`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "✓ (PSP supported)" : "✗"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "✓" : "✗"}`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "âœ“" : "âœ—"} Â· WebGPU: ${webgpuStatusText}`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "âœ“ (PSP supported)" : "âœ—"} Â· AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "âœ“" : "âœ—"}`));
   gpuDisclosure.appendChild(gpuDetails);
   deviceSection.appendChild(gpuDisclosure);
   container.append(perfSection, deviceSection);
@@ -3939,8 +3939,8 @@ function buildPerfTab(
 
   const uiModes: Array<{ value: Settings["uiMode"]; label: string; desc: string }> = [
     { value: "auto",    label: "Auto (Recommended)",    desc: "Adapts based on device and data saver settings" },
-    { value: "quality", label: "Quality — full effects", desc: "Best visuals with blurs, animations, and high-res gradients." },
-    { value: "lite",    label: "Lite — max speed",      desc: "Minimal visuals. Disables blurs and animations for speed." },
+    { value: "quality", label: "Quality â€” full effects", desc: "Best visuals with blurs, animations, and high-res gradients." },
+    { value: "lite",    label: "Lite â€” max speed",      desc: "Minimal visuals. Disables blurs and animations for speed." },
   ];
 
   for (const m of uiModes) {
@@ -3956,7 +3956,7 @@ function buildPerfTab(
   container.appendChild(uiSection);
 }
 
-// ── Display tab ───────────────────────────────────────────────────────────────
+// â”€â”€ Display tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildDisplayTab(
   container:        HTMLElement,
@@ -3971,7 +3971,7 @@ function buildDisplayTab(
 
   overlaySection.appendChild(buildToggleRow(
     "Show FPS counter",
-    "Shows a small frame-rate display while a game is running — useful for checking performance",
+    "Shows a small frame-rate display while a game is running â€” useful for checking performance",
     settings.showFPS,
     (v) => {
       onSettingsChange({ showFPS: v });
@@ -4049,26 +4049,26 @@ function buildDisplayTab(
     ? (settings.touchControlsBySystem[activeSystem.id] ?? (activeSystem.touchControlMode === "builtin" ? false : settings.touchControls))
     : settings.touchControls;
   const touchControlsHelp = activeSystem?.touchControlMode === "builtin"
-    ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use 🎮 Edit to reposition them.`
-    : `${APP_NAME} shows its on-screen buttons on touch devices when they help. Turn this off to hide them, or turn it on for systems that need an overlay you can reposition with 🎮 Edit.`;
+    ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use ðŸŽ® Edit to reposition them.`
+    : `${APP_NAME} shows its on-screen buttons on touch devices when they help. Turn this off to hide them, or turn it on for systems that need an overlay you can reposition with ðŸŽ® Edit.`;
 
   const installRow = make("div", { class: "pwa-install-row" });
   const buildInstallBtn = () => {
     installRow.innerHTML = "";
     if (!_canInstallPWA?.()) {
       installRow.appendChild(make("p", { class: "settings-help" },
-        `Install ${APP_NAME} as an app on your phone: open in Chrome or Edge on Android, then tap the browser menu → "Add to Home Screen".`
+        `Install ${APP_NAME} as an app on your phone: open in Chrome or Edge on Android, then tap the browser menu â†’ "Add to Home Screen".`
       ));
       return;
     }
     const btnInstall = make("button", { class: "btn btn--primary pwa-install-btn" });
-    const emojiSpan = make("span", { "aria-hidden": "true" }, "📲");
+    const emojiSpan = make("span", { "aria-hidden": "true" }, "ðŸ“²");
     const labelSpan = document.createTextNode(" Install as App");
     btnInstall.append(emojiSpan, labelSpan);
     btnInstall.addEventListener("click", async () => {
       if (!_onInstallPWA) return;
       const installed = await _onInstallPWA();
-      if (installed) { btnInstall.textContent = "✓ Installing…"; btnInstall.disabled = true; }
+      if (installed) { btnInstall.textContent = "âœ“ Installingâ€¦"; btnInstall.disabled = true; }
     });
     installRow.appendChild(btnInstall);
   };
@@ -4137,33 +4137,33 @@ function buildDisplayTab(
 
   container.append(overlaySection, audioSection, mobileSection);
 
-  // WebGPU section — appended last so Overlays and Mobile always appear first
+  // WebGPU section â€” appended last so Overlays and Mobile always appear first
   if (deviceCaps.webgpuAvailable) {
     const gpuSection = make("div", { class: "settings-section" });
     gpuSection.appendChild(make("h4", { class: "settings-section__title" }, "Visual Effects"));
     gpuSection.appendChild(make("p", { class: "settings-help" },
-      "Apply extra visual effects to your games using your GPU. These are purely cosmetic — they don't affect gameplay."
+      "Apply extra visual effects to your games using your GPU. These are purely cosmetic â€” they don't affect gameplay."
     ));
 
     gpuSection.appendChild(buildToggleRow(
       "Enable GPU effects",
-      "Unlock the visual effect options below (experimental — requires a modern GPU)",
+      "Unlock the visual effect options below (experimental â€” requires a modern GPU)",
       settings.useWebGPU,
       (v) => onSettingsChange({ useWebGPU: v })
     ));
 
     type FxOption = { value: string; label: string; desc: string };
     const fxOptions: FxOption[] = [
-      { value: "none",       label: "No effect",        desc: "Clean output — exactly as the game renders it" },
-      { value: "fsr",        label: "FSR 1.0",          desc: "Edge-adaptive upsampling + sharpening — AMD FidelityFX inspired" },
-      { value: "taa",        label: "TAA",              desc: "Temporal anti-aliasing — blends frames to reduce shimmer on 3D geometry" },
-      { value: "crt",        label: "CRT screen",       desc: "Scanlines and glow — like playing on a real CRT TV" },
-      { value: "sharpen",    label: "Sharper image",    desc: "Crisper pixels — great for upscaled handheld games" },
-      { value: "lcd",        label: "LCD handheld",     desc: "Sub-pixel grid — simulates a handheld LCD screen" },
-      { value: "bloom",      label: "Soft glow",        desc: "Gentle glow on bright areas — warm, cinematic feel" },
+      { value: "none",       label: "No effect",        desc: "Clean output â€” exactly as the game renders it" },
+      { value: "fsr",        label: "FSR 1.0",          desc: "Edge-adaptive upsampling + sharpening â€” AMD FidelityFX inspired" },
+      { value: "taa",        label: "TAA",              desc: "Temporal anti-aliasing â€” blends frames to reduce shimmer on 3D geometry" },
+      { value: "crt",        label: "CRT screen",       desc: "Scanlines and glow â€” like playing on a real CRT TV" },
+      { value: "sharpen",    label: "Sharper image",    desc: "Crisper pixels â€” great for upscaled handheld games" },
+      { value: "lcd",        label: "LCD handheld",     desc: "Sub-pixel grid â€” simulates a handheld LCD screen" },
+      { value: "bloom",      label: "Soft glow",        desc: "Gentle glow on bright areas â€” warm, cinematic feel" },
       { value: "fxaa",       label: "Smooth edges",     desc: "Reduces jagged edges on 3D game geometry" },
-      { value: "grain",      label: "Film grain",       desc: "Cinematic noise overlay — adds texture to flat backgrounds" },
-      { value: "retro",      label: "Retro pixel art",  desc: "Limited palette with ordered dithering — classic console look" },
+      { value: "grain",      label: "Film grain",       desc: "Cinematic noise overlay â€” adds texture to flat backgrounds" },
+      { value: "retro",      label: "Retro pixel art",  desc: "Limited palette with ordered dithering â€” classic console look" },
       { value: "colorgrade", label: "Color grading",    desc: "Adjust contrast, saturation, and brightness for a custom look" },
     ];
     for (const opt of fxOptions) {
@@ -4184,7 +4184,7 @@ function buildDisplayTab(
   }
 }
 
-// ── Library tab ───────────────────────────────────────────────────────────────
+// â”€â”€ Library tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildLibraryTab(
   container:        HTMLElement,
@@ -4199,12 +4199,12 @@ function buildLibraryTab(
   const libSection = make("div", { class: "settings-section" });
   libSection.appendChild(make("h4", { class: "settings-section__title" }, "My Game Library"));
 
-  const statsEl = make("p", { class: "device-info" }, "Calculating…");
+  const statsEl = make("p", { class: "device-info" }, "Calculatingâ€¦");
   libSection.appendChild(statsEl);
   Promise.all([library.count(), library.totalSize()]).then(([count, total]) => {
     statsEl.textContent = count === 0
-      ? "No games added yet — drop a ROM file to get started!"
-      : `${count} game${count !== 1 ? "s" : ""} · ${formatBytes(total)} stored in your browser`;
+      ? "No games added yet â€” drop a ROM file to get started!"
+      : `${count} game${count !== 1 ? "s" : ""} Â· ${formatBytes(total)} stored in your browser`;
   }).catch(() => { statsEl.textContent = "Could not load library stats."; });
 
   const btnClear = make("button", { class: "btn btn--danger settings-clear-btn" }, "Remove All Games");
@@ -4241,17 +4241,17 @@ function buildLibraryTab(
     const saveSection = make("div", { class: "settings-section" });
     saveSection.appendChild(make("h4", { class: "settings-section__title" }, "Saved Progress"));
 
-    const saveStatsEl = make("p", { class: "device-info" }, "Calculating…");
+    const saveStatsEl = make("p", { class: "device-info" }, "Calculatingâ€¦");
     saveSection.appendChild(saveStatsEl);
     saveLibrary.count().then((count) => {
       saveStatsEl.textContent = count === 0
-        ? "No save states yet — use Save State in-game to snapshot your progress"
+        ? "No save states yet â€” use Save State in-game to snapshot your progress"
         : `${count} save state${count !== 1 ? "s" : ""} stored in your browser`;
     }).catch(() => { saveStatsEl.textContent = "Could not load save stats."; });
 
     saveSection.appendChild(buildToggleRow(
       "Auto-save when leaving",
-      "Automatically save your progress when you close the tab or switch away — so you never lose unsaved work",
+      "Automatically save your progress when you close the tab or switch away â€” so you never lose unsaved work",
       settings.autoSaveEnabled,
       (v) => onSettingsChange({ autoSaveEnabled: v })
     ));
@@ -4261,7 +4261,7 @@ function buildLibraryTab(
       "If you renamed a ROM file, use this tool to move its saves to the new library entry."
     ));
 
-    const btnMigrate = make("button", { class: "btn" }, "Migrate Saves…");
+    const btnMigrate = make("button", { class: "btn" }, "Migrate Savesâ€¦");
     btnMigrate.addEventListener("click", async () => {
       let games: GameMetadata[];
       try { games = await library.getAllGamesMetadata(); } catch { games = []; }
@@ -4307,14 +4307,14 @@ function buildLibraryTab(
   for (const sys of SYSTEMS) {
     const chip = make("span", { class: "sys-chip" }, sys.shortName);
     chip.style.background = sys.color;
-    chip.title = [sys.name, ...getSystemFeatureSummary(sys)].join(" • ");
+    chip.title = [sys.name, ...getSystemFeatureSummary(sys)].join(" â€¢ ");
     sysList.appendChild(chip);
   }
   sysSection.appendChild(sysList);
   container.appendChild(sysSection);
 }
 
-// ── BIOS tab ──────────────────────────────────────────────────────────────────
+// â”€â”€ BIOS tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function openEasyNetplayModal(opts: {
   netplayManager?: NetplayManager;
@@ -4332,7 +4332,7 @@ export function openEasyNetplayModal(opts: {
   const easyMgr = sharedGetEasyNetplayManager(serverUrl);
   const panelCleanups: Array<() => void> = [];
 
-  // ── Overlay / container ──────────────────────────────────────────────────
+  // â”€â”€ Overlay / container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const overlay = make("div", { class: "confirm-overlay easy-netplay-overlay" });
   const dialog  = make("div", {
     class:      "confirm-box easy-netplay-dialog",
@@ -4341,7 +4341,7 @@ export function openEasyNetplayModal(opts: {
     "aria-label": "Play Together lobby",
   });
 
-  // ── Header ───────────────────────────────────────────────────────────────
+  // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const header = make("div", { class: "enp-header" });
   header.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="22" height="22" style="margin-right:10px" />`;
   header.appendChild(make("span", { class: "enp-title" }, "Play Together Lobby"));
@@ -4349,7 +4349,7 @@ export function openEasyNetplayModal(opts: {
     class: "enp-copy-diag",
     "aria-label": "Copy multiplayer diagnostics",
     title: "Copy connection diagnostics",
-  }, "📋 Logs") as HTMLButtonElement;
+  }, "ðŸ“‹ Logs") as HTMLButtonElement;
   btnCopyDiagnostics.addEventListener("click", () => {
     const entries = easyMgr.diagnostics.entries;
     if (entries.length === 0) {
@@ -4359,7 +4359,7 @@ export function openEasyNetplayModal(opts: {
     const titleLine = `${APP_NAME} Multiplayer Diagnostics (${new Date().toISOString()})`;
     const body = entries.map((entry) => {
       const ts = new Date(entry.timestamp).toISOString();
-      const detail = entry.detail ? ` — ${entry.detail}` : "";
+      const detail = entry.detail ? ` â€” ${entry.detail}` : "";
       return `[${ts}] [${entry.level.toUpperCase()}] ${entry.message}${detail}`;
     }).join("\n");
     const text = `${titleLine}\n${body}`;
@@ -4375,11 +4375,11 @@ export function openEasyNetplayModal(opts: {
   const btnClose = make("button", {
     class:       "enp-close",
     "aria-label": "Close multiplayer",
-  }, "✕") as HTMLButtonElement;
+  }, "âœ•") as HTMLButtonElement;
   header.appendChild(btnClose);
   dialog.appendChild(header);
 
-  // ── First-time / setup strip (server or enable missing) ──────────────────
+  // â”€â”€ First-time / setup strip (server or enable missing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const needsServerUrl = serverUrl.trim().length === 0;
   const needsEnable = !netplayEnabled;
   if (needsServerUrl || needsEnable) {
@@ -4387,8 +4387,8 @@ export function openEasyNetplayModal(opts: {
     const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up multiplayer (one minute)");
     const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
     const step1 = needsEnable
-      ? "Open Settings → Play Together and turn on Online play."
-      : "Online play is on — add your server URL in Settings → Play Together.";
+      ? "Open Settings â†’ Play Together and turn on Online play."
+      : "Online play is on â€” add your server URL in Settings â†’ Play Together.";
     const step2 = "Paste the WebSocket address your host gave you (starts with wss:// or ws://).";
     const step3 = "Come back here, host or join, and use the same game as your friend.";
     setupSteps.append(
@@ -4410,7 +4410,7 @@ export function openEasyNetplayModal(opts: {
     dialog.appendChild(setupStrip);
   }
 
-  // ── Current game badge ───────────────────────────────────────────────────
+  // â”€â”€ Current game badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (currentGameName) {
     const gameBadge = make("div", { class: "enp-game-badge" });
     gameBadge.appendChild(make("span", { class: "enp-game-badge__label" }, "Playing:"));
@@ -4420,17 +4420,17 @@ export function openEasyNetplayModal(opts: {
       gameBadge.appendChild(make("span", {
         class: "enp-compat-warn",
         title: sysSupport.errors[0] ?? "",
-      }, "⚠ No multiplayer support"));
+      }, "âš  No multiplayer support"));
     }
     dialog.appendChild(gameBadge);
   }
 
-  // ── Tab bar ──────────────────────────────────────────────────────────────
+  // â”€â”€ Tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const tabs: Array<{ id: string; label: string }> = [
-    { id: "host",    label: "🎮 Host"    },
-    { id: "join",    label: "🔗 Join"    },
-    { id: "browse",  label: "📋 Browse"  },
-    { id: "watch",   label: "👁 Watch"   },
+    { id: "host",    label: "ðŸŽ® Host"    },
+    { id: "join",    label: "ðŸ”— Join"    },
+    { id: "browse",  label: "ðŸ“‹ Browse"  },
+    { id: "watch",   label: "ðŸ‘ Watch"   },
   ];
   const tabBar     = make("div", { class: "enp-tabs",  role: "tablist" });
   const panelWrap  = make("div", { class: "enp-panels" });
@@ -4470,13 +4470,13 @@ export function openEasyNetplayModal(opts: {
   dialog.appendChild(tabBar);
   dialog.appendChild(panelWrap);
 
-  // ── Host panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Host panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   panelCleanups.push(_buildHostPanel(panels[0]!, {
     easyMgr, username, currentGameId, currentGameName, currentSystemId, serverUrl,
     onRoomCreated: () => {/* panel updates itself via onEvent */},
   }));
 
-  // ── Join panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Join panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Capture refs so the Browse panel can pre-fill and quick-join without
   // forcing extra taps.
   let _fillJoinCode: ((code: string) => void) | null = null;
@@ -4487,7 +4487,7 @@ export function openEasyNetplayModal(opts: {
     onJoinActionReady: (joinNow) => { _quickJoinCode = joinNow; },
   }));
 
-  // ── Browse panel ─────────────────────────────────────────────────────────
+  // â”€â”€ Browse panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Watch-tab pre-fill refs
   let _fillWatchCode: ((code: string) => void) | null = null;
   let _quickWatchCode: ((code: string) => void) | null = null;
@@ -4507,14 +4507,14 @@ export function openEasyNetplayModal(opts: {
     },
   }));
 
-  // ── Watch panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Watch panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   panelCleanups.push(_buildWatchPanel(panels[3]!, {
     easyMgr, username: username || "Anonymous", serverUrl,
     onCodeSetterReady: (setter) => { _fillWatchCode = setter; },
     onWatchActionReady: (watchNow) => { _quickWatchCode = watchNow; },
   }));
 
-  // ── Append + animate ─────────────────────────────────────────────────────
+  // â”€â”€ Append + animate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   overlay.appendChild(dialog);
   document.body.appendChild(overlay);
 
@@ -4552,7 +4552,7 @@ export function openEasyNetplayModal(opts: {
   });
 }
 
-// ── Easy Netplay — Host panel ─────────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Host panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildHostPanel(
   container: HTMLElement,
@@ -4583,10 +4583,10 @@ function _buildHostPanel(
   const typeOptions: Array<{ value: string; label: string; desc: string }> = [
     {
       value: "local",
-      label: "Same Wi‑Fi / LAN",
+      label: "Same Wiâ€‘Fi / LAN",
       desc: "Lowest latency when everyone is nearby. You still need the same server URL so this device can register the room (paste it in Play Together settings).",
     },
-    { value: "private", label: "Private (invite code)", desc: "Only people with the code can join — best for playing with a specific friend." },
+    { value: "private", label: "Private (invite code)", desc: "Only people with the code can join â€” best for playing with a specific friend." },
     { value: "public",  label: "Public lobby",        desc: "Shows in Browse so anyone on the same game can join." },
   ];
   for (const opt of typeOptions) {
@@ -4606,7 +4606,7 @@ function _buildHostPanel(
   // No-server warning
   if (!serverUrl) {
     const warn = make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings → Play Together."
+      "âš  No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings â†’ Play Together."
     );
     container.appendChild(warn);
   }
@@ -4648,18 +4648,18 @@ function _buildHostPanel(
 
   btnCreate.addEventListener("click", async () => {
     btnCreate.disabled = true;
-    btnCreate.textContent = "Creating room…";
+    btnCreate.textContent = "Creating roomâ€¦";
     statusArea.hidden = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     // Subscribe to events once
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
         const item = sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail);
-        // Clear "Connecting…" placeholder on first real message
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        // Clear "Connectingâ€¦" placeholder on first real message
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(item);
@@ -4670,7 +4670,7 @@ function _buildHostPanel(
         const room = ev.room;
         statusArea.innerHTML = "";
         sharedRenderRoomCard(statusArea, room, { showLeaveBtn: true, easyMgr, isHost: true, showToast: showInfoToast });
-        btnCreate.textContent = "Hosting ✓";
+        btnCreate.textContent = "Hosting âœ“";
         btnCreate.disabled    = true;
       }
       if (ev.type === "error") {
@@ -4700,7 +4700,7 @@ function _buildHostPanel(
   };
 }
 
-// ── Easy Netplay — Join panel ─────────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Join panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildJoinPanel(
   container: HTMLElement,
@@ -4731,7 +4731,7 @@ function _buildJoinPanel(
     id:           "enp-join-code",
     name:         "inviteCode",
     class:        "enp-code-input",
-    placeholder:  "ABC123…",
+    placeholder:  "ABC123â€¦",
     maxlength:    String(INVITE_CODE_LEN),
     autocomplete: "off",
     autocapitalize: "characters",
@@ -4773,7 +4773,7 @@ function _buildJoinPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Joining by code requires a server. Add one in Settings → Play Together."
+      "âš  No server URL configured. Joining by code requires a server. Add one in Settings â†’ Play Together."
     ));
   }
 
@@ -4805,15 +4805,15 @@ function _buildJoinPanel(
     }
 
     btnJoin.disabled = true;
-    btnJoin.textContent = "Joining…";
+    btnJoin.textContent = "Joiningâ€¦";
     statusArea.hidden  = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail));
@@ -4824,7 +4824,7 @@ function _buildJoinPanel(
         const room = ev.room;
         statusArea.innerHTML = "";
         sharedRenderRoomCard(statusArea, room, { showLeaveBtn: true, easyMgr, isHost: false, showToast: showInfoToast });
-        btnJoin.textContent = "Joined ✓";
+        btnJoin.textContent = "Joined âœ“";
         btnJoin.disabled    = true;
       }
       if (ev.type === "error") {
@@ -4856,7 +4856,7 @@ function _buildJoinPanel(
   };
 }
 
-// ── Easy Netplay — Browse panel ───────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Browse panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Interval (ms) between automatic room list refreshes in the Browse panel. */
 const _BROWSE_AUTO_REFRESH_MS = 30_000;
@@ -4888,7 +4888,7 @@ function _buildBrowsePanel(
   // When no server is configured, show a helpful message instead of loading skeletons.
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Add one in Settings → Play Together to browse online rooms."
+      "âš  No server URL configured. Add one in Settings â†’ Play Together to browse online rooms."
     ));
   }
 
@@ -4896,11 +4896,11 @@ function _buildBrowsePanel(
   const filterWrap = make("div", { class: "enp-filter-row" });
   const filterBtns: HTMLButtonElement[] = [];
   const filters = [
-    { id: "nearby", label: "📶 Nearby" },
-    { id: "all",    label: "🌐 All Rooms" },
+    { id: "nearby", label: "ðŸ“¶ Nearby" },
+    { id: "all",    label: "ðŸŒ All Rooms" },
   ];
   if (gameRoomKey) {
-    filters.splice(1, 0, { id: "this_game", label: "🎯 This Game" });
+    filters.splice(1, 0, { id: "this_game", label: "ðŸŽ¯ This Game" });
   }
   let activeFilter = "nearby";
 
@@ -4959,7 +4959,7 @@ function _buildBrowsePanel(
         ? "No nearby rooms found. Try \"All Rooms\" or host one yourself."
         : activeFilter === "this_game"
           ? "No compatible rooms for this game yet. Host one to get started."
-        : "No open rooms right now — be the first to create one!";
+        : "No open rooms right now â€” be the first to create one!";
       listEl.appendChild(make("p", { class: "enp-room-empty" }, emptyMsg));
       return;
     }
@@ -4979,7 +4979,7 @@ function _buildBrowsePanel(
         : isFull
           ? "Full"
           : room.hasPassword
-            ? "🔒 Private"
+            ? "ðŸ”’ Private"
             : "Open";
       const statusCls = incompatibleSystem
         ? "enp-room-card__badge--incompat"
@@ -5011,13 +5011,13 @@ function _buildBrowsePanel(
           if (opts.onJoinByCode) {
             opts.onJoinByCode(room.code);
           } else {
-            showInfoToast(`Code: ${room.code} — switch to the Join tab to connect`);
+            showInfoToast(`Code: ${room.code} â€” switch to the Join tab to connect`);
           }
         });
         card.appendChild(btnJoinRoom);
       }
 
-      // Spectate button — shown on all open rooms regardless of fullness.
+      // Spectate button â€” shown on all open rooms regardless of fullness.
       if (!incompatibleSystem) {
         const btnWatch = make("button", {
           class: "btn enp-room-watch-btn",
@@ -5028,7 +5028,7 @@ function _buildBrowsePanel(
           if (opts.onWatchByCode) {
             opts.onWatchByCode(room.code);
           } else {
-            showInfoToast(`Code: ${room.code} — open Watch tab or switch to Join tab`);
+            showInfoToast(`Code: ${room.code} â€” open Watch tab or switch to Join tab`);
           }
         });
         card.appendChild(btnWatch);
@@ -5039,7 +5039,7 @@ function _buildBrowsePanel(
     listEl.appendChild(frag);
   };
 
-  // ── Auto-refresh countdown ──────────────────────────────────────────────────
+  // â”€â”€ Auto-refresh countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Polls every _BROWSE_AUTO_REFRESH_MS ms and shows a live countdown so
   // users know the list is staying fresh without manual intervention.
 
@@ -5070,7 +5070,7 @@ function _buildBrowsePanel(
     }, 1_000);
   };
 
-  // Refresh function — skips network call when no server is configured.
+  // Refresh function â€” skips network call when no server is configured.
   const doRefresh = async () => {
     if (!serverUrl) {
       renderRooms([]);
@@ -5079,7 +5079,7 @@ function _buildBrowsePanel(
     if (loadAbort) loadAbort.abort();
     loadAbort = new AbortController();
     refreshBtn.disabled = true;
-    refreshBtn.textContent = "Refreshing…";
+    refreshBtn.textContent = "Refreshingâ€¦";
     countdownEl.textContent = "";
 
     listEl.innerHTML = "";
@@ -5128,7 +5128,7 @@ function _buildBrowsePanel(
   };
 }
 
-// ── Easy Netplay — Watch (Spectator) panel ────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Watch (Spectator) panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildWatchPanel(
   container: HTMLElement,
@@ -5156,7 +5156,7 @@ function _buildWatchPanel(
     id:            "enp-watch-code",
     name:          "spectatorInviteCode",
     class:         "enp-code-input",
-    placeholder:   "ABC123…",
+    placeholder:   "ABC123â€¦",
     maxlength:     String(INVITE_CODE_LEN),
     autocomplete:  "off",
     autocapitalize: "characters",
@@ -5193,7 +5193,7 @@ function _buildWatchPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Spectating requires a server. Add one in Settings → Play Together."
+      "âš  No server URL configured. Spectating requires a server. Add one in Settings â†’ Play Together."
     ));
   }
 
@@ -5225,15 +5225,15 @@ function _buildWatchPanel(
     }
 
     btnWatch.disabled = true;
-    btnWatch.textContent = "Connecting…";
+    btnWatch.textContent = "Connectingâ€¦";
     statusArea.hidden   = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail));
@@ -5250,15 +5250,15 @@ function _buildWatchPanel(
         codeWrap.appendChild(make("span", { class: "enp-active-room__code" }, room.name));
         card.appendChild(codeWrap);
         const info = make("div", { class: "enp-active-room__info" });
-        info.appendChild(make("span", { class: "enp-active-room__name" }, `${room.isLocal ? "📶 Local" : "🌐 Online"} · ${room.playerCount}/${room.maxPlayers} players`));
+        info.appendChild(make("span", { class: "enp-active-room__name" }, `${room.isLocal ? "ðŸ“¶ Local" : "ðŸŒ Online"} Â· ${room.playerCount}/${room.maxPlayers} players`));
         if (room.gameName) {
           info.appendChild(make("span", { class: "enp-active-room__detail" }, `Game: ${room.gameName}`));
         }
         if (spectatorCount > 0) {
-          info.appendChild(make("span", { class: "enp-active-room__detail" }, `👁 ${spectatorCount} spectator${spectatorCount !== 1 ? "s" : ""}`));
+          info.appendChild(make("span", { class: "enp-active-room__detail" }, `ðŸ‘ ${spectatorCount} spectator${spectatorCount !== 1 ? "s" : ""}`));
         }
         card.appendChild(info);
-        card.appendChild(make("p", { class: "enp-active-room__waiting" }, "👁 Spectating — watching the game…"));
+        card.appendChild(make("p", { class: "enp-active-room__waiting" }, "ðŸ‘ Spectating â€” watching the gameâ€¦"));
         const btnLeave = make("button", { class: "btn btn--danger enp-leave-btn" }, "Stop Watching") as HTMLButtonElement;
         btnLeave.addEventListener("click", async () => {
           await easyMgr.leaveRoom();
@@ -5269,7 +5269,7 @@ function _buildWatchPanel(
         });
         card.appendChild(btnLeave);
         statusArea.appendChild(card);
-        btnWatch.textContent = "Watching ✓";
+        btnWatch.textContent = "Watching âœ“";
         btnWatch.disabled    = true;
       }
       if (ev.type === "error") {
@@ -5304,34 +5304,34 @@ interface CloudProviderMeta {
 
 /** Providers supported for cloud *save* backup. */
 const CLOUD_SAVE_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",  label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox", label: "Dropbox",      icon: "📦" },
-  { id: "webdav",  label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",  label: "pCloud",       icon: "🌐" },
-  { id: "blomp",   label: "Blomp",        icon: "💧" },
-  { id: "box",     label: "Box",          icon: "📫" },
+  { id: "gdrive",  label: "Google Drive", icon: "ðŸ—‚ï¸" },
+  { id: "dropbox", label: "Dropbox",      icon: "ðŸ“¦" },
+  { id: "webdav",  label: "WebDAV",       icon: "ðŸ”—" },
+  { id: "pcloud",  label: "pCloud",       icon: "ðŸŒ" },
+  { id: "blomp",   label: "Blomp",        icon: "ðŸ’§" },
+  { id: "box",     label: "Box",          icon: "ðŸ“«" },
 ];
 
 /** Providers supported for cloud *library* sources (adds OneDrive). */
 const CLOUD_LIBRARY_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
-  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
-  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
-  { id: "blomp",    label: "Blomp",        icon: "💧" },
-  { id: "box",      label: "Box",          icon: "📫" },
+  { id: "gdrive",   label: "Google Drive", icon: "ðŸ—‚ï¸" },
+  { id: "dropbox",  label: "Dropbox",      icon: "ðŸ“¦" },
+  { id: "onedrive", label: "OneDrive",     icon: "â˜ï¸" },
+  { id: "webdav",   label: "WebDAV",       icon: "ðŸ”—" },
+  { id: "pcloud",   label: "pCloud",       icon: "ðŸŒ" },
+  { id: "blomp",    label: "Blomp",        icon: "ðŸ’§" },
+  { id: "box",      label: "Box",          icon: "ðŸ“«" },
 ];
 
 /** Combined lookup table for display name resolution (dedupes gdrive, dropbox etc.). */
 const ALL_CLOUD_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
-  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
-  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
-  { id: "blomp",    label: "Blomp",        icon: "💧" },
-  { id: "box",      label: "Box",          icon: "📫" },
+  { id: "gdrive",   label: "Google Drive", icon: "ðŸ—‚ï¸" },
+  { id: "dropbox",  label: "Dropbox",      icon: "ðŸ“¦" },
+  { id: "onedrive", label: "OneDrive",     icon: "â˜ï¸" },
+  { id: "webdav",   label: "WebDAV",       icon: "ðŸ”—" },
+  { id: "pcloud",   label: "pCloud",       icon: "ðŸŒ" },
+  { id: "blomp",    label: "Blomp",        icon: "ðŸ’§" },
+  { id: "box",      label: "Box",          icon: "ðŸ“«" },
 ];
 
 function getCloudProviderLabel(id: string): string {
@@ -5396,7 +5396,7 @@ function buildCloudSaveBar(): HTMLElement {
     });
     actions.appendChild(disconnectBtn);
   } else {
-    const connectBtn = make("button", { class: "btn btn--sm btn--primary" }, "☁ Connect") as HTMLButtonElement;
+    const connectBtn = make("button", { class: "btn btn--sm btn--primary" }, "â˜ Connect") as HTMLButtonElement;
     connectBtn.addEventListener("click", () => {
       void showCloudConnectDialog().then(configured => {
         if (configured) bar.replaceWith(buildCloudSaveBar());
@@ -5412,8 +5412,8 @@ function buildCloudSaveBar(): HTMLElement {
 /**
  * Two-step cloud save backup wizard.
  *
- * Step 1 — pick a provider from a visual grid.
- * Step 2 — enter credentials appropriate for that provider.
+ * Step 1 â€” pick a provider from a visual grid.
+ * Step 2 â€” enter credentials appropriate for that provider.
  *
  * On success, saves credentials via CloudSaveManager helpers and calls
  * cloudManager.connect(provider).  Returns true when connected.
@@ -5443,7 +5443,7 @@ function showCloudConnectDialog(): Promise<boolean> {
     document.addEventListener("keydown", onKeydown, { capture: true });
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
 
-    // ── Step 1: Provider picker ───────────────────────────────────────────────
+    // â”€â”€ Step 1: Provider picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const renderStep1 = () => {
       box.innerHTML = "";
@@ -5465,14 +5465,14 @@ function showCloudConnectDialog(): Promise<boolean> {
 
       const actions = make("div", { class: "confirm-box__actions" });
       const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-      const nextBtn   = make("button", { class: "btn btn--primary" }, "Next →") as HTMLButtonElement;
+      const nextBtn   = make("button", { class: "btn btn--primary" }, "Next â†’") as HTMLButtonElement;
       cancelBtn.addEventListener("click", () => close(false));
       nextBtn.addEventListener("click", () => renderStep2(providerSel.value));
       actions.append(cancelBtn, nextBtn);
       box.appendChild(actions);
     };
 
-    // ── Step 2: Credential form ───────────────────────────────────────────────
+    // â”€â”€ Step 2: Credential form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
@@ -5565,7 +5565,7 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else {
-        // gdrive, dropbox — just need an OAuth access token
+        // gdrive, dropbox â€” just need an OAuth access token
         const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
         tokenRow.append(make("label", { class: "settings-input-label", for: "csd-token" }, "Access Token"), tokenInp);
@@ -5584,7 +5584,7 @@ function showCloudConnectDialog(): Promise<boolean> {
       box.appendChild(errorMsg);
 
       const actions = make("div", { class: "confirm-box__actions" });
-      const backBtn    = make("button", { class: "btn" }, "← Back") as HTMLButtonElement;
+      const backBtn    = make("button", { class: "btn" }, "â† Back") as HTMLButtonElement;
       const connectBtn = make("button", { class: "btn btn--primary" }, "Connect") as HTMLButtonElement;
       actions.append(backBtn, connectBtn);
       box.appendChild(actions);
@@ -5600,7 +5600,7 @@ function showCloudConnectDialog(): Promise<boolean> {
         }
         errorMsg.hidden = true;
         connectBtn.disabled = true;
-        connectBtn.textContent = "Connecting…";
+        connectBtn.textContent = "Connectingâ€¦";
 
         try {
           let provider;
@@ -5647,7 +5647,7 @@ function showCloudConnectDialog(): Promise<boolean> {
   });
 }
 
-// ── Multiplayer tab ───────────────────────────────────────────────────────────
+// â”€â”€ Multiplayer tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildMultiplayerTab(
   container:        HTMLElement,
@@ -5711,7 +5711,7 @@ function buildMultiplayerTab(
     "then use Multiplayer on the home screen or Online in the game toolbar to host or join."
   ));
 
-  // Status badge — shows whether netplay is ready to use
+  // Status badge â€” shows whether netplay is ready to use
   const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
   const updateStatusBadge = () => {
     const { enabled, hasUrl, ready } = getNetplayStatus();
@@ -5745,7 +5745,7 @@ function buildMultiplayerTab(
 
   container.appendChild(introSection);
 
-  // Server URL section — hidden when netplay is disabled
+  // Server URL section â€” hidden when netplay is disabled
   const serverSection = make("div", { class: "settings-section" });
   serverSection.hidden = !settings.netplayEnabled;
   serverSection.appendChild(make("h4", { class: "settings-section__title" }, "Server address"));
@@ -5761,7 +5761,7 @@ function buildMultiplayerTab(
     id:           "netplay-server-url",
     name:         "netplayServerUrl",
     class:        "settings-input",
-    placeholder:  "wss://netplay.example.com/room…",
+    placeholder:  "wss://netplay.example.com/roomâ€¦",
     value:        settings.netplayServerUrl,
     autocomplete: "off",
     autocorrect:  "off",
@@ -5804,7 +5804,7 @@ function buildMultiplayerTab(
     id:           "netplay-username",
     name:         "netplayUsername",
     class:        "settings-input",
-    placeholder:  "Display name (optional)…",
+    placeholder:  "Display name (optional)â€¦",
     value:        settings.netplayUsername,
     autocomplete: "nickname",
     autocorrect:  "off",
@@ -5831,7 +5831,7 @@ function buildMultiplayerTab(
     "Optional name shown to other players in the netplay lobby. Leave blank to appear as anonymous."
   ));
 
-  // ICE / STUN section — collapsed by default as an Advanced disclosure
+  // ICE / STUN section â€” collapsed by default as an Advanced disclosure
   const iceDetails = make("details", { class: "netplay-advanced" }) as HTMLDetailsElement;
   const iceSummary = make("summary", {}, "Advanced: Connection Servers (STUN / ICE)");
   iceDetails.appendChild(iceSummary);
@@ -5842,7 +5842,7 @@ function buildMultiplayerTab(
     "For networks with strict symmetric NAT, add a TURN server (e.g. turn:turn.example.com:3478)."
   ));
 
-  // Mutable local copy — kept in sync with NetplayManager on every change
+  // Mutable local copy â€” kept in sync with NetplayManager on every change
   let iceServers: RTCIceServer[] = [...(peekNetplayManager()?.iceServers ?? DEFAULT_ICE_SERVERS)];
 
   // List of current entries, rebuilt on every mutation
@@ -5851,7 +5851,7 @@ function buildMultiplayerTab(
     iceList.innerHTML = "";
     if (iceServers.length === 0) {
       iceList.appendChild(make("p", { class: "netplay-ice-empty" },
-        "No ICE servers configured — peer connections may fail."
+        "No ICE servers configured â€” peer connections may fail."
       ));
       return;
     }
@@ -5864,7 +5864,7 @@ function buildMultiplayerTab(
       const removeBtn = make("button", {
         class: "btn netplay-ice-remove",
         "aria-label": `Remove ${urlStr}`,
-      }, "✕") as HTMLButtonElement;
+      }, "âœ•") as HTMLButtonElement;
       removeBtn.addEventListener("click", () => {
         const idx = iceServers.indexOf(srv);
         if (idx !== -1) iceServers.splice(idx, 1);
@@ -5886,7 +5886,7 @@ function buildMultiplayerTab(
     id:           "netplay-ice-add",
     name:         "iceServerUrl",
     class:        "settings-input",
-    placeholder:  "stun:stun.example.com:3478…",
+    placeholder:  "stun:stun.example.com:3478â€¦",
     "aria-label": "New ICE server URL",
     autocomplete: "off",
     autocorrect:  "off",
@@ -5936,12 +5936,12 @@ function buildMultiplayerTab(
 
   container.append(serverSection);
 
-  // Lobby browser section — visible only when netplay is active
+  // Lobby browser section â€” visible only when netplay is active
   const lobbySection = make("div", { class: "settings-section netplay-lobby" });
   lobbySection.hidden = !getNetplayStatus().ready;
   lobbySection.appendChild(make("h4", { class: "settings-section__title" }, "Room Browser"));
 
-  // Show game-scope hint — if a game is running, name it; otherwise give
+  // Show game-scope hint â€” if a game is running, name it; otherwise give
   // a generic prompt so the user knows rooms are per-game.
   const lobbyScopeHint = currentGameName
     ? `Showing rooms for: ${currentGameName}`
@@ -5955,7 +5955,7 @@ function buildMultiplayerTab(
 
   // Tracks the room currently selected in the lobby list
   let selectedLobbyRoom: import("./multiplayer.js").NetplayLobbyRoom | null = null;
-  // Reference to the Join button — set later, updated by syncJoinBtn()
+  // Reference to the Join button â€” set later, updated by syncJoinBtn()
   let joinBtnRef: HTMLButtonElement | null = null;
   const syncJoinBtn = () => {
     if (!joinBtnRef) return;
@@ -5971,7 +5971,7 @@ function buildMultiplayerTab(
     syncJoinBtn();
     if (rooms.length === 0) {
       lobbyRoomList.appendChild(make("p", { class: "netplay-lobby-empty" },
-        "No open rooms right now — be the first to create one!"
+        "No open rooms right now â€” be the first to create one!"
       ));
       return;
     }
@@ -5984,7 +5984,7 @@ function buildMultiplayerTab(
         room.name ?? `Room ${room.id}`
       );
       if (room.hasPassword) {
-        nameEl.appendChild(document.createTextNode(" 🔒"));
+        nameEl.appendChild(document.createTextNode(" ðŸ”’"));
       }
 
       // Status chip: Full > Locked > Open
@@ -6001,7 +6001,7 @@ function buildMultiplayerTab(
         ? make("span", { class: "netplay-lobby-host" }, room.host)
         : null;
 
-      // Player count — compact "2/4" format
+      // Player count â€” compact "2/4" format
       const playersEl = (room.players !== undefined)
         ? make("span", { class: "netplay-lobby-players" },
             room.maxPlayers !== undefined
@@ -6010,7 +6010,7 @@ function buildMultiplayerTab(
           )
         : null;
 
-      // Latency with color severity: ≤80 ms green, ≤200 ms yellow, >200 ms red
+      // Latency with color severity: â‰¤80 ms green, â‰¤200 ms yellow, >200 ms red
       let latencyEl: HTMLElement | null = null;
       if (room.latencyMs !== undefined) {
         const ms = Math.round(room.latencyMs);
@@ -6071,7 +6071,7 @@ function buildMultiplayerTab(
     if (lobbyAbort) lobbyAbort.abort();
     lobbyAbort = new AbortController();
     refreshBtn.disabled = true;
-    refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refreshing…`;
+    refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refreshingâ€¦`;
     lobbyLastRefreshed.textContent = "";
 
     // Show skeleton rows while loading
@@ -6093,7 +6093,7 @@ function buildMultiplayerTab(
       lobbyLastRefreshed.textContent =
         `Updated ${now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
     } catch (err) {
-      // AbortError means the user clicked Refresh again — not a real failure.
+      // AbortError means the user clicked Refresh again â€” not a real failure.
       if (err instanceof Error && err.name === "AbortError") return;
       console.warn(`[${APP_NAME}] Lobby fetch failed:`, err);
       lobbyRoomList.innerHTML = "";
@@ -6113,7 +6113,7 @@ function buildMultiplayerTab(
   lobbySection.appendChild(lobbyFooter);
 
   // Keep the lobby section visibility in sync with enable/server-URL changes.
-  // When the section transitions from hidden → visible, trigger an auto-refresh
+  // When the section transitions from hidden â†’ visible, trigger an auto-refresh
   // so the user immediately sees current rooms without a manual click.
   const syncLobbyVisibility = () => {
     const wasHidden = lobbySection.hidden;
@@ -6154,7 +6154,7 @@ function buildMultiplayerTab(
 
   if (!getNetplayStatus().ready) {
     roomSection.appendChild(make("p", { class: "settings-help" },
-      "Server URL is required — enable Online play and add a server URL above to start playing with others."
+      "Server URL is required â€” enable Online play and add a server URL above to start playing with others."
     ));
   } else {
     const hasGame = !!currentGameName;
@@ -6189,7 +6189,7 @@ function buildMultiplayerTab(
       const room = selectedLobbyRoom;
       showInfoToast(
         room
-          ? `Start "${currentGameName || "the game"}" — the app will connect you to "${room.name ?? "the selected room"}".`
+          ? `Start "${currentGameName || "the game"}" â€” the app will connect you to "${room.name ?? "the selected room"}".`
           : "Select a room in the Room Browser above, then start the same game to join it."
       );
     });
@@ -6217,7 +6217,7 @@ function buildDebugTab(
 
   settingsSection.appendChild(buildToggleRow(
     "Detailed logging",
-    "Write extra diagnostic information to the browser console — helpful when reporting issues",
+    "Write extra diagnostic information to the browser console â€” helpful when reporting issues",
     settings.verboseLogging,
     (v) => onSettingsChange({ verboseLogging: v })
   ));
@@ -6231,17 +6231,17 @@ function buildDebugTab(
   const hasWasm    = typeof WebAssembly !== "undefined";
 
   envSection.appendChild(make("p", { class: "device-info" },
-    `Cross-Origin Isolated: ${isIsolated ? "✓ Yes (PSP supported)" : "✗ No — PSP games will fail (reload after coi-serviceworker.js)"}`
+    `Cross-Origin Isolated: ${isIsolated ? "âœ“ Yes (PSP supported)" : "âœ— No â€” PSP games will fail (reload after coi-serviceworker.js)"}`
   ));
   envSection.appendChild(make("p", { class: "device-info" },
-    `SharedArrayBuffer: ${hasSAB ? "✓ Available" : "✗ Not available"}`
+    `SharedArrayBuffer: ${hasSAB ? "âœ“ Available" : "âœ— Not available"}`
   ));
   envSection.appendChild(make("p", { class: "device-info" },
-    `WebAssembly: ${hasWasm ? "✓ Available" : "✗ Not available"}`
+    `WebAssembly: ${hasWasm ? "âœ“ Available" : "âœ— Not available"}`
   ));
 
   if (getNetplayManager) {
-    const netplayStatus = make("p", { class: "device-info" }, "Checking Play Together status…");
+    const netplayStatus = make("p", { class: "device-info" }, "Checking Play Together statusâ€¦");
     envSection.appendChild(netplayStatus);
     getNetplayManager().then(nm => {
       // NetplayManager doesn't have isConnected/isEnabled, it has enabled and isActive
@@ -6271,14 +6271,14 @@ function buildDebugTab(
     `Max Texture Size: ${deviceCaps.gpuCaps.maxTextureSize}px`
   ));
   gpuSection.appendChild(make("p", { class: "device-info" },
-    `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures ? "✓" : "✗"} ` +
-    `(ETC2: ${deviceCaps.gpuCaps.etc2Textures ? "✓" : "✗"}, ASTC: ${deviceCaps.gpuCaps.astcTextures ? "✓" : "✗"})`
+    `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures ? "âœ“" : "âœ—"} ` +
+    `(ETC2: ${deviceCaps.gpuCaps.etc2Textures ? "âœ“" : "âœ—"}, ASTC: ${deviceCaps.gpuCaps.astcTextures ? "âœ“" : "âœ—"})`
   ));
   gpuSection.appendChild(make("p", { class: "device-info" },
-    `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments} | Multi-Draw: ${deviceCaps.gpuCaps.multiDraw ? "✓" : "✗"}`
+    `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments} | Multi-Draw: ${deviceCaps.gpuCaps.multiDraw ? "âœ“" : "âœ—"}`
   ));
 
-  // PS1 status section — shows BIOS file availability and core info
+  // PS1 status section â€” shows BIOS file availability and core info
   const ps1Section = make("div", { class: "settings-section" });
   ps1Section.appendChild(make("h4", { class: "settings-section__title" }, "PS1 Status"));
   ps1Section.appendChild(make("p", { class: "settings-help" },
@@ -6287,59 +6287,59 @@ function buildDebugTab(
   ));
 
   const psxBiosReqs = BIOS_REQUIREMENTS["psx"] ?? [];
-  // Snapshot map populated by async checks — used by the "Copy Debug Info" button
+  // Snapshot map populated by async checks â€” used by the "Copy Debug Info" button
   const psxBiosSnapshot = new Map<string, boolean | null>();
   for (const req of psxBiosReqs) psxBiosSnapshot.set(req.fileName, null);
 
   for (const req of psxBiosReqs) {
     const row = make("p", { class: "device-info" });
-    row.textContent = `${req.displayName}: checking…`;
+    row.textContent = `${req.displayName}: checkingâ€¦`;
     ps1Section.appendChild(row);
 
     if (biosLibrary) {
       biosLibrary.findBios("psx", req.fileName).then(found => {
         psxBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "✓ Uploaded" : "✗ Not found"}`;
+        row.textContent = `${req.displayName}: ${found ? "âœ“ Uploaded" : "âœ— Not found"}`;
       }).catch(() => {
         psxBiosSnapshot.set(req.fileName, null);
-        row.textContent = `${req.displayName}: — (could not check)`;
+        row.textContent = `${req.displayName}: â€” (could not check)`;
       });
     } else {
       psxBiosSnapshot.set(req.fileName, null);
-      row.textContent = `${req.displayName}: — (BIOS library unavailable)`;
+      row.textContent = `${req.displayName}: â€” (BIOS library unavailable)`;
     }
   }
 
-  // NDS status section — shows BIOS file availability and active DeSmuME settings
+  // NDS status section â€” shows BIOS file availability and active DeSmuME settings
   const ndsSection = make("div", { class: "settings-section" });
   ndsSection.appendChild(make("h4", { class: "settings-section__title" }, "NDS Status"));
   ndsSection.appendChild(make("p", { class: "settings-help" },
-    "Nintendo DS uses the DeSmuME 2015 core. BIOS files are optional — DeSmuME falls back to a " +
-    "built-in HLE BIOS when they are absent — but some games require the real files. " +
+    "Nintendo DS uses the DeSmuME 2015 core. BIOS files are optional â€” DeSmuME falls back to a " +
+    "built-in HLE BIOS when they are absent â€” but some games require the real files. " +
     "Upload BIOS files in the BIOS tab."
   ));
 
   const ndsBiosReqs = BIOS_REQUIREMENTS["nds"] ?? [];
-  // Snapshot map populated by async checks — used by the "Copy Debug Info" button
+  // Snapshot map populated by async checks â€” used by the "Copy Debug Info" button
   const ndsBiosSnapshot = new Map<string, boolean | null>();
   for (const req of ndsBiosReqs) ndsBiosSnapshot.set(req.fileName, null);
 
   for (const req of ndsBiosReqs) {
     const row = make("p", { class: "device-info" });
-    row.textContent = `${req.displayName}: checking…`;
+    row.textContent = `${req.displayName}: checkingâ€¦`;
     ndsSection.appendChild(row);
 
     if (biosLibrary) {
       biosLibrary.findBios("nds", req.fileName).then(found => {
         ndsBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "✓ Uploaded" : "✗ Not found (optional)"}`;
+        row.textContent = `${req.displayName}: ${found ? "âœ“ Uploaded" : "âœ— Not found (optional)"}`;
       }).catch(() => {
         ndsBiosSnapshot.set(req.fileName, null);
-        row.textContent = `${req.displayName}: — (could not check)`;
+        row.textContent = `${req.displayName}: â€” (could not check)`;
       });
     } else {
       ndsBiosSnapshot.set(req.fileName, null);
-      row.textContent = `${req.displayName}: — (BIOS library unavailable)`;
+      row.textContent = `${req.displayName}: â€” (BIOS library unavailable)`;
     }
   }
 
@@ -6347,16 +6347,16 @@ function buildDebugTab(
   const activeSystem = emulatorRef?.currentSystem;
   const activeCoreSettingsForNds = emulatorRef?.activeCoreSettings;
   if (activeSystem?.id === "nds" && activeCoreSettingsForNds) {
-    const dsCpuMode    = activeCoreSettingsForNds["desmume_cpu_mode"]             ?? "—";
-    const dsFrameskip  = activeCoreSettingsForNds["desmume_frameskip"]            ?? "—";
-    const dsResolution = activeCoreSettingsForNds["desmume_internal_resolution"]  ?? "—";
-    const dsOpenGL     = activeCoreSettingsForNds["desmume_opengl_mode"]          ?? "—";
-    const dsTiming     = activeCoreSettingsForNds["desmume_advanced_timing"]      ?? "—";
-    const dsColorDepth = activeCoreSettingsForNds["desmume_color_depth"]          ?? "—";
-    const dsPointer    = activeCoreSettingsForNds["desmume_pointer_type"]         ?? "—";
-    const dsMicMode    = activeCoreSettingsForNds["desmume_mic_mode"]             ?? "—";
+    const dsCpuMode    = activeCoreSettingsForNds["desmume_cpu_mode"]             ?? "â€”";
+    const dsFrameskip  = activeCoreSettingsForNds["desmume_frameskip"]            ?? "â€”";
+    const dsResolution = activeCoreSettingsForNds["desmume_internal_resolution"]  ?? "â€”";
+    const dsOpenGL     = activeCoreSettingsForNds["desmume_opengl_mode"]          ?? "â€”";
+    const dsTiming     = activeCoreSettingsForNds["desmume_advanced_timing"]      ?? "â€”";
+    const dsColorDepth = activeCoreSettingsForNds["desmume_color_depth"]          ?? "â€”";
+    const dsPointer    = activeCoreSettingsForNds["desmume_pointer_type"]         ?? "â€”";
+    const dsMicMode    = activeCoreSettingsForNds["desmume_mic_mode"]             ?? "â€”";
     ndsSection.appendChild(make("p", { class: "device-info" },
-      `Active DeSmuME settings (tier: ${emulatorRef?.activeTier ?? "—"})`
+      `Active DeSmuME settings (tier: ${emulatorRef?.activeTier ?? "â€”"})`
     ));
     ndsSection.appendChild(make("p", { class: "device-info" },
       `CPU mode: ${dsCpuMode} | Frameskip: ${dsFrameskip} | Resolution: ${dsResolution}`
@@ -6377,10 +6377,10 @@ function buildDebugTab(
     `State: ${emulatorRef?.state ?? "unknown"}`
   ));
   stateSection.appendChild(make("p", { class: "device-info" },
-    `Active System: ${emulatorRef?.currentSystem?.name ?? "—"} (id: ${emulatorRef?.currentSystem?.id ?? "—"})`
+    `Active System: ${emulatorRef?.currentSystem?.name ?? "â€”"} (id: ${emulatorRef?.currentSystem?.id ?? "â€”"})`
   ));
   stateSection.appendChild(make("p", { class: "device-info" },
-    `Active Tier: ${emulatorRef?.activeTier ?? "—"}`
+    `Active Tier: ${emulatorRef?.activeTier ?? "â€”"}`
   ));
   const adapterInfo = emulatorRef?.webgpuAdapterInfo;
   const adapterLabel = (adapterInfo?.vendor || adapterInfo?.device)
@@ -6423,7 +6423,7 @@ function buildDebugTab(
     for (const r of profSummary.records) {
       const item = make("li", { class: "core-settings-item" });
       const isSlowest = r === profSummary.slowest;
-      item.appendChild(make("span", { class: "core-settings-key" }, `${isSlowest ? "⚡ " : ""}${r.phase}`));
+      item.appendChild(make("span", { class: "core-settings-key" }, `${isSlowest ? "âš¡ " : ""}${r.phase}`));
       item.appendChild(make("span", { class: "core-settings-value" }, `${r.durationMs.toFixed(0)} ms`));
       profList.appendChild(item);
     }
@@ -6455,11 +6455,11 @@ function buildDebugTab(
     for (const evt of recentEvents) {
       const item = make("li", { class: "core-settings-item" });
       const time = new Date(evt.timestamp).toLocaleTimeString();
-      const badge = evt.category === "error" ? "🔴"
-        : evt.category === "performance" ? "⚡"
-        : evt.category === "audio" ? "🔊"
-        : evt.category === "render" ? "🖥"
-        : "ℹ️";
+      const badge = evt.category === "error" ? "ðŸ”´"
+        : evt.category === "performance" ? "âš¡"
+        : evt.category === "audio" ? "ðŸ”Š"
+        : evt.category === "render" ? "ðŸ–¥"
+        : "â„¹ï¸";
       item.appendChild(make("span", { class: "core-settings-key" }, `${badge} ${time}`));
       item.appendChild(make("span", { class: "core-settings-value" }, evt.message));
       eventList.appendChild(item);
@@ -6477,7 +6477,7 @@ function buildDebugTab(
   const btnCopy = make("button", { class: "btn" }, "Copy Debug Info");
   btnCopy.addEventListener("click", () => {
     const lines = [
-      `${APP_NAME} Debug Info — ${new Date().toISOString()}`,
+      `${APP_NAME} Debug Info â€” ${new Date().toISOString()}`,
       ``,
       `[Environment]`,
       `Cross-Origin Isolated: ${isIsolated}`,
@@ -6494,7 +6494,7 @@ function buildDebugTab(
       `WebGL2: ${deviceCaps.gpuCaps.webgl2}`,
       `WebGPU: ${deviceCaps.webgpuAvailable}`,
       `Max Texture: ${deviceCaps.gpuCaps.maxTextureSize}px`,
-      `Anisotropic: ${deviceCaps.gpuCaps.anisotropicFiltering} (max ${deviceCaps.gpuCaps.maxAnisotropy}×)`,
+      `Anisotropic: ${deviceCaps.gpuCaps.anisotropicFiltering} (max ${deviceCaps.gpuCaps.maxAnisotropy}Ã—)`,
       `Float Textures: ${deviceCaps.gpuCaps.floatTextures}`,
       `Instanced Arrays: ${deviceCaps.gpuCaps.instancedArrays}`,
       `ETC2 Textures: ${deviceCaps.gpuCaps.etc2Textures}`,
@@ -6505,8 +6505,8 @@ function buildDebugTab(
       ``,
       `[Emulator]`,
       `State: ${emulatorRef?.state ?? "unknown"}`,
-      `System: ${emulatorRef?.currentSystem?.id ?? "—"}`,
-      `Tier: ${emulatorRef?.activeTier ?? "—"}`,
+      `System: ${emulatorRef?.currentSystem?.id ?? "â€”"}`,
+      `Tier: ${emulatorRef?.activeTier ?? "â€”"}`,
       `Thermal Pressure: ${emulatorRef?.thermalPressureState ?? "unknown"}`,
     ];
     if (adapterLabel) {
@@ -6549,7 +6549,7 @@ function buildDebugTab(
       `[Netplay]`,
       `Enabled: ${peekNetplayManager()?.enabled ?? false}`,
       `Active: ${peekNetplayManager()?.isActive ?? false}`,
-      `Server: ${peekNetplayManager()?.serverUrl || "—"}`,
+      `Server: ${peekNetplayManager()?.serverUrl || "â€”"}`,
       `ICE Servers: ${peekNetplayManager()?.iceServers?.length ?? 0}`,
       ...(peekNetplayManager()?.iceServers ?? []).map((s) =>
         `  ${Array.isArray(s.urls) ? s.urls.join(", ") : s.urls}`
@@ -6575,7 +6575,7 @@ function buildDebugTab(
   });
   actionsSection.appendChild(btnCopy);
 
-  // Clear device capability cache — forces full re-detection on next page load
+  // Clear device capability cache â€” forces full re-detection on next page load
   const btnClearCaps = make("button", { class: "btn btn--secondary" }, "Clear Capability Cache");
   btnClearCaps.title = "Force re-detection of GPU tier and device capabilities on next reload.";
   btnClearCaps.addEventListener("click", () => {
@@ -6588,15 +6588,15 @@ function buildDebugTab(
   const thermalSection = make("div", { class: "settings-section" });
   thermalSection.appendChild(make("h4", { class: "settings-section__title" }, "Thermal & Pressure"));
   thermalSection.appendChild(make("p", { class: "settings-help" },
-    "Compute Pressure API — monitors CPU thermal load to proactively prevent OS-forced throttling. " +
+    "Compute Pressure API â€” monitors CPU thermal load to proactively prevent OS-forced throttling. " +
     "Requires Chrome 125+ (or a compatible browser)."
   ));
   const thermalState = emulatorRef?.thermalPressureState ?? "unknown";
-  const thermalLabel = thermalState === "nominal"  ? "✅ Nominal — device is cool"
-    : thermalState === "fair"     ? "🟡 Fair — minor thermal load"
-    : thermalState === "serious"  ? "🟠 Serious — sustained high thermal load"
-    : thermalState === "critical" ? "🔴 Critical — OS throttling is active"
-    : "⚪ Unknown — Compute Pressure API unavailable";
+  const thermalLabel = thermalState === "nominal"  ? "âœ… Nominal â€” device is cool"
+    : thermalState === "fair"     ? "ðŸŸ¡ Fair â€” minor thermal load"
+    : thermalState === "serious"  ? "ðŸŸ  Serious â€” sustained high thermal load"
+    : thermalState === "critical" ? "ðŸ”´ Critical â€” OS throttling is active"
+    : "âšª Unknown â€” Compute Pressure API unavailable";
   thermalSection.appendChild(make("p", { class: "device-info" },
     `Thermal Pressure: ${thermalLabel}`
   ));
@@ -6609,7 +6609,7 @@ function buildDebugTab(
   container.append(settingsSection, envSection, gpuSection, ps1Section, ndsSection, stateSection, timelineSection, thermalSection, actionsSection);
 }
 
-// ── About tab ─────────────────────────────────────────────────────────────────
+// â”€â”€ About tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildToggleRow(label: string, desc: string, checked: boolean, onChange: (v: boolean) => void): HTMLElement {
   const row = make("label", { class: "toggle-row" });
@@ -6632,7 +6632,7 @@ function buildToggleRow(label: string, desc: string, checked: boolean, onChange:
   return row;
 }
 
-// ── Multi-disc helpers ────────────────────────────────────────────────────────
+// â”€â”€ Multi-disc helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function parseM3U(content: string): string[] {
   return content
@@ -6646,7 +6646,7 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
   return showMultiDiscPickerImpl(discFileNames);
 }
 
-// ── Tier downgrade prompt ─────────────────────────────────────────────────────
+// â”€â”€ Tier downgrade prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function showTierDowngradePrompt(
   averageFPS:  number,
@@ -6667,7 +6667,7 @@ export async function showTierDowngradePrompt(
   });
 }
 
-// ── Audio Visualiser ──────────────────────────────────────────────────────────
+// â”€â”€ Audio Visualiser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AudioVisualiser {
   private _analyser: AnalyserNode | null = null;
@@ -6763,7 +6763,7 @@ class AudioVisualiser {
     for (let i = 0; i < drawCount; i++) {
       const magnitude = this._buffer[i * step]! / 255;
       const barHeight = magnitude * height;
-      // Colour shifts from green (quiet) → yellow → red (loud)
+      // Colour shifts from green (quiet) â†’ yellow â†’ red (loud)
       const hue = Math.round(120 - magnitude * 120);
       ctx.fillStyle = `hsl(${hue},80%,50%)`;
       ctx.fillRect(i * drawBarWidth, height - barHeight, Math.max(1, drawBarWidth - 1), barHeight);
@@ -6786,7 +6786,7 @@ const _audioVisualiser = new AudioVisualiser();
 function startAudioVisualiser(emulatorRef?: PSPEmulator): void { _audioVisualiser.start(emulatorRef); }
 function stopAudioVisualiser(): void { _audioVisualiser.stop(); }
 
-// ── Developer debug overlay ───────────────────────────────────────────────────
+// â”€â”€ Developer debug overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Module-level dirty tracker wired to the dev overlay and FPS overlay. */
 export const _uiDirtyTracker = new UIDirtyTracker();
@@ -6841,7 +6841,7 @@ function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
 
   if (!_uiDirtyTracker.consume(UIDirtyFlags.DEV_OVERLAY)) return;
 
-  // ── Scalar Metrics ────────────────────────────────────────────────────────
+  // â”€â”€ Scalar Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const els = _getDevOverlayEls();
 
   if (els.ft) els.ft.textContent = `${frameTimeMs}ms`;
@@ -6858,7 +6858,7 @@ function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
     els.state.textContent = emulator.state;
   }
 
-  // ── Frame-time mini graph ─────────────────────────────────────────────────
+  // â”€â”€ Frame-time mini graph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const canvas = els.canvas as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -6890,7 +6890,7 @@ function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): void {
   }
 }
 
-// ── FPS overlay ───────────────────────────────────────────────────────────────
+// â”€â”€ FPS overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function showFPSOverlay(show: boolean, emulatorRef?: PSPEmulator, showAudioVis?: boolean): void {
   const overlay = document.getElementById("fps-overlay");
@@ -6960,8 +6960,8 @@ function showPerfSuggestion(): void {
 
   const toast = make("div", { id: "perf-suggestion", class: "perf-suggestion", role: "status" });
   toast.innerHTML =
-    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> in ⚡ Settings for a smoother experience.${mobileTip}</span>` +
-    `<button class="perf-suggestion__close" aria-label="Dismiss">✕</button>`;
+    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> in âš¡ Settings for a smoother experience.${mobileTip}</span>` +
+    `<button class="perf-suggestion__close" aria-label="Dismiss">âœ•</button>`;
   document.body.appendChild(toast);
 
   const dismiss = () => { toast.classList.add("perf-suggestion--hiding"); setTimeout(() => toast.remove(), PERF_SUGGESTION_FADE_DELAY_MS); };
@@ -6976,7 +6976,7 @@ export function resetPerfSuggestion(): void {
   document.getElementById("perf-suggestion")?.remove();
 }
 
-// ── Header overflow indicator ─────────────────────────────────────────────────
+// â”€â”€ Header overflow indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function updateHeaderOverflow(): void {
   const actions = document.getElementById("header-actions");
@@ -6986,7 +6986,7 @@ function updateHeaderOverflow(): void {
   });
 }
 
-// ── State-driven DOM updates ──────────────────────────────────────────────────
+// â”€â”€ State-driven DOM updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function updateStatusDot(state: EmulatorState): void {
   const dot   = document.getElementById("status-dot");
@@ -6994,7 +6994,7 @@ function updateStatusDot(state: EmulatorState): void {
   if (!dot || !label) return;
   const labels: Record<EmulatorState, string> = {
     idle: "Ready",
-    loading: "Loading…",
+    loading: "Loadingâ€¦",
     running: "Playing",
     paused: "Paused",
     error: "Something went wrong"
@@ -7003,7 +7003,7 @@ function updateStatusDot(state: EmulatorState): void {
   label.textContent = labels[state];
   if (state === "loading") showLoadingOverlay();
 
-  // Show/hide the "Playing: …" items in footer
+  // Show/hide the "Playing: â€¦" items in footer
   const isActive = state === "running" || state === "paused";
   const sysItem  = document.getElementById("status-system-item");
   const sysLabel = document.getElementById("status-system-label");
@@ -7012,7 +7012,7 @@ function updateStatusDot(state: EmulatorState): void {
   if (sysLabel) sysLabel.style.display = isActive ? "" : "none";
   if (tierItem) tierItem.style.display = isActive ? "" : "none";
 
-  if (state === "idle" || state === "error") { setStatusGame("—"); setStatusSystem("—"); setStatusTier(null); }
+  if (state === "idle" || state === "error") { setStatusGame("â€”"); setStatusSystem("â€”"); setStatusTier(null); }
 }
 
 
@@ -7032,8 +7032,8 @@ export function setLoadingProgress(percent: number | null): void {
 /**
  * Dialog wizard for adding a new cloud library source.
  *
- * Step 1 — pick a provider from the visual grid.
- * Step 2 — enter a connection name and the credentials for that provider.
+ * Step 1 â€” pick a provider from the visual grid.
+ * Step 2 â€” enter a connection name and the credentials for that provider.
  *
  * On success, appends the new CloudLibraryConnection to settings and calls
  * onSettingsChange so the tab re-renders.
@@ -7064,7 +7064,7 @@ function showAddCloudLibraryDialog(
     document.addEventListener("keydown", onKeydown, { capture: true });
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
 
-    // ── Step 1: Provider picker ───────────────────────────────────────────────
+    // â”€â”€ Step 1: Provider picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const renderStep1 = () => {
       box.innerHTML = "";
@@ -7094,7 +7094,7 @@ function showAddCloudLibraryDialog(
       box.appendChild(actions);
     };
 
-    // ── Step 2: Credential form ───────────────────────────────────────────────
+    // â”€â”€ Step 2: Credential form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
@@ -7235,7 +7235,7 @@ function showAddCloudLibraryDialog(
       box.appendChild(errorMsg);
 
       const actions = make("div", { class: "confirm-box__actions" });
-      const backBtn  = make("button", { class: "btn" }, "← Back") as HTMLButtonElement;
+      const backBtn  = make("button", { class: "btn" }, "â† Back") as HTMLButtonElement;
       const saveBtn  = make("button", { class: "btn btn--primary" }, "Add Source") as HTMLButtonElement;
       actions.append(backBtn, saveBtn);
       box.appendChild(actions);
@@ -7306,7 +7306,7 @@ function buildCloudTab(
   overview.append(saveCard, libraryCard);
   section.appendChild(overview);
 
-  // ── Cloud save backup section ───────────────────────────────────────────────
+  // â”€â”€ Cloud save backup section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const cloudManager = getCloudSaveManager();
   const saveSection = make("div", { class: "cloud-library-section" });
@@ -7317,7 +7317,7 @@ function buildCloudTab(
 
     if (cloudManager.isConnected()) {
       const provLabel = getCloudProviderLabel(cloudManager.providerId);
-      const statusDot = make("span", { class: "cloud-connection-item__status status--online" }, "● Connected");
+      const statusDot = make("span", { class: "cloud-connection-item__status status--online" }, "â— Connected");
       const provName  = make("span", { class: "cloud-save-status__provider" }, `${provLabel} backup active`);
       const lastSync  = cloudManager.lastSyncAt
         ? make("span", { class: "cloud-save-status__lastsync" }, `Last sync: ${formatRelativeTime(cloudManager.lastSyncAt)}`)
@@ -7334,7 +7334,7 @@ function buildCloudTab(
       const hint = make("p", { class: "settings-help" },
         "Save states live in your browser. Connect a cloud provider to keep them backed up and accessible on other devices."
       );
-      const connectBtn = make("button", { class: "btn btn--primary", type: "button" }, "☁ Connect Cloud Backup") as HTMLButtonElement;
+      const connectBtn = make("button", { class: "btn btn--primary", type: "button" }, "â˜ Connect Cloud Backup") as HTMLButtonElement;
       connectBtn.addEventListener("click", () => {
         void showCloudConnectDialog().then(connected => {
           if (connected) {
@@ -7353,7 +7353,7 @@ function buildCloudTab(
   saveSection.appendChild(buildSaveStatus());
   section.appendChild(saveSection);
 
-  // ── Cloud library sources section ──────────────────────────────────────────
+  // â”€â”€ Cloud library sources section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const rebuildTab = () => buildCloudTab(container, settings, library, onSettingsChange);
 
@@ -7374,27 +7374,27 @@ function buildCloudTab(
       info.appendChild(make("strong", {}, conn.name));
       info.appendChild(make("span", {}, getCloudProviderLabel(conn.provider)));
 
-      const statusDot = make("span", { class: "cloud-connection-item__status" }, "● Checking…");
+      const statusDot = make("span", { class: "cloud-connection-item__status" }, "â— Checkingâ€¦");
       info.appendChild(statusDot);
 
-      // Async availability check — update badge once resolved
+      // Async availability check â€” update badge once resolved
       const provider = createProvider(conn);
       if (provider) {
         provider.isAvailable().then(ok => {
-          statusDot.textContent = ok ? "● Ready" : "● Unavailable";
+          statusDot.textContent = ok ? "â— Ready" : "â— Unavailable";
           statusDot.className   = `cloud-connection-item__status ${ok ? "status--online" : "status--offline"}`;
         }).catch(() => {
-          statusDot.textContent = "● Unavailable";
+          statusDot.textContent = "â— Unavailable";
           statusDot.className   = "cloud-connection-item__status status--offline";
         });
       } else {
-        statusDot.textContent = "● Config error";
+        statusDot.textContent = "â— Config error";
         statusDot.className   = "cloud-connection-item__status status--offline";
       }
 
       const actions = make("div", { class: "cloud-connection-item__actions" });
 
-      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync");
+      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "â†» Sync");
       syncBtn.addEventListener("click", () => syncCloudLibrary(conn, library, onSettingsChange));
 
       const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Remove");
@@ -7488,17 +7488,17 @@ async function syncCloudLibrary(
   }
 
   showLoadingOverlay();
-  setLoadingMessage(`Syncing ${conn.name}…`);
+  setLoadingMessage(`Syncing ${conn.name}â€¦`);
   try {
     if (!(await provider.isAvailable())) {
       throw new Error("Cloud provider is not reachable. Check your connection or credentials.");
     }
     
-    setLoadingSubtitle("Scanning for game files…");
+    setLoadingSubtitle("Scanning for game filesâ€¦");
     const files = await provider.listFiles();
     const romFiles = files.filter(f => !f.isDirectory && detectSystem(f.name));
     
-    setLoadingSubtitle(`Found ${romFiles.length} games. Integrating into library…`);
+    setLoadingSubtitle(`Found ${romFiles.length} games. Integrating into libraryâ€¦`);
     
     for (const f of romFiles) {
       const res = detectSystem(f.name);
@@ -7533,7 +7533,7 @@ async function syncCloudLibrary(
   }
 }
 
-// ── Visibility helpers ────────────────────────────────────────────────────────
+// â”€â”€ Visibility helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function hideLanding(): void    { el("#landing").classList.add("hidden"); }
 export function showLanding(): void    { el("#landing").classList.remove("hidden"); }
@@ -7579,7 +7579,7 @@ export function setLoadingSubtitle(msg: string): void {
 }
 export function setStatusGame(name: string): void    { const e = document.getElementById("status-game");    if (e) e.textContent = name; }
 export function setStatusSystem(name: string): void  { const e = document.getElementById("status-system");  if (e) e.textContent = name; }
-function setStatusTier(tier: PerformanceTier | null): void { const e = document.getElementById("status-tier"); if (e) e.textContent = tier ? formatTierLabel(tier) : "—"; }
+function setStatusTier(tier: PerformanceTier | null): void { const e = document.getElementById("status-tier"); if (e) e.textContent = tier ? formatTierLabel(tier) : "â€”"; }
 
 let _errorDismissTimer: ReturnType<typeof setTimeout> | null = null;
 const ERROR_DISMISS_TIMEOUT_MS = 12_000;
@@ -7621,7 +7621,7 @@ function friendlyErrorMessage(msg: string): string {
     return "Game file not found. The file may have been deleted from this browser.\n\nTry adding the game again from your device.";
   }
   if (m.includes("quota") || m.includes("storage") || m.includes("no space")) {
-    return "Not enough storage space to save this game. Try clearing some old games or saves in Settings → My Games.";
+    return "Not enough storage space to save this game. Try clearing some old games or saves in Settings â†’ My Games.";
   }
   if (m.includes("network") || m.includes("fetch") || m.includes("failed to load")) {
     return "Couldn't load a required file. Check your internet connection and try again.";
@@ -7630,7 +7630,7 @@ function friendlyErrorMessage(msg: string): string {
     return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nIf it fails, try another title, lower the load on your device, and make sure both Dreamcast BIOS files are installed.";
   }
   if (m.includes("bios") || m.includes("startup file")) {
-    return "This game needs a startup file (BIOS). Go to Settings → System Files to add one.";
+    return "This game needs a startup file (BIOS). Go to Settings â†’ System Files to add one.";
   }
   return msg; // Return original if no friendly mapping found
 }
@@ -7730,7 +7730,7 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   toast.setAttribute("aria-atomic", "true");
 
   // Icon varies by type
-  const iconMap: Record<string, string> = { success: "✓", info: "ℹ", warning: "⚠", error: "✕" };
+  const iconMap: Record<string, string> = { success: "âœ“", info: "â„¹", warning: "âš ", error: "âœ•" };
   const icon = document.createElement("span");
   icon.className = "info-toast__icon";
   icon.setAttribute("aria-hidden", "true");
@@ -7741,7 +7741,7 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
 
   const closeBtn = document.createElement("button");
   closeBtn.className = "error-close";
-  closeBtn.textContent = "✕";
+  closeBtn.textContent = "âœ•";
   closeBtn.setAttribute("aria-label", "Dismiss");
   closeBtn.addEventListener("click", () => {
     toast.classList.remove("visible");
@@ -7781,5 +7781,5 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   scheduleToastDismiss();
 }
 
-// ── Test helpers ──────────────────────────────────────────────────────────────
+// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

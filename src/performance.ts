@@ -21,6 +21,8 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+import { LEGACY_STORAGE_KEYS } from "./legacy.js";
+
 export type PerformanceMode = "auto" | "performance" | "quality";
 
 export type PerformanceTier = "low" | "medium" | "high" | "ultra";
@@ -998,7 +1000,7 @@ const CAPS_SCHEMA_VERSION = 4;
  * Bump the suffix when the DeviceCapabilities interface changes shape so
  * stale caches from old app versions are ignored automatically.
  */
-const CAPABILITIES_SESSION_KEY = "retrovault-devcaps-v1";
+const CAPABILITIES_SESSION_KEY = LEGACY_STORAGE_KEYS.capabilitiesSession;
 
 /**
  * Detect device capabilities with session-level caching.

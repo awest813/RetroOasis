@@ -5,6 +5,8 @@
  * restore handlers when launches fail or are superseded.
  */
 
+import { LEGACY_EVENTS } from "./legacy.js";
+
 export interface SaveStateRestorer {
   writeStateData(slot: number, data: Uint8Array): boolean;
   quickLoad(slot: number): void;
@@ -41,7 +43,7 @@ export function scheduleAutoRestoreOnGameStart(opts: AutoRestoreOptions): AutoRe
 
   let active = true;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  const eventName = "retrovault:gameStarted";
+  const eventName = LEGACY_EVENTS.gameStarted;
 
   const onGameStart = () => {
     if (!active) return;
