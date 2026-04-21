@@ -8623,3 +8623,317 @@ body {
     transform: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Virtual Grid — spacer elements
+   Injected by VirtualGrid as the first and last children of #library-grid.
+   They span all grid columns so they occupy a full "row" of height but
+   do not consume a grid cell.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.vg-spacer {
+  display: block;
+  grid-column: 1 / -1;
+  width: 100%;
+  pointer-events: none;
+  /* Use min-height instead of height so the spacer still respects the
+     grid's row-gap when height is 0. */
+  min-height: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Highlights Panel — unified Favorites + Recent Sessions feed
+   Appears above the system-filter chips in the library landing when the
+   user has starred games or recorded play sessions.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#library-highlights {
+  width: 100%;
+}
+
+.highlights-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+/* ── Section shared styles ─────────────────────────────────────────────────── */
+
+.highlights-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.highlights-section__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlights-section__title {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Favorites horizontal scroll row ──────────────────────────────────────── */
+
+.highlights-section__scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding-bottom: 4px; /* room for focus ring */
+}
+
+.highlights-section__scroll::-webkit-scrollbar { display: none; }
+
+/* ── Favorite mini-card ───────────────────────────────────────────────────── */
+
+.highlights-fav-card {
+  position: relative;
+  flex: 0 0 108px;
+  width: 108px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  scroll-snap-align: start;
+  transition: border-color var(--transition), transform var(--spring-fast);
+  contain: layout style paint;
+}
+
+.highlights-fav-card:hover,
+.highlights-fav-card:focus-visible {
+  border-color: var(--c-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.highlights-fav-card:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.highlights-fav-card__icon {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  background: linear-gradient(135deg, var(--c-surface-lt) 0%, var(--c-surface) 100%);
+  overflow: hidden;
+}
+
+.highlights-fav-card__cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.highlights-fav-card__sys-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.highlights-fav-card__name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.3;
+  padding: 5px 7px 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.highlights-fav-card__badge {
+  font-size: 0.62rem;
+  color: var(--c-text-muted);
+  padding: 0 7px 6px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlights-fav-card__play {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition);
+  pointer-events: none;
+}
+
+.highlights-fav-card:hover .highlights-fav-card__play,
+.highlights-fav-card:focus-visible .highlights-fav-card__play {
+  opacity: 1;
+}
+
+/* ── Recent Sessions list ─────────────────────────────────────────────────── */
+
+.highlights-section__session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.highlights-session-entry {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition), background var(--transition);
+  contain: layout style;
+}
+
+.highlights-session-entry:hover,
+.highlights-session-entry:focus-visible {
+  border-color: var(--c-accent-dim);
+  background: var(--c-surface-lt);
+}
+
+.highlights-session-entry:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.highlights-session-entry--gone {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.highlights-session-entry__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.highlights-session-entry__sys-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.highlights-session-entry__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.highlights-session-entry__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.highlights-session-entry__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.highlights-session-entry__sys {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.highlights-session-entry__dur {
+  font-size: 0.68rem;
+  color: var(--c-text-muted);
+}
+
+.highlights-session-entry__time {
+  font-size: 0.68rem;
+  color: var(--c-text-muted);
+  margin-left: auto;
+}
+
+.highlights-session-entry__action {
+  font-size: 0.75rem;
+  color: var(--c-text-muted);
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+
+.highlights-session-entry:hover .highlights-session-entry__action,
+.highlights-session-entry:focus-visible .highlights-session-entry__action {
+  color: var(--c-accent);
+}
+
+/* ── Responsive adjustments ───────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .highlights-fav-card {
+    flex: 0 0 90px;
+    width: 90px;
+  }
+
+  .highlights-fav-card__name {
+    font-size: 0.67rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .highlights-fav-card {
+    flex: 0 0 120px;
+    width: 120px;
+  }
+}
+
+/* ── Lite UI overrides ────────────────────────────────────────────────────── */
+
+.lite-ui .highlights-fav-card,
+.lite-ui .highlights-session-entry {
+  transition: none;
+  animation: none;
+}
+
+.lite-ui .highlights-fav-card:hover,
+.lite-ui .highlights-fav-card:focus-visible,
+.lite-ui .highlights-session-entry:hover,
+.lite-ui .highlights-session-entry:focus-visible {
+  transform: none;
+}

@@ -165,6 +165,8 @@ import {
   showFPSOverlay,
   resetDevOverlayCache,
 } from "./modules/DevOverlay.js";
+import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
+import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -188,6 +190,7 @@ let _initUICleanup: (() => void) | null = null;
 export const TOUCH_CONTROLS_CHANGED_EVENT = LEGACY_EVENTS.touchControlsChanged;
 
 let _libGpCachedCards: HTMLElement[] | null = null;
+let _virtualGrid: VirtualGrid<GameMetadata> | null = null;
 let _fpsOverlayEls: Record<string, HTMLElement | null> | null = null;
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
@@ -336,6 +339,9 @@ export function buildDOM(app: HTMLElement): void {
                 🔍 Fetch covers
               </button>
             </div>
+          </div>
+          <div id="library-highlights" aria-label="Library highlights">
+            <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
           </div>
           <div class="system-filter" id="system-filter">
             <!-- System filter chips — populated by renderLibrary() -->
@@ -1224,6 +1230,95 @@ export async function renderLibrary(
   grid.innerHTML = "";
   _libGpCachedCards = null;
 
+  // Destroy any previous virtual grid before we rebuild the DOM
+  if (_virtualGrid) {
+    _virtualGrid.destroy();
+    _virtualGrid = null;
+  }
+
+  // ── Highlights panel (favorites + recent sessions) ─────────────────────────
+  // Only shown when the library is in its "clean" state (no active search,
+  // system filter, or favorites-only filter) so it does not compete with the
+  // user's focused browsing actions.
+  const highlightsEl = document.getElementById("library-highlights");
+  if (highlightsEl) {
+    const showHighlights =
+      !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+
+    if (showHighlights && allGames.length > 0) {
+      const favorites       = allGames.filter(g => g.isFavorite);
+      let recentSessions: import("./sessionTracker.js").PlaySession[] = [];
+      try {
+        recentSessions = await sessionTracker.getRecentSessions(HIGHLIGHTS_MAX_SESSIONS);
+      } catch {
+        // IDB may be unavailable in some test/SSR environments; degrade gracefully
+      }
+
+      const panel = buildHighlightsPanel({
+        favorites,
+        recentSessions,
+        allGames,
+        getSystemIcon:      systemIcon,
+        getSystemName:      (id) => getSystemById(id)?.shortName ?? id.toUpperCase(),
+        formatRelativeTime,
+        formatPlayTime,
+        onPlayFavorite: async (game) => {
+          showLoadingOverlay();
+          setLoadingMessage(`Starting ${game.name}…`);
+          setLoadingSubtitle("Getting ready to play");
+          try {
+            let blob = await library.getGameBlob(game.id);
+            if (!blob && game.cloudId) {
+              setLoadingMessage("Streaming from cloud…");
+              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
+              blob = await fetchFromCloud(game, settings);
+            }
+            if (!blob) {
+              hideLoadingOverlay();
+              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
+              return;
+            }
+            await library.markPlayed(game.id);
+            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
+          } catch (err) {
+            hideLoadingOverlay();
+            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        },
+        onPlaySession: async (game, _session) => {
+          if (!game) return;
+          showLoadingOverlay();
+          setLoadingMessage(`Starting ${game.name}…`);
+          setLoadingSubtitle("Getting ready to play");
+          try {
+            let blob = await library.getGameBlob(game.id);
+            if (!blob && game.cloudId) {
+              setLoadingMessage("Streaming from cloud…");
+              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
+              blob = await fetchFromCloud(game, settings);
+            }
+            if (!blob) {
+              hideLoadingOverlay();
+              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
+              return;
+            }
+            await library.markPlayed(game.id);
+            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
+          } catch (err) {
+            hideLoadingOverlay();
+            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        },
+      });
+
+      highlightsEl.innerHTML = "";
+      if (panel) highlightsEl.appendChild(panel);
+    } else {
+      highlightsEl.innerHTML = "";
+    }
+  }
+  // ── End highlights panel ───────────────────────────────────────────────────
+
   const layout = settings.libraryLayout;
   _libraryLastLayout = layout;
   _syncLibraryControlState();
@@ -1360,7 +1455,32 @@ export async function renderLibrary(
 
   // Standard Grid Rendering
   grid.classList.remove("library-section__rows");
-  
+
+  // ── Virtual grid for large libraries ──────────────────────────────────────
+  // When the displayed set exceeds VIRTUAL_THRESHOLD items, activate the
+  // windowed virtual grid so only cards near the viewport are in the DOM.
+  // Smaller sets still use incremental chunked rendering (simpler, no overhead).
+  if (displayed.length > VIRTUAL_THRESHOLD) {
+    const landingEl = document.getElementById("landing");
+    if (landingEl) {
+      _virtualGrid = new VirtualGrid<GameMetadata>({
+        container: grid,
+        scrollEl:  landingEl,
+        items:     displayed,
+        buildItem: (game, index) => {
+          const card = buildGameCard(game, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+          if (index < 20) {
+            card.style.setProperty("--card-i", String(index));
+            card.classList.add("game-card--entering");
+          }
+          return card;
+        },
+      });
+    }
+    return;
+  }
+
+  // ── Incremental rendering for small libraries ──────────────────────────────
   // Incremental rendering for large grids (Phase 5 Optimization)
   const CHUNK_SIZE = 24;
   const initial = displayed.slice(0, CHUNK_SIZE);

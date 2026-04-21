@@ -274,6 +274,37 @@ export class SessionTracker {
       db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).clear(),
     );
   }
+
+  /**
+   * Return the `limit` most-recently-started sessions, newest first.
+   *
+   * Uses the `startedAt` index in reverse — a reliable proxy for end-time
+   * ordering because sessions rarely overlap significantly.  Returns an empty
+   * array when no sessions exist or `limit` is 0.
+   */
+  async getRecentSessions(limit: number): Promise<PlaySession[]> {
+    if (limit <= 0) return [];
+    const db = await openDB();
+    const index = db
+      .transaction(STORE_NAME, "readonly")
+      .objectStore(STORE_NAME)
+      .index("startedAt");
+
+    return new Promise<PlaySession[]>((resolve, reject) => {
+      const results: PlaySession[] = [];
+      const req = index.openCursor(null, "prev");
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor || results.length >= limit) {
+          resolve(results);
+          return;
+        }
+        results.push(cursor.value as PlaySession);
+        cursor.continue();
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

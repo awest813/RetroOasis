@@ -315,3 +315,80 @@ describe("SessionTracker.exportAll", () => {
     expect(sessions).toHaveLength(2);
   });
 });
+
+// ── getRecentSessions ─────────────────────────────────────────────────────────
+
+describe("SessionTracker.getRecentSessions", () => {
+  it("returns an empty array when no sessions exist", async () => {
+    const sessions = await tracker.getRecentSessions(5);
+    expect(Array.isArray(sessions)).toBe(true);
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("returns an empty array when limit is 0", async () => {
+    tracker.startSession("game-1", "Sonic", "genesis");
+    advanceTime(MIN_SESSION_MS);
+    await tracker.endSession();
+
+    const sessions = await tracker.getRecentSessions(0);
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("returns at most `limit` sessions", async () => {
+    for (let i = 0; i < 6; i++) {
+      tracker.startSession(`game-${i}`, `Game ${i}`, "nes");
+      advanceTime(MIN_SESSION_MS);
+      await tracker.endSession();
+    }
+
+    const sessions = await tracker.getRecentSessions(3);
+    expect(sessions).toHaveLength(3);
+  });
+
+  it("returns sessions in newest-first order", async () => {
+    tracker.startSession("game-1", "Sonic", "genesis");
+    advanceTime(MIN_SESSION_MS);
+    await tracker.endSession();
+    const firstEnd = _now;
+
+    advanceTime(10_000);
+
+    tracker.startSession("game-2", "Zelda", "snes");
+    advanceTime(MIN_SESSION_MS);
+    await tracker.endSession();
+    const secondEnd = _now;
+
+    const sessions = await tracker.getRecentSessions(5);
+    expect(sessions).toHaveLength(2);
+    // Most recent session first
+    expect(sessions[0]!.endedAt).toBe(secondEnd);
+    expect(sessions[1]!.endedAt).toBe(firstEnd);
+  });
+
+  it("returns all sessions when count is below limit", async () => {
+    tracker.startSession("game-1", "Sonic", "genesis");
+    advanceTime(MIN_SESSION_MS);
+    await tracker.endSession();
+
+    tracker.startSession("game-2", "Zelda", "snes");
+    advanceTime(MIN_SESSION_MS);
+    await tracker.endSession();
+
+    const sessions = await tracker.getRecentSessions(10);
+    expect(sessions).toHaveLength(2);
+  });
+
+  it("includes correct session metadata", async () => {
+    tracker.startSession("game-abc", "Mega Man", "nes");
+    advanceTime(MIN_SESSION_MS + 5_000);
+    await tracker.endSession();
+
+    const sessions = await tracker.getRecentSessions(1);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.gameId).toBe("game-abc");
+    expect(sessions[0]!.gameName).toBe("Mega Man");
+    expect(sessions[0]!.systemId).toBe("nes");
+    expect(sessions[0]!.durationMs).toBeGreaterThanOrEqual(MIN_SESSION_MS);
+  });
+});
+
