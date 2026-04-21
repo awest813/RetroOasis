@@ -2089,10 +2089,13 @@ export class MegaProvider implements CloudSaveProvider {
 
   async download(gameId: string, slot: number): Promise<SaveStateEntry | null> {
     await this._ensureSession();
-    const slotHandle = await this._findSlotFolder(gameId, slot);
+    // Fetch the node tree once for both the folder walk and file lookups.
+    const { MegaLibraryProvider } = await import("./cloudLibrary.js");
+    const nodes = await this._getNodes();
+    const slotHandle = this._walkPath(nodes, gameId, slot, MegaLibraryProvider);
     if (!slotHandle) return null;
 
-    const manifestBlob = await this._megaDownloadFile(slotHandle, "manifest.json");
+    const manifestBlob = await this._megaDownloadFile(slotHandle, "manifest.json", nodes);
     if (!manifestBlob) return null;
 
     let manifest: CloudSaveManifest;
@@ -2103,8 +2106,8 @@ export class MegaProvider implements CloudSaveProvider {
     }
 
     const [stateData, thumbnail] = await Promise.all([
-      this._megaDownloadFile(slotHandle, "state.bin"),
-      this._megaDownloadFile(slotHandle, "thumb.jpg"),
+      this._megaDownloadFile(slotHandle, "state.bin", nodes),
+      this._megaDownloadFile(slotHandle, "thumb.jpg", nodes),
     ]);
 
     return {
@@ -2125,12 +2128,15 @@ export class MegaProvider implements CloudSaveProvider {
 
   async listManifests(gameId: string): Promise<CloudSaveManifest[]> {
     await this._ensureSession();
+    // Fetch the node tree once for all slot lookups.
+    const { MegaLibraryProvider } = await import("./cloudLibrary.js");
+    const nodes = await this._getNodes();
     const slots = [AUTO_SAVE_SLOT, ...Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => i + 1)];
     const results = await Promise.allSettled(
       slots.map(async slot => {
-        const slotHandle = await this._findSlotFolder(gameId, slot);
+        const slotHandle = this._walkPath(nodes, gameId, slot, MegaLibraryProvider);
         if (!slotHandle) return null;
-        const blob = await this._megaDownloadFile(slotHandle, "manifest.json");
+        const blob = await this._megaDownloadFile(slotHandle, "manifest.json", nodes);
         if (!blob) return null;
         try {
           return JSON.parse(await blob.text()) as CloudSaveManifest;
@@ -2196,8 +2202,106 @@ export class MegaProvider implements CloudSaveProvider {
     this._rootHandle = rootNode?.h ?? null;
   }
 
-  /** Navigate to or create the RetroVault/{gameHex}/{slot} folder hierarchy. */
+  /** Fetch the full MEGA node tree. */
+  private async _getNodes(): Promise<Array<{ h: string; p: string; t: number; a: string; k: string }>> {
+    const nodesResp = await this._apiRequest([{ a: "f", c: 1 }]);
+    const nodesData = nodesResp[0] as { f?: Array<{ h: string; p: string; t: number; a: string; k: string }> } | undefined;
+    return nodesData?.f ?? [];
+  }
+
+  /**
+   * Decode a node's stored display name.
+   * Decrypts the node key with the master key (AES-ECB), derives the attribute
+   * key, then decrypts the attribute blob with AES-CBC (IV = 0) — the mode
+   * used by the official MEGA clients.
+   * Returns null on any decryption or parsing failure.
+   */
+  private _decodeNodeName(
+    n: { k: string; a: string },
+    mega: { _base64ToUint8(s: string): Uint8Array; _aesEcbDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array; _aesCbcDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array },
+  ): string | null {
+    try {
+      const keyParts = n.k.split(":");
+      const encNodeKey = mega._base64ToUint8(keyParts[keyParts.length - 1]!);
+      const decNodeKey = mega._aesEcbDecrypt(encNodeKey, this._masterKey!);
+      let attrKey: Uint8Array;
+      if (decNodeKey.length >= 32) {
+        attrKey = new Uint8Array(16);
+        for (let i = 0; i < 16; i++) {
+          attrKey[i] = (decNodeKey[i] ?? 0) ^ (decNodeKey[i + 16] ?? 0);
+        }
+      } else {
+        attrKey = decNodeKey.slice(0, 16);
+      }
+      const encAttrs = mega._base64ToUint8(n.a);
+      const decAttrs = mega._aesCbcDecrypt(encAttrs, attrKey);
+      const attrStr  = new TextDecoder().decode(decAttrs);
+      const jsonStart = attrStr.indexOf("{");
+      const jsonEnd   = attrStr.lastIndexOf("}");
+      if (jsonStart < 0 || jsonEnd < 0) return null;
+      const attrs = JSON.parse(attrStr.slice(jsonStart, jsonEnd + 1)) as { n?: string };
+      return attrs.n ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Scan pre-fetched nodes for a child folder (t=1) matching the given name. */
+  private _findChildFolderInNodes(
+    nodes: Array<{ h: string; p: string; t: number; a: string; k: string }>,
+    parentHandle: string,
+    name: string,
+    mega: { _base64ToUint8(s: string): Uint8Array; _aesEcbDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array; _aesCbcDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array },
+  ): string | null {
+    for (const n of nodes) {
+      if (n.p !== parentHandle || n.t !== 1) continue;
+      if (this._decodeNodeName(n, mega) === name) return n.h;
+    }
+    return null;
+  }
+
+  /** Scan pre-fetched nodes for a file (t=0) matching the given name. */
+  private _findFileInNodes(
+    nodes: Array<{ h: string; p: string; t: number; a: string; k: string }>,
+    parentHandle: string,
+    filename: string,
+    mega: { _base64ToUint8(s: string): Uint8Array; _aesEcbDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array; _aesCbcDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array },
+  ): string | null {
+    for (const n of nodes) {
+      if (n.p !== parentHandle || n.t !== 0) continue;
+      if (this._decodeNodeName(n, mega) === filename) return n.h;
+    }
+    return null;
+  }
+
+  /**
+   * Walk the node tree along RetroVault/{hexGameId}/{slot} and return the
+   * leaf folder handle, or null if any segment is missing.
+   * Accepts a pre-fetched node array to avoid redundant API calls.
+   */
+  private _walkPath(
+    nodes: Array<{ h: string; p: string; t: number; a: string; k: string }>,
+    gameId: string,
+    slot: number,
+    mega: { _base64ToUint8(s: string): Uint8Array; _aesEcbDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array; _aesCbcDecrypt(d: Uint8Array, k: Uint8Array): Uint8Array },
+  ): string | null {
+    const safeId = Array.from(new TextEncoder().encode(gameId))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    let handle: string | null = this._rootHandle;
+    if (!handle) return null;
+
+    for (const segment of ["RetroVault", safeId, String(slot)]) {
+      handle = this._findChildFolderInNodes(nodes, handle, segment, mega);
+      if (!handle) return null;
+    }
+    return handle;
+  }
+
+  /** Navigate to or create the RetroVault/{hexGameId}/{slot} folder hierarchy. */
   private async _ensureSlotFolder(gameId: string, slot: number): Promise<string> {
+    const { MegaLibraryProvider } = await import("./cloudLibrary.js");
     const safeId = Array.from(new TextEncoder().encode(gameId))
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
@@ -2205,13 +2309,16 @@ export class MegaProvider implements CloudSaveProvider {
     let parentHandle = this._rootHandle;
     if (!parentHandle) throw new Error("MEGA root folder not found.");
 
-    // Walk/create: RetroVault → safeId → slot
+    // Fetch the node tree once for all three path segments.
+    let nodes = await this._getNodes();
     for (const segment of ["RetroVault", safeId, String(slot)]) {
-      const existing = await this._findChildFolder(parentHandle, segment);
+      const existing = this._findChildFolderInNodes(nodes, parentHandle, segment, MegaLibraryProvider);
       if (existing) {
         parentHandle = existing;
       } else {
-        parentHandle = await this._createFolder(parentHandle, segment);
+        parentHandle = await this._createFolder(parentHandle, segment, MegaLibraryProvider);
+        // Re-fetch nodes so the newly-created folder is visible for the next iteration.
+        nodes = await this._getNodes();
       }
     }
     return parentHandle;
@@ -2219,66 +2326,47 @@ export class MegaProvider implements CloudSaveProvider {
 
   /** Find an existing slot folder without creating it. Returns handle or null. */
   private async _findSlotFolder(gameId: string, slot: number): Promise<string | null> {
-    const safeId = Array.from(new TextEncoder().encode(gameId))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    let parentHandle = this._rootHandle;
-    if (!parentHandle) return null;
-
-    for (const segment of ["RetroVault", safeId, String(slot)]) {
-      const child = await this._findChildFolder(parentHandle, segment);
-      if (!child) return null;
-      parentHandle = child;
-    }
-    return parentHandle;
-  }
-
-  /** Find a child folder by name within a parent folder. */
-  private async _findChildFolder(parentHandle: string, name: string): Promise<string | null> {
-    const nodesResp = await this._apiRequest([{ a: "f", c: 1 }]);
-    const nodesData = nodesResp[0] as { f?: Array<{ h: string; p: string; t: number; a: string; k: string }> } | undefined;
-    const nodes = nodesData?.f ?? [];
-
     const { MegaLibraryProvider } = await import("./cloudLibrary.js");
-
-    for (const n of nodes) {
-      if (n.p !== parentHandle || n.t !== 1) continue;
-      // Decrypt node name to match
-      try {
-        const keyParts = n.k.split(":");
-        const encNodeKey = MegaLibraryProvider._base64ToUint8(keyParts[keyParts.length - 1]!);
-        const decNodeKey = MegaLibraryProvider._aesEcbDecrypt(encNodeKey, this._masterKey!);
-        // Derive attribute key: for folders (16 bytes) use directly;
-        // for files (32 bytes) XOR the two halves.
-        let attrKey: Uint8Array;
-        if (decNodeKey.length >= 32) {
-          attrKey = new Uint8Array(16);
-          for (let i = 0; i < 16; i++) {
-            attrKey[i] = (decNodeKey[i] ?? 0) ^ (decNodeKey[i + 16] ?? 0);
-          }
-        } else {
-          attrKey = decNodeKey.slice(0, 16);
-        }
-        const encAttrs = MegaLibraryProvider._base64ToUint8(n.a);
-        const decAttrs = MegaLibraryProvider._aesEcbDecrypt(encAttrs, attrKey);
-        const attrStr = new TextDecoder().decode(decAttrs);
-        const jsonStart = attrStr.indexOf("{");
-        const jsonEnd = attrStr.lastIndexOf("}");
-        if (jsonStart < 0 || jsonEnd < 0) continue;
-        const attrs = JSON.parse(attrStr.slice(jsonStart, jsonEnd + 1)) as { n?: string };
-        if (attrs.n === name) return n.h;
-      } catch { continue; }
-    }
-    return null;
+    // Fetch the node tree once for all three path segments.
+    const nodes = await this._getNodes();
+    return this._walkPath(nodes, gameId, slot, MegaLibraryProvider);
   }
 
-  /** Create a folder under the given parent. Returns the new folder's handle. */
-  private async _createFolder(parentHandle: string, name: string): Promise<string> {
+  /**
+   * Create a folder under the given parent with properly encrypted attributes.
+   *
+   * Generates a random 128-bit node key, encrypts it with the master key
+   * (AES-ECB, as required by the MEGA API), and encrypts the attribute JSON
+   * with the node key using AES-CBC (IV = 0) — the format the official
+   * MEGA clients and our own reader expect.
+   */
+  private async _createFolder(
+    parentHandle: string,
+    name: string,
+    mega: {
+      _aesEcbEncryptBlock(b: Uint8Array, k: Uint8Array): Uint8Array;
+      _aesCbcEncrypt(d: Uint8Array, k: Uint8Array): Uint8Array;
+      _uint8ToBase64(b: Uint8Array): string;
+    },
+  ): Promise<string> {
+    const nodeKey = new Uint8Array(16);
+    crypto.getRandomValues(nodeKey);
+
+    const encKey  = mega._aesEcbEncryptBlock(nodeKey, this._masterKey!);
+    const plain   = new TextEncoder().encode("MEGA" + JSON.stringify({ n: name }));
+    const padded  = new Uint8Array(Math.ceil(plain.length / 16) * 16);
+    padded.set(plain);
+    const encAttr = mega._aesCbcEncrypt(padded, nodeKey);
+
     const resp = await this._apiRequest([{
       a: "p",
       t: parentHandle,
-      n: [{ h: "xxxxxxxx", t: 1, a: btoa(JSON.stringify({ n: name })), k: "" }],
+      n: [{
+        h: "xxxxxxxx",
+        t: 1,
+        a: mega._uint8ToBase64(encAttr),
+        k: mega._uint8ToBase64(encKey),
+      }],
     }]);
     const data = resp[0] as { f?: Array<{ h: string }> } | number;
     if (typeof data === "number" || !data?.f?.[0]?.h) {
@@ -2287,32 +2375,42 @@ export class MegaProvider implements CloudSaveProvider {
     return data.f[0].h;
   }
 
-  /** Upload a file to a MEGA folder. */
+  /**
+   * Upload a file to a MEGA folder, attaching it with properly encrypted
+   * node attributes so that subsequent reads can locate it by filename.
+   */
   private async _megaUploadFile(folderHandle: string, filename: string, content: Blob): Promise<void> {
-    // For simplicity, use MEGA's upload endpoint.
-    // Step 1: Request an upload URL.
-    const size = content.size;
+    const { MegaLibraryProvider } = await import("./cloudLibrary.js");
+    const size   = content.size;
     const ulResp = await this._apiRequest([{ a: "u", s: size }]);
     const ulData = ulResp[0] as { p?: string } | number;
     if (typeof ulData === "number" || !ulData?.p) {
       throw new Error(`MEGA upload request failed for "${filename}".`);
     }
 
-    // Step 2: Upload the data to the URL.
-    const uploadUrl = ulData.p;
     const buffer = await content.arrayBuffer();
-    const r = await this._timedFetch(uploadUrl, {
-      method: "POST",
-      body:   buffer,
-    });
+    const r = await this._timedFetch(ulData.p, { method: "POST", body: buffer });
     if (!r.ok) throw new Error(`MEGA upload failed (${r.status}): ${filename}`);
     const completionHandle = await r.text();
 
-    // Step 3: Attach the uploaded file to the folder.
+    // Encrypt node attributes and key before attaching.
+    const nodeKey = new Uint8Array(16);
+    crypto.getRandomValues(nodeKey);
+    const encKey  = MegaLibraryProvider._aesEcbEncryptBlock(nodeKey, this._masterKey!);
+    const plain   = new TextEncoder().encode("MEGA" + JSON.stringify({ n: filename }));
+    const padded  = new Uint8Array(Math.ceil(plain.length / 16) * 16);
+    padded.set(plain);
+    const encAttr = MegaLibraryProvider._aesCbcEncrypt(padded, nodeKey);
+
     const attachResp = await this._apiRequest([{
       a: "p",
       t: folderHandle,
-      n: [{ h: completionHandle, t: 0, a: btoa(JSON.stringify({ n: filename })), k: "" }],
+      n: [{
+        h: completionHandle,
+        t: 0,
+        a: MegaLibraryProvider._uint8ToBase64(encAttr),
+        k: MegaLibraryProvider._uint8ToBase64(encKey),
+      }],
     }]);
     const attachData = attachResp[0] as { f?: Array<{ h: string }> } | number;
     if (typeof attachData === "number") {
@@ -2320,45 +2418,22 @@ export class MegaProvider implements CloudSaveProvider {
     }
   }
 
-  /** Download a file by name from a MEGA folder. */
-  private async _megaDownloadFile(folderHandle: string, filename: string): Promise<Blob | null> {
+  /**
+   * Download a file by name from a MEGA folder.
+   * Accepts a pre-fetched node array to avoid redundant API calls when the
+   * caller already has the node tree (e.g. during download + listManifests).
+   */
+  private async _megaDownloadFile(
+    folderHandle: string,
+    filename: string,
+    nodes?: Array<{ h: string; p: string; t: number; a: string; k: string }>,
+  ): Promise<Blob | null> {
     try {
-      // Find the file node within the folder.
-      const nodesResp = await this._apiRequest([{ a: "f", c: 1 }]);
-      const nodesData = nodesResp[0] as { f?: Array<{ h: string; p: string; t: number; a: string; k: string }> } | undefined;
-      const nodes = nodesData?.f ?? [];
       const { MegaLibraryProvider } = await import("./cloudLibrary.js");
-
-      let fileHandle: string | null = null;
-      for (const n of nodes) {
-        if (n.p !== folderHandle || n.t !== 0) continue;
-        try {
-          const keyParts = n.k.split(":");
-          const encNodeKey = MegaLibraryProvider._base64ToUint8(keyParts[keyParts.length - 1]!);
-          const decNodeKey = MegaLibraryProvider._aesEcbDecrypt(encNodeKey, this._masterKey!);
-          let attrKey: Uint8Array;
-          if (decNodeKey.length >= 32) {
-            attrKey = new Uint8Array(16);
-            for (let i = 0; i < 16; i++) {
-              attrKey[i] = (decNodeKey[i] ?? 0) ^ (decNodeKey[i + 16] ?? 0);
-            }
-          } else {
-            attrKey = decNodeKey.slice(0, 16);
-          }
-          const encAttrs = MegaLibraryProvider._base64ToUint8(n.a);
-          const decAttrs = MegaLibraryProvider._aesEcbDecrypt(encAttrs, attrKey);
-          const attrStr = new TextDecoder().decode(decAttrs);
-          const jsonStart = attrStr.indexOf("{");
-          const jsonEnd = attrStr.lastIndexOf("}");
-          if (jsonStart < 0 || jsonEnd < 0) continue;
-          const attrs = JSON.parse(attrStr.slice(jsonStart, jsonEnd + 1)) as { n?: string };
-          if (attrs.n === filename) { fileHandle = n.h; break; }
-        } catch { continue; }
-      }
-
+      const allNodes   = nodes ?? await this._getNodes();
+      const fileHandle = this._findFileInNodes(allNodes, folderHandle, filename, MegaLibraryProvider);
       if (!fileHandle) return null;
 
-      // Get download URL.
       const dlResp = await this._apiRequest([{ a: "g", g: 1, n: fileHandle }]);
       const dlData = dlResp[0] as { g?: string } | number;
       if (typeof dlData === "number" || !dlData?.g) return null;

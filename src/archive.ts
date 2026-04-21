@@ -212,14 +212,11 @@ function isIOSBrowser(): boolean {
 }
 
 function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => {
-    const schedule = globalThis.queueMicrotask?.bind(globalThis);
-    if (schedule) {
-      schedule(() => resolve());
-      return;
-    }
-    setTimeout(resolve, 0);
-  });
+  // Use setTimeout (macrotask) so the browser can process input and rendering
+  // between chunks. queueMicrotask would schedule a microtask, which runs
+  // before the next task and therefore does NOT unblock the iOS WebKit watchdog
+  // timer — the tab would still freeze on large archives.
+  return new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
 /**

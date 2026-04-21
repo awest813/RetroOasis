@@ -648,8 +648,9 @@ export class MegaLibraryProvider implements CloudProvider {
       }
 
       // Decrypt the attributes.
+      // MEGA encrypts attributes with AES-CBC-128 (IV = 0), NOT ECB.
       const encAttrs = MegaLibraryProvider._base64ToUint8(node.a);
-      const decAttrs = MegaLibraryProvider._aesEcbDecrypt(encAttrs, attrKey);
+      const decAttrs = MegaLibraryProvider._aesCbcDecrypt(encAttrs, attrKey);
       const attrStr = new TextDecoder().decode(decAttrs);
 
       // Attributes start with "MEGA{" and contain JSON.
@@ -733,7 +734,7 @@ export class MegaLibraryProvider implements CloudProvider {
    * Uses the AES S-box and key schedule directly for a pure-JS implementation
    * that works in any browser without WebCrypto (which doesn't expose ECB).
    */
-  private static _aesEcbEncryptBlock(block: Uint8Array, key: Uint8Array): Uint8Array {
+  static _aesEcbEncryptBlock(block: Uint8Array, key: Uint8Array): Uint8Array {
     const expandedKey = MegaLibraryProvider._aesExpandKey(key);
     const state = new Uint8Array(block.slice(0, 16));
     const nRounds = expandedKey.length / 4 - 1;
@@ -848,6 +849,61 @@ export class MegaLibraryProvider implements CloudProvider {
       }
     }
     return expanded;
+  }
+
+  /**
+   * AES-CBC-128 decrypt with a zero IV.
+   *
+   * MEGA encrypts node attributes with AES-CBC (IV = 0) using the derived
+   * attribute key. The first ciphertext block is decrypted identically to
+   * ECB (because CBC block 0 XORs with the all-zero IV), but subsequent
+   * blocks must XOR with the previous ciphertext block — a step that plain
+   * ECB skips, causing garbled output for attributes longer than 16 bytes.
+   *
+   * @param data  Ciphertext, must be a multiple of 16 bytes.
+   * @param key   128-bit (16-byte) AES key.
+   */
+  static _aesCbcDecrypt(data: Uint8Array, key: Uint8Array): Uint8Array {
+    if (data.length === 0) return new Uint8Array(0);
+    // Decrypt each block with ECB first, then XOR-chain with the previous
+    // ciphertext block (IV = 0 means first block needs no XOR).
+    const ecbOut = MegaLibraryProvider._aesEcbDecrypt(data, key);
+    const result = new Uint8Array(ecbOut.length);
+    // First block: XOR with IV (all zeros) = identity
+    for (let i = 0; i < 16 && i < result.length; i++) {
+      result[i] = ecbOut[i]!;
+    }
+    // Subsequent blocks: XOR with the previous ciphertext block
+    for (let off = 16; off < result.length; off += 16) {
+      for (let i = 0; i < 16; i++) {
+        result[off + i] = ecbOut[off + i]! ^ data[off - 16 + i]!;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * AES-CBC-128 encrypt with a zero IV.
+   *
+   * Used when writing node attributes that RetroVault created so that our
+   * own reader (and the official MEGA client) can decrypt them correctly.
+   *
+   * @param data  Plaintext, must already be padded to a multiple of 16 bytes.
+   * @param key   128-bit (16-byte) AES key.
+   */
+  static _aesCbcEncrypt(data: Uint8Array, key: Uint8Array): Uint8Array {
+    const result = new Uint8Array(data.length);
+    let prevBlock = new Uint8Array(16); // IV = 0
+    for (let off = 0; off < data.length; off += 16) {
+      const plainBlock = new Uint8Array(16);
+      for (let i = 0; i < 16; i++) {
+        plainBlock[i] = (data[off + i] ?? 0) ^ prevBlock[i]!;
+      }
+      const cipherBlock = MegaLibraryProvider._aesEcbEncryptBlock(plainBlock, key);
+      result.set(cipherBlock, off);
+      prevBlock = new Uint8Array(cipherBlock);
+    }
+    return result;
   }
 
   /** MEGA-style base64url decode (no padding, + → - , / → _ ). */
