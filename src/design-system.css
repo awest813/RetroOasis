@@ -1,0 +1,104 @@
+/* ============================================================
+   RetroOasis — Design System Tokens
+   Dark Chrome UI v3: charcoal base, steel-blue & bronze accents.
+
+   Import this file before any component CSS that uses these tokens.
+   All tokens are declared on :root so they cascade freely.
+   ============================================================ */
+
+:root {
+  /* ── Dark Chrome Color Palette ── */
+  --c-bg:         #0a0a0d;
+  --c-surface:    #111116;
+  --c-surface2:   #18181f;
+  --c-surface3:   #212129;
+  --c-border:     #2d2d3a;
+  --c-border-lt:  #3d3d52;
+
+  /* Primary accent: Steel Blue — classic 2000s cool tech */
+  --c-accent:       #4a7fc0;
+  --c-accent-h:     #6699d8;
+  --c-accent-light: #8ab4e8;
+  --c-accent-dark:  #182840;
+  --c-accent-dim:   rgba(74, 127, 192, 0.15);
+  --c-accent-glow:  rgba(74, 127, 192, 0.30);
+
+  /* Secondary accent: Antique Bronze / Muted Gold */
+  --c-gold:       #b89040;
+  --c-gold-h:     #cca855;
+  --c-gold-dim:   rgba(184, 144, 64, 0.14);
+  --c-gold-glow:  rgba(184, 144, 64, 0.25);
+
+  /* Tertiary: Silver-slate for info states */
+  --c-accent-2:      #7a98b8;
+  --c-accent-2-dim:  rgba(122, 152, 184, 0.14);
+  --c-accent-2-glow: rgba(122, 152, 184, 0.25);
+
+  /* Legacy aliases (kept for system color compatibility) */
+  --c-joy-red:    #c84040;
+  --c-joy-blue:   #3a72cc;
+  --c-joy-red-dim:  rgba(200, 64, 64, 0.12);
+  --c-joy-blue-dim: rgba(58, 114, 204, 0.12);
+
+  /* Semantic colors */
+  --c-danger:     #c84040;
+  --c-warn:       #b89040;
+  --c-success:    #3a9a60;
+  --c-fav:        #f43f5e; /* favorites / star / heart highlight */
+
+  /* Text hierarchy */
+  --c-text:       #dcdce8;
+  --c-text-dim:   #848499;
+  --c-text-faint: #545468;
+  --c-text-muted: #696978;
+
+  /* ── Shape & Sizing ── */
+  --radius:       8px;
+  --radius-sm:    5px;
+  --radius-lg:    13px;
+  --radius-xl:    18px;
+  --radius-pill:  999px;
+
+  /* ── Safe area insets (iOS notch / home bar) ── */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+
+  /* ── Layout ── */
+  --header-h:     64px;
+  --footer-h:     38px;
+  --sidebar-w:    300px;
+  --settings-sidebar-w: 162px;
+  --toast-bottom: calc(var(--footer-h) + var(--safe-bottom) + 14px);
+
+  /* ── Transitions ── */
+  --transition:       0.18s ease;
+  --transition-fast:  0.1s ease;
+  --transition-med:   0.25s ease;
+  --spring:           0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-fast:      0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Shadows ── */
+  --shadow:       0 20px 60px rgba(0, 0, 0, 0.85);
+  --shadow-sm:    0 4px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg:    0 32px 80px rgba(0, 0, 0, 0.90);
+  --shadow-card:  0 4px 16px rgba(0, 0, 0, 0.65);
+  --shadow-lift:  0 14px 40px rgba(0, 0, 0, 0.75);
+
+  /* ── Glass / depth ── */
+  --glass-bg:     rgba(10, 10, 13, 0.95);
+  --glass-border: rgba(55, 55, 75, 0.50);
+
+  /* ── Typography — Exo 2 for display headings, Inter for body ── */
+  --font-display: "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", "Trebuchet MS", sans-serif;
+  --font-mono:    "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--c-text);
+  background: var(--c-bg);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
