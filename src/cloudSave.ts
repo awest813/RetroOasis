@@ -2017,6 +2017,29 @@ const MEGA_AVAILABILITY_TIMEOUT_MS = 15_000;
 const MEGA_OPERATION_TIMEOUT_MS    = 30_000;
 
 /**
+ * Pad `data` to the next 16-byte boundary using zero bytes.
+ * MEGA uses zero-padding (not PKCS#7) for AES-CBC attribute blocks.
+ */
+function zeroPadTo16(data: Uint8Array): Uint8Array {
+  const padLen = Math.ceil(data.length / 16) * 16;
+  if (padLen === data.length) return data;
+  const padded = new Uint8Array(padLen);
+  padded.set(data);
+  return padded;
+}
+
+/**
+ * Build and encrypt a MEGA node attribute blob from a display name.
+ * Format: AES-CBC(zero-pad("MEGA" + JSON.stringify({n: name})), nodeKey, IV=0)
+ */
+async function encryptMegaAttr(name: string, nodeKey: Uint8Array): Promise<string> {
+  const { MegaLibraryProvider } = await import("./cloudLibrary.js");
+  const plain   = new TextEncoder().encode("MEGA" + JSON.stringify({ n: name }));
+  const encAttr = MegaLibraryProvider._aesCbcEncrypt(zeroPadTo16(plain), nodeKey);
+  return MegaLibraryProvider._uint8ToBase64(encAttr);
+}
+
+/**
  * CloudSaveProvider backed by MEGA cloud storage.
  *
  * MEGA uses end-to-end encryption.  This provider authenticates with
@@ -2345,7 +2368,6 @@ export class MegaProvider implements CloudSaveProvider {
     name: string,
     mega: {
       _aesEcbEncryptBlock(b: Uint8Array, k: Uint8Array): Uint8Array;
-      _aesCbcEncrypt(d: Uint8Array, k: Uint8Array): Uint8Array;
       _uint8ToBase64(b: Uint8Array): string;
     },
   ): Promise<string> {
@@ -2353,10 +2375,7 @@ export class MegaProvider implements CloudSaveProvider {
     crypto.getRandomValues(nodeKey);
 
     const encKey  = mega._aesEcbEncryptBlock(nodeKey, this._masterKey!);
-    const plain   = new TextEncoder().encode("MEGA" + JSON.stringify({ n: name }));
-    const padded  = new Uint8Array(Math.ceil(plain.length / 16) * 16);
-    padded.set(plain);
-    const encAttr = mega._aesCbcEncrypt(padded, nodeKey);
+    const encAttr = await encryptMegaAttr(name, nodeKey);
 
     const resp = await this._apiRequest([{
       a: "p",
@@ -2364,7 +2383,7 @@ export class MegaProvider implements CloudSaveProvider {
       n: [{
         h: "xxxxxxxx",
         t: 1,
-        a: mega._uint8ToBase64(encAttr),
+        a: encAttr,
         k: mega._uint8ToBase64(encKey),
       }],
     }]);
@@ -2397,10 +2416,7 @@ export class MegaProvider implements CloudSaveProvider {
     const nodeKey = new Uint8Array(16);
     crypto.getRandomValues(nodeKey);
     const encKey  = MegaLibraryProvider._aesEcbEncryptBlock(nodeKey, this._masterKey!);
-    const plain   = new TextEncoder().encode("MEGA" + JSON.stringify({ n: filename }));
-    const padded  = new Uint8Array(Math.ceil(plain.length / 16) * 16);
-    padded.set(plain);
-    const encAttr = MegaLibraryProvider._aesCbcEncrypt(padded, nodeKey);
+    const encAttr = await encryptMegaAttr(filename, nodeKey);
 
     const attachResp = await this._apiRequest([{
       a: "p",
@@ -2408,7 +2424,7 @@ export class MegaProvider implements CloudSaveProvider {
       n: [{
         h: completionHandle,
         t: 0,
-        a: MegaLibraryProvider._uint8ToBase64(encAttr),
+        a: encAttr,
         k: MegaLibraryProvider._uint8ToBase64(encKey),
       }],
     }]);
@@ -2417,6 +2433,7 @@ export class MegaProvider implements CloudSaveProvider {
       throw new Error(`MEGA file attach failed for "${filename}".`);
     }
   }
+
 
   /**
    * Download a file by name from a MEGA folder.

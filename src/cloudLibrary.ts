@@ -866,14 +866,15 @@ export class MegaLibraryProvider implements CloudProvider {
   static _aesCbcDecrypt(data: Uint8Array, key: Uint8Array): Uint8Array {
     if (data.length === 0) return new Uint8Array(0);
     // Decrypt each block with ECB first, then XOR-chain with the previous
-    // ciphertext block (IV = 0 means first block needs no XOR).
+    // ciphertext block (IV = 0 means the first block needs no XOR).
     const ecbOut = MegaLibraryProvider._aesEcbDecrypt(data, key);
     const result = new Uint8Array(ecbOut.length);
-    // First block: XOR with IV (all zeros) = identity
-    for (let i = 0; i < 16 && i < result.length; i++) {
+    // First block: XOR with IV (all zeros) is a no-op — copy directly.
+    for (let i = 0; i < 16; i++) {
       result[i] = ecbOut[i]!;
     }
-    // Subsequent blocks: XOR with the previous ciphertext block
+    // Subsequent blocks: XOR each ECB-decrypted block with the previous
+    // ciphertext block.
     for (let off = 16; off < result.length; off += 16) {
       for (let i = 0; i < 16; i++) {
         result[off + i] = ecbOut[off + i]! ^ data[off - 16 + i]!;
