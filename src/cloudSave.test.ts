@@ -2348,7 +2348,10 @@ describe("MegaProvider — isAvailable", () => {
     }));
     const p = new MegaProvider("user@mega.nz", "wrong");
     expect(await p.isAvailable()).toBe(false);
-  });
+  // MegaProvider._login() runs _derivePasswordKey (65,536 AES rounds) and
+  // _computeUserHash (16,384 AES rounds) synchronously on the first call
+  // before V8's JIT has warmed up. Give the test enough headroom.
+  }, 20_000);
 
   it("returns false when fetch throws (network error)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
