@@ -13,6 +13,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { RetroOasisStore } from "./RetroOasisStore.js";
+import type { SettingsSlice } from "./RetroOasisStore.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ describe("subscribe", () => {
     s.subscribe("settings", cb);
     s.set("settings", { volume: 0.3 });
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb.mock.calls[0]![0].volume).toBe(0.3);
+    expect((cb.mock.calls[0]![0] as SettingsSlice).volume).toBe(0.3);
   });
 
   it("listener receives a snapshot, not the internal state", () => {
@@ -174,7 +175,7 @@ describe("batch", () => {
 
     expect(settingsCb).toHaveBeenCalledOnce();
     expect(libraryCb).toHaveBeenCalledOnce();
-    expect(settingsCb.mock.calls[0]![0].showFPS).toBe(true);
+    expect((settingsCb.mock.calls[0]![0] as SettingsSlice).showFPS).toBe(true);
   });
 
   it("does not call listeners during the batch", () => {
@@ -205,7 +206,7 @@ describe("batch", () => {
     });
 
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb.mock.calls[0]![0].volume).toBe(0.6);
+    expect((cb.mock.calls[0]![0] as SettingsSlice).volume).toBe(0.6);
   });
 
   it("still notifies after batch even if fn throws", () => {
