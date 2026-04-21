@@ -222,7 +222,8 @@ function _buildSessionEntry(
   const sysIcon = opts.getSystemIcon(session.systemId);
   const iconEl  = make("span", { class: "highlights-session-entry__icon", "aria-hidden": "true" });
   if (sysIcon.includes("/assets/")) {
-    iconEl.innerHTML = `<img src="${sysIcon}" alt="" class="highlights-session-entry__sys-img" />`;
+    const img = make("img", { src: sysIcon, alt: "", class: "highlights-session-entry__sys-img" });
+    iconEl.appendChild(img);
   } else {
     iconEl.textContent = sysIcon;
   }

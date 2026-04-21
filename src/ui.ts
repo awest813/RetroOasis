@@ -166,7 +166,7 @@ import {
   resetDevOverlayCache,
 } from "./modules/DevOverlay.js";
 import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
-import { buildHighlightsPanel } from "./ui/highlightsPanel.js";
+import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -1249,7 +1249,7 @@ export async function renderLibrary(
       const favorites       = allGames.filter(g => g.isFavorite);
       let recentSessions: import("./sessionTracker.js").PlaySession[] = [];
       try {
-        recentSessions = await sessionTracker.getRecentSessions(5);
+        recentSessions = await sessionTracker.getRecentSessions(HIGHLIGHTS_MAX_SESSIONS);
       } catch {
         // IDB may be unavailable in some test/SSR environments; degrade gracefully
       }

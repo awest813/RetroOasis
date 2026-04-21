@@ -276,10 +276,11 @@ export class SessionTracker {
   }
 
   /**
-   * Return the `limit` most-recently-ended sessions, newest first.
+   * Return the `limit` most-recently-started sessions, newest first.
    *
-   * Uses the `startedAt` index in reverse to avoid a full table scan.
-   * Returns an empty array when no sessions exist or `limit` is 0.
+   * Uses the `startedAt` index in reverse — a reliable proxy for end-time
+   * ordering because sessions rarely overlap significantly.  Returns an empty
+   * array when no sessions exist or `limit` is 0.
    */
   async getRecentSessions(limit: number): Promise<PlaySession[]> {
     if (limit <= 0) return [];
