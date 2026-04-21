@@ -164,6 +164,27 @@ function resolveNetplayRoom(gameId: string, systemId?: string): { roomKey: strin
 
 const STORAGE_KEY = "rv:netplay";
 
+/**
+ * Sanitize a player display name for safe use in netplay sessions.
+ *
+ * - Trims leading/trailing whitespace.
+ * - Strips ASCII and Unicode control characters (C0, C1, and the DEL char).
+ * - Collapses interior runs of whitespace to a single space.
+ * - Enforces a maximum length of 32 characters to prevent UI overflow and
+ *   potential server-side issues with unbounded strings.
+ * - Falls back to an empty string (which callers should then replace with
+ *   "Player" or similar) rather than throwing.
+ */
+export function sanitizeDisplayName(raw: string): string {
+  if (typeof raw !== "string") return "";
+  return raw
+    // Strip C0 controls (0x00–0x1F), DEL (0x7F), and C1 controls (0x80–0x9F).
+    .replace(/[\x00-\x1F\x7F\x80-\x9F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32);
+}
+
 export interface NetplaySettings {
   enabled:    boolean;
   serverUrl:  string;

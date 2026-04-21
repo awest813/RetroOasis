@@ -12,6 +12,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="RetroOasis" />
 
+    <!--
+      Content-Security-Policy hardening.
+      Note: frame-ancestors must be set as an HTTP header and is not honoured
+      here, so production deployments should also set it via the server or CDN.
+
+      Explanation of directives:
+        base-uri 'self'   — prevent <base href> injection that could redirect
+                            relative URLs to an attacker-controlled origin.
+        object-src 'none' — disallow <object>/<embed>/<applet> plugin content,
+                            which is a common XSS escalation vector.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+          content="base-uri 'self'; object-src 'none';" />
+
     <!-- PWA manifest -->
     <link rel="manifest" href="./manifest.json" />
 

@@ -30,6 +30,7 @@ import {
 } from "./signalingClient.js";
 import { DiagnosticsLog, MSG } from "./diagnostics.js";
 import { checkSystemSupport, checkGameCompatibility } from "./compatibility.js";
+import { sanitizeDisplayName } from "../multiplayer.js";
 
 // ── EasyNetplayManager ────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ export class EasyNetplayManager {
     this._hostAbort = new AbortController();
 
     try {
-      const displayName = options.hostName.trim() || "Player";
+      const displayName = sanitizeDisplayName(options.hostName) || "Player";
       const createOpts: CreateRoomOptions = {
         name:       `${displayName}'s Room`,
         gameId:     options.gameId,
@@ -441,7 +442,7 @@ export class EasyNetplayManager {
     const sessionSeed = `local_${options.gameId}_${Date.now()}`;
     const id   = sessionSeed;
     const code = generateInviteCode(sessionSeed);
-    const displayName = options.hostName.trim() || "Player";
+    const displayName = sanitizeDisplayName(options.hostName) || "Player";
     return {
       id,
       code,
@@ -450,7 +451,7 @@ export class EasyNetplayManager {
       gameId:      options.gameId,
       gameName:    options.gameName,
       systemId:    options.systemId,
-      hostName:    options.hostName,
+      hostName:    displayName,
       playerCount: 1,
       maxPlayers:  options.maxPlayers ?? 2,
       hasPassword: Boolean(options.password),

@@ -206,8 +206,11 @@ function openOAuthPopup(url: string, expectedState: string): Promise<OAuthResult
     };
 
     const onMessage = (event: MessageEvent) => {
-      // Only accept messages from our own origin.
+      // Only accept messages from our own origin AND from the popup window we
+      // opened.  The origin check guards against cross-origin iframes; the
+      // source check prevents same-origin iframes from hijacking the flow.
       if (event.origin !== window.location.origin) return;
+      if (event.source !== popup) return;
 
       const data = event.data as { type?: string; accessToken?: string; state?: string; error?: string } | null;
       if (!data || data.type !== "retrooasis-oauth-callback") return;
