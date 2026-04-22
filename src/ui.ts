@@ -3564,13 +3564,13 @@ async function showInGameMenu(ctx: {
         card.querySelector(".btn-load")?.addEventListener("click", async (e) => {
           e.stopPropagation();
           if (ctx.saveService) {
-            busyEl?.classList.add("active");
             let integrityWarning = false;
             const unsubStatus = ctx.saveService.onStatus((evt) => {
               if (evt.gameId === gameId && evt.slot === slotIdx && evt.status === "integrity-warning") {
                 integrityWarning = true;
               }
             });
+            busyEl?.classList.add("active");
             try {
               const ok = await ctx.saveService.loadSlot(slotIdx);
               if (ok) {
@@ -3626,11 +3626,8 @@ async function showInGameMenu(ctx: {
           let renameCancelled = false;
           const finish = async () => {
             if (renameCancelled) {
-              // Restore the label element without writing to the DB.
-              const restoredDiv = document.createElement("div");
-              restoredDiv.className = "ingame-menu__save-label";
-              restoredDiv.textContent = currentLabel;
-              input.replaceWith(restoredDiv);
+              // Restore the original label element without writing to the DB.
+              input.replaceWith(labelEl);
               return;
             }
             const newLabel = input.value.trim();
