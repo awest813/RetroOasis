@@ -1,8 +1,24 @@
-import { defineConfig } from "vite";
+import { cpSync, existsSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
+import { defineConfig, type Plugin } from "vite";
+
+function copyEmulatorDataPlugin(): Plugin {
+  return {
+    name: "copy-emulator-data",
+    closeBundle() {
+      const source = resolve("data");
+      const target = resolve("dist", "data");
+      if (!existsSync(source)) return;
+      rmSync(target, { recursive: true, force: true });
+      cpSync(source, target, { recursive: true });
+    },
+  };
+}
 
 export default defineConfig({
   // Serve from repo root; Vite will pick up index.html automatically.
   root: ".",
+  plugins: [copyEmulatorDataPlugin()],
 
   // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
   // Has no effect during local `vite dev` because the dev server serves from /.
