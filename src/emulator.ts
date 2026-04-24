@@ -472,6 +472,7 @@ interface EJSEmulatorInstance {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const EJS_CDN_BASE = "https://cdn.emulatorjs.org/stable/data/";
+export const EJS_DATA_BASE = new URL(/* @vite-ignore */ "../data/", import.meta.url).toString();
 
 /** Warn when a ROM file exceeds this size (500 MB). */
 const LARGE_ROM_THRESHOLD = 500 * 1024 * 1024;
@@ -1185,7 +1186,7 @@ export class PSPEmulator {
    * before the user actually launches a game.
    */
   prefetchLoader(): void {
-    const loaderUrl = `${EJS_CDN_BASE}loader.js`;
+    const loaderUrl = `${EJS_DATA_BASE}loader.js`;
     if (document.querySelector(`link[href="${loaderUrl}"]`)) return;
 
     const link = document.createElement("link");
@@ -2220,7 +2221,7 @@ export class PSPEmulator {
       window.EJS_core          = system.coreId ?? system.id;
       window.EJS_gameUrl       = this._blobUrl;
       window.EJS_gameName      = gameName;
-      window.EJS_pathtodata    = EJS_CDN_BASE;
+      window.EJS_pathtodata    = EJS_DATA_BASE;
       window.EJS_startOnLoaded = true;
       window.EJS_threads       = system.needsThreads;
       window.EJS_volume        = opts.volume;
@@ -2368,7 +2369,7 @@ export class PSPEmulator {
       };
 
       // ── Inject / reuse loader.js ──────────────────────────────────────────
-      await this._loadScript(`${EJS_CDN_BASE}loader.js`);
+      await this._loadScript(`${EJS_DATA_BASE}loader.js`);
 
       // ── Launch watchdog ───────────────────────────────────────────────────
       // EJS_onGameStart fires asynchronously after the core and ROM load.
@@ -3141,6 +3142,17 @@ export class PSPEmulator {
     const promise = new Promise<void>((resolve, reject) => {
       const script = document.createElement("script");
       script.src = src;
+      let scriptOrigin = window.location.origin;
+      if (typeof URL === "function") {
+        scriptOrigin = new URL(src, window.location.href).origin;
+      } else {
+        const urlParser = document.createElement("a");
+        urlParser.href = src;
+        scriptOrigin = urlParser.origin;
+      }
+      if (scriptOrigin !== window.location.origin) {
+        script.crossOrigin = "anonymous";
+      }
       script.setAttribute("data-ejs-loader", "true");
       script.onload  = () => resolve();
       script.onerror = () =>

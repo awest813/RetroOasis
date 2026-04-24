@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { PSPEmulator, EJS_CDN_BASE, clearWebGL2SupportCache } from "./emulator.js";
+import { PSPEmulator, EJS_CDN_BASE, EJS_DATA_BASE, clearWebGL2SupportCache } from "./emulator.js";
 import { NetplayManager } from "./multiplayer.js";
 
 describe('PSPEmulator', () => {
@@ -273,7 +273,7 @@ describe('PSPEmulator', () => {
 
   describe('prefetchLoader', () => {
     it('injects a prefetch link for the loader script', () => {
-      const loaderUrl = `${EJS_CDN_BASE}loader.js`;
+      const loaderUrl = `${EJS_DATA_BASE}loader.js`;
       emulator.prefetchLoader();
 
       const link = document.head.querySelector(`link[href="${loaderUrl}"]`);
@@ -285,7 +285,7 @@ describe('PSPEmulator', () => {
       emulator.prefetchLoader();
       emulator.prefetchLoader();
 
-      const loaderUrl = `${EJS_CDN_BASE}loader.js`;
+      const loaderUrl = `${EJS_DATA_BASE}loader.js`;
       const links = document.head.querySelectorAll(`link[href="${loaderUrl}"]`);
       expect(links.length).toBe(1);
     });
@@ -640,6 +640,28 @@ describe('PSPEmulator', () => {
     afterEach(() => {
       vi.useRealTimers();
       vi.restoreAllMocks();
+    });
+
+    it('launches through the bundled same-origin EmulatorJS loader data path', async () => {
+      let scriptSrc = '';
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async (src: string) => {
+          scriptSrc = src;
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      await emulator.launch({
+        file:            nesFile,
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      nesCaps,
+      });
+
+      expect(scriptSrc).toBe(`${EJS_DATA_BASE}loader.js`);
+      expect(window.EJS_pathtodata).toBe(EJS_DATA_BASE);
+      expect(emulator.state).toBe('running');
     });
 
     it('emits an error and transitions to "error" state if EJS_onGameStart never fires within 120 s', async () => {
