@@ -277,7 +277,7 @@ export function buildDOM(app: HTMLElement): void {
         <img src="${resolveAssetUrl("assets/logo_premium.png")}" alt="${APP_NAME}" class="brand-logo" width="36" height="36" decoding="async" fetchpriority="high" draggable="false" />
         <span class="brand-lockup">
           <span class="brand-long">${APP_NAME}</span>
-          <span class="brand-tag">Browser arcade sanctuary</span>
+          <span class="brand-tag">Portable game library</span>
         </span>
         <span class="brand-short" aria-hidden="true">${APP_SHORT_NAME}</span>
       </div>
@@ -366,7 +366,7 @@ export function buildDOM(app: HTMLElement): void {
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </div>
-          <p class="drop-zone__label">${touchUI ? "Tap to stock your oasis" : `Drop a game into ${APP_NAME}`}</p>
+          <p class="drop-zone__label">${touchUI ? "Tap to add a game" : "Drop a game to begin"}</p>
           <p class="drop-zone__sub" id="drop-zone-subtitle">${touchUI ? "Choose a ROM, archive, or disc image from your device" : 'ROMs, archives, and disc images launch locally, or <span class="drop-zone__browse">browse your device</span>'}</p>
           <div class="drop-zone__actions">
             <button class="btn btn--primary btn--sm drop-zone__cta" id="btn-add-game-onboarding" type="button">Choose Files</button>
@@ -379,7 +379,7 @@ export function buildDOM(app: HTMLElement): void {
           <div class="welcome-hero">
             <p class="welcome-hero__eyebrow">First run</p>
             <h2 class="welcome-hero__title" id="onboarding-title">Build your calm little arcade.</h2>
-            <p class="welcome-hero__tagline">${APP_NAME} detects the system, organizes your library, and gets you playing in a few quiet clicks.</p>
+            <p class="welcome-hero__tagline">${APP_NAME} keeps your retro library simple, calm, and ready to play.</p>
           </div>
 
           <div class="onboarding__grid">
@@ -8310,4 +8310,3 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
 }
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
-
