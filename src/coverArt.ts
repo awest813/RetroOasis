@@ -235,6 +235,64 @@ const DEFAULT_REPO_REF   = "master";
 
 const IMAGE_EXT_RE = /\.(?:png|jpe?g|webp|avif|gif)$/i;
 
+const GITHUB_POPULAR_COVER_SOURCE = "GitHub popular covers";
+
+interface PreloadedGitHubCoverArtEntry {
+  title: string;
+  repo: string;
+  path: string;
+}
+
+/**
+ * Small no-API preload of high-traffic covers hosted in GitHub thumbnail
+ * repositories. This improves first-run results for systems that are absent
+ * from `cover-art-collection` (PSX, N64, Dreamcast) and gives SNES a fast path
+ * before falling back to directory listings.
+ */
+const PRELOADED_GITHUB_COVERS: Readonly<Record<string, readonly PreloadedGitHubCoverArtEntry[]>> = Object.freeze({
+  psx: [
+    { title: "Final Fantasy VII", repo: "Sony_-_PlayStation", path: "Named_Boxarts/Final Fantasy VII (USA) (Disc 1).png" },
+    { title: "Metal Gear Solid", repo: "Sony_-_PlayStation", path: "Named_Boxarts/Metal Gear Solid (USA) (Disc 1).png" },
+    { title: "Resident Evil 2", repo: "Sony_-_PlayStation", path: "Named_Boxarts/Resident Evil 2 - Dual Shock Ver. (USA) (Disc 1).png" },
+    { title: "Castlevania - Symphony of the Night", repo: "Sony_-_PlayStation", path: "Named_Boxarts/Castlevania - Symphony of the Night (USA).png" },
+    { title: "Tekken 3", repo: "Sony_-_PlayStation", path: "Named_Boxarts/Tekken 3 (USA).png" },
+  ],
+  n64: [
+    { title: "Super Mario 64", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Super Mario 64 (USA).png" },
+    { title: "The Legend of Zelda - Ocarina of Time", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Legend of Zelda, The - Ocarina of Time (USA).png" },
+    { title: "GoldenEye 007", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/GoldenEye 007 (USA).png" },
+    { title: "Mario Kart 64", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Mario Kart 64 (USA).png" },
+    { title: "Super Smash Bros.", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Super Smash Bros. (USA).png" },
+    { title: "Banjo-Kazooie", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Banjo-Kazooie (USA).png" },
+    { title: "Perfect Dark", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Perfect Dark (USA).png" },
+    { title: "Star Fox 64", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Star Fox 64 (USA).png" },
+    { title: "F-Zero X", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/F-Zero X (USA).png" },
+    { title: "Paper Mario", repo: "Nintendo_-_Nintendo_64", path: "Named_Boxarts/Paper Mario (USA).png" },
+  ],
+  segaDC: [
+    { title: "Shenmue", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Shenmue (USA) (Disc 1).png" },
+    { title: "Crazy Taxi", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Crazy Taxi (USA).png" },
+    { title: "Jet Grind Radio", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Jet Grind Radio (USA).png" },
+    { title: "Marvel vs. Capcom 2", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Marvel vs. Capcom 2 (USA).png" },
+    { title: "Power Stone", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Power Stone (USA).png" },
+    { title: "Phantasy Star Online", repo: "Sega_-_Dreamcast", path: "Named_Boxarts/Phantasy Star Online (USA).png" },
+  ],
+  snes: [
+    { title: "Chrono Trigger", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/Chrono Trigger (USA).png" },
+    { title: "Donkey Kong Country", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/Donkey Kong Country (USA).png" },
+    { title: "Final Fantasy III", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/Final Fantasy III (USA).png" },
+    { title: "F-Zero", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/F-Zero (USA).png" },
+    { title: "EarthBound", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/EarthBound (USA).png" },
+    { title: "Super Mario World 2 - Yoshi's Island", repo: "Nintendo_-_Super_Nintendo_Entertainment_System", path: "Named_Boxarts/Super Mario World 2 - Yoshi's Island (USA) (Rev 1).png" },
+  ],
+});
+
+function rawGitHubContentUrl(owner: string, repo: string, ref: string, path: string): string {
+  return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}` +
+    `/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/` +
+    path.split("/").map(part => encodeURIComponent(part)).join("/");
+}
+
 /** Tunable options for the GitHub provider. Exposed mainly for tests. */
 export interface GitHubProviderOptions {
   owner?:  string;
@@ -296,6 +354,11 @@ export class GitHubCoverArtProvider implements CoverArtProvider {
     const normQuery = normalizeRomName(name);
     if (!normQuery) return [];
 
+    const preloaded = this.searchPreloadedCovers(normQuery, systemId, limit);
+    if (preloaded.length > 0 && preloaded[0]!.score >= AUTO_APPLY_CONFIDENCE_THRESHOLD) {
+      return preloaded;
+    }
+
     for (const folder of folders) {
       if (opts.signal?.aborted) return [];
       let entries: GitHubContentEntry[];
@@ -328,7 +391,32 @@ export class GitHubCoverArtProvider implements CoverArtProvider {
       scored.sort((a, b) => b.score - a.score);
       return scored.slice(0, limit);
     }
-    return [];
+    return preloaded;
+  }
+
+  private searchPreloadedCovers(
+    normQuery: string,
+    systemId: string,
+    limit: number,
+  ): CoverArtCandidate[] {
+    const entries = PRELOADED_GITHUB_COVERS[systemId];
+    if (!entries) return [];
+
+    const scored: CoverArtCandidate[] = [];
+    for (const entry of entries) {
+      const score = diceCoefficient(normQuery, normalizeRomName(entry.title));
+      if (score <= 0) continue;
+      scored.push({
+        title: entry.title,
+        systemId,
+        imageUrl: rawGitHubContentUrl("libretro-thumbnails", entry.repo, "master", entry.path),
+        sourceName: GITHUB_POPULAR_COVER_SOURCE,
+        score,
+      });
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
   }
 
   /**

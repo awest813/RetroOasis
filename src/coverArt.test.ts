@@ -243,6 +243,45 @@ describe("GitHubCoverArtProvider", () => {
     for (const r of results) expect(r.title).not.toMatch(/readme/i);
   });
 
+  it("returns preloaded GitHub covers for popular PSX games without fetching a folder listing", async () => {
+    let called = 0;
+    const fetchImpl = (async (): Promise<Response> => {
+      called++;
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+    const p = new GitHubCoverArtProvider({ fetchImpl });
+
+    const results = await p.search("Final Fantasy VII (Disc 1).cue", "psx", { limit: 3 });
+
+    expect(called).toBe(0);
+    expect(results[0]!.title).toBe("Final Fantasy VII");
+    expect(results[0]!.sourceName).toBe("GitHub popular covers");
+    expect(results[0]!.score).toBeGreaterThanOrEqual(AUTO_APPLY_CONFIDENCE_THRESHOLD);
+    expect(results[0]!.imageUrl).toBe(
+      "https://raw.githubusercontent.com/libretro-thumbnails/Sony_-_PlayStation/master/Named_Boxarts/Final%20Fantasy%20VII%20(USA)%20(Disc%201).png",
+    );
+  });
+
+  it("preloads popular N64, Dreamcast, and SNES GitHub covers", async () => {
+    let called = 0;
+    const fetchImpl = (async (): Promise<Response> => {
+      called++;
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+    const p = new GitHubCoverArtProvider({ fetchImpl });
+
+    const [n64, dc, snes] = await Promise.all([
+      p.search("Super Mario 64.z64", "n64", { limit: 1 }),
+      p.search("Crazy Taxi.gdi", "segaDC", { limit: 1 }),
+      p.search("Chrono Trigger.sfc", "snes", { limit: 1 }),
+    ]);
+
+    expect(called).toBe(0);
+    expect(n64[0]!.imageUrl).toContain("Nintendo_-_Nintendo_64");
+    expect(dc[0]!.imageUrl).toContain("Sega_-_Dreamcast");
+    expect(snes[0]!.imageUrl).toContain("Nintendo_-_Super_Nintendo_Entertainment_System");
+  });
+
   it("caches folder listings across calls", async () => {
     let calls = 0;
     const fetchImpl = (async (): Promise<Response> => {
