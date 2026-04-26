@@ -1532,7 +1532,7 @@ describe('performance', () => {
       detectCapabilitiesCached(); // populate
       expect(() => clearCapabilitiesCache()).not.toThrow();
       // After clearing, sessionStorage should not have the key
-      expect(sessionStorage.getItem('retrovault-devcaps-v1')).toBeNull();
+      expect(sessionStorage.getItem('retro-oasis-devcaps-v1')).toBeNull();
     });
   });
 
@@ -2211,7 +2211,7 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('psx', '4x')).toEqual({ beetle_psx_hw_internal_resolution: '4x' });
     });
 
-    it('returns empty object for Saturn (Yabause has no resolution ladder in RetroVault)', () => {
+    it('returns empty object for Saturn (Yabause has no resolution ladder in RetroOasis)', () => {
       expect(getResolutionCoreOptions('segaSaturn', '2x')).toEqual({});
     });
 

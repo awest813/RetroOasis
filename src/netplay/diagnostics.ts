@@ -96,7 +96,7 @@ export const MSG = {
   // Compatibility
   gameMismatch:         "Game versions may not match — make sure you and your friend have the same ROM.",
   systemMismatch:       "System mismatch — you and the host are not running the same system.",
-  unsupportedSystem:    "This game doesn't support RetroVault Play Together multiplayer.",
+  unsupportedSystem:    "This game doesn't support RetroOasis Play Together multiplayer.",
 
   // Session
   sessionStarting:      "Starting game session…",

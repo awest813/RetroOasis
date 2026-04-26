@@ -3,7 +3,7 @@
  *
  * Schema
  * ------
- * Database : "retrovault-saves"
+ * Database : "retro-oasis-saves"
  * Version  : 3
  * Store    : "states"  (keyPath = "id")
  *   id          string   — composite key "{gameId}:{slot}"
@@ -47,7 +47,7 @@ export const SAVE_FORMAT_VERSION = 1;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DB_NAME    = "retrovault-saves";
+const DB_NAME    = "retro-oasis-saves";
 const DB_VERSION = 3;
 const STORE_NAME = "states";
 

@@ -50,14 +50,14 @@ export interface SystemInfo {
   needsWebGL2: boolean;
   /**
    * How touch controls should behave on mobile.
-   * - `"overlay"`: RetroVault's virtual controls are useful for this system.
-   * - `"builtin"`: The core has its own touch-first UI, so RetroVault should
+   * - `"overlay"`: RetroOasis's virtual controls are useful for this system.
+   * - `"builtin"`: The core has its own touch-first UI, so RetroOasis should
    *   keep its overlay off by default.
    */
   touchControlMode?: "overlay" | "builtin";
   /**
    * Whether this system requires a BIOS file to operate.
-   * When true, RetroVault will check the BIOS store before launch.
+   * When true, RetroOasis will check the BIOS store before launch.
    */
   needsBios?: boolean;
   /**

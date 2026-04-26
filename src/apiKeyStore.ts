@@ -48,7 +48,7 @@ export interface ApiKeyChangeEvent {
   kind: "key" | "enabled" | "order" | "reset";
 }
 
-const DEFAULT_NAMESPACE = "retrovault.apiKeys";
+const DEFAULT_NAMESPACE = "retro-oasis.apiKeys";
 const URL_LIKE_RE = /^https?:\/\//i;
 
 /** Heuristics for detecting obviously-wrong pasted values. */
@@ -260,7 +260,7 @@ function getDefaultStorage(): Storage {
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       // Touch the API to surface SecurityError (e.g. some privacy modes).
-      const probeKey = "__retrovault_probe__";
+      const probeKey = "__retro-oasis_probe__";
       window.localStorage.setItem(probeKey, "1");
       window.localStorage.removeItem(probeKey);
       return window.localStorage;

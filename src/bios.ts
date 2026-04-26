@@ -12,7 +12,7 @@
  *
  * Schema
  * ------
- * Database : "retrovault-bios"
+ * Database : "retro-oasis-bios"
  * Version  : 1
  * Store    : "bios"  (keyPath = "id")
  *   id          string   — UUID v4
@@ -157,7 +157,7 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DB_NAME    = "retrovault-bios";
+const DB_NAME    = "retro-oasis-bios";
 const DB_VERSION = 1;
 const STORE_NAME = "bios";
 

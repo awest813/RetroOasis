@@ -59,7 +59,7 @@ export function scheduleAutoRestoreOnGameStart(opts: AutoRestoreOptions): AutoRe
           emulator.quickLoad(slot);
         }
       } catch (err) {
-        console.error("[RetroVault] Auto-restore failed:", err);
+        console.error("[RetroOasis] Auto-restore failed:", err);
       }
     }, delayMs);
   };

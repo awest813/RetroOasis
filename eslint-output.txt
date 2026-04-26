@@ -1,5 +1,5 @@
 
-> retrovault@1.0.0 lint
+> retro-oasis@1.0.0 lint
 > eslint src
 
 

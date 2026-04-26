@@ -123,7 +123,7 @@ describe("ApiKeyStore", () => {
   });
 
   it("tolerates corrupt localStorage payloads", () => {
-    storage.setItem("retrovault.apiKeys", "not-json");
+    storage.setItem("retro-oasis.apiKeys", "not-json");
     const s = new ApiKeyStore({ storage, providers: [rawgCfg] });
     expect(s.getKey("rawg")).toBe("");
     // And a subsequent write must succeed.
@@ -131,7 +131,7 @@ describe("ApiKeyStore", () => {
   });
 
   it("tolerates valid-JSON but unexpected shape", () => {
-    storage.setItem("retrovault.apiKeys", JSON.stringify({ providers: "nope", order: 42 }));
+    storage.setItem("retro-oasis.apiKeys", JSON.stringify({ providers: "nope", order: 42 }));
     const s = new ApiKeyStore({ storage, providers: [rawgCfg] });
     expect(s.getKey("rawg")).toBe("");
     expect(s.getOrder()).toEqual(["rawg"]);

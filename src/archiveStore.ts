@@ -6,7 +6,7 @@
  * the same archive bypass the selection dialog.
  */
 
-const PREFIX = "rv:archive:";
+const PREFIX = "ro:archive:";
 
 export class ArchiveSelectionStore {
   /** 

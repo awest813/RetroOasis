@@ -7,21 +7,21 @@
    ============================================================ */
 
 :root {
-  /* ── Dark Chrome Color Palette ── */
-  --c-bg:         #0a0a0d;
-  --c-surface:    #111116;
-  --c-surface2:   #18181f;
-  --c-surface3:   #212129;
-  --c-border:     #2d2d3a;
-  --c-border-lt:  #3d3d52;
+  /* ── NSO Console Color Palette ── */
+  --c-bg:         #121212;
+  --c-surface:    #1a1a1a;
+  --c-surface2:   #222222;
+  --c-surface3:   #2a2a2a;
+  --c-border:     #333333;
+  --c-border-lt:  #444444;
 
-  /* Primary accent: Steel Blue — classic 2000s cool tech */
-  --c-accent:       #4a7fc0;
-  --c-accent-h:     #6699d8;
-  --c-accent-light: #8ab4e8;
-  --c-accent-dark:  #182840;
-  --c-accent-dim:   rgba(74, 127, 192, 0.15);
-  --c-accent-glow:  rgba(74, 127, 192, 0.30);
+  /* Primary accent: NSO Red — vibrant and energetic */
+  --c-accent:       #e60012;
+  --c-accent-h:     #ff1a1a;
+  --c-accent-light: #ff4d4d;
+  --c-accent-dark:  #99000c;
+  --c-accent-dim:   rgba(230, 0, 18, 0.15);
+  --c-accent-glow:  rgba(230, 0, 18, 0.40);
 
   /* Secondary accent: Antique Bronze / Muted Gold */
   --c-gold:       #b89040;
@@ -99,6 +99,12 @@
   color: var(--c-text);
   background: var(--c-bg);
   color-scheme: dark;
+  /* ── Premium Console Helpers ── */
+  --bg-gradient: radial-gradient(circle at top left, #1a1a1a 0%, #121212 100%);
+  --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-dark) 100%);
+  --glass-fx: saturate(180%) blur(20px);
+  --glass-bg-accent: rgba(230, 0, 18, 0.08);
+
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

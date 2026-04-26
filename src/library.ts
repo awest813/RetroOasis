@@ -16,7 +16,7 @@
  *
  * Schema
  * ------
- * Database : "retrovault"
+ * Database : "retro-oasis"
  * Version  : 3
  * Store    : "games"  (keyPath = "id")
  *   id          string   — UUID v4
@@ -70,7 +70,7 @@ export type GameMetadata = Omit<GameEntry, "blob" | "coverArtBlob">;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DB_NAME    = "retrovault";
+const DB_NAME    = "retro-oasis";
 const DB_VERSION = 3;
 const STORE_NAME = "games";
 const INDEX_FILE_SYSTEM = "fileNameSystemId";

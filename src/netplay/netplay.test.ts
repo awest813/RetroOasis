@@ -1029,12 +1029,12 @@ import { extractJoinCodeFromUrl } from "./signalingClient.js";
 
 describe("extractJoinCodeFromUrl", () => {
   it("returns the normalised invite code from a full https URL", () => {
-    expect(extractJoinCodeFromUrl("https://retrovault.app/?join=abc123")).toBe("ABC123");
+    expect(extractJoinCodeFromUrl("https://retro-oasis.app/?join=abc123")).toBe("ABC123");
   });
 
   it("returns the normalised code when the URL has a path and other params", () => {
     expect(
-      extractJoinCodeFromUrl("https://retrovault.app/app/?foo=1&join=xy-ZW_7&bar=2"),
+      extractJoinCodeFromUrl("https://retro-oasis.app/app/?foo=1&join=xy-ZW_7&bar=2"),
     ).toBe("XYZW7");
   });
 
@@ -1047,12 +1047,12 @@ describe("extractJoinCodeFromUrl", () => {
   });
 
   it("returns null when the join parameter is missing", () => {
-    expect(extractJoinCodeFromUrl("https://retrovault.app/?other=1")).toBeNull();
+    expect(extractJoinCodeFromUrl("https://retro-oasis.app/?other=1")).toBeNull();
   });
 
   it("returns null when the join parameter is empty or whitespace", () => {
-    expect(extractJoinCodeFromUrl("https://retrovault.app/?join=")).toBeNull();
-    expect(extractJoinCodeFromUrl("https://retrovault.app/?join=%20%20")).toBeNull();
+    expect(extractJoinCodeFromUrl("https://retro-oasis.app/?join=")).toBeNull();
+    expect(extractJoinCodeFromUrl("https://retro-oasis.app/?join=%20%20")).toBeNull();
   });
 
   it("returns null for non-string inputs or empty strings", () => {
@@ -1095,16 +1095,16 @@ describe("EasyNetplayManager.getShareLink", () => {
 
   it("encodes the invite code as a ?join= param using an explicit origin", () => {
     const mgr = new EasyNetplayManager();
-    const link = mgr.getShareLink(room, "https://retrovault.app/");
+    const link = mgr.getShareLink(room, "https://retro-oasis.app/");
     expect(link).not.toBeNull();
     const url = new URL(link!);
     expect(url.searchParams.get("join")).toBe("AB12CD");
-    expect(url.origin).toBe("https://retrovault.app");
+    expect(url.origin).toBe("https://retro-oasis.app");
   });
 
   it("preserves other query params on the supplied origin URL", () => {
     const mgr = new EasyNetplayManager();
-    const link = mgr.getShareLink(room, "https://retrovault.app/app/?lang=en")!;
+    const link = mgr.getShareLink(room, "https://retro-oasis.app/app/?lang=en")!;
     const url = new URL(link);
     expect(url.searchParams.get("lang")).toBe("en");
     expect(url.searchParams.get("join")).toBe("AB12CD");
@@ -1113,13 +1113,13 @@ describe("EasyNetplayManager.getShareLink", () => {
 
   it("round-trips through extractJoinCodeFromUrl", () => {
     const mgr = new EasyNetplayManager();
-    const link = mgr.getShareLink(room, "https://retrovault.app/")!;
+    const link = mgr.getShareLink(room, "https://retro-oasis.app/")!;
     expect(extractJoinCodeFromUrl(link)).toBe("AB12CD");
   });
 
   it("returns null when the room has no invite code", () => {
     const mgr = new EasyNetplayManager();
-    const link = mgr.getShareLink({ ...room, code: "" }, "https://retrovault.app/");
+    const link = mgr.getShareLink({ ...room, code: "" }, "https://retro-oasis.app/");
     expect(link).toBeNull();
   });
 

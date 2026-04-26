@@ -21,8 +21,8 @@ describe("scheduleAutoRestoreOnGameStart", () => {
       onConsumed,
     });
 
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
 
     expect(onConsumed).toHaveBeenCalledTimes(1);
     expect(writeStateData).not.toHaveBeenCalled();
@@ -48,7 +48,7 @@ describe("scheduleAutoRestoreOnGameStart", () => {
       delayMs: 100,
     });
 
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
     vi.advanceTimersByTime(100);
 
     expect(writeStateData).toHaveBeenCalledTimes(1);
@@ -68,7 +68,7 @@ describe("scheduleAutoRestoreOnGameStart", () => {
     });
 
     reg.cancel();
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
     vi.advanceTimersByTime(100);
 
     expect(writeStateData).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe("scheduleAutoRestoreOnGameStart", () => {
     });
 
     // Event fires — timeout is now scheduled but not yet executed.
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
     expect(writeStateData).not.toHaveBeenCalled();
 
     // Cancel while timeout is still pending.
@@ -112,13 +112,13 @@ describe("scheduleAutoRestoreOnGameStart", () => {
       delayMs: 100,
     });
 
-    document.dispatchEvent(new CustomEvent("retrovault:gameStarted"));
+    document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
     expect(() => vi.advanceTimersByTime(100)).not.toThrow();
 
     expect(writeStateData).toHaveBeenCalledTimes(1);
     expect(quickLoad).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
-      "[RetroVault] Auto-restore failed:",
+      "[RetroOasis] Auto-restore failed:",
       expect.any(Error),
     );
 

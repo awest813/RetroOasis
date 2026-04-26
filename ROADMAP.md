@@ -37,7 +37,7 @@ This document outlines the strategic plan for reducing technical debt in the Ret
 
 ### 2. "Play Together" Share Links
 *   **Concept**: Instant session invitation via URL.
-    *   **Deep Linking**: Generating a `retrovault.app/join?lobby=XYZ` link that automatically launches the emulator, loads the correct game from cloud/local library, and connects to the host.
+    *   **Deep Linking**: Generating a `retro-oasis.app/join?lobby=XYZ` link that automatically launches the emulator, loads the correct game from cloud/local library, and connects to the host.
     *   **Guest Mode**: Temporary profiles for friends who don't have an account or library set up.
 
 ### 3. In-Game Social Overlay

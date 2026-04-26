@@ -4,7 +4,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
   let visible = false;
   let position: { x: number; y: number } = (() => {
     try {
-      const saved = localStorage.getItem("rv_debug_console_pos");
+      const saved = localStorage.getItem("ro_debug_console_pos");
       return saved ? (JSON.parse(saved) as { x: number; y: number }) : { x: 20, y: 80 };
     } catch {
       return { x: 20, y: 80 };
@@ -69,7 +69,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         consoleEl.style.left = `${x}px`;
         consoleEl.style.top = `${y}px`;
         position = { x, y };
-        localStorage.setItem("rv_debug_console_pos", JSON.stringify(position));
+        localStorage.setItem("ro_debug_console_pos", JSON.stringify(position));
       }, { signal });
 
       window.addEventListener("mouseup", () => {

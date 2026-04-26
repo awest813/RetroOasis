@@ -512,22 +512,28 @@ export function showCoverArtCandidatePicker(
     if (candidates.length > 0) {
       const grid = createElement("div", { class: "cover-art-candidate-grid" });
       for (const c of candidates) {
+        const scorePct = Math.round(c.score * 100);
         const card = createElement("button", {
           class: "cover-art-candidate",
           type: "button",
-          title: `${c.title} (${Math.round(c.score * 100)}% match, ${c.sourceName})`,
-          "aria-label": `Use cover "${c.title}" from ${c.sourceName}`,
+          title: `${c.title} (${scorePct}% match from ${c.sourceName})`,
+          "aria-label": `Use cover "${c.title}" (${scorePct}% match from ${c.sourceName})`,
         });
+
         const img = createElement("img", {
           class: "cover-art-candidate__img",
           alt: "",
           loading: "lazy",
           src: c.imageUrl,
         }) as HTMLImageElement;
-        // Fall back to a neutral label if the thumbnail fails to load.
+
+        // Confidence badge
+        const badge = createElement("div", { class: "cover-art-candidate__score-badge" });
+        badge.innerHTML = `<span>${scorePct}%</span><span>${c.sourceName}</span>`;
+
         img.addEventListener("error", () => { img.style.opacity = "0.35"; });
         const label = createElement("span", { class: "cover-art-candidate__label" }, c.title);
-        card.append(img, label);
+        card.append(img, badge, label);
         card.addEventListener("click", () => close(c.imageUrl));
         grid.appendChild(card);
       }

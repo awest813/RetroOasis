@@ -1,4 +1,4 @@
-# RetroVault — Memory Report
+# RetroOasis — Memory Report
 
 > Analysis of per-frame allocations, heap pressure sources, and mitigation strategies.
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-RetroVault's own JavaScript code produces **near-zero per-frame heap allocations** during active gameplay. The dominant memory consumers are the EmulatorJS WASM core and its emulated system RAM, which are allocated once at launch and held for the session.
+RetroOasis's own JavaScript code produces **near-zero per-frame heap allocations** during active gameplay. The dominant memory consumers are the EmulatorJS WASM core and its emulated system RAM, which are allocated once at launch and held for the session.
 
 ---
 

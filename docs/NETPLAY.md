@@ -1,6 +1,6 @@
 # Netplay — Online & Local Wireless Multiplayer
 
-RetroVault's netplay feature lets you play games online or over your local Wi-Fi network with friends. Challenge players around the world on classics like Mario Kart, Bomberman, Street Fighter, or team up on Streets of Rage and Sonic 3 — all from the browser, with no plugins required.
+RetroOasis's netplay feature lets you play games online or over your local Wi-Fi network with friends. Challenge players around the world on classics like Mario Kart, Bomberman, Street Fighter, or team up on Streets of Rage and Sonic 3 — all from the browser, with no plugins required.
 
 Netplay uses **WebRTC peer-to-peer** connections to reduce latency and keep gameplay smooth. A lightweight WebSocket signalling server handles room discovery; once two players connect, game data flows directly between their browsers.
 
@@ -33,7 +33,7 @@ We recommend ROMs from [No-Intro](https://no-intro.org/) sets for best compatibi
 
 ## Quick Start — The Lobby
 
-The easiest way to use netplay is through the built-in lobby inside the RetroVault UI.
+The easiest way to use netplay is through the built-in lobby inside the RetroOasis UI.
 
 ### Joining a room
 
@@ -86,7 +86,7 @@ Because traffic never leaves the local network, latency is typically under 5 ms 
 
 ## Server Setup
 
-RetroVault requires a WebSocket netplay / signalling server. Two common options:
+RetroOasis requires a WebSocket netplay / signalling server. Two common options:
 
 ### Option A — Hosted (online play)
 
@@ -118,7 +118,7 @@ ws://192.168.1.x:3000   # other devices on the same network
 
 ## ICE / STUN / TURN Configuration
 
-RetroVault ships with two default public STUN servers (Google). These work for most direct peer connections. If you or your partner are behind a symmetric NAT or corporate firewall, add a TURN relay:
+RetroOasis ships with two default public STUN servers (Google). These work for most direct peer connections. If you or your partner are behind a symmetric NAT or corporate firewall, add a TURN relay:
 
 1. Open **Settings → Netplay → ICE Servers**.
 2. Add a `turn:` URL with credentials:
@@ -133,7 +133,7 @@ To reset to the built-in defaults, click **Reset to defaults**.
 
 ## ROM Compatibility & Alias Grouping
 
-When two players load the same game in different regional releases, RetroVault automatically maps them to the same room via the **alias pipeline**:
+When two players load the same game in different regional releases, RetroOasis automatically maps them to the same room via the **alias pipeline**:
 
 ```
 "Pokemon FireRed (USA)"    ──┐

@@ -500,7 +500,7 @@ export function clearWebGL2SupportCache(): void {
 }
 
 /**
- * Maps RetroVault system ids (`EJS_core`) to EmulatorJS stable CDN core blobs.
+ * Maps RetroOasis system ids (`EJS_core`) to EmulatorJS stable CDN core blobs.
  *
  * Upstream packages each core as a single compressed `*-wasm.data` archive (see
  * `data/src/emulator.js` — `downloadGameCore`). Prefetching that file warms the
@@ -1033,7 +1033,7 @@ export class PSPEmulator {
         `(${Math.round((usedMB / limitMB) * 100)}%)`
       );
       console.warn(
-        `[RetroVault] Memory pressure detected — JS heap at ${usedMB} MB ` +
+        `[RetroOasis] Memory pressure detected — JS heap at ${usedMB} MB ` +
         `of ${limitMB} MB limit (${Math.round((usedMB / limitMB) * 100)}%). ` +
         "Consider restarting the game or lowering quality settings."
       );
@@ -1042,7 +1042,7 @@ export class PSPEmulator {
     this._thermalMonitor.onPressureChange = (state, prev) => {
       this.logDiagnostic("performance", `Thermal pressure: ${prev} → ${state}`);
       if (state === "serious" || state === "critical") {
-        console.warn(`[RetroVault] Thermal pressure elevated: ${state}. Performance may be throttled.`);
+        console.warn(`[RetroOasis] Thermal pressure elevated: ${state}. Performance may be throttled.`);
       }
       this.onThermalPressureChange?.(state, prev);
     };
@@ -1248,7 +1248,7 @@ export class PSPEmulator {
       this.prefetchCore(systemId);
     }
     if (systems.length > 0 && this.verboseLogging) {
-      console.info(`[RetroVault] Intelligent core preload: prefetching ${systems.join(", ")}`);
+      console.info(`[RetroOasis] Intelligent core preload: prefetching ${systems.join(", ")}`);
     }
   }
 
@@ -1665,7 +1665,7 @@ export class PSPEmulator {
           this._webgpuAdapterInfo?.vendor  ||
           "unknown adapter";
         console.info(
-          `[RetroVault] WebGPU device acquired (${adapterLabel}) — ` +
+          `[RetroOasis] WebGPU device acquired (${adapterLabel}) — ` +
           "GPU command queue and shader compiler warmed."
         );
       }
@@ -1717,7 +1717,7 @@ export class PSPEmulator {
       const processorUrl = new URL("audio-processor.js", workletBaseUrl).href;
       await ctx.audioWorklet.addModule(processorUrl);
 
-      const workletNode = new AudioWorkletNode(ctx, "retrovault-audio-processor");
+      const workletNode = new AudioWorkletNode(ctx, "retro-oasis-audio-processor");
 
       workletNode.port.onmessage = (e: MessageEvent<{ type: string; count: number; rms: number }>) =>
         this._onAudioWorkletMessage(e);
@@ -1751,7 +1751,7 @@ export class PSPEmulator {
       this._audioAnalyserNode = analyserNode;
 
       if (this.verboseLogging) {
-        console.info("[RetroVault] AudioWorklet path active — reduced-latency audio enabled.");
+        console.info("[RetroOasis] AudioWorklet path active — reduced-latency audio enabled.");
       }
       return true;
     } catch {
@@ -1917,7 +1917,7 @@ export class PSPEmulator {
     // ── Large ROM warning ───────────────────────────────────────────────────
     if (opts.file.size > LARGE_ROM_THRESHOLD) {
       console.warn(
-        `[RetroVault] Large ROM detected (${(opts.file.size / 1024 / 1024).toFixed(0)} MB). ` +
+        `[RetroOasis] Large ROM detected (${(opts.file.size / 1024 / 1024).toFixed(0)} MB). ` +
         `This may cause memory pressure in the browser. Consider using a CSO/compressed format.`
       );
     }
@@ -1937,13 +1937,13 @@ export class PSPEmulator {
     this._startupProfiler.begin("core_download");
 
     // Mark the launch start time for DevTools Performance timeline profiling.
-    // Measures "retrovault:launch-to-ready" and "retrovault:ready-to-game-start"
+    // Measures "retro-oasis:launch-to-ready" and "retro-oasis:ready-to-game-start"
     // will be recorded when EJS_ready and EJS_onGameStart fire respectively.
     try { performance.mark(LEGACY_PERF_MARKS.launch); } catch { /* best-effort */ }
 
     if (this.verboseLogging) {
       console.info(
-        `[RetroVault] Launching "${fileName}" on system "${opts.systemId}" ` +
+        `[RetroOasis] Launching "${fileName}" on system "${opts.systemId}" ` +
         `(size: ${(opts.file.size / 1024 / 1024).toFixed(1)} MB, tier override: ${opts.tierOverride ?? "none"})`
       );
     }
@@ -1975,7 +1975,7 @@ export class PSPEmulator {
         });
         if (this.verboseLogging) {
           console.info(
-            "[RetroVault] iOS WebKit: materialised ROM into an in-memory File for stable reads."
+            "[RetroOasis] iOS WebKit: materialised ROM into an in-memory File for stable reads."
           );
         }
       } else {
@@ -2064,7 +2064,7 @@ export class PSPEmulator {
           ejsSettings["ppsspp_audio_latency"] = String(hwNumeric);
           if (this.verboseLogging) {
             console.info(
-              `[RetroVault] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `[RetroOasis] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
               `suggests buffer tier "${hwBufTier}"; upgrading ppsspp_audio_latency ` +
               `from ${tierLatency} → ${hwNumeric}.`
             );
@@ -2080,7 +2080,7 @@ export class PSPEmulator {
           ejsSettings["mupen64plus-audio-buffer-size"] = "2048";
           if (this.verboseLogging) {
             console.info(
-              `[RetroVault] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
               `— setting N64 audio buffer to 2048 samples.`
             );
           }
@@ -2095,7 +2095,7 @@ export class PSPEmulator {
           ejsSettings["beetle_psx_hw_cd_access_method"] = "sync";
           if (this.verboseLogging) {
             console.info(
-              `[RetroVault] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
               `— switching PS1 CD access to sync for audio stability.`
             );
           }
@@ -2122,7 +2122,7 @@ export class PSPEmulator {
           );
           if (this.verboseLogging) {
             console.info(
-              `[RetroVault] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `[RetroOasis] Audio: hardware latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
               `suggests buffer tier "${hwBufTier}"; upgrading mgba_audio_buffer_size ` +
               `from ${tierSamples} → ${minSamples} samples.`
             );
@@ -2145,7 +2145,7 @@ export class PSPEmulator {
           );
           if (this.verboseLogging) {
             console.info(
-              `[RetroVault] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
               `— disabling NDS advanced_timing to prevent audio desync.`
             );
           }
@@ -2173,7 +2173,7 @@ export class PSPEmulator {
         );
         if (this.verboseLogging) {
           console.info(
-            `[RetroVault] DS performance settings — ` +
+            `[RetroOasis] DS performance settings — ` +
             `cpu_mode: ${dsCpuMode}, frameskip: ${dsFrameskip}, ` +
             `resolution: ${dsResolution}, opengl: ${dsOpenGL}, ` +
             `advanced_timing: ${dsTiming}, color_depth: ${dsColorDepth}, ` +
@@ -2205,7 +2205,7 @@ export class PSPEmulator {
         );
         if (this.verboseLogging) {
           console.info(
-            `[RetroVault] Dreamcast performance settings — ` +
+            `[RetroOasis] Dreamcast performance settings — ` +
             `resolution: ${dcResolution}, threaded_rendering: ${dcThreaded}, ` +
             `mipmapping: ${dcMipmap}, anisotropic_filtering: ${dcAnisotropic}, ` +
             `texupscale: ${dcTexUpscale}, enable_rttb: ${dcEnableRttb}, ` +
@@ -2282,7 +2282,7 @@ export class PSPEmulator {
         this._startupProfiler.end("core_download");
         this._startupProfiler.begin("first_frame");
         if (this.verboseLogging) {
-          console.info("[RetroVault] EJS_ready fired — core loaded, booting game.");
+          console.info("[RetroOasis] EJS_ready fired — core loaded, booting game.");
         }
         // Mark the moment the core finished loading — useful in DevTools timeline.
         try {
@@ -2303,9 +2303,9 @@ export class PSPEmulator {
           (profSummary.slowest ? `, slowest: ${profSummary.slowest.phase} (${profSummary.slowest.durationMs.toFixed(0)} ms)` : "")
         );
         if (this.verboseLogging) {
-          console.info("[RetroVault] EJS_onGameStart fired — game is running.");
+          console.info("[RetroOasis] EJS_onGameStart fired — game is running.");
           for (const r of profSummary.records) {
-            console.info(`[RetroVault] startup phase ${r.phase}: ${r.durationMs.toFixed(0)} ms`);
+            console.info(`[RetroOasis] startup phase ${r.phase}: ${r.durationMs.toFixed(0)} ms`);
           }
         }
         // Mark the moment the first game frame rendered.
@@ -2732,7 +2732,7 @@ export class PSPEmulator {
         this._lowFPSStartTime = 0;
         if (this.verboseLogging) {
           console.warn(
-            `[RetroVault] Sustained low FPS (avg ${averageFPS.toFixed(1)} fps) ` +
+            `[RetroOasis] Sustained low FPS (avg ${averageFPS.toFixed(1)} fps) ` +
             `detected on tier "${this._activeTier ?? "unknown"}". ` +
             "Consider switching to Performance mode for a smoother experience."
           );
@@ -2779,7 +2779,7 @@ export class PSPEmulator {
         );
         if (this.verboseLogging) {
           console.info(
-            `[RetroVault] DRS: low FPS (${averageFPS.toFixed(1)}) — stepping down ` +
+            `[RetroOasis] DRS: low FPS (${averageFPS.toFixed(1)}) — stepping down ` +
             `${ladder.key} to "${newValue}" (step ${this._drsCurrentStepIdx}).`
           );
         }
@@ -2802,7 +2802,7 @@ export class PSPEmulator {
         );
         if (this.verboseLogging) {
           console.info(
-            `[RetroVault] DRS: good FPS (${averageFPS.toFixed(1)}) — stepping up ` +
+            `[RetroOasis] DRS: good FPS (${averageFPS.toFixed(1)}) — stepping up ` +
             `${ladder.key} to "${newValue}" (step ${this._drsCurrentStepIdx}).`
           );
         }
@@ -3030,7 +3030,7 @@ export class PSPEmulator {
       if (now - this._lastAudioUnderrunWarnTime >= 10_000) {
         this._lastAudioUnderrunWarnTime = now;
         console.warn(
-          `[RetroVault] Audio underrun detected (${e.data.count} new, ` +
+          `[RetroOasis] Audio underrun detected (${e.data.count} new, ` +
           `${this._audioUnderruns} total). ` +
           "Consider increasing the audio buffer size."
         );
@@ -3077,15 +3077,15 @@ export class PSPEmulator {
       postProcessor.attach(canvas, playerEl);
       if (!postProcessor.active) {
         postProcessor.dispose();
-        console.warn("[RetroVault] WebGPU post-processing requested but could not be activated.");
+        console.warn("[RetroOasis] WebGPU post-processing requested but could not be activated.");
         return;
       }
       this._postProcessor = postProcessor;
       console.info(
-        `[RetroVault] WebGPU post-processing active — effect: ${this._postProcessConfig.effect}`
+        `[RetroOasis] WebGPU post-processing active — effect: ${this._postProcessConfig.effect}`
       );
     } catch (err) {
-      console.warn("[RetroVault] Failed to attach WebGPU post-processor:", err);
+      console.warn("[RetroOasis] Failed to attach WebGPU post-processor:", err);
       this._postProcessor = null;
     }
   }

@@ -33,7 +33,7 @@ export interface PeerChannelIceConfig {
 export interface PeerDataChannelOptions {
   /**
    * Label for the RTCDataChannel.
-   * Defaults to "retrovault-netplay".
+   * Defaults to "retro-oasis-netplay".
    */
   label?: string;
   /**
@@ -135,7 +135,7 @@ export class PeerDataChannel {
   onIceCandidate?: (candidate: RTCIceCandidate) => void;
 
   constructor(opts: PeerDataChannelOptions = {}) {
-    this._label              = opts.label              ?? "retrovault-netplay";
+    this._label              = opts.label              ?? "retro-oasis-netplay";
     this._iceServers         = toRtcIceServers(opts.iceServers);
     this._maxReconnectAttempts = opts.maxReconnectAttempts ?? 3;
   }

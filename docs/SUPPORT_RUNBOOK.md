@@ -42,7 +42,7 @@ Each section follows the pattern:
 6. Cloud sync conflict resolved in favour of the older remote copy.
 
 **Fix**
-- Saves are in IndexedDB (`retrovault-saves`); they cannot be recovered once cleared.
+- Saves are in IndexedDB (`retro-oasis-saves`); they cannot be recovered once cleared.
 - Prevention: encourage users to connect cloud saves (Settings → Cloud Saves) before relying on the browser.
 - If cloud sync is connected, the latest cloud copy can be pulled back via Settings → Cloud Saves → Sync.
 - For future save exports: track issue #X requesting downloadable save-state export.

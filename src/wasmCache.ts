@@ -13,7 +13,7 @@
  * the ETag matches, the cached module is returned instead of re-downloading.
  *
  * ### Storage
- * Database : "retrovault-wasm"
+ * Database : "retro-oasis-wasm"
  * Version  : 1
  * Store    : "modules"  (keyPath = "url")
  *   url         string              — absolute URL of the .wasm file
@@ -25,7 +25,7 @@
 
 // ── IndexedDB helpers ─────────────────────────────────────────────────────────
 
-const WASM_DB_NAME    = "retrovault-wasm";
+const WASM_DB_NAME    = "retro-oasis-wasm";
 const WASM_DB_VERSION = 1;
 const WASM_STORE_NAME = "modules";
 

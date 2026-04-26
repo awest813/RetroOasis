@@ -1,4 +1,4 @@
-# RetroVault — Architecture Map
+# RetroOasis — Architecture Map
 
 > Generated as part of the Phase 1 deep codebase audit.
 
@@ -33,7 +33,7 @@ Game ROM
                     └─► Display
 ```
 
-The EmulatorJS render loop is opaque — it runs inside the CDN-loaded script. RetroVault hooks into it via `window.EJS_*` callbacks and the game canvas reference.
+The EmulatorJS render loop is opaque — it runs inside the CDN-loaded script. RetroOasis hooks into it via `window.EJS_*` callbacks and the game canvas reference.
 
 ---
 
@@ -78,7 +78,7 @@ The `UIDirtyTracker` in `performance.ts` tracks which regions need re-rendering:
 
 ```
 KeyboardEvent
-  └─► document (capture phase) — RetroVault shortcuts (F1/F3/F5/F7/F9/Esc)
+  └─► document (capture phase) — RetroOasis shortcuts (F1/F3/F5/F7/F9/Esc)
         └─► (if not consumed) EmulatorJS keydown handler — game controls
 
 TouchEvent

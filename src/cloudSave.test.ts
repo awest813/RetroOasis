@@ -1816,7 +1816,7 @@ describe("CloudSaveManager — Blomp credential storage", () => {
     const m = new CloudSaveManager();
     m.saveBlompConfig("user", "pass");
     const cfg = m.loadBlompConfig();
-    expect(cfg?.container).toBe("retrovault");
+    expect(cfg?.container).toBe("retro-oasis");
   });
 
   it("clearBlompConfig removes stored credentials", () => {

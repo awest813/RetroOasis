@@ -1,4 +1,4 @@
-# RetroVault — UI Refactor Plan
+# RetroOasis — UI Refactor Plan
 
 > Roadmap for evolving the UI layer from a monolithic DOM-building module into a cleaner, more modular architecture.
 

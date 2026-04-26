@@ -14,7 +14,7 @@ declare global {
   }
 
   interface Window {
-    __retrovault?: {
+    __retro-oasis?: {
       emulator: PSPEmulator;
       library: GameLibrary;
       biosLibrary: BiosLibrary;

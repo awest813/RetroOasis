@@ -57,8 +57,9 @@ export function buildFilteredLibraryEmptyState(opts: {
     message.textContent = "No games match your current filters. Try a broader search, choose another system, or clear filters to see every game again.";
   }
 
+  const icon = make("div", { class: "library-empty__icon" }, "🔍");
   const resetBtn = make("button", { class: "btn library-empty__reset", type: "button" }, "Reset filters");
   resetBtn.addEventListener("click", onReset);
-  empty.append(message, resetBtn);
+  empty.append(icon, message, resetBtn);
   return empty;
 }

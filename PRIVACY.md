@@ -12,16 +12,16 @@ All of the following are stored in your browser only (IndexedDB and `localStorag
 
 | Data | Storage mechanism | Notes |
 |---|---|---|
-| ROM files (game data) | IndexedDB (`retrovault`) | Stored as Blobs; never uploaded |
-| Save states and thumbnails | IndexedDB (`retrovault-saves`) | Stored as Blobs; synced to cloud only when **you** connect a provider |
-| BIOS files | IndexedDB (`retrovault-bios`) | Never transmitted |
-| App settings (volume, performance mode, etc.) | `localStorage` (`retrovault-settings`) | Local only |
+| ROM files (game data) | IndexedDB (`retro-oasis`) | Stored as Blobs; never uploaded |
+| Save states and thumbnails | IndexedDB (`retro-oasis-saves`) | Stored as Blobs; synced to cloud only when **you** connect a provider |
+| BIOS files | IndexedDB (`retro-oasis-bios`) | Never transmitted |
+| App settings (volume, performance mode, etc.) | `localStorage` (`retro-oasis-settings`) | Local only |
 | Per-game tier and graphics profiles | `localStorage` (`rv:tier:*`, `rv:gfx:*`) | Local only |
 | Cloud provider access tokens (Google Drive, Dropbox, etc.) | `localStorage` | Tokens are used only to talk to the respective provider's API on your behalf |
 | Cloud provider credentials (WebDAV URL, username, password; MEGA email/password) | `localStorage` | Encrypted in transit to your own server; never sent to RetroOasis |
 | Third-party API keys (RAWG, MobyGames, TheGamesDB) | `localStorage` | Sent only to the respective provider's API; never logged or forwarded |
 | Netplay display name | `localStorage` (`rv:netplay`) | Shared with the signaling server you configure; not collected by RetroOasis |
-| Compiled WebAssembly modules (emulator cores) | IndexedDB (`retrovault-wasm`) | Cached for performance; sourced from public CDNs |
+| Compiled WebAssembly modules (emulator cores) | IndexedDB (`retro-oasis-wasm`) | Cached for performance; sourced from public CDNs |
 
 ---
 

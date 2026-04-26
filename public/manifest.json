@@ -7,8 +7,8 @@
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#0f1117",
-  "theme_color": "#0b0b14",
+  "background_color": "#121212",
+  "theme_color": "#e60012",
   "orientation": "any",
   "icons": [
     {
@@ -77,7 +77,16 @@
             ".ngc",
             ".ngpc",
             ".pbp",
-            ".elf"
+            ".elf",
+            ".rar",
+            ".tar",
+            ".gz",
+            ".tgz",
+            ".tbz",
+            ".tbz2",
+            ".xz",
+            ".txz",
+            ".zst"
           ]
         }
       ]

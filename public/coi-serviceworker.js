@@ -5,7 +5,7 @@
  * them into responses and also caches the small app shell for faster reloads.
  */
 
-const CACHE_NAME = "retrovault-shell-v2";
+const CACHE_NAME = "retro-oasis-shell-v2";
 
 function getPrecacheUrls() {
   const scopeUrl = new URL(self.registration.scope);
@@ -127,7 +127,7 @@ function addCOIHeaders(response, coepValue) {
  *
  * The OS shares one or more ROM files by POSTing multipart/form-data to
  * `./?share-target`.  We store each file as a Response in the dedicated
- * "retrovault-shared-roms" cache so the app can pick it up on load, then
+ * "retro-oasis-shared-roms" cache so the app can pick it up on load, then
  * redirect back to the app root.
  */
 async function handleShareTarget(request) {
@@ -135,7 +135,7 @@ async function handleShareTarget(request) {
     const formData = await request.formData();
     const files = formData.getAll("rom").filter((f) => f instanceof File);
     if (files.length > 0) {
-      const cache = await caches.open("retrovault-shared-roms");
+      const cache = await caches.open("retro-oasis-shared-roms");
       for (const file of files) {
         const key = new Request(`/_shared/${encodeURIComponent(file.name)}`);
         await cache.put(key, new Response(file, {

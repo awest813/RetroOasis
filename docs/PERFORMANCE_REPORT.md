@@ -1,20 +1,20 @@
-# RetroVault — Performance Report
+# RetroOasis — Performance Report
 
-> Covers runtime profiling findings for the RetroVault browser emulator frontend.
+> Covers runtime profiling findings for the RetroOasis browser emulator frontend.
 
 ---
 
 ## Measurement Methodology
 
-RetroVault instruments its own render loop using the Web Performance API:
+RetroOasis instruments its own render loop using the Web Performance API:
 
 | Mark / Measure | Where |
 |---|---|
-| `retrovault:launch` | `PSPEmulator.launch()` |
-| `retrovault:core-ready` | `window.EJS_ready` callback |
-| `retrovault:launch-to-ready` | Measure from launch → core ready |
-| `retrovault:game-start` | `window.EJS_onGameStart` callback |
-| `retrovault:ready-to-game-start` | Measure from core ready → game start |
+| `retro-oasis:launch` | `PSPEmulator.launch()` |
+| `retro-oasis:core-ready` | `window.EJS_ready` callback |
+| `retro-oasis:launch-to-ready` | Measure from launch → core ready |
+| `retro-oasis:game-start` | `window.EJS_onGameStart` callback |
+| `retro-oasis:ready-to-game-start` | Measure from core ready → game start |
 
 FPS metrics are tracked by `FPSMonitor` (ring-buffer, zero GC allocations):
 
@@ -42,11 +42,11 @@ The EmulatorJS WASM core runs in the browser main thread. Approximate costs for 
 |---|---|
 | WASM emulation (CPU-bound) | 8–12 ms |
 | WebGL render (GPU-bound) | 2–4 ms |
-| RetroVault UI (DOM mutations) | < 0.5 ms |
+| RetroOasis UI (DOM mutations) | < 0.5 ms |
 | Audio worklet | < 0.5 ms |
 | **Total** | **~11–17 ms** |
 
-RetroVault's own UI contribution is well under 1 ms per frame for all currently measured workloads.
+RetroOasis's own UI contribution is well under 1 ms per frame for all currently measured workloads.
 
 ---
 
@@ -87,7 +87,7 @@ The `UIDirtyTracker` ensures the dev overlay only performs DOM work when dirty b
 
 | Category | Typical footprint |
 |---|---|
-| RetroVault JS modules | ~2–4 MB |
+| RetroOasis JS modules | ~2–4 MB |
 | EmulatorJS loader | ~1–2 MB |
 | PSP WASM binary | ~12–20 MB |
 | PSP emulated RAM (PPSSPP) | ~64–128 MB |

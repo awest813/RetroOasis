@@ -231,7 +231,14 @@ const _CTRL_SVG_MINI = `<svg width="12" height="12" viewBox="0 0 28 28" fill="no
   <circle cx="17.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
 </svg>`;
 
-const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="36" height="36" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="${APP_NAME}" role="img"><rect x="2" y="7" width="24" height="14" rx="7"/><rect x="7" y="12.5" width="5" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="8.5" y="11" width="2" height="6" rx="1" fill="currentColor" stroke="none"/><circle cx="20" cy="12.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="22.5" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="20" cy="15.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.5" cy="14" r="1.1" fill="currentColor" stroke="none"/></svg>`;
+const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
+  <rect x="2" y="10" width="40" height="24" rx="4" fill="white" />
+  <rect x="10" y="12" width="24" height="20" rx="2" fill="#e60012" />
+  <circle cx="6" cy="22" r="2" fill="#e60012" />
+  <circle cx="38" cy="18" r="1.5" fill="#e60012" />
+  <circle cx="38" cy="26" r="1.5" fill="#e60012" />
+  <path d="M22 14c0 4-3 7-3 7s3-1 3-3c0 2 3 3 3 3s-3-3-3-7z" fill="white" opacity="0.8"/>
+</svg>`;
 
 export function buildDOM(app: HTMLElement): void {
   // Reset module-level state that is tied to DOM nodes created below
@@ -274,12 +281,9 @@ export function buildDOM(app: HTMLElement): void {
     <!-- ── Header ── -->
     <header class="app-header">
       <div class="app-header__brand">
-        <img src="${resolveAssetUrl("assets/logo_premium.png")}" alt="${APP_NAME}" class="brand-logo" width="36" height="36" decoding="async" fetchpriority="high" draggable="false" />
-        <span class="brand-lockup">
-          <span class="brand-long">${APP_NAME}</span>
-          <span class="brand-tag">Portable game library</span>
-        </span>
-        <span class="brand-short" aria-hidden="true">${APP_SHORT_NAME}</span>
+        <img src="${resolveAssetUrl("assets/logo_nso.png")}" alt="${APP_NAME}" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" 
+             onerror="this.outerHTML='${_LOGO_FALLBACK_SVG}'" />
+        <span class="brand-long">${APP_NAME}</span>
       </div>
 
       <div class="app-header__actions" id="header-actions">
@@ -531,23 +535,20 @@ export function buildDOM(app: HTMLElement): void {
 
     <!-- ── Footer ── -->
     <footer class="app-footer">
-      <div class="status-item">
-        <div class="status-dot idle" id="status-dot"></div>
-        <span class="status-item__value" id="status-state">Ready</span>
+      <div class="footer-left">
+        <div class="status-item">
+          <div class="status-dot idle" id="status-dot"></div>
+          <span class="status-item__value" id="status-state">Ready</span>
+        </div>
       </div>
-      <div class="status-item hide-mobile" id="status-system-item" style="display:none">
-        <span class="status-item__label">Playing:</span>
-        <span class="status-item__value" id="status-game">—</span>
+      
+      <div class="footer-center">
+        <span id="footer-clock">--:--</span>
       </div>
-      <div class="status-item hide-mobile" id="status-system-label" style="display:none">
-        <span class="status-item__value" id="status-system" style="opacity:0.55;font-size:0.72rem">—</span>
-      </div>
-      <div class="status-item hide-mobile" id="status-tier-item" style="display:none">
-        <span class="status-item__value" id="status-tier">—</span>
-      </div>
-      <div class="status-item hide-mobile" style="margin-left:auto;gap:6px">
-        ${_CTRL_SVG_MINI}
-        <span class="status-item__value" style="opacity:0.4;font-size:0.7rem;font-weight:700;letter-spacing:0.01em">${APP_NAME}</span>
+
+      <div class="footer-right">
+        <span class="footer-info">${APP_NAME} v1.4.2</span>
+        <span class="footer-battery">🔋 100%</span>
       </div>
     </footer>
   `;
@@ -606,6 +607,24 @@ export function initUI(opts: UIOptions): void {
     registerNetplayInstance(opts.netplayManager);
   }
 
+  // ── Gamepad connection toast ───────────────────────────────────────────
+  window.addEventListener("gamepadconnected", (e) => {
+    showInfoToast(`🎮 ${e.gamepad.id} connected`, "info");
+  });
+  window.addEventListener("gamepaddisconnected", (e) => {
+    showInfoToast(`Disconnected: ${e.gamepad.id}`, "warning");
+  });
+
+  // ── Console Clock Loop ──
+  const updateClock = () => {
+    const clockEl = document.getElementById("footer-clock");
+    if (!clockEl) return;
+    const now = new Date();
+    clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+  const clockInterval = setInterval(updateClock, 1000 * 60);
+  updateClock();
+
   const { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps,
           onLaunchGame, onSettingsChange, onReturnToLibrary,
           onApplyPatch, onFileChosen,
@@ -627,7 +646,9 @@ export function initUI(opts: UIOptions): void {
     },
   });
 
-  const cleanupFns: Array<() => void> = [];
+  const cleanupFns: Array<() => void> = [
+    () => clearInterval(clockInterval)
+  ];
   const bindEvent = (
     target: EventTarget,
     type: string,
@@ -1668,6 +1689,11 @@ function _wireLibraryNavigation(): void {
     const gp = _getNavigatorGamepads().find((g): g is Gamepad => g != null);
     if (!gp) return;
 
+    // Activating gamepad mode for specialized focus visuals
+    if (!document.body.classList.contains("using-gamepad")) {
+      document.body.classList.add("using-gamepad");
+    }
+
     const now = performance.now();
 
     // Read directional inputs (D-pad buttons 12–15 and left analogue stick)
@@ -1677,18 +1703,32 @@ function _wireLibraryNavigation(): void {
     const rawRight = (gp.buttons[15]?.pressed ?? false) || (gp.axes[0] ?? 0) >  0.5;
 
     // Button 0 = Cross/A (launch), Button 1 = Circle/B (deselect)
+    // Button 4 = L1 (page up), Button 5 = R1 (page down)
+    // Button 9 = Start (settings)
     const btnA = gp.buttons[0]?.pressed ?? false;
     const btnB = gp.buttons[1]?.pressed ?? false;
+    const btnL1 = gp.buttons[4]?.pressed ?? false;
+    const btnR1 = gp.buttons[5]?.pressed ?? false;
+    const btnStart = gp.buttons[9]?.pressed ?? false;
 
     const prevBtnA = _libGpPrevBtns[0] ?? false;
     const prevBtnB = _libGpPrevBtns[1] ?? false;
+    const prevBtnL1 = _libGpPrevBtns[4] ?? false;
+    const prevBtnR1 = _libGpPrevBtns[5] ?? false;
+    const prevBtnStart = _libGpPrevBtns[9] ?? false;
 
     // Rising-edge detection for action buttons
     const pressedA = btnA && !prevBtnA;
     const pressedB = btnB && !prevBtnB;
+    const pressedL1 = btnL1 && !prevBtnL1;
+    const pressedR1 = btnR1 && !prevBtnR1;
+    const pressedStart = btnStart && !prevBtnStart;
 
     _libGpPrevBtns[0] = btnA;
     _libGpPrevBtns[1] = btnB;
+    _libGpPrevBtns[4] = btnL1;
+    _libGpPrevBtns[5] = btnR1;
+    _libGpPrevBtns[9] = btnStart;
 
     const anyDir = rawUp || rawDown || rawLeft || rawRight;
 
@@ -1707,13 +1747,20 @@ function _wireLibraryNavigation(): void {
     }
     _libGpPrevAxes[0] = anyDir ? 1 : 0;
 
-    const needCards = pressedA || pressedB || doMove;
+    const needCards = pressedA || pressedB || pressedL1 || pressedR1 || pressedStart || doMove;
     if (!needCards) return;
 
     if (!_libGpCachedCards) {
       _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
     }
     const cards = _libGpCachedCards;
+
+    if (pressedStart) {
+      // Find the settings button and click it
+      const settingsBtn = document.getElementById("header-settings-btn");
+      settingsBtn?.click();
+      return;
+    }
 
     if (pressedA && cards.length) {
       const focused = document.activeElement as HTMLElement | null;
@@ -1729,6 +1776,22 @@ function _wireLibraryNavigation(): void {
       // Deselect / return focus to the search input
       const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
       if (searchEl) searchEl.focus();
+      return;
+    }
+
+    if ((pressedL1 || pressedR1) && cards.length) {
+      const focused = document.activeElement as HTMLElement | null;
+      const idx = focused ? cards.indexOf(focused) : -1;
+      const jump = 10;
+      let nextIdx = idx;
+      if (pressedL1) nextIdx = Math.max(0, idx - jump);
+      if (pressedR1) nextIdx = Math.min(cards.length - 1, idx + jump);
+      if (idx === -1) nextIdx = 0;
+      
+      if (nextIdx !== idx) {
+        cards[nextIdx]!.focus();
+        _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
+      }
       return;
     }
 
@@ -1913,28 +1976,35 @@ function _renderSystemFilterChips(
   }
 
   filterEl.innerHTML = "";
-  const allChip = make("button", {
-    class: `sys-filter-chip${_librarySystemFilter === "" ? " active" : ""}`,
-    "aria-pressed": _librarySystemFilter === "" ? "true" : "false",
-  }, "All");
-  allChip.addEventListener("click", () => {
-    _librarySystemFilter = "";
-    _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-  });
-  filterEl.appendChild(allChip);
-
-  for (const sysId of systemIds) {
-    const sys  = getSystemById(sysId);
+  
+  const createChip = (id: string, label: string, icon: string) => {
     const chip = make("button", {
-      class: `sys-filter-chip${_librarySystemFilter === sysId ? " active" : ""}`,
-      "aria-pressed": _librarySystemFilter === sysId ? "true" : "false",
-    }, sys?.shortName ?? sysId);
-    if (sys) chip.style.setProperty("--chip-color", sys.color);
+      class: `sys-filter-chip${_librarySystemFilter === id ? " active" : ""}`,
+      "aria-pressed": _librarySystemFilter === id ? "true" : "false",
+    });
+    
+    const iconEl = make("span", { class: "sys-filter-chip__icon" });
+    if (icon.includes("/assets/")) {
+      iconEl.appendChild(make("img", { src: icon, alt: "" }));
+    } else {
+      iconEl.textContent = icon;
+    }
+    
+    const labelEl = make("span", { class: "sys-filter-chip__label" }, label);
+    chip.append(iconEl, labelEl);
+    
     chip.addEventListener("click", () => {
-      _librarySystemFilter = _librarySystemFilter === sysId ? "" : sysId;
+      _librarySystemFilter = _librarySystemFilter === id ? "" : id;
       _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
-    filterEl.appendChild(chip);
+    return chip;
+  };
+
+  filterEl.appendChild(createChip("", "All Games", "🎮"));
+
+  for (const sysId of systemIds) {
+    const sys = getSystemById(sysId);
+    filterEl.appendChild(createChip(sysId, sys?.shortName ?? sysId, systemIcon(sysId)));
   }
 }
 
@@ -1976,7 +2046,7 @@ function buildGameCard(
   icon.appendChild(sysIconWrap);
 
   if (game.cloudId) {
-    const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" }, "☁");
+    const cloudBadge = make("div", { class: "game-card__cloud-badge", title: "Cloud Stream" });
     icon.appendChild(cloudBadge);
   }
 
@@ -1985,20 +2055,32 @@ function buildGameCard(
     icon.appendChild(newBadge);
   }
 
+  // Fallback "Premium" Placeholder
+  const fallback = make("div", { class: "game-card__fallback" });
+  fallback.style.setProperty("--sys-color-bright", `${sysColor}dd`);
+  fallback.innerHTML = `
+    <div class="game-card__fallback-badge">${system?.shortName ?? "Game"}</div>
+    <div class="game-card__fallback-icon">${systemIcon(game.systemId)}</div>
+    <div class="game-card__fallback-name">${game.name}</div>
+  `;
+  icon.appendChild(fallback);
+
   // Cover art: local blob takes precedence over remote thumbnailUrl
   let coverArtObjectUrl: string | null = null;
   const coverArtImg = make("img", {
     alt: "",
     class: "game-card__cover-art",
     draggable: "false",
+    loading: "lazy",
   }) as HTMLImageElement;
 
   const applyCoverArt = (src: string) => {
     coverArtImg.src = src;
     icon.classList.add("game-card__icon--has-art");
     if (!icon.contains(coverArtImg)) {
-      icon.insertBefore(coverArtImg, icon.firstChild);
+      icon.appendChild(coverArtImg);
     }
+    fallback.style.opacity = "0"; // Hide fallback if art loads
   };
 
   if (game.hasCoverArt) {
@@ -3384,9 +3466,8 @@ function buildInGameControls(
   // ── Menu button ─────────────────────────────────────────────────────────────
   const btnMenu = make("button", {
     class: "btn btn--gradient header-priority-primary",
-    title: "Open Menu",
-    "aria-label": "Open Menu",
-    "data-tooltip": "Open Menu",
+    title: "Open Oasis Menu",
+    "aria-label": "Open Oasis Menu",
   });
   btnMenu.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Menu`;
   btnMenu.addEventListener("click", () => {
@@ -3468,9 +3549,38 @@ async function showInGameMenu(ctx: {
   overlay.appendChild(menu);
 
   // Sidebar
-  const sidebar = make("div", { class: "ingame-menu__sidebar", role: "navigation", "aria-label": "In-Game Menu Navigation" });
-  sidebar.innerHTML = `<div class="ingame-menu__sidebar-title">Vault Menu</div>`;
+  const sidebar = make("div", { class: "ingame-menu__sidebar", role: "navigation", "aria-label": "System Menu Navigation" });
+  sidebar.innerHTML = `<div class="ingame-menu__sidebar-title">Oasis Menu</div>`;
   menu.appendChild(sidebar);
+
+  const tabs: {id: "saves" | "settings" | "multiplayer", label: string, icon: string}[] = [
+    { id: "saves", label: "Save States", icon: "💾" },
+    { id: "settings", label: "Quick Settings", icon: "⚙️" },
+    { id: "multiplayer", label: "Play Together", icon: "👥" },
+  ];
+
+  tabs.forEach(tab => {
+    const btn = make("button", {
+      class: "ingame-menu__sidebar-btn",
+      "data-tab": tab.id,
+      "aria-label": tab.label
+    });
+    btn.innerHTML = `<span>${tab.icon}</span> ${tab.label}`;
+    btn.addEventListener("click", () => renderContent(tab.id));
+    sidebar.appendChild(btn);
+  });
+
+  // Quit Button
+  const quitBtn = make("button", { class: "ingame-menu__sidebar-btn", style: "margin-top: auto; color: var(--c-accent);" });
+  quitBtn.innerHTML = `<span>⬅️</span> Quit Game`;
+  quitBtn.addEventListener("click", async () => {
+    const confirmed = await showConfirmDialog("Are you sure you want to quit and return to the library?", { title: "Quit Game?", confirmLabel: "Quit", isDanger: true });
+    if (confirmed) {
+      closeMenu();
+      onReturnToLibrary();
+    }
+  });
+  sidebar.appendChild(quitBtn);
 
   const content = make("div", { class: "ingame-menu__content" });
   menu.appendChild(content);
@@ -4976,6 +5086,7 @@ export function openEasyNetplayModal(opts: {
   const tabs: Array<{ id: string; label: string }> = [
     { id: "host",    label: "🎮 Host"    },
     { id: "join",    label: "🔗 Join"    },
+    { id: "lanemu",  label: "🏠 LAN Rooms" },
     { id: "browse",  label: "📋 Browse"  },
     { id: "watch",   label: "👁 Watch"   },
   ];
@@ -5033,6 +5144,11 @@ export function openEasyNetplayModal(opts: {
     onCodeSetterReady: (setter) => { _fillJoinCode = setter; },
     onJoinActionReady: (joinNow) => { _quickJoinCode = joinNow; },
   }));
+
+  // ── LANemu panel ────────────────────────────────────────────────────────
+  import("./multiplayer/ui/MultiplayerHome.js").then(({ buildMultiplayerHome }) => {
+    buildMultiplayerHome(panels[2]!);
+  });
 
   // ── Browse panel ─────────────────────────────────────────────────────────
   // Watch-tab pre-fill refs
@@ -6079,22 +6195,32 @@ function showCloudConnectDialog(): Promise<boolean> {
         "Choose a cloud provider to mirror save states across devices. Your local saves stay on this device; cloud backup keeps them in sync."
       ));
 
-      const providerRow = make("div", { class: "settings-input-row" });
-      const providerSel = make("select", { id: "csd-provider", class: "settings-input" }) as HTMLSelectElement;
+      const providerGrid = make("div", { class: "cloud-provider-grid" });
+      let selectedId = CLOUD_SAVE_PROVIDERS[0]!.id;
+
       for (const p of CLOUD_SAVE_PROVIDERS) {
-        const opt = document.createElement("option");
-        opt.value = p.id;
-        opt.textContent = `${p.icon} ${p.label}`;
-        providerSel.appendChild(opt);
+        const pCard = make("button", {
+          class: `cloud-provider-card${p.id === selectedId ? " active" : ""}`,
+          type: "button",
+        });
+        pCard.innerHTML = `
+          <div class="cloud-provider-card__icon">${p.icon}</div>
+          <div class="cloud-provider-card__label">${p.label}</div>
+        `;
+        pCard.addEventListener("click", () => {
+          selectedId = p.id;
+          providerGrid.querySelectorAll(".cloud-provider-card").forEach(c => c.classList.remove("active"));
+          pCard.classList.add("active");
+        });
+        providerGrid.appendChild(pCard);
       }
-      providerRow.append(make("label", { class: "settings-input-label", for: "csd-provider" }, "Provider"), providerSel);
-      box.appendChild(providerRow);
+      box.appendChild(providerGrid);
 
       const actions = make("div", { class: "confirm-box__actions" });
       const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
       const nextBtn   = make("button", { class: "btn btn--primary" }, "Next →") as HTMLButtonElement;
       cancelBtn.addEventListener("click", () => close(false));
-      nextBtn.addEventListener("click", () => renderStep2(providerSel.value));
+      nextBtn.addEventListener("click", () => renderStep2(selectedId));
       actions.append(cancelBtn, nextBtn);
       box.appendChild(actions);
     };
@@ -7565,11 +7691,12 @@ function showAddCloudLibraryDialog(
         type:        "text",
         id:          "cld-name",
         class:       "settings-input",
-        placeholder: `My ${meta.label}`,
+        placeholder: `My ${meta.label} Library`,
         autocomplete: "off",
       }) as HTMLInputElement;
-      nameRow.append(make("label", { class: "settings-input-label", for: "cld-name" }, "Connection name"), nameInp);
+      nameRow.append(make("label", { class: "settings-input-label", for: "cld-name" }, "Display Name"), nameInp);
       form.appendChild(nameRow);
+      form.appendChild(make("p", { class: "settings-help" }, "This name will appear in your library filters."));
 
       type LibCredResult = { ok: false; error: string } | { ok: true; config: CloudLibraryConnection["config"] };
       let getCredentials: () => LibCredResult = () => ({

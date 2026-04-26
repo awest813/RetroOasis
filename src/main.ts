@@ -326,7 +326,7 @@ function setTouchControlsPreferenceForSystem(
  */
 declare global {
   interface Window {
-    __retrovault?: Record<string, unknown>;
+    __retro-oasis?: Record<string, unknown>;
     __pwaInstallPrompt?: () => Promise<void>;
   }
 }
@@ -830,7 +830,7 @@ async function main(): Promise<void> {
 
   // 7. Wire UI
   // Extract onSettingsChange as a named function so it can be reused by both
-  // initUI and the post-game landing controls rebuild in retrovault:returnToLibrary.
+  // initUI and the post-game landing controls rebuild in retro-oasis:returnToLibrary.
   // Previously the event listeners used a simplified handler that skipped syncing
   // emulator state (WebGPU, post-process effects, touch controls, verbose logging).
   const onSettingsChange = (patch: Partial<Settings>): void => {
@@ -1012,10 +1012,10 @@ async function main(): Promise<void> {
   // 8b. Web Share Target — pick up any ROM files deposited by the service
   //     worker when this app was opened from the OS share sheet.
   //     The service worker stores shared files under `/_shared/<filename>` in
-  //     the "retrovault-shared-roms" cache; we retrieve and process them here,
+  //     the "retro-oasis-shared-roms" cache; we retrieve and process them here,
   //     then delete the cached entries so they're not replayed on the next load.
   try {
-    const shareCache = await caches.open("retrovault-shared-roms");
+    const shareCache = await caches.open("retro-oasis-shared-roms");
     const sharedKeys = await shareCache.keys();
     if (sharedKeys.length > 0) {
       for (const req of sharedKeys) {

@@ -1,7 +1,7 @@
 {
-  "name": "retrovault",
-  "version": "1.0.0",
-  "description": "Browser-based multi-system retro game emulator powered by EmulatorJS and WebAssembly",
+  "name": "retro-oasis",
+  "version": "1.4.2",
+  "description": "Polished browser-based multi-system emulator built for the modern web.",
   "type": "module",
   "scripts": {
     "dev": "vite",

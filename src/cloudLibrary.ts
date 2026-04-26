@@ -369,7 +369,7 @@ export class BlompLibraryProvider implements CloudProvider {
   constructor(
     private readonly username:  string,
     private readonly password:  string,
-    private readonly container: string = "retrovault",
+    private readonly container: string = "retro-oasis",
   ) {}
 
   async isAvailable(): Promise<boolean> {
@@ -886,7 +886,7 @@ export class MegaLibraryProvider implements CloudProvider {
   /**
    * AES-CBC-128 encrypt with a zero IV.
    *
-   * Used when writing node attributes that RetroVault created so that our
+   * Used when writing node attributes that RetroOasis created so that our
    * own reader (and the official MEGA client) can decrypt them correctly.
    *
    * @param data  Plaintext, must already be padded to a multiple of 16 bytes.

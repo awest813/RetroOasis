@@ -76,7 +76,7 @@ addCheck('Cross-origin isolation helper present for static hosts', () => {
   return { status: PASS, message: `${swPath} is present.` };
 });
 
-console.log('RetroVault environment doctor\n');
+console.log('RetroOasis environment doctor\n');
 
 let hasFailures = false;
 
@@ -95,5 +95,5 @@ if (hasFailures) {
   console.log('One or more checks failed. Fix the issues above and rerun `npm run doctor`.');
   process.exitCode = 1;
 } else {
-  console.log('No blocking issues detected. You are ready to run RetroVault.');
+  console.log('No blocking issues detected. You are ready to run RetroOasis.');
 }

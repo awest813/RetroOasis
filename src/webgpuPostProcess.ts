@@ -1313,7 +1313,7 @@ export class WebGPUPostProcessor {
     // Configure the WebGPU canvas context
     this._gpuContext = this._canvas.getContext("webgpu") as GPUCanvasContext | null;
     if (!this._gpuContext) {
-      console.warn("[RetroVault] WebGPU canvas context unavailable — post-processing disabled.");
+      console.warn("[RetroOasis] WebGPU canvas context unavailable — post-processing disabled.");
       this._canvas.remove();
       this._canvas = null;
       return;
@@ -1480,7 +1480,7 @@ export class WebGPUPostProcessor {
         shaderCache.recordWGSL(fragment, `${this._currentEffect}-fragment`).catch(() => {});
       }
     } catch (err) {
-      console.warn("[RetroVault] Failed to build WebGPU post-process pipeline:", err);
+      console.warn("[RetroOasis] Failed to build WebGPU post-process pipeline:", err);
       this._effectPipeline = null;
       // Release the old buffer to avoid a GPU resource leak.
       prevPipeline?.uniformBuffer?.destroy();
@@ -1881,7 +1881,7 @@ export class WebGPUPostProcessor {
       try {
         this._renderFrame();
       } catch (err) {
-        console.warn("[RetroVault] WebGPU post-process frame failed — stopping render loop.", err);
+        console.warn("[RetroOasis] WebGPU post-process frame failed — stopping render loop.", err);
         this._stopLoop();
         this._hideOverlay();
         return;
@@ -1922,7 +1922,7 @@ export class WebGPUPostProcessor {
     lost.then((info) => {
       if (!this._active) return;
       console.warn(
-        `[RetroVault] WebGPU device lost (reason: ${info.reason}, message: "${info.message}"). ` +
+        `[RetroOasis] WebGPU device lost (reason: ${info.reason}, message: "${info.message}"). ` +
         "Post-processing render loop stopped."
       );
       // Fully detach so the stale overlay canvas and transient GPU resources do

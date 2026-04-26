@@ -1,4 +1,4 @@
-# RetroVault Roadmap
+# RetroOasis Roadmap
 
 This document describes **what is shipped**, **what we are building next**, and **longer-term directions**. Historical phase notes stay below for contributors who need a detailed changelog-style record.
 
@@ -105,7 +105,7 @@ Improvements to visual fidelity and audio latency for 3D-heavy systems.
 - [x] **PS1 ultra tier**: 4× internal resolution, Memory + CPU PGXP, 8× GPU overclock, GTE overclock (best accuracy; reduces polygon wobble and improves animation smoothness)
 - [x] **GPU benchmark**: VAO-aware draw-call benchmark (more realistic 3D workload proxy)
 - [x] **GPU capability detection**: Multi-Draw, MRT, VAO, compressed textures, half-float textures — all surfaced as tier-bonus points
-- [x] **Shader cache**: Persist GLSL shader strings to IndexedDB (`retrovault-shaders`); pre-compile via `KHR_parallel_shader_compile`; LRU eviction at 64 programs; djb2 keying
+- [x] **Shader cache**: Persist GLSL shader strings to IndexedDB (`retro-oasis-shaders`); pre-compile via `KHR_parallel_shader_compile`; LRU eviction at 64 programs; djb2 keying
 - [x] **WebGPU rendering path**: `preWarmWebGPU()` acquires a `GPUDevice`; toggled in Settings; falls back silently to WebGL
 - [x] **PSP Vulkan-style pipeline warm-up**: Pre-compiles 5 representative PSP GPU shader patterns on a throw-away GL context
 
@@ -156,7 +156,7 @@ Improved persistence, portability, and crash-recovery for save data.
 
 First-class mobile experience and installability.
 
-- [x] **Progressive Web App**: Combined COI + PWA service worker; app-shell caching; "Install RetroVault" button in Settings
+- [x] **Progressive Web App**: Combined COI + PWA service worker; app-shell caching; "Install RetroOasis" button in Settings
 - [x] **Touch control layout editor**: 12 draggable virtual buttons; positions persisted per system and per orientation
 - [x] **Haptic feedback**: `navigator.vibrate(12)` on press, `vibrate(6)` on release; toggled in Settings
 - [x] **Orientation lock**: `screen.orientation.lock("landscape-primary")` on game start; graceful no-op on iOS/desktop
@@ -170,7 +170,7 @@ First-class mobile experience and installability.
 
 Bug fixes, performance improvements, and quality-of-life enhancements.
 
-- [x] **Fix auto-save restore handler leak**: One-shot `retrovault:gameStarted` event listener replaces monkey-patching
+- [x] **Fix auto-save restore handler leak**: One-shot `retro-oasis:gameStarted` event listener replaces monkey-patching
 - [x] **O(1) system lookup**: Pre-built `Map<string, SystemInfo>` replaces `SYSTEMS.find()` linear search on the hot launch path
 - [x] **FPS monitor bind optimisation**: `this._tick.bind(this)` moved from `start()` to constructor — one allocation instead of one per game launch
 - [x] **Shader cache eviction**: LRU eviction runs every 10 writes instead of every `record()` call
@@ -197,7 +197,7 @@ Fixes for silent bugs where the wrong PS1 core was used and keyboard shortcuts l
 
 Networked features for real-time multiplayer gaming.
 
-- [x] **NetplayManager**: Wires EmulatorJS built-in Netplay into RetroVault; manages server URL, ICE servers, game ID derivation (djb2), and persistence
+- [x] **NetplayManager**: Wires EmulatorJS built-in Netplay into RetroOasis; manages server URL, ICE servers, game ID derivation (djb2), and persistence
 - [x] **NETPLAY_SUPPORTED_SYSTEM_IDS**: PSP, N64, NDS explicitly supported; DS wires EJS globals at launch
 - [x] **Username management**: `validateUsername()`, `netplayUsername` in Settings, `EJS_playerName` wired in emulator
 - [x] **Lobby browser foundation**: `fetchLobbyRooms()` probes `/rooms`, `/lobby/rooms`, `/netplay/rooms`; normalises payload shapes; resilient to network failures
@@ -304,7 +304,7 @@ Data-driven and heuristic tuning: compatibility hints, thermal and memory signal
 - [x] **CDN-accurate core prefetch**: `prefetchCore()` prefetches the same `cores/<core>-wasm.data` blobs EmulatorJS downloads (replacing stale `_libretro.js` / `.wasm` URLs that never existed on stable CDN)
 - [x] **Per-game shader warmup**: `ShaderCache.beginWarmupWindow(gameId)` / `endWarmupWindow()` open a 60-second recording window when `EJS_onGameStart` fires; any `record()` call during the window additionally persists the shader under `gameId` in the `gameWarmupPrograms` IDB store; `preCompileForGame(gameId)` pre-compiles those shaders at the start of each subsequent launch; `clearForGame()` / `countForGame()` / `loadForGame()` for management; wired into `PSPEmulator.launch()` and `_teardown()`
 - [x] **WASM compilation caching**: `WasmModuleCache` in `src/wasmCache.ts`; IndexedDB-backed `WebAssembly.Module` store; ETag/Last-Modified conditional validation; `wasmModuleCache` shared singleton
-- [x] **Capability cache TTL**: `detectCapabilitiesCached()` uses `sessionStorage` under `retrovault-devcaps-v1`; "Clear Capability Cache" button added to Debug tab in Settings
+- [x] **Capability cache TTL**: `detectCapabilitiesCached()` uses `sessionStorage` under `retro-oasis-devcaps-v1`; "Clear Capability Cache" button added to Debug tab in Settings
 
 ---
 

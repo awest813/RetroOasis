@@ -42,7 +42,7 @@ export function checkSystemSupport(systemId: string): CompatibilityResult {
     return {
       compatible: false,
       warnings:   [],
-      errors:     [`This system (${systemId.toUpperCase()}) doesn't support RetroVault Play Together multiplayer.`],
+      errors:     [`This system (${systemId.toUpperCase()}) doesn't support RetroOasis Play Together multiplayer.`],
     };
   }
   return { compatible: true, warnings: [], errors: [] };

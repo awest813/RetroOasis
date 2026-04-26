@@ -56,23 +56,23 @@ console.error = ((...args: unknown[]) => {
 // ── Known console.warn suppressions ──────────────────────────────────────────
 //
 // Several tests exercise failure paths in the application that intentionally
-// log [RetroVault] warnings. These are correct, expected messages and do not
+// log [RetroOasis] warnings. These are correct, expected messages and do not
 // indicate a regression. Suppressing them keeps the test output signal/noise
 // ratio high so genuine warnings stand out.
 
 const EXPECTED_WARN_PATTERNS = [
   // WebGPU post-processor: pipeline build failure (tested explicitly)
-  "[RetroVault] Failed to build WebGPU post-process pipeline:",
+  "[RetroOasis] Failed to build WebGPU post-process pipeline:",
   // WebGPU post-processor: device loss path (tested explicitly)
-  "[RetroVault] WebGPU device lost",
+  "[RetroOasis] WebGPU device lost",
   // MemoryMonitor: pressure callback fire (tested explicitly in emulator tests)
-  "[RetroVault] Memory pressure detected",
+  "[RetroOasis] Memory pressure detected",
   // WebGPU post-processor: canvas context unavailable (jsdom environment)
-  "[RetroVault] WebGPU canvas context unavailable",
+  "[RetroOasis] WebGPU canvas context unavailable",
   // WebGPU post-processor: render loop frame failure (tested explicitly)
-  "[RetroVault] WebGPU post-process frame failed",
+  "[RetroOasis] WebGPU post-process frame failed",
   // ThermalMonitor: elevated pressure warning (tested explicitly in emulator tests)
-  "[RetroVault] Thermal pressure elevated",
+  "[RetroOasis] Thermal pressure elevated",
 ] as const;
 
 function isExpectedWarn(args: unknown[]): boolean {

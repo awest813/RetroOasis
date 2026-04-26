@@ -9,7 +9,7 @@
  *
  * Schema
  * ------
- * Database : "retrovault-history"
+ * Database : "retro-oasis-history"
  * Version  : 1
  * Store    : "playSessions"  (keyPath = "id")
  *   id          string   — UUID v4
@@ -48,7 +48,7 @@ export interface GamePlayStats {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DB_NAME    = "retrovault-history";
+const DB_NAME    = "retro-oasis-history";
 const DB_VERSION = 1;
 const STORE_NAME = "playSessions";
 

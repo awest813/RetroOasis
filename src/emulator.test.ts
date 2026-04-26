@@ -1901,7 +1901,7 @@ describe('PSPEmulator', () => {
       expect((emulator as unknown as { _postProcessor: unknown })._postProcessor).toBeNull();
       expect(infoSpy).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(
-        '[RetroVault] WebGPU post-processing requested but could not be activated.'
+        '[RetroOasis] WebGPU post-processing requested but could not be activated.'
       );
     });
   });
@@ -3255,7 +3255,7 @@ describe('PSPEmulator', () => {
       try { delete (window.performance as unknown as Record<string, unknown>)['measure']; } catch { /* ignore */ }
     });
 
-    it('records retrovault:launch mark when launch() is called', async () => {
+    it('records retro-oasis:launch mark when launch() is called', async () => {
       const marks: string[] = [];
       Object.defineProperty(window.performance, 'mark', {
         value: (name: string) => { marks.push(name); return {} as PerformanceMark; },
@@ -3274,7 +3274,7 @@ describe('PSPEmulator', () => {
         deviceCaps: markTestCaps,
       });
 
-      expect(marks).toContain('retrovault:launch');
+      expect(marks).toContain('retro-oasis:launch');
     });
 
     it('does not throw when performance.mark is unavailable (graceful degradation)', async () => {
@@ -3297,7 +3297,7 @@ describe('PSPEmulator', () => {
       expect(perfErrors).toHaveLength(0);
     });
 
-    it('records retrovault:core-ready and retrovault:game-start marks on game lifecycle', async () => {
+    it('records retro-oasis:core-ready and retro-oasis:game-start marks on game lifecycle', async () => {
       const marks: string[] = [];
       const measures: string[] = [];
       Object.defineProperty(window.performance, 'mark', {
@@ -3321,10 +3321,10 @@ describe('PSPEmulator', () => {
       window.EJS_ready?.();
       window.EJS_onGameStart?.();
 
-      expect(marks).toContain('retrovault:core-ready');
-      expect(marks).toContain('retrovault:game-start');
-      expect(measures).toContain('retrovault:launch-to-ready');
-      expect(measures).toContain('retrovault:ready-to-game-start');
+      expect(marks).toContain('retro-oasis:core-ready');
+      expect(marks).toContain('retro-oasis:game-start');
+      expect(measures).toContain('retro-oasis:launch-to-ready');
+      expect(measures).toContain('retro-oasis:ready-to-game-start');
     });
   });
 

@@ -1,6 +1,6 @@
 # Netplay Alias Generation Pipeline
 
-This document explains how RetroVault automatically groups ROM variants for
+This document explains how RetroOasis automatically groups ROM variants for
 netplay compatibility, so players on different regional or revision releases
 can join the same room.
 
@@ -100,7 +100,7 @@ node tools/generate-netplay-aliases.js
 
 ## Pokémon compatibility groups
 
-RetroVault ships with built-in compatibility groups covering every mainline
+RetroOasis ships with built-in compatibility groups covering every mainline
 Pokémon game supported by the emulator (GB/GBC, GBA, NDS).  Each group is
 called a **room key**.
 

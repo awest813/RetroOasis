@@ -1,6 +1,6 @@
-# RetroVault — User Testing Guide
+# RetroOasis — User Testing Guide
 
-This document provides structured manual test scenarios for RetroVault. Use it to validate a new build, verify a bug fix, or perform pre-release testing. Each section lists the pre-conditions, steps, and expected outcomes.
+This document provides structured manual test scenarios for RetroOasis. Use it to validate a new build, verify a bug fix, or perform pre-release testing. Each section lists the pre-conditions, steps, and expected outcomes.
 
 > **Automated tests** cover unit and integration logic (`npm test`). This guide covers the user-visible flows that require a real browser environment.
 
@@ -212,7 +212,7 @@ Before running any tests:
 
 | # | Step | Expected |
 |---|------|----------|
-| 14.1 | Open Settings | "Install RetroVault App" button visible (if browser supports PWA install) |
+| 14.1 | Open Settings | "Install RetroOasis App" button visible (if browser supports PWA install) |
 | 14.2 | Click the install button | Browser native install prompt appears |
 | 14.3 | Accept install | App installs to OS; opens as standalone window on next launch |
 

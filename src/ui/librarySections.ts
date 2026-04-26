@@ -39,21 +39,30 @@ export function buildLibraryHero(opts: {
   const system = getSystemById(game.systemId);
 
   const bg = make("div", { class: "library-hero__bg" });
-  bg.style.background = `radial-gradient(circle at 20% 30%, ${system?.color ?? "#8b5cf6"}44 0%, transparent 70%), linear-gradient(135deg, var(--c-surface) 0%, var(--c-bg) 100%)`;
+  bg.style.background = `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), radial-gradient(circle at 20% 30%, ${system?.color ?? "#8b5cf6"}22 0%, transparent 70%)`;
+  
+  if (game.hasCoverArt) {
+    void library.getCoverArt(game.id).then(blob => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        bg.style.backgroundImage = `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), url(${url})`;
+      }
+    });
+  }
 
   const content = make("div", { class: "library-hero__content" });
-  const tag = make("div", { class: "library-hero__tag" }, "Continue Playing");
+  const tag = make("div", { class: "library-hero__tag" }, "Recently Played");
   const title = make("h2", { class: "library-hero__title" }, game.name);
 
   const meta = make("div", { class: "library-hero__meta" });
   const sysName = system?.shortName ?? game.systemId.toUpperCase();
   const iconOutput = systemIcon(game.systemId);
   const iconHtml = iconOutput.includes("/assets/") ? `<img src="${iconOutput}" alt="" class="hero-sys-icon" />` : iconOutput;
-  meta.innerHTML = `<span>${iconHtml} ${escapeHtml(sysName)}</span> <span>🕒 ${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
+  meta.innerHTML = `<span>${iconHtml} ${escapeHtml(sysName)}</span> • <span>${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
 
   const actions = make("div", { class: "library-hero__actions" });
   const playBtn = make("button", { class: "btn--hero" });
-  playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Now`;
+  playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> START`;
   playBtn.addEventListener("click", async () => {
     showLoadingOverlay();
     setLoadingMessage(`Starting ${game.name}…`);

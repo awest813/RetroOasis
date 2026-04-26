@@ -1,6 +1,6 @@
-# Contributing to RetroVault
+# Contributing to RetroOasis
 
-Thank you for your interest in contributing! This document describes the workflow, standards, and guidelines for contributing to RetroVault.
+Thank you for your interest in contributing! This document describes the workflow, standards, and guidelines for contributing to RetroOasis.
 
 ---
 

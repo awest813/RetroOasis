@@ -1,5 +1,5 @@
 /**
- * audio-processor.js — AudioWorklet processor for RetroVault
+ * audio-processor.js — AudioWorklet processor for RetroOasis
  *
  * This processor runs in the AudioWorklet thread (separate from the main JS
  * thread), providing lower latency than ScriptProcessorNode which runs on
@@ -20,7 +20,7 @@
  *   { type: "level",   rms:   number }   — RMS level 0–1 (sent every REPORT_INTERVAL)
  */
 
-class RetroVaultProcessor extends AudioWorkletProcessor {
+class RetroOasisProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       {
@@ -108,4 +108,4 @@ class RetroVaultProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("retrovault-audio-processor", RetroVaultProcessor);
+registerProcessor("retro-oasis-audio-processor", RetroOasisProcessor);

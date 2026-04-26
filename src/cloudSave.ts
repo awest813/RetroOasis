@@ -811,9 +811,9 @@ const DROPBOX_OPERATION_TIMEOUT_MS    = 15_000;
  *
  * Files are stored in the app's Dropbox folder under:
  * ```
- * /retrovault/{gameId}/{slot}/manifest.json
- * /retrovault/{gameId}/{slot}/state.bin
- * /retrovault/{gameId}/{slot}/thumb.jpg
+ * /retro-oasis/{gameId}/{slot}/manifest.json
+ * /retro-oasis/{gameId}/{slot}/state.bin
+ * /retro-oasis/{gameId}/{slot}/thumb.jpg
  * ```
  *
  * The access token is obtained via OAuth 2.0 and passed directly to the
@@ -827,7 +827,7 @@ export class DropboxProvider implements CloudSaveProvider {
 
   private static readonly CONTENT_API = "https://content.dropboxapi.com/2";
   private static readonly API_BASE    = "https://api.dropboxapi.com/2";
-  private static readonly ROOT_FOLDER = "/retrovault";
+  private static readonly ROOT_FOLDER = "/retro-oasis";
 
   constructor(private readonly accessToken: string) {}
 
@@ -1031,9 +1031,9 @@ const PCLOUD_OPERATION_TIMEOUT_MS    = 15_000;
  *
  * Files are stored in a pCloud folder under:
  * ```
- * /RetroVault/{gameId}/{slot}/manifest.json
- * /RetroVault/{gameId}/{slot}/state.bin
- * /RetroVault/{gameId}/{slot}/thumb.jpg
+ * /RetroOasis/{gameId}/{slot}/manifest.json
+ * /RetroOasis/{gameId}/{slot}/state.bin
+ * /RetroOasis/{gameId}/{slot}/thumb.jpg
  * ```
  *
  * The access token is obtained via OAuth 2.0 and passed directly to the
@@ -1046,7 +1046,7 @@ export class pCloudProvider implements CloudSaveProvider {
 
   private static readonly US_API      = "https://api.pcloud.com";
   private static readonly EU_API      = "https://eapi.pcloud.com";
-  private static readonly ROOT_FOLDER = "/RetroVault";
+  private static readonly ROOT_FOLDER = "/RetroOasis";
 
   // pCloud API result codes
   private static readonly ERR_LOGIN_REQUIRED = 2000; // Log in required
@@ -1295,9 +1295,9 @@ const BLOMP_OPERATION_TIMEOUT_MS = 15_000;
  * Files are stored in the specified Swift container under:
  * ```
  * {container}/
- *   RetroVault/{hex(gameId)}/{slot}/manifest.json
- *   RetroVault/{hex(gameId)}/{slot}/state.bin
- *   RetroVault/{hex(gameId)}/{slot}/thumb.jpg
+ *   RetroOasis/{hex(gameId)}/{slot}/manifest.json
+ *   RetroOasis/{hex(gameId)}/{slot}/state.bin
+ *   RetroOasis/{hex(gameId)}/{slot}/thumb.jpg
  * ```
  *
  * The auth token is cached after the first successful authentication.
@@ -1309,7 +1309,7 @@ export class BlompProvider implements CloudSaveProvider {
   readonly displayName = "Blomp";
 
   private static readonly AUTH_URL    = "https://authenticate.blomp.com/v1/auth";
-  private static readonly ROOT_PREFIX = "RetroVault";
+  private static readonly ROOT_PREFIX = "RetroOasis";
 
   private _authToken:  string | null = null;
   private _storageUrl: string | null = null;
@@ -1317,7 +1317,7 @@ export class BlompProvider implements CloudSaveProvider {
   constructor(
     private readonly username:  string,
     private readonly password:  string,
-    private readonly container: string = "retrovault",
+    private readonly container: string = "retro-oasis",
   ) {}
 
   // ── CloudSaveProvider implementation ───────────────────────────────────────
@@ -1806,9 +1806,9 @@ const ONEDRIVE_OPERATION_TIMEOUT_MS    = 15_000;
  * Files are stored in a dedicated app folder under the user's OneDrive:
  * ```
  * {rootFolderId}/
- *   RetroVault/{hex(gameId)}/{slot}/manifest.json
- *   RetroVault/{hex(gameId)}/{slot}/state.bin
- *   RetroVault/{hex(gameId)}/{slot}/thumb.jpg
+ *   RetroOasis/{hex(gameId)}/{slot}/manifest.json
+ *   RetroOasis/{hex(gameId)}/{slot}/state.bin
+ *   RetroOasis/{hex(gameId)}/{slot}/thumb.jpg
  * ```
  *
  * The access token must be obtained via OAuth 2.0 before constructing this
@@ -1819,7 +1819,7 @@ export class OneDriveProvider implements CloudSaveProvider {
   readonly displayName = "OneDrive";
 
   private static readonly API_BASE    = "https://graph.microsoft.com/v1.0";
-  private static readonly ROOT_PREFIX = "RetroVault";
+  private static readonly ROOT_PREFIX = "RetroOasis";
 
   constructor(
     private readonly accessToken: string,
@@ -2044,7 +2044,7 @@ async function encryptMegaAttr(name: string, nodeKey: Uint8Array): Promise<strin
  *
  * MEGA uses end-to-end encryption.  This provider authenticates with
  * email + password, derives the AES master key, and stores save states
- * as files in a `/RetroVault/{hex(gameId)}/{slot}/` folder structure.
+ * as files in a `/RetroOasis/{hex(gameId)}/{slot}/` folder structure.
  *
  * Files are stored unencrypted at the MEGA layer (MEGA's own encryption
  * is handled transparently by the API); the provider does not add an
@@ -2298,7 +2298,7 @@ export class MegaProvider implements CloudSaveProvider {
   }
 
   /**
-   * Walk the node tree along RetroVault/{hexGameId}/{slot} and return the
+   * Walk the node tree along RetroOasis/{hexGameId}/{slot} and return the
    * leaf folder handle, or null if any segment is missing.
    * Accepts a pre-fetched node array to avoid redundant API calls.
    */
@@ -2315,14 +2315,14 @@ export class MegaProvider implements CloudSaveProvider {
     let handle: string | null = this._rootHandle;
     if (!handle) return null;
 
-    for (const segment of ["RetroVault", safeId, String(slot)]) {
+    for (const segment of ["RetroOasis", safeId, String(slot)]) {
       handle = this._findChildFolderInNodes(nodes, handle, segment, mega);
       if (!handle) return null;
     }
     return handle;
   }
 
-  /** Navigate to or create the RetroVault/{hexGameId}/{slot} folder hierarchy. */
+  /** Navigate to or create the RetroOasis/{hexGameId}/{slot} folder hierarchy. */
   private async _ensureSlotFolder(gameId: string, slot: number): Promise<string> {
     const { MegaLibraryProvider } = await import("./cloudLibrary.js");
     const safeId = Array.from(new TextEncoder().encode(gameId))
@@ -2334,7 +2334,7 @@ export class MegaProvider implements CloudSaveProvider {
 
     // Fetch the node tree once for all three path segments.
     let nodes = await this._getNodes();
-    for (const segment of ["RetroVault", safeId, String(slot)]) {
+    for (const segment of ["RetroOasis", safeId, String(slot)]) {
       const existing = this._findChildFolderInNodes(nodes, parentHandle, segment, MegaLibraryProvider);
       if (existing) {
         parentHandle = existing;
@@ -2489,7 +2489,7 @@ export class MegaProvider implements CloudSaveProvider {
 
 // ── CloudSaveManager ──────────────────────────────────────────────────────────
 
-/** Settings persisted in localStorage under "retrovault-cloud". */
+/** Settings persisted in localStorage under "retro-oasis-cloud". */
 export interface CloudSaveSettings {
   providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega";
   autoSyncEnabled:    boolean;
@@ -2590,15 +2590,15 @@ export class CloudSaveManager {
     for (const listener of this._statusListeners) listener();
   }
 
-  private static readonly SETTINGS_KEY  = "retrovault-cloud";
-  private static readonly WEBDAV_KEY    = "retrovault-cloud-webdav";
-  private static readonly GDRIVE_KEY    = "retrovault-cloud-gdrive";
-  private static readonly DROPBOX_KEY   = "retrovault-cloud-dropbox";
-  private static readonly PCLOUD_KEY    = "retrovault-cloud-pcloud";
-  private static readonly BLOMP_KEY     = "retrovault-cloud-blomp";
-  private static readonly BOX_KEY       = "retrovault-cloud-box";
-  private static readonly ONEDRIVE_KEY  = "retrovault-cloud-onedrive";
-  private static readonly MEGA_KEY      = "retrovault-cloud-mega";
+  private static readonly SETTINGS_KEY  = "retro-oasis-cloud";
+  private static readonly WEBDAV_KEY    = "retro-oasis-cloud-webdav";
+  private static readonly GDRIVE_KEY    = "retro-oasis-cloud-gdrive";
+  private static readonly DROPBOX_KEY   = "retro-oasis-cloud-dropbox";
+  private static readonly PCLOUD_KEY    = "retro-oasis-cloud-pcloud";
+  private static readonly BLOMP_KEY     = "retro-oasis-cloud-blomp";
+  private static readonly BOX_KEY       = "retro-oasis-cloud-box";
+  private static readonly ONEDRIVE_KEY  = "retro-oasis-cloud-onedrive";
+  private static readonly MEGA_KEY      = "retro-oasis-cloud-mega";
 
   constructor() {
     this._loadSettings();
@@ -2945,7 +2945,7 @@ export class CloudSaveManager {
    * which is accessible to any JavaScript running on the same origin.
    * Users should be aware of this risk, particularly on shared devices.
    */
-  saveBlompConfig(username: string, password: string, container = "retrovault"): void {
+  saveBlompConfig(username: string, password: string, container = "retro-oasis"): void {
     try {
       localStorage.setItem(CloudSaveManager.BLOMP_KEY, JSON.stringify({ username, password, container }));
     } catch { /* quota exceeded or private-browsing restriction */ }
@@ -2960,7 +2960,7 @@ export class CloudSaveManager {
       return {
         username:  p.username  ?? "",
         password:  p.password  ?? "",
-        container: p.container ?? "retrovault",
+        container: p.container ?? "retro-oasis",
       };
     } catch { return null; }
   }
