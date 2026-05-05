@@ -127,6 +127,7 @@ import {
   showMultiDiscPicker as showMultiDiscPickerImpl,
   showCoverArtPickerDialog as showCoverArtPickerDialogImpl,
   showCoverArtCandidatePicker,
+  showGameDetails,
   isTopmostOverlay,
 } from "./ui/modals.js";
 import {
@@ -139,6 +140,7 @@ import {
   buildAboutTab as buildAboutTabContent,
   buildBiosTab as buildBiosTabContent,
   buildApiKeysTab as buildApiKeysTabContent,
+  buildAchievementsTab,
 } from "./ui/settingsTabs.js";
 import {
   getApiKeyStore,
@@ -171,10 +173,28 @@ import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from ".
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
+import type { RAProgress } from "./types/metadata.js";
+
+// Cache for RetroAchievements progress to avoid redundant API hits during a session.
+const _raProgressCache = new Map<string, { data: RAProgress; ts: number }>();
+const RA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function getCachedRAProgress(gameId: string): RAProgress | null {
+  const entry = _raProgressCache.get(gameId);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > RA_CACHE_TTL) {
+    _raProgressCache.delete(gameId);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedRAProgress(gameId: string, data: RAProgress): void {
+  _raProgressCache.set(gameId, { data, ts: Date.now() });
+}
 
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const APP_SHORT_NAME = "RO";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
@@ -1124,10 +1144,24 @@ async function _runBulkCoverArtFetch(
       const i = cursor++;
       if (i >= missing.length) return;
       const game = missing[i]!;
+      let hashes: { md5?: string } | undefined;
+      const store = getApiKeyStore();
+      if (store.getState("screenscraper").enabled) {
+        try {
+          const blob = await library.getGameBlob(game.id);
+          if (blob) {
+            const { calculateMD5 } = await import("./crypto.js");
+            const md5 = await calculateMD5(blob);
+            hashes = { md5 };
+          }
+        } catch { /* ignore hash errors in bulk */ }
+      }
+
       try {
         const candidates = await provider.search(game.name, game.systemId, {
           limit: 1,
           signal: controller.signal,
+          hashes,
         });
         const best = candidates[0];
         if (!best || best.score < AUTO_APPLY_CONFIDENCE_THRESHOLD) {
@@ -2055,6 +2089,11 @@ function buildGameCard(
     icon.appendChild(newBadge);
   }
 
+  if (system?.hasAchievements) {
+    const achBadge = make("div", { class: "game-card__ach-badge", title: "RetroAchievements Supported" }, "🏆");
+    icon.appendChild(achBadge);
+  }
+
   // Fallback "Premium" Placeholder
   const fallback = make("div", { class: "game-card__fallback" });
   fallback.style.setProperty("--sys-color-bright", `${sysColor}dd`);
@@ -2214,6 +2253,7 @@ function buildGameCard(
   const playBtn     = make("div", { class: "game-card__play-btn" }, "▶");
   playOverlay.appendChild(playBtn);
 
+
   // ── Cover art button ───────────────────────────────────────────────────────
   const btnArt = make("button", {
     class: "game-card__art-btn",
@@ -2240,10 +2280,6 @@ function buildGameCard(
         if (hadOnlyThumbnail) {
           await library.setThumbnailUrl(game.id, undefined);
           game.thumbnailUrl = undefined;
-        }
-        if (coverArtObjectUrl) {
-          URL.revokeObjectURL(coverArtObjectUrl);
-          coverArtObjectUrl = null;
         }
         icon.classList.remove("game-card__icon--has-art");
         coverArtImg.remove();
@@ -2276,11 +2312,41 @@ function buildGameCard(
         // ── Auto-fetch: query the provider, let the user pick, then store ──
         const provider = getCoverArtProvider();
         let candidates: CoverArtCandidate[] = [];
+
+        // Show a loading state — search can take a few seconds
+        btnArt.textContent = "⏳";
+        btnArt.disabled = true;
+
+        // Calculate MD5 hash for providers that need it (ScreenScraper)
+        let hashes: { md5?: string } | undefined;
+        const store = getApiKeyStore();
+        if (store.getState("screenscraper").enabled) {
+          try {
+            const blob = await library.getGameBlob(game.id);
+            if (blob) {
+              const { calculateMD5 } = await import("./crypto.js");
+              const md5 = await calculateMD5(blob);
+              hashes = { md5 };
+            }
+          } catch (err) {
+            console.warn("Hash calculation for cover art failed:", err);
+          }
+        }
+
         try {
-          candidates = await provider.search(game.name, game.systemId, { limit: 6 });
+          candidates = await provider.search(game.name, game.systemId, {
+            limit: 12,
+            hashes,
+            fileName: game.fileName,
+          });
+          // ScreenScraper hash matches (score=1.0) naturally sort first
+          candidates.sort((a, b) => b.score - a.score);
         } catch (err) {
           showError(`Cover art search failed: ${err instanceof Error ? err.message : String(err)}`);
           return;
+        } finally {
+          btnArt.textContent = "🖼";
+          btnArt.disabled = false;
         }
         const pickedUrl = await showCoverArtCandidatePicker(
           game.name,
@@ -2390,8 +2456,96 @@ function buildGameCard(
     }
   };
 
-  card.addEventListener("click", launch);
-  card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void launch(); } });
+  card.addEventListener("click", () => {
+    void showGameDetails(game, {
+      system: system ?? null,
+      formatBytes,
+      onLaunch:    () => { void launch(); },
+      onRemove:    () => btnRemove.click(),
+      onToggleFav: () => btnFav.click(),
+      onEditArt:   () => {
+        void showCoverArtPickerDialog(game.name, !!coverArtObjectUrl).then(res => {
+          if (!res) return;
+        });
+      },
+      getRAProgress: system?.hasAchievements ? async () => {
+        const cached = getCachedRAProgress(game.id);
+        if (cached) return cached;
+
+        const store = getApiKeyStore();
+        const state = store.getState("retroachievements");
+        if (!state.enabled || !state.key) return null;
+        
+        const { getRAClient, parseRAKey } = await import("./achievements.js");
+        const { calculateMD5 } = await import("./crypto.js");
+        
+        const creds = parseRAKey(state.key);
+        if (!creds) return null;
+        const client = getRAClient(creds.username, creds.apiKey);
+        
+        const blob = await library.getGameBlob(game.id);
+        if (!blob) return null;
+        const hash = await calculateMD5(blob);
+        
+        const raGameId = await client!.getGameIdByHash(hash);
+        if (!raGameId) return null;
+        
+        const data = await client!.getGameInfoAndUserProgress(raGameId);
+        if (data) setCachedRAProgress(game.id, data);
+        return data;
+      } : undefined,
+      getSGDBAssets: async () => {
+        const store = getApiKeyStore();
+        const state = store.getState("steamgriddb");
+        if (!state.enabled || !state.key) return null;
+
+        const { SGDBClient } = await import("./steamgriddb.js");
+        const client = new SGDBClient(state.key);
+        
+        try {
+          const games = await client.searchGame(game.name);
+          if (games.length === 0) return null;
+          const sgdbId = games[0]!.id;
+          
+          const [heroes, logos] = await Promise.all([
+            client.getHero(sgdbId),
+            client.getLogo(sgdbId)
+          ]);
+          
+          return {
+            heroUrl: heroes[0]?.url,
+            logoUrl: logos[0]?.url
+          };
+        } catch (err) {
+          console.error("SteamGridDB fetch failed:", err);
+          return null;
+        }
+      },
+      getIGDBMetadata: async () => {
+        const store = getApiKeyStore();
+        const state = store.getState("igdb");
+        if (!state.enabled || !state.key) return null;
+
+        const { IGDBClient } = await import("./igdb.js");
+        const client = new IGDBClient(state.key);
+        
+        try {
+          const games = await client.searchGame(game.name);
+          return games[0] || null;
+        } catch (err) {
+          console.error("IGDB fetch failed:", err);
+          return null;
+        }
+      }
+    });
+  });
+
+  card.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      card.click();
+    }
+  });
 
   return card;
 }
@@ -3466,8 +3620,8 @@ function buildInGameControls(
   // ── Menu button ─────────────────────────────────────────────────────────────
   const btnMenu = make("button", {
     class: "btn btn--gradient header-priority-primary",
-    title: "Open Oasis Menu",
-    "aria-label": "Open Oasis Menu",
+    title: "Open Menu",
+    "aria-label": "Open Menu",
   });
   btnMenu.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Menu`;
   btnMenu.addEventListener("click", () => {
@@ -3571,13 +3725,17 @@ async function showInGameMenu(ctx: {
   });
 
   // Quit Button
-  const quitBtn = make("button", { class: "ingame-menu__sidebar-btn", style: "margin-top: auto; color: var(--c-accent);" });
+  const quitBtn = make("button", { 
+    class: "ingame-menu__sidebar-btn", 
+    style: "margin-top: auto; color: var(--c-accent);",
+    "aria-label": "Quit game and return to library"
+  });
   quitBtn.innerHTML = `<span>⬅️</span> Quit Game`;
   quitBtn.addEventListener("click", async () => {
     const confirmed = await showConfirmDialog("Are you sure you want to quit and return to the library?", { title: "Quit Game?", confirmLabel: "Quit", isDanger: true });
     if (confirmed) {
       closeMenu();
-      onReturnToLibrary();
+      ctx.onReturnToLibrary();
     }
   });
   sidebar.appendChild(quitBtn);
@@ -3646,8 +3804,8 @@ async function showInGameMenu(ctx: {
             <div class="ingame-menu__save-time">${entry ? formatRelativeTime(entry.timestamp) : "No data saved"}</div>
           </div>
           <div class="ingame-menu__save-overlay">
-            <button class="ingame-menu__save-action-btn btn-save" title="Save to this slot">Save</button>
-            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state">Load</button><button class="ingame-menu__save-action-btn btn-rename" title="Rename this slot" aria-label="Rename Slot ${slotIdx}"></button><button class="ingame-menu__save-action-btn btn-delete" title="Delete this save" aria-label="Delete Slot ${slotIdx}"></button>` : ""}
+            <button class="ingame-menu__save-action-btn btn-save" title="Save to this slot" aria-label="Save to Slot ${slotIdx}">Save</button>
+            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state" aria-label="Load from Slot ${slotIdx}">Load</button><button class="ingame-menu__save-action-btn btn-rename" title="Rename this slot" aria-label="Rename Slot ${slotIdx}"></button><button class="ingame-menu__save-action-btn btn-delete" title="Delete this save" aria-label="Delete Slot ${slotIdx}"></button>` : ""}
           </div>
         `;
 
@@ -4074,7 +4232,7 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 
-type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "apikeys" | "debug" | "about";
+type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about";
 
 export function openSettingsPanel(
   settings:         Settings,
@@ -4210,6 +4368,7 @@ function buildSettingsContent(
     { id: "cloud",        icon: "☁️", label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
     { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
+    { id: "achievements", icon: "🏆", label: "Achievements",   ariaLabel: "Achievements" },
     { id: "apikeys",      icon: "🔑", label: "API Keys",       ariaLabel: "API Keys" },
     { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
     { id: "about",        icon: "❓", label: "Help",            ariaLabel: "Help" },
@@ -4341,13 +4500,17 @@ function buildSettingsContent(
   buildCloudTab(panels[3]!, settings, library, onSettingsChange);
   buildBiosTabContent(panels[4]!, biosLibrary, { appName: APP_NAME, onError: showError });
   buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
-  buildApiKeysTabContent(panels[6]!, getApiKeyStore(), {
+  buildAchievementsTab(panels[6]!, getApiKeyStore(), {
+    appName: APP_NAME,
+    onError: showError,
+  });
+  buildApiKeysTabContent(panels[7]!, getApiKeyStore(), {
     appName: APP_NAME,
     getTester: (id) => getKeyedProviders().get(id) ?? null,
     onError: showError,
   });
-  buildDebugTab(panels[7]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
-  buildAboutTabContent(panels[8]!, APP_NAME);
+  buildDebugTab(panels[8]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
+  buildAboutTabContent(panels[9]!, APP_NAME);
 
   const applySearchFilter = () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -5146,7 +5309,7 @@ export function openEasyNetplayModal(opts: {
   }));
 
   // ── LANemu panel ────────────────────────────────────────────────────────
-  import("./multiplayer/ui/MultiplayerHome.js").then(({ buildMultiplayerHome }) => {
+  void import("./multiplayer/ui/MultiplayerHome.js").then(({ buildMultiplayerHome }) => {
     buildMultiplayerHome(panels[2]!);
   });
 
@@ -5154,7 +5317,7 @@ export function openEasyNetplayModal(opts: {
   // Watch-tab pre-fill refs
   let _fillWatchCode: ((code: string) => void) | null = null;
   let _quickWatchCode: ((code: string) => void) | null = null;
-  panelCleanups.push(_buildBrowsePanel(panels[2]!, {
+  panelCleanups.push(_buildBrowsePanel(panels[3]!, {
     easyMgr, currentGameName, currentSystemId, serverUrl,
     onJoinByCode: (code) => {
       switchTab("join");
@@ -5171,7 +5334,7 @@ export function openEasyNetplayModal(opts: {
   }));
 
   // ── Watch panel ───────────────────────────────────────────────────────────
-  panelCleanups.push(_buildWatchPanel(panels[3]!, {
+  panelCleanups.push(_buildWatchPanel(panels[4]!, {
     easyMgr, username: username || "Anonymous", serverUrl,
     onCodeSetterReady: (setter) => { _fillWatchCode = setter; },
     onWatchActionReady: (watchNow) => { _quickWatchCode = watchNow; },
