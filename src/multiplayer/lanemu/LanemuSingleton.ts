@@ -20,7 +20,7 @@ class BrowserProcessLauncher implements IProcessLaunchService {
   async kill(pid: number): Promise<void> {
     console.warn("[Lanemu] kill() called for PID:", pid);
   }
-  async isProcessRunning(pid: number): Promise<boolean> {
+  async isProcessRunning(_pid: number): Promise<boolean> {
     return false;
   }
   async exists(path: string): Promise<boolean> {
@@ -44,7 +44,7 @@ class BrowserNetworkService implements INetworkService {
     console.warn("[Lanemu] ping() not supported in browser for IP:", ip);
     return false;
   }
-  async checkTcpPort(ip: string, port: number): Promise<boolean> {
+  async checkTcpPort(_ip: string, _port: number): Promise<boolean> {
     // We could potentially try to fetch() or use WebSockets to check ports,
     // but browser security (CORS/mixed content) makes this unreliable.
     return false;

@@ -17,6 +17,12 @@ export interface SGDBGame {
   release_date?: number;
 }
 
+interface SGDBResponse<T> {
+  success: boolean;
+  data: T;
+  errors?: string[];
+}
+
 export class SGDBClient {
   private readonly baseUrl = "https://www.steamgriddb.com/api/v2/";
   private apiKey: string = "";
@@ -41,7 +47,7 @@ export class SGDBClient {
       throw new Error(`SteamGridDB API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as SGDBResponse<T>;
     if (!data.success) {
       throw new Error(`SteamGridDB error: ${data.errors?.[0] || "Unknown error"}`);
     }

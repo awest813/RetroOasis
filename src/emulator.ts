@@ -2990,6 +2990,7 @@ export class PSPEmulator {
     delete window.EJS_ready;
     delete window.EJS_onGameStart;
     delete window.EJS_biosUrl;
+    delete window.EJS_corePath;
     delete window.EJS_Settings;
     this._currentSystem = null;
     this._activeTier = null;

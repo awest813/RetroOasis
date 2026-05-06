@@ -113,7 +113,7 @@ export class ScreenScraperClient {
 
     let data: RawSSResponse<T>;
     try {
-      data = await response.json();
+      data = await response.json() as RawSSResponse<T>;
     } catch {
       throw new Error("ScreenScraper returned invalid JSON");
     }

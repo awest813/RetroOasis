@@ -11,6 +11,20 @@ export interface IGDBMetadata {
   release_date?: string;
 }
 
+interface IGDBTokenResponse {
+  access_token: string;
+}
+
+export interface IGDBGameResult {
+  id: number;
+  name: string;
+  summary?: string;
+  rating?: number;
+  genres?: Array<{ id: number; name: string }>;
+  involved_companies?: Array<{ company?: { id: number; name: string } }>;
+  first_release_date?: number;
+}
+
 export class IGDBClient {
   private readonly baseUrl = "https://api.igdb.com/v4/";
   private clientId: string = "";
@@ -34,7 +48,7 @@ export class IGDBClient {
       throw new Error(`IGDB Auth error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as IGDBTokenResponse;
     this.accessToken = data.access_token;
     return this.accessToken!;
   }
@@ -55,10 +69,11 @@ export class IGDBClient {
       throw new Error(`IGDB API error: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json() as T;
+    return data;
   }
 
-  async searchGame(name: string): Promise<any[]> {
-    return this.fetchIGDB<any[]>("games", `search "${name}"; fields name, summary, rating, genres.name, involved_companies.company.name, first_release_date; limit 1;`);
+  async searchGame(name: string): Promise<IGDBGameResult[]> {
+    return this.fetchIGDB<IGDBGameResult[]>("games", `search "${name}"; fields name, summary, rating, genres.name, involved_companies.company.name, first_release_date; limit 1;`);
   }
 }

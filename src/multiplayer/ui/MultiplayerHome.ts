@@ -55,7 +55,7 @@ export function buildMultiplayerHome(container: HTMLElement): void {
     void service.getStatus().then(updateStatus);
     
     // Subscribe to changes
-    const unsub = service.onStatusChange(updateStatus);
+    service.onStatusChange(updateStatus);
     // Note: We don't have a clean way to unsub here since container is just an element,
     // but in this specific UI pattern it's usually fine as the modal will be destroyed.
 
@@ -118,4 +118,3 @@ export function buildMultiplayerHome(container: HTMLElement): void {
 
   renderHome();
 }
-

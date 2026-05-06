@@ -56,6 +56,6 @@ export interface RAUserSummary {
   TotalTruePoints: number;
   Rank: string;
   RecentAchievements: RARecentAchievement[];
-  RecentlyCompleted?: any[];
+  RecentlyCompleted?: unknown[];
   RecentlyPlayed?: Array<{ Title: string; GameID: number }>;
 }

@@ -5,6 +5,8 @@
  * game lists, and achievement metadata.
  */
 
+import type { RAUserSummary } from "./types/metadata.js";
+
 export interface Achievement {
   id: number;
   name: string;
@@ -26,6 +28,38 @@ export interface RAUserGameProgress {
   achievements: Achievement[];
 }
 
+interface RAUserProfile {
+  User: string;
+  ULID?: string;
+  MemberSince?: string;
+  RichPresenceMsg?: string;
+  LastGameID?: number;
+  LastGame?: string;
+  ContribCount?: number;
+  ContribYield?: number;
+  TotalPoints?: number;
+  TotalSoftcorePoints?: number;
+  TotalTruePoints?: number;
+  Permissions?: number;
+}
+
+interface RAAchievementProgressResponse {
+  ID: number;
+  Title: string;
+  ConsoleName: string;
+  NumAchievements: number;
+  Achievements?: Record<string, RAAchievementProgressEntry>;
+}
+
+interface RAAchievementProgressEntry {
+  ID: number;
+  Title: string;
+  Description: string;
+  Points: number;
+  BadgeName: string;
+  DateEarned?: string | null;
+}
+
 export class RAClient {
   private readonly baseUrl = "https://retroachievements.org/API/";
   private username: string = "";
@@ -40,7 +74,7 @@ export class RAClient {
     return Boolean(this.username && this.apiKey);
   }
 
-  private async fetchRA<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+  private async fetchRA<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
     const url = new URL(`${this.baseUrl}${endpoint}.php`);
     url.searchParams.set("z", this.username);
     url.searchParams.set("y", this.apiKey);
@@ -52,12 +86,13 @@ export class RAClient {
     if (!response.ok) {
       throw new Error(`RetroAchievements API error: ${response.statusText}`);
     }
-    return response.json();
+    const data: unknown = await response.json();
+    return data as T;
   }
 
   /** Get user's basic profile info. */
-  async getUserProfile() {
-    return this.fetchRA("API_GetUserProfile", { u: this.username });
+  async getUserProfile(): Promise<RAUserProfile> {
+    return this.fetchRA<RAUserProfile>("API_GetUserProfile", { u: this.username });
   }
 
   /** Get game ID from a ROM hash (used by emulators). */
@@ -68,17 +103,20 @@ export class RAClient {
 
   /** Get user's progress for a specific game. */
   async getGameInfoAndUserProgress(gameId: number): Promise<RAUserGameProgress> {
-    const data = await this.fetchRA<any>("API_GetGameInfoAndUserProgress", { g: gameId, u: this.username });
+    const data = await this.fetchRA<RAAchievementProgressResponse>("API_GetGameInfoAndUserProgress", { g: gameId, u: this.username });
     
-    const achievements: Achievement[] = Object.values(data.Achievements || {}).map((ach: any) => ({
-      id: ach.ID,
-      name: ach.Title,
-      description: ach.Description,
-      points: ach.Points,
-      badgeName: ach.BadgeName,
-      isUnlocked: Boolean(ach.DateEarned),
-      dateUnlocked: ach.DateEarned,
-    }));
+    const achievements: Achievement[] = Object.values(data.Achievements ?? {}).map((ach) => {
+      const item: Achievement = {
+        id: ach.ID,
+        name: ach.Title,
+        description: ach.Description,
+        points: ach.Points,
+        badgeName: ach.BadgeName,
+        isUnlocked: Boolean(ach.DateEarned),
+      };
+      if (ach.DateEarned) item.dateUnlocked = ach.DateEarned;
+      return item;
+    });
 
     return {
       gameId: data.ID,
@@ -93,7 +131,7 @@ export class RAClient {
   }
 
   /** Get user's summary (recent games, points, etc). */
-  async getUserSummary() {
+  async getUserSummary(): Promise<RAUserSummary> {
     return this.fetchRA("API_GetUserSummary", { u: this.username, g: "10", a: "10" });
   }
 }

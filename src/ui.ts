@@ -238,26 +238,14 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
-/** Mini controller SVG icon (reused in header brand and footer) */
-const _CTRL_SVG_MINI = `<svg width="12" height="12" viewBox="0 0 28 28" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-     aria-hidden="true" style="color:var(--c-accent);opacity:0.6;flex-shrink:0">
-  <rect x="2" y="7" width="24" height="14" rx="7"/>
-  <rect x="7" y="12.5" width="5" height="3" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
-  <rect x="8.5" y="11" width="2" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.7"/>
-  <circle cx="20" cy="12.5" r="1.1" fill="currentColor" stroke="none"/>
-  <circle cx="22.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
-  <circle cx="20" cy="15.5" r="1.1" fill="currentColor" stroke="none"/>
-  <circle cx="17.5" cy="14" r="1.1" fill="currentColor" stroke="none"/>
-</svg>`;
-
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <rect x="2" y="10" width="40" height="24" rx="4" fill="white" />
-  <rect x="10" y="12" width="24" height="20" rx="2" fill="#e60012" />
-  <circle cx="6" cy="22" r="2" fill="#e60012" />
-  <circle cx="38" cy="18" r="1.5" fill="#e60012" />
-  <circle cx="38" cy="26" r="1.5" fill="#e60012" />
-  <path d="M22 14c0 4-3 7-3 7s3-1 3-3c0 2 3 3 3 3s-3-3-3-7z" fill="white" opacity="0.8"/>
+  <rect width="44" height="44" rx="12" fill="#111318" />
+  <circle cx="22" cy="22" r="16" fill="#56B6C2" />
+  <path d="M11 25C13.5 19.8 17.6 17 22 17C26.4 17 30.5 19.8 33 25C30.5 30.2 26.4 33 22 33C17.6 33 13.5 30.2 11 25Z" fill="#E0A44C" />
+  <rect x="14" y="20" width="16" height="8" rx="4" fill="#151922" stroke="#F7F3E8" stroke-width="1.5" />
+  <path d="M18 23V25M17 24H19" stroke="#F7F3E8" stroke-width="1.4" stroke-linecap="round" />
+  <circle cx="25" cy="24" r="1.1" fill="#56B6C2" />
+  <circle cx="28" cy="24" r="1.1" fill="#E0A44C" />
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {
@@ -300,11 +288,10 @@ export function buildDOM(app: HTMLElement): void {
 
     <!-- ── Header ── -->
     <header class="app-header">
-      <div class="app-header__brand">
-        <img src="${resolveAssetUrl("assets/logo_nso.png")}" alt="${APP_NAME}" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" 
-             onerror="this.outerHTML='${_LOGO_FALLBACK_SVG}'" />
-        <span class="brand-long">${APP_NAME}</span>
-      </div>
+        <div class="app-header__brand" aria-label="${APP_NAME}">
+          <img src="${resolveAssetUrl("assets/retrooasis-logo.svg")}" alt="" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" aria-hidden="true" />
+          <span class="brand-long">${APP_NAME}</span>
+        </div>
 
       <div class="app-header__actions" id="header-actions">
         <!-- Populated by buildLandingControls() / buildInGameControls() -->
@@ -4263,7 +4250,18 @@ export function openSettingsPanel(
         ? () => Promise.resolve(getNetplayManagerOrInstance)
         : undefined;
 
-  buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, initialTab);
+  try {
+    buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, initialTab);
+  } catch (error) {
+    console.error(`[${APP_NAME}] Failed to render settings panel`, error);
+    content.innerHTML = "";
+    const fallback = make("div", { class: "settings-render-error", role: "alert" });
+    fallback.append(
+      make("h4", { class: "settings-section__title" }, "Settings could not load"),
+      make("p", { class: "settings-help" }, error instanceof Error ? error.message : "An unexpected error stopped the settings panel from rendering."),
+    );
+    content.appendChild(fallback);
+  }
   panel.hidden = false;
   // Move focus into the panel so keyboard users can navigate immediately
   requestAnimationFrame(() => {

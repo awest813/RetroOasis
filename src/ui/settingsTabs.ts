@@ -10,6 +10,8 @@ import {
 } from "../apiKeyStore.js";
 import { getStorageEstimate, formatBytes } from "../library.js";
 
+type JsonObject = Record<string, unknown>;
+
 export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, opts: {
   appName: string;
   onError(message: string): void;
@@ -219,11 +221,12 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
       const lib = new GameLibrary();
       const meta = await lib.getAllGamesMetadata();
       const settings = localStorage.getItem("retro-oasis.apiKeys") || "{}";
+      const apiKeys = JSON.parse(settings) as JsonObject;
       const data = {
         version: 1,
         exportedAt: Date.now(),
         library: meta,
-        apiKeys: JSON.parse(settings)
+        apiKeys,
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -245,7 +248,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     if (!file) return;
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
+      const data = JSON.parse(text) as { apiKeys?: JsonObject };
       if (data.apiKeys) {
         localStorage.setItem("retro-oasis.apiKeys", JSON.stringify(data.apiKeys));
       }
