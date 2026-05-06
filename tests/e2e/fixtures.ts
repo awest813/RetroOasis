@@ -25,16 +25,61 @@ const IDB_STUB_SCRIPT = `
     return req;
   }
 
+  function makeCursorRequest(values) {
+    const req = { result: null, error: null, onsuccess: null, onerror: null };
+    let index = 0;
+
+    const pump = () => {
+      if (index >= values.length) {
+        req.result = null;
+      } else {
+        req.result = {
+          value: values[index++],
+          continue: () => Promise.resolve().then(pump),
+        };
+      }
+      req.onsuccess?.({ target: req });
+    };
+
+    Promise.resolve().then(pump);
+    return req;
+  }
+
+  function makeIndex(data, keyPath) {
+    return {
+      get(key) {
+        const encodedKey = JSON.stringify(key);
+        const match = [...data.values()].find((value) => {
+          const valueKey = Array.isArray(keyPath)
+            ? keyPath.map((field) => value[field])
+            : value[keyPath];
+          return JSON.stringify(valueKey) === encodedKey;
+        });
+        return makeRequest(match);
+      },
+    };
+  }
+
   function makeStore(storeName, data) {
     // Use a sequential counter as fallback key to avoid non-deterministic Math.random() collisions
     let _fallbackKeyCounter = 0;
+    const indexes = new Map([
+      ['systemId', 'systemId'],
+      ['addedAt', 'addedAt'],
+      ['lastPlayedAt', 'lastPlayedAt'],
+      ['fileNameSystemId', ['fileName', 'systemId']],
+      ['isFavorite', 'isFavorite'],
+    ]);
+
     return {
+      indexNames: { contains: (name) => indexes.has(name) },
+      createIndex(name, keyPath) { indexes.set(name, keyPath); return makeIndex(data, keyPath); },
       put(value) { data.set(value.id ?? ++_fallbackKeyCounter, value); return makeRequest(undefined); },
       get(key)   { return makeRequest(data.get(key)); },
       getAll()   { return makeRequest([...data.values()]); },
       delete(key){ data.delete(key); return makeRequest(undefined); },
-      openCursor(){ return makeRequest(null); },
-      index()    { return makeStore(storeName, data); },
+      openCursor(){ return makeCursorRequest([...data.values()]); },
+      index(name) { return makeIndex(data, indexes.get(name)); },
     };
   }
 
@@ -68,6 +113,7 @@ const IDB_STUB_SCRIPT = `
           },
           close() {},
         };
+        req.transaction = db.transaction('games', 'versionchange');
         req.result = db;
         req.onupgradeneeded?.({ target: req });
         req.onsuccess?.({ target: req });

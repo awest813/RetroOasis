@@ -324,8 +324,9 @@ export class WebDAVProvider implements CloudSaveProvider {
         headers: this._headers(),
         signal: controller.signal,
       });
-      // Any HTTP response (even 4xx) means the server is reachable.
-      return r.status < 500;
+      // The provider contract is "authenticated and reachable"; auth failures
+      // must not count as connected.
+      return r.ok || r.status === 207;
     } catch {
       return false;
     } finally {

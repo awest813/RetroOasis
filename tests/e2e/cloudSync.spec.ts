@@ -1,20 +1,12 @@
 /**
- * cloudSync.spec.ts — E2E journey: Connect a mock cloud provider → sync → library reflects entry.
+ * cloudSync.spec.ts - E2E journey: cloud settings and provider wizard.
  *
- * Flow:
- *   1. Open Settings → Cloud Save tab.
- *   2. Click "Connect" to open the cloud wizard.
- *   3. Select WebDAV and fill in a mock server URL + credentials.
- *   4. Confirm connection; the Cloud Save bar reflects "Connected".
- *   5. (Stretch) A sync action completes and the library entry is reflected.
- *
- * The cloud provider HTTP calls are intercepted via Playwright's route interception
- * so no real network traffic occurs.
+ * The WebDAV HTTP calls are intercepted so the suite never talks to a real
+ * cloud account or server.
  */
 
 import { test, expect } from "./fixtures.js";
 
-// Mock WebDAV PROPFIND response (minimal, valid XML)
 const MOCK_PROPFIND = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
   <D:response>
@@ -26,10 +18,30 @@ const MOCK_PROPFIND = `<?xml version="1.0" encoding="utf-8"?>
   </D:response>
 </D:multistatus>`;
 
+async function openCloudStorageSettings(page: import("@playwright/test").Page): Promise<void> {
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await expect(page.locator("#settings-panel")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("tab", { name: "Cloud Storage" }).click();
+}
+
+async function openCloudConnectDialog(page: import("@playwright/test").Page): Promise<void> {
+  await openCloudStorageSettings(page);
+  await page.locator(".cloud-connect-btn, button:has-text('Connect')").first().click();
+  await expect(
+    page.locator(".cloud-wizard-box, .confirm-box, [aria-label*='Cloud']").first()
+  ).toBeVisible({ timeout: 5_000 });
+}
+
+async function selectWebDavProvider(page: import("@playwright/test").Page): Promise<void> {
+  const dialog = page.locator("[aria-label='Cloud Connection']");
+  await dialog.locator(".cloud-provider-card:has-text('WebDAV')").click();
+  await dialog.locator("button:has-text('Next')").click();
+  await expect(dialog.getByLabel("Server URL")).toBeVisible({ timeout: 5_000 });
+}
+
 test.describe("Cloud Sync journey", () => {
   test.beforeEach(async ({ appPage: page }) => {
-    // Intercept WebDAV requests to avoid real network calls
-    await page.route("**/dav.example.com/**", (route) => {
+    await page.route("**/mock-dav/**", (route) => {
       const method = route.request().method().toUpperCase();
       if (method === "PROPFIND") {
         route.fulfill({
@@ -37,6 +49,8 @@ test.describe("Cloud Sync journey", () => {
           contentType: "application/xml; charset=utf-8",
           body: MOCK_PROPFIND,
         });
+      } else if (method === "OPTIONS" || method === "GET") {
+        route.fulfill({ status: 200 });
       } else if (method === "PUT" || method === "MKCOL") {
         route.fulfill({ status: 201 });
       } else {
@@ -45,82 +59,41 @@ test.describe("Cloud Sync journey", () => {
     });
   });
 
-  test("Settings panel opens to the Cloud Save section", async ({ appPage: page }) => {
-    // Open settings via the settings button
-    const settingsBtn = page.locator(
-      "#settings-btn, button[aria-label*='Settings'], [data-action='settings']"
-    ).first();
+  test("Settings panel opens to the Cloud Storage section", async ({ appPage: page }) => {
+    await openCloudStorageSettings(page);
 
-    if (await settingsBtn.count() === 0) { test.skip(); return; }
+    await expect(
+      page.locator(".cloud-bar, .cloud-connect-btn, button:has-text('Connect')").first()
+    ).toBeVisible({ timeout: 5_000 });
 
-    await settingsBtn.click();
-    await expect(page.locator("#settings-panel, [role='dialog']").first()).toBeVisible({ timeout: 5_000 });
-
-    // Navigate to the cloud-save or multiplayer tab if tabs exist
-    const cloudTab = page.locator(
-      "[data-tab='cloud'], [aria-label*='Cloud'], button:has-text('Cloud'), [role='tab']:has-text('Cloud')"
-    ).first();
-
-    if (await cloudTab.count() > 0) {
-      await cloudTab.click();
-      // Cloud bar or connect button should be visible
-      await expect(
-        page.locator(".cloud-bar, .cloud-connect-btn, button:has-text('Connect')").first()
-      ).toBeVisible({ timeout: 5_000 });
-    }
-
-    // Close settings
     await page.keyboard.press("Escape");
   });
 
   test("Cloud connect dialog opens when Connect button is clicked", async ({ appPage: page }) => {
-    const settingsBtn = page.locator(
-      "#settings-btn, button[aria-label*='Settings'], [data-action='settings']"
-    ).first();
-
-    if (await settingsBtn.count() === 0) { test.skip(); return; }
-
-    await settingsBtn.click();
-    await page.locator("#settings-panel, [role='dialog']").first().waitFor({ timeout: 5_000 }).catch(() => {});
-
-    const connectBtn = page.locator(
-      "button:has-text('☁ Connect'), button:has-text('Connect'), .cloud-connect-btn"
-    ).first();
-
-    if (await connectBtn.count() === 0) { test.skip(); return; }
-
-    await connectBtn.click();
-
-    // A cloud wizard dialog should appear
-    await expect(
-      page.locator(".cloud-wizard-box, .confirm-box, [aria-label*='Cloud']").first()
-    ).toBeVisible({ timeout: 5_000 });
-
-    // Close by pressing Escape
+    await openCloudConnectDialog(page);
     await page.keyboard.press("Escape");
   });
 
   test("WebDAV provider card is present in the cloud wizard", async ({ appPage: page }) => {
-    const settingsBtn = page.locator(
-      "#settings-btn, button[aria-label*='Settings'], [data-action='settings']"
-    ).first();
+    await openCloudConnectDialog(page);
 
-    if (await settingsBtn.count() === 0) { test.skip(); return; }
-    await settingsBtn.click();
-    await page.locator("#settings-panel, [role='dialog']").first().waitFor({ timeout: 5_000 }).catch(() => {});
+    await expect(
+      page.locator(".cloud-provider-card:has-text('WebDAV'), [aria-label*='WebDAV'], button:has-text('WebDAV')").first()
+    ).toBeVisible({ timeout: 5_000 });
+  });
 
-    const connectBtn = page.locator(
-      "button:has-text('☁ Connect'), button:has-text('Connect'), .cloud-connect-btn"
-    ).first();
-    if (await connectBtn.count() === 0) { test.skip(); return; }
+  test("WebDAV cloud save backup can connect with mocked credentials", async ({ appPage: page }) => {
+    await openCloudConnectDialog(page);
+    await selectWebDavProvider(page);
 
-    await connectBtn.click();
+    const dialog = page.locator("[aria-label='Cloud Connection']");
+    await dialog.getByLabel("Server URL").fill("/mock-dav/saves");
+    await dialog.getByLabel("Username").fill("demo-user");
+    await dialog.getByLabel("Password").fill("demo-pass");
+    await dialog.getByRole("button", { name: "Connect" }).click();
 
-    // WebDAV option should be in the provider grid
-    const webDavCard = page.locator(
-      ".cloud-provider-card:has-text('WebDAV'), [aria-label*='WebDAV'], button:has-text('WebDAV')"
-    ).first();
-
-    await expect(webDavCard).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("[aria-label='Cloud Connection']")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator(".cloud-save-status-row")).toContainText("Connected", { timeout: 5_000 });
+    await expect(page.locator(".cloud-save-status-row")).toContainText("WebDAV backup active");
   });
 });

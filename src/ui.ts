@@ -389,7 +389,7 @@ export function buildDOM(app: HTMLElement): void {
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
             <p class="welcome-hero__eyebrow">First run</p>
-            <h2 class="welcome-hero__title" id="onboarding-title">Build your calm little arcade.</h2>
+            <h2 class="welcome-hero__title" id="onboarding-title">Your gaming escape.</h2>
             <p class="welcome-hero__tagline">${APP_NAME} keeps your retro library simple, calm, and ready to play.</p>
           </div>
 

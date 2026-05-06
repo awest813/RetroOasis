@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const E2E_PORT = Number(process.env.E2E_PORT ?? 5177);
+const E2E_BASE_URL = `http://127.0.0.1:${E2E_PORT}`;
+
 /**
  * Playwright configuration for RetroOasis integration tests.
  *
@@ -20,7 +23,7 @@ export default defineConfig({
   ],
   use: {
     /** Base URL pointing at the Vite dev server. */
-    baseURL: "http://localhost:5173",
+    baseURL: E2E_BASE_URL,
     trace: "on-first-retry",
   },
   projects: [
@@ -30,9 +33,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:5173",
-    reuseExistingServer: !process.env.CI,
+    command: `npm run dev -- --host 127.0.0.1 --port ${E2E_PORT} --strictPort`,
+    url: E2E_BASE_URL,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

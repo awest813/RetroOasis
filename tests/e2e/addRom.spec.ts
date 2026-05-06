@@ -64,7 +64,7 @@ test.describe("Add ROM journey", () => {
 
     if (await settingsBtn.count() > 0) {
       await settingsBtn.click();
-      await expect(page.locator("#settings-panel, [role='dialog']").first()).toBeVisible({ timeout: 5_000 });
+      await expect(page.locator("#settings-panel")).toBeVisible({ timeout: 5_000 });
 
     // Press Escape to close
     await page.keyboard.press("Escape");

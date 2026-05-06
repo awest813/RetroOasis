@@ -2061,6 +2061,12 @@ body:has(#ejs-container.visible) .app-header {
 
 /* ── Premium Settings Menu Overhaul ── */
 
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+}
+
 #settings-panel {
   position: fixed;
   inset: 0;

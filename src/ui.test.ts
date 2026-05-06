@@ -239,7 +239,7 @@ describe("buildDOM", () => {
     buildDOM(app);
 
     const onboarding = app.querySelector("#onboarding");
-    expect(onboarding?.textContent).toMatch(/Build your calm little arcade/i);
+    expect(onboarding?.textContent).toMatch(/Your gaming escape/i);
     expect(onboarding?.textContent).toMatch(/Quiet start, fast launch/i);
     expect(onboarding?.textContent).toMatch(/Play with local saves/i);
   });

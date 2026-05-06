@@ -375,10 +375,22 @@ describe("WebDAVProvider — isAvailable", () => {
     expect(await p.isAvailable()).toBe(true);
   });
 
-  it("returns true when the server responds with 4xx (server reachable, auth denied)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 401, ok: false }));
+  it("returns true when the server responds with WebDAV multi-status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 207, ok: false }));
     const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
     expect(await p.isAvailable()).toBe(true);
+  });
+
+  it("returns false when the server responds with 401", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 401, ok: false }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(false);
+  });
+
+  it("returns false when the server responds with 403", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 403, ok: false }));
+    const p = new WebDAVProvider("https://dav.example.com/saves", "u", "p");
+    expect(await p.isAvailable()).toBe(false);
   });
 
   it("returns false when fetch throws (network error / CORS)", async () => {

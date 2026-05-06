@@ -76,6 +76,8 @@ declare global {
     EJS_netplayRoom?:       string;
     /** Player display name shown to other participants in a netplay room. */
     EJS_playerName?:        string;
+    /** Playwright-only marker that skips real EmulatorJS downloads during E2E. */
+    _RETRO_OASIS_E2E_STUB?: boolean;
   }
 }
 
@@ -2385,6 +2387,23 @@ export class PSPEmulator {
 
         this.onGameStart?.();
       };
+
+      if (window._RETRO_OASIS_E2E_STUB) {
+        window.EJS_emulator = {
+          setVolume: () => {},
+          pause: () => {},
+          resume: () => {},
+          gameManager: {
+            restart: () => {},
+            quickSave: () => true,
+            quickLoad: () => {},
+            supportsStates: () => true,
+          },
+        };
+        window.EJS_ready?.();
+        window.EJS_onGameStart?.();
+        return;
+      }
 
       // ── Inject / reuse loader.js ──────────────────────────────────────────
       await this._loadScript(`${EJS_DATA_BASE}loader.js`);

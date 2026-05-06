@@ -31,14 +31,9 @@ test.describe("Save journey", () => {
     await page.addInitScript({ content: SAVE_SERVICE_STUB });
     await page.reload();
 
-    // Seed a ROM and try to start the game
+    // Dropping a ROM adds it and auto-launches the emulator.
     await dropFakeRom(page, { fileName: "zelda.nes" });
-    await page.locator(".game-card, [data-game-id]").first().waitFor({ timeout: 10_000 }).catch(() => {});
-
-    const card = page.locator(".game-card, [data-game-id]").first();
-    if (await card.count() === 0) { test.skip(); return; }
-
-    await card.click();
+    await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
     // Give the emulator stub a moment to "start"
     await page.waitForTimeout(1000);
 
@@ -61,11 +56,7 @@ test.describe("Save journey", () => {
     await page.reload();
 
     await dropFakeRom(page, { fileName: "metroid.nes" });
-    await page.locator(".game-card, [data-game-id]").first().waitFor({ timeout: 10_000 }).catch(() => {});
-    const card = page.locator(".game-card, [data-game-id]").first();
-    if (await card.count() === 0) { test.skip(); return; }
-
-    await card.click();
+    await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(500);
     await page.keyboard.press("F7");
 
