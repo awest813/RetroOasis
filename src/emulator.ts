@@ -57,6 +57,13 @@ declare global {
     EJS_startOnLoaded: boolean;
     EJS_threads:       boolean;
     EJS_volume:        number;
+    /**
+     * EmulatorJS loader flag that forces the bundled source runtime in
+     * data/src/*.js instead of emulator.min.js.
+     */
+    EJS_DEBUG_XX?:      boolean;
+    /** EmulatorJS per-file URL overrides, keyed by basename. */
+    EJS_paths?:         Record<string, string>;
     EJS_Settings?:     Record<string, string>;
     EJS_biosUrl?:      string | File;
     /** Override path to the core `.data` bundle (absolute URL). Used for cores not on the CDN. */
@@ -509,13 +516,12 @@ export function clearWebGL2SupportCache(): void {
  * HTTP cache for the same URL the loader requests after reading
  * `cores/reports/<core>.json`. Paths are relative to `EJS_CDN_BASE`.
  *
- * We prefetch the common non-legacy, non-threaded variant (`<core>-wasm.data`).
- * EmulatorJS may still request `-thread-` or `-legacy-` variants at runtime
- * depending on `SharedArrayBuffer` and WebGL2; those fall through as separate
- * cache entries on first launch.
+ * We prefetch the common runtime variant for each core. Most cores use the
+ * non-legacy, non-threaded `<core>-wasm.data` file; threaded-only cores use
+ * their `-thread-wasm.data` package.
  */
 const CORE_PREFETCH_MAP: Record<string, string> = {
-  psp:        "cores/ppsspp-wasm.data",
+  psp:        "cores/ppsspp-thread-wasm.data",
   n64:        "cores/mupen64plus_next-wasm.data",
   psx:        "cores/mednafen_psx_hw-wasm.data",
   nds:        "cores/desmume2015-wasm.data",
@@ -535,6 +541,16 @@ const CORE_PREFETCH_MAP: Record<string, string> = {
   ngp:        "cores/mednafen_ngp-wasm.data",
   atari2600:  "cores/stella2014-wasm.data",
 };
+
+function coreNameForSystem(system: SystemInfo, ejsSettings: Record<string, string>): string {
+  if (ejsSettings.retroarch_core) return ejsSettings.retroarch_core;
+  const relPath = CORE_PREFETCH_MAP[system.id];
+  const fileName = relPath?.split("/").pop();
+  if (fileName) {
+    return fileName.replace(/(?:-thread)?(?:-legacy)?-wasm\.data$/, "");
+  }
+  return system.coreId ?? system.id;
+}
 
 // ── State machine ─────────────────────────────────────────────────────────────
 
@@ -887,7 +903,7 @@ export class PSPEmulator {
   private _fpsMonitor: FPSMonitor;
   private _visibilityHandler: (() => void) | null = null;
   private _beforeUnloadHandler: (() => void) | null = null;
-  private _contextLossHandler: (() => void) | null = null;
+  private _contextLossHandler: ((event: Event) => void) | null = null;
   private _pausedByVisibility = false;
   private _preconnected = false;
   private _activeTier: PerformanceTier | null = null;
@@ -1605,7 +1621,10 @@ export class PSPEmulator {
       const adapter = await gpu.requestAdapter({
         powerPreference,
       });
-      if (!adapter) return;
+      if (!adapter) {
+        this._webgpuPreWarmed = false;
+        return;
+      }
 
       // Capture adapter metadata (GPUAdapterInfo — Chrome 113+).
       if (adapter.info) {
@@ -1619,7 +1638,13 @@ export class PSPEmulator {
         };
       }
 
-      const device = await adapter.requestDevice();
+      const requiredFeatures: GPUFeatureName[] = [];
+      if (adapter.features?.has("timestamp-query")) {
+        requiredFeatures.push("timestamp-query");
+      }
+      const device = await adapter.requestDevice(
+        requiredFeatures.length > 0 ? { requiredFeatures } : undefined
+      );
       this._webgpuDevice = device;
 
       // Pre-compile a minimal WGSL render pipeline to warm the GPU shader
@@ -1684,6 +1709,7 @@ export class PSPEmulator {
       }
     } catch {
       // WebGPU unavailable or not yet supported — silently fall back to WebGL
+      this._webgpuPreWarmed = false;
       this._webgpuDevice = null;
       this._webgpuAdapterInfo = null;
     }
@@ -2238,12 +2264,25 @@ export class PSPEmulator {
       window.EJS_startOnLoaded = true;
       window.EJS_threads       = system.needsThreads;
       window.EJS_volume        = opts.volume;
+      // The shipped data/ folder contains the source runtime files under
+      // data/src/. If loader.js probes emulator.min.js first, Vite can serve
+      // index.html for that missing file, which throws "Unexpected token '<'"
+      // and leaves the launch stuck at "Initialising EmulatorJS...".
+      window.EJS_DEBUG_XX      = true;
 
       // For cores not on the official CDN, point EJS at the external bundle URL.
       if (system.corePath) {
         window.EJS_corePath = system.corePath;
+        delete window.EJS_paths;
       } else {
         delete window.EJS_corePath;
+        const selectedCore = coreNameForSystem(system, ejsSettings);
+        window.EJS_paths = {
+          [`${selectedCore}-wasm.data`]:               `${EJS_CDN_BASE}cores/${selectedCore}-wasm.data`,
+          [`${selectedCore}-legacy-wasm.data`]:        `${EJS_CDN_BASE}cores/${selectedCore}-legacy-wasm.data`,
+          [`${selectedCore}-thread-wasm.data`]:        `${EJS_CDN_BASE}cores/${selectedCore}-thread-wasm.data`,
+          [`${selectedCore}-thread-legacy-wasm.data`]: `${EJS_CDN_BASE}cores/${selectedCore}-thread-legacy-wasm.data`,
+        };
       }
 
       if (opts.biosAsset instanceof Blob) {
@@ -2294,11 +2333,11 @@ export class PSPEmulator {
 
       // ── Lifecycle callbacks ───────────────────────────────────────────────
       window.EJS_ready = () => {
+        // Ignore stale callbacks from a torn-down/replaced core instance.
+        if (this._state !== "loading") return;
         if (window.EJS_emulator) {
           this._bridge = new CoreBridge(window.EJS_emulator, this._playerId);
         }
-        // Ignore stale callbacks from a torn-down/replaced core instance.
-        if (this._state !== "loading") return;
         this._emit("onProgress", "Booting game…");
         // End core_download phase — the JS glue + WASM have loaded
         this._startupProfiler.end("core_download");
@@ -2719,7 +2758,8 @@ export class PSPEmulator {
     const canvas = playerEl.querySelector("canvas");
     if (!canvas) return;
 
-    this._contextLossHandler = () => {
+    this._contextLossHandler = (event?: Event) => {
+      event?.preventDefault();
       this._fpsMonitor.stop();
       this._removeVisibilityHandler();
       this._emitError(
@@ -3007,12 +3047,30 @@ export class PSPEmulator {
     document.querySelector("script[data-ejs-loader]")?.remove();
     const playerEl = document.getElementById(this._playerId);
     if (playerEl) playerEl.innerHTML = "";
-    delete window.EJS_emulator;
-    delete window.EJS_ready;
-    delete window.EJS_onGameStart;
-    delete window.EJS_biosUrl;
-    delete window.EJS_corePath;
-    delete window.EJS_Settings;
+    this._bridge = null;
+    const ejsWindow = window as Partial<Window>;
+    delete ejsWindow.EJS_emulator;
+    delete ejsWindow.EJS_ready;
+    delete ejsWindow.EJS_onGameStart;
+    delete ejsWindow.EJS_player;
+    delete ejsWindow.EJS_core;
+    delete ejsWindow.EJS_gameUrl;
+    delete ejsWindow.EJS_gameName;
+    delete ejsWindow.EJS_pathtodata;
+    delete ejsWindow.EJS_startOnLoaded;
+    delete ejsWindow.EJS_threads;
+    delete ejsWindow.EJS_volume;
+    delete ejsWindow.EJS_DEBUG_XX;
+    delete ejsWindow.EJS_paths;
+    delete ejsWindow.EJS_biosUrl;
+    delete ejsWindow.EJS_corePath;
+    delete ejsWindow.EJS_Settings;
+    delete ejsWindow.EJS_netplayServer;
+    delete ejsWindow.EJS_netplayICEServers;
+    delete ejsWindow.EJS_gameID;
+    delete ejsWindow.EJS_roomKey;
+    delete ejsWindow.EJS_netplayRoom;
+    delete ejsWindow.EJS_playerName;
     this._currentSystem = null;
     this._activeTier = null;
     this._activeCoreSettings = null;

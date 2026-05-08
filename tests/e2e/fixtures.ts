@@ -192,6 +192,145 @@ export async function dropFakeRom(
   );
 }
 
+/** Create a minimal stored ZIP archive containing one fake ROM and drop it on the app. */
+export async function dropFakeZipRom(
+  page: Page,
+  opts: { archiveName?: string; romName?: string; content?: string } = {},
+): Promise<void> {
+  const archiveName = opts.archiveName ?? "archive.zip";
+  const romName = opts.romName ?? "sonic.nes";
+  const content = opts.content ?? "NES\x1a";
+
+  await page.evaluate(
+    ({ archiveName, romName, content }) => {
+      const enc = new TextEncoder();
+      const nameBytes = enc.encode(romName);
+      const data = enc.encode(content);
+
+      const localHeaderSize = 30 + nameBytes.length;
+      const centralEntrySize = 46 + nameBytes.length;
+      const totalSize = localHeaderSize + data.length + centralEntrySize + 22;
+      const buffer = new ArrayBuffer(totalSize);
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+      let pos = 0;
+      const u16 = (offset: number, value: number) => view.setUint16(offset, value, true);
+      const u32 = (offset: number, value: number) => view.setUint32(offset, value, true);
+
+      u32(pos, 0x04034b50);
+      u16(pos + 4, 20);
+      u16(pos + 6, 0);
+      u16(pos + 8, 0);
+      u16(pos + 10, 0);
+      u16(pos + 12, 0);
+      u32(pos + 14, 0);
+      u32(pos + 18, data.length);
+      u32(pos + 22, data.length);
+      u16(pos + 26, nameBytes.length);
+      u16(pos + 28, 0);
+      bytes.set(nameBytes, pos + 30);
+      pos += localHeaderSize;
+      bytes.set(data, pos);
+      pos += data.length;
+
+      const centralOffset = pos;
+      u32(pos, 0x02014b50);
+      u16(pos + 4, 20);
+      u16(pos + 6, 20);
+      u16(pos + 8, 0);
+      u16(pos + 10, 0);
+      u16(pos + 12, 0);
+      u16(pos + 14, 0);
+      u32(pos + 16, 0);
+      u32(pos + 20, data.length);
+      u32(pos + 24, data.length);
+      u16(pos + 28, nameBytes.length);
+      u16(pos + 30, 0);
+      u16(pos + 32, 0);
+      u16(pos + 34, 0);
+      u16(pos + 36, 0);
+      u32(pos + 38, 0);
+      u32(pos + 42, 0);
+      bytes.set(nameBytes, pos + 46);
+      pos += centralEntrySize;
+
+      u32(pos, 0x06054b50);
+      u16(pos + 4, 0);
+      u16(pos + 6, 0);
+      u16(pos + 8, 1);
+      u16(pos + 10, 1);
+      u32(pos + 12, centralEntrySize);
+      u32(pos + 16, centralOffset);
+      u16(pos + 20, 0);
+
+      const file = new File([bytes], archiveName, { type: "application/zip" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+
+      const dropZone = document.getElementById("drop-zone") ?? document.body;
+      dropZone.dispatchEvent(new DragEvent("dragenter", { bubbles: true, dataTransfer: dt }));
+      dropZone.dispatchEvent(new DragEvent("dragover", { bubbles: true, dataTransfer: dt }));
+      dropZone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: dt }));
+    },
+    { archiveName, romName, content },
+  );
+}
+
+/** Create a minimal TAR archive containing one fake ROM and drop it on the app. */
+export async function dropFakeTarRom(
+  page: Page,
+  opts: { archiveName?: string; romName?: string; content?: string } = {},
+): Promise<void> {
+  const archiveName = opts.archiveName ?? "archive.tar";
+  const romName = opts.romName ?? "sonic.nes";
+  const content = opts.content ?? "NES\x1a";
+
+  await page.evaluate(
+    ({ archiveName, romName, content }) => {
+      const enc = new TextEncoder();
+      const nameBytes = enc.encode(romName);
+      const data = enc.encode(content);
+      const pad = (512 - (data.length % 512)) % 512;
+      const bytes = new Uint8Array(512 + data.length + pad + 1024);
+      const header = bytes.subarray(0, 512);
+
+      const writeOctal = (start: number, length: number, value: number) => {
+        const oct = value.toString(8).padStart(length - 1, "0");
+        header.set(enc.encode(oct).slice(0, length - 1), start);
+        header[start + length - 1] = 0;
+      };
+
+      header.set(nameBytes.slice(0, 100), 0);
+      writeOctal(100, 8, 0o644);
+      writeOctal(108, 8, 0);
+      writeOctal(116, 8, 0);
+      writeOctal(124, 12, data.length);
+      writeOctal(136, 12, 0);
+      for (let i = 148; i < 156; i++) header[i] = 0x20;
+      header[156] = 0x30;
+      header.set(enc.encode("ustar"), 257);
+      header[262] = 0;
+      header[263] = 0x30;
+      header[264] = 0x30;
+
+      let checksum = 0;
+      for (const byte of header) checksum += byte;
+      writeOctal(148, 8, checksum);
+      bytes.set(data, 512);
+
+      const file = new File([bytes], archiveName, { type: "application/x-tar" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+
+      const dropZone = document.getElementById("drop-zone") ?? document.body;
+      dropZone.dispatchEvent(new DragEvent("dragenter", { bubbles: true, dataTransfer: dt }));
+      dropZone.dispatchEvent(new DragEvent("dragover", { bubbles: true, dataTransfer: dt }));
+      dropZone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: dt }));
+    },
+    { archiveName, romName, content },
+  );
+}
+
 /** Resolve the absolute path to a fixture file in tests/e2e/fixtures/. */
 export function fixturePath(name: string): string {
   return path.resolve(__dirname, "fixtures", name);

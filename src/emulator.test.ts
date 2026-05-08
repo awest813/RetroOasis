@@ -304,6 +304,18 @@ describe('PSPEmulator', () => {
       expect(link?.getAttribute('as')).toBe('fetch');
     });
 
+    it('prefetches the threaded PPSSPP core blob for psp system id', () => {
+      const blobUrl = `${EJS_CDN_BASE}cores/ppsspp-thread-wasm.data`;
+
+      emulator.prefetchCore('psp');
+
+      const link = document.head.querySelector(`link[href="${blobUrl}"]`);
+
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute('rel')).toBe('prefetch');
+      expect(link?.getAttribute('as')).toBe('fetch');
+    });
+
     it('prefetches the Flycast core for segaDC using the system corePath fallback', () => {
       // segaDC has no CDN entry in CORE_PREFETCH_MAP; prefetchCore must fall back
       // to the system definition's corePath (the external flycast-wasm bundle URL).
@@ -717,6 +729,9 @@ describe('PSPEmulator', () => {
 
       expect(scriptSrc).toBe(`${EJS_DATA_BASE}loader.js`);
       expect(window.EJS_pathtodata).toBe(EJS_DATA_BASE);
+      expect(window.EJS_DEBUG_XX).toBe(true);
+      expect(window.EJS_paths?.['fceumm-wasm.data']).toBe(`${EJS_CDN_BASE}cores/fceumm-wasm.data`);
+      expect(window.EJS_paths?.['fceumm-legacy-wasm.data']).toBe(`${EJS_CDN_BASE}cores/fceumm-legacy-wasm.data`);
       expect(emulator.state).toBe('running');
     });
 
@@ -831,7 +846,48 @@ describe('PSPEmulator', () => {
 
       // Stale references must not revive emulator state or emit progress.
       expect(emulator.state).toBe('idle');
+      expect(emulator.bridge).toBeNull();
       expect(progress).not.toContain('Booting game…');
+    });
+
+    it('clears EJS launch and netplay globals during teardown', () => {
+      Object.assign(window, {
+        EJS_player: '#test-player',
+        EJS_core: 'nes',
+        EJS_gameUrl: 'blob:test',
+        EJS_gameName: 'Example',
+        EJS_pathtodata: EJS_DATA_BASE,
+        EJS_startOnLoaded: true,
+        EJS_threads: false,
+        EJS_volume: 0.5,
+        EJS_DEBUG_XX: true,
+        EJS_paths: { 'fceumm-wasm.data': `${EJS_CDN_BASE}cores/fceumm-wasm.data` },
+        EJS_netplayServer: 'wss://example.invalid',
+        EJS_netplayICEServers: [],
+        EJS_gameID: 123,
+        EJS_roomKey: 'nes:example',
+        EJS_netplayRoom: 'Example',
+        EJS_playerName: 'Player',
+      });
+
+      emulator.dispose();
+
+      expect(window.EJS_player).toBeUndefined();
+      expect(window.EJS_core).toBeUndefined();
+      expect(window.EJS_gameUrl).toBeUndefined();
+      expect(window.EJS_gameName).toBeUndefined();
+      expect(window.EJS_pathtodata).toBeUndefined();
+      expect(window.EJS_startOnLoaded).toBeUndefined();
+      expect(window.EJS_threads).toBeUndefined();
+      expect(window.EJS_volume).toBeUndefined();
+      expect(window.EJS_DEBUG_XX).toBeUndefined();
+      expect(window.EJS_paths).toBeUndefined();
+      expect(window.EJS_netplayServer).toBeUndefined();
+      expect(window.EJS_netplayICEServers).toBeUndefined();
+      expect(window.EJS_gameID).toBeUndefined();
+      expect(window.EJS_roomKey).toBeUndefined();
+      expect(window.EJS_netplayRoom).toBeUndefined();
+      expect(window.EJS_playerName).toBeUndefined();
     });
   });
 
@@ -1397,6 +1453,77 @@ describe('PSPEmulator', () => {
 
         expect(freshEmulator.webgpuAvailable).toBe(false);
         expect(freshEmulator.webgpuAdapterInfo).toBeNull();
+      });
+
+      it('allows retrying preWarmWebGPU after a transient adapter miss', async () => {
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          createBindGroupLayout: vi.fn().mockReturnValue({}),
+          createPipelineLayout: vi.fn().mockReturnValue({}),
+          createBuffer: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+          features: new Set<string>(),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+        const requestAdapter = vi.fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            requestDevice: vi.fn().mockResolvedValue(mockDevice),
+          });
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter,
+            getPreferredCanvasFormat: vi.fn().mockReturnValue('bgra8unorm'),
+          },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+        expect(freshEmulator.webgpuAvailable).toBe(false);
+
+        await freshEmulator.preWarmWebGPU();
+        expect(requestAdapter).toHaveBeenCalledTimes(2);
+        expect(freshEmulator.webgpuAvailable).toBe(true);
+      });
+
+      it('requests timestamp-query when the adapter supports it', async () => {
+        const requestDevice = vi.fn().mockResolvedValue({
+          createCommandEncoder: () => ({
+            beginComputePass: () => ({ end: vi.fn() }),
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          createBindGroupLayout: vi.fn().mockReturnValue({}),
+          createPipelineLayout: vi.fn().mockReturnValue({}),
+          createBuffer: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+          features: new Set<string>(['timestamp-query']),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        });
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              features: new Set<string>(['timestamp-query']),
+              requestDevice,
+            }),
+            getPreferredCanvasFormat: vi.fn().mockReturnValue('bgra8unorm'),
+          },
+          configurable: true,
+          writable: true,
+        });
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+
+        expect(requestDevice).toHaveBeenCalledWith({ requiredFeatures: ['timestamp-query'] });
       });
 
       it('calls createShaderModule and createRenderPipeline for WGSL warm-up', async () => {

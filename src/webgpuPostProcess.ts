@@ -1320,11 +1320,20 @@ export class WebGPUPostProcessor {
     }
 
     this._presentFormat = (navigator.gpu?.getPreferredCanvasFormat?.() as GPUTextureFormat | undefined) ?? "bgra8unorm";
-    this._gpuContext.configure({
-      device: this._device,
-      format: this._presentFormat,
-      alphaMode: "premultiplied",
-    });
+    try {
+      this._gpuContext.configure({
+        device: this._device,
+        format: this._presentFormat,
+        alphaMode: "premultiplied",
+      });
+    } catch (err) {
+      console.warn("[RetroOasis] WebGPU canvas configuration failed — post-processing disabled.", err);
+      this._canvas.remove();
+      this._canvas = null;
+      this._gpuContext = null;
+      this._sourceCanvas = null;
+      return;
+    }
 
     this._sampler = this._device.createSampler({
       magFilter: "linear",

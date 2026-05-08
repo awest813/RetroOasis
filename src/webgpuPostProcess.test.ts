@@ -214,6 +214,49 @@ describe("WebGPUPostProcessor", () => {
     });
   });
 
+  describe("attach resilience", () => {
+    it("disables post-processing cleanly when WebGPU canvas configure throws", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { device } = createMockGPUDevice();
+      const pp = new WebGPUPostProcessor(device as unknown as GPUDevice, { effect: "crt" });
+
+      const webgpuContext = {
+        configure: vi.fn(() => {
+          throw new Error("configure failed");
+        }),
+        getCurrentTexture: vi.fn(),
+      };
+      const getContextSpy = vi
+        .spyOn(HTMLCanvasElement.prototype, "getContext")
+        .mockImplementation((contextId: "webgpu") => {
+          if (contextId === "webgpu") return webgpuContext as unknown as GPUCanvasContext;
+          return null;
+        });
+      const originalGPU = navigator.gpu;
+      Object.defineProperty(navigator, "gpu", {
+        configurable: true,
+        writable: true,
+        value: { getPreferredCanvasFormat: vi.fn().mockReturnValue("bgra8unorm") },
+      });
+
+      expect(() => pp.attach(sourceCanvas, container)).not.toThrow();
+      expect(pp.active).toBe(false);
+      expect(container.querySelector(".webgpu-postprocess-overlay")).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[RetroOasis] WebGPU canvas configuration failed — post-processing disabled.",
+        expect.any(Error),
+      );
+
+      pp.dispose();
+      getContextSpy.mockRestore();
+      Object.defineProperty(navigator, "gpu", {
+        configurable: true,
+        writable: true,
+        value: originalGPU,
+      });
+    });
+  });
+
   describe("device loss handling", () => {
     it("stops the render loop and deactivates when the GPU device is lost", async () => {
       // Create a deferred promise that simulates device loss
