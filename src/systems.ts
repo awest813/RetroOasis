@@ -1204,7 +1204,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "nes",
     name: "Nintendo Entertainment System",
     shortName: "NES",
-    iconUrl: "/assets/nes_system_icon_premium_1775433133234.png",
+    iconUrl: "/assets/nes_system_icon_premium_1775435133234.png",
     extensions: ["nes", "fds", "unf", "unif"],
     color: "#e52b2b",
     needsThreads: false,

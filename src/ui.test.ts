@@ -2797,6 +2797,22 @@ describe("buildInGameControls — Netplay button", () => {
     expect(multiplayerBtn).toBeTruthy();
   });
 
+  it("renders one clean in-game menu action per destination", () => {
+    const { emulatorMock } = triggerGameStart({ systemId: "gba" });
+    if (typeof (emulatorMock as unknown as { onGameStart: () => void }).onGameStart === "function") {
+      (emulatorMock as unknown as { onGameStart: () => void }).onGameStart();
+    }
+    const menuButton = document.querySelector<HTMLButtonElement>('button[aria-label="Open Menu"]');
+    expect(menuButton).toBeTruthy();
+    menuButton!.click();
+
+    for (const tab of ["saves", "settings", "multiplayer"]) {
+      expect(document.querySelectorAll(`.ingame-menu__sidebar-btn[data-tab="${tab}"]`)).toHaveLength(1);
+    }
+    expect(document.querySelector<HTMLButtonElement>('.ingame-menu__sidebar-btn[data-tab="resume"]')).toBeTruthy();
+    expect(document.body.textContent).not.toContain("Quit Game");
+  });
+
   it("shows the multiplayer room management action for supported systems when netplay is active", async () => {
     const { emulatorMock } = triggerGameStart({
       systemId: "gba",
@@ -3485,6 +3501,8 @@ describe("buildInGameControls Save and Load button UX", () => {
 
     const btnLoad = document.querySelector<HTMLButtonElement>(".ingame-menu__save-card .btn-load");
     expect(btnLoad).toBeTruthy();
+    expect(document.querySelector<HTMLButtonElement>(".ingame-menu__save-card .btn-rename")?.textContent).toBe("Rename");
+    expect(document.querySelector<HTMLButtonElement>(".ingame-menu__save-card .btn-delete")?.textContent).toBe("Delete");
 
     btnLoad!.click();
     await flushUI(50);

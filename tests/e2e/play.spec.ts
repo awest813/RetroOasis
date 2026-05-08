@@ -59,4 +59,27 @@ test.describe("Play journey", () => {
       page.locator("#drop-zone, #landing").first()
     ).toBeVisible({ timeout: 8_000 });
   });
+
+  test("in-game menu actions are usable without duplicate sidebar entries", async ({ appPage: page }) => {
+    await dropFakeRom(page, { fileName: "menu-audit.nes" });
+    await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: "Open Menu" }).click();
+    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible();
+
+    await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="saves"]')).toHaveCount(1);
+    await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="settings"]')).toHaveCount(1);
+    await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="multiplayer"]')).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Quit game and return to library" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Quick Settings" }).click();
+    await expect(page.getByLabel("Master Volume")).toBeVisible();
+    await expect(page.getByLabel("Performance Profile")).toBeVisible();
+
+    await page.getByRole("button", { name: "Saves & Gallery" }).click();
+    await expect(page.getByRole("button", { name: "Save to Slot 1" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeHidden();
+  });
 });

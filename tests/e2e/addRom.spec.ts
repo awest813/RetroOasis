@@ -28,6 +28,21 @@ test.describe("Add ROM journey", () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
+  test("game card quick action buttons are clickable above the card info layer", async ({ appPage: page }) => {
+    await dropFakeRom(page, { fileName: "quick-actions.nes", content: "NES\x1a\x01\x01\x00\x00" });
+    await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
+    await page.keyboard.press("Escape");
+
+    const favorite = page.getByRole("button", { name: "Add quick-actions to favorites" });
+    await favorite.click();
+    await expect(page.getByRole("button", { name: "Remove quick-actions from favorites" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Change system for quick-actions" }).click();
+    await expect(page.getByRole("dialog", { name: "Choose System" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("dialog", { name: "Choose System" })).toBeHidden();
+  });
+
   test("drop zone shows drag-over state when file is dragged over it", async ({ appPage: page }) => {
     const dropZone = page.locator("#drop-zone");
     await expect(dropZone).toBeVisible();

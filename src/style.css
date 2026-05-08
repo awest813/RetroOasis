@@ -591,9 +591,9 @@ button {
 }
 
 .game-card:hover {
-  transform: scale(1.15) translateY(-25px);
+  transform: translateY(-8px);
   border-color: #fff;
-  box-shadow: 0 40px 80px rgba(0,0,0,0.9), 0 0 0 15px var(--c-accent-glow);
+  box-shadow: 0 24px 52px rgba(0,0,0,0.78), 0 0 0 8px var(--c-accent-glow);
   z-index: 10;
 }
 
@@ -610,9 +610,88 @@ button {
   background: linear-gradient(to top, rgba(0,0,0,0.98) 0%, transparent 100%);
   transform: translateY(100%);
   transition: transform 0.3s var(--spring);
+  z-index: 3;
+  pointer-events: none;
 }
 .game-card:hover .game-card__info { transform: translateY(0); }
 .game-card__name { font-family: 'Exo 2', sans-serif; font-weight: 900; font-size: 1.3rem; color: #fff; }
+
+.game-card__patch,
+.game-card__art-btn,
+.game-card__change-sys,
+.game-card__fav,
+.game-card__remove {
+  position: absolute;
+  bottom: 14px;
+  z-index: 8;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 8px;
+  background: rgba(16, 18, 24, 0.78);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.game-card__patch:hover,
+.game-card__art-btn:hover,
+.game-card__change-sys:hover,
+.game-card__fav:hover,
+.game-card__remove:hover,
+.game-card__patch:focus-visible,
+.game-card__art-btn:focus-visible,
+.game-card__change-sys:focus-visible,
+.game-card__fav:focus-visible,
+.game-card__remove:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(34, 38, 50, 0.92);
+  border-color: rgba(255,255,255,0.62);
+  outline: none;
+}
+
+.game-card__remove { right: 14px; }
+.game-card__fav { right: 56px; }
+.game-card__change-sys { right: 98px; }
+.game-card__art-btn { right: 140px; }
+.game-card__patch { right: 182px; }
+.game-card__fav.active { color: #ffd34d; }
+
+.game-card__play-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.game-card:hover .game-card__play-overlay,
+.game-card:focus-visible .game-card__play-overlay {
+  opacity: 1;
+}
+
+.game-card__play-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.58);
+  color: #fff;
+  font-size: 1.5rem;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  backdrop-filter: blur(12px);
+}
 
 /* ── System Selector ── */
 .system-filter { display: flex; gap: 24px; padding: 24px 0; overflow-x: auto; scrollbar-width: none; }
@@ -651,6 +730,14 @@ button {
 .modal-box {
   background: var(--c-surface); border: 2px solid var(--c-border); border-radius: 32px; padding: 48px;
   max-width: 640px; width: 90%; box-shadow: var(--shadow-lg); margin: auto; position: fixed; inset: 0; height: fit-content;
+  z-index: 1001;
+}
+
+#system-picker:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: block;
 }
 
 .settings-modal-box {
@@ -883,15 +970,27 @@ button {
   text-align: left;
 }
 
-.ingame-menu__sidebar-btn:hover {
+.ingame-menu__sidebar-btn svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.ingame-menu__sidebar-btn:hover,
+.ingame-menu__sidebar-btn:focus-visible {
   background: var(--c-surface2);
   transform: translateX(8px);
+  outline: none;
 }
 
 .ingame-menu__sidebar-btn--active {
   background: var(--c-accent);
   box-shadow: 0 10px 30px var(--c-accent-glow);
   transform: scale(1.05) translateX(12px);
+}
+
+.ingame-menu__sidebar-btn--danger {
+  color: #ff9f9f;
 }
 
 /* Content Area */
@@ -910,12 +1009,31 @@ button {
   padding-bottom: 24px;
 }
 
+.ingame-menu__header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ingame-menu__system-icon {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.ingame-menu__header-text {
+  min-width: 0;
+}
+
 .ingame-menu__game-name {
   font-family: 'Exo 2', sans-serif;
   font-size: 2.8rem;
   font-weight: 900;
   color: #fff;
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
 
 .ingame-menu__system-tag {
@@ -999,12 +1117,15 @@ button {
   gap: 12px;
   padding: 24px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s ease;
   justify-content: center;
 }
 
-.ingame-menu__save-card:hover .ingame-menu__save-overlay {
+.ingame-menu__save-card:hover .ingame-menu__save-overlay,
+.ingame-menu__save-card:focus-within .ingame-menu__save-overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .ingame-menu__save-action-btn {
@@ -1020,8 +1141,15 @@ button {
 
 .ingame-menu__save-action-btn.btn-save { background: var(--c-accent); color: var(--c-white); }
 .ingame-menu__save-action-btn.btn-load { background: var(--c-white); color: var(--c-black); }
+.ingame-menu__save-action-btn.btn-rename { background: var(--c-surface3); color: var(--c-white); }
+.ingame-menu__save-action-btn.btn-delete { background: rgba(200, 64, 64, 0.9); color: var(--c-white); }
 
-.ingame-menu__save-action-btn:hover { transform: scale(1.05); }
+.ingame-menu__save-action-btn:hover,
+.ingame-menu__save-action-btn:focus-visible {
+  transform: scale(1.05);
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+}
 
 /* Settings items */
 .ingame-menu__setting-item {
@@ -1046,6 +1174,14 @@ button {
   padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer;
 }
 
+.ingame-menu__range:focus-visible,
+.ingame-menu__select:focus-visible,
+.ingame-menu__toggle:focus-visible,
+.ingame-menu__btn:focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 3px;
+}
+
 .ingame-menu__toggle {
   padding: 10px 24px;
   border-radius: 999px;
@@ -1055,6 +1191,80 @@ button {
 }
 .ingame-menu__toggle.on { background: var(--c-accent); color: #fff; }
 .ingame-menu__toggle.off { background: var(--c-surface3); color: var(--c-text-dim); }
+
+.ingame-menu__btn {
+  min-height: 44px;
+  border: 1px solid var(--c-border-lt);
+  border-radius: 12px;
+  padding: 0 18px;
+  background: var(--c-surface2);
+  color: var(--c-white);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.ingame-menu__btn:hover {
+  background: var(--c-surface3);
+  border-color: var(--c-text-dim);
+  transform: translateY(-1px);
+}
+
+.ingame-menu__btn--primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent-light);
+}
+
+.ingame-menu__btn--block {
+  width: 100%;
+}
+
+.ingame-menu__btn--spaced {
+  margin-top: 16px;
+}
+
+.ingame-menu__empty-state,
+.ingame-menu__multiplayer-actions {
+  display: grid;
+  gap: 16px;
+}
+
+.ingame-menu__stat-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.ingame-menu__stat-val {
+  color: var(--c-white);
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+.ingame-menu__stat-label {
+  margin-top: 4px;
+  color: var(--c-text-dim);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.ingame-menu__netplay-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ingame-menu__save-rename-input {
+  width: 100%;
+  border: 1px solid var(--c-border-lt);
+  border-radius: 8px;
+  background: var(--c-surface3);
+  color: var(--c-white);
+  padding: 8px 10px;
+  font-weight: 800;
+}
 
 @media (max-width: 1024px) {
   .ingame-menu { width: 100vw; height: 100vh; border-radius: 0; border: none; }
@@ -1280,10 +1490,21 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 .game-card__fallback-icon {
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 5rem;
   margin-bottom: 24px;
   filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
   transition: transform 0.4s var(--spring);
+}
+
+.game-card__fallback-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .game-card:hover .game-card__fallback-icon {

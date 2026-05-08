@@ -2058,6 +2058,10 @@ function buildGameCard(
   const iconOutput = systemIcon(game.systemId);
   if (iconOutput.includes("/assets/")) {
     const sysImg = make("img", { src: iconOutput, alt: "", class: "sys-icon-img" });
+    sysImg.addEventListener("error", () => {
+      sysImg.remove();
+      sysIconWrap.textContent = system?.shortName ?? game.systemId.toUpperCase();
+    }, { once: true });
     sysIconWrap.appendChild(sysImg);
   } else {
     sysIconWrap.textContent = iconOutput;
@@ -2082,11 +2086,20 @@ function buildGameCard(
   // Fallback "Premium" Placeholder
   const fallback = make("div", { class: "game-card__fallback" });
   fallback.style.setProperty("--sys-color-bright", `${sysColor}dd`);
-  fallback.innerHTML = `
-    <div class="game-card__fallback-badge">${system?.shortName ?? "Game"}</div>
-    <div class="game-card__fallback-icon">${systemIcon(game.systemId)}</div>
-    <div class="game-card__fallback-name">${game.name}</div>
-  `;
+  const fallbackBadge = make("div", { class: "game-card__fallback-badge" }, system?.shortName ?? "Game");
+  const fallbackIcon = make("div", { class: "game-card__fallback-icon" });
+  if (iconOutput.includes("/assets/")) {
+    const fallbackImg = make("img", { src: iconOutput, alt: "", class: "game-card__fallback-img" });
+    fallbackImg.addEventListener("error", () => {
+      fallbackImg.remove();
+      fallbackIcon.textContent = system?.shortName ?? game.systemId.toUpperCase();
+    }, { once: true });
+    fallbackIcon.appendChild(fallbackImg);
+  } else {
+    fallbackIcon.textContent = iconOutput;
+  }
+  const fallbackName = make("div", { class: "game-card__fallback-name" }, game.name);
+  fallback.append(fallbackBadge, fallbackIcon, fallbackName);
   icon.appendChild(fallback);
 
   // Cover art: local blob takes precedence over remote thumbnailUrl
@@ -3692,39 +3705,6 @@ async function showInGameMenu(ctx: {
   sidebar.innerHTML = `<div class="ingame-menu__sidebar-title">Oasis Menu</div>`;
   menu.appendChild(sidebar);
 
-  const tabs: {id: "saves" | "settings" | "multiplayer", label: string, icon: string}[] = [
-    { id: "saves", label: "Save States", icon: "💾" },
-    { id: "settings", label: "Quick Settings", icon: "⚙️" },
-    { id: "multiplayer", label: "Play Together", icon: "👥" },
-  ];
-
-  tabs.forEach(tab => {
-    const btn = make("button", {
-      class: "ingame-menu__sidebar-btn",
-      "data-tab": tab.id,
-      "aria-label": tab.label
-    });
-    btn.innerHTML = `<span>${tab.icon}</span> ${tab.label}`;
-    btn.addEventListener("click", () => renderContent(tab.id));
-    sidebar.appendChild(btn);
-  });
-
-  // Quit Button
-  const quitBtn = make("button", { 
-    class: "ingame-menu__sidebar-btn", 
-    style: "margin-top: auto; color: var(--c-accent);",
-    "aria-label": "Quit game and return to library"
-  });
-  quitBtn.innerHTML = `<span>⬅️</span> Quit Game`;
-  quitBtn.addEventListener("click", async () => {
-    const confirmed = await showConfirmDialog("Are you sure you want to quit and return to the library?", { title: "Quit Game?", confirmLabel: "Quit", isDanger: true });
-    if (confirmed) {
-      closeMenu();
-      ctx.onReturnToLibrary();
-    }
-  });
-  sidebar.appendChild(quitBtn);
-
   const content = make("div", { class: "ingame-menu__content" });
   menu.appendChild(content);
 
@@ -3790,7 +3770,7 @@ async function showInGameMenu(ctx: {
           </div>
           <div class="ingame-menu__save-overlay">
             <button class="ingame-menu__save-action-btn btn-save" title="Save to this slot" aria-label="Save to Slot ${slotIdx}">Save</button>
-            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state" aria-label="Load from Slot ${slotIdx}">Load</button><button class="ingame-menu__save-action-btn btn-rename" title="Rename this slot" aria-label="Rename Slot ${slotIdx}"></button><button class="ingame-menu__save-action-btn btn-delete" title="Delete this save" aria-label="Delete Slot ${slotIdx}"></button>` : ""}
+            ${entry ? `<button class="ingame-menu__save-action-btn btn-load" title="Restore this save state" aria-label="Load from Slot ${slotIdx}">Load</button><button class="ingame-menu__save-action-btn btn-rename" title="Rename this slot" aria-label="Rename Slot ${slotIdx}">Rename</button><button class="ingame-menu__save-action-btn btn-delete" title="Delete this save" aria-label="Delete Slot ${slotIdx}">Delete</button>` : ""}
           </div>
         `;
 
@@ -4189,6 +4169,9 @@ async function showInGameMenu(ctx: {
   addSideBtn("Back to Library", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`, "library");
 
   void renderContent("saves");
+  requestAnimationFrame(() => {
+    sidebar.querySelector<HTMLButtonElement>(".ingame-menu__sidebar-btn")?.focus();
+  });
 
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeMenu();
