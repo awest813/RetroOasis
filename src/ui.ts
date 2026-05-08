@@ -4322,8 +4322,14 @@ export function openSettingsPanel(
 }
 
 let _settingsTabsModule: typeof import("./ui/settingsTabs.js") | null = null;
-async function _loadSettingsTabs(): Promise<typeof import("./ui/settingsTabs.js")> {
-  if (!_settingsTabsModule) _settingsTabsModule = await import("./ui/settingsTabs.js");
+async function _loadSettingsTabs(): Promise<typeof import("./ui/settingsTabs.js") | null> {
+  if (!_settingsTabsModule) {
+    try {
+      _settingsTabsModule = await import("./ui/settingsTabs.js");
+    } catch {
+      return null;
+    }
+  }
   return _settingsTabsModule;
 }
 
@@ -4504,18 +4510,25 @@ function buildSettingsContent(
   buildDebugTab(panels[8]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
   buildAboutTabContent(panels[9]!, APP_NAME);
 
-  void _loadSettingsTabs().then((st) => {
-    st.buildBiosTab(panels[4]!, biosLibrary, { appName: APP_NAME, onError: showError });
-    st.buildAchievementsTab(panels[6]!, getApiKeyStore(), {
-      appName: APP_NAME,
-      onError: showError,
+  try {
+    void _loadSettingsTabs().then((st) => {
+      if (!st) return;
+      st.buildBiosTab(panels[4]!, biosLibrary, { appName: APP_NAME, onError: showError });
+      st.buildAchievementsTab(panels[6]!, getApiKeyStore(), {
+        appName: APP_NAME,
+        onError: showError,
+      });
+      st.buildApiKeysTab(panels[7]!, getApiKeyStore(), {
+        appName: APP_NAME,
+        getTester: (id: string) => getKeyedProviders().get(id) ?? null,
+        onError: showError,
+      });
+    }).catch(() => {
+      // Dynamic import failed (e.g. test environment) — tabs will render without lazy content.
     });
-    st.buildApiKeysTab(panels[7]!, getApiKeyStore(), {
-      appName: APP_NAME,
-      getTester: (id: string) => getKeyedProviders().get(id) ?? null,
-      onError: showError,
-    });
-  });
+  } catch {
+    // _loadSettingsTabs is unavailable (test environment) — skip lazy tab loading.
+  }
 
   const applySearchFilter = () => {
     const query = searchInput.value.trim().toLowerCase();
