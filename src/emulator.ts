@@ -64,6 +64,8 @@ declare global {
     EJS_DEBUG_XX?:      boolean;
     /** EmulatorJS per-file URL overrides, keyed by basename. */
     EJS_paths?:         Record<string, string>;
+    /** EmulatorJS loader default core options. */
+    EJS_defaultOptions?: Record<string, string>;
     EJS_Settings?:     Record<string, string>;
     EJS_biosUrl?:      string | File;
     /** Override path to the core `.data` bundle (absolute URL). Used for cores not on the CDN. */
@@ -410,6 +412,7 @@ declare global {
     EJS_startOnLoaded: boolean;
     EJS_threads:       boolean;
     EJS_volume:        number;
+    EJS_defaultOptions?: Record<string, string>;
     EJS_Settings?:     Record<string, string>;
     EJS_biosUrl?:      string | File;
     /** Override path to the core `.data` bundle (absolute URL). Used for cores not on the CDN. */
@@ -2324,9 +2327,11 @@ export class PSPEmulator {
       }
 
       if (Object.keys(ejsSettings).length > 0) {
+        window.EJS_defaultOptions = ejsSettings;
         window.EJS_Settings = ejsSettings;
         this._activeCoreSettings = ejsSettings;
       } else {
+        delete window.EJS_defaultOptions;
         delete window.EJS_Settings;
         this._activeCoreSettings = null;
       }
@@ -3064,6 +3069,7 @@ export class PSPEmulator {
     delete ejsWindow.EJS_paths;
     delete ejsWindow.EJS_biosUrl;
     delete ejsWindow.EJS_corePath;
+    delete ejsWindow.EJS_defaultOptions;
     delete ejsWindow.EJS_Settings;
     delete ejsWindow.EJS_netplayServer;
     delete ejsWindow.EJS_netplayICEServers;

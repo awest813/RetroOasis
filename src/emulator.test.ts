@@ -1824,7 +1824,7 @@ describe('PSPEmulator', () => {
       expect(copy2.desmume_cpu_mode).toBe('interpreter');
     });
 
-    it('sets window.EJS_Settings to the same values as activeCoreSettings after a tier-settings launch', async () => {
+    it('sets EmulatorJS default options to the same values as activeCoreSettings after a tier-settings launch', async () => {
       emulator.onError = () => {};
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
         async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
@@ -1839,7 +1839,9 @@ describe('PSPEmulator', () => {
 
       const active = emulator.activeCoreSettings;
       expect(active).not.toBeNull();
-      // EJS_Settings is set to the same settings object before loader.js runs
+      // EJS_defaultOptions is what the bundled EmulatorJS loader reads before
+      // boot, while EJS_Settings is retained for diagnostics/backwards compat.
+      expect(window.EJS_defaultOptions).toEqual(active);
       expect(window.EJS_Settings).toEqual(active);
     });
 
