@@ -372,14 +372,15 @@ async function main(): Promise<void> {
   // hardware by signalling to the OS/driver that clocks should be managed conservatively.
   if (deviceCaps.isLowSpec || deviceCaps.isChromOS) {
     const originalGetContext = HTMLCanvasElement.prototype.getContext;
-    (HTMLCanvasElement.prototype as any).getContext = function(type: string, options?: any) {
+    (HTMLCanvasElement.prototype as unknown as Record<string, unknown>).getContext = function(this: HTMLCanvasElement, type: string, options?: WebGLContextAttributes) {
       if (type === "webgl" || type === "webgl2" || type === "experimental-webgl") {
-        options = options || {};
-        if (options.powerPreference === undefined) {
-          options.powerPreference = "low-power";
+        const attrs: WebGLContextAttributes = options ?? {};
+        if (attrs.powerPreference === undefined) {
+          attrs.powerPreference = "low-power";
         }
+        return (originalGetContext as (type: string, options?: WebGLContextAttributes) => RenderingContext | null).call(this, type, attrs);
       }
-      return (originalGetContext as Function).call(this, type, options);
+      return (originalGetContext as (type: string, options?: WebGLContextAttributes) => RenderingContext | null).call(this, type, options);
     };
   }
 
@@ -516,6 +517,7 @@ async function main(): Promise<void> {
     // current interaction frame.
     scheduleIdleTask(() => emulator.preWarmWebGL());
     scheduleIdleTask(() => emulator.warmUpPSPPipeline());
+    scheduleIdleTask(() => emulator.warmUpDreamcastPipeline());
     scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
     scheduleIdleTask(() => emulator.prefetchLoader());
     

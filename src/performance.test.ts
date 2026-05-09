@@ -2336,11 +2336,17 @@ describe('performance', () => {
         const ladder = getResolutionLadder('segaDC');
         expect(ladder).not.toBeNull();
         expect(ladder!.key).toBe('flycast_internal_resolution');
-        expect(ladder!.values).toEqual(['640x480', '1280x960', '1920x1440']);
+        expect(ladder!.values).toEqual(['640x480', '1280x960', '1920x1440', '2560x1920']);
       });
     });
 
     describe('getGraphicsPresetCoreOptions', () => {
+      it('provides graphics presets for every supported 3D console', () => {
+        for (const systemId of ['psp', 'nds', 'n64', 'psx', 'segaSaturn', 'segaDC']) {
+          expect(Object.keys(getGraphicsPresetCoreOptions(systemId, 'quality')).length).toBeGreaterThan(0);
+        }
+      });
+
       it('maps PSP quality preset to resolution and filtering options', () => {
         expect(getGraphicsPresetCoreOptions('psp', 'quality')).toMatchObject({
           ppsspp_internal_resolution: '2',
@@ -2365,8 +2371,17 @@ describe('performance', () => {
         });
       });
 
+      it('maps Saturn quality preset to Yabause performance options', () => {
+        expect(getGraphicsPresetCoreOptions('segaSaturn', 'quality')).toMatchObject({
+          retroarch_core: 'yabause',
+          yabause_frameskip: 'disabled',
+          yabause_addon_cartridge: '1M_ram',
+          yabause_numthreads: '4',
+        });
+      });
+
       it('returns an empty map for unsupported systems', () => {
-        expect(getGraphicsPresetCoreOptions('segaSaturn', 'quality')).toEqual({});
+        expect(getGraphicsPresetCoreOptions('arcade', 'quality')).toEqual({});
       });
     });
 
@@ -2383,6 +2398,7 @@ describe('performance', () => {
         expect(getTextureUpscalerCoreOptions('segaDC', 'xbrz')).toEqual({
           flycast_texupscale: '4x',
           flycast_mipmapping: 'enabled',
+          flycast_dsp: 'enabled',
         });
       });
 

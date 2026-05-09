@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectSystem, getSystemById, getPSPSettingsForTier, getNDSSettingsForTier, getGBASettingsForTier, getPSXSettingsForTier, getGBSettingsForTier, getGBCSettingsForTier, type SystemInfo } from "./systems.js";
+import { SYSTEMS, detectSystem, getSystemById, getPSPSettingsForTier, getNDSSettingsForTier, getGBASettingsForTier, getPSXSettingsForTier, getGBSettingsForTier, getGBCSettingsForTier, type SystemInfo } from "./systems.js";
 
 describe('systems performance profiles', () => {
   describe('detectSystem', () => {
@@ -175,6 +175,32 @@ describe('systems performance profiles', () => {
     expect(dc?.needsWebGL2).toBe(true);
     expect(dc?.experimental).toBe(true);
     expect(dc?.stabilityNotice).toContain('stabil');
+  });
+
+  it('does not advertise PS2 until a launchable browser core is wired', () => {
+    expect(getSystemById('ps2')).toBeUndefined();
+    const detected = detectSystem('game.iso');
+    const ids = Array.isArray(detected) ? detected.map(s => s.id) : detected ? [detected.id] : [];
+    expect(ids).not.toContain('ps2');
+  });
+
+  it('provides non-empty tier settings for every supported 2D system', () => {
+    for (const system of SYSTEMS.filter(s => !s.is3D)) {
+      expect(system.tierSettings, system.id).toBeDefined();
+      expect(Object.keys(system.perfSettings).length, `${system.id} perf`).toBeGreaterThan(0);
+      expect(Object.keys(system.qualitySettings).length, `${system.id} quality`).toBeGreaterThan(0);
+      for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
+        expect(Object.keys(system.tierSettings?.[tier] ?? {}).length, `${system.id} ${tier}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('adds explicit arcade and handheld 2D core settings', () => {
+    expect(getSystemById('arcade')?.tierSettings?.low?.mame2003_sample_rate).toBe('22050');
+    expect(getSystemById('mame2003')?.tierSettings?.ultra?.['mame2003-plus_art_resolution']).toBe('2');
+    expect(getSystemById('atari7800')?.tierSettings?.high?.retroarch_core).toBe('prosystem');
+    expect(getSystemById('lynx')?.tierSettings?.high?.handy_rot).toBe('None');
+    expect(getSystemById('ngp')?.tierSettings?.high?.ngp_language).toBe('english');
   });
 
   describe('PSP audio latency settings', () => {

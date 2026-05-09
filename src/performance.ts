@@ -76,7 +76,7 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
   },
   segaDC: {
     key: "flycast_internal_resolution",
-    values: ["640x480", "1280x960", "1920x1440"],
+    values: ["640x480", "1280x960", "1920x1440", "2560x1920"],
   },
 };
 
@@ -149,34 +149,50 @@ export function getGraphicsPresetCoreOptions(
   const out = { ...getResolutionCoreOptions(systemId, GRAPHICS_PRESET_TO_RESOLUTION[preset]) };
 
   switch (systemId) {
-    case "psp":
+case "psp":
       if (preset === "native") {
         Object.assign(out, {
           ppsspp_gpu_anisotropic_filtering: "off",
           ppsspp_texture_filtering: "auto",
           ppsspp_texture_scaling_level: "1",
+          ppsspp_texture_scaling_type: "xBRZ",
+          ppsspp_texture_deposterize: "disabled",
           ppsspp_lower_resolution_for_effects: "2",
+          ppsspp_vertex_range_inline: "enabled",
+          ppsspp_gpu_driver: "OpenGL",
         });
       } else if (preset === "balanced") {
         Object.assign(out, {
           ppsspp_gpu_anisotropic_filtering: "2x",
           ppsspp_texture_filtering: "auto",
           ppsspp_texture_scaling_level: "1",
+          ppsspp_texture_scaling_type: "xBRZ",
+          ppsspp_texture_deposterize: "enabled",
           ppsspp_lower_resolution_for_effects: "0",
+          ppsspp_vertex_range_inline: "enabled",
+          ppsspp_gpu_driver: "OpenGL",
         });
       } else if (preset === "quality") {
         Object.assign(out, {
           ppsspp_gpu_anisotropic_filtering: "8x",
           ppsspp_texture_filtering: "auto",
           ppsspp_texture_scaling_level: "2",
+          ppsspp_texture_scaling_type: "xBRZ",
+          ppsspp_texture_deposterize: "enabled",
           ppsspp_lower_resolution_for_effects: "0",
+          ppsspp_vertex_range_inline: "enabled",
+          ppsspp_gpu_driver: "OpenGL",
         });
       } else {
         Object.assign(out, {
           ppsspp_gpu_anisotropic_filtering: "16x",
           ppsspp_texture_filtering: "auto",
           ppsspp_texture_scaling_level: "3",
+          ppsspp_texture_scaling_type: "xBRZ",
+          ppsspp_texture_deposterize: "enabled",
           ppsspp_lower_resolution_for_effects: "0",
+          ppsspp_vertex_range_inline: "enabled",
+          ppsspp_gpu_driver: "OpenGL",
         });
       }
       break;
@@ -225,6 +241,26 @@ export function getGraphicsPresetCoreOptions(
         flycast_enable_rttb: preset === "native" || preset === "balanced" ? "disabled" : "enabled",
         flycast_alpha_sorting: preset === "native" || preset === "balanced" ? "per-strip (fast, least accurate)" : "per-triangle (normal)",
         flycast_frame_skipping: preset === "native" ? "enabled" : "disabled",
+        flycast_cable_type: "VGA",
+        flycast_volume_modifier_enable: "enabled",
+        flycast_dsp: preset === "native" ? "disabled" : "enabled",
+        flycast_widescreen_cheats: "disabled",
+        flycast_widescreen_hack: preset === "ultra" ? "enabled" : "disabled",
+      });
+      if (preset === "ultra") {
+        out["flycast_texupscale"] = "2x";
+      }
+      break;
+
+    case "segaSaturn":
+      Object.assign(out, {
+        retroarch_core: "yabause",
+        yabause_frameskip: preset === "native" ? "enabled" : "disabled",
+        yabause_force_hle_bios: "disabled",
+        yabause_addon_cartridge: preset === "ultra" ? "4M_ram" : preset === "quality" ? "1M_ram" : "none",
+        yabause_multitap_port1: "disabled",
+        yabause_multitap_port2: "disabled",
+        yabause_numthreads: preset === "ultra" ? "6" : preset === "quality" ? "4" : preset === "balanced" ? "2" : "1",
       });
       break;
   }
@@ -266,6 +302,7 @@ export function getTextureUpscalerCoreOptions(
       return {
         flycast_texupscale: upscaler === "off" ? "disabled" : upscaler === "xbrz" ? "4x" : "2x",
         flycast_mipmapping: upscaler === "off" ? "disabled" : "enabled",
+        flycast_dsp: upscaler === "off" ? "disabled" : "enabled",
       };
     default:
       return {};
@@ -280,6 +317,115 @@ export function getResolutionLadder(
   systemId: string,
 ): { key: string; values: string[] } | null {
   return RESOLUTION_LADDERS[systemId] ?? null;
+}
+
+const DREAMCAST_VRAM_BUDGETS: Record<string, { pixels: number; vramFloorMB: number }> = {
+  "640x480":     { pixels: 640 * 480,     vramFloorMB: 0 },
+  "1280x960":    { pixels: 1280 * 960,    vramFloorMB: 256 },
+  "1920x1440":   { pixels: 1920 * 1440,   vramFloorMB: 512 },
+  "2560x1920":   { pixels: 2560 * 1920,   vramFloorMB: 1024 },
+};
+
+export function getDreamcastOptimalResolution(
+  estimatedVRAMMB: number,
+): string {
+  const ladder = RESOLUTION_LADDERS["segaDC"];
+  if (!ladder) return "640x480";
+
+  let best = ladder.values[0]!;
+  for (let i = ladder.values.length - 1; i >= 0; i--) {
+    const value = ladder.values[i]!;
+    const budget = DREAMCAST_VRAM_BUDGETS[value];
+    if (!budget) continue;
+    if (estimatedVRAMMB >= budget.vramFloorMB) {
+      best = value;
+      break;
+    }
+  }
+  return best;
+}
+
+export function getDreamcastAutoSettings(
+  caps: DeviceCapabilities,
+): Record<string, string> {
+  const optimalRes = getDreamcastOptimalResolution(caps.estimatedVRAMMB);
+  const isLowEnd = caps.tier === "low" || caps.isSoftwareGPU;
+  const isMidRange = caps.tier === "medium";
+
+  return {
+    flycast_cable_type: "VGA",
+    flycast_volume_modifier_enable: "enabled",
+    flycast_internal_resolution: optimalRes,
+    flycast_threaded_rendering: isLowEnd ? "disabled" : "enabled",
+    flycast_mipmapping: isLowEnd ? "disabled" : "enabled",
+    flycast_anisotropic_filtering: isLowEnd ? "1" : isMidRange ? "2" : "4",
+    flycast_dsp: isLowEnd ? "disabled" : "enabled",
+    flycast_enable_purupuru: isLowEnd ? "disabled" : "enabled",
+    flycast_alpha_sorting: isLowEnd ? "per-strip (fast, least accurate)" : "per-triangle (normal)",
+    flycast_frame_skipping: isLowEnd ? "enabled" : "disabled",
+    flycast_widescreen_cheats: "disabled",
+    flycast_widescreen_hack: "disabled",
+  };
+}
+
+const PSP_RESOLUTION_VRAM_FLOOR: Record<string, number> = {
+  "1": 0,
+  "2": 128,
+  "4": 384,
+  "8": 768,
+};
+
+export function getPSPAutoSettings(
+  caps: DeviceCapabilities,
+): Record<string, string> {
+  const ladder = RESOLUTION_LADDERS["psp"];
+  let optimalRes = ladder?.values[0] ?? "1";
+  if (ladder) {
+    for (let i = ladder.values.length - 1; i >= 0; i--) {
+      const value = ladder.values[i]!;
+      const floor = PSP_RESOLUTION_VRAM_FLOOR[value] ?? Infinity;
+      if (caps.estimatedVRAMMB >= floor) {
+        optimalRes = value;
+        break;
+      }
+    }
+  }
+
+  const isLowEnd = caps.tier === "low" || caps.isSoftwareGPU;
+  const isMidRange = caps.tier === "medium";
+
+  return {
+    ppsspp_internal_resolution: optimalRes,
+    ppsspp_auto_frameskip: isLowEnd ? "enabled" : "disabled",
+    ppsspp_frameskip: isLowEnd ? "3" : "0",
+    ppsspp_frameskip_type: "Number of frames",
+    ppsspp_fast_memory: "enabled",
+    ppsspp_block_transfer_gpu: "enabled",
+    ppsspp_texture_scaling_level: isLowEnd ? "1" : isMidRange ? "1" : "2",
+    ppsspp_texture_scaling_type: "xBRZ",
+    ppsspp_texture_filtering: "auto",
+    ppsspp_texture_deposterize: isLowEnd ? "disabled" : "enabled",
+    ppsspp_gpu_hardware_transform: "enabled",
+    ppsspp_vertex_cache: "enabled",
+    ppsspp_vertex_range_inline: "enabled",
+    ppsspp_lazy_texture_caching: isLowEnd || isMidRange ? "enabled" : "disabled",
+    ppsspp_retain_changed_textures: isLowEnd ? "disabled" : "enabled",
+    ppsspp_spline_quality: isLowEnd ? "low" : isMidRange ? "medium" : "high",
+    ppsspp_software_skinning: "enabled",
+    ppsspp_io_timing_method: "Fast",
+    ppsspp_lower_resolution_for_effects: isLowEnd ? "2" : "0",
+    ppsspp_inflight_frames: isLowEnd ? "1" : "2",
+    ppsspp_rendering_mode: "buffered",
+    ppsspp_cpu_core: "JIT",
+    ppsspp_audio_latency: isLowEnd ? "2" : isMidRange ? "1" : "0",
+    ppsspp_audio_resampling: isLowEnd ? "disabled" : "enabled",
+    ppsspp_force_max_fps: isLowEnd ? "30" : "0",
+    ppsspp_gpu_anisotropic_filtering: isLowEnd ? "off" : isMidRange ? "2x" : "8x",
+    ppsspp_texture_shader: "Off",
+    ppsspp_separate_io_thread: "enabled",
+    ppsspp_unsafe_func_replacements: "enabled",
+    ppsspp_gpu_driver: "OpenGL",
+  };
 }
 
 export interface GPUCapabilities {

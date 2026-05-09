@@ -353,6 +353,9 @@ export function buildDOM(app: HTMLElement): void {
               </button>
             </div>
           </div>
+          <div class="library-overview" id="library-overview" aria-label="Library overview">
+            <!-- Populated by renderLibrary() -->
+          </div>
           <div id="library-highlights" aria-label="Library highlights">
             <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
           </div>
@@ -1302,6 +1305,7 @@ export async function renderLibrary(
     dropZoneEl,
     onboardingEl,
   });
+  _renderLibraryOverview(allGames, displayed);
 
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
@@ -1648,6 +1652,49 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
   }
 
   return result;
+}
+
+function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadata[]): void {
+  const overview = document.getElementById("library-overview");
+  if (!overview) return;
+
+  if (allGames.length === 0) {
+    overview.innerHTML = "";
+    return;
+  }
+
+  const systemCount = new Set(allGames.map(g => g.systemId)).size;
+  const favoriteCount = allGames.filter(g => g.isFavorite).length;
+  const missingArtCount = allGames.filter(g => !g.hasCoverArt && !g.thumbnailUrl).length;
+  const recentCount = allGames.filter(g => g.lastPlayedAt && Date.now() - g.lastPlayedAt < 14 * 24 * 60 * 60 * 1000).length;
+  const hasActiveFilters = displayed.length !== allGames.length || _libraryShowFavorites || !!_librarySearchQuery || !!_librarySystemFilter;
+
+  const item = (label: string, value: string, hint: string, tone = "") => {
+    const node = make("div", { class: `library-overview__item${tone ? ` library-overview__item--${tone}` : ""}` });
+    node.append(
+      make("span", { class: "library-overview__value" }, value),
+      make("span", { class: "library-overview__label" }, label),
+      make("span", { class: "library-overview__hint" }, hint),
+    );
+    return node;
+  };
+
+  overview.innerHTML = "";
+  overview.append(
+    item("Systems", String(systemCount), systemCount === 1 ? "one console" : "platform spread"),
+    item("Favorites", String(favoriteCount), favoriteCount > 0 ? "quick shelf" : "mark go-to games", favoriteCount > 0 ? "favorite" : ""),
+    item("Cover Art", missingArtCount === 0 ? "Full" : `${missingArtCount} missing`, missingArtCount === 0 ? "all set" : "ready to fetch", missingArtCount > 0 ? "warn" : "good"),
+    item("Recent", String(recentCount), "played in 14 days"),
+  );
+
+  if (hasActiveFilters) {
+    const scoped = make("div", { class: "library-overview__scope", role: "status" });
+    scoped.append(
+      make("span", { class: "library-overview__scope-count" }, String(displayed.length)),
+      make("span", {}, "shown with current filters"),
+    );
+    overview.appendChild(scoped);
+  }
 }
 
 let _libraryControlsWired = false;
@@ -2081,6 +2128,15 @@ function buildGameCard(
   icon.setAttribute("aria-hidden", "true");
   icon.style.setProperty("--sys-gradient", `linear-gradient(135deg, ${sysColor}33, ${sysColor}11)`);
 
+  const cardTop = make("div", { class: "game-card__topline" });
+  const cardSystem = make("span", { class: "game-card__system-chip" }, system?.shortName ?? game.systemId.toUpperCase());
+  cardSystem.style.setProperty("--sys-color", sysColor);
+  const cardStatus = make("span", {
+    class: `game-card__status-chip${game.cloudId ? " game-card__status-chip--cloud" : ""}`,
+  }, game.cloudId ? "Cloud" : game.lastPlayedAt ? "Played" : "New");
+  cardTop.append(cardSystem, cardStatus);
+  icon.appendChild(cardTop);
+
   // System icon (emoji or image) wrapped in a span so CSS can hide it when cover art is shown
   const sysIconWrap = make("span", { class: "game-card__sys-icon", "aria-hidden": "true" });
   const iconOutput = systemIcon(game.systemId);
@@ -2176,6 +2232,11 @@ function buildGameCard(
       : `Added ${formatRelativeTime(game.addedAt)}`
   );
   if (!game.lastPlayedAt && isNew) played.classList.add("game-card__played--fresh");
+  const scanline = make("div", { class: "game-card__scanline" });
+  scanline.append(
+    make("span", { class: "game-card__scan-title" }, game.name),
+    make("span", { class: "game-card__scan-meta" }, `${system?.shortName ?? game.systemId.toUpperCase()} / ${formatBytes(game.size)}`),
+  );
 
   info.append(name, meta);
   if (featureRow) info.append(featureRow);
@@ -2440,7 +2501,7 @@ function buildGameCard(
     }
   });
 
-  card.append(icon, info);
+  card.append(icon, scanline, info);
   if (patchInput && btnPatch) card.append(patchInput, btnPatch);
   card.append(btnArt, btnChangeSystem, btnFav, btnRemove, playOverlay);
 

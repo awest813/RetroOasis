@@ -501,7 +501,61 @@ const DRS_STEP_UP_FPS   = 55;      // FPS headroom required before stepping reso
 const DRS_STEP_DOWN_MS  = 2_000;   // sustained low-FPS window before stepping down (2 s)
 const DRS_STEP_UP_MS    = 10_000;  // sustained good-FPS window before stepping up (10 s)
 
+const DRS_SYSTEM_THRESHOLDS: Record<string, { stepDownFps: number; stepUpFps: number; stepDownMs: number; stepUpMs: number }> = {
+  nds: {
+    stepDownFps: 28,
+    stepUpFps: 55,
+    stepDownMs: 2_000,
+    stepUpMs: 10_000,
+  },
+  segaDC: {
+    stepDownFps: 22,
+    stepUpFps: 45,
+    stepDownMs: 3_000,
+    stepUpMs: 15_000,
+  },
+  psp: {
+    stepDownFps: 21,
+    stepUpFps: 50,
+    stepDownMs: 2_500,
+    stepUpMs: 10_000,
+  },
+};
+
 let cachedWebGL2Support: boolean | null = null;
+
+const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
+const NDS_RESOLUTION_STEPS = ["256x192", "512x384", "768x576", "1024x768"];
+const N64_RESOLUTION_STEPS = ["1", "2", "4"];
+const PSX_RESOLUTION_STEPS = ["1x (native)", "2x", "4x", "8x", "16x"];
+const DREAMCAST_RESOLUTION_STEPS = ["640x480", "1280x960", "1920x1440", "2560x1920"];
+
+function clampLadderValue(value: string | undefined, ladder: readonly string[], maxIdx: number): string {
+  const currentIdx = value ? ladder.indexOf(value) : 0;
+  const safeCurrentIdx = currentIdx >= 0 ? currentIdx : 0;
+  return ladder[Math.min(safeCurrentIdx, Math.max(0, maxIdx), ladder.length - 1)]!;
+}
+
+function parseAnisotropicValue(value: string | undefined): number {
+  if (!value || value === "off") return 0;
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatAnisotropicValue(value: number): string {
+  return value <= 0 ? "off" : `${value}x`;
+}
+
+function clampThreadOption(
+  value: string | undefined,
+  caps: DeviceCapabilities,
+  maxAllowed: number,
+): string {
+  const requested = parseInt(value ?? "1", 10);
+  const safeRequested = Number.isFinite(requested) ? requested : 1;
+  const cpuBudget = Math.max(1, caps.cpuCores > 2 ? caps.cpuCores - 1 : 1);
+  return String(Math.max(1, Math.min(safeRequested, cpuBudget, maxAllowed)));
+}
 
 /**
  * Reset the cached WebGL2 support flag. Exposed for unit tests only.
@@ -915,6 +969,7 @@ export class PSPEmulator {
   private _prefetchedCores = new Set<string>();
   private _webglPreWarmed = false;
   private _pspPipelineWarmed = false;
+  private _dcPipelineWarmed = false;
   private _webgpuDevice: GPUDevice | null = null;
   private _webgpuPreWarmed = false;
   private _webgpuAdapterInfo: WebGPUAdapterInfo | null = null;
@@ -1589,6 +1644,248 @@ export class PSPEmulator {
   }
 
   /**
+   * Compile a representative set of Flycast GPU shader patterns to prime the
+   * GPU driver's pipeline cache before the first rendered Dreamcast frame.
+   *
+   * Flycast generates WebGL 2 shaders for each unique combination of PowerVR
+   * rendering state: modifier volumes, palette-based texturing, alpha sorting
+   * modes, fog, and depth-complexity handling. Pre-compiling representative
+   * variants here exercises the same GLSL ES 3.00 → driver-binary path that
+   * Flycast will use, so on Windows (ANGLE/D3D) and macOS (Metal) the driver
+   * avoids a cold-compile stall on the first frames of Dreamcast gameplay.
+   *
+   * Unlike PSP warm-up, this method specifically requires WebGL 2 (GLSL ES 3.00)
+   * because Flycast relies on features not available in WebGL 1 (multiple render
+   * targets, integer textures, etc.).
+   */
+  warmUpDreamcastPipeline(): void {
+    if (this._dcPipelineWarmed) return;
+    this._dcPipelineWarmed = true;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return;
+
+    try {
+      const shaderVariants: Array<{ vs: string; fs: string; label: string }> = [
+        {
+          label: "dc-textured-quad",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec2 a_pos;",
+            "layout(location=1) in vec2 a_uv;",
+            "uniform mat4 u_mvp;",
+            "out vec2 v_uv;",
+            "void main() {",
+            "  v_uv = a_uv;",
+            "  gl_Position = u_mvp * vec4(a_pos, 0.0, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec2 v_uv;",
+            "uniform sampler2D u_tex;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  fragColor = texture(u_tex, v_uv);",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-textured-alpha",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec3 a_pos;",
+            "layout(location=1) in vec2 a_uv;",
+            "layout(location=2) in vec4 a_color;",
+            "uniform mat4 u_mvp;",
+            "out vec2 v_uv;",
+            "out vec4 v_color;",
+            "void main() {",
+            "  v_uv = a_uv;",
+            "  v_color = a_color;",
+            "  gl_Position = u_mvp * vec4(a_pos, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec2 v_uv;",
+            "in vec4 v_color;",
+            "uniform sampler2D u_tex;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  vec4 t = texture(u_tex, v_uv);",
+            "  fragColor = t * v_color;",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-modifier-volume",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec3 a_pos;",
+            "uniform mat4 u_mvp;",
+            "void main() {",
+            "  gl_Position = u_mvp * vec4(a_pos, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "uniform vec4 u_color;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  fragColor = u_color;",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-textured-fog",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec3 a_pos;",
+            "layout(location=1) in vec2 a_uv;",
+            "uniform mat4 u_mvp;",
+            "uniform float u_fog_near;",
+            "uniform float u_fog_far;",
+            "out vec2 v_uv;",
+            "out float v_fog;",
+            "void main() {",
+            "  vec4 pos = u_mvp * vec4(a_pos, 1.0);",
+            "  v_uv = a_uv;",
+            "  float depth = clamp((pos.z - u_fog_near) / (u_fog_far - u_fog_near), 0.0, 1.0);",
+            "  v_fog = depth;",
+            "  gl_Position = pos;",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec2 v_uv;",
+            "in float v_fog;",
+            "uniform sampler2D u_tex;",
+            "uniform vec4 u_fog_color;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  vec4 t = texture(u_tex, v_uv);",
+            "  fragColor = mix(t, u_fog_color, v_fog);",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-alpha-test",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec3 a_pos;",
+            "layout(location=1) in vec2 a_uv;",
+            "uniform mat4 u_mvp;",
+            "out vec2 v_uv;",
+            "void main() {",
+            "  v_uv = a_uv;",
+            "  gl_Position = u_mvp * vec4(a_pos, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec2 v_uv;",
+            "uniform sampler2D u_tex;",
+            "uniform float u_alpha_threshold;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  vec4 t = texture(u_tex, v_uv);",
+            "  if (t.a < u_alpha_threshold) discard;",
+            "  fragColor = t;",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-palette-texture",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec2 a_pos;",
+            "layout(location=1) in vec2 a_uv;",
+            "uniform mat4 u_mvp;",
+            "out vec2 v_uv;",
+            "void main() {",
+            "  v_uv = a_uv;",
+            "  gl_Position = u_mvp * vec4(a_pos, 0.0, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec2 v_uv;",
+            "uniform sampler2D u_tex;",
+            "uniform sampler2D u_palette;",
+            "uniform int u_palette_index;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  float idx = texture(u_tex, v_uv).r;",
+            "  vec2 palUv = vec2(idx, float(u_palette_index) / 4.0);",
+            "  fragColor = texture(u_palette, palUv);",
+            "}",
+          ].join("\n"),
+        },
+        {
+          label: "dc-flat-shaded",
+          vs: [
+            "#version 300 es",
+            "layout(location=0) in vec3 a_pos;",
+            "uniform mat4 u_mvp;",
+            "uniform vec4 u_color;",
+            "out vec4 v_color;",
+            "void main() {",
+            "  v_color = u_color;",
+            "  gl_Position = u_mvp * vec4(a_pos, 1.0);",
+            "}",
+          ].join("\n"),
+          fs: [
+            "#version 300 es",
+            "precision mediump float;",
+            "in vec4 v_color;",
+            "layout(location=0) out vec4 fragColor;",
+            "void main() {",
+            "  fragColor = v_color;",
+            "}",
+          ].join("\n"),
+        },
+      ];
+
+      for (const { vs: vsSrc, fs: fsSrc } of shaderVariants) {
+        const vs = gl.createShader(gl.VERTEX_SHADER)!;
+        gl.shaderSource(vs, vsSrc);
+        gl.compileShader(vs);
+
+        const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+        gl.shaderSource(fs, fsSrc);
+        gl.compileShader(fs);
+
+        const prog = gl.createProgram()!;
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        gl.useProgram(prog);
+
+        shaderCache.record(vsSrc, fsSrc).catch(() => {});
+
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+        gl.deleteProgram(prog);
+      }
+
+      gl.flush();
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    } catch {
+      try { gl?.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* ignore */ }
+    }
+  }
+
+  /**
    * Initialise a WebGPU adapter and device as an opt-in rendering path.
    *
    * Chrome 113+ exposes `navigator.gpu`. Acquiring a device here proves the
@@ -1692,7 +1989,7 @@ export class PSPEmulator {
           "fsr", "grain", "retro", "colorgrade", "taa",
           "pixelate", "ntsc", "hdr",
         ] as const) {
-          buildEffectPipeline(device, effect, presentFormat);
+          void buildEffectPipeline(device, effect, presentFormat).catch(() => {});
         }
         // Persist the pipeline WGSL sources for future sessions
         void shaderCache.preCompileWGSL(device);
@@ -1925,6 +2222,427 @@ export class PSPEmulator {
     await shaderCache.preCompile();
   }
 
+  /**
+   * Fold WebGL/WebGPU capability data back into the heavy 3D cores.
+   *
+   * PSP, DS, N64, PS1, Saturn, Dreamcast, and future PS2 cores are sensitive to
+   * texture size, framebuffer features, CPU thread pressure, and software
+   * rasterizers. Tier settings express desired quality; this pass clamps them
+   * to what the current browser GPU path can sustain.
+   */
+  private _applyHeavyCoreGpuOverrides(
+    systemId: string,
+    tier: PerformanceTier,
+    caps: DeviceCapabilities,
+    ejsSettings: Record<string, string>,
+  ): void {
+    if (
+      systemId !== "psp" &&
+      systemId !== "nds" &&
+      systemId !== "n64" &&
+      systemId !== "psx" &&
+      systemId !== "segaSaturn" &&
+      systemId !== "segaDC" &&
+      systemId !== "ps2"
+    ) return;
+
+    const gpu = caps.gpuCaps;
+    const weakWebGL =
+      caps.isSoftwareGPU ||
+      gpu.maxTextureSize < 4096 ||
+      caps.estimatedVRAMMB < 256 ||
+      caps.gpuBenchmarkScore < 35;
+    const constrainedMemory = caps.isMobile || (caps.deviceMemoryGB !== null && caps.deviceMemoryGB <= 4);
+
+    if (systemId === "psp") {
+      let maxResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
+        maxResIdx = Math.min(maxResIdx, 1);
+      }
+      if (weakWebGL) maxResIdx = 0;
+
+      const previousRes = ejsSettings["ppsspp_internal_resolution"];
+      const nextRes = clampLadderValue(previousRes, PSP_RESOLUTION_STEPS, maxResIdx);
+      ejsSettings["ppsspp_internal_resolution"] = nextRes;
+
+      if (!gpu.anisotropicFiltering || gpu.maxAnisotropy <= 1) {
+        ejsSettings["ppsspp_gpu_anisotropic_filtering"] = "off";
+      } else {
+        const requested = parseAnisotropicValue(ejsSettings["ppsspp_gpu_anisotropic_filtering"]);
+        const capped = Math.min(requested, Math.max(0, gpu.maxAnisotropy));
+        ejsSettings["ppsspp_gpu_anisotropic_filtering"] = formatAnisotropicValue(capped);
+      }
+
+      if (weakWebGL) {
+        Object.assign(ejsSettings, {
+          ppsspp_auto_frameskip: "enabled",
+          ppsspp_frameskip: ejsSettings["ppsspp_frameskip"] === "3" ? "3" : "2",
+          ppsspp_texture_scaling_level: "1",
+          ppsspp_texture_deposterize: "disabled",
+          ppsspp_lower_resolution_for_effects: "2",
+          ppsspp_lazy_texture_caching: "enabled",
+          ppsspp_retain_changed_textures: "disabled",
+          ppsspp_inflight_frames: "1",
+          ppsspp_force_max_fps: "30",
+        });
+      } else if (constrainedMemory) {
+        ejsSettings["ppsspp_texture_scaling_level"] = "1";
+        ejsSettings["ppsspp_lazy_texture_caching"] = "enabled";
+      }
+
+      if (previousRes !== nextRes || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `PSP WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "nds") {
+      let maxNdsResIdx = tier === "ultra" ? 3 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 4096 || caps.estimatedVRAMMB < 256 || constrainedMemory) {
+        maxNdsResIdx = Math.min(maxNdsResIdx, 1);
+      }
+      if (!gpu.webgl2 || weakWebGL) {
+        maxNdsResIdx = 0;
+        Object.assign(ejsSettings, {
+          desmume_opengl_mode: "disabled",
+          desmume_color_depth: "16-bit",
+          desmume_gfx_edgemark: "disabled",
+          desmume_gfx_linehack: "enabled",
+          desmume_filtering: "none",
+        });
+        const currentFrameskip = parseInt(ejsSettings["desmume_frameskip"] ?? "0", 10);
+        ejsSettings["desmume_frameskip"] = String(Math.max(Number.isFinite(currentFrameskip) ? currentFrameskip : 0, 1));
+      }
+
+      const previousNdsRes = ejsSettings["desmume_internal_resolution"];
+      const nextNdsRes = clampLadderValue(previousNdsRes, NDS_RESOLUTION_STEPS, maxNdsResIdx);
+      ejsSettings["desmume_internal_resolution"] = nextNdsRes;
+
+      if (previousNdsRes !== nextNdsRes || !gpu.webgl2 || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `NDS WebGL clamp: res ${previousNdsRes ?? "?"}->${nextNdsRes}, ` +
+          `opengl=${ejsSettings["desmume_opengl_mode"] ?? "?"}, webgl2=${gpu.webgl2}, ` +
+          `maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "n64") {
+      let maxN64ResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
+        maxN64ResIdx = Math.min(maxN64ResIdx, 1);
+      }
+      if (weakWebGL) maxN64ResIdx = 0;
+
+      const previousRes = ejsSettings["mupen64plus-resolution-factor"];
+      const nextRes = clampLadderValue(previousRes, N64_RESOLUTION_STEPS, maxN64ResIdx);
+      ejsSettings["mupen64plus-resolution-factor"] = nextRes;
+
+      if (weakWebGL) {
+        Object.assign(ejsSettings, {
+          "mupen64plus-rdp-plugin": "rice",
+          "mupen64plus-EnableFBEmulation": "False",
+          "mupen64plus-EnableCopyColorToRDRAM": "Off",
+          "mupen64plus-EnableCopyDepthToRDRAM": "Off",
+          "mupen64plus-EnableCopyColorFromRDRAM": "False",
+          "mupen64plus-EnableLOD": "False",
+          "mupen64plus-EnableHWLighting": "False",
+          "mupen64plus-txFilterMode": "None",
+          "mupen64plus-txEnhancementMode": "As Is",
+          "mupen64plus-txHiresEnable": "False",
+          "mupen64plus-EnableN64DepthCompare": "False",
+          "mupen64plus-MaxTxCacheSize": "1500",
+        });
+      } else if (constrainedMemory) {
+        ejsSettings["mupen64plus-txFilterMode"] = "None";
+        ejsSettings["mupen64plus-txHiresEnable"] = "False";
+        ejsSettings["mupen64plus-MaxTxCacheSize"] = "2000";
+      }
+
+      if (previousRes !== nextRes || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `N64 WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
+          `rdp=${ejsSettings["mupen64plus-rdp-plugin"] ?? "?"}, ` +
+          `fb=${ejsSettings["mupen64plus-EnableFBEmulation"] ?? "?"}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "psx") {
+      let maxPsxResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
+        maxPsxResIdx = Math.min(maxPsxResIdx, 1);
+      }
+      if (weakWebGL) maxPsxResIdx = 0;
+
+      const previousRes = ejsSettings["beetle_psx_hw_internal_resolution"];
+      const nextRes = clampLadderValue(previousRes, PSX_RESOLUTION_STEPS, maxPsxResIdx);
+      ejsSettings["beetle_psx_hw_internal_resolution"] = nextRes;
+
+      if (weakWebGL) {
+        Object.assign(ejsSettings, {
+          beetle_psx_hw_frame_duping: "enabled",
+          beetle_psx_hw_filter: "nearest",
+          beetle_psx_hw_dither_mode: "1x (native)",
+          beetle_psx_hw_depth: "16bpp (native)",
+          beetle_psx_hw_pgxp_mode: "disabled",
+          beetle_psx_hw_pgxp_texture: "disabled",
+          beetle_psx_hw_pgxp_vertex: "disabled",
+          beetle_psx_hw_gte_overclock: "disabled",
+          beetle_psx_hw_renderer_software_fb: "enabled",
+          beetle_psx_hw_gpu_overclock: "1x (native)",
+          beetle_psx_hw_super_sampling: "disabled",
+          beetle_psx_hw_msaa: "disabled",
+        });
+      } else if (constrainedMemory) {
+        ejsSettings["beetle_psx_hw_super_sampling"] = "disabled";
+        ejsSettings["beetle_psx_hw_msaa"] = "disabled";
+      }
+
+      if (previousRes !== nextRes || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `PS1 WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
+          `pgxp=${ejsSettings["beetle_psx_hw_pgxp_mode"] ?? "?"}, ` +
+          `msaa=${ejsSettings["beetle_psx_hw_msaa"] ?? "?"}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "segaSaturn") {
+      const previousThreads = ejsSettings["yabause_numthreads"];
+      const previousFrameskip = ejsSettings["yabause_frameskip"];
+      const previousCart = ejsSettings["yabause_addon_cartridge"];
+
+      const maxThreads = weakWebGL || constrainedMemory ? 2 : tier === "ultra" ? 6 : tier === "high" ? 4 : 2;
+      ejsSettings["yabause_numthreads"] = clampThreadOption(previousThreads, caps, maxThreads);
+
+      if (weakWebGL || caps.cpuCores <= 2 || caps.isMobile) {
+        ejsSettings["yabause_frameskip"] = "enabled";
+      }
+      if (weakWebGL || constrainedMemory || caps.estimatedVRAMMB < 384) {
+        ejsSettings["yabause_addon_cartridge"] = "none";
+      }
+
+      if (
+        previousThreads !== ejsSettings["yabause_numthreads"] ||
+        previousFrameskip !== ejsSettings["yabause_frameskip"] ||
+        previousCart !== ejsSettings["yabause_addon_cartridge"]
+      ) {
+        this.logDiagnostic(
+          "performance",
+          `Saturn WebGL clamp: threads ${previousThreads ?? "?"}->${ejsSettings["yabause_numthreads"]}, ` +
+          `frameskip=${ejsSettings["yabause_frameskip"] ?? "?"}, cart=${ejsSettings["yabause_addon_cartridge"] ?? "?"}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "segaDC") {
+      let maxDcResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
+        maxDcResIdx = Math.min(maxDcResIdx, 1);
+      }
+      if (weakWebGL) maxDcResIdx = 0;
+
+      const previousRes = ejsSettings["flycast_internal_resolution"];
+      const nextRes = clampLadderValue(previousRes, DREAMCAST_RESOLUTION_STEPS, maxDcResIdx);
+      ejsSettings["flycast_internal_resolution"] = nextRes;
+
+      if (weakWebGL) {
+        Object.assign(ejsSettings, {
+          flycast_mipmapping: "disabled",
+          flycast_anisotropic_filtering: "1",
+          flycast_texupscale: "disabled",
+          flycast_enable_rttb: "disabled",
+          flycast_enable_purupuru: "disabled",
+          flycast_dsp: "disabled",
+          flycast_alpha_sorting: "per-strip (fast, least accurate)",
+          flycast_frame_skipping: "enabled",
+          flycast_widescreen_cheats: "disabled",
+          flycast_widescreen_hack: "disabled",
+        });
+        if (caps.cpuCores <= 2 || caps.isMobile) {
+          ejsSettings["flycast_threaded_rendering"] = "disabled";
+        }
+      } else if (constrainedMemory) {
+        ejsSettings["flycast_texupscale"] = "disabled";
+        ejsSettings["flycast_anisotropic_filtering"] = String(Math.min(
+          parseInt(ejsSettings["flycast_anisotropic_filtering"] ?? "1", 10) || 1,
+          2,
+        ));
+        if (caps.estimatedVRAMMB < 384) {
+          ejsSettings["flycast_enable_rttb"] = "disabled";
+        }
+      }
+
+      if (previousRes !== nextRes || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `DC WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
+          `rttb=${ejsSettings["flycast_enable_rttb"] ?? "?"}, ` +
+          `texup=${ejsSettings["flycast_texupscale"] ?? "?"}, ` +
+          `frameskip=${ejsSettings["flycast_frame_skipping"] ?? "?"}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    const previousPs2Res = ejsSettings["pcsx2_internal_resolution"] ?? ejsSettings["play_internal_resolution"];
+    if (weakWebGL || constrainedMemory || gpu.maxTextureSize < 8192) {
+      if ("pcsx2_internal_resolution" in ejsSettings) ejsSettings["pcsx2_internal_resolution"] = "1x";
+      if ("play_internal_resolution" in ejsSettings) ejsSettings["play_internal_resolution"] = "1x";
+      if ("pcsx2_texture_filtering" in ejsSettings) ejsSettings["pcsx2_texture_filtering"] = "nearest";
+      if ("pcsx2_blending_accuracy" in ejsSettings) ejsSettings["pcsx2_blending_accuracy"] = "basic";
+      if ("pcsx2_frameskip" in ejsSettings) ejsSettings["pcsx2_frameskip"] = "enabled";
+    }
+    const nextPs2Res = ejsSettings["pcsx2_internal_resolution"] ?? ejsSettings["play_internal_resolution"];
+    if (previousPs2Res !== nextPs2Res) {
+      this.logDiagnostic(
+        "performance",
+        `PS2 WebGL clamp: res ${previousPs2Res ?? "?"}->${nextPs2Res ?? "?"}, ` +
+        `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+      );
+    }
+  }
+
+  /**
+   * Keep 2D cores responsive on weak browser paths without flattening the
+   * richer high/ultra presets on capable machines.
+   */
+  private _applyLightCorePerformanceOverrides(
+    systemId: string,
+    tier: PerformanceTier,
+    caps: DeviceCapabilities,
+    ejsSettings: Record<string, string>,
+  ): void {
+    const weak2D =
+      caps.isSoftwareGPU ||
+      caps.isLowSpec ||
+      caps.cpuCores <= 2 ||
+      caps.gpuBenchmarkScore < 20;
+    const constrained2D =
+      weak2D ||
+      caps.isMobile ||
+      (caps.deviceMemoryGB !== null && caps.deviceMemoryGB <= 3);
+
+    if (!constrained2D) return;
+
+    const changes: string[] = [];
+    const set = (key: string, value: string): void => {
+      if (!(key in ejsSettings)) return;
+      const previous = ejsSettings[key];
+      if (previous === value) return;
+      ejsSettings[key] = value;
+      changes.push(`${key}=${previous ?? "?"}->${value}`);
+    };
+
+    switch (systemId) {
+      case "nes":
+        set("fceumm_sndquality", weak2D ? "Low" : "High");
+        set("fceumm_no_sprite_limit", "disabled");
+        set("fceumm_use_official_overclocking", "disabled");
+        break;
+
+      case "snes":
+        set("snes9x_frameskip", "auto");
+        set("snes9x_frameskip_threshold", "33");
+        set("snes9x_audio_interpolation", "gaussian");
+        set("snes9x_overclock_cycles", weak2D ? "disabled" : tier === "ultra" ? "compatible" : "disabled");
+        set("snes9x_blargg_ntsc_filter", "disabled");
+        break;
+
+      case "gba":
+        if (weak2D) set("mgba_frameskip", "1");
+        set("mgba_color_correction", weak2D ? "disabled" : "Game Boy Advance");
+        set("mgba_interframe_blending", "disabled");
+        set("mgba_audio_buffer_size", weak2D ? "2048" : "1024");
+        break;
+
+      case "gb":
+      case "gbc":
+        set("gambatte_mix_frames", "disabled");
+        set("gambatte_dark_filter_level", "0");
+        break;
+
+      case "segaMD":
+      case "segaGG":
+      case "segaMS":
+        set("genesis_plus_gx_hq_fm", weak2D ? "disabled" : "enabled");
+        set("genesis_plus_gx_cpu_overclock", "none");
+        set("genesis_plus_gx_no_sprite_limit", "disabled");
+        set("genesis_plus_gx_ym2612_improved", weak2D ? "disabled" : "enabled");
+        set("genesis_plus_gx_blargg_ntsc_filter", "disabled");
+        set("genesis_plus_gx_lcd_filter", "disabled");
+        set("genesis_plus_gx_frame_skip", weak2D ? "2" : "1");
+        set("genesis_plus_gx_cartridge_slot", "none");
+        set("genesis_plus_gx_extern_cpu", "disabled");
+        if (weak2D) set("genesis_plus_gx_sound_output", "mono");
+        break;
+
+      case "atari2600":
+        set("stella_filter", "none");
+        set("stella_phosphor_blend", weak2D ? "40" : "50");
+        break;
+
+      case "arcade":
+        set("mame2003_frameskip", weak2D ? "1" : "0");
+        set("mame2003_sample_rate", weak2D ? "22050" : "30000");
+        set("mame2003_cheats", "disabled");
+        set("mame2003_tate_mode", "disabled");
+        break;
+
+      case "mame2003":
+        set("mame2003-plus_frameskip", weak2D ? "1" : "0");
+        set("mame2003-plus_sample_rate", weak2D ? "22050" : "30000");
+        set("mame2003-plus_display_artwork", "disabled");
+        set("mame2003-plus_art_resolution", "1");
+        set("mame2003-plus_vector_resolution", "640x480");
+        set("mame2003-plus_vector_antialias", "disabled");
+        break;
+    }
+
+    if (changes.length > 0) {
+      this.logDiagnostic(
+        "performance",
+        `2D core clamp (${systemId}): ${changes.slice(0, 6).join(", ")}`
+      );
+    }
+  }
+
+  private _syncDRSInitialStep(systemId: string, ejsSettings: Record<string, string>): void {
+    const ladder = getResolutionLadder(systemId);
+    this._drsTotalSteps = ladder ? ladder.values.length : 0;
+    this._drsLowFPSStartTime = 0;
+    this._drsHighFPSStartTime = 0;
+    if (!ladder) {
+      this._drsCurrentStepIdx = 0;
+      return;
+    }
+
+    const selected = ejsSettings[ladder.key];
+    const idx = selected ? ladder.values.indexOf(selected) : 0;
+    this._drsCurrentStepIdx = idx >= 0 ? idx : 0;
+    this.logDiagnostic(
+      "performance",
+      `DRS baseline: ${ladder.key}=${selected ?? ladder.values[0]} ` +
+      `(step ${this._drsCurrentStepIdx}/${ladder.values.length - 1})`
+    );
+  }
+
   // ── launch ──────────────────────────────────────────────────────────────────
 
   async launch(opts: LaunchOptions): Promise<void> {
@@ -1951,6 +2669,10 @@ export class PSPEmulator {
     // ── Pre-flight checks (conditional per system) ──────────────────────────
     if (system.needsThreads  && !this._checkSharedArrayBuffer()) return;
     if (system.needsWebGL2   && !this._checkWebGL2())            return;
+
+    if (opts.systemId === "segaDC") {
+      this.warmUpDreamcastPipeline();
+    }
 
     // Derive the filename - Blob doesn't have .name, so accept it explicitly
     const fileName = opts.fileName
@@ -2091,11 +2813,9 @@ export class PSPEmulator {
       // Bluetooth/USB audio devices (high base latency) and allows the
       // minimum buffer on DACs with very low output latency.
       //
-      // Applies to 3D and audio-sensitive cores: PSP, N64, PS1, GBA, and NDS —
+      // Applies to 3D and audio-sensitive cores: PSP, N64, PS1, GBA, NDS, and DC —
       // each exposes audio buffer or timing knobs that benefit from
-      // hardware-aware tuning.  Dreamcast (Flycast/reicast) is excluded because
-      // the reicast core does not expose an audio-buffer size option via
-      // RetroArch core options.
+      // hardware-aware tuning.
       const audioCaps = await audioCapabilitiesPromise;
       if (audioCaps && opts.systemId === "psp" && "ppsspp_audio_latency" in ejsSettings) {
         const tierLatency = ejsSettings["ppsspp_audio_latency"];
@@ -2196,12 +2916,49 @@ export class PSPEmulator {
         }
       }
 
+      // Dreamcast audio adaptation: Flycast exposes a DSP option that adds audio
+      // processing latency. On high-latency hardware (Bluetooth/USB), disabling
+      // the DSP reduces total audio pipeline latency and prevents crackles and
+      // desync. On low-latency hardware the DSP is safe to keep enabled for
+      // better audio accuracy.
+      if (audioCaps && opts.systemId === "segaDC" && audioCaps.suggestedBufferTier === "high") {
+        if (ejsSettings["flycast_dsp"] === "enabled") {
+          ejsSettings["flycast_dsp"] = "disabled";
+          this.logDiagnostic(
+            "audio",
+            `DC DSP disabled for high-latency audio hardware (${audioCaps.baseLatencyMs?.toFixed(1)} ms)`
+          );
+          if (this.verboseLogging) {
+            console.info(
+              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
+              `— disabling DC DSP to reduce audio pipeline latency.`
+            );
+          }
+        }
+      }
+
       // ── NDS performance diagnostics ───────────────────────────────────────
       // Log key DeSmuME settings chosen for this session so they appear in
       // the diagnostic timeline and the browser console when verboseLogging is
       // enabled.  This makes it straightforward to correlate sluggish gameplay
       // reports with the active tier's frameskip / CPU-mode / resolution
       // without having to dig through EJS_Settings manually.
+      this._applyHeavyCoreGpuOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
+      this._applyLightCorePerformanceOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
+      this._syncDRSInitialStep(opts.systemId, ejsSettings);
+
+      if (
+        opts.deviceCaps.webgpuAvailable &&
+        system.is3D &&
+        this._postProcessConfig.effect !== "none" &&
+        !this._webgpuDevice
+      ) {
+        const webgpuPowerPref = (opts.deviceCaps.isLowSpec || opts.deviceCaps.isChromOS)
+          ? "low-power"
+          : "high-performance";
+        void this.preWarmWebGPU(webgpuPowerPref).catch(() => {});
+      }
+
       if (opts.systemId === "nds") {
         const dsFrameskip  = ejsSettings["desmume_frameskip"]            ?? "?";
         const dsCpuMode    = ejsSettings["desmume_cpu_mode"]             ?? "?";
@@ -2226,11 +2983,43 @@ export class PSPEmulator {
         }
       }
 
+      // ── PSP performance diagnostics ─────────────────────────────────────────
+      // Log key PPSSPP settings chosen for this session.
+      if (opts.systemId === "psp") {
+        const pspResolution         = ejsSettings["ppsspp_internal_resolution"]   ?? "?";
+        const pspAutoFrameskip       = ejsSettings["ppsspp_auto_frameskip"]        ?? "?";
+        const pspFrameskip          = ejsSettings["ppsspp_frameskip"]              ?? "?";
+        const pspCpuCore            = ejsSettings["ppsspp_cpu_core"]               ?? "?";
+        const pspAnisotropic        = ejsSettings["ppsspp_gpu_anisotropic_filtering"] ?? "?";
+        const pspTexScale           = ejsSettings["ppsspp_texture_scaling_level"]  ?? "?";
+        const pspTexType            = ejsSettings["ppsspp_texture_scaling_type"]   ?? "?";
+        const pspDeposterize        = ejsSettings["ppsspp_texture_deposterize"]   ?? "?";
+        const pspLowerEffectsRes    = ejsSettings["ppsspp_lower_resolution_for_effects"] ?? "?";
+        const pspMaxFps             = ejsSettings["ppsspp_force_max_fps"]         ?? "?";
+        const pspCpuSpeed           = ejsSettings["ppsspp_change_emulated_psp_cpu_clock"] ?? "?";
+        const pspAudioLatency       = ejsSettings["ppsspp_audio_latency"]          ?? "?";
+        const pspDriver             = ejsSettings["ppsspp_gpu_driver"]             ?? "?";
+        this.logDiagnostic(
+          "performance",
+          `PSP tier=${tier}: res=${pspResolution} fs=${pspAutoFrameskip}/${pspFrameskip} ` +
+          `cpu=${pspCpuCore} af=${pspAnisotropic} tex=${pspTexScale}/${pspTexType} ` +
+          `deposterize=${pspDeposterize} lowerfx=${pspLowerEffectsRes} maxfps=${pspMaxFps} ` +
+          `cpuspeed=${pspCpuSpeed} audio=${pspAudioLatency} driver=${pspDriver}`
+        );
+        if (this.verboseLogging) {
+          console.info(
+            `[RetroOasis] PSP performance settings — ` +
+            `resolution: ${pspResolution}, auto_frameskip: ${pspAutoFrameskip}, frameskip: ${pspFrameskip}, ` +
+            `cpu_core: ${pspCpuCore}, anisotropic: ${pspAnisotropic}, texture_scaling: ${pspTexScale}/${pspTexType}, ` +
+            `deposterize: ${pspDeposterize}, lower_resolution_for_effects: ${pspLowerEffectsRes}, ` +
+            `force_max_fps: ${pspMaxFps}, cpu_clock: ${pspCpuSpeed}, audio_latency: ${pspAudioLatency}, ` +
+            `gpu_driver: ${pspDriver}`
+          );
+        }
+      }
+
       // ── Dreamcast performance diagnostics ────────────────────────────────
-      // Log key Flycast/reicast settings chosen for this session.  Dreamcast
-      // does not have an audio-buffer core option exposed by the reicast/Flycast
-      // core, so no audio hardware adaptation is applied (unlike PSP/N64/PS1/
-      // GBA/NDS).
+      // Log key Flycast settings chosen for this session.
       if (opts.systemId === "segaDC") {
         const dcResolution         = ejsSettings["flycast_internal_resolution"]   ?? "?";
         const dcThreaded           = ejsSettings["flycast_threaded_rendering"]    ?? "?";
@@ -2240,12 +3029,16 @@ export class PSPEmulator {
         const dcEnableRttb         = ejsSettings["flycast_enable_rttb"]           ?? "?";
         const dcAlphaSorting       = ejsSettings["flycast_alpha_sorting"]         ?? "?";
         const dcFrameSkipping      = ejsSettings["flycast_frame_skipping"]        ?? "?";
+        const dcDsp                = ejsSettings["flycast_dsp"]                   ?? "?";
+        const dcCable              = ejsSettings["flycast_cable_type"]            ?? "?";
+        const dcWidescreen         = ejsSettings["flycast_widescreen_hack"]       ?? "?";
         this.logDiagnostic(
           "performance",
           `DC tier=${tier}: ` +
           `res=${dcResolution} threaded=${dcThreaded} mipmap=${dcMipmap} ` +
           `af=${dcAnisotropic} texup=${dcTexUpscale} rttb=${dcEnableRttb} ` +
-          `alpha=${dcAlphaSorting} frameskip=${dcFrameSkipping}`
+          `alpha=${dcAlphaSorting} frameskip=${dcFrameSkipping} ` +
+          `dsp=${dcDsp} cable=${dcCable} ws=${dcWidescreen}`
         );
         if (this.verboseLogging) {
           console.info(
@@ -2253,7 +3046,8 @@ export class PSPEmulator {
             `resolution: ${dcResolution}, threaded_rendering: ${dcThreaded}, ` +
             `mipmapping: ${dcMipmap}, anisotropic_filtering: ${dcAnisotropic}, ` +
             `texupscale: ${dcTexUpscale}, enable_rttb: ${dcEnableRttb}, ` +
-            `alpha_sorting: ${dcAlphaSorting}, frame_skipping: ${dcFrameSkipping}`
+            `alpha_sorting: ${dcAlphaSorting}, frame_skipping: ${dcFrameSkipping}, ` +
+            `dsp: ${dcDsp}, cable_type: ${dcCable}, widescreen_hack: ${dcWidescreen}`
           );
         }
       }
@@ -2845,15 +3639,20 @@ export class PSPEmulator {
     const ladder   = getResolutionLadder(systemId);
     if (!ladder) return;
 
-    if (averageFPS > 0 && averageFPS < DRS_STEP_DOWN_FPS) {
-      // FPS is too low — start the step-down timer
+    const thresholds = DRS_SYSTEM_THRESHOLDS[systemId];
+    const stepDownFps = thresholds?.stepDownFps ?? DRS_STEP_DOWN_FPS;
+    const stepUpFps   = thresholds?.stepUpFps   ?? DRS_STEP_UP_FPS;
+    const stepDownMs  = thresholds?.stepDownMs   ?? DRS_STEP_DOWN_MS;
+    const stepUpMs    = thresholds?.stepUpMs     ?? DRS_STEP_UP_MS;
+
+    if (averageFPS > 0 && averageFPS < stepDownFps) {
       if (this._drsLowFPSStartTime === 0) {
-        this._drsLowFPSStartTime = now;
+        this._drsLowFPSStartTime = now === 0 ? Number.EPSILON : now;
       }
-      this._drsHighFPSStartTime = 0; // reset step-up timer
+      this._drsHighFPSStartTime = 0;
 
       if (
-        now - this._drsLowFPSStartTime >= DRS_STEP_DOWN_MS &&
+        now - this._drsLowFPSStartTime >= stepDownMs &&
         this._drsCurrentStepIdx > 0
       ) {
         this._drsLowFPSStartTime = 0;
@@ -2871,14 +3670,13 @@ export class PSPEmulator {
         }
         this.onDRSChange?.(ladder.key, newValue, this._drsCurrentStepIdx, "down");
       }
-    } else if (averageFPS >= DRS_STEP_UP_FPS && this._drsCurrentStepIdx < ladder.values.length - 1) {
-      // FPS has recovered — start the step-up timer
+    } else if (averageFPS >= stepUpFps && this._drsCurrentStepIdx < ladder.values.length - 1) {
       if (this._drsHighFPSStartTime === 0) {
-        this._drsHighFPSStartTime = now;
+        this._drsHighFPSStartTime = now === 0 ? Number.EPSILON : now;
       }
-      this._drsLowFPSStartTime = 0; // reset step-down timer
+      this._drsLowFPSStartTime = 0;
 
-      if (now - this._drsHighFPSStartTime >= DRS_STEP_UP_MS) {
+      if (now - this._drsHighFPSStartTime >= stepUpMs) {
         this._drsHighFPSStartTime = 0;
         this._drsCurrentStepIdx++;
         const newValue = ladder.values[this._drsCurrentStepIdx]!;

@@ -1163,12 +1163,15 @@ export async function buildEffectPipeline(
   const bindGroupLayout = device.createBindGroupLayout({ entries });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
 
-  const pipeline = await device.createRenderPipelineAsync({
+  const pipelineDesc: GPURenderPipelineDescriptor = {
     layout: pipelineLayout,
     vertex:   { module: vertModule, entryPoint: "vs" },
     fragment: { module: fragModule, entryPoint: "fs", targets: [{ format }] },
     primitive: { topology: "triangle-list" },
-  });
+  };
+  const pipeline = typeof device.createRenderPipelineAsync === "function"
+    ? await device.createRenderPipelineAsync(pipelineDesc)
+    : device.createRenderPipeline(pipelineDesc);
 
   // 32 bytes: 4 floats (16 bytes) + vec2f resolution (8 bytes) + padding to 32
   const uniformBuffer = hasUniforms

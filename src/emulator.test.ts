@@ -1874,6 +1874,240 @@ describe('PSPEmulator', () => {
       expect(ndsPerfEntry!.message).toContain('mic=');
     });
 
+    it('clamps NDS OpenGL settings on weak WebGL hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.nds'),
+        volume:          0.7,
+        systemId:        'nds',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          gpuBenchmarkScore: 10,
+          estimatedVRAMMB: 128,
+          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: false, maxTextureSize: 2048 },
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.desmume_internal_resolution).toBe('256x192');
+      expect(settings?.desmume_opengl_mode).toBe('disabled');
+      expect(settings?.desmume_color_depth).toBe('16-bit');
+      expect(settings?.desmume_filtering).toBe('none');
+      expect(Number(settings?.desmume_frameskip)).toBeGreaterThanOrEqual(1);
+    });
+
+    it('clamps Saturn Yabause settings on weak WebGL hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.cue'),
+        volume:          0.7,
+        systemId:        'segaSaturn',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          cpuCores: 2,
+          gpuBenchmarkScore: 10,
+          estimatedVRAMMB: 128,
+          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: false, maxTextureSize: 2048 },
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.retroarch_core).toBe('yabause');
+      expect(settings?.yabause_frameskip).toBe('enabled');
+      expect(settings?.yabause_addon_cartridge).toBe('none');
+      expect(settings?.yabause_numthreads).toBe('1');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('Saturn WebGL clamp:')
+      )).toBe(true);
+    });
+
+    it('clamps N64 renderer settings on weak WebGL hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.z64'),
+        volume:          0.7,
+        systemId:        'n64',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          gpuBenchmarkScore: 10,
+          estimatedVRAMMB: 128,
+          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: false, maxTextureSize: 2048 },
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.['mupen64plus-resolution-factor']).toBe('1');
+      expect(settings?.['mupen64plus-rdp-plugin']).toBe('rice');
+      expect(settings?.['mupen64plus-EnableFBEmulation']).toBe('False');
+      expect(settings?.['mupen64plus-txFilterMode']).toBe('None');
+      expect(settings?.['mupen64plus-EnableN64DepthCompare']).toBe('False');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('N64 WebGL clamp:')
+      )).toBe(true);
+    });
+
+    it('clamps PS1 Beetle HW settings on weak WebGL hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.chd'),
+        volume:          0.7,
+        systemId:        'psx',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          gpuBenchmarkScore: 10,
+          estimatedVRAMMB: 128,
+          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: false, maxTextureSize: 2048 },
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.beetle_psx_hw_internal_resolution).toBe('1x (native)');
+      expect(settings?.beetle_psx_hw_frame_duping).toBe('enabled');
+      expect(settings?.beetle_psx_hw_pgxp_mode).toBe('disabled');
+      expect(settings?.beetle_psx_hw_msaa).toBe('disabled');
+      expect(settings?.beetle_psx_hw_super_sampling).toBe('disabled');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('PS1 WebGL clamp:')
+      )).toBe(true);
+    });
+
+    it('clamps Dreamcast Flycast settings on weak WebGL hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _checkWebGL2: () => boolean })._checkWebGL2 = () => true;
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.cdi'),
+        volume:          0.7,
+        systemId:        'segaDC',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          gpuBenchmarkScore: 10,
+          estimatedVRAMMB: 128,
+          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: true, maxTextureSize: 2048 },
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.flycast_internal_resolution).toBe('640x480');
+      expect(settings?.flycast_mipmapping).toBe('disabled');
+      expect(settings?.flycast_enable_rttb).toBe('disabled');
+      expect(settings?.flycast_texupscale).toBe('disabled');
+      expect(settings?.flycast_frame_skipping).toBe('enabled');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('DC WebGL clamp:')
+      )).toBe(true);
+    });
+
+    it('pulls back SNES high-cost 2D settings on weak hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.sfc'),
+        volume:          0.7,
+        systemId:        'snes',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          cpuCores: 2,
+          gpuBenchmarkScore: 10,
+          isLowSpec: true,
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.snes9x_frameskip).toBe('auto');
+      expect(settings?.snes9x_audio_interpolation).toBe('gaussian');
+      expect(settings?.snes9x_overclock_cycles).toBe('disabled');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('2D core clamp (snes):')
+      )).toBe(true);
+    });
+
+    it('pulls back Genesis enhancement settings on weak hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'game.md'),
+        volume:          0.7,
+        systemId:        'segaMD',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          cpuCores: 2,
+          gpuBenchmarkScore: 10,
+          isLowSpec: true,
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.genesis_plus_gx_cpu_overclock).toBe('none');
+      expect(settings?.genesis_plus_gx_blargg_ntsc_filter).toBe('disabled');
+      expect(settings?.genesis_plus_gx_cartridge_slot).toBe('none');
+      expect(settings?.genesis_plus_gx_frame_skip).toBe('2');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('2D core clamp (segaMD):')
+      )).toBe(true);
+    });
+
+    it('pulls back MAME 2003+ artwork and vector settings on weak hardware', async () => {
+      emulator.onError = () => {};
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
+
+      await emulator.launch({
+        file:            new File(['data'], 'romset.zip'),
+        volume:          0.7,
+        systemId:        'mame2003',
+        performanceMode: 'quality',
+        deviceCaps:      {
+          ...fakeCaps,
+          tier: 'ultra' as const,
+          cpuCores: 2,
+          gpuBenchmarkScore: 10,
+          isLowSpec: true,
+        },
+      });
+
+      const settings = emulator.activeCoreSettings;
+      expect(settings?.['mame2003-plus_frameskip']).toBe('1');
+      expect(settings?.['mame2003-plus_sample_rate']).toBe('22050');
+      expect(settings?.['mame2003-plus_display_artwork']).toBe('disabled');
+      expect(settings?.['mame2003-plus_vector_antialias']).toBe('disabled');
+      expect(emulator.diagnosticLog.some(e =>
+        e.category === 'performance' && e.message.startsWith('2D core clamp (mame2003):')
+      )).toBe(true);
+    });
+
     it('does not record an NDS performance diagnostic event for non-NDS systems', async () => {
       emulator.onError = () => {};
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
