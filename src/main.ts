@@ -64,8 +64,8 @@ import {
   fromNetplayIceServers,
 } from "./store/bridge.js";
 // Initialize Chrome-specific performance optimizations early
-import { optimizeChromePerformance } from "./performance.js";
-optimizeChromePerformance();
+import { optimizeBrowserPerformance } from "./performance.js";
+optimizeBrowserPerformance();
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import {
   parsePostProcessEffect,

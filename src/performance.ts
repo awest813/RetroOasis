@@ -1103,26 +1103,29 @@ function benchmarkGPU(): number {
 }
 
 /**
- * Optimizes the browser environment for Chrome.
- * Chrome-specific tweaks for RetroOasis:
- * - High-priority WASM thread allocation hints
- * - SharedArrayBuffer validation (COOP/COEP)
- * - V8 TurboFan hints for instruction-heavy WASM cores (PSP/N64)
+ * Lightweight startup hooks for all supported engines (Blink: Chrome / Edge /
+ * Brave / Opera; Gecko: Firefox; WebKit: Safari).
+ *
+ * Records a navigation-timing mark and warns when cross-origin isolation is
+ * missing — SharedArrayBuffer (needed for threaded PSP/N64-class cores) requires
+ * COOP/COEP in every browser, not only Chrome.
  */
-export function optimizeChromePerformance(): void {
-  const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-  if (!isChrome) return;
-
-  // Hint at high-performance requirements
+export function optimizeBrowserPerformance(): void {
   if (typeof performance !== "undefined" && typeof performance.mark === "function") {
-    performance.mark("retro-oasis-boot-start");
+    try {
+      performance.mark("retro-oasis-boot-start");
+    } catch {
+      /* Safari private mode / quota — non-fatal */
+    }
   }
 
-  // Check for isolation which is crucial for PSP/N64 WASM performance
   if (typeof window !== "undefined" && !window.crossOriginIsolated) {
     console.warn("[RetroOasis] Not cross-origin isolated — PSP/N64 performance may be degraded (no SharedArrayBuffer).");
   }
 }
+
+/** @deprecated Use {@link optimizeBrowserPerformance} */
+export const optimizeChromePerformance = optimizeBrowserPerformance;
 
 // ── Tier classification ───────────────────────────────────────────────────────
 

@@ -410,7 +410,8 @@ describe("resolveSystemAndAdd mobile archive handling", () => {
 
   it("extracts ZIP files detected by magic header when extension is missing (mobile picker case)", async () => {
     vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("zip");
-    vi.spyOn(archive, "extractFromZip").mockResolvedValue({
+    vi.spyOn(archive, "extractFromArchive").mockResolvedValue({
+      format: "zip",
       name: "mobile-cart.nes",
       blob: new Blob([new Uint8Array([0x4e, 0x45, 0x53])], { type: "application/octet-stream" }),
     });
@@ -432,7 +433,7 @@ describe("resolveSystemAndAdd mobile archive handling", () => {
     await resolveSystemAndAdd(file, library, makeSettings(), onLaunchGame);
 
     expect(archive.detectArchiveFormat).toHaveBeenCalledWith(file);
-    expect(archive.extractFromZip).toHaveBeenCalledWith(file);
+    expect(archive.extractFromArchive).toHaveBeenCalledWith(file, expect.any(Object));
     expect(library.addGame).toHaveBeenCalledTimes(1);
     expect(onLaunchGame).toHaveBeenCalledWith(expect.any(File), "nes", "game-1");
   });

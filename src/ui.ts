@@ -3270,19 +3270,16 @@ export async function resolveSystemAndAdd(
     );
 
     try {
-      // Mobile file pickers (ext === "") strip extensions, so the file was
-      // detected purely by magic bytes.  For that path we call extractFromZip
-      // directly — it has no progress API but the extraction is lightweight.
-      // Named-extension ZIPs go through extractFromArchive to get progress
-      // callbacks and multi-candidate support.
-      const extracted = archiveFormat === "zip" && ext === ""
-        ? await archiveModule.extractFromZip(file).then(r => r ? { ...r, format: "zip" as const } : null)
-        : await archiveModule.extractFromArchive(file, {
-            onProgress: (progress) => {
-              setLoadingMessage(formatArchiveProgressMessage(progress));
-              if (progress.percent != null) setLoadingProgress(progress.percent);
-            },
-          });
+      // Always route through extractFromArchive so magic-detected ZIPs (mobile
+      // pickers often strip extensions) get the same progress UI and multi-ROM
+      // candidate picker as desktop — extractFromArchive delegates to the
+      // streaming ZIP path on mobile browsers when appropriate.
+      const extracted = await archiveModule.extractFromArchive(file, {
+        onProgress: (progress) => {
+          setLoadingMessage(formatArchiveProgressMessage(progress));
+          if (progress.percent != null) setLoadingProgress(progress.percent);
+        },
+      });
 
       if (extracted) {
         const extractedCandidates = extracted.candidates ?? [];

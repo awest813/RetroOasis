@@ -797,9 +797,25 @@ describe('extractFromZip', () => {
     });
 
     try {
-      // Above IOS_LARGE_ARCHIVE_WARNING_BYTES (400 MB on iOS) but under 2 GB hard cap.
+      // Above IOS_LARGE_ARCHIVE_WARNING_BYTES (400 MB on mobile) but under 2 GB hard cap.
       const oversizedBlob = { size: 500 * 1024 * 1024 } as Blob;
-      await expect(extractFromZip(oversizedBlob)).rejects.toThrow(/too large.*iPhone/i);
+      await expect(extractFromZip(oversizedBlob)).rejects.toThrow(/too large.*mobile browser/i);
+    } finally {
+      Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
+    }
+  });
+
+  it('throws early for oversized archives on Android Chrome', async () => {
+    const originalUA = navigator.userAgent;
+    Object.defineProperty(navigator, 'userAgent', {
+      value:
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+      configurable: true,
+    });
+
+    try {
+      const oversizedBlob = { size: 500 * 1024 * 1024 } as Blob;
+      await expect(extractFromZip(oversizedBlob)).rejects.toThrow(/too large.*mobile browser/i);
     } finally {
       Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
     }

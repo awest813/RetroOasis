@@ -5,11 +5,11 @@
  * packages directly (mobile and desktop) and still launch games.
  *
  * Supported extraction paths:
- *   - ZIP   (native parser + DecompressionStream deflate; on iOS WebKit, random-access
- *            ZIP layout + per-entry slices to avoid loading the whole archive)
- *   - 7Z    (legacy worker — desktop only; disabled on iPhone/iPad for stability)
- *   - RAR   (legacy libunrar worker — desktop only; disabled on iPhone/iPad)
- *   - TAR   (native parser; streaming walk on large archives on iOS)
+ *   - ZIP   (native parser + DecompressionStream deflate; on mobile Safari / Android,
+ *            random-access ZIP layout + per-entry slices to avoid loading the whole archive)
+ *   - 7Z    (legacy worker — disabled on iPhone/iPad for stability; OK on Android/desktop)
+ *   - RAR   (legacy libunrar worker — same as 7z)
+ *   - TAR   (native parser; streaming walk on large archives on mobile browsers)
  *   - GZIP  (DecompressionStream gzip; auto-detects inner TAR)
  *
  * Formats detected but not currently extracted:
@@ -50,17 +50,19 @@ const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const MAX_EXTRACTED_ENTRY_BYTES = 512 * 1024 * 1024; // 512 MB
 const MAX_EXTRACTED_ENTRY_COUNT = 4096;
 
-// iOS Safari enforces a strict per-tab memory budget. ZIP/TAR can be parsed
+// Mobile browsers enforce a strict per-tab memory budget. ZIP/TAR can be parsed
 // without holding the full archive; 7z/RAR still duplicate the archive in a
 // worker, so we keep a lower ceiling than desktop for all archive types.
 const IOS_LARGE_ARCHIVE_WARNING_BYTES = 400 * 1024 * 1024;
 
-// On iOS WebKit, use random-access ZIP parsing (EOCD + central-directory
-// slice + per-entry data slice) instead of materialising the whole archive.
-const IOS_STREAMING_ZIP_MIN_BYTES = 96 * 1024;
+/** Above this size, use random-access ZIP/TAR parsing on mobile instead of loading the whole blob. */
+const MOBILE_STREAMING_ARCHIVE_MIN_BYTES = 96 * 1024;
 
-// Yield to the event loop occasionally while inflating on iOS so WebKit is
-// less likely to watchdog-freeze the tab on large entries.
+/** @deprecated alias for {@link MOBILE_STREAMING_ARCHIVE_MIN_BYTES} */
+const IOS_STREAMING_ZIP_MIN_BYTES = MOBILE_STREAMING_ARCHIVE_MIN_BYTES;
+
+// Yield to the event loop occasionally while inflating on constrained mobile hosts so
+// WebKit / Chromium are less likely to watchdog-freeze the tab on large entries.
 const IOS_DECOMPRESS_YIELD_CHUNK_COUNT = 24;
 const IOS_DECOMPRESS_YIELD_BYTE_INTERVAL = 2 * 1024 * 1024;
 
@@ -209,6 +211,21 @@ function isIOSBrowser(): boolean {
   // iPadOS 13+ reports as "Macintosh" but has touch hardware.
   if (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints >= 1) return true;
   return false;
+}
+
+/**
+ * Android phone/tablet browsers — same tight RAM profile as iOS for large archives.
+ */
+function isAndroidMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /\bAndroid\b/i.test(navigator.userAgent);
+}
+
+/**
+ * Use streaming ZIP/TAR walks and incremental decompress yields (not desktop-class RAM).
+ */
+function useMobileArchiveMemoryOptimizations(): boolean {
+  return isIOSBrowser() || isAndroidMobileBrowser();
 }
 
 function yieldToMain(): Promise<void> {
@@ -453,19 +470,16 @@ function assertArchiveSize(blob: Blob, formatLabel: string): void {
     );
   }
 
-  // On iOS, the browser process has a strict memory ceiling.  Extracting a
-  // large archive requires holding both the compressed and decompressed data
-  // in memory at the same time, which can exceed the OS-imposed limit and
-  // cause the tab to crash.  Throw early with a descriptive message instead
-  // of silently hanging or crashing.
+  // On mobile browsers, per-tab RAM is limited. Extracting a large archive may
+  // hold compressed + decompressed data simultaneously and crash the tab.
   if (
     blob.size > IOS_LARGE_ARCHIVE_WARNING_BYTES &&
-    isIOSBrowser()
+    useMobileArchiveMemoryOptimizations()
   ) {
     throw new Error(
-      `This ${formatLabel} archive (${(blob.size / 1048576).toFixed(0)} MB) may be too large to extract on iPhone/iPad. ` +
-      "iOS limits available memory per browser tab, which can cause large archives to crash mid-extraction. " +
-      "Please extract the archive on a desktop computer and import the ROM file directly."
+      `This ${formatLabel} archive (${(blob.size / 1048576).toFixed(0)} MB) may be too large to extract in this mobile browser. ` +
+      "Available memory per tab is limited, which can crash mid-extraction. " +
+      "Extract the archive on a desktop computer or in the Files app, then import the ROM file directly."
     );
   }
 }
@@ -622,10 +636,11 @@ async function decompressWithStream(
   streamOpts?: DecompressStreamOptions
 ): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") {
-    // Provide a targeted hint for iOS/iPadOS users who need to update.
     const hint = isIOSBrowser()
       ? " On iPhone/iPad: update to iOS 16.4 or later in Settings → General → Software Update."
-      : " Please extract the archive manually or use a modern browser.";
+      : isAndroidMobileBrowser()
+        ? " On Android: update Chrome or WebView, or extract the archive manually."
+        : " Please extract the archive manually or use a modern browser.";
     throw new Error(
       "Your browser does not support DecompressionStream — ZIP archive decompression is unavailable." +
       hint
@@ -883,8 +898,9 @@ export async function extractFromZip(
 ): Promise<{ name: string; blob: Blob; candidates?: ArchiveExtractCandidate[] } | null> {
   assertArchiveSize(blob, "ZIP");
 
-  const ios = isIOSBrowser();
-  const useStreamingZip = ios && blob.size >= IOS_STREAMING_ZIP_MIN_BYTES;
+  const constrainedMobile = useMobileArchiveMemoryOptimizations();
+  const useStreamingZip =
+    constrainedMobile && blob.size >= MOBILE_STREAMING_ARCHIVE_MIN_BYTES;
 
   if (useStreamingZip) {
     const layout = await resolveZipCentralDirectoryLayout(blob);
@@ -901,7 +917,7 @@ export async function extractFromZip(
       if (entries.length === 0) return null;
       return await runZipExtractionAfterEntries(blob, entries, opts, {
         mode: "streaming",
-        yieldInflate: ios,
+        yieldInflate: constrainedMobile,
       });
     }
     // Fall through: rare ZIP layouts (e.g. comment longer than tail window) use full read.
@@ -959,7 +975,7 @@ export async function extractFromZip(
     mode: "buffered",
     view,
     bytes,
-    yieldInflate: ios,
+    yieldInflate: constrainedMobile,
   });
 }
 
@@ -1137,7 +1153,9 @@ export async function extractFromTar(
 ): Promise<{ name: string; blob: Blob; candidates?: ArchiveExtractCandidate[] } | null> {
   assertArchiveSize(blob, "TAR");
 
-  const streamTar = isIOSBrowser() && blob.size >= IOS_STREAMING_ZIP_MIN_BYTES;
+  const streamTar =
+    useMobileArchiveMemoryOptimizations() &&
+    blob.size >= MOBILE_STREAMING_ARCHIVE_MIN_BYTES;
 
   if (streamTar) {
     const refs = await listTarFileRefsStreaming(blob);
@@ -1247,7 +1265,7 @@ export async function extractFromGzip(
   assertArchiveSize(blob, "GZIP");
 
   const compressed = new Uint8Array(await blob.arrayBuffer());
-  const dsOpts: DecompressStreamOptions | undefined = isIOSBrowser()
+  const dsOpts: DecompressStreamOptions | undefined = useMobileArchiveMemoryOptimizations()
     ? { yieldWhileReading: true }
     : undefined;
   const decompressed = await decompressWithStream("gzip", compressed, dsOpts);
@@ -1325,6 +1343,7 @@ export async function extractFromArchive(
           "Please extract the archive in the Files app or on a desktop, then import the ROM file."
         );
       }
+      // Android and desktop use the legacy worker path below.
       assertArchiveSize(blob, format.toUpperCase());
       const archiveBytes = new Uint8Array(await blob.arrayBuffer());
       const entries = await extractWithLegacyWorker(format, archiveBytes, options);
@@ -1372,6 +1391,8 @@ export function isArchiveExtension(ext: string): boolean {
  */
 export const ARCHIVE_SUPPORT_NOTE =
   "ZIP, 7-Zip (.7z), RAR, TAR, and GZIP archives are extracted automatically in-browser. " +
+  "On phones and tablets, very large archives may be blocked early to avoid browser crashes; " +
+  "7-Zip and RAR are not extracted on iPhone/iPad. " +
   "BZIP2 (.bz2), XZ (.xz), Zstandard (.zst), and Cabinet (.cab) files must be extracted " +
   "manually before importing. Inside ZIP archives, only Stored and Deflate compression are " +
   "supported; Deflate64, BZip2, and LZMA methods require manual extraction.";
