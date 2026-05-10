@@ -13,7 +13,7 @@
   padding: 0;
 }
 
-[hidden] {
+[hidden], .hidden {
   display: none !important;
 }
 
@@ -312,6 +312,16 @@ button {
   overflow: hidden;
 }
 
+/* ── Immersive Gameplay Mode ── */
+body.is-playing .app-header,
+body.is-playing .app-footer {
+  display: none !important;
+}
+
+body.is-playing .app-main {
+  height: 100vh;
+}
+
 #landing {
   position: absolute;
   inset: 0;
@@ -539,7 +549,7 @@ button {
   flex-direction: column;
   justify-content: flex-end;
   gap: 24px;
-  max-width: 60%;
+  max-width: min(800px, 70%);
   background: linear-gradient(90deg, rgba(18,18,18,0.98) 0%, rgba(18,18,18,0.75) 50%, transparent 100%);
 }
 
@@ -751,6 +761,14 @@ button {
   overflow: hidden;
 }
 
+@media (max-width: 768px) {
+  .settings-modal-box {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+}
+
 .settings-modal-box .modal-header {
   flex: 0 0 auto;
   padding: 24px 32px;
@@ -886,9 +904,19 @@ button {
   }
 
   .library-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; }
-  .library-hero__content { max-width: 100%; padding: 48px; }
-  .library-hero__title { font-size: 2.8rem; }
-  #landing { padding: 24px 20px 88px; }
+  .library-hero__content { max-width: 100%; padding: 32px 24px; }
+  .library-hero__title { font-size: 2.2rem; }
+  #landing { padding: 16px 16px 88px; }
+}
+
+@media (max-width: 480px) {
+  .library-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+  .game-card { border-width: 3px; border-radius: 20px; }
+  .game-card__info { padding: 16px; }
+  .game-card__name { font-size: 1.1rem; }
+  
+  .app-footer { padding: 0 16px; }
+  .footer-right { display: none; }
 }
 
 /* ── In-Game Menu Overlay (NSO Console Style) ── */
@@ -1271,6 +1299,18 @@ button {
   .ingame-menu__sidebar { width: 80px; padding: 20px 10px; }
   .ingame-menu__sidebar-title { display: none; }
   .ingame-menu__sidebar-btn span { display: none; }
+  .ingame-menu__sidebar-btn { justify-content: center; padding: 20px 0; border-radius: 12px; }
+  .ingame-menu__content { padding: 40px 32px; }
+  .ingame-menu__game-name { font-size: 2rem; }
+}
+
+@media (max-width: 600px) {
+  .ingame-menu__sidebar { width: 64px; }
+  .ingame-menu__content { padding: 24px 20px; }
+  .ingame-menu__header { margin-bottom: 32px; }
+  .ingame-menu__setting-item { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px 20px; }
+  .ingame-menu__setting-name { font-size: 1rem; }
+  .ingame-menu__select, .ingame-menu__range { width: 100%; }
 }
 
 /* ── In-Game Overlays (HUD) ── */
@@ -5399,14 +5439,31 @@ body.using-gamepad .game-card:focus {
 
   .app-header {
     position: relative;
+    min-height: 64px;
+    padding: 8px 16px;
   }
 
   .app-footer {
     position: relative;
+    height: 48px;
   }
 
   main#landing {
-    padding-bottom: 80px;
+    padding-top: 24px;
+    padding-bottom: 60px;
+  }
+
+  .drop-zone {
+    padding: 16px 20px;
+    margin-top: 12px;
+  }
+
+  .drop-zone__icon {
+    display: none;
+  }
+
+  .library-hero {
+    min-height: 320px;
   }
 }
 

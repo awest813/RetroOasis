@@ -907,6 +907,26 @@ export function initUI(opts: UIOptions): void {
       getCurrentCoreOptions, onUpdateCoreOption,
     );
   };
+
+  // ── Global In-Game Shortcut (Esc) ──────────────────────────────────────────
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("is-playing") && !_inGameMenuOpen) {
+      // Check if any other overlay is open (confirm dialogs, etc.)
+      if (document.querySelector(".confirm-overlay--visible")) return;
+      
+      e.preventDefault();
+      const openSettingsWith = (tab?: SettingsTab) =>
+        openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+      
+      void showInGameMenu({
+        emulator, settings, onSettingsChange, onReturnToLibrary,
+        saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
+        getCurrentSystemId, getTouchOverlay, onOpenSettings: openSettingsWith,
+        getNetplayManager, onOpenPlayTogetherSettings,
+        getCurrentCoreOptions, onUpdateCoreOption,
+      });
+    }
+  }, { capture: true });
   bindEvent(document, TOUCH_CONTROLS_CHANGED_EVENT, rebuildInGameControls);
 
   // Ensure overlay work is paused while browsing the library.
@@ -8665,11 +8685,13 @@ function showEjsContainer(): void  { document.getElementById("ejs-container")?.c
 function hideEjsContainer(): void  { document.getElementById("ejs-container")?.classList.remove("visible"); }
 
 function transitionToGame(): void {
+  document.body.classList.add("is-playing");
   hideLanding();
   requestAnimationFrame(() => showEjsContainer());
 }
 
 export function transitionToLibrary(): void {
+  document.body.classList.remove("is-playing");
   hideEjsContainer();
   requestAnimationFrame(() => showLanding());
 }

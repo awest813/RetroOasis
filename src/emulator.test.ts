@@ -1272,8 +1272,8 @@ describe('PSPEmulator', () => {
       emu.warmUpPSPPipeline();
       emu.warmUpPSPPipeline();
 
-      vi.restoreAllMocks();
       expect(getContext).toHaveBeenCalledTimes(4);
+      vi.restoreAllMocks();
     });
   });
 
@@ -1290,8 +1290,8 @@ describe('PSPEmulator', () => {
       emu.preWarmWebGL();
       emu.preWarmWebGL();
 
-      vi.restoreAllMocks();
       expect(getContext).toHaveBeenCalledTimes(4);
+      vi.restoreAllMocks();
     });
   });
 
@@ -1308,8 +1308,8 @@ describe('PSPEmulator', () => {
       emu.warmUpDreamcastPipeline();
       emu.warmUpDreamcastPipeline();
 
-      vi.restoreAllMocks();
       expect(getContext).toHaveBeenCalledTimes(2);
+      vi.restoreAllMocks();
     });
   });
 

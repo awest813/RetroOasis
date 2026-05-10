@@ -1022,6 +1022,7 @@ const ARCADE_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 
 const MAME2003_PLUS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
+    retroarch_core: "mame2003_plus",
     "mame2003-plus_frameskip": "1",
     "mame2003-plus_sample_rate": "22050",
     "mame2003-plus_skip_disclaimer": "enabled",
@@ -1036,6 +1037,7 @@ const MAME2003_PLUS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string
     "mame2003-plus_dcs_speedhack": "enabled",
   },
   medium: {
+    retroarch_core: "mame2003_plus",
     "mame2003-plus_frameskip": "0",
     "mame2003-plus_sample_rate": "30000",
     "mame2003-plus_skip_disclaimer": "enabled",
@@ -1050,6 +1052,7 @@ const MAME2003_PLUS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string
     "mame2003-plus_dcs_speedhack": "enabled",
   },
   high: {
+    retroarch_core: "mame2003_plus",
     "mame2003-plus_frameskip": "0",
     "mame2003-plus_sample_rate": "44100",
     "mame2003-plus_skip_disclaimer": "enabled",
@@ -1064,6 +1067,7 @@ const MAME2003_PLUS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string
     "mame2003-plus_dcs_speedhack": "enabled",
   },
   ultra: {
+    retroarch_core: "mame2003_plus",
     "mame2003-plus_frameskip": "0",
     "mame2003-plus_sample_rate": "48000",
     "mame2003-plus_skip_disclaimer": "enabled",

@@ -82,8 +82,8 @@ function createMockGPUDevice() {
 
 describe("POST_PROCESS_PIPELINE_WARMUP_EFFECTS", () => {
   it("lists every non-none effect once", () => {
-    expect(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).toHaveLength(12);
-    expect(new Set(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).size).toBe(12);
+    expect(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).toHaveLength(13);
+    expect(new Set(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).size).toBe(13);
     expect(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).not.toContain("none");
   });
 
