@@ -2105,8 +2105,8 @@ export class PSPEmulator {
    * After setup the audio graph is:
    *   AL sources → workletNode (gain + metering) → analyserNode → destination
    *
-   * @param workletBaseUrl  Base URL for loading audio-processor.js (pass
-   *                        `import.meta.url` or the app origin).
+   * @param workletBaseUrl  Fallback base URL for resolving `audio-processor.js`
+   *                        when `window.location` is unavailable (tests).
    */
   async setupAudioWorklet(workletBaseUrl: string): Promise<boolean> {
     // Always clear first — cheap when idle, and guarantees no duplicate graphs
@@ -2125,7 +2125,7 @@ export class PSPEmulator {
       const ejsCtx = window.EJS_emulator?.Module?.AL?.currentCtx?.audioCtx;
       const AudioContextCtor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextCtor) return false;
-      ctx = ejsCtx ?? new AudioContextCtor({ latencyHint: "playback" });
+      ctx = ejsCtx ?? new AudioContextCtor({ latencyHint: "interactive" });
       ctxOwned = !ejsCtx;
 
       // Resume a suspended context (may happen due to autoplay policy)
@@ -2133,7 +2133,10 @@ export class PSPEmulator {
         await ctx.resume().catch(() => { /* best-effort */ });
       }
 
-      const processorUrl = new URL("audio-processor.js", workletBaseUrl).href;
+      const processorUrl =
+        typeof window !== "undefined" && window.location?.href
+          ? new URL("audio-processor.js", window.location.href).href
+          : new URL("audio-processor.js", workletBaseUrl).href;
       await ctx.audioWorklet.addModule(processorUrl);
 
       const workletNode = new AudioWorkletNode(ctx, "retro-oasis-audio-processor");
@@ -3322,6 +3325,17 @@ export class PSPEmulator {
         this._installVisibilityHandler();
         this._installContextLossHandler();
 
+        // Low-latency AudioWorklet path (loads ./audio-processor.js from the app origin).
+        try {
+          const base =
+            typeof URL !== "undefined" && typeof window !== "undefined" && window.location?.href
+              ? new URL("/", window.location.href).href
+              : "";
+          void this.setupAudioWorklet(base || "http://localhost/");
+        } catch {
+          void this.setupAudioWorklet("http://localhost/");
+        }
+
         // ── Per-game shader warmup: open recording window ─────────────────
         // Record shaders compiled during the first GAME_WARMUP_WINDOW_MS of
         // gameplay and associate them with this game. On the next launch we
@@ -3511,14 +3525,28 @@ export class PSPEmulator {
     });
   }
 
-   setVolume(volume: number): void {
-     const clamped = Math.max(0, Math.min(1, volume));
-     if (this._bridge) {
-       this._bridge.setVolume(clamped);
-     } else {
-       // Bridge not yet initialised; call EJS directly if available
-       (window as Window & { EJS_emulator?: { setVolume?: (v: number) => void } }).EJS_emulator?.setVolume?.(clamped);
-     }
+  /**
+   * Resume the Web Audio output graph after autoplay policy or visibility suspension.
+   * Safe to call repeatedly; no-ops when contexts are already running.
+   */
+  resumeAudioOutput(): void {
+    const tryResume = (c: AudioContext | undefined | null) => {
+      if (c?.state === "suspended") void c.resume().catch(() => { /* best-effort */ });
+    };
+    tryResume(this._audioWorkletCtx);
+    type AlCtx = { audioCtx?: AudioContext };
+    const alCtx = window.EJS_emulator?.Module?.AL?.currentCtx as AlCtx | undefined;
+    tryResume(alCtx?.audioCtx);
+  }
+
+  setVolume(volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    if (this._bridge) {
+      this._bridge.setVolume(clamped);
+    } else {
+      // Bridge not yet initialised; call EJS directly if available
+      (window as Window & { EJS_emulator?: { setVolume?: (v: number) => void } }).EJS_emulator?.setVolume?.(clamped);
+    }
     // Also update the worklet gain parameter so volume is reflected in the audio graph
     if (this._audioWorkletNode && this._audioWorkletCtx) {
       const gainParam = this._audioWorkletNode.parameters.get("gain");

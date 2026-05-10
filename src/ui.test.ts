@@ -2361,6 +2361,15 @@ describe("F3 developer debug overlay", () => {
     expect(document.getElementById("fps-drs")).toBeTruthy();
   });
 
+  it("buildDOM includes footer connectivity status for network UX", () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+    expect(document.getElementById("footer-connectivity")).toBeTruthy();
+    expect(document.getElementById("footer-connectivity-label")?.textContent?.toLowerCase()).toContain("online");
+    expect(document.getElementById("footer-connectivity-dot")).toBeTruthy();
+  });
+
   it("toggleDevOverlay shows the overlay on first call", () => {
     const app = document.createElement("div");
     document.body.appendChild(app);

@@ -1,32 +1,64 @@
 /**
- * coi-serviceworker - Cross-Origin Isolation + PWA Cache Service Worker
+ * coi-serviceworker — Cross-Origin Isolation + PWA Cache Service Worker
  *
- * Static hosts cannot set COOP/COEP headers directly, so this worker injects
- * them into responses and also caches the small app shell for faster reloads.
+ * Injects COOP/COEP where hosts cannot set headers. Production builds emit
+ * `pwa-precache.json` so installs cache hashed bundles. `/assets/*` uses
+ * stale-while-revalidate. Shell URLs precache per-request so one missing icon
+ * does not abort the entire precache (GitHub Pages omits optional assets).
  */
 
-const CACHE_NAME = "retro-oasis-shell-v3";
+const CACHE_NAME = "retro-oasis-shell-v6";
 
-function getPrecacheUrls() {
-  const scopeUrl = new URL(self.registration.scope);
-  const basePath = scopeUrl.pathname.endsWith("/") ? scopeUrl.pathname : `${scopeUrl.pathname}/`;
-  return [
-    basePath,
-    `${basePath}index.html`,
-    `${basePath}manifest.json`,
-    `${basePath}icon-192.png`,
-    `${basePath}icon-512.png`,
+/**
+ * Core shell URLs (each attempted independently — failures are non-fatal).
+ */
+function getShellPrecacheRequests() {
+  const scope = self.registration.scope;
+  const roots = [
+    "./",
+    "./index.html",
+    "./manifest.json",
+    "./icon-192.png",
+    "./icon-512.png",
+    "./apple-touch-icon.png",
+    "./audio-processor.js",
+    "./coi-serviceworker.js",
   ];
+  return roots.map((rel) => new Request(new URL(rel, scope).href, { credentials: "same-origin" }));
+}
+
+async function precacheShell(cache) {
+  await Promise.allSettled(getShellPrecacheRequests().map((req) => cache.add(req)));
+}
+
+/**
+ * Precache URLs listed by Vite (`pwa-precache.json`), when present.
+ */
+async function precacheFromBuildManifest(cache) {
+  try {
+    const manifestUrl = new URL("pwa-precache.json", self.registration.scope);
+    const res = await fetch(manifestUrl);
+    if (!res.ok) return;
+    const list = await res.json();
+    if (!Array.isArray(list)) return;
+    await Promise.allSettled(
+      list.map((rel) => {
+        const url = new URL(rel, self.registration.scope).href;
+        return cache.add(new Request(url, { credentials: "same-origin" }));
+      }),
+    );
+  } catch {
+    // Dev server or deploy without generated manifest.
+  }
 }
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(getPrecacheUrls()).catch(() => {
-        // Pre-cache failures are non-fatal.
-      }),
-    ),
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await precacheShell(cache);
+      await precacheFromBuildManifest(cache);
+    }),
   );
 });
 
@@ -38,15 +70,77 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isHashedAssetUrl(url) {
+  return (
+    url.pathname.includes("/assets/") &&
+    /\.(?:js|mjs|css|wasm)$/i.test(url.pathname)
+  );
+}
+
+async function assetStaleWhileRevalidate(req, coepValue) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(req);
+
+  const networkPromise = fetch(req)
+    .then((response) => {
+      if (response.ok) {
+        const clone = response.clone();
+        void cache.put(req, clone).catch(() => {});
+      }
+      return addCOIHeaders(response, coepValue);
+    })
+    .catch(() => null);
+
+  if (cached) {
+    void networkPromise;
+    return addCOIHeaders(cached.clone(), coepValue);
+  }
+
+  const fresh = await networkPromise;
+  if (fresh) return fresh;
+
+  return offlinePlainResponse("Offline — cached asset unavailable.");
+}
+
+function offlinePlainResponse(body) {
+  return new Response(body, {
+    status: 503,
+    statusText: "Service Unavailable",
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
+/**
+ * Resolve SPA navigations when offline: match exact URL, ignore query, then index.html at scope.
+ */
+async function matchOfflineNavigation(req) {
+  const cache = await caches.open(CACHE_NAME);
+  let hit = await cache.match(req, { ignoreSearch: true });
+  if (hit) return hit;
+
+  const scope = self.registration.scope;
+  try {
+    const indexReq = new Request(new URL("index.html", scope).href);
+    hit = await cache.match(indexReq);
+    if (hit) return hit;
+
+    hit = await cache.match(new Request(scope));
+    if (hit) return hit;
+  } catch {
+    // Non-fatal.
+  }
+  return undefined;
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Handle Web Share Target API — ROM files shared from the OS file picker.
-  // The service worker stores the file in a dedicated cache and redirects the
-  // browser back to the app; main.ts picks up the file on next load.
   if (req.method === "POST" && url.searchParams.has("share-target")) {
-    event.respondWith(handleShareTarget(req));
+    const scopeOrigin = new URL(self.registration.scope).origin;
+    if (url.origin === scopeOrigin) {
+      event.respondWith(handleShareTarget(req));
+    }
     return;
   }
 
@@ -64,6 +158,15 @@ self.addEventListener("fetch", (event) => {
     /CriOS\//.test(ua);
   const coepValue = isWebKit ? "credentialless" : "require-corp";
 
+  if (
+    req.method === "GET" &&
+    req.url.startsWith(self.location.origin) &&
+    isHashedAssetUrl(url)
+  ) {
+    event.respondWith(assetStaleWhileRevalidate(req, coepValue));
+    return;
+  }
+
   const isSameOriginNav =
     req.mode === "navigate" &&
     req.url.startsWith(self.location.origin);
@@ -76,15 +179,11 @@ self.addEventListener("fetch", (event) => {
           void caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
           return addCOIHeaders(res, coepValue);
         })
-        .catch(() =>
-          caches.match(req).then((cached) =>
-            cached ?? new Response("Offline - please check your connection and reload.", {
-              status: 503,
-              statusText: "Service Unavailable",
-              headers: { "Content-Type": "text/plain" },
-            }),
-          ),
-        ),
+        .catch(async () => {
+          const cached = await matchOfflineNavigation(req);
+          if (cached) return addCOIHeaders(cached.clone(), coepValue);
+          return offlinePlainResponse("Offline — check your connection and reload.");
+        }),
     );
     return;
   }
@@ -122,14 +221,6 @@ function addCOIHeaders(response, coepValue) {
   });
 }
 
-/**
- * Handle a Web Share Target POST.
- *
- * The OS shares one or more ROM files by POSTing multipart/form-data to
- * `./?share-target`.  We store each file as a Response in the dedicated
- * "retro-oasis-shared-roms" cache so the app can pick it up on load, then
- * redirect back to the app root.
- */
 async function handleShareTarget(request) {
   try {
     const formData = await request.formData();
@@ -147,8 +238,7 @@ async function handleShareTarget(request) {
       }
     }
   } catch {
-    // Non-fatal — fall through and redirect to app even if storage failed.
+    // Non-fatal — redirect even if storage failed.
   }
-  const scope = self.registration.scope;
-  return Response.redirect(scope, 303);
+  return Response.redirect(self.registration.scope, 303);
 }

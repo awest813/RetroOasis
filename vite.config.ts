@@ -1,4 +1,4 @@
-import { cpSync, existsSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, cpSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 
@@ -17,10 +17,68 @@ function copyEmulatorDataPlugin(): Plugin {
   };
 }
 
+/**
+ * Emit `dist/pwa-precache.json`: every hashed JS/CSS/WASM under ./assets plus shell URLs.
+ * The COI service worker loads this at install time so the installed PWA precaches the full app shell.
+ */
+function pwaPrecacheManifestPlugin(): Plugin {
+  return {
+    name: "pwa-precache-manifest",
+    closeBundle() {
+      const distDir = resolve("dist");
+      const indexPath = resolve(distDir, "index.html");
+      if (!existsSync(indexPath)) return;
+
+      const urls = new Set<string>();
+      const addRel = (rel: string) => {
+        if (!rel || !rel.startsWith("assets/")) return;
+        urls.add(`./${rel}`);
+      };
+
+      const html = readFileSync(indexPath, "utf-8");
+      for (const m of html.matchAll(/\b(?:src|href)="(\.\/assets\/[^"]+)"/g)) {
+        addRel(m[1]!.replace(/^\.\//, ""));
+      }
+
+      const viteManifestPath = resolve(distDir, ".vite", "manifest.json");
+      if (existsSync(viteManifestPath)) {
+        try {
+          const vm = JSON.parse(readFileSync(viteManifestPath, "utf-8")) as Record<
+            string,
+            { file?: string; css?: string[]; assets?: string[] }
+          >;
+          for (const chunk of Object.values(vm)) {
+            if (chunk.file) addRel(chunk.file);
+            for (const c of chunk.css ?? []) addRel(c);
+            for (const a of chunk.assets ?? []) addRel(a);
+          }
+        } catch {
+          // Non-fatal — HTML-derived list is enough for the critical path.
+        }
+      }
+
+      urls.add("./index.html");
+      urls.add("./manifest.json");
+      urls.add("./audio-processor.js");
+
+      const list = [...urls]
+        .filter((u) => {
+          if (u === "./index.html" || u === "./manifest.json" || u === "./audio-processor.js") return true;
+          if (!u.startsWith("./assets/")) return false;
+          const tail = u.slice("./assets/".length);
+          return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
+        })
+        .sort();
+      writeFileSync(resolve(distDir, "pwa-precache.json"), `${JSON.stringify(list)}\n`, "utf-8");
+      console.info(`[pwa-precache-manifest] ${list.length} URLs for service worker precache`);
+    },
+  };
+}
+
 export default defineConfig({
   // Serve from repo root; Vite will pick up index.html automatically.
   root: ".",
-  plugins: [copyEmulatorDataPlugin()],
+  plugins: [copyEmulatorDataPlugin(), pwaPrecacheManifestPlugin()],
 
   // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
   // Has no effect during local `vite dev` because the dev server serves from /.
@@ -49,6 +107,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    manifest: ".vite/manifest.json",
     rollupOptions: {
       input: "index.html",
       output: {

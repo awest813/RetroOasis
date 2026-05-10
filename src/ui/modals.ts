@@ -436,7 +436,7 @@ export function showCoverArtPickerDialog(
       class: "cover-art-clipboard-msg",
       role: "status",
       "aria-live": "polite",
-      hidden: true,
+      hidden: "",
     }) as HTMLParagraphElement;
     const setUrlClipFeedback = (text: string, ok: boolean) => {
       urlClipMsg.textContent = text;
@@ -511,8 +511,17 @@ export function showCoverArtPickerDialog(
     // Triggers an online search against the community cover-art-collection.
     // The caller runs the provider + candidate picker; this dialog only
     // signals the intent so that all network logic stays in the UI layer.
-    const autoSection = createElement("div", { class: "cover-art-section cover-art-panel cover-art-panel--discover" });
-    autoSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "Discover online"));
+    const discoverOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    const autoSection = createElement("div", {
+      class:
+        "cover-art-section cover-art-panel cover-art-panel--discover" +
+        (discoverOffline ? " cover-art-panel--discover-offline" : ""),
+    });
+    autoSection.appendChild(createElement(
+      "div",
+      { class: "cover-art-panel__label" },
+      discoverOffline ? "Unavailable offline" : "Discover online",
+    ));
     const autoHint = createElement("p", {
       class: "cover-art-panel__hint",
     }, "Searches your configured cover providers (GitHub collection, Libretro, and any APIs you enable). Use Configure API keys below if you use RAWG, MobyGames, TheGamesDB, or similar.");
@@ -521,11 +530,24 @@ export function showCoverArtPickerDialog(
       {
         class: "btn btn--highlight cover-art-btn cover-art-btn--discover",
         type: "button",
-        "aria-label": "Search online databases for cover art matching this game",
+        "aria-label": discoverOffline
+          ? "Search online databases — unavailable while offline"
+          : "Search online databases for cover art matching this game",
       },
       "Search & pick…",
     );
     btnAuto.addEventListener("click", () => close({ type: "auto" }));
+    if (discoverOffline) {
+      btnAuto.disabled = true;
+      btnAuto.title = "Requires an internet connection";
+      btnAuto.setAttribute("aria-disabled", "true");
+      autoHint.hidden = true;
+      autoSection.appendChild(createElement(
+        "p",
+        { class: "cover-art-panel__hint cover-art-panel__hint--offline" },
+        "You're offline — upload an image or paste a URL above. Online search returns when you're connected.",
+      ));
+    }
     autoSection.append(autoHint, btnAuto);
     if (btnOpenKeys) autoSection.appendChild(btnOpenKeys);
 

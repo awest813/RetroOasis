@@ -1,9 +1,10 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   showConfirmDialog,
   pickSystem,
   showGamePickerDialog,
   showArchiveEntryPickerDialog,
+  showCoverArtPickerDialog,
   isTopmostOverlay,
 } from "./modals.js";
 import type { SystemInfo } from "../systems.js";
@@ -368,5 +369,51 @@ describe("showArchiveEntryPickerDialog", () => {
     expect(body.textContent).toContain("7Z");
     document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
     return promise;
+  });
+});
+
+// ── showCoverArtPickerDialog (offline discover UX) ────────────────────────────
+
+describe("showCoverArtPickerDialog", () => {
+  let onLineSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    onLineSpy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    onLineSpy?.mockRestore();
+    onLineSpy = null;
+  });
+
+  it("keeps Search & pick enabled when online", async () => {
+    const promise = showCoverArtPickerDialog("My Game", false);
+    await new Promise((r) => requestAnimationFrame(r));
+    const discover = document.querySelector<HTMLButtonElement>(".cover-art-btn--discover");
+    expect(discover).toBeTruthy();
+    expect(discover!.disabled).toBe(false);
+    expect(document.querySelector(".cover-art-panel--discover-offline")).toBeNull();
+    expect(
+      document.querySelector(".cover-art-panel--discover .cover-art-panel__label")?.textContent,
+    ).toContain("Discover online");
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
+  });
+
+  it("disables discover and shows offline hint when navigator reports offline", async () => {
+    onLineSpy!.mockReturnValue(false);
+    const promise = showCoverArtPickerDialog("My Game", false);
+    await new Promise((r) => requestAnimationFrame(r));
+    const discover = document.querySelector<HTMLButtonElement>(".cover-art-btn--discover");
+    expect(discover!.disabled).toBe(true);
+    expect(discover!.getAttribute("aria-disabled")).toBe("true");
+    expect(document.querySelector(".cover-art-panel--discover-offline")).toBeTruthy();
+    expect(
+      document.querySelector(".cover-art-panel--discover .cover-art-panel__label")?.textContent,
+    ).toContain("Unavailable offline");
+    expect(document.querySelector(".cover-art-panel__hint--offline")?.textContent).toMatch(/offline/i);
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
   });
 });

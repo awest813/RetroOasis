@@ -28,6 +28,7 @@
  */
 
 import { diagWarn } from "./diagnosticLog.js";
+import { setNetworkDocumentState, subscribeToNetworkChanges } from "./connectivity.js";
 import {
   PSPEmulator,
   type EmulatorState,
@@ -584,6 +585,11 @@ export function buildDOM(app: HTMLElement): void {
           <div class="status-dot idle" id="status-dot"></div>
           <span class="status-item__value" id="status-state">Ready</span>
         </div>
+        <div class="footer-connectivity" id="footer-connectivity" role="status" aria-live="polite"
+             title="Network connection status">
+          <span class="footer-connectivity__dot status--online" id="footer-connectivity-dot" aria-hidden="true"></span>
+          <span class="footer-connectivity__label" id="footer-connectivity-label">Online</span>
+        </div>
         ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. PSP and N64 performance may be reduced." title="Cross-origin isolation is not active — PSP/N64 performance may be reduced."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
       </div>
       
@@ -705,6 +711,35 @@ export function initUI(opts: UIOptions): void {
     target.addEventListener(type, handler, options);
     cleanupFns.push(() => target.removeEventListener(type, handler, options));
   };
+
+  const applyConnectivityFooter = (online: boolean): void => {
+    setNetworkDocumentState(online);
+    const label = document.getElementById("footer-connectivity-label");
+    const dot = document.getElementById("footer-connectivity-dot");
+    const wrap = document.getElementById("footer-connectivity");
+    if (label) label.textContent = online ? "Online" : "Offline";
+    if (dot) {
+      dot.classList.toggle("status--online", online);
+      dot.classList.toggle("status--offline", !online);
+    }
+    if (wrap) {
+      wrap.classList.toggle("footer-connectivity--offline", !online);
+      wrap.title = online
+        ? "Network connection available"
+        : "No network — online-only features are unavailable";
+    }
+    _syncLibraryControlState();
+  };
+  cleanupFns.push(subscribeToNetworkChanges(applyConnectivityFooter));
+
+  const resumeAudioOnGesture = () => {
+    emulator.resumeAudioOutput();
+  };
+  bindEvent(document, "pointerdown", resumeAudioOnGesture, { capture: true, once: true });
+  const resumeAudioOnVisible = () => {
+    if (document.visibilityState === "visible") emulator.resumeAudioOutput();
+  };
+  bindEvent(document, "visibilitychange", resumeAudioOnVisible);
 
   const refreshLibraryCatalog = () => {
     void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
@@ -1187,6 +1222,21 @@ function _syncLibraryControlState(): void {
       btn.classList.toggle("active", layout === currentLayout);
     });
   }
+
+  const fetchCoversBtn = document.getElementById("library-fetch-covers") as HTMLButtonElement | null;
+  if (fetchCoversBtn && !_bulkCoverArtController) {
+    const offline = typeof navigator !== "undefined" && !navigator.onLine;
+    fetchCoversBtn.disabled = offline;
+    fetchCoversBtn.title = offline
+      ? "Requires an internet connection"
+      : "Match games against online cover databases (Settings → API Keys)";
+    fetchCoversBtn.setAttribute(
+      "aria-label",
+      offline
+        ? "Fetch missing cover art — unavailable while offline"
+        : "Fetch missing cover art from online",
+    );
+  }
 }
 
 function _scheduleLibraryRender(
@@ -1264,6 +1314,11 @@ async function _runBulkCoverArtFetch(
     _bulkCoverArtController.abort();
     _bulkCoverArtController = null;
     restoreFetchCoversButton();
+    return;
+  }
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    showInfoToast("You're offline — connect to the internet to fetch covers.", "warning");
     return;
   }
 
@@ -8998,6 +9053,7 @@ function buildCloudTab(
   onSettingsChange: (patch: Partial<Settings>) => void,
 ): void {
   container.innerHTML = "";
+  const netOffline = typeof navigator !== "undefined" && !navigator.onLine;
   const cloudStorageHeadingId = "settings-cloud-storage-heading";
   const cloudSaveBackupHeadingId = "settings-cloud-save-backup-heading";
   const cloudLibrarySourcesHeadingId = "settings-cloud-library-sources-heading";
@@ -9096,6 +9152,10 @@ function buildCloudTab(
           }
         });
       });
+      if (netOffline) {
+        connectBtn.disabled = true;
+        connectBtn.title = "Connect when you're back online";
+      }
       statusRow.append(hint, connectBtn);
     }
 
@@ -9160,6 +9220,10 @@ function buildCloudTab(
         "aria-label": `Sync remote games from ${conn.name}`,
       }, "↻ Sync");
       syncBtn.addEventListener("click", () => { void syncCloudLibrary(conn, library, syncBtn); });
+      if (netOffline) {
+        syncBtn.disabled = true;
+        syncBtn.title = "Requires an internet connection";
+      }
 
       const removeBtn = make("button", {
         class: "btn btn--sm btn--danger",
@@ -9186,6 +9250,10 @@ function buildCloudTab(
   addBtn.addEventListener("click", () => {
     void showAddCloudLibraryDialog(settings, onSettingsChange, rebuildTab);
   });
+  if (netOffline) {
+    addBtn.disabled = true;
+    addBtn.title = "Requires an internet connection";
+  }
 
   librarySection.append(list, addBtn);
   section.append(librarySection);

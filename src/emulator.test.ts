@@ -2596,6 +2596,41 @@ describe('PSPEmulator', () => {
     });
   });
 
+  describe('resumeAudioOutput', () => {
+    it('calls resume() on a suspended worklet AudioContext', () => {
+      const resume = vi.fn().mockResolvedValue(undefined);
+      const ctx = { state: 'suspended', resume } as unknown as AudioContext;
+      (emulator as unknown as { _audioWorkletCtx: AudioContext | null })._audioWorkletCtx = ctx;
+      emulator.resumeAudioOutput();
+      expect(resume).toHaveBeenCalledTimes(1);
+      (emulator as unknown as { _audioWorkletCtx: AudioContext | null })._audioWorkletCtx = null;
+    });
+
+    it('does not call resume when context is running', () => {
+      const resume = vi.fn().mockResolvedValue(undefined);
+      const ctx = { state: 'running', resume } as unknown as AudioContext;
+      (emulator as unknown as { _audioWorkletCtx: AudioContext | null })._audioWorkletCtx = ctx;
+      emulator.resumeAudioOutput();
+      expect(resume).not.toHaveBeenCalled();
+      (emulator as unknown as { _audioWorkletCtx: AudioContext | null })._audioWorkletCtx = null;
+    });
+
+    it('attempts resume on EJS OpenAL AudioContext when suspended', () => {
+      const resume = vi.fn().mockResolvedValue(undefined);
+      const audioCtx = { state: 'suspended', resume } as unknown as AudioContext;
+      window.EJS_emulator = {
+        Module: { AL: { currentCtx: { audioCtx } } },
+      } as unknown as typeof window.EJS_emulator;
+      emulator.resumeAudioOutput();
+      expect(resume).toHaveBeenCalled();
+      delete window.EJS_emulator;
+    });
+
+    it('does not throw when no audio contexts exist', () => {
+      expect(() => emulator.resumeAudioOutput()).not.toThrow();
+    });
+  });
+
   // ── Audio underrun warn rate-limiting ─────────────────────────────────────
 
   describe('audio underrun warn rate-limiting', () => {

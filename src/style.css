@@ -57,7 +57,12 @@ html, body {
   z-index: 9999;
   transition: top 0.1s;
 }
-.skip-link:focus { top: 8px; }
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 8px;
+  outline: 2px solid var(--c-white);
+  outline-offset: 3px;
+}
 
 button,
 input,
@@ -102,7 +107,11 @@ button {
 .btn:focus-visible,
 .library-search:focus-visible,
 .library-sort:focus-visible,
-.drop-zone:focus-visible {
+.drop-zone:focus-visible,
+.layout-btn:focus-visible,
+.settings-sidebar__item:focus-visible,
+.settings-search-input:focus-visible,
+.landing__legal a:focus-visible {
   outline: 2px solid var(--c-accent-light);
   outline-offset: 3px;
 }
@@ -276,6 +285,17 @@ button {
 @keyframes header-glow {
   0% { background-position: -100% 0; }
   100% { background-position: 100% 0; }
+}
+
+/* Softer chrome when the shell knows we’re offline (dataset set by connectivity.ts). */
+html[data-network="offline"] .app-header {
+  border-bottom-color: color-mix(in srgb, var(--c-status-offline) 35%, var(--c-accent));
+}
+
+html[data-network="offline"] .app-header::after {
+  animation: none;
+  opacity: 0.42;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-status-offline) 65%, transparent), transparent);
 }
 
 .brand-long {
@@ -461,6 +481,12 @@ body.is-playing #ejs-container.visible {
 .library-search-clear .icon-close-x {
   width: 14px;
   height: 14px;
+}
+
+.library-search-clear:focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+  color: var(--c-white);
 }
 
 #file-input {
@@ -701,7 +727,8 @@ body.is-playing #ejs-container.visible {
   transform: translateY(-2px);
   background: rgba(34, 38, 50, 0.92);
   border-color: rgba(255,255,255,0.62);
-  outline: none;
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
 }
 
 .game-card__remove .icon-close-x {
@@ -793,6 +820,11 @@ body.is-playing #ejs-container.visible {
 
 .sys-filter-chip:hover { transform: translateY(-4px); border-color: var(--c-text-dim); }
 .sys-filter-chip.active { background: var(--c-accent); border-color: #fff; box-shadow: 0 12px 32px var(--c-accent-glow); transform: scale(1.05); }
+
+.sys-filter-chip:focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 3px;
+}
 
 .sys-filter-chip__icon svg,
 .sys-filter-chip__glyph {
@@ -966,6 +998,13 @@ body.is-playing #ejs-container.visible {
   transform: translateY(-1px);
 }
 
+.modal-close:focus-visible {
+  background: var(--c-surface3);
+  border-color: var(--c-accent-light);
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 3px;
+}
+
 .modal-close .icon-close-x {
   display: block;
   width: 18px;
@@ -981,9 +1020,15 @@ body.is-playing #ejs-container.visible {
   align-items: center;
   justify-content: space-between;
   padding: 0 40px;
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
 }
 
 .footer-left, .footer-center, .footer-right { flex: 1; display: flex; align-items: center; }
+.footer-left {
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-width: 0;
+}
 .footer-center { justify-content: center; font-weight: 900; font-size: 1.4rem; font-family: 'Exo 2', sans-serif; }
 .footer-right { justify-content: flex-end; gap: 24px; font-weight: 700; font-size: 0.95rem; color: var(--c-text-dim); }
 .footer-battery {
@@ -1002,6 +1047,83 @@ body.is-playing #ejs-container.visible {
   width: 16px;
   height: 16px;
   display: block;
+}
+
+.footer-connectivity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  background: color-mix(in srgb, var(--c-surface3) 85%, transparent);
+  border: 1px solid var(--c-border);
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.footer-connectivity__dot {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-connectivity__dot.status--offline::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--c-status-offline);
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c-status-offline) 55%, transparent);
+}
+
+.footer-connectivity--offline {
+  opacity: 0.92;
+  border-color: color-mix(in srgb, var(--c-status-offline) 35%, var(--c-border));
+}
+
+.footer-connectivity__label {
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.footer-connectivity:not(.footer-connectivity--offline) .footer-connectivity__label {
+  color: color-mix(in srgb, var(--c-status-online) 55%, var(--c-text-dim));
+}
+
+.footer-connectivity--offline .footer-connectivity__label {
+  color: color-mix(in srgb, var(--c-status-offline) 70%, var(--c-text-dim));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-connectivity .footer-connectivity__dot.status--online::before {
+    animation: none !important;
+  }
+}
+
+.cover-art-panel__hint--offline {
+  color: var(--c-text-dim);
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}
+
+.cover-art-panel--discover-offline .cover-art-btn--discover {
+  opacity: 0.55;
+}
+
+.cover-art-panel--discover-offline .cover-art-panel__label {
+  color: var(--c-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.library-controls__fetch-covers:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .pwa-install__icon {
@@ -1191,25 +1313,28 @@ body.is-playing #ejs-container.visible {
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.ingame-menu__close:hover,
+.ingame-menu__close:hover {
+  background: var(--c-surface3);
+  border-color: var(--c-border-lt);
+}
+
 .ingame-menu__close:focus-visible {
   background: var(--c-surface3);
   border-color: var(--c-border-lt);
-  outline: none;
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .ingame-menu__close {
     transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s var(--spring);
   }
-  .ingame-menu__close:hover,
+  .ingame-menu__close:hover {
+    transform: scale(1.05);
+  }
   .ingame-menu__close:focus-visible {
     transform: scale(1.05);
   }
-}
-.ingame-menu__close:focus-visible {
-  outline: 2px solid var(--c-accent-light);
-  outline-offset: 2px;
 }
 
 .ingame-menu-overlay--visible .ingame-menu {
@@ -1261,11 +1386,16 @@ body.is-playing #ejs-container.visible {
   flex: 0 0 auto;
 }
 
-.ingame-menu__sidebar-btn:hover,
+.ingame-menu__sidebar-btn:hover {
+  background: var(--c-surface2);
+  transform: translateX(8px);
+}
+
 .ingame-menu__sidebar-btn:focus-visible {
   background: var(--c-surface2);
   transform: translateX(8px);
-  outline: none;
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
 }
 
 .ingame-menu__sidebar-btn--active {
@@ -1865,8 +1995,8 @@ body:has(#ejs-container.visible) .app-header {
 
 .mobile-fab {
   position: fixed;
-  bottom: 100px;
-  right: 32px;
+  bottom: max(100px, calc(88px + env(safe-area-inset-bottom, 0px)));
+  right: max(32px, env(safe-area-inset-right, 0px));
   width: 72px;
   height: 72px;
   background: var(--c-accent);
@@ -3157,6 +3287,11 @@ body:has(#ejs-container.visible) .app-header {
   outline: none;
 }
 
+.settings-search-input:focus-visible {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 20px var(--c-accent-glow);
+}
+
 @media (max-width: 700px) {
   #settings-panel {
     padding: 12px;
@@ -3590,9 +3725,12 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
 }
 
 
-/* ── Premium Controller Focus State ── */
+/* ── Premium Controller Focus State ──
+   Use :focus-visible so mouse clicks don’t flash the keyboard ring; keep
+   body.using-gamepad .game-card:focus for hardware navigation. */
 
-.game-card:focus {
+.game-card:focus-visible,
+body.using-gamepad .game-card:focus {
   outline: none;
   transform: scale(1.08) translateY(-10px);
   z-index: 10;
@@ -3600,12 +3738,12 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
   box-shadow: 0 0 0 6px var(--c-bg), 0 0 0 10px var(--c-accent), 0 20px 40px rgba(0,0,0,0.6);
 }
 
-.game-card:focus::after {
+.game-card:focus-visible::after,
+body.using-gamepad .game-card:focus::after {
   transform: translateX(100%);
   transition: transform 0.8s ease;
 }
 
-/* Specific focus indicator for keyboard/gamepad users */
 body.using-gamepad .game-card:focus {
   animation: focus-pulse 2s infinite ease-in-out;
 }
@@ -3614,6 +3752,78 @@ body.using-gamepad .game-card:focus {
   0% { box-shadow: 0 0 0 6px var(--c-bg), 0 0 0 10px var(--c-accent), 0 20px 40px rgba(0,0,0,0.6); }
   50% { box-shadow: 0 0 0 6px var(--c-bg), 0 0 0 14px var(--c-accent-glow), 0 20px 40px rgba(0,0,0,0.6); }
   100% { box-shadow: 0 0 0 6px var(--c-bg), 0 0 0 10px var(--c-accent), 0 20px 40px rgba(0,0,0,0.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .btn:hover,
+  .btn:active,
+  .modal-close:hover {
+    transform: none;
+  }
+
+  .game-card:hover {
+    transform: none;
+  }
+
+  .game-card:hover .game-card__cover-art {
+    transform: none;
+  }
+
+  .sys-filter-chip:hover {
+    transform: none;
+  }
+
+  .sys-filter-chip.active {
+    transform: none;
+  }
+
+  #settings-content {
+    animation: none;
+  }
+
+  .settings-panel-content {
+    animation: none;
+  }
+
+  body.using-gamepad .game-card:focus {
+    animation: none !important;
+  }
+
+  .game-card:focus-visible,
+  body.using-gamepad .game-card:focus {
+    transform: translateY(-6px);
+    box-shadow:
+      0 0 0 3px var(--c-bg),
+      0 0 0 6px var(--c-accent),
+      0 16px 36px rgba(0, 0, 0, 0.55);
+  }
+
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    transform: none;
+  }
+
+  .library-hero:hover {
+    transform: none;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .library-hero:hover .library-hero__bg {
+    transform: none;
+  }
+
+  .app-header::after {
+    animation: none !important;
+    opacity: 0.35;
+  }
+
+  .confirm-box {
+    animation: none;
+  }
 }
 
 
@@ -5949,6 +6159,8 @@ body.using-gamepad .game-card:focus {
   color: var(--c-accent-light) !important;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
+  opacity: 1;
+  cursor: pointer;
 }
 
 .cover-art-url-row {
