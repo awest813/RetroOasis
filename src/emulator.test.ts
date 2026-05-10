@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { PSPEmulator, EJS_CDN_BASE, EJS_DATA_BASE, clearWebGL2SupportCache } from "./emulator.js";
+import {
+  PSPEmulator,
+  EJS_CDN_BASE,
+  EJS_DATA_BASE,
+  clearWebGL2SupportCache,
+  wasmCorePackageNameFor,
+} from "./emulator.js";
 import { NetplayManager } from "./multiplayer.js";
+import { getSystemById } from "./systems.js";
 
 describe('PSPEmulator', () => {
   let emulator: PSPEmulator;
@@ -40,6 +47,10 @@ describe('PSPEmulator', () => {
 
   it('activeCoreSettings is null on creation', () => {
     expect(emulator.activeCoreSettings).toBeNull();
+  });
+
+  it('resolvedWasmCoreName is null when idle', () => {
+    expect(emulator.resolvedWasmCoreName).toBeNull();
   });
 
   // ── FPS monitor control ───────────────────────────────────────────────────
@@ -1248,6 +1259,58 @@ describe('PSPEmulator', () => {
       expect(hasDepthPassVS).toBe(true);
       expect(hasDepthPassFS).toBe(true);
     });
+
+    it('does not latch warmed state when getContext returns null', () => {
+      const getContext = vi.fn(() => null);
+      const fakeCanvas = { width: 16, height: 16, getContext };
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string, opts?: ElementCreationOptions) =>
+        tag === 'canvas' ? (fakeCanvas as unknown as HTMLCanvasElement) : originalCreateElement(tag, opts)
+      );
+
+      const emu = new PSPEmulator('test-player');
+      emu.warmUpPSPPipeline();
+      emu.warmUpPSPPipeline();
+
+      vi.restoreAllMocks();
+      expect(getContext).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe('preWarmWebGL', () => {
+    it('does not latch warmed state when getContext returns null', () => {
+      const getContext = vi.fn(() => null);
+      const fakeCanvas = { width: 16, height: 16, getContext };
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string, opts?: ElementCreationOptions) =>
+        tag === 'canvas' ? (fakeCanvas as unknown as HTMLCanvasElement) : originalCreateElement(tag, opts)
+      );
+
+      const emu = new PSPEmulator('test-player');
+      emu.preWarmWebGL();
+      emu.preWarmWebGL();
+
+      vi.restoreAllMocks();
+      expect(getContext).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe('warmUpDreamcastPipeline', () => {
+    it('does not latch warmed state when WebGL2 context is unavailable', () => {
+      const getContext = vi.fn(() => null);
+      const fakeCanvas = { width: 16, height: 16, getContext };
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string, opts?: ElementCreationOptions) =>
+        tag === 'canvas' ? (fakeCanvas as unknown as HTMLCanvasElement) : originalCreateElement(tag, opts)
+      );
+
+      const emu = new PSPEmulator('test-player');
+      emu.warmUpDreamcastPipeline();
+      emu.warmUpDreamcastPipeline();
+
+      vi.restoreAllMocks();
+      expect(getContext).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ── WebGPU pre-warm ───────────────────────────────────────────────────────
@@ -1491,6 +1554,55 @@ describe('PSPEmulator', () => {
         await freshEmulator.preWarmWebGPU();
         expect(requestAdapter).toHaveBeenCalledTimes(2);
         expect(freshEmulator.webgpuAvailable).toBe(true);
+      });
+
+      it('allows preWarmWebGPU to succeed after navigator.gpu was initially absent', async () => {
+        Object.defineProperty(navigator, 'gpu', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+
+        const mockDevice = {
+          createCommandEncoder: () => ({
+            finish: () => ({}),
+          }),
+          createShaderModule: vi.fn().mockReturnValue({}),
+          createRenderPipeline: vi.fn().mockReturnValue({}),
+          createBindGroupLayout: vi.fn().mockReturnValue({}),
+          createPipelineLayout: vi.fn().mockReturnValue({}),
+          createBuffer: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+          features: new Set<string>(),
+          queue: { submit: vi.fn() },
+          destroy: vi.fn(),
+        };
+
+        const freshEmulator = new PSPEmulator('test-player');
+        await freshEmulator.preWarmWebGPU();
+        expect(freshEmulator.webgpuAvailable).toBe(false);
+
+        Object.defineProperty(navigator, 'gpu', {
+          value: {
+            requestAdapter: vi.fn().mockResolvedValue({
+              info: {
+                vendor: 'test',
+                architecture: 'arch',
+                device: 'GPU',
+                description: 'desc',
+              },
+              isFallbackAdapter: false,
+              features: new Set<string>(),
+              requestDevice: vi.fn().mockResolvedValue(mockDevice),
+            }),
+            getPreferredCanvasFormat: vi.fn().mockReturnValue('bgra8unorm'),
+          },
+          configurable: true,
+          writable: true,
+        });
+
+        await freshEmulator.preWarmWebGPU();
+        expect(freshEmulator.webgpuAvailable).toBe(true);
+        expect(freshEmulator.webgpuAdapterInfo?.vendor).toBe('test');
       });
 
       it('requests timestamp-query when the adapter supports it', async () => {
@@ -2460,9 +2572,11 @@ describe('PSPEmulator', () => {
 
   describe('setupAudioWorklet', () => {
     it('returns false when AudioWorkletNode is not available in jsdom', async () => {
-      // jsdom does not implement AudioWorkletNode
+      // jsdom does not implement AudioWorkletNode — still runs disconnect first
+      const spy = vi.spyOn(emulator as unknown as { _disconnectAudioWorklet(): void }, '_disconnectAudioWorklet');
       const result = await emulator.setupAudioWorklet('http://localhost');
       expect(result).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
 
     it('audioUnderruns starts at zero', () => {
@@ -4197,5 +4311,19 @@ describe("setAudioFilter", () => {
     // Should update in place, not create a new node
     expect(mockFilter.type).toBe("highpass");
     expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(5000, 0);
+  });
+});
+
+describe("wasmCorePackageNameFor", () => {
+  it("prefers retroarch_core over system slot / CDN map", () => {
+    const psx = getSystemById("psx")!;
+    expect(wasmCorePackageNameFor(psx, { retroarch_core: "mednafen_psx_hw" })).toBe(
+      "mednafen_psx_hw",
+    );
+  });
+
+  it("uses CORE_PREFETCH_MAP when retroarch_core is absent", () => {
+    const nes = getSystemById("nes")!;
+    expect(wasmCorePackageNameFor(nes, {})).toBe("fceumm");
   });
 });

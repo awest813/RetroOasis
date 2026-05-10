@@ -43,6 +43,7 @@ import {
   getTopLaunchedSystems,
   resolveCorePrefetchSystems,
   HEAVY_3D_CORE_PREFETCH_ORDER,
+  POPULAR_2D_CORE_PREFETCH_ORDER,
 } from "./performance.js";
 
 describe('performance', () => {
@@ -2920,6 +2921,15 @@ describe('getLaunchCounts / recordSystemLaunch / getTopLaunchedSystems', () => {
     expect(resolveCorePrefetchSystems(2, 2)).toEqual(['psp', 'n64']);
   });
 
+  it('resolveCorePrefetchSystems appends popular 2D cores after heavy 3D when extraLight2D > 0', () => {
+    expect(resolveCorePrefetchSystems(2, 2, 2)).toEqual(['psp', 'n64', 'nes', 'snes']);
+  });
+
+  it('resolveCorePrefetchSystems skips light 2D ids already in the prefetch list', () => {
+    recordSystemLaunch('nes');
+    expect(resolveCorePrefetchSystems(2, 2, 2)).toEqual(['nes', 'psp', 'n64', 'snes', 'gba']);
+  });
+
   it('resolveCorePrefetchSystems does not duplicate systems already in top launches', () => {
     recordSystemLaunch('psp');
     recordSystemLaunch('psp');
@@ -2939,6 +2949,10 @@ describe('getLaunchCounts / recordSystemLaunch / getTopLaunchedSystems', () => {
       'segaSaturn',
       'segaDC',
     ]);
+  });
+
+  it('POPULAR_2D_CORE_PREFETCH_ORDER lists expected systems', () => {
+    expect(POPULAR_2D_CORE_PREFETCH_ORDER).toEqual(['nes', 'snes', 'gba', 'gb']);
   });
 
   it('getLaunchCounts returns empty object when localStorage contains invalid JSON', () => {

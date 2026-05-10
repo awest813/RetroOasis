@@ -55,6 +55,22 @@ const BUFFER_QUERY_RESOLVE = 0x0200;
 
 export type PostProcessEffect = "none" | "crt" | "sharpen" | "lcd" | "bloom" | "fxaa" | "fsr" | "grain" | "retro" | "colorgrade" | "taa" | "pixelate" | "ntsc" | "hdr";
 
+/**
+ * Post-process effects compiled during emulator WebGPU pre-warm so the first
+ * in-game effect switch avoids shader stalls. Omits `"none"`.
+ */
+export const POST_PROCESS_PIPELINE_WARMUP_EFFECTS: readonly Exclude<
+  PostProcessEffect,
+  "none"
+>[] = [
+  "crt", "sharpen", "lcd", "bloom", "fxaa",
+  "fsr", "grain", "retro", "colorgrade", "taa",
+  "pixelate", "ntsc", "hdr",
+];
+
+/** How many effect pipelines to compile in parallel during pre-warm (balances throughput vs driver contention). */
+export const POST_PROCESS_WARMUP_BATCH_SIZE = 4;
+
 export interface PostProcessConfig {
   effect: PostProcessEffect;
   /** CRT scanline darkness (0 = off, 1 = fully black). Default 0.15. */

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   WebGPUPostProcessor,
   DEFAULT_POST_PROCESS_CONFIG,
+  POST_PROCESS_PIPELINE_WARMUP_EFFECTS,
+  POST_PROCESS_WARMUP_BATCH_SIZE,
   buildEffectPipeline,
   adjustConfigForTier,
   validatePostProcessConfig,
@@ -77,6 +79,18 @@ function createMockGPUDevice() {
 
   return { device, mockTexture, mockBuffer, mockEncoder };
 }
+
+describe("POST_PROCESS_PIPELINE_WARMUP_EFFECTS", () => {
+  it("lists every non-none effect once", () => {
+    expect(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).toHaveLength(12);
+    expect(new Set(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).size).toBe(12);
+    expect(POST_PROCESS_PIPELINE_WARMUP_EFFECTS).not.toContain("none");
+  });
+
+  it("uses a positive batch size for pre-warm chunking", () => {
+    expect(POST_PROCESS_WARMUP_BATCH_SIZE).toBeGreaterThan(0);
+  });
+});
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

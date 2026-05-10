@@ -40,6 +40,8 @@ import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
 import {
   WebGPUPostProcessor,
   buildEffectPipeline,
+  POST_PROCESS_PIPELINE_WARMUP_EFFECTS,
+  POST_PROCESS_WARMUP_BATCH_SIZE,
   type PostProcessConfig,
   type PostProcessEffect,
   DEFAULT_POST_PROCESS_CONFIG,
@@ -609,6 +611,17 @@ function coreNameForSystem(system: SystemInfo, ejsSettings: Record<string, strin
   return system.coreId ?? system.id;
 }
 
+/**
+ * CDN / RetroArch wasm package name after applying `retroarch_core` overrides.
+ * Matches the basename EmulatorJS downloads (`<name>-wasm.data`).
+ */
+export function wasmCorePackageNameFor(
+  system: SystemInfo,
+  ejsSettings: Record<string, string>,
+): string {
+  return coreNameForSystem(system, ejsSettings);
+}
+
 // ── State machine ─────────────────────────────────────────────────────────────
 
 export type EmulatorState = "idle" | "loading" | "running" | "paused" | "error";
@@ -1151,6 +1164,17 @@ export class PSPEmulator {
   get activeCoreSettings(): Record<string, string> | null {
     return this._activeCoreSettings ? { ...this._activeCoreSettings } : null;
   }
+
+  /**
+   * The WASM package basename used for this session (e.g. `fceumm`, `mednafen_psx_hw`),
+   * after `retroarch_core` and CDN path mapping. Mirrors `EJS_paths` / prefetch keys.
+   * Null when no game is active.
+   */
+  get resolvedWasmCoreName(): string | null {
+    const sys = this._currentSystem;
+    if (!sys) return null;
+    return wasmCorePackageNameFor(sys, this._activeCoreSettings ?? {});
+  }
   /** True if a WebGPU device was successfully acquired during pre-warm. */
   get webgpuAvailable(): boolean { return this._webgpuDevice !== null; }
   /**
@@ -1328,9 +1352,11 @@ export class PSPEmulator {
    * @param n  Maximum number of history-based systems to prefetch (default 2).
    * @param extraHeavy3D  Additional large 3D WASM cores to prefetch when not
    *   already covered (default 2). Set to 0 to only use launch history.
+   * @param extraLight2D  Additional small 2D cores (`POPULAR_2D_CORE_PREFETCH_ORDER`
+   *   in `performance.ts`). Default 0; startup uses `2` to warm NES/SNES after heavy cores.
    */
-  prefetchTopSystems(n = 2, extraHeavy3D = 2): void {
-    const systems = resolveCorePrefetchSystems(n, extraHeavy3D);
+  prefetchTopSystems(n = 2, extraHeavy3D = 2, extraLight2D = 0): void {
+    const systems = resolveCorePrefetchSystems(n, extraHeavy3D, extraLight2D);
     for (const systemId of systems) {
       this.prefetchCore(systemId);
     }
@@ -1348,6 +1374,9 @@ export class PSPEmulator {
    * the GPU driver to also load its shader compiler and pipeline cache,
    * which is the largest source of first-frame jank on Windows (ANGLE/D3D)
    * and macOS (Metal via WebGL translation layer).
+   *
+   * If context creation fails, the warmed flag is cleared so a later call can
+   * retry (same rationale as `preWarmWebGPU`).
    */
   preWarmWebGL(): void {
     if (this._webglPreWarmed) return;
@@ -1357,7 +1386,12 @@ export class PSPEmulator {
     canvas.width = 16;
     canvas.height = 16;
     const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-    if (!gl) return;
+    if (!gl) {
+      // Same pattern as preWarmWebGPU: allow retry if GL becomes available later
+      // (extension enabled, GPU wakes from sleep, etc.).
+      this._webglPreWarmed = false;
+      return;
+    }
 
     try {
       // Compile and link a minimal shader program to warm the shader compiler
@@ -1415,6 +1449,8 @@ export class PSPEmulator {
    * the same GLSL → driver-binary path that PPSSPP will use, so on Windows
    * (ANGLE/D3D translation) and macOS (Metal translation layer) the driver
    * avoids a cold-compile stall on the first frames of gameplay.
+   *
+   * If no GL context can be created, the warmed flag is cleared for retry.
    */
   warmUpPSPPipeline(): void {
     if (this._pspPipelineWarmed) return;
@@ -1424,7 +1460,10 @@ export class PSPEmulator {
     canvas.width = 16;
     canvas.height = 16;
     const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-    if (!gl) return;
+    if (!gl) {
+      this._pspPipelineWarmed = false;
+      return;
+    }
 
     try {
       // PSP shader variants to pre-compile. Each pair represents a distinct
@@ -1656,7 +1695,8 @@ export class PSPEmulator {
    *
    * Unlike PSP warm-up, this method specifically requires WebGL 2 (GLSL ES 3.00)
    * because Flycast relies on features not available in WebGL 1 (multiple render
-   * targets, integer textures, etc.).
+   * targets, integer textures, etc.). If `webgl2` is unavailable, the warmed
+   * flag is cleared so a later call can retry.
    */
   warmUpDreamcastPipeline(): void {
     if (this._dcPipelineWarmed) return;
@@ -1666,7 +1706,10 @@ export class PSPEmulator {
     canvas.width = 16;
     canvas.height = 16;
     const gl = canvas.getContext("webgl2");
-    if (!gl) return;
+    if (!gl) {
+      this._dcPipelineWarmed = false;
+      return;
+    }
 
     try {
       const shaderVariants: Array<{ vs: string; fs: string; label: string }> = [
@@ -1916,7 +1959,12 @@ export class PSPEmulator {
 
     try {
       const gpu = navigator.gpu;
-      if (!gpu) return;
+      if (!gpu) {
+        // Must reset — otherwise a later navigator.gpu polyfill / permission grant
+        // could never retry pre-warm (flag stayed true with no device).
+        this._webgpuPreWarmed = false;
+        return;
+      }
 
       const adapter = await gpu.requestAdapter({
         powerPreference,
@@ -1969,30 +2017,28 @@ export class PSPEmulator {
         });
       } catch {
         // WGSL pipeline compilation is best-effort — the device is still
-        // acquired and the compute queue is still warmed below.
+        // acquired and the queue submit below still warms the GPU process path.
       }
 
-      // Submit a trivial compute pass to warm the GPU command queue
-      const encoder = device.createCommandEncoder();
-      const passEncoder = encoder.beginComputePass();
-      passEncoder.end();
-      device.queue.submit([encoder.finish()]);
+      // Valid empty command buffer — warms submission without relying on an
+      // empty compute pass (some validation layers reject passes with no work).
+      device.queue.submit([device.createCommandEncoder().finish()]);
 
-      // Pre-compile all post-process pipelines so the first activation of
-      // WebGPU post-processing has no shader stall. Also record their WGSL
-      // sources in the persistent cache so they can be re-warmed on subsequent
-      // launches via preCompileWGSL().
+      // Pre-compile post-process pipelines in small batches to avoid spiking
+      // memory and shader-compiler contention when all effects kick off at once.
       try {
         const presentFormat = navigator.gpu.getPreferredCanvasFormat();
-        for (const effect of [
-          "crt", "sharpen", "lcd", "bloom", "fxaa",
-          "fsr", "grain", "retro", "colorgrade", "taa",
-          "pixelate", "ntsc", "hdr",
-        ] as const) {
-          void buildEffectPipeline(device, effect, presentFormat).catch(() => {});
+        const effects = POST_PROCESS_PIPELINE_WARMUP_EFFECTS;
+        const batch = POST_PROCESS_WARMUP_BATCH_SIZE;
+        for (let i = 0; i < effects.length; i += batch) {
+          const slice = effects.slice(i, i + batch);
+          await Promise.all(
+            slice.map((effect) =>
+              buildEffectPipeline(device, effect, presentFormat).catch(() => {}),
+            ),
+          );
         }
-        // Persist the pipeline WGSL sources for future sessions
-        void shaderCache.preCompileWGSL(device);
+        await shaderCache.preCompileWGSL(device);
       } catch {
         // Post-process pipeline pre-compilation is best-effort
       }
@@ -2035,6 +2081,10 @@ export class PSPEmulator {
    *                        `import.meta.url` or the app origin).
    */
   async setupAudioWorklet(workletBaseUrl: string): Promise<boolean> {
+    // Always clear first — cheap when idle, and guarantees no duplicate graphs
+    // when this runs again after a failed attempt or a prior session.
+    this._disconnectAudioWorklet();
+
     if (!("AudioWorkletNode" in window)) return false;
 
     // Hoist ctx/ctxOwned so the catch block can close a self-created context,

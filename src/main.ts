@@ -521,8 +521,8 @@ async function main(): Promise<void> {
     scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
     scheduleIdleTask(() => emulator.prefetchLoader());
     
-    // Intelligent core preloading — top launched systems plus two heavy 3D cores
-    scheduleIdleTask(() => emulator.prefetchTopSystems(2, 2));
+    // Intelligent core preloading — launch history, heavy 3D blobs, then common 2D cores
+    scheduleIdleTask(() => emulator.prefetchTopSystems(2, 2, 2));
   };
 
   // Listen for intent signals from the landing page

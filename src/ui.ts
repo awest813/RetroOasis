@@ -4769,8 +4769,14 @@ function buildPerfTab(
     const headerText = make("div", { class: "settings-core-heading__text" });
     headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
 
+    const slotId = activeSystem.coreId ?? activeSystem.id;
+    const wasmPkg = emulatorRef?.resolvedWasmCoreName;
+    const coreLabel =
+      wasmPkg && wasmPkg !== slotId
+        ? `WASM core: ${wasmPkg} · System slot: ${slotId}`
+        : `Core: ${wasmPkg ?? slotId}`;
     const coreMeta = make("div", { class: "settings-core-heading__meta" },
-      `Core: ${activeSystem.coreId ?? activeSystem.id} · ` +
+      `${coreLabel} · ` +
       (activeTier ? `Hardware: ${formatTierLabel(activeTier)}` : "Hardware: Auto")
     );
     headerText.appendChild(coreMeta);

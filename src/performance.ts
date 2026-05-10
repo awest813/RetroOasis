@@ -690,6 +690,11 @@ export function prefersReducedMotion(): boolean {
 
 // ── WebGPU availability ───────────────────────────────────────────────────────
 
+/**
+ * Synchronous feature probe only — does not call `requestAdapter()`.
+ * Even when this returns true, the GPU stack may still refuse an adapter
+ * (driver missing, device suspended, memory pressure).
+ */
 export function isWebGPUAvailable(): boolean {
   try {
     return "gpu" in navigator && navigator.gpu !== undefined;
@@ -2843,14 +2848,31 @@ export const HEAVY_3D_CORE_PREFETCH_ORDER: readonly string[] = [
 ];
 
 /**
+ * Small, commonly used 2D WASM cores (NES / SNES / handhelds). Appended after
+ * heavy 3D prefetch so first-time players who mostly run classic 2D titles
+ * still warm HTTP cache without downloading every system upfront.
+ */
+export const POPULAR_2D_CORE_PREFETCH_ORDER: readonly string[] = [
+  "nes",
+  "snes",
+  "gba",
+  "gb",
+];
+
+/**
  * Merge the user's most-launched systems with additional heavy 3D cores, without
  * duplicates. Unknown ids are still returned — callers filter with their own
  * prefetch map.
  *
  * @param topN  How many top launch-count systems to include first
  * @param extraHeavy3D  Max additional systems to append from {@link HEAVY_3D_CORE_PREFETCH_ORDER}
+ * @param extraLight2D  Max additional systems to append from {@link POPULAR_2D_CORE_PREFETCH_ORDER}
  */
-export function resolveCorePrefetchSystems(topN: number, extraHeavy3D: number): string[] {
+export function resolveCorePrefetchSystems(
+  topN: number,
+  extraHeavy3D: number,
+  extraLight2D = 0,
+): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
 
@@ -2861,13 +2883,23 @@ export function resolveCorePrefetchSystems(topN: number, extraHeavy3D: number): 
   }
 
   let heavyAdded = 0;
-  const cap = Math.max(0, Math.floor(extraHeavy3D));
+  const heavyCap = Math.max(0, Math.floor(extraHeavy3D));
   for (const id of HEAVY_3D_CORE_PREFETCH_ORDER) {
-    if (heavyAdded >= cap) break;
+    if (heavyAdded >= heavyCap) break;
     if (seen.has(id)) continue;
     seen.add(id);
     out.push(id);
     heavyAdded++;
+  }
+
+  let lightAdded = 0;
+  const lightCap = Math.max(0, Math.floor(extraLight2D));
+  for (const id of POPULAR_2D_CORE_PREFETCH_ORDER) {
+    if (lightAdded >= lightCap) break;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    lightAdded++;
   }
 
   return out;
