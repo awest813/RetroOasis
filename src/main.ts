@@ -19,6 +19,7 @@
  */
 
 import "./style.css";
+import { diagInfo } from "./diagnosticLog.js";
 import { registerCOIServiceWorker } from "./coiBootstrap.js";
 import { PSPEmulator }   from "./emulator.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
@@ -26,7 +27,6 @@ import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
-import { getSystemById } from "./systems.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT } from "./saves.js";
 import {
@@ -68,14 +68,17 @@ import { optimizeChromePerformance } from "./performance.js";
 optimizeChromePerformance();
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import {
-  effectivePostProcessForSystem,
   parsePostProcessEffect,
-  shouldDeferWebGpuPostFor3DSession,
+  pickShellPerGamePostEffect,
+  resolveWebGpuPostProcessEffectForShell,
+  shouldWebGpuPostCaptureEmulatorGlCanvas,
   type PostProcessEffect,
+  type WebGpuGlCapturePolicyInput,
 } from "./webgpuPostProcess.js";
 import { EMULATOR_JS_CONTAINER_ID } from "./emulatorDisplay.js";
 import { getApiKeyStore } from "./ui/coverArtRegistry.js";
 import { parseRAKey } from "./achievements.js";
+import { installWebGlContextPolicy } from "./webglContextPolicy.js";
 
 const APP_NAME = "RetroOasis";
 registerCOIServiceWorker();
@@ -378,23 +381,6 @@ async function main(): Promise<void> {
   // on page navigations and soft-reloads within the same browser session.
   const deviceCaps = detectCapabilitiesCached();
 
-  // On low-end devices and Chromebooks, enforce the "low-power" WebGL context
-  // preference globally. This prevents severe thermal throttling on constrained
-  // hardware by signalling to the OS/driver that clocks should be managed conservatively.
-  if (deviceCaps.isLowSpec || deviceCaps.isChromOS) {
-    const originalGetContext = HTMLCanvasElement.prototype.getContext;
-    (HTMLCanvasElement.prototype as unknown as Record<string, unknown>).getContext = function(this: HTMLCanvasElement, type: string, options?: WebGLContextAttributes) {
-      if (type === "webgl" || type === "webgl2" || type === "experimental-webgl") {
-        const attrs: WebGLContextAttributes = options ?? {};
-        if (attrs.powerPreference === undefined) {
-          attrs.powerPreference = "low-power";
-        }
-        return (originalGetContext as (type: string, options?: WebGLContextAttributes) => RenderingContext | null).call(this, type, attrs);
-      }
-      return (originalGetContext as (type: string, options?: WebGLContextAttributes) => RenderingContext | null).call(this, type, options);
-    };
-  }
-
   // 3. Load settings
   const settings = loadSettings(deviceCaps);
 
@@ -483,56 +469,67 @@ async function main(): Promise<void> {
   let currentGameFile: File | Blob | null = null;
   let currentGameFileName: string | null = null;
   let currentSystemId: string | null = null;
+  /** Per-game graphics profile `postEffect` for the active session; cleared when returning to the library. */
+  let sessionGamePostEffectOverride: PostProcessEffect | null | undefined;
   let pendingAutoRestoreCancel: (() => void) | null = null;
+
+  /** Inputs shared by WebGL `preserveDrawingBuffer` policy and {@link resolveWebGpuPostProcessEffectForShell}. */
+  const webGpuGlCaptureInput = (
+    tier: PerformanceTier,
+    perGamePostEffect: PostProcessEffect | null | undefined,
+  ): WebGpuGlCapturePolicyInput => ({
+    useWebGPU: settings.useWebGPU,
+    webgpuAvailable: emulator.webgpuAvailable,
+    settingsPostEffect: settings.postProcessEffect,
+    perGamePostEffect,
+    systemId: currentSystemId,
+    tier,
+    caps: deviceCaps,
+  });
+
+  // Global WebGL context attributes: `powerPreference` from Graphics Mode + optional
+  // `preserveDrawingBuffer` when WebGPU post will sample the emulator GL canvas.
+  installWebGlContextPolicy(() => {
+    const tier =
+      emulator.activeTier ?? resolveTier(settings.performanceMode, deviceCaps);
+    const forcePreserveDrawingBuffer = shouldWebGpuPostCaptureEmulatorGlCanvas(
+      webGpuGlCaptureInput(tier, sessionGamePostEffectOverride),
+    );
+    return {
+      performanceMode: settings.performanceMode,
+      deviceCaps,
+      forcePreserveDrawingBuffer,
+    };
+  });
 
   // Lazy-create the touch controls overlay only when a game starts on a touch device
   let touchOverlay: import("./touchControls.js").TouchControlsOverlay | null = null;
 
   /**
-   * Apply WebGPU post-processing for the active (or pending) system:
-   * `effectivePostProcessForSystem`, shell defer policy, and per-game overrides.
-   * Pass `tierHint` when Graphics Mode changed mid-session so defer tracks the new mode
-   * before the next launch refreshes `emulator.activeTier`.
+   * Applies WebGPU post-processing via {@link resolveWebGpuPostProcessEffectForShell}.
+   * `perGameEffectOverride`: pass when you have an explicit snapshot (e.g. first sync after launch);
+   * otherwise `sessionGamePostEffectOverride` is used. `tierHint` helps defer policy right after
+   * Graphics Mode changes, before `emulator.activeTier` reflects the new tier.
    */
   const syncEmulatorPostProcessFromSettings = (
     perGameEffectOverride?: PostProcessEffect | null,
     opts?: { tierHint?: PerformanceTier },
   ): void => {
-    if (!settings.useWebGPU || !emulator.webgpuAvailable) {
-      emulator.setPostProcessEffect("none");
-      return;
-    }
-    const baseEffect: PostProcessEffect =
-      perGameEffectOverride ?? settings.postProcessEffect;
-
     const tier =
       opts?.tierHint ??
       emulator.activeTier ??
       resolveTier(settings.performanceMode, deviceCaps);
-    const systemMeta = currentSystemId ? getSystemById(currentSystemId) : undefined;
-    const systemIs3D = systemMeta?.is3D === true;
-    const explicitPerGameFx =
-      perGameEffectOverride != null && perGameEffectOverride !== "none";
 
-    let effectAfterShellPolicy = baseEffect;
-    if (
-      baseEffect !== "none" &&
-      !explicitPerGameFx &&
-      shouldDeferWebGpuPostFor3DSession(systemIs3D, tier, deviceCaps)
-    ) {
-      effectAfterShellPolicy = "none";
-    }
+    const perGameMerged = pickShellPerGamePostEffect(
+      perGameEffectOverride,
+      sessionGamePostEffectOverride,
+    );
 
-    if (effectAfterShellPolicy === "none") {
-      emulator.setPostProcessEffect("none");
-      return;
-    }
-
-    const resolved =
-      systemMeta === undefined
-        ? effectAfterShellPolicy
-        : effectivePostProcessForSystem(systemIs3D, effectAfterShellPolicy);
-    emulator.setPostProcessEffect(resolved);
+    emulator.setPostProcessEffect(
+      resolveWebGpuPostProcessEffectForShell(
+        webGpuGlCaptureInput(tier, perGameMerged),
+      ),
+    );
   };
 
   /** Refresh touch overlay visibility and lazy-create overlay when prefs change mid-session. */
@@ -596,7 +593,7 @@ async function main(): Promise<void> {
     if (warmupsTriggered) return;
     warmupsTriggered = true;
 
-    console.info(`[${APP_NAME}] Play intent detected — triggering heavy warmups...`);
+    diagInfo(settings.verboseLogging, `[${APP_NAME}] Play intent detected — triggering heavy warmups...`);
     
     // Defer blocking GPU warm-up work to idle time so it does not delay the
     // current interaction frame.
@@ -737,6 +734,7 @@ async function main(): Promise<void> {
     const resolvedTier = tierOverride ?? savedTier ?? compatibilityEntry?.tierOverride ?? undefined;
 
     const gfxProfile = gameId ? getGameGraphicsProfile(gameId) : null;
+    sessionGamePostEffectOverride = gfxProfile?.postEffect;
     const coreSettingsOverride: Record<string, string> = { ...settings.coreOptions };
     if (gfxProfile) {
       if (gfxProfile.resolutionPreset) {
@@ -794,12 +792,12 @@ async function main(): Promise<void> {
     if (gameId && cloudSaveManager.isConnected()) {
       void cloudSaveManager.syncGame(gameId, saveLibrary).then((r) => {
         if (r.errors > 0) {
-          showInfoToast(`☁ Cloud sync had ${r.errors} error(s) — open Save States to retry.`);
+          showInfoToast(`Cloud sync had ${r.errors} error(s) — open Save States to retry.`);
         } else if (r.pulled > 0 || r.pushed > 0) {
           const parts: string[] = [];
-          if (r.pulled > 0) parts.push(`↓ ${r.pulled} from cloud`);
-          if (r.pushed > 0) parts.push(`↑ ${r.pushed} to cloud`);
-          showInfoToast(`☁ Saves updated · ${parts.join(" · ")}`);
+          if (r.pulled > 0) parts.push(`${r.pulled} pulled from cloud`);
+          if (r.pushed > 0) parts.push(`${r.pushed} uploaded to cloud`);
+          showInfoToast(`Saves updated · ${parts.join(" · ")}`);
         }
       }).catch(() => {});
     }
@@ -847,9 +845,10 @@ async function main(): Promise<void> {
     const updatedEntry = await library.updateGameFile(gameId, patchedFile);
     if (!updatedEntry) throw new Error("Game not found in library");
 
-    console.info(
+    diagInfo(
+      settings.verboseLogging,
       `[${APP_NAME}] Patch applied: "${patchFile.name}" → "${entry.name}" ` +
-      `(${entry.size} → ${updatedEntry.size} bytes)`
+      `(${entry.size} → ${updatedEntry.size} bytes)`,
     );
   };
 
@@ -954,6 +953,7 @@ async function main(): Promise<void> {
 
     transitionToLibrary();
     document.title = APP_NAME;
+    sessionGamePostEffectOverride = undefined;
 
     void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
     document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.returnToLibrary));

@@ -61,7 +61,7 @@ export function buildConnectionDoctorPanel(container: HTMLElement, opts: { roomI
     for (const res of results) {
       const item = make("div", { class: `doctor-item doctor-item--${res.status}`, role: "listitem" });
       
-      const statusIcon = res.status === "pass" ? "✓" : res.status === "warn" ? "!" : "✕";
+      const statusIcon = res.status === "pass" ? "OK" : res.status === "warn" ? "!" : "No";
       
       item.innerHTML = `
         <div class="doctor-item__header">

@@ -1024,7 +1024,7 @@ describe("ui in-game touch controls toolbar", () => {
     const editAfterDisable = document.querySelector<HTMLButtonElement>('[aria-label="Edit touch control layout"]');
     const resetAfterDisable = document.querySelector<HTMLButtonElement>('[aria-label="Reset touch control layout"]');
     expect(menuAfterDisable).toBeTruthy();
-    expect(editAfterDisable?.textContent).toBe("🎮 Edit");
+    expect(editAfterDisable?.textContent).toBe("Edit controls");
     expect(resetAfterDisable?.hidden).toBe(true);
   });
 });
@@ -1413,9 +1413,8 @@ describe("buildMultiplayerTab", () => {
     await flushUI(20);
 
     const roomStatus = panel.querySelector<HTMLElement>(".netplay-room-status--locked");
-    const roomName = panel.querySelector<HTMLElement>(".netplay-lobby-name");
     expect(roomStatus).toBeTruthy();
-    expect(roomName?.textContent).toContain("🔒");
+    expect(roomStatus?.textContent).toMatch(/Password/i);
   });
   it("lobby browser section is hidden when netplay is not active", () => {
     openMultiplayerTab();
@@ -1560,6 +1559,17 @@ describe("buildDebugTab", () => {
     // Performance panel should be hidden
     const perfPanel = document.getElementById("tab-panel-performance")!;
     expect(perfPanel.hidden).toBe(true);
+  });
+
+  it("Debug Environment section exposes a landmark labelled by its heading", () => {
+    openDebugTab();
+    const envHeading = document.getElementById("settings-debug-environment-heading");
+    expect(envHeading?.textContent).toContain("Environment");
+    const panel = document.getElementById("tab-panel-debug")!;
+    const region = panel.querySelector<HTMLElement>(
+      `[role="region"][aria-labelledby="settings-debug-environment-heading"]`,
+    );
+    expect(region?.contains(envHeading ?? null)).toBe(true);
   });
 
   it("falls back to Performance tab when an invalid initialTab is provided", () => {
@@ -2683,6 +2693,14 @@ describe("buildMultiplayerTab — supported systems section", () => {
     const joinBtn   = panel.querySelector<HTMLButtonElement>(".netplay-join-room");
     expect(createBtn).toBeTruthy();
     expect(joinBtn).toBeTruthy();
+    expect(createBtn!.getAttribute("aria-label")).toMatch(/Create room/i);
+    expect(joinBtn!.getAttribute("aria-label")).toMatch(/Join selected room/i);
+    const roomRegion = panel.querySelector<HTMLElement>(
+      `[role="region"][aria-labelledby="settings-netplay-room-actions-heading"]`,
+    );
+    expect(roomRegion?.querySelector("#settings-netplay-room-actions-heading")?.textContent).toContain(
+      "Room Actions",
+    );
   });
 
   it("does not show the game compatibility section when no game is loaded", () => {
@@ -3023,7 +3041,7 @@ describe("save gallery cloud bar UX", () => {
     expect(statusText!.className).not.toContain("--syncing");
   });
 
-  it("cloud bar shows a '☁ Connect' button when not connected", async () => {
+  it("cloud bar shows a Connect button when not connected", async () => {
     const emulator = makeRunningEmulator();
     const saveLib  = makeBasicSaveLibrary();
 
@@ -4363,6 +4381,78 @@ describe("library gamepad navigation", () => {
     runRafTick();
     expect(document.activeElement).toBe(cards[1]);
   });
+
+  it("ignores disconnected gamepads and uses the first connected pad", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const games = [makeGame("g1", "Alpha", "psp"), makeGame("g2", "Beta", "psp")];
+    const library = { getAllGamesMetadata: vi.fn().mockResolvedValue(games), preloadGame: vi.fn() } as unknown as GameLibrary;
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    const grid = document.getElementById("library-grid")!;
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
+    cards[0]!.focus();
+
+    const dead = makeGamepad({ connected: false, index: 0 });
+    const live = makeGamepad({
+      index: 1,
+      buttons: Array.from({ length: 17 }, (_, i) =>
+        ({ pressed: i === 15, touched: i === 15, value: i === 15 ? 1 : 0 })) as GamepadButton[],
+    });
+    vi.stubGlobal("navigator", { ...navigator, getGamepads: () => [dead, live] });
+
+    runRafTick();
+    expect(document.activeElement).toBe(cards[1]);
+  });
+
+  it("treats shoulder value without pressed as digital (driver quirk)", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const games = [makeGame("g1", "Alpha", "psp"), makeGame("g2", "Beta", "psp")];
+    const library = { getAllGamesMetadata: vi.fn().mockResolvedValue(games), preloadGame: vi.fn() } as unknown as GameLibrary;
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    const grid = document.getElementById("library-grid")!;
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
+    cards[0]!.focus();
+
+    const gp = makeGamepad({
+      buttons: Array.from({ length: 17 }, (_, i) =>
+        ({ pressed: false, touched: i === 15, value: i === 15 ? 1 : 0 })) as GamepadButton[],
+    });
+    vi.stubGlobal("navigator", { ...navigator, getGamepads: () => [gp] });
+
+    runRafTick();
+    expect(document.activeElement).toBe(cards[1]);
+  });
+
+  it("does not navigate when the in-game menu overlay is open", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const games = [makeGame("g1", "Alpha", "psp"), makeGame("g2", "Beta", "psp")];
+    const library = { getAllGamesMetadata: vi.fn().mockResolvedValue(games), preloadGame: vi.fn() } as unknown as GameLibrary;
+    await renderLibrary(library, makeSettings(), vi.fn(async () => {}));
+
+    const grid = document.getElementById("library-grid")!;
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
+    cards[0]!.focus();
+
+    const overlay = document.createElement("div");
+    overlay.className = "ingame-menu-overlay";
+    document.body.appendChild(overlay);
+
+    const gp = makeGamepad({ buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === 15, touched: i === 15, value: i === 15 ? 1 : 0 })) as GamepadButton[] });
+    vi.stubGlobal("navigator", { ...navigator, getGamepads: () => [gp] });
+
+    runRafTick();
+    expect(document.activeElement).toBe(cards[0]);
+  });
 });
 
 
@@ -4386,14 +4476,14 @@ describe("showError — unrecognised file type message is concise", () => {
     const conciseMsg =
       `"game.xyz" isn't a recognised ROM format.\n\n` +
       `Try a common format like .iso, .gba, .sfc, .nes, or .nds.\n` +
-      `See Settings → ❓ Help for the full list of supported formats.`;
+      `See Settings → Help for the full list of supported formats.`;
 
     showError(conciseMsg);
 
     const errorText = document.getElementById("error-message")?.textContent ?? "";
     expect(errorText).toContain(".gba");
     expect(errorText).toContain(".nes");
-    expect(errorText).toContain("❓ Help");
+    expect(errorText).toContain("Settings → Help");
     // Should not dump the full extension list (old message was 300+ chars with all extensions)
     expect(errorText.length).toBeLessThan(300);
   });
@@ -5023,6 +5113,17 @@ describe("buildPerfTab — Performance settings tab", () => {
     expect(headings).toContain("Graphics Mode");
   });
 
+  it("Graphics Mode and UI fidelity radios sit inside labelled radiogroups", () => {
+    openPerfTab();
+    const panel = document.getElementById("tab-panel-performance")!;
+    expect(panel.querySelector('[role="radiogroup"][aria-label="Graphics mode for games"]')).toBeTruthy();
+    expect(panel.querySelector('[role="radiogroup"][aria-label="Library and shell visual style"]')).toBeTruthy();
+    expect(
+      panel.querySelector('[role="radiogroup"][aria-label="Graphics mode for games"]')
+        ?.querySelectorAll('input[type="radio"][name="perf-mode"]').length,
+    ).toBe(3);
+  });
+
   it("'auto' radio is checked when performanceMode is 'auto'", () => {
     openPerfTab(makeSettings({ performanceMode: "auto" }));
     const panel = document.getElementById("tab-panel-performance")!;
@@ -5203,6 +5304,15 @@ describe("buildDisplayTab — Display settings tab", () => {
     expect(headings).toContain("Audio Enhancement");
   });
 
+  it("Visual Effects radios sit inside radiogroup labelled by heading when WebGPU is advertised", () => {
+    openDisplayTab(makeSettings(), { ...fullCapsForTests, webgpuAvailable: true });
+    const panel = document.getElementById("tab-panel-display")!;
+    expect(Array.from(panel.querySelectorAll("h4")).map(h => h.textContent)).toContain("Visual Effects");
+    const rg = panel.querySelector('[role="radiogroup"][aria-labelledby="visual-effects-heading"]');
+    expect(rg).toBeTruthy();
+    expect(rg!.querySelectorAll('input[type="radio"][name="postfx-mode"]').length).toBeGreaterThan(4);
+  });
+
   it("audio filter type selector reflects settings.audioFilterType", () => {
     openDisplayTab(makeSettings({ audioFilterType: "lowpass" }));
     const panel = document.getElementById("tab-panel-display")!;
@@ -5257,6 +5367,62 @@ describe("buildDisplayTab — Display settings tab", () => {
     const panel = document.getElementById("tab-panel-display")!;
     const headings = Array.from(panel.querySelectorAll("h4")).map(h => h.textContent);
     expect(headings).toContain("Mobile & Touch");
+  });
+});
+
+// ── Cloud tab (buildCloudTab) ───────────────────────────────────────────────
+
+describe("buildCloudTab — Cloud settings tab", () => {
+  function openCloudTab(settings: Settings = makeSettings()) {
+    openSettingsPanel(
+      settings,
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "cloud",
+    );
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("OAuth key inputs reference shared help text via aria-describedby", () => {
+    openCloudTab();
+    const panel = document.getElementById("tab-panel-cloud")!;
+    const google = document.getElementById("oauth-google-client-id") as HTMLInputElement | null;
+    const dropbox = document.getElementById("oauth-dropbox-app-key") as HTMLInputElement | null;
+    const help = document.getElementById("settings-cloud-oauth-keys-help");
+    expect(help?.textContent).toMatch(/Google or Dropbox OAuth/i);
+    expect(help?.textContent).toMatch(/Paste next to each field/i);
+    expect(google?.getAttribute("aria-describedby")).toBe("settings-cloud-oauth-keys-help");
+    expect(dropbox?.getAttribute("aria-describedby")).toBe("settings-cloud-oauth-keys-help");
+    const pasteBtns = panel.querySelectorAll(".settings-input-paste-line button");
+    expect(pasteBtns.length).toBe(2);
+  });
+
+  it("Cloud Save Backup block is a labelled region when not connected", () => {
+    openCloudTab();
+    const panel = document.getElementById("tab-panel-cloud")!;
+    const region = panel.querySelector<HTMLElement>(
+      `[role="region"][aria-labelledby="settings-cloud-save-backup-heading"]`,
+    );
+    const heading = panel.querySelector("#settings-cloud-save-backup-heading");
+    expect(region?.contains(heading)).toBe(true);
+    const connect = panel.querySelector<HTMLButtonElement>(".btn.btn--primary[type=button]");
+    expect(connect?.getAttribute("aria-label")).toMatch(/Connect cloud backup/i);
   });
 });
 
@@ -5333,5 +5499,15 @@ describe("buildLibraryTab — Organization toggle", () => {
     const panel = document.getElementById("tab-panel-library")!;
     const headings = Array.from(panel.querySelectorAll("h4")).map(h => h.textContent);
     expect(headings).toContain("Supported Systems");
+  });
+
+  it("Library Organization section exposes a landmark labelled by its heading", () => {
+    openLibraryTab();
+    const orgHeading = document.getElementById("settings-library-organization-heading");
+    expect(orgHeading?.textContent).toContain("Organization");
+    const region = document.querySelector<HTMLElement>(
+      `[role="region"][aria-labelledby="settings-library-organization-heading"]`,
+    );
+    expect(region?.contains(orgHeading ?? null)).toBe(true);
   });
 });

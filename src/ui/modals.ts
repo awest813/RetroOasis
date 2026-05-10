@@ -338,6 +338,24 @@ export type CoverArtPickResult =
   | { type: "remove" }
   | null;
 
+/** Optional hooks for the cover-art dialog (e.g. jump to Settings → API Keys). */
+export type CoverArtPickerOptions = {
+  /** After the dialog closes, open Settings on the API Keys tab. */
+  onOpenApiKeysSettings?: () => void;
+};
+
+async function readClipboardTextForPaste(): Promise<string | null> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      const t = await navigator.clipboard.readText();
+      return typeof t === "string" ? t : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /**
  * Modal dialog that lets the user set or remove cover art for a game.
  *
@@ -350,30 +368,40 @@ export type CoverArtPickResult =
 export function showCoverArtPickerDialog(
   gameName: string,
   hasExistingArt: boolean,
+  options?: CoverArtPickerOptions,
 ): Promise<CoverArtPickResult> {
   return new Promise((resolve) => {
     const overlay = createElement("div", { class: "confirm-overlay" });
+    const titleId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? `cover-art-title-${crypto.randomUUID()}`
+        : `cover-art-title-${Date.now().toString(36)}`;
     const box = createElement("div", {
       class: "confirm-box cover-art-box",
       role: "dialog",
       "aria-modal": "true",
-      "aria-label": `Set Cover Art for ${gameName}`,
+      "aria-labelledby": titleId,
+      "aria-label": `Cover art for ${gameName}`,
     });
 
-    box.appendChild(createElement("h3", { class: "confirm-title" }, "Set Cover Art"));
-    box.appendChild(createElement("p", { class: "confirm-body" },
-      `Choose an image to use as cover art for "${gameName}".`,
+    box.appendChild(createElement("h3", { id: titleId, class: "confirm-title cover-art-dialog__title" }, "Cover art"));
+    box.appendChild(createElement("p", { class: "confirm-body cover-art-dialog__subtitle" },
+      `Choose artwork for “${gameName}”. High-resolution square or portrait images work best.`,
     ));
 
     // ── File upload section ──────────────────────────────────────────────────
-    const fileSection = createElement("div", { class: "cover-art-section" });
+    const fileSection = createElement("div", { class: "cover-art-section cover-art-panel" });
+    fileSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "From your device"));
     const fileInput = createElement("input", {
       type: "file",
       accept: "image/jpeg,image/png,image/webp,image/gif,image/avif",
       "aria-label": "Upload image file",
       style: "display:none",
     }) as HTMLInputElement;
-    const btnFile = createElement("button", { class: "btn btn--primary cover-art-btn" }, "📁 Upload Image File");
+    const btnFile = createElement("button", {
+      class: "btn btn--primary cover-art-btn",
+      type: "button",
+    }, "Upload image…");
     btnFile.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
@@ -383,14 +411,75 @@ export function showCoverArtPickerDialog(
     fileSection.append(fileInput, btnFile);
 
     // ── URL section ─────────────────────────────────────────────────────────
-    const urlSection = createElement("div", { class: "cover-art-section" });
+    const urlSection = createElement("div", { class: "cover-art-section cover-art-panel" });
+    urlSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "From a URL"));
+    const urlHelpId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? `cover-art-url-help-${crypto.randomUUID()}`
+        : `cover-art-url-help-${Date.now().toString(36)}`;
+    const urlClipId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? `cover-art-url-clip-${crypto.randomUUID()}`
+        : `cover-art-url-clip-${Date.now().toString(36)}`;
     const urlInput = createElement("input", {
       type: "url",
-      placeholder: "https://example.com/cover.jpg",
+      placeholder: "https://…/cover.jpg — paste a direct image link",
       "aria-label": "Image URL",
       class: "cover-art-url-input",
+      "aria-describedby": `${urlHelpId} ${urlClipId}`.trim(),
+      autocomplete: "url",
+      inputMode: "url",
+      spellcheck: "false",
     }) as HTMLInputElement;
-    const btnUrl = createElement("button", { class: "btn cover-art-btn" }, "🔗 Use Image URL");
+    const urlClipMsg = createElement("p", {
+      id: urlClipId,
+      class: "cover-art-clipboard-msg",
+      role: "status",
+      "aria-live": "polite",
+      hidden: true,
+    }) as HTMLParagraphElement;
+    const setUrlClipFeedback = (text: string, ok: boolean) => {
+      urlClipMsg.textContent = text;
+      urlClipMsg.hidden = !text;
+      urlClipMsg.classList.toggle("cover-art-clipboard-msg--ok", ok && !!text);
+      urlClipMsg.classList.toggle("cover-art-clipboard-msg--err", !ok && !!text);
+      if (text) window.setTimeout(() => { urlClipMsg.textContent = ""; urlClipMsg.hidden = true; }, 5000);
+    };
+    const btnPasteUrl = createElement("button", {
+      class: "btn btn--ghost cover-art-paste-url",
+      type: "button",
+      "aria-label": "Paste image URL from clipboard",
+      title: "Insert text copied to the clipboard",
+    }, "Paste");
+    btnPasteUrl.addEventListener("click", () => {
+      void (async () => {
+        const text = await readClipboardTextForPaste();
+        if (text === null) {
+          setUrlClipFeedback(
+            "Could not read the clipboard — paste with Ctrl+V (⌘V on Mac) or allow clipboard access for this site.",
+            false,
+          );
+          urlInput.focus();
+          return;
+        }
+        const trimmed = text.trim();
+        if (!trimmed) {
+          setUrlClipFeedback("Clipboard was empty.", false);
+          urlInput.focus();
+          return;
+        }
+        urlInput.value = trimmed;
+        setUrlClipFeedback("Pasted from clipboard.", true);
+        urlInput.focus();
+      })();
+    });
+    const urlRow = createElement("div", { class: "cover-art-url-row" });
+    urlRow.append(urlInput, btnPasteUrl);
+    const btnUrl = createElement("button", {
+      class: "btn cover-art-btn",
+      type: "button",
+      "aria-label": "Use image URL as cover art",
+    }, "Use this URL");
     btnUrl.addEventListener("click", () => {
       const url = urlInput.value.trim();
       if (!url) { urlInput.focus(); return; }
@@ -399,30 +488,56 @@ export function showCoverArtPickerDialog(
     urlInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); btnUrl.click(); }
     });
-    urlSection.append(urlInput, btnUrl);
+    const openKeysHandler = options?.onOpenApiKeysSettings;
+    const btnOpenKeys = openKeysHandler
+      ? createElement("button", {
+        class: "btn btn--ghost cover-art-open-apikeys",
+        type: "button",
+        "aria-label": "Close and open Settings on the API Keys tab",
+      }, "Configure API keys…")
+      : null;
+    urlSection.append(
+      urlRow,
+      urlClipMsg,
+      createElement(
+        "p",
+        { class: "settings-help cover-art-url-hint", id: urlHelpId },
+        "Paste a direct link to an image file (JPEG, PNG, WebP, GIF, AVIF). The host must allow hotlinking (CORS) so the browser can load it. Tip: use Paste, then Enter.",
+      ),
+      btnUrl,
+    );
 
     // ── Auto-fetch section ───────────────────────────────────────────────────
     // Triggers an online search against the community cover-art-collection.
     // The caller runs the provider + candidate picker; this dialog only
     // signals the intent so that all network logic stays in the UI layer.
-    const autoSection = createElement("div", { class: "cover-art-section" });
+    const autoSection = createElement("div", { class: "cover-art-section cover-art-panel cover-art-panel--discover" });
+    autoSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "Discover online"));
+    const autoHint = createElement("p", {
+      class: "cover-art-panel__hint",
+    }, "Searches your configured cover providers (GitHub collection, Libretro, and any APIs you enable). Use Configure API keys below if you use RAWG, MobyGames, TheGamesDB, or similar.");
     const btnAuto = createElement(
       "button",
-      { class: "btn cover-art-btn" },
-      "🔍 Auto-fetch from online",
+      {
+        class: "btn btn--highlight cover-art-btn cover-art-btn--discover",
+        type: "button",
+        "aria-label": "Search online databases for cover art matching this game",
+      },
+      "Search & pick…",
     );
     btnAuto.addEventListener("click", () => close({ type: "auto" }));
-    autoSection.appendChild(btnAuto);
+    autoSection.append(autoHint, btnAuto);
+    if (btnOpenKeys) autoSection.appendChild(btnOpenKeys);
 
     box.append(fileSection, urlSection, autoSection);
 
     // ── Footer ───────────────────────────────────────────────────────────────
-    const footer = createElement("div", { class: "confirm-footer" });
-    const btnCancel = createElement("button", { class: "btn" }, "Cancel");
+    const footer = createElement("div", { class: "confirm-footer confirm-footer--cover-picker" });
+    const btnCancel = createElement("button", { class: "btn", type: "button" }, "Cancel");
     footer.appendChild(btnCancel);
 
     if (hasExistingArt) {
-      const btnRemove = createElement("button", { class: "btn btn--danger-filled" }, "🗑 Remove Art");
+      const btnRemove = createElement("button", { class: "btn btn--danger-filled", type: "button" }, "Remove art");
       btnRemove.addEventListener("click", () => close({ type: "remove" }));
       footer.appendChild(btnRemove);
     }
@@ -440,6 +555,13 @@ export function showCoverArtPickerDialog(
       setTimeout(() => overlay.remove(), 180);
       resolve(result);
     };
+
+    if (btnOpenKeys && openKeysHandler) {
+      btnOpenKeys.addEventListener("click", () => {
+        close(null);
+        requestAnimationFrame(() => openKeysHandler());
+      });
+    }
 
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
@@ -484,20 +606,25 @@ export function showCoverArtCandidatePicker(
 ): Promise<string | null> {
   return new Promise((resolve) => {
     const overlay = createElement("div", { class: "confirm-overlay" });
+    const candTitleId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? `cover-cand-title-${crypto.randomUUID()}`
+        : `cover-cand-title-${Date.now().toString(36)}`;
     const box = createElement("div", {
       class: "confirm-box cover-art-box cover-art-candidate-box",
       role: "dialog",
       "aria-modal": "true",
+      "aria-labelledby": candTitleId,
       "aria-label": `Choose cover art for ${gameName}`,
     });
 
-    box.appendChild(createElement("h3", { class: "confirm-title" }, "Choose a cover"));
+    box.appendChild(createElement("h3", { id: candTitleId, class: "confirm-title cover-art-candidate__title" }, "Pick a cover"));
     box.appendChild(createElement(
       "p",
-      { class: "confirm-body" },
+      { class: "confirm-body cover-art-candidate__intro" },
       candidates.length === 0
-        ? `No online matches were found for "${gameName}". Try uploading an image file instead.`
-        : `Showing ${candidates.length} result(s) for "${gameName}" — select the best match.`,
+        ? `No online matches for “${gameName}”. Upload an image from the previous menu, or paste a direct image URL.`
+        : `${candidates.length} match${candidates.length === 1 ? "" : "es"} for “${gameName}” — choose one, or dismiss to try another source in Settings → API Keys.`,
     ));
 
     let closed = false;
@@ -518,8 +645,8 @@ export function showCoverArtCandidatePicker(
         const card = createElement("button", {
           class: `cover-art-candidate${isPerfect ? " cover-art-candidate--perfect" : ""}`,
           type: "button",
-          title: `${c.title} (${scorePct}% match · ${c.sourceName})`,
-          "aria-label": `Use cover "${c.title}" (${scorePct}% match from ${c.sourceName})`,
+          title: `${c.title} — ${scorePct}% match · ${c.sourceName}`,
+          "aria-label": `Use cover art: ${c.title}, ${scorePct} percent match from ${c.sourceName}`,
         });
 
         const img = createElement("img", {
@@ -532,7 +659,7 @@ export function showCoverArtCandidatePicker(
 
         // Confidence badge — data attrs drive CSS color coding
         const badge = createElement("div", { class: "cover-art-candidate__score-badge" });
-        const scoreSpan = createElement("span", {}, isPerfect ? "✓ Exact" : `${scorePct}%`);
+        const scoreSpan = createElement("span", {}, isPerfect ? "Exact match" : `${scorePct}%`);
         if (isPerfect) (scoreSpan as HTMLElement).setAttribute("data-perfect", "1");
         const sourceSpan = createElement("span", {}, c.sourceName);
         (sourceSpan as HTMLElement).setAttribute("data-source", c.sourceName);
@@ -552,21 +679,29 @@ export function showCoverArtCandidatePicker(
       // Rich empty state
       const empty = createElement("div", { class: "cover-art-no-results" });
       empty.innerHTML = `
-        <div class="cover-art-no-results__icon">🔍</div>
+        <div class="cover-art-no-results__icon" aria-hidden="true">✦</div>
         <p class="cover-art-no-results__text">
-          No covers found online for <strong>"${gameName}"</strong>.<br>
-          Try uploading an image file or pasting a URL instead.
+          No covers found for <strong>“${gameName}”</strong>.<br>
+          Use <strong>Upload image</strong> or a direct <strong>image URL</strong> from the cover menu.
         </p>
       `;
       box.appendChild(empty);
     }
 
-    const footer = createElement("div", { class: "confirm-footer" });
-    const btnCancel = createElement("button", { class: "btn" }, "Cancel");
+    const footer = createElement("div", { class: "confirm-footer confirm-footer--cover-candidates" });
+    if (candidates.length > 0) {
+      const btnNone = createElement("button", {
+        class: "btn btn--ghost",
+        type: "button",
+      }, "None of these");
+      btnNone.addEventListener("click", () => close(null));
+      footer.appendChild(btnNone);
+    }
+    const btnCancel = createElement("button", { class: "btn", type: "button" }, "Close");
     btnCancel.addEventListener("click", () => close(null));
     footer.appendChild(btnCancel);
-    box.appendChild(footer);
 
+    box.appendChild(footer);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
@@ -582,7 +717,8 @@ export function showCoverArtCandidatePicker(
 
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
-      btnCancel.focus();
+      const first = box.querySelector<HTMLButtonElement>(".cover-art-candidate");
+      (first ?? btnCancel).focus();
     });
   });
 }

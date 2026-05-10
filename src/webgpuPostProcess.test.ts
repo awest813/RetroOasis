@@ -11,6 +11,9 @@ import {
   parsePostProcessEffect,
   effectivePostProcessForSystem,
   shouldDeferWebGpuPostFor3DSession,
+  shouldWebGpuPostCaptureEmulatorGlCanvas,
+  resolveWebGpuPostProcessEffectForShell,
+  pickShellPerGamePostEffect,
   buildEffectPipeline,
   adjustConfigForTier,
   validatePostProcessConfig,
@@ -140,6 +143,117 @@ describe("shouldDeferWebGpuPostFor3DSession", () => {
     expect(shouldDeferWebGpuPostFor3DSession(true, "medium", desk)).toBe(false);
     expect(shouldDeferWebGpuPostFor3DSession(true, "high", desk)).toBe(false);
     expect(shouldDeferWebGpuPostFor3DSession(true, "ultra", { isChromOS: true, isLowSpec: true })).toBe(false);
+  });
+});
+
+describe("pickShellPerGamePostEffect", () => {
+  it("prefers explicit override when defined, including explicit null", () => {
+    expect(pickShellPerGamePostEffect("crt", "fsr")).toBe("crt");
+    expect(pickShellPerGamePostEffect(null, "fsr")).toBeNull();
+    expect(pickShellPerGamePostEffect(undefined, "fsr")).toBe("fsr");
+    expect(pickShellPerGamePostEffect(undefined, null)).toBeNull();
+    expect(pickShellPerGamePostEffect(undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe("resolveWebGpuPostProcessEffectForShell", () => {
+  const desk = { isChromOS: false, isLowSpec: false };
+
+  it("returns none when WebGPU path is inactive", () => {
+    expect(
+      resolveWebGpuPostProcessEffectForShell({
+        useWebGPU: false,
+        webgpuAvailable: true,
+        settingsPostEffect: "crt",
+        systemId: "nes",
+        tier: "medium",
+        caps: desk,
+      }),
+    ).toBe("none");
+  });
+
+  it("returns the resolved effect when the overlay should run", () => {
+    expect(
+      resolveWebGpuPostProcessEffectForShell({
+        useWebGPU: true,
+        webgpuAvailable: true,
+        settingsPostEffect: "crt",
+        systemId: "nes",
+        tier: "medium",
+        caps: desk,
+      }),
+    ).toBe("crt");
+  });
+
+  it("uses global settings when merged per-game is null (?? fall-through)", () => {
+    expect(
+      resolveWebGpuPostProcessEffectForShell({
+        useWebGPU: true,
+        webgpuAvailable: true,
+        settingsPostEffect: "crt",
+        perGamePostEffect: null,
+        systemId: "nes",
+        tier: "medium",
+        caps: desk,
+      }),
+    ).toBe("crt");
+  });
+});
+
+describe("shouldWebGpuPostCaptureEmulatorGlCanvas", () => {
+  const desk = { isChromOS: false, isLowSpec: false };
+
+  const base = {
+    useWebGPU: true,
+    webgpuAvailable: true,
+    settingsPostEffect: "crt" as const,
+    systemId: "nes" as const,
+    tier: "medium" as const,
+    caps: desk,
+  };
+
+  it("is false without WebGPU preference or device", () => {
+    expect(shouldWebGpuPostCaptureEmulatorGlCanvas({ ...base, useWebGPU: false })).toBe(false);
+    expect(shouldWebGpuPostCaptureEmulatorGlCanvas({ ...base, webgpuAvailable: false })).toBe(false);
+  });
+
+  it("is false when the resolved post effect is none", () => {
+    expect(
+      shouldWebGpuPostCaptureEmulatorGlCanvas({ ...base, settingsPostEffect: "none" }),
+    ).toBe(false);
+  });
+
+  it("is true for 2D systems when a shell post effect is active", () => {
+    expect(shouldWebGpuPostCaptureEmulatorGlCanvas(base)).toBe(true);
+  });
+
+  it("is false when 3D defer policy drops the effect (unless per-game forces it)", () => {
+    expect(
+      shouldWebGpuPostCaptureEmulatorGlCanvas({
+        ...base,
+        systemId: "psp",
+        tier: "low",
+        perGamePostEffect: undefined,
+      }),
+    ).toBe(false);
+    expect(
+      shouldWebGpuPostCaptureEmulatorGlCanvas({
+        ...base,
+        systemId: "psp",
+        tier: "low",
+        perGamePostEffect: "crt",
+      }),
+    ).toBe(true);
+  });
+
+  it("is true for deferred 3D tiers when defer does not apply", () => {
+    expect(
+      shouldWebGpuPostCaptureEmulatorGlCanvas({
+        ...base,
+        systemId: "psp",
+        tier: "ultra",
+      }),
+    ).toBe(true);
   });
 });
 

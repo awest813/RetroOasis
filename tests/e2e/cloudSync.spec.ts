@@ -44,20 +44,20 @@ async function selectWebDavProvider(page: import("@playwright/test").Page): Prom
 
 test.describe("Cloud Sync journey", () => {
   test.beforeEach(async ({ appPage: page }) => {
-    await page.route("**/mock-dav/**", (route) => {
+    await page.route("**/mock-dav/**", async (route) => {
       const method = route.request().method().toUpperCase();
       if (method === "PROPFIND") {
-        route.fulfill({
+        await route.fulfill({
           status: 207,
           contentType: "application/xml; charset=utf-8",
           body: MOCK_PROPFIND,
         });
       } else if (method === "OPTIONS" || method === "GET") {
-        route.fulfill({ status: 200 });
+        await route.fulfill({ status: 200 });
       } else if (method === "PUT" || method === "MKCOL") {
-        route.fulfill({ status: 201 });
+        await route.fulfill({ status: 201 });
       } else {
-        route.fulfill({ status: 200 });
+        await route.fulfill({ status: 200 });
       }
     });
   });

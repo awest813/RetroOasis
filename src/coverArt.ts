@@ -38,6 +38,7 @@
  * and to score candidates via the Sørensen–Dice coefficient over character
  * bigrams.
  */
+import { diagDevWarn } from "./diagnosticLog.js";
 import type { GameMetadata } from "./library.js";
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -540,23 +541,72 @@ export class GitHubCoverArtProvider implements CoverArtProvider {
 
 // ── Fetch + validate helper used by the UI layer ─────────────────────────────
 
+/** Default network timeout when downloading cover image bytes from a URL (ms). Pass `timeoutMs: null` to disable. */
+export const DEFAULT_COVER_IMAGE_FETCH_TIMEOUT_MS = 45_000;
+
 /**
  * Fetch a candidate's image URL and validate the response with
  * `createImageBitmap`, mirroring the existing "Use Image URL" flow in the
  * cover art picker. Returns the validated Blob on success; throws otherwise.
+ *
+ * When {@link opts.timeoutMs} is omitted, a default timeout prevents hung tab
+ * states on slow CDNs / broken servers. Aborting happens via {@link opts.signal}.
  */
 export async function fetchAndValidateCoverArt(
   url: string,
-  opts: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
+  opts: {
+    signal?: AbortSignal;
+    fetchImpl?: typeof fetch;
+    /** Omit for {@link DEFAULT_COVER_IMAGE_FETCH_TIMEOUT_MS}; pass `null` to wait indefinitely (tests only). */
+    timeoutMs?: number | null;
+  } = {},
 ): Promise<Blob> {
-  const impl = opts.fetchImpl ?? fetch.bind(globalThis);
-  const resp = await impl(url, { mode: "cors", signal: opts.signal });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const blob = await resp.blob();
-  // Guard against non-image responses masquerading behind image/* content-type.
-  const bitmap = await createImageBitmap(blob);
-  bitmap.close();
-  return blob;
+  const impl      = opts.fetchImpl ?? fetch.bind(globalThis);
+  const timeoutMs =
+    opts.timeoutMs === undefined ? DEFAULT_COVER_IMAGE_FETCH_TIMEOUT_MS : opts.timeoutMs;
+  const parent    = opts.signal;
+  const ctl       = new AbortController();
+  let timedOut    = false;
+  let spinTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const onParentAbort = () => { ctl.abort(); };
+
+  if (parent) {
+    if (parent.aborted) throw new DOMException("Aborted", "AbortError");
+    parent.addEventListener("abort", onParentAbort);
+  }
+  if (timeoutMs !== null && timeoutMs > 0) {
+    spinTimer = setTimeout(() => {
+      timedOut = true;
+      ctl.abort();
+    }, timeoutMs);
+  }
+
+  try {
+    const resp = await impl(url, { mode: "cors", signal: ctl.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+    bitmap.close();
+    return blob;
+  } catch (err: unknown) {
+    const looksLikeAbort =
+      (err instanceof DOMException && err.name === "AbortError") ||
+      (err instanceof Error && err.name === "AbortError");
+    if (timedOut && !parent?.aborted && looksLikeAbort) {
+      const sec =
+        typeof timeoutMs === "number" && timeoutMs > 0 ? Math.max(1, Math.round(timeoutMs / 1000)) : "";
+      throw new Error(
+        sec
+          ? `Cover download timed out after ${sec}s — try another image or upload a file.`
+          : "Cover download timed out — try another image or upload a file.",
+      );
+    }
+    throw err;
+  } finally {
+    if (spinTimer) clearTimeout(spinTimer);
+    if (parent) parent.removeEventListener("abort", onParentAbort);
+  }
 }
 
 // ── Bulk-fetch helpers ───────────────────────────────────────────────────────
@@ -785,11 +835,24 @@ let _chainedSearchInFlight = 0;
  * then increment it. Returns a cleanup function that must be called when
  * the search completes (success or failure).
  */
-async function acquireConcurrencySlot(): Promise<() => void> {
+async function acquireConcurrencySlot(signal?: AbortSignal): Promise<() => void> {
   while (_chainedSearchInFlight >= CHAINED_SEARCH_MAX_CONCURRENCY) {
-    // Poll every 200 ms — fine for a cover-art fetch use case.
-    await new Promise<void>(res => setTimeout(res, 200));
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    await new Promise<void>((resolve, reject) => {
+      const id = setTimeout(() => {
+        if (signal) signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, 200);
+      if (!signal) return;
+      const onAbort = (): void => {
+        clearTimeout(id);
+        signal.removeEventListener("abort", onAbort);
+        reject(new DOMException("Aborted", "AbortError"));
+      };
+      signal.addEventListener("abort", onAbort);
+    });
   }
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
   _chainedSearchInFlight++;
   return () => { _chainedSearchInFlight = Math.max(0, _chainedSearchInFlight - 1); };
 }
@@ -814,7 +877,13 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
     const all: CoverArtCandidate[] = [];
     const seenUrls = new Set<string>();
 
-    const release = await acquireConcurrencySlot();
+    let release: (() => void) | null = null;
+    try {
+      release = await acquireConcurrencySlot(opts.signal);
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") return [];
+      throw e;
+    }
     try {
       for (const provider of this.providers) {
         if (opts.signal?.aborted) break;
@@ -837,7 +906,7 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
         }
       }
     } finally {
-      release();
+      release?.();
     }
 
     all.sort((a, b) => b.score - a.score);
@@ -1471,7 +1540,7 @@ export class ScreenScraperCoverArtProvider implements ApiKeyedProvider {
         game = await client.getGameByHash(md5, "md5", sysInfo.screenscraperId, signal);
       } catch (err) {
         // Non-fatal: log and fall through to filename fallback
-        console.warn("[ScreenScraper] Hash lookup (md5) failed:", err instanceof Error ? err.message : err);
+        diagDevWarn("[ScreenScraper] Hash lookup (md5) failed:", err instanceof Error ? err.message : err);
       }
     }
 
@@ -1479,7 +1548,7 @@ export class ScreenScraperCoverArtProvider implements ApiKeyedProvider {
       try {
         game = await client.getGameByHash(sha1, "sha1", sysInfo.screenscraperId, signal);
       } catch (err) {
-        console.warn("[ScreenScraper] Hash lookup (sha1) failed:", err instanceof Error ? err.message : err);
+        diagDevWarn("[ScreenScraper] Hash lookup (sha1) failed:", err instanceof Error ? err.message : err);
       }
     }
 
@@ -1491,7 +1560,7 @@ export class ScreenScraperCoverArtProvider implements ApiKeyedProvider {
       try {
         game = await client.getGameByFileName(fileName, sysInfo.screenscraperId, signal);
       } catch (err) {
-        console.warn("[ScreenScraper] Filename lookup failed:", err instanceof Error ? err.message : err);
+        diagDevWarn("[ScreenScraper] Filename lookup failed:", err instanceof Error ? err.message : err);
       }
     }
 

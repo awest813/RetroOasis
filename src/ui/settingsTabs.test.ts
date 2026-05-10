@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { buildApiKeysTab } from "./settingsTabs.js";
 import { ApiKeyStore, type ApiKeyProviderConfig } from "../apiKeyStore.js";
 
@@ -52,6 +52,20 @@ describe("buildApiKeysTab", () => {
     expect(rows.length).toBe(2);
     expect(container.querySelector('[data-provider-id="rawg"]')).toBeTruthy();
     expect(container.querySelector('[data-provider-id="mobygames"]')).toBeTruthy();
+  });
+
+  it("Paste button fills the key from the clipboard", async () => {
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { readText: vi.fn().mockResolvedValue("  0123456789abcdef0123456789abcdef  ") },
+      configurable: true,
+    });
+    const { container } = mount();
+    const pasteBtn = container.querySelector('[data-provider-id="rawg"] .api-key-paste-btn') as HTMLButtonElement;
+    const input = container.querySelector('[data-provider-id="rawg"] .api-key-input') as HTMLInputElement;
+    pasteBtn.click();
+    await vi.waitFor(() => {
+      expect(input.value).toBe("0123456789abcdef0123456789abcdef");
+    });
   });
 
   it("masks the key input by default and toggles with the Show button", () => {

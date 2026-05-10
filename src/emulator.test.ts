@@ -3246,6 +3246,9 @@ describe('PSPEmulator', () => {
 
     it('emits a console.warn for ROMs larger than 500 MB', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      emulator.verboseLogging = true;
 
       vi.stubGlobal('URL', {
         ...URL,
@@ -3276,6 +3279,8 @@ describe('PSPEmulator', () => {
       expect(largeRomWarns.length).toBeGreaterThan(0);
       expect(largeRomWarns[0]).toContain('MB');
 
+      infoSpy.mockRestore();
+      warnSpy.mockRestore();
       vi.unstubAllGlobals();
       document.querySelector('script[data-ejs-loader]')?.remove();
     });

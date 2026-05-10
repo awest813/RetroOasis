@@ -45,6 +45,17 @@ const PRESETS: Readonly<Record<string, EmulatorScreenPreset>> = {
 
 const FALLBACK: EmulatorScreenPreset = { aspectRatio: "4 / 3" };
 
+/**
+ * Batches multiple synchronous `syncEmulatorViewportLayout` calls into one `resize` dispatch.
+ * Each call still updates `data-*` / CSS immediately; only the deferred `resize` is deduped.
+ */
+let _viewportResizeNotifyScheduled = false;
+
+/** @internal Vitest-only — resets coalesce latch if a test mocks rAF without running it. */
+export function __resetEmulatorViewportLayoutForTests(): void {
+  _viewportResizeNotifyScheduled = false;
+}
+
 export function getEmulatorScreenPreset(systemId: string | null | undefined): EmulatorScreenPreset | null {
   if (systemId == null) return null;
   const id = typeof systemId === "string" ? systemId.trim() : "";
@@ -72,7 +83,10 @@ export function syncEmulatorViewportLayout(
   if (preset.crispPixels) container.dataset.emuPixelated = "on";
 
   // After the next frame so `aspect-ratio` / layout have applied before listeners (e.g. EJS) run.
+  if (_viewportResizeNotifyScheduled) return;
+  _viewportResizeNotifyScheduled = true;
   requestAnimationFrame(() => {
+    _viewportResizeNotifyScheduled = false;
     try {
       window.dispatchEvent(new Event("resize"));
     } catch {

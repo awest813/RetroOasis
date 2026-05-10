@@ -27,6 +27,7 @@
  *   F3  → Toggle developer debug overlay (FPS, frame time, memory, draw calls)
  */
 
+import { diagWarn } from "./diagnosticLog.js";
 import {
   PSPEmulator,
   type EmulatorState,
@@ -97,6 +98,21 @@ import {
 } from "./multiplayerUtils.js";
 import { getNetplayManager, peekNetplayManager, registerNetplayInstance } from "./netplaySingleton.js";
 import { store } from "./store/index.js";
+import {
+  ICON_ALERT_TRIANGLE_SVG,
+  ICON_BATTERY_SVG,
+  ICON_CLOSE_X_SVG,
+  ICON_GAMEPAD_DECOR_SVG,
+  ICON_GRID_ALL_SVG,
+  ICON_PWA_INSTALL_SVG,
+  ICON_ROTATE_PHONE_SVG,
+  ICON_TROPHY_SVG,
+  INFO_TOAST_ICON_HTML,
+  ONBOARD_ICON_FAST_SVG,
+  ONBOARD_ICON_INPUTS_SVG,
+  ONBOARD_ICON_LOCK_SVG,
+  isSvgMarkup,
+} from "./chromeIcons.js";
 import { fromNetplayIceServers, toNetplayIceServers } from "./store/bridge.js";
 import { resolveNetplayRoomKey } from "./multiplayer.js"; // Stay in lazy chunk for now
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
@@ -282,6 +298,7 @@ export function buildDOM(app: HTMLElement): void {
   _libGpPrevAxes     = [];
   _libGpPrevBtns     = [];
   _libGpRepeatTimer  = 0;
+  document.body.classList.remove("using-gamepad");
   // Reset DevOverlay cached DOM references (nodes will be recreated below)
   resetDevOverlayCache();
   _fpsOverlayEls = null;
@@ -338,7 +355,7 @@ export function buildDOM(app: HTMLElement): void {
                        type="search" placeholder="Search games…" autocomplete="off"
                        aria-label="Search games" />
                 <button class="library-search-clear" id="library-search-clear"
-                        type="button" aria-label="Clear search" hidden>✕</button>
+                        type="button" aria-label="Clear search" hidden>${ICON_CLOSE_X_SVG}</button>
               </div>
               <div class="library-layout-toggle" id="library-layouts" role="radiogroup" aria-label="Layout">
                 <button class="btn btn--ghost btn--icon layout-btn" data-layout="grid" title="Grid view" role="radio" aria-checked="true">
@@ -363,8 +380,8 @@ export function buildDOM(app: HTMLElement): void {
               </button>
               <button class="btn btn--ghost library-controls__fetch-covers" id="library-fetch-covers"
                       type="button" aria-label="Fetch missing cover art from online"
-                      title="Fetch missing cover art from online">
-                🔍 Fetch covers
+                      title="Match games against online cover databases (Settings → API Keys)">
+                Fetch covers
               </button>
             </div>
           </div>
@@ -431,15 +448,15 @@ export function buildDOM(app: HTMLElement): void {
 
           <div class="onboarding__features">
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">⚡</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">${ONBOARD_ICON_FAST_SVG}</span>
               <span><strong>Automatic setup</strong><br>No extra wizard. Bring one file and keep moving.</span>
             </div>
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">🎮</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">${ONBOARD_ICON_INPUTS_SVG}</span>
               <span><strong>Inputs ready</strong><br>Keyboard, touch, USB gamepad, and Bluetooth all feel at home here.</span>
             </div>
             <div class="onboarding__feature">
-              <span class="onboarding__feature-icon" aria-hidden="true">🔒</span>
+              <span class="onboarding__feature-icon" aria-hidden="true">${ONBOARD_ICON_LOCK_SVG}</span>
               <span><strong>Private by default</strong><br>Your library and saves stay on this device unless you opt into cloud features.</span>
             </div>
           </div>
@@ -496,9 +513,9 @@ export function buildDOM(app: HTMLElement): void {
 
       <!-- Error banner -->
       <div id="error-banner" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1">
-        <span class="error-icon" aria-hidden="true">⚠️</span>
+        <span class="error-icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span>
         <span id="error-message"></span>
-        <button class="error-close" id="error-close" title="Dismiss" aria-label="Dismiss error">✕</button>
+        <button class="error-close" id="error-close" title="Dismiss" aria-label="Dismiss error">${ICON_CLOSE_X_SVG}</button>
       </div>
 
       <!-- System picker modal -->
@@ -507,7 +524,7 @@ export function buildDOM(app: HTMLElement): void {
         <div class="modal-box">
           <div class="modal-header">
             <h3 class="modal-title" id="system-picker-title">Choose System</h3>
-            <button class="modal-close" id="system-picker-close" aria-label="Cancel">✕</button>
+            <button class="modal-close" id="system-picker-close" aria-label="Cancel">${ICON_CLOSE_X_SVG}</button>
           </div>
           <p class="modal-subtitle" id="system-picker-subtitle">
             This file extension is compatible with multiple systems.
@@ -524,7 +541,7 @@ export function buildDOM(app: HTMLElement): void {
         <div class="modal-box settings-modal-box">
           <div class="modal-header">
             <h3 class="modal-title" id="settings-panel-title">Settings</h3>
-            <button class="modal-close" id="settings-close" aria-label="Close settings">✕</button>
+            <button class="modal-close" id="settings-close" aria-label="Close settings">${ICON_CLOSE_X_SVG}</button>
           </div>
           <div id="settings-content">
             <!-- Populated by buildSettingsContent() -->
@@ -535,10 +552,10 @@ export function buildDOM(app: HTMLElement): void {
       <!-- Debug console (toggled with Shift+F3 or Debug button) -->
       <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog">
         <div class="debug-console__header" id="debug-console-handle">
-          <div class="debug-console__title">🔧 Debug Console</div>
+          <div class="debug-console__title">Debug Console</div>
           <div class="debug-console__actions">
             <button class="debug-console__btn" id="debug-console-clear" title="Clear log">Clear</button>
-            <button class="debug-console__btn" id="debug-console-close" aria-label="Close">✕</button>
+            <button class="debug-console__btn debug-console__btn--icon" id="debug-console-close" aria-label="Close">${ICON_CLOSE_X_SVG}</button>
           </div>
         </div>
         <div class="debug-console__body" id="debug-console-log"></div>
@@ -555,7 +572,7 @@ export function buildDOM(app: HTMLElement): void {
 
       <!-- Portrait rotation hint — visible when playing in portrait orientation -->
       <div class="rotate-hint" id="rotate-hint" aria-live="polite" aria-atomic="true">
-        <span aria-hidden="true">📱</span>Rotate for best experience
+        <span class="rotate-hint__icon" aria-hidden="true">${ICON_ROTATE_PHONE_SVG}</span> Rotate for best experience
       </div>
 
     </main>
@@ -567,7 +584,7 @@ export function buildDOM(app: HTMLElement): void {
           <div class="status-dot idle" id="status-dot"></div>
           <span class="status-item__value" id="status-state">Ready</span>
         </div>
-        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" title="Cross-origin isolation is not active — PSP/N64 performance may be reduced.">⚠ COI</span>` : ""}
+        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. PSP and N64 performance may be reduced." title="Cross-origin isolation is not active — PSP/N64 performance may be reduced."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
       </div>
       
       <div class="footer-center">
@@ -576,7 +593,7 @@ export function buildDOM(app: HTMLElement): void {
 
       <div class="footer-right">
         <span class="footer-info">${APP_NAME} v1.4.2</span>
-        <span class="footer-battery">🔋 100%</span>
+        <span class="footer-battery"><span class="footer-battery__icon" aria-hidden="true">${ICON_BATTERY_SVG}</span> 100%</span>
       </div>
     </footer>
   `;
@@ -639,7 +656,7 @@ export function initUI(opts: UIOptions): void {
 
   // ── Gamepad connection toast ───────────────────────────────────────────
   window.addEventListener("gamepadconnected", (e) => {
-    showInfoToast(`🎮 ${e.gamepad.id} connected`, "info");
+    showInfoToast(`Gamepad connected: ${e.gamepad.id}`, "info");
   });
   window.addEventListener("gamepaddisconnected", (e) => {
     showInfoToast(`Disconnected: ${e.gamepad.id}`, "warning");
@@ -688,6 +705,11 @@ export function initUI(opts: UIOptions): void {
     target.addEventListener(type, handler, options);
     cleanupFns.push(() => target.removeEventListener(type, handler, options));
   };
+
+  const refreshLibraryCatalog = () => {
+    void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
+  };
+  bindEvent(document, LEGACY_EVENTS.libraryCatalogNeedsRefresh, refreshLibraryCatalog);
 
   _canInstallPWA = canInstallPWA;
   _onInstallPWA  = onInstallPWA;
@@ -1227,10 +1249,21 @@ async function _runBulkCoverArtFetch(
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>,
   button?: HTMLButtonElement,
 ): Promise<void> {
+  const restoreFetchCoversButton = (): void => {
+    if (!button) return;
+    button.textContent = "Fetch covers";
+    button.setAttribute("aria-label", "Fetch missing cover art from online");
+    button.title = "Match games against online cover databases (Settings → API Keys)";
+    button.removeAttribute("aria-busy");
+    button.classList.remove("library-controls__fetch-covers--busy");
+    button.disabled = false;
+  };
+
   // Toggle-cancel semantics: a second click aborts the in-flight batch.
   if (_bulkCoverArtController) {
     _bulkCoverArtController.abort();
     _bulkCoverArtController = null;
+    restoreFetchCoversButton();
     return;
   }
 
@@ -1244,9 +1277,18 @@ async function _runBulkCoverArtFetch(
   const controller = new AbortController();
   _bulkCoverArtController = controller;
   if (button) {
-    button.textContent = "✕ Cancel fetch";
-    button.setAttribute("aria-label", "Cancel cover art fetch");
+    button.textContent = `0/${missing.length}`;
+    button.setAttribute(
+      "aria-label",
+      `Fetching covers, 0 of ${missing.length} complete — activate to cancel`,
+    );
+    button.title = "Fetching covers — click again to cancel";
+    button.setAttribute("aria-busy", "true");
+    button.classList.add("library-controls__fetch-covers--busy");
+    button.disabled = false;
   }
+
+  let gamesCompleted = 0;
 
   const provider = getCoverArtProvider();
   const CONCURRENCY = 4;
@@ -1280,6 +1322,7 @@ async function _runBulkCoverArtFetch(
           signal: controller.signal,
           hashes,
         });
+        if (controller.signal.aborted) return;
         const best = candidates[0];
         if (!best || best.score < AUTO_APPLY_CONFIDENCE_THRESHOLD) {
           skipped++;
@@ -1290,8 +1333,17 @@ async function _runBulkCoverArtFetch(
         await library.setCoverArt(game.id, blob);
         applied++;
       } catch {
-        // Skip individual failures; don't abort the whole batch.
+        if (controller.signal.aborted) return;
         skipped++;
+      } finally {
+        gamesCompleted++;
+        if (button) {
+          button.textContent = `${gamesCompleted}/${missing.length}`;
+          button.setAttribute(
+            "aria-label",
+            `Fetching covers, ${gamesCompleted} of ${missing.length} complete — activate to cancel`,
+          );
+        }
       }
     }
   };
@@ -1300,10 +1352,7 @@ async function _runBulkCoverArtFetch(
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, missing.length) }, () => worker()));
   } finally {
     _bulkCoverArtController = null;
-    if (button) {
-      button.textContent = "🔍 Fetch covers";
-      button.setAttribute("aria-label", "Fetch missing cover art from online");
-    }
+    restoreFetchCoversButton();
   }
 
   if (controller.signal.aborted) {
@@ -1798,24 +1847,57 @@ let _libGpRepeatTimer = 0;
 const _LIB_NAV_INITIAL_DELAY = 400; // ms before held-direction auto-repeat starts
 const _LIB_NAV_REPEAT_RATE   = 150; // ms between repeats once held
 
-/** Gamepad list matching EmulatorJS GamepadHandler (standard + legacy WebKit). */
-function _getNavigatorGamepads(): (Gamepad | null)[] {
+/**
+ * Reads the live gamepad snapshot (standard Gamepad API + legacy WebKit).
+ * Returns only non-null pads that report `connected` — avoids ghost entries
+ * and matches browser behaviour until the user presses a face button on some platforms.
+ */
+function _getNavigatorGamepads(): Gamepad[] {
+  let raw: readonly (Gamepad | null)[];
   if (typeof navigator.getGamepads === "function") {
-    return [...navigator.getGamepads()];
+    raw = navigator.getGamepads();
+  } else if (typeof navigator.webkitGetGamepads === "function") {
+    raw = navigator.webkitGetGamepads() as unknown as (Gamepad | null)[];
+  } else {
+    return [];
   }
-  if (typeof navigator.webkitGetGamepads === "function") {
-    return [...navigator.webkitGetGamepads()];
+  const out: Gamepad[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const g = raw[i];
+    if (g != null && g.connected) out.push(g);
   }
-  return [];
+  return out;
+}
+
+/** Treats analogue pressure and `pressed` as a digital down (fixes some Chrome / Linux drivers). */
+function _gamepadBtnDown(btn: GamepadButton | undefined): boolean {
+  if (!btn) return false;
+  if (btn.pressed) return true;
+  const v = typeof btn.value === "number" ? btn.value : 0;
+  return v > 0.35;
+}
+
+/** True while modals/overlays own focus — keep library gamepad from fighting them. */
+function _libraryGamepadNavSuppressed(): boolean {
+  const errBanner = document.getElementById("error-banner");
+  if (errBanner?.classList.contains("visible")) return true;
+  if (document.querySelector(".confirm-overlay")) return true;
+  if (document.querySelector(".ingame-menu-overlay")) return true;
+  const settingsPanel = document.getElementById("settings-panel");
+  if (settingsPanel && !settingsPanel.hidden) return true;
+  if (document.querySelector("#system-picker:not([hidden])")) return true;
+  if (document.querySelector(".easy-netplay-overlay")) return true;
+  return false;
 }
 
 /** Move focus among library game cards using arrow keys or gamepad. */
 function _wireLibraryNavigation(): void {
   if (_libraryNavWired) return;
-  _libraryNavWired = true;
 
   const grid = document.getElementById("library-grid");
   if (!grid) return;
+
+  _libraryNavWired = true;
 
   // ── Arrow key navigation on the grid container ────────────────────────────
   grid.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -1878,11 +1960,13 @@ function _wireLibraryNavigation(): void {
     const landingEl = document.getElementById("landing");
     if (!landingEl || landingEl.classList.contains("hidden")) return;
 
-    // Skip if a modal / overlay is open
-    if (document.querySelector(".confirm-overlay")) return;
+    if (_libraryGamepadNavSuppressed()) return;
 
-    const gp = _getNavigatorGamepads().find((g): g is Gamepad => g != null);
-    if (!gp) return;
+    const gp = _getNavigatorGamepads()[0];
+    if (!gp) {
+      document.body.classList.remove("using-gamepad");
+      return;
+    }
 
     // Activating gamepad mode for specialized focus visuals
     if (!document.body.classList.contains("using-gamepad")) {
@@ -1891,20 +1975,30 @@ function _wireLibraryNavigation(): void {
 
     const now = performance.now();
 
-    // Read directional inputs (D-pad buttons 12–15 and left analogue stick)
-    const rawUp    = (gp.buttons[12]?.pressed ?? false) || (gp.axes[1] ?? 0) < -0.5;
-    const rawDown  = (gp.buttons[13]?.pressed ?? false) || (gp.axes[1] ?? 0) >  0.5;
-    const rawLeft  = (gp.buttons[14]?.pressed ?? false) || (gp.axes[0] ?? 0) < -0.5;
-    const rawRight = (gp.buttons[15]?.pressed ?? false) || (gp.axes[0] ?? 0) >  0.5;
+    const ax = gp.axes[0] ?? 0;
+    const ay = gp.axes[1] ?? 0;
+    // Certain pads expose the D-pad as extra axes instead of buttons 12–15.
+    const hatX = gp.axes.length > 6 ? (gp.axes[6] ?? 0) : 0;
+    const hatY = gp.axes.length > 7 ? (gp.axes[7] ?? 0) : 0;
+
+    // Directional: standard D-pad (12–15), left stick, optional hat axes (6–7)
+    const rawUp =
+      _gamepadBtnDown(gp.buttons[12]) || ay < -0.55 || hatY < -0.55;
+    const rawDown =
+      _gamepadBtnDown(gp.buttons[13]) || ay > 0.55 || hatY > 0.55;
+    const rawLeft =
+      _gamepadBtnDown(gp.buttons[14]) || ax < -0.55 || hatX < -0.55;
+    const rawRight =
+      _gamepadBtnDown(gp.buttons[15]) || ax > 0.55 || hatX > 0.55;
 
     // Button 0 = Cross/A (launch), Button 1 = Circle/B (deselect)
     // Button 4 = L1 (page up), Button 5 = R1 (page down)
     // Button 9 = Start (settings)
-    const btnA = gp.buttons[0]?.pressed ?? false;
-    const btnB = gp.buttons[1]?.pressed ?? false;
-    const btnL1 = gp.buttons[4]?.pressed ?? false;
-    const btnR1 = gp.buttons[5]?.pressed ?? false;
-    const btnStart = gp.buttons[9]?.pressed ?? false;
+    const btnA = _gamepadBtnDown(gp.buttons[0]);
+    const btnB = _gamepadBtnDown(gp.buttons[1]);
+    const btnL1 = _gamepadBtnDown(gp.buttons[4]);
+    const btnR1 = _gamepadBtnDown(gp.buttons[5]);
+    const btnStart = _gamepadBtnDown(gp.buttons[9]);
 
     const prevBtnA = _libGpPrevBtns[0] ?? false;
     const prevBtnB = _libGpPrevBtns[1] ?? false;
@@ -2169,6 +2263,8 @@ function _renderSystemFilterChips(
     const iconEl = make("span", { class: "sys-filter-chip__icon" });
     if (icon.includes("/assets/")) {
       iconEl.appendChild(make("img", { src: icon, alt: "" }));
+    } else if (isSvgMarkup(icon)) {
+      iconEl.innerHTML = icon;
     } else {
       iconEl.textContent = icon;
     }
@@ -2183,7 +2279,7 @@ function _renderSystemFilterChips(
     return chip;
   };
 
-  filterEl.appendChild(createChip("", "All Games", "🎮"));
+  filterEl.appendChild(createChip("", "All Games", ICON_GRID_ALL_SVG));
 
   for (const sysId of systemIds) {
     const sys = getSystemById(sysId);
@@ -2226,7 +2322,7 @@ function buildGameCard(
   cardTop.append(cardSystem, cardStatus);
   icon.appendChild(cardTop);
 
-  // System icon (emoji or image) wrapped in a span so CSS can hide it when cover art is shown
+  // System icon (SVG, emoji, or image URL) wrapped in a span so CSS can hide it when cover art is shown
   const sysIconWrap = make("span", { class: "game-card__sys-icon", "aria-hidden": "true" });
   const iconOutput = systemIcon(game.systemId);
   if (iconOutput.includes("/assets/")) {
@@ -2236,6 +2332,8 @@ function buildGameCard(
       sysIconWrap.textContent = system?.shortName ?? game.systemId.toUpperCase();
     }, { once: true });
     sysIconWrap.appendChild(sysImg);
+  } else if (isSvgMarkup(iconOutput)) {
+    sysIconWrap.innerHTML = iconOutput;
   } else {
     sysIconWrap.textContent = iconOutput;
   }
@@ -2252,7 +2350,8 @@ function buildGameCard(
   }
 
   if (system?.hasAchievements) {
-    const achBadge = make("div", { class: "game-card__ach-badge", title: "RetroAchievements Supported" }, "🏆");
+    const achBadge = make("div", { class: "game-card__ach-badge", title: "RetroAchievements Supported" });
+    achBadge.innerHTML = ICON_TROPHY_SVG;
     icon.appendChild(achBadge);
   }
 
@@ -2335,7 +2434,8 @@ function buildGameCard(
     class: "game-card__remove",
     title: "Remove from library",
     "aria-label": `Remove ${game.name}`,
-  }, "✕");
+  });
+  btnRemove.innerHTML = ICON_CLOSE_X_SVG;
   btnRemove.addEventListener("click", async (e) => {
     e.stopPropagation();
     const confirmed = await showConfirmDialog(
@@ -2437,7 +2537,7 @@ function buildGameCard(
     "aria-label": game.hasCoverArt || game.thumbnailUrl
       ? `Change cover art for ${game.name}`
       : `Set cover art for ${game.name}`,
-  }, "🖼");
+  }, "");
 
   btnArt.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -2490,7 +2590,8 @@ function buildGameCard(
         let candidates: CoverArtCandidate[] = [];
 
         // Show a loading state — search can take a few seconds
-        btnArt.textContent = "⏳";
+        btnArt.classList.add("game-card__art-btn--loading");
+        btnArt.setAttribute("aria-busy", "true");
         btnArt.disabled = true;
 
         // Calculate MD5 hash for providers that need it (ScreenScraper)
@@ -2505,7 +2606,7 @@ function buildGameCard(
               hashes = { md5 };
             }
           } catch (err) {
-            console.warn("Hash calculation for cover art failed:", err);
+            diagWarn(settings.verboseLogging, "Hash calculation for cover art failed:", err);
           }
         }
 
@@ -2521,7 +2622,8 @@ function buildGameCard(
           showError(`Cover art search failed: ${err instanceof Error ? err.message : String(err)}`);
           return;
         } finally {
-          btnArt.textContent = "🖼";
+          btnArt.classList.remove("game-card__art-btn--loading");
+          btnArt.removeAttribute("aria-busy");
           btnArt.disabled = false;
         }
         const pickedUrl = await showCoverArtCandidatePicker(
@@ -2556,22 +2658,13 @@ function buildGameCard(
         btnArt.setAttribute("aria-label", `Change cover art for ${game.name}`);
 
       } else if (result.type === "url") {
-        // Fetch the image to validate it and store locally as a blob.
-        // createImageBitmap() verifies the blob is a decodable image regardless
-        // of what the Content-Type header claims, preventing non-image blobs
-        // from being stored.
         let fetchedBlob: Blob;
         try {
-          const resp = await fetch(result.url, { mode: "cors" });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          fetchedBlob = await resp.blob();
-          // Validate that the blob is actually a decodable image
-          const bitmap = await createImageBitmap(fetchedBlob);
-          bitmap.close();
+          fetchedBlob = await fetchAndValidateCoverArt(result.url);
         } catch (fetchErr) {
           showError(
-            `Could not fetch image from that URL: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}. ` +
-            "Try downloading the image to your device and uploading it instead."
+            `Could not use that URL as cover art: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}. ` +
+            "The host must allow hotlinking (CORS). Try downloading the image and uploading it instead.",
           );
           return;
         }
@@ -2805,14 +2898,7 @@ function buildSystemFeatureRow(
 function systemIcon(systemId: string): string {
   const sys = getSystemById(systemId);
   if (sys?.iconUrl) return sys.iconUrl;
-
-  const icons: Record<string, string> = {
-    psp: "🎮", nes: "🕹", snes: "🕹", gba: "🎯", gbc: "🟢", gb: "⬜",
-    nds: "📱", n64: "🎮", psx: "🔵", segaMD: "⚡", segaGG: "🔶",
-    segaMS: "📺", atari2600: "👾", arcade: "🕹", segaSaturn: "💫",
-    segaDC: "🌀", mame2003: "🕹", atari7800: "👾", lynx: "📟", ngp: "🔴",
-  };
-  return icons[systemId] ?? "🎮";
+  return ICON_GAMEPAD_DECOR_SVG;
 }
 
 
@@ -3273,7 +3359,7 @@ export async function resolveSystemAndAdd(
       showError(
         `"${resolvedFile.name}" isn't a recognised ROM format.\n\n` +
         `Try a common format like .iso, .gba, .sfc, .nes, or .nds.\n` +
-        `See Settings → ❓ Help for the full list of supported formats.`
+        `See Settings → Help for the full list of supported formats.`
       );
       return;
     }
@@ -3428,7 +3514,9 @@ function showArchiveEntryPickerDialog(
 }
 
 function showCoverArtPickerDialog(gameName: string, hasExistingArt: boolean): ReturnType<typeof showCoverArtPickerDialogImpl> {
-  return showCoverArtPickerDialogImpl(gameName, hasExistingArt);
+  return showCoverArtPickerDialogImpl(gameName, hasExistingArt, {
+    onOpenApiKeysSettings: () => { _openSettingsFn?.("apikeys"); },
+  });
 }
 
 async function handleM3UFile(
@@ -3558,7 +3646,7 @@ export function buildLandingControls(
   }
 
   if (deviceCaps.isLowSpec || deviceCaps.isChromOS) {
-    const label = deviceCaps.isChromOS ? "⚡ Chromebook" : "⚡ Low-spec";
+    const label = deviceCaps.isChromOS ? "Chromebook" : "Low-spec";
     const tip   = deviceCaps.isChromOS ? "Chromebook detected — Performance mode recommended" : "Performance mode recommended for this device";
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
   }
@@ -3579,7 +3667,7 @@ export function buildLandingControls(
     title: "Getting started guide and keyboard shortcuts",
     "aria-label": "Open help and getting started guide",
   });
-  btnHelp.textContent = "❓ Help";
+  btnHelp.textContent = "Help";
   btnHelp.addEventListener("click", () => {
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "about");
   });
@@ -3747,7 +3835,7 @@ function buildInGameControls(
       title: "Edit touch control layout",
       "aria-label": "Edit touch control layout",
     }) as HTMLButtonElement;
-    btnEditTouch.textContent = "🎮 Edit";
+    btnEditTouch.textContent = "Edit controls";
     btnEditTouch.disabled = !touchControlsEnabled;
     btnEditTouch.addEventListener("click", () => {
       const overlay = getTouchOverlay?.();
@@ -3815,7 +3903,7 @@ function buildInGameControls(
 }
 
 /**
- * Premium glassmorphic in-game overlay menu.
+ * In-game overlay menu: responsive shell (safe-area, dvh), tab-friendly controls.
  */
 async function showInGameMenu(ctx: {
   emulator: PSPEmulator;
@@ -3874,30 +3962,50 @@ async function showInGameMenu(ctx: {
       ac.abort();
       _inGameMenuOpen = false;
       if (ctx.emulator.state === "paused") ctx.emulator.resume();
-    }, 400);
+    }, 300);
   };
   _closeInGameMenu = closeMenu;
 
   const menu = make("div", { class: "ingame-menu" });
   overlay.appendChild(menu);
 
+  const btnCloseMenu = make("button", {
+    type: "button",
+    class: "ingame-menu__close",
+    "aria-label": "Close menu",
+    title: "Close (Escape)",
+  }) as HTMLButtonElement;
+  btnCloseMenu.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  btnCloseMenu.addEventListener("click", () => closeMenu(), { signal });
+
   // Sidebar
   const sidebar = make("div", { class: "ingame-menu__sidebar", role: "navigation", "aria-label": "System Menu Navigation" });
   sidebar.innerHTML = `<div class="ingame-menu__sidebar-title">Oasis Menu</div>`;
+  menu.appendChild(btnCloseMenu);
   menu.appendChild(sidebar);
 
   const content = make("div", { class: "ingame-menu__content" });
+  const scrollRoot = make("div", { class: "ingame-menu__content-scroll" });
+  content.appendChild(scrollRoot);
   menu.appendChild(content);
 
   const renderContent = async (type: "saves" | "settings" | "multiplayer") => {
     // Revoke stale thumbnail object URLs from a previous saves-tab render.
     _revokeThumbUrls();
-    content.innerHTML = "";
+    scrollRoot.innerHTML = "";
     
-    // Update sidebar active state
-    sidebar.querySelectorAll(".ingame-menu__sidebar-btn").forEach(b => b.classList.remove("ingame-menu__sidebar-btn--active"));
+    // Update sidebar active state + aria-current for panel tabs only
+    sidebar.querySelectorAll(".ingame-menu__sidebar-btn").forEach((b) => {
+      b.classList.remove("ingame-menu__sidebar-btn--active");
+      b.removeAttribute("aria-current");
+    });
     const activeBtn = sidebar.querySelector(`[data-tab="${type}"]`);
-    if (activeBtn) activeBtn.classList.add("ingame-menu__sidebar-btn--active");
+    if (activeBtn) {
+      activeBtn.classList.add("ingame-menu__sidebar-btn--active");
+      if (type === "saves" || type === "settings" || type === "multiplayer") {
+        activeBtn.setAttribute("aria-current", "page");
+      }
+    }
 
     const header = make("div", { class: "ingame-menu__header" });
     header.innerHTML = `
@@ -3909,10 +4017,10 @@ async function showInGameMenu(ctx: {
         </div>
       </div>
     `;
-    content.appendChild(header);
+    scrollRoot.appendChild(header);
 
     const body = make("div", { class: "ingame-menu__body" });
-    content.appendChild(body);
+    scrollRoot.appendChild(body);
 
     if (type === "saves") {
       // Cloud save bar
@@ -4101,9 +4209,10 @@ async function showInGameMenu(ctx: {
       fpsRow.innerHTML = `
         <div class="ingame-menu__setting-info">
           <div class="ingame-menu__setting-name">Show FPS Counter</div>
+          <div class="ingame-menu__setting-desc">Live frames-per-second readout in the top-right of the game area.</div>
         </div>
         <div class="ingame-menu__setting-control">
-          <button class="ingame-menu__toggle ${ctx.settings.showFPS ? "on" : "off"}" aria-pressed="${ctx.settings.showFPS ? "true" : "false"}">${ctx.settings.showFPS ? "Enabled" : "Disabled"}</button>
+          <button type="button" class="ingame-menu__toggle ${ctx.settings.showFPS ? "on" : "off"}" aria-pressed="${ctx.settings.showFPS ? "true" : "false"}">${ctx.settings.showFPS ? "Enabled" : "Disabled"}</button>
         </div>
       `;
       const fpsBtn = fpsRow.querySelector("button")!;
@@ -4124,7 +4233,7 @@ async function showInGameMenu(ctx: {
         const touchSys = getSystemById(systemId);
         const touchDesc =
           touchSys?.touchControlMode === "builtin"
-            ? "Optional RetroOasis layer on top of native touch controls."
+            ? `Optional ${APP_NAME} layer on top of native touch controls.`
             : "Virtual buttons over the game. Turn off for gamepads, keyboards, or a clear screen.";
         const touchRow = make("div", { class: "ingame-menu__setting-item" });
         touchRow.innerHTML = `
@@ -4518,7 +4627,7 @@ async function showInGameMenu(ctx: {
 
   void renderContent("saves");
   requestAnimationFrame(() => {
-    sidebar.querySelector<HTMLButtonElement>(".ingame-menu__sidebar-btn")?.focus();
+    btnCloseMenu.focus();
   });
 
   overlay.addEventListener("click", (e) => {
@@ -4544,6 +4653,26 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 // ── Settings panel ────────────────────────────────────────────────────────────
 
 type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about";
+
+/** Sidebar nav icons (24×24, stroke) — replaces emoji for consistent UI chrome. */
+const SETTINGS_SIDEBAR_ICON_SVG: Record<SettingsTab, string> = {
+  performance: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  display: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>`,
+  library: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+  cloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
+  bios: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  multiplayer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  achievements: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  apikeys: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="M13 13 6 20"/></svg>`,
+  debug: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+  about: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`,
+};
+
+function settingsSidebarIconEl(tabId: SettingsTab): HTMLElement {
+  const wrap = make("span", { class: "settings-sidebar__icon", "aria-hidden": "true" });
+  wrap.innerHTML = SETTINGS_SIDEBAR_ICON_SVG[tabId];
+  return wrap;
+}
 
 export function openSettingsPanel(
   settings:         Settings,
@@ -4695,17 +4824,17 @@ function buildSettingsContent(
   const activeTabLabel = make("p", { class: "settings-active-tab-label", "aria-live": "polite" });
   quickBar.append(activeTabLabel);
 
-  const tabs: Array<{ id: SettingsTab; icon: string; label: string; ariaLabel: string }> = [
-    { id: "performance",  icon: "⚡", label: "Performance",   ariaLabel: "Performance" },
-    { id: "display",      icon: "🖥", label: "Display",        ariaLabel: "Display" },
-    { id: "library",      icon: "📚", label: "My Games",       ariaLabel: "My Games" },
-    { id: "cloud",        icon: "☁️", label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
-    { id: "bios",         icon: "💾", label: "System Files",   ariaLabel: "System Files" },
-    { id: "multiplayer",  icon: "🌐", label: "Play Together",  ariaLabel: "Play Together" },
-    { id: "achievements", icon: "🏆", label: "Achievements",   ariaLabel: "Achievements" },
-    { id: "apikeys",      icon: "🔑", label: "API Keys",       ariaLabel: "API Keys" },
-    { id: "debug",        icon: "🔧", label: "Advanced",       ariaLabel: "Advanced" },
-    { id: "about",        icon: "❓", label: "Help",            ariaLabel: "Help" },
+  const tabs: Array<{ id: SettingsTab; label: string; ariaLabel: string }> = [
+    { id: "performance",  label: "Performance",   ariaLabel: "Performance" },
+    { id: "display",      label: "Display",        ariaLabel: "Display" },
+    { id: "library",      label: "My Games",       ariaLabel: "My Games" },
+    { id: "cloud",        label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
+    { id: "bios",         label: "System Files",   ariaLabel: "System Files" },
+    { id: "multiplayer",  label: "Play Together",  ariaLabel: "Play Together" },
+    { id: "achievements", label: "Achievements",   ariaLabel: "Achievements" },
+    { id: "apikeys",      label: "API Keys",       ariaLabel: "API Keys" },
+    { id: "debug",        label: "Advanced",       ariaLabel: "Advanced" },
+    { id: "about",        label: "Help",            ariaLabel: "Help" },
   ];
   const tabIndexById = new Map<SettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
@@ -4760,7 +4889,7 @@ function buildSettingsContent(
   };
 
   tabs.forEach((tab, i) => {
-    const iconEl = make("span", { class: "settings-sidebar__icon", "aria-hidden": "true" }, tab.icon);
+    const iconEl = settingsSidebarIconEl(tab.id);
     const labelEl = make("span", { class: "settings-sidebar__label" }, tab.label);
     const btn = make("button", {
       id: `tab-${tab.id}`,
@@ -4929,13 +5058,13 @@ function formatWebGPUStatus(
   available: boolean,
   adapterInfo?: { device?: string; vendor?: string; isFallbackAdapter?: boolean } | null
 ): string {
-  if (!available) return "✗ Not available (Chrome 113+ required)";
+  if (!available) return "Not available (browser does not expose WebGPU)";
   if (adapterInfo?.device) {
     const suffix = adapterInfo.isFallbackAdapter ? " (software fallback)" : "";
-    return `✓ ${adapterInfo.device}${suffix}`;
+    return `${adapterInfo.device}${suffix}`;
   }
-  if (adapterInfo?.vendor) return `✓ ${adapterInfo.vendor}`;
-  return "✓ Available";
+  if (adapterInfo?.vendor) return String(adapterInfo.vendor);
+  return "Available";
 }
 
 function buildPerfTab(
@@ -4992,17 +5121,24 @@ function buildPerfTab(
   const perfSection = make("div", { class: "settings-section" });
   perfSection.appendChild(make("h4", { class: "settings-section__title" }, "Graphics Mode"));
   perfSection.appendChild(make("p", { class: "settings-help" },
-    "Controls how detailed the graphics look and how smoothly games run. " +
-    "If games feel slow or choppy, try Performance mode. Changes apply when you start or restart a game."
+    "Controls emulation quality versus speed for games that honour tier presets. " +
+    "Try Performance mode if gameplay feels sluggish. Changes apply when you start or restart a game. " +
+    "This graphics mode also steers WebGL power hints when cores create a GPU context."
   ));
 
   const autoModeActive = deviceCaps.isLowSpec || deviceCaps.tier === "medium" ? "Performance" : "Quality";
   const modes: Array<{ value: PerformanceMode; label: string; desc: string }> = [
-    { value: "auto",        label: "Auto  (Recommended)", desc: `Let ${APP_NAME} choose — right now using ${autoModeActive} mode for your device` },
-    { value: "performance", label: "Performance — smoother gameplay",  desc: "Lower-resolution but faster. Great for older devices or when games feel sluggish." },
-    { value: "quality",     label: "Quality — sharper visuals",        desc: "Higher-resolution graphics for powerful devices. May slow down on older hardware." },
+    { value: "auto",        label: "Auto (Recommended)", desc: `Let ${APP_NAME} choose — right now leaning toward ${autoModeActive} for this device.` },
+    { value: "performance", label: "Performance — smoother gameplay",  desc: "Lower-resolution presets but faster. Great for older devices or when games feel sluggish." },
+    { value: "quality",     label: "Quality — sharper visuals",        desc: "Higher-resolution presets where available. May tax weaker hardware." },
   ];
 
+  const perfRg = make("div", {
+    role: "radiogroup",
+    class: "settings-radio-group",
+    "aria-label": "Graphics mode for games",
+  });
+  perfSection.appendChild(perfRg);
   for (const m of modes) {
     const row   = make("label", { class: "radio-row" });
     const radio = make("input", { type: "radio", name: "perf-mode", value: m.value }) as HTMLInputElement;
@@ -5011,7 +5147,7 @@ function buildPerfTab(
     const txt = make("span", { class: "radio-row__text" });
     txt.append(make("span", { class: "radio-row__label" }, m.label), make("span", { class: "radio-row__desc" }, m.desc));
     row.append(radio, txt);
-    perfSection.appendChild(row);
+    perfRg.appendChild(row);
   }
 
   perfSection.appendChild(buildToggleRow(
@@ -5051,8 +5187,8 @@ function buildPerfTab(
   if (deviceCaps.gpuCaps.anisotropicFiltering) {
     gpuDetails.appendChild(make("p", { class: "device-info" }, `Anisotropic filtering: ${deviceCaps.gpuCaps.maxAnisotropy}×`));
   }
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "✓" : "✗"} · WebGPU: ${webgpuStatusText}`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "✓ (PSP supported)" : "✗"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "✓" : "✗"}`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "Yes" : "No"} · WebGPU: ${webgpuStatusText}`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "Yes (PSP supported)" : "No"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "Yes" : "No"}`));
   gpuDisclosure.appendChild(gpuDetails);
   deviceSection.appendChild(gpuDisclosure);
   container.append(perfSection, deviceSection);
@@ -5061,16 +5197,22 @@ function buildPerfTab(
   const uiSection = make("div", { class: "settings-section" });
   uiSection.appendChild(make("h4", { class: "settings-section__title" }, "UI Visual Fidelity"));
   uiSection.appendChild(make("p", { class: "settings-help" },
-    "Adjusts the library and menu visual effects. 'Lite' mode disables blurs, heavy animations, and complex gradients " +
-    "to ensure the interface feels snappy on all devices."
+    "Controls the chrome around the library and menus — not in-game emulation. Lite mode trims blurs and heavy animations " +
+    "so the interface stays snappy on constrained devices."
   ));
 
   const uiModes: Array<{ value: Settings["uiMode"]; label: string; desc: string }> = [
-    { value: "auto",    label: "Auto (Recommended)",    desc: "Adapts based on device and data saver settings" },
-    { value: "quality", label: "Quality — full effects", desc: "Best visuals with blurs, animations, and high-res gradients." },
-    { value: "lite",    label: "Lite — max speed",      desc: "Minimal visuals. Disables blurs and animations for speed." },
+    { value: "auto",    label: "Auto (Recommended)",    desc: "Uses device class, Motion preferences, and data-saver cues when deciding." },
+    { value: "quality", label: "Quality — full effects", desc: "Full chrome: blurs, motion, richer gradients." },
+    { value: "lite",    label: "Lite — max speed",      desc: "Minimal chrome for maximum UI responsiveness." },
   ];
 
+  const uiRg = make("div", {
+    role: "radiogroup",
+    class: "settings-radio-group",
+    "aria-label": "Library and shell visual style",
+  });
+  uiSection.appendChild(uiRg);
   for (const m of uiModes) {
     const row   = make("label", { class: "radio-row" });
     const radio = make("input", { type: "radio", name: "ui-mode", value: m.value }) as HTMLInputElement;
@@ -5079,7 +5221,7 @@ function buildPerfTab(
     const txt = make("span", { class: "radio-row__text" });
     txt.append(make("span", { class: "radio-row__label" }, m.label), make("span", { class: "radio-row__desc" }, m.desc));
     row.append(radio, txt);
-    uiSection.appendChild(row);
+    uiRg.appendChild(row);
   }
   container.appendChild(uiSection);
 }
@@ -5099,7 +5241,7 @@ function buildDisplayTab(
 
   overlaySection.appendChild(buildToggleRow(
     "Show FPS counter",
-    "Shows a small frame-rate display while a game is running — useful for checking performance",
+    "Shows frame rate while a game is running.",
     settings.showFPS,
     (v) => {
       onSettingsChange({ showFPS: v });
@@ -5110,7 +5252,7 @@ function buildDisplayTab(
 
   overlaySection.appendChild(buildToggleRow(
     "Audio waveform",
-    "Shows a small oscilloscope waveform alongside the FPS counter (FPS counter must be enabled)",
+    "Adds a waveform next to the FPS readout (FPS counter must be on).",
     settings.showAudioVis,
     (v) => {
       onSettingsChange({ showAudioVis: v });
@@ -5175,8 +5317,8 @@ function buildDisplayTab(
   const activeSystem = emulatorRef?.currentSystem ?? null;
   const activeSystemTouchControlsEnabled = getTouchControlsDefaultForSystem(activeSystem?.id ?? null, settings);
   const touchControlsHelp = activeSystem?.touchControlMode === "builtin"
-    ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use 🎮 Edit to reposition them.`
-    : `${APP_NAME} shows its on-screen buttons on touch devices when they help. Turn this off to hide them, or turn it on for systems that need an overlay you can reposition with 🎮 Edit.`;
+    ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use Edit controls in the game toolbar to reposition them.`
+    : `${APP_NAME} shows its on-screen buttons on touch devices when they help. Turn this off to hide them, or turn it on for systems that need an overlay you can reposition with Edit controls in the game toolbar.`;
 
   const installRow = make("div", { class: "pwa-install-row" });
   const buildInstallBtn = () => {
@@ -5188,13 +5330,17 @@ function buildDisplayTab(
       return;
     }
     const btnInstall = make("button", { class: "btn btn--primary pwa-install-btn" });
-    const emojiSpan = make("span", { "aria-hidden": "true" }, "📲");
-    const labelSpan = document.createTextNode(" Install as App");
-    btnInstall.append(emojiSpan, labelSpan);
+    const iconSpan = make("span", { class: "pwa-install__icon", "aria-hidden": "true" });
+    iconSpan.innerHTML = ICON_PWA_INSTALL_SVG;
+    const labelSpan = make("span", { class: "pwa-install__label" }, "Install as App");
+    btnInstall.append(iconSpan, labelSpan);
     btnInstall.addEventListener("click", async () => {
       if (!_onInstallPWA) return;
       const installed = await _onInstallPWA();
-      if (installed) { btnInstall.textContent = "✓ Installing…"; btnInstall.disabled = true; }
+      if (installed) {
+        labelSpan.textContent = "Installing…";
+        btnInstall.disabled = true;
+      }
     });
     installRow.appendChild(btnInstall);
   };
@@ -5277,26 +5423,30 @@ function buildDisplayTab(
   // WebGPU section — appended last so Overlays and Mobile always appear first
   if (deviceCaps.webgpuAvailable) {
     const gpuSection = make("div", { class: "settings-section" });
-    gpuSection.appendChild(make("h4", { class: "settings-section__title" }, "Visual Effects"));
+    gpuSection.appendChild(make("h4", {
+      class: "settings-section__title",
+      id: "visual-effects-heading",
+    }, "Visual Effects"));
     gpuSection.appendChild(make("p", { class: "settings-help" },
-      "Apply extra visual effects to your games using your GPU. These are purely cosmetic — they don't affect gameplay."
+      `Optional fullscreen filters layered over the emulator via WebGPU. When an effect runs, ${APP_NAME} may keep each WebGL frame in memory between presents ` +
+      "so the overlay can sample it — a slight increase in VRAM or bandwidth on some GPUs.",
     ));
 
     {
       const tierForHint = resolveTier(settings.performanceMode, deviceCaps);
       if (shouldDeferWebGpuPostFor3DSession(true, tierForHint, deviceCaps)) {
         gpuSection.appendChild(make("p", { class: "settings-help" },
-          "On this performance tier, WebGPU overlays stay off during demanding 3D systems (PSP, PS1, N64, DS) so more GPU time goes to the emulator. " +
-          "Set a per-game visual effect in that game’s graphics profile if you want an effect anyway."
+          "On this tier, WebGPU overlays stay off for heavier 3D systems (PSP, PS1, N64, DS) so more GPU time stays on the emulator. " +
+          `Set a per-game effect in ${APP_NAME}'s graphics profile when you explicitly want filters on those cores.`
         ));
       }
     }
 
     gpuSection.appendChild(buildToggleRow(
       "Enable GPU effects",
-      "Unlock the visual effect options below (experimental — requires a modern GPU). When an effect is skipped in-game, the choice here is still saved.",
+      "Turns on the selectable filters below. Experimental; skipped effects are remembered but not drawn until they're allowed.",
       settings.useWebGPU,
-      (v) => onSettingsChange({ useWebGPU: v })
+      (v) => onSettingsChange({ useWebGPU: v }),
     ));
 
     type FxOption = { value: PostProcessEffect; label: string; desc: string };
@@ -5320,11 +5470,19 @@ function buildDisplayTab(
       fxOptions.forEach((o, i) => {
         if (POST_PROCESS_EFFECT_UI_ORDER[i] !== o.value) {
           throw new Error(
-            `[RetroOasis] Visual Effects UI list diverged from POST_PROCESS_EFFECT_UI_ORDER at index ${i}`,
+            `[${APP_NAME}] Visual Effects UI list diverged from POST_PROCESS_EFFECT_UI_ORDER at index ${i}`,
           );
         }
       });
     }
+
+    const fxRg = make("div", {
+      role: "radiogroup",
+      class: "settings-radio-group",
+      "aria-labelledby": "visual-effects-heading",
+    });
+    gpuSection.appendChild(fxRg);
+
     for (const opt of fxOptions) {
       const row   = make("label", { class: "radio-row" });
       const radio = make("input", { type: "radio", name: "postfx-mode", value: opt.value }) as HTMLInputElement;
@@ -5336,7 +5494,7 @@ function buildDisplayTab(
       const txt = make("span", { class: "radio-row__text" });
       txt.append(make("span", { class: "radio-row__label" }, opt.label), make("span", { class: "radio-row__desc" }, opt.desc));
       row.append(radio, txt);
-      gpuSection.appendChild(row);
+      fxRg.appendChild(row);
     }
 
     container.appendChild(gpuSection);
@@ -5355,8 +5513,16 @@ function buildLibraryTab(
   emulatorRef?:     import("./emulator.js").PSPEmulator
 ): void {
   // Library stats
-  const libSection = make("div", { class: "settings-section" });
-  libSection.appendChild(make("h4", { class: "settings-section__title" }, "My Game Library"));
+  const libraryMyGamesHeadingId = "settings-library-my-games-heading";
+  const libSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": libraryMyGamesHeadingId,
+  });
+  libSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: libraryMyGamesHeadingId,
+  }, "My Game Library"));
 
   const statsEl = make("p", { class: "device-info" }, "Calculating…");
   libSection.appendChild(statsEl);
@@ -5392,8 +5558,16 @@ function buildLibraryTab(
   container.appendChild(libSection);
 
   // Organization
-  const orgSection = make("div", { class: "settings-section" });
-  orgSection.appendChild(make("h4", { class: "settings-section__title" }, "Organization"));
+  const libraryOrgHeadingId = "settings-library-organization-heading";
+  const orgSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": libraryOrgHeadingId,
+  });
+  orgSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: libraryOrgHeadingId,
+  }, "Organization"));
 
   orgSection.appendChild(buildToggleRow(
     "Group by system",
@@ -5405,8 +5579,16 @@ function buildLibraryTab(
 
   // Save states
   if (saveLibrary) {
-    const saveSection = make("div", { class: "settings-section" });
-    saveSection.appendChild(make("h4", { class: "settings-section__title" }, "Saved Progress"));
+    const librarySavesHeadingId = "settings-library-saved-progress-heading";
+    const saveSection = make("div", {
+      class: "settings-section",
+      role: "region",
+      "aria-labelledby": librarySavesHeadingId,
+    });
+    saveSection.appendChild(make("h4", {
+      class: "settings-section__title",
+      id: librarySavesHeadingId,
+    }, "Saved Progress"));
 
     const saveStatsEl = make("p", { class: "device-info" }, "Calculating…");
     saveSection.appendChild(saveStatsEl);
@@ -5468,8 +5650,16 @@ function buildLibraryTab(
   }
 
   // Play History
-  const historySection = make("div", { class: "settings-section" });
-  historySection.appendChild(make("h4", { class: "settings-section__title" }, "Play History"));
+  const libraryHistoryHeadingId = "settings-library-play-history-heading";
+  const historySection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": libraryHistoryHeadingId,
+  });
+  historySection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: libraryHistoryHeadingId,
+  }, "Play History"));
 
   const historyStatsEl = make("p", { class: "device-info" }, "Calculating…");
   historySection.appendChild(historyStatsEl);
@@ -5510,8 +5700,16 @@ function buildLibraryTab(
   container.appendChild(historySection);
 
   // Supported systems
-  const sysSection = make("div", { class: "settings-section" });
-  sysSection.appendChild(make("h4", { class: "settings-section__title" }, "Supported Systems"));
+  const librarySystemsHeadingId = "settings-library-supported-systems-heading";
+  const sysSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": librarySystemsHeadingId,
+  });
+  sysSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: librarySystemsHeadingId,
+  }, "Supported Systems"));
   const sysList = make("div", { class: "sys-list" });
   for (const sys of SYSTEMS) {
     const chip = make("span", { class: "sys-chip" }, sys.shortName);
@@ -5666,7 +5864,7 @@ export function openEasyNetplayModal(opts: {
     class: "enp-copy-diag",
     "aria-label": "Copy multiplayer diagnostics",
     title: "Copy connection diagnostics",
-  }, "📋 Logs") as HTMLButtonElement;
+  }, "Logs") as HTMLButtonElement;
   btnCopyDiagnostics.addEventListener("click", () => {
     const entries = easyMgr.diagnostics.entries;
     if (entries.length === 0) {
@@ -5692,7 +5890,8 @@ export function openEasyNetplayModal(opts: {
   const btnClose = make("button", {
     class:       "enp-close",
     "aria-label": "Close multiplayer",
-  }, "✕") as HTMLButtonElement;
+  }) as HTMLButtonElement;
+  btnClose.innerHTML = ICON_CLOSE_X_SVG;
   header.appendChild(btnClose);
   dialog.appendChild(header);
   const preTabs = make("div", { class: "enp-pre-tabs" });
@@ -5742,7 +5941,7 @@ export function openEasyNetplayModal(opts: {
       gameBadge.appendChild(make("span", {
         class: "enp-compat-warn",
         title: sysSupport.errors[0] ?? "",
-      }, "⚠ No multiplayer support"));
+      }, "No multiplayer support"));
     }
     preTabs.appendChild(gameBadge);
   }
@@ -5962,7 +6161,7 @@ function _buildHostPanel(
   // No-server warning
   if (!serverUrl) {
     const warn = make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings → Play Together."
+      "No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings → Play Together."
     );
     container.appendChild(warn);
   }
@@ -6026,7 +6225,7 @@ function _buildHostPanel(
         const room = ev.room;
         statusArea.innerHTML = "";
         sharedRenderRoomCard(statusArea, room, { showLeaveBtn: true, easyMgr, isHost: true, showToast: showInfoToast });
-        btnCreate.textContent = "Hosting ✓";
+        btnCreate.textContent = "Hosting";
         btnCreate.disabled    = true;
       }
       if (ev.type === "error") {
@@ -6150,7 +6349,7 @@ function _buildJoinPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Joining by code requires a server. Add one in Settings → Play Together."
+      "No server URL configured. Joining by code requires a server. Add one in Settings → Play Together."
     ));
   }
 
@@ -6201,7 +6400,7 @@ function _buildJoinPanel(
         const room = ev.room;
         statusArea.innerHTML = "";
         sharedRenderRoomCard(statusArea, room, { showLeaveBtn: true, easyMgr, isHost: false, showToast: showInfoToast });
-        btnJoin.textContent = "Joined ✓";
+        btnJoin.textContent = "Joined";
         btnJoin.disabled    = true;
       }
       if (ev.type === "error") {
@@ -6265,7 +6464,7 @@ function _buildBrowsePanel(
   // When no server is configured, show a helpful message instead of loading skeletons.
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Add one in Settings → Play Together to browse online rooms."
+      "No server URL configured. Add one in Settings → Play Together to browse online rooms."
     ));
   }
 
@@ -6356,7 +6555,7 @@ function _buildBrowsePanel(
         : isFull
           ? "Full"
           : room.hasPassword
-            ? "🔒 Private"
+            ? "Private"
             : "Open";
       const statusCls = incompatibleSystem
         ? "enp-room-card__badge--incompat"
@@ -6570,7 +6769,7 @@ function _buildWatchPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "⚠ No server URL configured. Spectating requires a server. Add one in Settings → Play Together."
+      "No server URL configured. Spectating requires a server. Add one in Settings → Play Together."
     ));
   }
 
@@ -6646,7 +6845,7 @@ function _buildWatchPanel(
         });
         card.appendChild(btnLeave);
         statusArea.appendChild(card);
-        btnWatch.textContent = "Watching ✓";
+        btnWatch.textContent = "Watching";
         btnWatch.disabled    = true;
       }
       if (ev.type === "error") {
@@ -6676,47 +6875,127 @@ function _buildWatchPanel(
 interface CloudProviderMeta {
   id:    string;
   label: string;
-  icon:  string;
+}
+
+/**
+ * Inline SVGs (24×24, currentColor) for cloud wizards — crisp at any DPI, no emoji.
+ * Keys match {@link CloudProviderMeta.id}.
+ */
+const CLOUD_PROVIDER_ICON_SVG: Record<string, string> = {
+  gdrive: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v11z"/></svg>`,
+  dropbox: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+  onedrive: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
+  webdav: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  pcloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/></svg>`,
+  blomp: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+  box: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/></svg>`,
+  mega: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+};
+
+function cloudProviderPickerIconEl(providerId: string): HTMLElement {
+  const wrap = make("span", { class: "cloud-provider-card__icon", "aria-hidden": "true" });
+  const svg = CLOUD_PROVIDER_ICON_SVG[providerId];
+  wrap.innerHTML = svg ?? CLOUD_PROVIDER_ICON_SVG["webdav"]!;
+  return wrap;
 }
 
 /** Providers supported for cloud *save* backup. */
 const CLOUD_SAVE_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
-  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
-  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
-  { id: "blomp",    label: "Blomp",        icon: "💧" },
-  { id: "box",      label: "Box",          icon: "📫" },
-  { id: "mega",     label: "MEGA",         icon: "🔒" },
+  { id: "gdrive",   label: "Google Drive" },
+  { id: "dropbox",  label: "Dropbox" },
+  { id: "onedrive", label: "OneDrive" },
+  { id: "webdav",   label: "WebDAV" },
+  { id: "pcloud",   label: "pCloud" },
+  { id: "blomp",    label: "Blomp" },
+  { id: "box",      label: "Box" },
+  { id: "mega",     label: "MEGA" },
 ];
 
 /** Providers supported for cloud *library* sources (adds OneDrive, MEGA). */
 const CLOUD_LIBRARY_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
-  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
-  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
-  { id: "blomp",    label: "Blomp",        icon: "💧" },
-  { id: "box",      label: "Box",          icon: "📫" },
-  { id: "mega",     label: "MEGA",         icon: "🔒" },
+  { id: "gdrive",   label: "Google Drive" },
+  { id: "dropbox",  label: "Dropbox" },
+  { id: "onedrive", label: "OneDrive" },
+  { id: "webdav",   label: "WebDAV" },
+  { id: "pcloud",   label: "pCloud" },
+  { id: "blomp",    label: "Blomp" },
+  { id: "box",      label: "Box" },
+  { id: "mega",     label: "MEGA" },
 ];
 
 /** Combined lookup table for display name resolution (dedupes gdrive, dropbox etc.). */
 const ALL_CLOUD_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive", icon: "🗂️" },
-  { id: "dropbox",  label: "Dropbox",      icon: "📦" },
-  { id: "onedrive", label: "OneDrive",     icon: "☁️" },
-  { id: "webdav",   label: "WebDAV",       icon: "🔗" },
-  { id: "pcloud",   label: "pCloud",       icon: "🌐" },
-  { id: "blomp",    label: "Blomp",        icon: "💧" },
-  { id: "box",      label: "Box",          icon: "📫" },
-  { id: "mega",     label: "MEGA",         icon: "🔒" },
+  { id: "gdrive",   label: "Google Drive" },
+  { id: "dropbox",  label: "Dropbox" },
+  { id: "onedrive", label: "OneDrive" },
+  { id: "webdav",   label: "WebDAV" },
+  { id: "pcloud",   label: "pCloud" },
+  { id: "blomp",    label: "Blomp" },
+  { id: "box",      label: "Box" },
+  { id: "mega",     label: "MEGA" },
 ];
 
 function getCloudProviderLabel(id: string): string {
   return ALL_CLOUD_PROVIDERS.find(p => p.id === id)?.label ?? id;
+}
+
+/** Paste clipboard text into a cloud wizard field (toast on failure). */
+function pasteIntoCloudWizardInput(input: HTMLInputElement, fieldNameForErrors: string): void {
+  void (async () => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
+        showError("Clipboard paste is not available. Use Ctrl+V (⌘V on Mac) in the field.");
+        input.focus();
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      const t = typeof text === "string" ? text.trim() : "";
+      if (!t) {
+        showError("Clipboard was empty.");
+        input.focus();
+        return;
+      }
+      input.value = t;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    } catch {
+      showError(
+        `Could not read the clipboard for ${fieldNameForErrors} — paste with Ctrl+V in the field, or allow clipboard access for this site.`,
+      );
+      input.focus();
+    }
+  })();
+}
+
+/**
+ * Label + [input, Paste] row for cloud backup / library wizards.
+ * `input` must have a unique `id` for the label association.
+ */
+function appendCloudWizardLabeledField(
+  form: HTMLElement,
+  labelText: string,
+  input: HTMLInputElement,
+  pasteAccessibilityName: string,
+): void {
+  const row = make("div", { class: "settings-input-row" });
+  const label = make("label", { class: "settings-input-label", for: input.id }, labelText);
+  const line = make("div", { class: "settings-input-paste-line" });
+  const pasteBtn = make("button", {
+    type: "button",
+    class: "btn btn--ghost btn--sm",
+    "aria-label": `Paste ${pasteAccessibilityName} from clipboard`,
+    title: "Insert text from the clipboard",
+  }, "Paste") as HTMLButtonElement;
+  pasteBtn.addEventListener("click", () => pasteIntoCloudWizardInput(input, pasteAccessibilityName));
+  line.append(input, pasteBtn);
+  row.append(label, line);
+  form.appendChild(row);
+}
+
+function cloudWizardHeadingId(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? `cloud-wizard-h-${crypto.randomUUID()}`
+    : `cloud-wizard-h-${Date.now().toString(36)}`;
 }
 
 /**
@@ -6744,14 +7023,15 @@ function appendOAuthSignInButton(opts: {
   const oauthBtn = make("button", {
     class: "btn btn--primary oauth-signin-btn",
     type: "button",
+    "aria-label": `Sign in with ${opts.providerLabel} (browser OAuth)`,
   }, `Sign in with ${opts.providerLabel}`) as HTMLButtonElement;
   oauthRow.appendChild(oauthBtn);
   opts.container.appendChild(oauthRow);
 
-  const divider = make("div", { class: "oauth-divider" });
-  divider.appendChild(make("span", { class: "oauth-divider__line" }));
-  divider.appendChild(make("span", { class: "oauth-divider__text" }, "or paste a token"));
-  divider.appendChild(make("span", { class: "oauth-divider__line" }));
+  const divider = make("div", { class: "oauth-divider", role: "separator" });
+  divider.appendChild(make("span", { class: "oauth-divider__line", "aria-hidden": "true" }));
+  divider.appendChild(make("span", { class: "oauth-divider__text" }, "Or paste a token"));
+  divider.appendChild(make("span", { class: "oauth-divider__line", "aria-hidden": "true" }));
   opts.container.appendChild(divider);
 
   oauthBtn.addEventListener("click", async () => {
@@ -6762,7 +7042,7 @@ function appendOAuthSignInButton(opts: {
         ? await startGoogleOAuth()
         : await startDropboxOAuth();
       opts.tokenInput.value = result.accessToken;
-      oauthBtn.textContent = "✓ Signed in";
+      oauthBtn.textContent = "Signed in";
     } catch (err) {
       oauthBtn.disabled = false;
       oauthBtn.textContent = `Sign in with ${opts.providerLabel}`;
@@ -6823,18 +7103,33 @@ function buildCloudSaveBar(): HTMLElement {
   }
 
   statusBody.append(statusText, lastSync);
+  if (isConnected && cloudManager.lastError) {
+    statusBody.appendChild(make("span", {
+      class: "cloud-bar__error-note",
+      role: "status",
+      "aria-live": "polite",
+    }, `Latest sync issue: ${cloudManager.lastError}`));
+  }
   statusSection.appendChild(statusBody);
 
   // Connect / Disconnect button
   if (isConnected) {
-    const disconnectBtn = make("button", { class: "btn btn--sm" }, "Disconnect") as HTMLButtonElement;
+    const disconnectBtn = make("button", {
+      class: "btn btn--sm",
+      type: "button",
+      "aria-label": `Disconnect cloud save backup (${cloudManager.activeProvider.displayName})`,
+    }, "Disconnect") as HTMLButtonElement;
     disconnectBtn.addEventListener("click", () => {
       cloudManager.disconnect();
       bar.replaceWith(buildCloudSaveBar());
     });
     actions.appendChild(disconnectBtn);
   } else {
-    const connectBtn = make("button", { class: "btn btn--sm btn--primary" }, "☁ Connect") as HTMLButtonElement;
+    const connectBtn = make("button", {
+      class: "btn btn--sm btn--primary",
+      type: "button",
+      "aria-label": `Connect cloud save backup — pick a provider to mirror saves from ${APP_NAME}`,
+    }, "Connect") as HTMLButtonElement;
     connectBtn.addEventListener("click", () => {
       void showCloudConnectDialog().then(configured => {
         if (configured) bar.replaceWith(buildCloudSaveBar());
@@ -6885,7 +7180,9 @@ function showCloudConnectDialog(): Promise<boolean> {
 
     const renderStep1 = () => {
       box.innerHTML = "";
-      box.appendChild(make("h3", { class: "confirm-box__title" }, "Connect Cloud Save Backup"));
+      const titleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", titleId);
+      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Connect Cloud Save Backup"));
       box.appendChild(make("p", { class: "confirm-box__body" },
         "Choose a cloud provider to mirror save states across devices. Your local saves stay on this device; cloud backup keeps them in sync."
       ));
@@ -6897,15 +7194,19 @@ function showCloudConnectDialog(): Promise<boolean> {
         const pCard = make("button", {
           class: `cloud-provider-card${p.id === selectedId ? " active" : ""}`,
           type: "button",
-        });
-        pCard.innerHTML = `
-          <div class="cloud-provider-card__icon">${p.icon}</div>
-          <div class="cloud-provider-card__label">${p.label}</div>
-        `;
+          "aria-label": `${p.label} — backup provider`,
+          "aria-pressed": p.id === selectedId ? "true" : "false",
+        }) as HTMLButtonElement;
+        pCard.appendChild(cloudProviderPickerIconEl(p.id));
+        pCard.appendChild(make("span", { class: "cloud-provider-card__label" }, p.label));
         pCard.addEventListener("click", () => {
           selectedId = p.id;
-          providerGrid.querySelectorAll(".cloud-provider-card").forEach(c => c.classList.remove("active"));
+          providerGrid.querySelectorAll(".cloud-provider-card").forEach((c) => {
+            c.classList.remove("active");
+            c.setAttribute("aria-pressed", "false");
+          });
           pCard.classList.add("active");
+          pCard.setAttribute("aria-pressed", "true");
         });
         providerGrid.appendChild(pCard);
       }
@@ -6925,7 +7226,9 @@ function showCloudConnectDialog(): Promise<boolean> {
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
       const meta = CLOUD_SAVE_PROVIDERS.find(p => p.id === providerId)!;
-      box.appendChild(make("h3", { class: "confirm-box__title" }, `Connect ${meta.label}`));
+      const stepTitleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", stepTitleId);
+      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `Connect ${meta.label}`));
 
       const form = make("div", { class: "cloud-wizard-form" });
 
@@ -6933,19 +7236,12 @@ function showCloudConnectDialog(): Promise<boolean> {
       let getCredentials: () => CredResult = () => ({ ok: true, data: {} });
 
       if (providerId === "webdav") {
-        const urlRow  = make("div", { class: "settings-input-row" });
         const urlInp  = make("input", { type: "url",  id: "csd-url",  class: "settings-input", placeholder: "https://dav.example.com/saves", autocomplete: "off" }) as HTMLInputElement;
-        urlRow.append(make("label", { class: "settings-input-label", for: "csd-url" }, "Server URL"), urlInp);
-
-        const userRow = make("div", { class: "settings-input-row" });
         const userInp = make("input", { type: "text", id: "csd-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        userRow.append(make("label", { class: "settings-input-label", for: "csd-user" }, "Username"), userInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "csd-pass" }, "Password"), passInp);
-
-        form.append(urlRow, userRow, passRow);
+        appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
         getCredentials = () => {
           const url  = urlInp.value.trim();
           const user = userInp.value.trim();
@@ -6956,9 +7252,8 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else if (providerId === "pcloud") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "pCloud access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "csd-token" }, "Access Token"), tokenInp);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
 
         const regionRow = make("div", { class: "settings-input-row" });
         const regionSel = make("select", { id: "csd-region", class: "settings-input" }) as HTMLSelectElement;
@@ -6966,7 +7261,7 @@ function showCloudConnectDialog(): Promise<boolean> {
         regionSel.appendChild(Object.assign(document.createElement("option"), { value: "eu", textContent: "EU" }));
         regionRow.append(make("label", { class: "settings-input-label", for: "csd-region" }, "Region"), regionSel);
 
-        form.append(tokenRow, regionRow);
+        form.append(regionRow);
         getCredentials = () => {
           const token  = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required." };
@@ -6974,19 +7269,12 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else if (providerId === "blomp") {
-        const userRow = make("div", { class: "settings-input-row" });
         const userInp = make("input", { type: "text", id: "csd-user", class: "settings-input", placeholder: "Blomp username", autocomplete: "username" }) as HTMLInputElement;
-        userRow.append(make("label", { class: "settings-input-label", for: "csd-user" }, "Username"), userInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "csd-pass" }, "Password"), passInp);
-
-        const containerRow = make("div", { class: "settings-input-row" });
         const containerInp = make("input", { type: "text", id: "csd-container", class: "settings-input", placeholder: "retrooasis", autocomplete: "off" }) as HTMLInputElement;
-        containerRow.append(make("label", { class: "settings-input-label", for: "csd-container" }, "Container (optional)"), containerInp);
-
-        form.append(userRow, passRow, containerRow);
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
+        appendCloudWizardLabeledField(form, "Container (optional)", containerInp, "container name");
         getCredentials = () => {
           const user      = userInp.value.trim();
           const pass      = passInp.value;
@@ -6996,15 +7284,10 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else if (providerId === "box") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "Box OAuth access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "csd-token" }, "Access Token"), tokenInp);
-
-        const folderRow = make("div", { class: "settings-input-row" });
         const folderInp = make("input", { type: "text", id: "csd-folder", class: "settings-input", placeholder: "0 (root)", autocomplete: "off" }) as HTMLInputElement;
-        folderRow.append(make("label", { class: "settings-input-label", for: "csd-folder" }, "Root Folder ID (optional)"), folderInp);
-
-        form.append(tokenRow, folderRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", folderInp, "folder ID");
         getCredentials = () => {
           const token    = tokenInp.value.trim();
           const folderId = folderInp.value.trim() || "0";
@@ -7013,15 +7296,10 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else if (providerId === "onedrive") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "OneDrive access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "csd-token" }, "Access Token"), tokenInp);
-
-        const rootRow = make("div", { class: "settings-input-row" });
         const rootInp = make("input", { type: "text", id: "csd-rootid", class: "settings-input", placeholder: "root (optional)", autocomplete: "off" }) as HTMLInputElement;
-        rootRow.append(make("label", { class: "settings-input-label", for: "csd-rootid" }, "Root Folder ID (optional)"), rootInp);
-
-        form.append(tokenRow, rootRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", rootInp, "root folder ID");
         getCredentials = () => {
           const token = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required." };
@@ -7029,15 +7307,10 @@ function showCloudConnectDialog(): Promise<boolean> {
         };
 
       } else if (providerId === "mega") {
-        const emailRow = make("div", { class: "settings-input-row" });
         const emailInp = make("input", { type: "email", id: "csd-email", class: "settings-input", placeholder: "MEGA email address", autocomplete: "email" }) as HTMLInputElement;
-        emailRow.append(make("label", { class: "settings-input-label", for: "csd-email" }, "Email"), emailInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "csd-pass" }, "Password"), passInp);
-
-        form.append(emailRow, passRow);
+        appendCloudWizardLabeledField(form, "Email", emailInp, "email");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
         getCredentials = () => {
           const email = emailInp.value.trim();
           const pass  = passInp.value;
@@ -7048,9 +7321,7 @@ function showCloudConnectDialog(): Promise<boolean> {
 
       } else {
         // gdrive, dropbox — OAuth sign-in button + manual access token fallback
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "csd-token" }, "Access Token"), tokenInp);
 
         appendOAuthSignInButton({
           providerId,
@@ -7060,7 +7331,7 @@ function showCloudConnectDialog(): Promise<boolean> {
           getErrorEl: () => errorMsg,
         });
 
-        form.appendChild(tokenRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
         getCredentials = () => {
           const token = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required." };
@@ -7200,12 +7471,16 @@ function buildMultiplayerTab(
     else if (getNetplayManager) { void getNetplayManager().then(fn); }
   };
 
-  // Intro section
-  const introSection = make("div", { class: "settings-section settings-section--playtogether-intro" });
-  introSection.appendChild(make("h4", { class: "settings-section__title" }, "Play Together overview"));
+  const introHeadingId = "settings-playtogether-intro-heading";
+  const introSection = make("div", {
+    class: "settings-section settings-section--playtogether-intro",
+    role: "region",
+    "aria-labelledby": introHeadingId,
+  });
+  introSection.appendChild(make("h4", { class: "settings-section__title", id: introHeadingId }, "Play Together overview"));
   introSection.appendChild(make("p", { class: "settings-help" },
-    "Point every device at the same WebSocket server, load the same ROM, then host or join via the lobby modal. " +
-    `This stack is separate from in-game Nintendo WFC menus or other ROM-local Wi-Fi setups.`,
+    "Point each device at the same WebSocket server with the same ROM, then host or join through the lobby. " +
+    `${APP_NAME} Play Together does not piggy‑back Nintendo WFC or other ROM-internal Wi‑Fi menus.`,
   ));
 
   // Status badge — shows whether netplay is ready to use
@@ -7243,28 +7518,39 @@ function buildMultiplayerTab(
   container.appendChild(introSection);
   container.appendChild(buildSupportedSystemsSection(APP_NAME));
 
-  // Server URL section — hidden when netplay is disabled
-  const serverSection = make("div", { class: "settings-section" });
+  const netplayServerHeadingId = "settings-netplay-server-heading";
+  const netplayUrlHelpId = "settings-netplay-url-help";
+  const netplayUsernameHelpId = "settings-netplay-username-help";
+
+  const serverSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": netplayServerHeadingId,
+  });
   serverSection.hidden = !settings.netplayEnabled;
-  serverSection.appendChild(make("h4", { class: "settings-section__title" }, "Server address"));
-  serverSection.appendChild(make("p", { class: "settings-help" },
-    "Paste the full WebSocket URL for your Play Together server (for example wss://games.example.com:443/netplay). " +
-    "Include the port if your host gave you one (e.g. :3000). Everyone in the session must use the exact same address."
+  serverSection.appendChild(make("h4", { class: "settings-section__title", id: netplayServerHeadingId }, "Server address"));
+  serverSection.appendChild(make("p", {
+    class: "settings-help",
+    id: netplayUrlHelpId,
+  },
+    "Paste the full Play Together WebSocket URL (example: wss://games.example.net:443/netplay). " +
+    "Keep the scheme, host, port, and path identical for everyone in the match."
   ));
 
   const urlRow   = make("div", { class: "settings-input-row" });
   const urlLabel = make("label", { class: "settings-input-label", for: "netplay-server-url" }, "WebSocket URL (wss:// or ws://)");
   const urlInput = make("input", {
-    type:         "text",
-    id:           "netplay-server-url",
-    name:         "netplayServerUrl",
-    class:        "settings-input",
-    placeholder:  "wss://netplay.example.com/room…",
-    value:        settings.netplayServerUrl,
-    autocomplete: "off",
-    autocorrect:  "off",
-    autocapitalize: "none",
-    spellcheck:   "false",
+    type:               "text",
+    id:                 "netplay-server-url",
+    name:               "netplayServerUrl",
+    class:              "settings-input",
+    placeholder:        "wss://netplay.example.com/room…",
+    value:              settings.netplayServerUrl,
+    autocomplete:       "off",
+    autocorrect:        "off",
+    autocapitalize:     "none",
+    spellcheck:         "false",
+    "aria-describedby": netplayUrlHelpId,
   }) as HTMLInputElement;
   urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
   urlInput.addEventListener("change", () => {
@@ -7298,17 +7584,18 @@ function buildMultiplayerTab(
   const unameRow   = make("div", { class: "settings-input-row" });
   const unameLabel = make("label", { class: "settings-input-label", for: "netplay-username" }, "Display Name");
   const unameInput = make("input", {
-    type:         "text",
-    id:           "netplay-username",
-    name:         "netplayUsername",
-    class:        "settings-input",
-    placeholder:  "Display name (optional)…",
-    value:        settings.netplayUsername,
-    autocomplete: "nickname",
-    autocorrect:  "off",
-    autocapitalize: "words",
-    spellcheck:   "false",
-    maxlength:    "32",
+    type:               "text",
+    id:                 "netplay-username",
+    name:               "netplayUsername",
+    class:              "settings-input",
+    placeholder:        "Display name (optional)…",
+    value:              settings.netplayUsername,
+    autocomplete:       "nickname",
+    autocorrect:        "off",
+    autocapitalize:     "words",
+    spellcheck:         "false",
+    maxlength:          "32",
+    "aria-describedby": netplayUsernameHelpId,
   }) as HTMLInputElement;
   unameInput.addEventListener("input", () => unameInput.setCustomValidity(""));
   unameInput.addEventListener("change", () => {
@@ -7325,8 +7612,11 @@ function buildMultiplayerTab(
   });
   unameRow.append(unameLabel, unameInput);
   serverSection.appendChild(unameRow);
-  serverSection.appendChild(make("p", { class: "settings-help" },
-    "Optional name shown to other players in the netplay lobby. Leave blank to appear as anonymous."
+  serverSection.appendChild(make("p", {
+    class: "settings-help",
+    id: netplayUsernameHelpId,
+  },
+    "Optional name visible in the lobby. Leave blank to stay anonymous-looking to other players.",
   ));
 
   // ICE / STUN section — collapsed by default as an Advanced disclosure
@@ -7381,7 +7671,8 @@ function buildMultiplayerTab(
       const removeBtn = make("button", {
         class: "btn netplay-ice-remove",
         "aria-label": `Remove ${urlStr}`,
-      }, "✕") as HTMLButtonElement;
+      }) as HTMLButtonElement;
+      removeBtn.innerHTML = ICON_CLOSE_X_SVG;
       removeBtn.addEventListener("click", () => {
         const idx = iceServers.indexOf(srv);
         if (idx !== -1) iceServers.splice(idx, 1);
@@ -7453,10 +7744,17 @@ function buildMultiplayerTab(
 
   container.append(serverSection);
 
-  // Lobby browser section — visible only when netplay is active
-  const lobbySection = make("div", { class: "settings-section netplay-lobby" });
+  const netplayLobbyHeadingId = "settings-netplay-lobby-heading";
+  const lobbySection = make("div", {
+    class: "settings-section netplay-lobby",
+    role: "region",
+    "aria-labelledby": netplayLobbyHeadingId,
+  });
   lobbySection.hidden = !getNetplayStatus().ready;
-  lobbySection.appendChild(make("h4", { class: "settings-section__title" }, "Room Browser"));
+  lobbySection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: netplayLobbyHeadingId,
+  }, "Room Browser"));
 
   // Show game-scope hint — if a game is running, name it; otherwise give
   // a generic prompt so the user knows rooms are per-game.
@@ -7496,13 +7794,9 @@ function buildMultiplayerTab(
     for (const room of rooms) {
       const row = make("div", { class: "netplay-lobby-row" });
 
-      // Room name with lock icon for password-protected rooms
       const nameEl = make("span", { class: "netplay-lobby-name" },
         room.name ?? `Room ${room.id}`
       );
-      if (room.hasPassword) {
-        nameEl.appendChild(document.createTextNode(" 🔒"));
-      }
 
       // Status chip: Full > Locked > Open
       const isFull = room.players !== undefined && room.maxPlayers !== undefined
@@ -7612,7 +7906,7 @@ function buildMultiplayerTab(
     } catch (err) {
       // AbortError means the user clicked Refresh again — not a real failure.
       if (err instanceof Error && err.name === "AbortError") return;
-      console.warn(`[${APP_NAME}] Lobby fetch failed:`, err);
+      diagWarn(settings.verboseLogging, `[${APP_NAME}] Lobby fetch failed:`, err);
       lobbyRoomList.innerHTML = "";
       lobbyRoomList.appendChild(make("p", { class: "netplay-lobby-error" },
         "Couldn't reach the server. Check your connection and server URL, then try again."
@@ -7663,8 +7957,16 @@ function buildMultiplayerTab(
   }
 
   // === Room actions section ==================================================
-  const roomSection = make("div", { class: "settings-section" });
-  roomSection.appendChild(make("h4", { class: "settings-section__title" }, "Room Actions"));
+  const netplayRoomActionsHeadingId = "settings-netplay-room-actions-heading";
+  const roomSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": netplayRoomActionsHeadingId,
+  });
+  roomSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: netplayRoomActionsHeadingId,
+  }, "Room Actions"));
 
   if (!getNetplayStatus().ready) {
     roomSection.appendChild(make("p", { class: "settings-help" },
@@ -7681,12 +7983,14 @@ function buildMultiplayerTab(
     const createBtn = make("button", {
       class: "btn btn--primary netplay-create-room",
       title: "Start a game and use the Online button to create a Play Together room",
+      "aria-label": "Create room — shows how to start a room from the in-game Online button",
     }) as HTMLButtonElement;
     createBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Room`;
     const joinBtn = make("button", {
       class: "btn netplay-join-room",
       title: "Select a room above to join",
       disabled: "",
+      "aria-label": "Join selected room — shows how to connect after choosing a room above",
     }) as HTMLButtonElement;
     joinBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Join Room`;
     // Wire the join button to the selection tracker in the lobby browser
@@ -7723,8 +8027,16 @@ function buildDebugTab(
   biosLibrary?:     BiosLibrary
 ): void {
   // Settings section
-  const settingsSection = make("div", { class: "settings-section" });
-  settingsSection.appendChild(make("h4", { class: "settings-section__title" }, "Advanced Settings"));
+  const debugAdvancedHeadingId = "settings-debug-advanced-heading";
+  const settingsSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugAdvancedHeadingId,
+  });
+  settingsSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugAdvancedHeadingId,
+  }, "Advanced Settings"));
   settingsSection.appendChild(make("p", { class: "settings-help" },
     "These settings are for troubleshooting. You don't normally need to change them."
   ));
@@ -7737,21 +8049,29 @@ function buildDebugTab(
   ));
 
   // Environment section
-  const envSection = make("div", { class: "settings-section" });
-  envSection.appendChild(make("h4", { class: "settings-section__title" }, "Environment"));
+  const debugEnvHeadingId = "settings-debug-environment-heading";
+  const envSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugEnvHeadingId,
+  });
+  envSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugEnvHeadingId,
+  }, "Environment"));
 
   const isIsolated = "crossOriginIsolated" in self ? self.crossOriginIsolated : false;
   const hasSAB     = typeof SharedArrayBuffer !== "undefined";
   const hasWasm    = typeof WebAssembly !== "undefined";
 
   envSection.appendChild(make("p", { class: "device-info" },
-    `Cross-Origin Isolated: ${isIsolated ? "✓ Yes (PSP supported)" : "✗ No — PSP games will fail (reload after coi-serviceworker.js)"}`
+    `Cross-Origin Isolated: ${isIsolated ? "Yes (PSP supported)" : "No — PSP games will fail (reload after coi-serviceworker.js)"}`
   ));
   envSection.appendChild(make("p", { class: "device-info" },
-    `SharedArrayBuffer: ${hasSAB ? "✓ Available" : "✗ Not available"}`
+    `SharedArrayBuffer: ${hasSAB ? "Available" : "Not available"}`
   ));
   envSection.appendChild(make("p", { class: "device-info" },
-    `WebAssembly: ${hasWasm ? "✓ Available" : "✗ Not available"}`
+    `WebAssembly: ${hasWasm ? "Available" : "Not available"}`
   ));
 
   if (getNetplayManager) {
@@ -7773,8 +8093,16 @@ function buildDebugTab(
   ));
 
   // GPU & VRAM section
-  const gpuSection = make("div", { class: "settings-section" });
-  gpuSection.appendChild(make("h4", { class: "settings-section__title" }, "GPU & Memory"));
+  const debugGpuHeadingId = "settings-debug-gpu-heading";
+  const gpuSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugGpuHeadingId,
+  });
+  gpuSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugGpuHeadingId,
+  }, "GPU & Memory"));
   gpuSection.appendChild(make("p", { class: "device-info" },
     `GPU: ${deviceCaps.gpuCaps.renderer}`
   ));
@@ -7785,16 +8113,24 @@ function buildDebugTab(
     `Max Texture Size: ${deviceCaps.gpuCaps.maxTextureSize}px`
   ));
   gpuSection.appendChild(make("p", { class: "device-info" },
-    `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures ? "✓" : "✗"} ` +
-    `(ETC2: ${deviceCaps.gpuCaps.etc2Textures ? "✓" : "✗"}, ASTC: ${deviceCaps.gpuCaps.astcTextures ? "✓" : "✗"})`
+    `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures ? "Yes" : "No"} ` +
+    `(ETC2: ${deviceCaps.gpuCaps.etc2Textures ? "Yes" : "No"}, ASTC: ${deviceCaps.gpuCaps.astcTextures ? "Yes" : "No"})`
   ));
   gpuSection.appendChild(make("p", { class: "device-info" },
-    `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments} | Multi-Draw: ${deviceCaps.gpuCaps.multiDraw ? "✓" : "✗"}`
+    `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments} | Multi-Draw: ${deviceCaps.gpuCaps.multiDraw ? "Yes" : "No"}`
   ));
 
   // PS1 status section — shows BIOS file availability and core info
-  const ps1Section = make("div", { class: "settings-section" });
-  ps1Section.appendChild(make("h4", { class: "settings-section__title" }, "PS1 Status"));
+  const debugPs1HeadingId = "settings-debug-ps1-heading";
+  const ps1Section = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugPs1HeadingId,
+  });
+  ps1Section.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugPs1HeadingId,
+  }, "PS1 Status"));
   ps1Section.appendChild(make("p", { class: "settings-help" },
     "PlayStation 1 uses the Beetle PSX HW core (mednafen_psx_hw). A BIOS file is " +
     "optional but improves game compatibility. Upload BIOS files in the BIOS tab."
@@ -7813,7 +8149,7 @@ function buildDebugTab(
     if (biosLibrary) {
       biosLibrary.findBios("psx", req.fileName).then(found => {
         psxBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "✓ Uploaded" : "✗ Not found"}`;
+        row.textContent = `${req.displayName}: ${found ? "Uploaded" : "Not found"}`;
       }).catch(() => {
         psxBiosSnapshot.set(req.fileName, null);
         row.textContent = `${req.displayName}: — (could not check)`;
@@ -7825,8 +8161,16 @@ function buildDebugTab(
   }
 
   // NDS status section — shows BIOS file availability and active DeSmuME settings
-  const ndsSection = make("div", { class: "settings-section" });
-  ndsSection.appendChild(make("h4", { class: "settings-section__title" }, "NDS Status"));
+  const debugNdsHeadingId = "settings-debug-nds-heading";
+  const ndsSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugNdsHeadingId,
+  });
+  ndsSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugNdsHeadingId,
+  }, "NDS Status"));
   ndsSection.appendChild(make("p", { class: "settings-help" },
     "Nintendo DS uses the DeSmuME 2015 core. BIOS files are optional — DeSmuME falls back to a " +
     "built-in HLE BIOS when they are absent — but some games require the real files. " +
@@ -7846,7 +8190,7 @@ function buildDebugTab(
     if (biosLibrary) {
       biosLibrary.findBios("nds", req.fileName).then(found => {
         ndsBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "✓ Uploaded" : "✗ Not found (optional)"}`;
+        row.textContent = `${req.displayName}: ${found ? "Uploaded" : "Not found (optional)"}`;
       }).catch(() => {
         ndsBiosSnapshot.set(req.fileName, null);
         row.textContent = `${req.displayName}: — (could not check)`;
@@ -7884,8 +8228,16 @@ function buildDebugTab(
   }
 
   // Emulator state section
-  const stateSection = make("div", { class: "settings-section" });
-  stateSection.appendChild(make("h4", { class: "settings-section__title" }, "Emulator State"));
+  const debugStateHeadingId = "settings-debug-emulator-state-heading";
+  const stateSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugStateHeadingId,
+  });
+  stateSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugStateHeadingId,
+  }, "Emulator State"));
 
   stateSection.appendChild(make("p", { class: "device-info" },
     `State: ${emulatorRef?.state ?? "unknown"}`
@@ -7909,8 +8261,16 @@ function buildDebugTab(
   // Active core settings section (PSP / RetroArch options applied at launch)
   const activeCoreSettings = emulatorRef?.activeCoreSettings;
   if (activeCoreSettings && Object.keys(activeCoreSettings).length > 0) {
-    const coreSettingsSection = make("div", { class: "settings-section" });
-    coreSettingsSection.appendChild(make("h4", { class: "settings-section__title" }, "Active Core Settings"));
+    const debugCoreHeadingId = "settings-debug-active-core-heading";
+    const coreSettingsSection = make("div", {
+      class: "settings-section",
+      role: "region",
+      "aria-labelledby": debugCoreHeadingId,
+    });
+    coreSettingsSection.appendChild(make("h4", {
+      class: "settings-section__title",
+      id: debugCoreHeadingId,
+    }, "Active Core Settings"));
     coreSettingsSection.appendChild(make("p", { class: "settings-help" },
       "RetroArch / PPSSPP core options that were passed to the emulator at launch."
     ));
@@ -7928,8 +8288,16 @@ function buildDebugTab(
   // Startup profiler section (Phase 9)
   const profSummary = emulatorRef?.startupProfiler?.summary();
   if (profSummary && profSummary.records.length > 0) {
-    const profSection = make("div", { class: "settings-section" });
-    profSection.appendChild(make("h4", { class: "settings-section__title" }, "Last Launch Profile"));
+    const debugProfHeadingId = "settings-debug-launch-profile-heading";
+    const profSection = make("div", {
+      class: "settings-section",
+      role: "region",
+      "aria-labelledby": debugProfHeadingId,
+    });
+    profSection.appendChild(make("h4", {
+      class: "settings-section__title",
+      id: debugProfHeadingId,
+    }, "Last Launch Profile"));
     profSection.appendChild(make("p", { class: "settings-help" },
       "Time spent in each phase of the most recent game launch."
     ));
@@ -7937,7 +8305,7 @@ function buildDebugTab(
     for (const r of profSummary.records) {
       const item = make("li", { class: "core-settings-item" });
       const isSlowest = r === profSummary.slowest;
-      item.appendChild(make("span", { class: "core-settings-key" }, `${isSlowest ? "⚡ " : ""}${r.phase}`));
+      item.appendChild(make("span", { class: "core-settings-key" }, `${isSlowest ? "[slowest] " : ""}${r.phase}`));
       item.appendChild(make("span", { class: "core-settings-value" }, `${r.durationMs.toFixed(0)} ms`));
       profList.appendChild(item);
     }
@@ -7950,8 +8318,16 @@ function buildDebugTab(
   }
 
   // Diagnostic event timeline section
-  const timelineSection = make("div", { class: "settings-section" });
-  timelineSection.appendChild(make("h4", { class: "settings-section__title" }, "Diagnostic Timeline"));
+  const debugTimelineHeadingId = "settings-debug-diagnostic-timeline-heading";
+  const timelineSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugTimelineHeadingId,
+  });
+  timelineSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugTimelineHeadingId,
+  }, "Diagnostic Timeline"));
   timelineSection.appendChild(make("p", { class: "settings-help" },
     "Recent performance and system events logged during emulator operation."
   ));
@@ -7969,11 +8345,11 @@ function buildDebugTab(
     for (const evt of recentEvents) {
       const item = make("li", { class: "core-settings-item" });
       const time = new Date(evt.timestamp).toLocaleTimeString();
-      const badge = evt.category === "error" ? "🔴"
-        : evt.category === "performance" ? "⚡"
-        : evt.category === "audio" ? "🔊"
-        : evt.category === "render" ? "🖥"
-        : "ℹ️";
+      const badge = evt.category === "error" ? "[error]"
+        : evt.category === "performance" ? "[perf]"
+        : evt.category === "audio" ? "[audio]"
+        : evt.category === "render" ? "[render]"
+        : "[info]";
       item.appendChild(make("span", { class: "core-settings-key" }, `${badge} ${time}`));
       item.appendChild(make("span", { class: "core-settings-value" }, evt.message));
       eventList.appendChild(item);
@@ -7982,8 +8358,16 @@ function buildDebugTab(
   }
 
   // Actions section
-  const actionsSection = make("div", { class: "settings-section" });
-  actionsSection.appendChild(make("h4", { class: "settings-section__title" }, "Actions"));
+  const debugActionsHeadingId = "settings-debug-actions-heading";
+  const actionsSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugActionsHeadingId,
+  });
+  actionsSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugActionsHeadingId,
+  }, "Actions"));
   actionsSection.appendChild(make("p", { class: "settings-help" },
     "Copy a snapshot of diagnostics to the clipboard for bug reports."
   ));
@@ -8099,8 +8483,16 @@ function buildDebugTab(
   actionsSection.appendChild(btnClearCaps);
 
   // Thermal pressure section (Phase 9)
-  const thermalSection = make("div", { class: "settings-section" });
-  thermalSection.appendChild(make("h4", { class: "settings-section__title" }, "Thermal & Pressure"));
+  const debugThermalHeadingId = "settings-debug-thermal-heading";
+  const thermalSection = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": debugThermalHeadingId,
+  });
+  thermalSection.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: debugThermalHeadingId,
+  }, "Thermal & Pressure"));
   thermalSection.appendChild(make("p", { class: "settings-help" },
     "Compute Pressure API — monitors CPU thermal load to proactively prevent OS-forced throttling. " +
     "Requires Chrome 125+ (or a compatible browser)."
@@ -8134,6 +8526,7 @@ function buildToggleRow(label: string, desc: string, checked: boolean, onChange:
   const toggle = make("span", { class: "toggle-switch" });
   const input  = make("input", { type: "checkbox" }) as HTMLInputElement;
   input.checked = checked;
+  input.setAttribute("aria-label", label);
   const knob = make("span", { class: "toggle-switch__knob" });
   toggle.classList.toggle("is-checked", checked);
   toggle.append(input, knob);
@@ -8251,8 +8644,8 @@ function showPerfSuggestion(): void {
 
   const toast = make("div", { id: "perf-suggestion", class: "perf-suggestion", role: "status" });
   toast.innerHTML =
-    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> or turn on <strong>Dynamic resolution</strong> under ⚡ Settings → Performance.${mobileTip}</span>` +
-    `<button class="perf-suggestion__close" aria-label="Dismiss">✕</button>`;
+    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> or turn on <strong>Dynamic resolution</strong> under Settings → Performance.${mobileTip}</span>` +
+    `<button class="perf-suggestion__close" aria-label="Dismiss">${ICON_CLOSE_X_SVG}</button>`;
   document.body.appendChild(toast);
 
   const dismiss = () => { toast.classList.add("perf-suggestion--hiding"); setTimeout(() => toast.remove(), PERF_SUGGESTION_FADE_DELAY_MS); };
@@ -8359,7 +8752,9 @@ function showAddCloudLibraryDialog(
 
     const renderStep1 = () => {
       box.innerHTML = "";
-      box.appendChild(make("h3", { class: "confirm-box__title" }, "Add Cloud Library Source"));
+      const titleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", titleId);
+      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Add Cloud Library Source"));
       box.appendChild(make("p", { class: "confirm-box__body" },
         "Choose a cloud provider. Remote games will appear in your library alongside local files."
       ));
@@ -8371,7 +8766,7 @@ function showAddCloudLibraryDialog(
           type:  "button",
           "aria-label": p.label,
         }) as HTMLButtonElement;
-        card.appendChild(make("span", { class: "cloud-provider-card__icon" }, p.icon));
+        card.appendChild(cloudProviderPickerIconEl(p.id));
         card.appendChild(make("span", { class: "cloud-provider-card__label" }, p.label));
         card.addEventListener("click", () => renderStep2(p.id));
         grid.appendChild(card);
@@ -8390,12 +8785,13 @@ function showAddCloudLibraryDialog(
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
       const meta = CLOUD_LIBRARY_PROVIDERS.find(p => p.id === providerId)!;
-      box.appendChild(make("h3", { class: "confirm-box__title" }, `${meta.icon} ${meta.label} Library`));
+      const stepTitleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", stepTitleId);
+      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} library`));
 
       const form = make("div", { class: "cloud-wizard-form" });
 
       // Connection name
-      const nameRow = make("div", { class: "settings-input-row" });
       const nameInp = make("input", {
         type:        "text",
         id:          "cld-name",
@@ -8403,8 +8799,7 @@ function showAddCloudLibraryDialog(
         placeholder: `My ${meta.label} Library`,
         autocomplete: "off",
       }) as HTMLInputElement;
-      nameRow.append(make("label", { class: "settings-input-label", for: "cld-name" }, "Display Name"), nameInp);
-      form.appendChild(nameRow);
+      appendCloudWizardLabeledField(form, "Display Name", nameInp, "display name");
       form.appendChild(make("p", { class: "settings-help" }, "This name will appear in your library filters."));
 
       type LibCredResult = { ok: false; error: string } | { ok: true; config: CloudLibraryConnection["config"] };
@@ -8414,19 +8809,12 @@ function showAddCloudLibraryDialog(
       });
 
       if (providerId === "webdav") {
-        const urlRow  = make("div", { class: "settings-input-row" });
         const urlInp  = make("input", { type: "url",      id: "cld-url",  class: "settings-input", placeholder: "https://dav.example.com/roms", autocomplete: "off" }) as HTMLInputElement;
-        urlRow.append(make("label", { class: "settings-input-label", for: "cld-url" }, "Server URL"), urlInp);
-
-        const userRow = make("div", { class: "settings-input-row" });
         const userInp = make("input", { type: "text",     id: "cld-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        userRow.append(make("label", { class: "settings-input-label", for: "cld-user" }, "Username"), userInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "cld-pass" }, "Password"), passInp);
-
-        form.append(urlRow, userRow, passRow);
+        appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
         getCredentials = () => {
           const url  = urlInp.value.trim();
           const user = userInp.value.trim();
@@ -8437,9 +8825,8 @@ function showAddCloudLibraryDialog(
         };
 
       } else if (providerId === "pcloud") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: "pCloud access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "cld-token" }, "Access Token"), tokenInp);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
 
         const regionRow = make("div", { class: "settings-input-row" });
         const regionSel = make("select", { id: "cld-region", class: "settings-input" }) as HTMLSelectElement;
@@ -8447,7 +8834,7 @@ function showAddCloudLibraryDialog(
         regionSel.appendChild(Object.assign(document.createElement("option"), { value: "eu", textContent: "EU" }));
         regionRow.append(make("label", { class: "settings-input-label", for: "cld-region" }, "Region"), regionSel);
 
-        form.append(tokenRow, regionRow);
+        form.append(regionRow);
         getCredentials = () => {
           const token  = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
@@ -8455,19 +8842,12 @@ function showAddCloudLibraryDialog(
         };
 
       } else if (providerId === "blomp") {
-        const userRow = make("div", { class: "settings-input-row" });
         const userInp = make("input", { type: "text",     id: "cld-user",      class: "settings-input", placeholder: "Blomp username", autocomplete: "username" }) as HTMLInputElement;
-        userRow.append(make("label", { class: "settings-input-label", for: "cld-user" }, "Username"), userInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "cld-pass",      class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "cld-pass" }, "Password"), passInp);
-
-        const containerRow = make("div", { class: "settings-input-row" });
         const containerInp = make("input", { type: "text", id: "cld-container", class: "settings-input", placeholder: "retrooasis", autocomplete: "off" }) as HTMLInputElement;
-        containerRow.append(make("label", { class: "settings-input-label", for: "cld-container" }, "Container (optional)"), containerInp);
-
-        form.append(userRow, passRow, containerRow);
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
+        appendCloudWizardLabeledField(form, "Container (optional)", containerInp, "container name");
         getCredentials = () => {
           const user = userInp.value.trim();
           if (!user) return { ok: false, error: "Username is required.", config: "{}" };
@@ -8476,15 +8856,10 @@ function showAddCloudLibraryDialog(
         };
 
       } else if (providerId === "onedrive") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "cld-token",  class: "settings-input", placeholder: "OneDrive access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "cld-token" }, "Access Token"), tokenInp);
-
-        const rootRow = make("div", { class: "settings-input-row" });
         const rootInp = make("input", { type: "text", id: "cld-rootid", class: "settings-input", placeholder: "root (optional)", autocomplete: "off" }) as HTMLInputElement;
-        rootRow.append(make("label", { class: "settings-input-label", for: "cld-rootid" }, "Root Folder ID (optional)"), rootInp);
-
-        form.append(tokenRow, rootRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", rootInp, "root folder ID");
         getCredentials = () => {
           const token = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
@@ -8492,15 +8867,10 @@ function showAddCloudLibraryDialog(
         };
 
       } else if (providerId === "box") {
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "cld-token",  class: "settings-input", placeholder: "Box OAuth access token", autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "cld-token" }, "Access Token"), tokenInp);
-
-        const folderRow = make("div", { class: "settings-input-row" });
         const folderInp = make("input", { type: "text", id: "cld-folder", class: "settings-input", placeholder: "0 (root)", autocomplete: "off" }) as HTMLInputElement;
-        folderRow.append(make("label", { class: "settings-input-label", for: "cld-folder" }, "Root Folder ID (optional)"), folderInp);
-
-        form.append(tokenRow, folderRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", folderInp, "folder ID");
         getCredentials = () => {
           const token = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
@@ -8508,15 +8878,10 @@ function showAddCloudLibraryDialog(
         };
 
       } else if (providerId === "mega") {
-        const emailRow = make("div", { class: "settings-input-row" });
         const emailInp = make("input", { type: "email", id: "cld-email", class: "settings-input", placeholder: "MEGA email address", autocomplete: "email" }) as HTMLInputElement;
-        emailRow.append(make("label", { class: "settings-input-label", for: "cld-email" }, "Email"), emailInp);
-
-        const passRow = make("div", { class: "settings-input-row" });
         const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        passRow.append(make("label", { class: "settings-input-label", for: "cld-pass" }, "Password"), passInp);
-
-        form.append(emailRow, passRow);
+        appendCloudWizardLabeledField(form, "Email", emailInp, "email");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
         getCredentials = () => {
           const email = emailInp.value.trim();
           const pass  = passInp.value;
@@ -8527,9 +8892,7 @@ function showAddCloudLibraryDialog(
 
       } else {
         // gdrive, dropbox — OAuth sign-in button + manual access token fallback
-        const tokenRow = make("div", { class: "settings-input-row" });
         const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
-        tokenRow.append(make("label", { class: "settings-input-label", for: "cld-token" }, "Access Token"), tokenInp);
 
         appendOAuthSignInButton({
           providerId,
@@ -8539,7 +8902,7 @@ function showAddCloudLibraryDialog(
           getErrorEl: () => errorMsg,
         });
 
-        form.appendChild(tokenRow);
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
         getCredentials = () => {
           const token = tokenInp.value.trim();
           if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
@@ -8562,26 +8925,59 @@ function showAddCloudLibraryDialog(
       backBtn.addEventListener("click", () => renderStep1());
 
       saveBtn.addEventListener("click", () => {
-        const creds = getCredentials();
-        if (!creds.ok) {
-          errorMsg.textContent = creds.error;
-          errorMsg.hidden = false;
-          return;
-        }
-        errorMsg.hidden = true;
+        void (async () => {
+          const creds = getCredentials();
+          if (!creds.ok) {
+            errorMsg.textContent = creds.error;
+            errorMsg.hidden = false;
+            return;
+          }
+          errorMsg.hidden = true;
 
-        const connName = nameInp.value.trim() || meta.label;
-        const newConn: CloudLibraryConnection = {
-          id:       createUuid(),
-          provider: providerId as CloudLibraryConnection["provider"],
-          name:     connName,
-          enabled:  true,
-          config:   creds.config,
-        };
+          const probe = createProvider({
+            provider: providerId as CloudLibraryConnection["provider"],
+            config: creds.config,
+          });
+          if (!probe) {
+            errorMsg.textContent =
+              "Those details could not be assembled into a valid connection. Double-check every field.";
+            errorMsg.hidden = false;
+            return;
+          }
 
-        onSettingsChange({ cloudLibraries: [...settings.cloudLibraries, newConn] });
-        rebuildTab();
-        close();
+          const prevLabel = saveBtn.textContent;
+          saveBtn.disabled = true;
+          saveBtn.textContent = "Verifying…";
+
+          try {
+            if (!(await probe.isAvailable())) {
+              errorMsg.textContent =
+                "Cannot reach this provider right now. Check the URL or token, fix typos, then try again.";
+              errorMsg.hidden = false;
+              return;
+            }
+
+            const connName = nameInp.value.trim() || meta.label;
+            const newConn: CloudLibraryConnection = {
+              id:       createUuid(),
+              provider: providerId as CloudLibraryConnection["provider"],
+              name:     connName,
+              enabled:  true,
+              config:   creds.config,
+            };
+
+            onSettingsChange({ cloudLibraries: [...settings.cloudLibraries, newConn] });
+            rebuildTab();
+            close();
+          } catch (e) {
+            errorMsg.textContent =
+              e instanceof Error ? e.message : "Could not verify this connection.";
+            errorMsg.hidden = false;
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = prevLabel ?? "Add Source";
+          }
+        })();
       });
     };
 
@@ -8602,8 +8998,21 @@ function buildCloudTab(
   onSettingsChange: (patch: Partial<Settings>) => void,
 ): void {
   container.innerHTML = "";
-  const section = make("div", { class: "settings-section" });
-  section.appendChild(make("h4", { class: "settings-section__title" }, "Cloud Storage"));
+  const cloudStorageHeadingId = "settings-cloud-storage-heading";
+  const cloudSaveBackupHeadingId = "settings-cloud-save-backup-heading";
+  const cloudLibrarySourcesHeadingId = "settings-cloud-library-sources-heading";
+  const cloudOauthKeysHeadingId = "settings-cloud-oauth-keys-heading";
+  const cloudOauthKeysHelpId = "settings-cloud-oauth-keys-help";
+
+  const section = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": cloudStorageHeadingId,
+  });
+  section.appendChild(make("h4", {
+    class: "settings-section__title",
+    id: cloudStorageHeadingId,
+  }, "Cloud Storage"));
   section.appendChild(make("p", { class: "settings-section__desc" }, `${APP_NAME} uses cloud storage in two independent ways: cloud saves mirror progress, and cloud library sources add remote games beside your local ROMs.`));
 
   const overview = make("div", { class: "cloud-storage-overview" });
@@ -8628,8 +9037,17 @@ function buildCloudTab(
   // ── Cloud save backup section ───────────────────────────────────────────────
 
   const cloudManager = getCloudSaveManager();
-  const saveSection = make("div", { class: "cloud-library-section" });
-  saveSection.appendChild(make("h5", { class: "cloud-library-section__title" }, "Cloud Save Backup"));
+  const cloudSaveTitleEl = () => make("h5", {
+    class: "cloud-library-section__title",
+    id: cloudSaveBackupHeadingId,
+  }, "Cloud Save Backup");
+
+  const saveSection = make("div", {
+    class: "cloud-library-section",
+    role: "region",
+    "aria-labelledby": cloudSaveBackupHeadingId,
+  });
+  saveSection.appendChild(cloudSaveTitleEl());
 
   const buildSaveStatus = () => {
     const statusRow = make("div", { class: "cloud-save-status-row" });
@@ -8641,24 +9059,39 @@ function buildCloudTab(
       const lastSync  = cloudManager.lastSyncAt
         ? make("span", { class: "cloud-save-status__lastsync" }, `Last sync: ${formatRelativeTime(cloudManager.lastSyncAt)}`)
         : make("span", { class: "cloud-save-status__lastsync" }, "Saves will be mirrored after your next game save.");
-      const disconnectBtn = make("button", { class: "btn btn--sm", type: "button" }, "Disconnect") as HTMLButtonElement;
+      const disconnectBtn = make("button", {
+        class: "btn btn--sm",
+        type: "button",
+        "aria-label": `Disconnect cloud save backup (${provLabel})`,
+      }, "Disconnect") as HTMLButtonElement;
       disconnectBtn.addEventListener("click", () => {
         cloudManager.disconnect();
         saveSection.innerHTML = "";
-        saveSection.appendChild(make("h5", { class: "cloud-library-section__title" }, "Cloud Save Backup"));
+        saveSection.appendChild(cloudSaveTitleEl());
         saveSection.appendChild(buildSaveStatus());
       });
       statusRow.append(statusDot, provName, lastSync, disconnectBtn);
+      if (cloudManager.lastError) {
+        statusRow.appendChild(make("p", {
+          class: "cloud-save-status__error",
+          role: "status",
+          "aria-live": "polite",
+        }, `Last backup issue: ${cloudManager.lastError}`));
+      }
     } else {
       const hint = make("p", { class: "settings-help" },
         "Save states live in your browser. Connect a cloud provider to keep them backed up and accessible on other devices."
       );
-      const connectBtn = make("button", { class: "btn btn--primary", type: "button" }, "☁ Connect Cloud Backup") as HTMLButtonElement;
+      const connectBtn = make("button", {
+        class: "btn btn--primary",
+        type: "button",
+        "aria-label": `Connect cloud backup — ${APP_NAME} will open a dialog to choose a cloud provider`,
+      }, "Connect cloud backup") as HTMLButtonElement;
       connectBtn.addEventListener("click", () => {
         void showCloudConnectDialog().then(connected => {
           if (connected) {
             saveSection.innerHTML = "";
-            saveSection.appendChild(make("h5", { class: "cloud-library-section__title" }, "Cloud Save Backup"));
+            saveSection.appendChild(cloudSaveTitleEl());
             saveSection.appendChild(buildSaveStatus());
           }
         });
@@ -8678,9 +9111,17 @@ function buildCloudTab(
 
   const list = make("div", { class: "cloud-connection-list" });
 
-  const librarySection = make("div", { class: "cloud-library-section" });
-  librarySection.appendChild(make("h5", { class: "cloud-library-section__title" }, "Cloud Library Sources"));
-  librarySection.appendChild(make("p", { class: "settings-help" }, "Connect a provider below to stream or import remote games into your local library view."));
+  const librarySection = make("div", {
+    class: "cloud-library-section",
+    role: "region",
+    "aria-labelledby": cloudLibrarySourcesHeadingId,
+  });
+  librarySection.appendChild(make("h5", {
+    class: "cloud-library-section__title",
+    id: cloudLibrarySourcesHeadingId,
+  }, "Cloud Library Sources"));
+  librarySection.appendChild(make("p", { class: "settings-help" },
+    "Connect a remote folder below — supported ROM filenames in that folder’s root are indexed beside your local games. Nested subfolders are not scanned yet."));
 
   if (settings.cloudLibraries.length === 0) {
     const empty = make("div", { class: "cloud-connection-empty" });
@@ -8713,10 +9154,18 @@ function buildCloudTab(
 
       const actions = make("div", { class: "cloud-connection-item__actions" });
 
-      const syncBtn = make("button", { class: "btn btn--sm", type: "button" }, "↻ Sync");
-      syncBtn.addEventListener("click", () => syncCloudLibrary(conn, library, onSettingsChange));
+      const syncBtn = make("button", {
+        class: "btn btn--sm",
+        type: "button",
+        "aria-label": `Sync remote games from ${conn.name}`,
+      }, "↻ Sync");
+      syncBtn.addEventListener("click", () => { void syncCloudLibrary(conn, library, syncBtn); });
 
-      const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Remove");
+      const removeBtn = make("button", {
+        class: "btn btn--sm btn--danger",
+        type: "button",
+        "aria-label": `Remove cloud library source ${conn.name}`,
+      }, "Remove");
       removeBtn.addEventListener("click", () => {
         const filtered = settings.cloudLibraries.filter(c => c.id !== conn.id);
         onSettingsChange({ cloudLibraries: filtered });
@@ -8729,7 +9178,11 @@ function buildCloudTab(
     });
   }
 
-  const addBtn = make("button", { class: "btn btn--primary cloud-connection-add", type: "button" }, "+ Connect New Source");
+  const addBtn = make("button", {
+    class: "btn btn--primary cloud-connection-add",
+    type: "button",
+    "aria-label": "Add a new cloud library source",
+  }, "+ Connect New Source");
   addBtn.addEventListener("click", () => {
     void showAddCloudLibraryDialog(settings, onSettingsChange, rebuildTab);
   });
@@ -8741,40 +9194,76 @@ function buildCloudTab(
   // Lets the deployer / power-user configure OAuth client IDs so the
   // "Sign in with…" button appears in the provider dialogs above.
 
-  const oauthSection = make("div", { class: "cloud-library-section" });
-  oauthSection.appendChild(make("h5", { class: "cloud-library-section__title" }, "OAuth App Keys (optional)"));
-  oauthSection.appendChild(make("p", { class: "settings-help" },
-    "If you have your own Google or Dropbox OAuth app, paste the client ID / app key here. " +
+  const oauthSection = make("div", {
+    class: "cloud-library-section",
+    role: "region",
+    "aria-labelledby": cloudOauthKeysHeadingId,
+  });
+  oauthSection.appendChild(make("h5", {
+    class: "cloud-library-section__title",
+    id: cloudOauthKeysHeadingId,
+  }, "OAuth App Keys (optional)"));
+  oauthSection.appendChild(make("p", {
+    class: "settings-help",
+    id: cloudOauthKeysHelpId,
+  },
+    "If you have your own Google or Dropbox OAuth app, paste the client ID / app key here (or use Paste next to each field). " +
     "This enables a \"Sign in with…\" button so you can authenticate with one click instead of pasting tokens manually."
   ));
 
   const gIdRow = make("div", { class: "settings-input-row" });
+  const gIdLine = make("div", { class: "settings-input-paste-line" });
   const gIdInp = make("input", {
     type: "text",
     id: "oauth-google-client-id",
     class: "settings-input",
     placeholder: "Google OAuth Client ID",
     autocomplete: "off",
+    "aria-describedby": cloudOauthKeysHelpId,
   }) as HTMLInputElement;
   gIdInp.value = getGoogleClientId();
-  gIdRow.append(make("label", { class: "settings-input-label", for: "oauth-google-client-id" }, "Google Client ID"), gIdInp);
+  const gIdPaste = make("button", {
+    type: "button",
+    class: "btn btn--ghost btn--sm",
+    "aria-label": "Paste Google OAuth Client ID from clipboard",
+    title: "Insert text from the clipboard",
+  }, "Paste") as HTMLButtonElement;
+  gIdPaste.addEventListener("click", () => pasteIntoCloudWizardInput(gIdInp, "Google Client ID"));
+  gIdLine.append(gIdInp, gIdPaste);
+  gIdRow.append(
+    make("label", { class: "settings-input-label", for: "oauth-google-client-id" }, "Google Client ID"),
+    gIdLine,
+  );
 
   const dbKeyRow = make("div", { class: "settings-input-row" });
+  const dbKeyLine = make("div", { class: "settings-input-paste-line" });
   const dbKeyInp = make("input", {
     type: "text",
     id: "oauth-dropbox-app-key",
     class: "settings-input",
     placeholder: "Dropbox App Key",
     autocomplete: "off",
+    "aria-describedby": cloudOauthKeysHelpId,
   }) as HTMLInputElement;
   dbKeyInp.value = getDropboxAppKey();
-  dbKeyRow.append(make("label", { class: "settings-input-label", for: "oauth-dropbox-app-key" }, "Dropbox App Key"), dbKeyInp);
+  const dbKeyPaste = make("button", {
+    type: "button",
+    class: "btn btn--ghost btn--sm",
+    "aria-label": "Paste Dropbox App Key from clipboard",
+    title: "Insert text from the clipboard",
+  }, "Paste") as HTMLButtonElement;
+  dbKeyPaste.addEventListener("click", () => pasteIntoCloudWizardInput(dbKeyInp, "Dropbox App Key"));
+  dbKeyLine.append(dbKeyInp, dbKeyPaste);
+  dbKeyRow.append(
+    make("label", { class: "settings-input-label", for: "oauth-dropbox-app-key" }, "Dropbox App Key"),
+    dbKeyLine,
+  );
 
   const oauthSaveBtn = make("button", { class: "btn btn--sm", type: "button" }, "Save Keys") as HTMLButtonElement;
   oauthSaveBtn.addEventListener("click", () => {
     setGoogleClientId(gIdInp.value);
     setDropboxAppKey(dbKeyInp.value);
-    oauthSaveBtn.textContent = "✓ Saved";
+    oauthSaveBtn.textContent = "Saved";
     setTimeout(() => { oauthSaveBtn.textContent = "Save Keys"; }, 1500);
   });
 
@@ -8840,60 +9329,83 @@ async function fetchFromCloud(game: GameMetadata, settings: Settings): Promise<B
   return new Blob(chunks);
 }
 
+/** Prevents overlapping manual sync runs for the same connection. */
+const _cloudLibrarySyncConnIds = new Set<string>();
+
 async function syncCloudLibrary(
   conn: CloudLibraryConnection,
   library: GameLibrary,
-  onSettingsChange: (patch: Partial<Settings>) => void
+  syncTrigger?: HTMLButtonElement,
 ): Promise<void> {
+  if (_cloudLibrarySyncConnIds.has(conn.id)) return;
+  _cloudLibrarySyncConnIds.add(conn.id);
+
   const provider = createProvider(conn);
   if (!provider) {
-    showError("Invalid cloud provider configuration.");
+    _cloudLibrarySyncConnIds.delete(conn.id);
+    showError("This connection is missing required fields. Edit or remove it and add the source again.");
     return;
+  }
+
+  if (syncTrigger) {
+    syncTrigger.disabled = true;
+    syncTrigger.setAttribute("aria-busy", "true");
+    syncTrigger.classList.add("is-loading");
   }
 
   showLoadingOverlay();
   setLoadingMessage(`Syncing ${conn.name}…`);
   try {
     if (!(await provider.isAvailable())) {
-      throw new Error("Cloud provider is not reachable. Check your connection or credentials.");
+      throw new Error(
+        "Could not reach this provider. Check the network, token expiry, or reconnect the source in Settings → Cloud Storage.",
+      );
     }
-    
-    setLoadingSubtitle("Scanning for game files…");
+
+    setLoadingSubtitle("Scanning root folder for playable files…");
     const files = await provider.listFiles();
-    const romFiles = files.filter(f => !f.isDirectory && detectSystem(f.name));
-    
-    setLoadingSubtitle(`Found ${romFiles.length} games. Integrating into library…`);
-    
+    const romFiles = files.filter((f) => !f.isDirectory && detectSystem(f.name));
+
+    setLoadingSubtitle(`Found ${romFiles.length} matching file(s). Updating library…`);
+
     for (const f of romFiles) {
       const res = detectSystem(f.name);
       if (res) {
-         const sys = Array.isArray(res) ? res[0] : res;
-         if (!sys) continue;
-         const systemId = sys.id;
-         // Cloud entries are keyed by remote source + remote path so they can
-         // live beside local ROMs without being treated as duplicates.
-         await library.upsertVirtualGame(
-           f.name.replace(/\.[^.]+$/, ""),
-           f.name,
-           systemId,
-           f.size,
-           conn.id,
-           f.path,
-           f.thumbnailUrl
-         );
+        const sys = Array.isArray(res) ? res[0] : res;
+        if (!sys) continue;
+        const systemId = sys.id;
+        await library.upsertVirtualGame(
+          f.name.replace(/\.[^.]+$/, ""),
+          f.name,
+          systemId,
+          f.size,
+          conn.id,
+          f.path,
+          f.thumbnailUrl
+        );
       }
     }
-    
-    showInfoToast(`Synced ${romFiles.length} cloud games from ${conn.name}.`, "success");
-    onSettingsChange({});
-    // We don't need to call onSettingsChange unless we want to trigger a re-render of something specific,
-    // but the library grid will re-render automatically if we invalidate/trigger it.
-    // renderLibrary will be called by the next refresh cycle or we can force it.
+
+    if (romFiles.length === 0) {
+      showInfoToast(
+        `Connected to ${conn.name}, but no supported ROM extensions were found in the root folder. Add files there or nested-folder listing is not run yet.`,
+        "info",
+      );
+    } else {
+      showInfoToast(`Synced ${romFiles.length} game file(s) from ${conn.name}.`, "success");
+    }
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to sync cloud library.";
+    const message = error instanceof Error ? error.message : "Cloud library sync failed.";
     showError(message);
   } finally {
+    _cloudLibrarySyncConnIds.delete(conn.id);
     hideLoadingOverlay();
+    if (syncTrigger) {
+      syncTrigger.disabled = false;
+      syncTrigger.removeAttribute("aria-busy");
+      syncTrigger.classList.remove("is-loading");
+    }
   }
 }
 
@@ -9100,19 +9612,18 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
   toast.setAttribute("aria-atomic", "true");
 
-  // Icon varies by type
-  const iconMap: Record<string, string> = { success: "✓", info: "ℹ", warning: "⚠", error: "✕" };
   const icon = document.createElement("span");
   icon.className = "info-toast__icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = (iconMap[type] ?? iconMap.success) as string;
+  icon.innerHTML = INFO_TOAST_ICON_HTML[type] ?? INFO_TOAST_ICON_HTML.success;
 
   const text = document.createElement("span");
+  text.className = "info-toast__msg";
   text.textContent = msg;
 
   const closeBtn = document.createElement("button");
   closeBtn.className = "error-close";
-  closeBtn.textContent = "✕";
+  closeBtn.innerHTML = ICON_CLOSE_X_SVG;
   closeBtn.setAttribute("aria-label", "Dismiss");
   closeBtn.addEventListener("click", () => {
     toast.classList.remove("visible");

@@ -394,6 +394,42 @@ describe("fetchAndValidateCoverArt", () => {
       (globalThis as { createImageBitmap?: unknown }).createImageBitmap = originalBitmap;
     }
   });
+
+  it("throws a friendly timeout when fetch never resolves", async () => {
+    const fetchImpl = ((_: string, init?: RequestInit): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        const sig = init?.signal;
+        if (!sig) {
+          reject(new Error("missing signal"));
+          return;
+        }
+        if (sig.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+        const onAbort = (): void => {
+          sig.removeEventListener("abort", onAbort);
+          reject(new DOMException("Aborted", "AbortError"));
+        };
+        sig.addEventListener("abort", onAbort);
+      })) as unknown as typeof fetch;
+    await expect(fetchAndValidateCoverArt("https://hangs", {
+      fetchImpl,
+      timeoutMs: 120,
+    })).rejects.toThrow(/timed out/i);
+  });
+
+  it("passes AbortSignal.abort() through unchanged", async () => {
+    const fetchImpl = (async (): Promise<Response> =>
+      new Response("", { status: 200 })) as unknown as typeof fetch;
+    const ac = new AbortController();
+    ac.abort();
+    await expect(fetchAndValidateCoverArt("https://x", {
+      fetchImpl,
+      signal: ac.signal,
+      timeoutMs: 50_000,
+    })).rejects.toThrow();
+  });
 });
 
 
@@ -589,6 +625,39 @@ describe("ChainedCoverArtProvider", () => {
     const chain = new ChainedCoverArtProvider([p]);
     const results = await chain.search("Game", "snes", { limit: 3 });
     expect(results.length).toBe(3);
+  });
+
+  it("returns [] when the chain search is aborted before the slot is taken", async () => {
+    const p = {
+      id: "p", name: "P",
+      search: async () => [
+        { title: "T", systemId: "nes", imageUrl: "https://x/1.png", sourceName: "P", score: 0.99 },
+      ],
+    };
+    const chain = new ChainedCoverArtProvider([p]);
+    const ac = new AbortController();
+    ac.abort();
+    await expect(chain.search("Game", "nes", { signal: ac.signal })).resolves.toEqual([]);
+  });
+
+  it("does not throw when more concurrent searches wait without AbortSignal than the global concurrency cap", async () => {
+    const slow = {
+      id: "slow", name: "Slow",
+      search: async () => {
+        await new Promise<void>((r) => { setTimeout(r, 320); });
+        return [{
+          title: "T", systemId: "nes", imageUrl: "https://x/1.png",
+          sourceName: "Slow", score: 0.9,
+        }];
+      },
+    };
+    const chain = new ChainedCoverArtProvider([slow]);
+    const run = () => chain.search("Parallel", "nes");
+    const batch = await Promise.all(Array.from({ length: 6 }, run));
+    expect(batch.length).toBe(6);
+    for (const rows of batch) {
+      expect(rows.length).toBeGreaterThan(0);
+    }
   });
 });
 

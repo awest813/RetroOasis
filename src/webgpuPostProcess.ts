@@ -32,6 +32,7 @@
 
 import { shaderCache } from "./shaderCache.js";
 import type { PerformanceTier } from "./performance.js";
+import { getSystemById } from "./systems.js";
 import type { PostProcessEffect } from "./postProcessEffectSchema.js";
 
 export type { PostProcessEffect } from "./postProcessEffectSchema.js";
@@ -123,6 +124,82 @@ export function shouldDeferWebGpuPostFor3DSession(
   // medium
   if (caps.isChromOS || caps.isLowSpec) return true;
   return false;
+}
+
+/** Inputs for {@link resolveWebGpuPostProcessEffectForShell} (RetroOasis assembles these in `main.ts`). */
+/**
+ * Which per-game post effect to feed into {@link WebGpuGlCapturePolicyInput.perGamePostEffect}
+ * when syncing settings: an explicit call argument wins; otherwise the session snapshot from launch.
+ */
+export function pickShellPerGamePostEffect(
+  perGameEffectOverride: PostProcessEffect | null | undefined,
+  sessionGamePostEffectOverride: PostProcessEffect | null | undefined,
+): PostProcessEffect | null | undefined {
+  return perGameEffectOverride !== undefined
+    ? perGameEffectOverride
+    : sessionGamePostEffectOverride;
+}
+
+export type WebGpuGlCapturePolicyInput = {
+  /** User preference: prefer WebGPU pipeline when available. */
+  useWebGPU: boolean;
+  /** Runtime: WebGPU device initialised (matches `PSPEmulator.webgpuAvailable`). */
+  webgpuAvailable: boolean;
+  /** Global settings post effect. */
+  settingsPostEffect: PostProcessEffect;
+  /**
+   * Per-game `profile.postEffect`, merged with `settingsPostEffect` via `??`
+   * (`null`/`undefined` fall through to global).
+   */
+  perGamePostEffect?: PostProcessEffect | null;
+  /** Active system while launching / playing; null on the library screen. */
+  systemId: string | null | undefined;
+  /** Effective performance tier (Graphics Mode + caps, or core tier while running). */
+  tier: PerformanceTier;
+  caps: { readonly isChromOS: boolean; readonly isLowSpec: boolean };
+};
+
+/**
+ * Single source of truth for which WebGPU post effect the shell applies (defer policy,
+ * per-game preference, {@link effectivePostProcessForSystem}). `"none"` when WebGPU is off,
+ * unavailable, or the pipeline is suppressed.
+ */
+export function resolveWebGpuPostProcessEffectForShell(
+  input: WebGpuGlCapturePolicyInput,
+): PostProcessEffect {
+  if (!input.useWebGPU || !input.webgpuAvailable) return "none";
+
+  const baseEffect: PostProcessEffect =
+    input.perGamePostEffect ?? input.settingsPostEffect;
+  if (baseEffect === "none") return "none";
+
+  const systemMeta = input.systemId ? getSystemById(input.systemId) : undefined;
+  const systemIs3D = systemMeta?.is3D === true;
+  const explicitPerGameFx =
+    input.perGamePostEffect != null && input.perGamePostEffect !== "none";
+
+  let effectAfterShellPolicy: PostProcessEffect = baseEffect;
+  if (
+    !explicitPerGameFx &&
+    shouldDeferWebGpuPostFor3DSession(systemIs3D, input.tier, input.caps)
+  ) {
+    effectAfterShellPolicy = "none";
+  }
+  if (effectAfterShellPolicy === "none") return "none";
+
+  return systemMeta === undefined
+    ? effectAfterShellPolicy
+    : effectivePostProcessForSystem(systemIs3D, effectAfterShellPolicy);
+}
+
+/**
+ * True when {@link resolveWebGpuPostProcessEffectForShell} is non-`"none"` — i.e. the overlay
+ * will `copyExternalImageToTexture` from the emulator canvas (`preserveDrawingBuffer` on GL).
+ */
+export function shouldWebGpuPostCaptureEmulatorGlCanvas(
+  input: WebGpuGlCapturePolicyInput,
+): boolean {
+  return resolveWebGpuPostProcessEffectForShell(input) !== "none";
 }
 
 export interface PostProcessConfig {
@@ -1750,7 +1827,9 @@ export class WebGPUPostProcessor {
       if (!this._historyTexture) return;
     }
 
-    // Copy the emulator canvas to our GPU texture (GPU-side, no CPU readback)
+    // Copy the emulator canvas to our GPU texture (GPU-side, no CPU readback).
+    // Requires `preserveDrawingBuffer` on the source WebGL context — merged by
+    // `installWebGlContextPolicy` when {@link shouldWebGpuPostCaptureEmulatorGlCanvas} is true.
     try {
       this._device.queue.copyExternalImageToTexture(
         { source: this._sourceCanvas, flipY: false },

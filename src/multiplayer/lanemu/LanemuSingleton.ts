@@ -2,6 +2,7 @@
  * LanemuSingleton.ts — Lazy-loading singleton for the LanemuService.
  */
 
+import { diagDevWarn } from "../../diagnosticLog.js";
 import { LanemuService } from "./LanemuService.js";
 import { DEFAULT_LANEMU_SETTINGS } from "./LanemuSettings.js";
 import type { IProcessLaunchService } from "./LanemuProcessService.js";
@@ -14,21 +15,21 @@ import type { INetworkService, NetworkInterface } from "./LanemuNetworkService.j
  */
 class BrowserProcessLauncher implements IProcessLaunchService {
   async spawn(command: string, args: string[]): Promise<number> {
-    console.warn("[Lanemu] spawn() called in browser. Command:", command, args);
+    diagDevWarn("[Lanemu] spawn() called in browser. Command:", command, args);
     throw new Error("Native process spawning is not supported in the browser. Please use the RetroOasis Desktop app.");
   }
   async kill(pid: number): Promise<void> {
-    console.warn("[Lanemu] kill() called for PID:", pid);
+    diagDevWarn("[Lanemu] kill() called for PID:", pid);
   }
   async isProcessRunning(_pid: number): Promise<boolean> {
     return false;
   }
   async exists(path: string): Promise<boolean> {
-    console.warn("[Lanemu] exists() called in browser for path:", path);
+    diagDevWarn("[Lanemu] exists() called in browser for path:", path);
     return false;
   }
   async validateJava(path: string): Promise<boolean> {
-    console.warn("[Lanemu] validateJava() called in browser for path:", path);
+    diagDevWarn("[Lanemu] validateJava() called in browser for path:", path);
     return false;
   }
 }
@@ -41,7 +42,7 @@ class BrowserNetworkService implements INetworkService {
     return []; // Browsers cannot list network interfaces
   }
   async ping(ip: string): Promise<boolean> {
-    console.warn("[Lanemu] ping() not supported in browser for IP:", ip);
+    diagDevWarn("[Lanemu] ping() not supported in browser for IP:", ip);
     return false;
   }
   async checkTcpPort(_ip: string, _port: number): Promise<boolean> {

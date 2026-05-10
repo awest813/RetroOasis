@@ -48,7 +48,7 @@ function makeOpts(overrides: Partial<HighlightsPanelOpts> = {}): HighlightsPanel
     favorites:          overrides.favorites          ?? [],
     recentSessions:     overrides.recentSessions     ?? [],
     allGames:           overrides.allGames           ?? [],
-    getSystemIcon:      overrides.getSystemIcon      ?? (() => "🎮"),
+    getSystemIcon:      overrides.getSystemIcon      ?? (() => "●"),
     getSystemName:      overrides.getSystemName      ?? ((id) => id.toUpperCase()),
     formatRelativeTime: overrides.formatRelativeTime ?? (() => "3d ago"),
     formatPlayTime:     overrides.formatPlayTime     ?? (() => "10 min"),

@@ -6,8 +6,11 @@ export default [
         ignores: [
             "coverage/**",
             "dist/**",
+            "dist_extracted/**",
             "node_modules/**",
             "data/**",
+            // Stray CDN 404/HTML saved as emulator.js — not JavaScript source
+            "emulator.js",
         ],
     },
     // JavaScript files — base rules only
@@ -40,7 +43,7 @@ export default [
             sourceType: "module",
             parser: tsParser,
             parserOptions: {
-                project: "./tsconfig.json",
+                project: "./tsconfig.eslint.json",
             },
             globals: {
                 console: "readonly",

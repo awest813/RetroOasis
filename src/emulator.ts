@@ -21,6 +21,7 @@
  *   - Memory-aware blob management: revokes URLs promptly, warns on large ROMs
  */
 
+import { diagWarn } from "./diagnosticLog.js";
 import { LEGACY_PERF_MARKS } from "./legacy.js";
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
@@ -2764,9 +2765,10 @@ export class PSPEmulator {
 
     // ── Large ROM warning ───────────────────────────────────────────────────
     if (opts.file.size > LARGE_ROM_THRESHOLD) {
-      console.warn(
+      diagWarn(
+        this.verboseLogging,
         `[RetroOasis] Large ROM detected (${(opts.file.size / 1024 / 1024).toFixed(0)} MB). ` +
-        `This may cause memory pressure in the browser. Consider using a CSO/compressed format.`
+        `This may cause memory pressure in the browser. Consider using a CSO/compressed format.`,
       );
     }
 

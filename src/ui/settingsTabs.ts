@@ -131,10 +131,10 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
   const mpSection = make("div", { class: "settings-section" });
   mpSection.appendChild(make("h4", { class: "settings-section__title" }, "Play with friends online"));
   const mpSteps = [
-    "Open ⚙ Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your server — everyone must use the same URL.",
+    "Open Settings → Play Together. Turn on Online play and paste the WebSocket URL (wss://…) from whoever runs your server — everyone must use the same URL.",
     "Launch the same game as your friend (same title and system when possible).",
     "Click Play Together on the home screen, or Online in the game toolbar. Host creates a room and shares the invite code; Join pastes the code from your friend.",
-    "If something fails, open Play Together and use 📋 Logs to copy connection details for troubleshooting.",
+    "If something fails, open Play Together and use Logs to copy connection details for troubleshooting.",
   ];
   const mpList = make("ol", { class: "help-steps" });
   for (const step of mpSteps) mpList.appendChild(make("li", { class: "help-step" }, step));
@@ -148,15 +148,15 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     ["Game won't load", "Check that the file is a valid ROM. ZIP files are automatically extracted — if it still fails, try unzipping the file manually first."],
     ["PSP game won't start", "PSP games need a special browser feature. Try refreshing the page once — this sets things up automatically."],
     ["No sound", "Make sure the browser tab isn't muted. Some games take a few seconds to start audio."],
-    ["Game is slow or choppy", "Open ⚡ Settings → Performance and switch to Performance mode. Closing other browser tabs can also help."],
+    ["Game is slow or choppy", "Open Settings → Performance and switch to Performance mode. Closing other browser tabs can also help."],
     ["Saves aren't working", "Your saves live in your browser on this device. If you connect cloud backup, it mirrors those saves instead of replacing them. Clearing browser data will erase the local copy, so export saves first if you want a backup."],
     ["Controls not responding", "Click on the game screen first to make sure it has focus. Gamepads should be connected before launching a game."],
     ["Stuck on loading screen", "Try refreshing the page. If the issue persists, the game file may be corrupted or an unsupported format."],
-    ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try 📋 Logs in the Play Together window; strict networks may need a TURN server under Advanced."],
+    ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try Logs in the Play Together window; strict networks may need a TURN server under Advanced."],
   ];
   for (const [problem, solution] of troubles) {
     const item = make("div", { class: "trouble-item" });
-    item.append(make("p", { class: "trouble-item__q" }, `❓ ${problem}`), make("p", { class: "trouble-item__a" }, solution));
+    item.append(make("p", { class: "trouble-item__q" }, problem), make("p", { class: "trouble-item__a" }, solution));
     troubleSection.appendChild(item);
   }
 
@@ -179,7 +179,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     if (est.quota !== null && est.percentUsed !== null) {
       text += ` Your browser has allocated ${formatBytes(est.quota)} to this site; ${est.percentUsed}% is in use.`;
       if (est.percentUsed >= 80) {
-        text += " ⚠️ You are approaching your storage limit — consider removing games you no longer need.";
+        text += " Warning: you are approaching your storage limit — consider removing games you no longer need.";
       }
     } else {
       text += " Your browser does not report a storage quota for this site.";
@@ -199,13 +199,13 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     target: "_blank",
     rel: "noopener noreferrer",
     class: "btn help-link-btn",
-  }, "🐛 Report a Bug"));
+  }, "Report a Bug"));
   links.appendChild(make("a", {
     href: "https://github.com/awest813/RetroOasis/blob/main/PRIVACY.md",
     target: "_blank",
     rel: "noopener noreferrer",
     class: "btn help-link-btn",
-  }, "🔒 Privacy Policy"));
+  }, "Privacy Policy"));
   aboutSection.appendChild(links);
 
   const dataSection = make("div", { class: "settings-section" });
@@ -214,7 +214,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
   
   const dataButtons = make("div", { class: "help-links" });
   
-  const exportBtn = make("button", { class: "btn" }, "📤 Export Library JSON");
+  const exportBtn = make("button", { class: "btn" }, "Export Library JSON");
   exportBtn.addEventListener("click", async () => {
     try {
       const { GameLibrary } = await import("../library.js");
@@ -241,7 +241,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
   });
 
   const importInput = make("input", { type: "file", accept: ".json", style: "display:none" }) as HTMLInputElement;
-  const importBtn = make("button", { class: "btn" }, "📥 Import Library JSON");
+  const importBtn = make("button", { class: "btn" }, "Import Library JSON");
   const importStatus = make("p", { class: "settings-import-status", "aria-live": "polite" });
   importBtn.addEventListener("click", () => importInput.click());
   importInput.addEventListener("change", async () => {
@@ -427,7 +427,8 @@ export function buildApiKeysTab(
   intro.appendChild(make("p", { class: "settings-help" },
     `${appName} can pull cover art and metadata from third-party services that require an account. ` +
     "Add an API key to turn a provider on. Keys are stored only in this browser, and are sent directly " +
-    "to the service they belong to — nothing is uploaded by " + appName + "."));
+    "to the service they belong to — nothing is uploaded by " + appName + ". " +
+    "Use Paste next to each field to insert from the clipboard, then Save (or press Enter)."));
 
   // Summary badge: "X of Y providers configured".
   const summary = make("p", { class: "settings-help api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLParagraphElement;
@@ -486,7 +487,7 @@ export function buildApiKeysTab(
     row.appendChild(header);
     row.appendChild(make("p", { class: "settings-help api-key-row__desc" }, cfg.description));
 
-    // Key input + show/hide toggle.
+    // Key input + paste + show/hide toggle.
     const inputWrap = make("div", { class: "api-key-row__input-wrap" });
     const inputId = `api-key-input-${cfg.id}`;
     const label = make("label", { class: "api-key-row__label", for: inputId }, "API key");
@@ -497,13 +498,45 @@ export function buildApiKeysTab(
       autocomplete: "off",
       spellcheck: "false",
       "aria-label": `${cfg.name} API key`,
-      placeholder: state.key ? redactKey(state.key) : "Paste your key here",
+      placeholder: state.key ? redactKey(state.key) : "Paste your key, then Save or Enter",
     }) as HTMLInputElement;
     if (state.key) input.value = state.key;
 
+    const pasteBtn = make("button", {
+      type: "button",
+      class: "btn btn--ghost btn--sm api-key-paste-btn",
+      "aria-label": `Paste ${cfg.name} API key from clipboard`,
+      title: "Insert text from the clipboard",
+    }, "Paste") as HTMLButtonElement;
+    pasteBtn.addEventListener("click", () => {
+      void (async () => {
+        try {
+          if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
+            onError("Clipboard paste is not available in this browser. Use Ctrl+V (⌘V on Mac) in the field.");
+            input.focus();
+            return;
+          }
+          const text = await navigator.clipboard.readText();
+          const t = typeof text === "string" ? text.trim() : "";
+          if (!t) {
+            onError("Clipboard was empty.");
+            input.focus();
+            return;
+          }
+          input.value = t;
+          input.focus();
+        } catch {
+          onError(
+            "Could not read the clipboard — use Ctrl+V in the field, or allow clipboard access for this site.",
+          );
+          input.focus();
+        }
+      })();
+    });
+
     const showBtn = make("button", {
       type: "button",
-      class: "btn btn--ghost api-key-show-btn",
+      class: "btn btn--ghost btn--sm api-key-show-btn",
       "aria-label": `Show or hide the ${cfg.name} API key`,
       "aria-pressed": "false",
     }, "Show") as HTMLButtonElement;
@@ -514,7 +547,9 @@ export function buildApiKeysTab(
       showBtn.setAttribute("aria-pressed", String(show));
     });
 
-    inputWrap.append(label, input, showBtn);
+    const keyLine = make("div", { class: "api-key-row__key-line" });
+    keyLine.append(input, pasteBtn, showBtn);
+    inputWrap.append(label, keyLine);
     row.appendChild(inputWrap);
 
     // Warning for placeholder-looking values.
@@ -595,7 +630,7 @@ export function buildApiKeysTab(
       lastTestAt.delete(cfg.id);
       store.removeKey(cfg.id);
       input.value = "";
-      input.placeholder = "Paste your key here";
+      input.placeholder = "Paste your key, then Save or Enter";
       testMsg.textContent = "";
       testMsg.className = "api-key-row__test-msg";
       renderStatus();
@@ -716,8 +751,8 @@ export function buildApiKeysTab(
         // Append last-tested timestamp so the "Active" state communicates
         // freshness of the test rather than just "a key is saved".
         statusPill.textContent = t
-          ? `Active ✓ · tested ${timeAgo(t)}`
-          : (override === "ok" ? "Active ✓" : "Active");
+          ? `Active · tested ${timeAgo(t)}`
+          : "Active";
       }
     };
 

@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { LanemuService } from "../../src/multiplayer/lanemu/LanemuService";
-import { DEFAULT_LANEMU_SETTINGS } from "../../src/multiplayer/lanemu/LanemuSettings";
+import { LanemuService } from "../../src/multiplayer/lanemu/LanemuService.js";
+import { DEFAULT_LANEMU_SETTINGS } from "../../src/multiplayer/lanemu/LanemuSettings.js";
+import type { IProcessLaunchService } from "../../src/multiplayer/lanemu/LanemuProcessService.js";
+import type { INetworkService } from "../../src/multiplayer/lanemu/LanemuNetworkService.js";
 
 describe("LanemuService", () => {
-  let mockLauncher: any;
-  let mockNetwork: any;
+  let mockLauncher: IProcessLaunchService;
+  let mockNetwork: INetworkService;
 
   beforeEach(() => {
     mockLauncher = {
@@ -17,7 +19,7 @@ describe("LanemuService", () => {
 
     mockNetwork = {
       getInterfaces: vi.fn().mockResolvedValue([
-        { address: "10.6.10.10", family: "IPv4", internal: false, name: "lanemu0", netmask: "255.255.0.0" }
+        { address: "10.6.10.10", family: "IPv4", internal: false, name: "lanemu0", netmask: "255.255.0.0" },
       ]),
       ping: vi.fn().mockResolvedValue(true),
       checkTcpPort: vi.fn().mockResolvedValue(true),
@@ -26,13 +28,11 @@ describe("LanemuService", () => {
 
   it("should detect virtual IP when running", async () => {
     const service = new LanemuService(DEFAULT_LANEMU_SETTINGS, mockLauncher, mockNetwork);
-    
-    // Start the service
+
     await service.start({ playerName: "Tester" });
-    
-    // Check status
+
     const status = await service.getStatus();
-    
+
     expect(mockLauncher.spawn).toHaveBeenCalled();
     expect(status.running).toBe(true);
     expect(status.virtualIp).toBe("10.6.10.10");
@@ -45,7 +45,7 @@ describe("LanemuService", () => {
     expect(mockLauncher.spawn).toHaveBeenCalledWith(
       "java",
       ["-jar", "./tools/lanemu/Lanemu.jar", "--headless", "--name=Alice", "--port=3000"],
-      expect.anything()
+      expect.anything(),
     );
   });
 });

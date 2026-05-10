@@ -105,12 +105,16 @@
   --transition-med:   0.25s ease;
   --spring:           0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   --spring-fast:      0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Restrained “premium” easing — less bounce than --spring for large surfaces */
+  --ease-premium-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ── Shadows ── */
   --shadow:       0 20px 60px rgba(0, 0, 0, 0.85);
   --shadow-sm:    0 4px 18px rgba(0, 0, 0, 0.55);
   --shadow-lg:    0 32px 80px rgba(0, 0, 0, 0.90);
   --shadow-card:  0 4px 16px rgba(0, 0, 0, 0.65);
+  /** Subtle top edge lift on elevated cards */
+  --shadow-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-lift:  0 14px 40px rgba(0, 0, 0, 0.75);
 
   /* ── Glass / depth ── */

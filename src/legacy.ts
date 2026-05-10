@@ -12,6 +12,7 @@ export const LEGACY_EVENTS = {
   closeEasyNetplay: "retro-oasis:closeEasyNetplay",
   gameStarted: "retro-oasis:gameStarted",
   installPromptReady: "retro-oasis:installPromptReady",
+  libraryCatalogNeedsRefresh: "retro-oasis:libraryCatalogNeedsRefresh",
   openSettings: "retro-oasis:openSettings",
   restartRequired: "retro-oasis:restart-required",
   resumeGame: "retro-oasis:resumeGame",

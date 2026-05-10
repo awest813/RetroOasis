@@ -733,6 +733,11 @@ export function getGameGraphicsProfile(gameId: string): PerGameGraphicsProfile |
   }
 }
 
+/**
+ * Persist a per-game graphics profile to localStorage.
+ * If RetroOasis (or another host) edits `postEffect` while that game is already running,
+ * also update the shell’s session override and sync WebGPU post (see `main.ts` launch glue).
+ */
 export function saveGameGraphicsProfile(gameId: string, profile: PerGameGraphicsProfile): void {
   try {
     localStorage.setItem(GRAPHICS_PROFILE_PREFIX + gameId, JSON.stringify(profile));

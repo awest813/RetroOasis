@@ -68,7 +68,7 @@ export function buildLanemuSetupWizard(container: HTMLElement, opts: { onBack: (
 
     // Step 1: Java
     if (status.javaDetected) {
-      s1Icon.textContent = "✓";
+      s1Icon.textContent = "OK";
       s1Icon.className = "step-status status--success";
       s1Text.textContent = "Java 17+ detected and ready.";
       btnDetectJava.textContent = "Re-detect";
@@ -90,7 +90,7 @@ export function buildLanemuSetupWizard(container: HTMLElement, opts: { onBack: (
 
     // Step 2: LANemu.jar
     if (status.lanemuJarDetected) {
-      s2Icon.textContent = "✓";
+      s2Icon.textContent = "OK";
       s2Icon.className = "step-status status--success";
       s2Text.textContent = "Lanemu.jar verified and linked.";
       btnChooseJar.textContent = "Change File";
