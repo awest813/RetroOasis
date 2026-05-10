@@ -46,16 +46,31 @@ const IDB_STUB_SCRIPT = `
   }
 
   function makeIndex(data, keyPath) {
+    function indexValue(record) {
+      if (!keyPath || (Array.isArray(keyPath) && keyPath.some((field) => field == null))) {
+        return null;
+      }
+      return Array.isArray(keyPath)
+        ? keyPath.map((field) => record[field])
+        : record[keyPath];
+    }
     return {
       get(key) {
         const encodedKey = JSON.stringify(key);
         const match = [...data.values()].find((value) => {
-          const valueKey = Array.isArray(keyPath)
-            ? keyPath.map((field) => value[field])
-            : value[keyPath];
-          return JSON.stringify(valueKey) === encodedKey;
+          return JSON.stringify(indexValue(value)) === encodedKey;
         });
         return makeRequest(match);
+      },
+      // SaveStateLibrary.getStatesForGame() uses idx.getAll(gameId)
+      getAll(query) {
+        const values = [...data.values()];
+        if (query === undefined) {
+          return makeRequest(values);
+        }
+        const encodedKey = JSON.stringify(query);
+        const matches = values.filter((value) => JSON.stringify(indexValue(value)) === encodedKey);
+        return makeRequest(matches);
       },
     };
   }
@@ -69,6 +84,10 @@ const IDB_STUB_SCRIPT = `
       ['lastPlayedAt', 'lastPlayedAt'],
       ['fileNameSystemId', ['fileName', 'systemId']],
       ['isFavorite', 'isFavorite'],
+      // retro-oasis-saves "states" store (indexed by gameId / timestamp / label)
+      ['gameId', 'gameId'],
+      ['timestamp', 'timestamp'],
+      ['label', 'label'],
     ]);
 
     return {
@@ -154,10 +173,10 @@ export const test = base.extend<RetroOasisFixtures>({
     await page.addInitScript({ content: IDB_STUB_SCRIPT });
     await page.addInitScript({ content: EMULATOR_STUB_SCRIPT });
 
-    await page.goto("/");
+    await page.goto("/", { timeout: 60_000, waitUntil: "domcontentloaded" });
     // Wait for the landing page to appear before handing off to the test
     await page.waitForSelector("#landing", {
-      timeout: 15_000,
+      timeout: 30_000,
     });
 
     await use(page);

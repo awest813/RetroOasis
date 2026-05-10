@@ -25,11 +25,13 @@ export default defineConfig({
     /** Base URL pointing at the Vite dev server. */
     baseURL: E2E_BASE_URL,
     trace: "on-first-retry",
+    // Fewer flaky clicks while the in-game menu glass transition runs
+    reducedMotion: "reduce",
   },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], reducedMotion: "reduce" },
     },
   ],
   webServer: {

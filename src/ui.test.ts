@@ -3312,7 +3312,7 @@ describe("dialog Escape handling when emulator is running", () => {
     document.querySelectorAll(".confirm-overlay").forEach((el) => el.remove());
   });
 
-  it("pressing Escape while game is running returns to the library (not opens menu)", () => {
+  it("pressing Escape while game is running opens the in-game menu (not return to library)", () => {
     const onReturnToLibrary = vi.fn();
     const emulator = makeRunningEmuMock();
     initUI({
@@ -3327,9 +3327,8 @@ describe("dialog Escape handling when emulator is running", () => {
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
     );
 
-    expect(onReturnToLibrary).toHaveBeenCalledOnce();
-    // The in-game menu must NOT have opened
-    expect(document.querySelector(".ingame-menu-overlay")).toBeNull();
+    expect(onReturnToLibrary).not.toHaveBeenCalled();
+    expect(document.querySelector(".ingame-menu-overlay")).toBeTruthy();
   });
 
   it("pressing Escape closes a confirm dialog even when the emulator is running", async () => {

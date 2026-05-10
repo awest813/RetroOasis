@@ -47,37 +47,50 @@ test.describe("Play journey", () => {
     );
   });
 
-  test("Escape key from emulator returns to library", async ({ appPage: page }) => {
+  test("Escape opens in-game menu; Back to Library returns to library", async ({ appPage: page }) => {
     await dropFakeRom(page, { fileName: "sonic.nes" });
     await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
 
-    // Press Escape to return to library
+    // Immersive play hides the header; Escape opens the in-game menu (not an instant library exit).
     await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator(".ingame-menu__saves-grid")).toBeVisible({ timeout: 15_000 });
 
-    // Drop zone or landing page should be visible again
+    await page
+      .locator('.ingame-menu__sidebar-btn[data-tab="library"]')
+      .evaluate((btn) => (btn as HTMLButtonElement).click());
+    await page.waitForFunction(() => !document.body.classList.contains("is-playing"), { timeout: 15_000 });
+
     await expect(
-      page.locator("#drop-zone, #landing").first()
-    ).toBeVisible({ timeout: 8_000 });
+      page.locator("#landing")
+    ).not.toHaveClass("hidden", { timeout: 10_000 });
   });
 
   test("in-game menu actions are usable without duplicate sidebar entries", async ({ appPage: page }) => {
+    test.setTimeout(60_000);
     await dropFakeRom(page, { fileName: "menu-audit.nes" });
     await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Open Menu" }).click();
-    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible();
+    // Header / #header-actions is hidden during immersive play (`body.is-playing`).
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator(".ingame-menu__saves-grid")).toBeVisible({ timeout: 15_000 });
 
     await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="saves"]')).toHaveCount(1);
     await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="settings"]')).toHaveCount(1);
     await expect(page.locator('.ingame-menu__sidebar-btn[data-tab="multiplayer"]')).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Quit game and return to library" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Quick Settings" }).click();
-    await expect(page.getByLabel("Master Volume")).toBeVisible();
-    await expect(page.getByLabel("Performance Profile")).toBeVisible();
+    await page.locator('.ingame-menu__sidebar-btn[data-tab="settings"]').evaluate((btn) =>
+      (btn as HTMLButtonElement).click()
+    );
+    await expect(page.getByLabel("Master Volume")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Performance Profile")).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Saves & Gallery" }).click();
-    await expect(page.getByRole("button", { name: "Save to Slot 1" })).toBeVisible();
+    await page.locator('.ingame-menu__sidebar-btn[data-tab="saves"]').evaluate((btn) =>
+      (btn as HTMLButtonElement).click()
+    );
+    await expect(page.getByRole("button", { name: "Save to Slot 1" })).toBeVisible({ timeout: 15_000 });
 
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeHidden();

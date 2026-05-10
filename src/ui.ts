@@ -11,11 +11,12 @@
  *   loading    — spinner during emulator boot
  *   error      — dismissible error banner
  *
- * Keyboard shortcuts (global, while emulator is running):
+ * Keyboard shortcuts (global, while a game session is active — running or paused):
  *   F5  → Quick Save slot 1
  *   F7  → Quick Load slot 1
  *   F1  → Reset (confirmation dialog — same as toolbar)
- *   Esc → Return to library
+ *   Esc → Close in-game menu if open; otherwise open the in-game menu (immersive mode).
+ *         Return to the library via the menu’s “Back to Library” action.
  *
  * All shortcut handlers use the capture phase and stopPropagation() so the
  * intercepted keys never reach the EmulatorJS key-input handler, while all
@@ -612,6 +613,8 @@ export function initUI(opts: UIOptions): void {
   // repeated initUI() calls (tests/hot-reload) don't accumulate handlers.
   _initUICleanup?.();
   _initUICleanup = null;
+  _closeInGameMenu = null;
+  _inGameMenuOpen = false;
 
   // If a pre-existing NetplayManager instance is provided, register it as the
   // global singleton so that peekNetplayManager() returns it synchronously.
@@ -908,25 +911,6 @@ export function initUI(opts: UIOptions): void {
     );
   };
 
-  // ── Global In-Game Shortcut (Esc) ──────────────────────────────────────────
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && document.body.classList.contains("is-playing") && !_inGameMenuOpen) {
-      // Check if any other overlay is open (confirm dialogs, etc.)
-      if (document.querySelector(".confirm-overlay--visible")) return;
-      
-      e.preventDefault();
-      const openSettingsWith = (tab?: SettingsTab) =>
-        openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
-      
-      void showInGameMenu({
-        emulator, settings, onSettingsChange, onReturnToLibrary,
-        saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
-        getCurrentSystemId, getTouchOverlay, onOpenSettings: openSettingsWith,
-        getNetplayManager, onOpenPlayTogetherSettings,
-        getCurrentCoreOptions, onUpdateCoreOption,
-      });
-    }
-  }, { capture: true });
   bindEvent(document, TOUCH_CONTROLS_CHANGED_EVENT, rebuildInGameControls);
 
   // Ensure overlay work is paused while browsing the library.
@@ -975,7 +959,48 @@ export function initUI(opts: UIOptions): void {
       }
       return;
     }
-    if (emulator.state !== "running") return;
+
+    // ── Escape (single policy, capture phase) ───────────────────────────────
+    // 1) Let confirm / settings / system-picker / netplay UIs handle their own Escape.
+    // 2) If the in-game menu is open, close it (and resume if we paused for the menu).
+    // 3) If a session is active (body.is-playing) and the menu is closed, open the menu.
+    if (e.key === "Escape") {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.classList.contains("ingame-menu__save-rename-input")) return;
+
+      const errorBanner = document.getElementById("error-banner");
+      if (errorBanner?.classList.contains("visible")) return;
+
+      const settingsPanel = document.getElementById("settings-panel");
+      if (settingsPanel && !settingsPanel.hidden) return;
+      if (document.querySelector("#system-picker:not([hidden])")) return;
+      if (document.querySelector(".confirm-overlay--visible")) return;
+      if (document.querySelector(".easy-netplay-overlay")) return;
+
+      if (_closeInGameMenu) {
+        e.preventDefault();
+        e.stopPropagation();
+        _closeInGameMenu();
+        return;
+      }
+
+      if (document.body.classList.contains("is-playing")) {
+        e.preventDefault();
+        e.stopPropagation();
+        const openSettingsWith = (tab?: SettingsTab) =>
+          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
+        void showInGameMenu({
+          emulator, settings, onSettingsChange, onReturnToLibrary,
+          saveLibrary, saveService, getCurrentGameId, getCurrentGameName,
+          getCurrentSystemId, getTouchOverlay, onOpenSettings: openSettingsWith,
+          getNetplayManager, onOpenPlayTogetherSettings: openPlayTogetherSettings,
+          getCurrentCoreOptions, onUpdateCoreOption,
+        });
+      }
+      return;
+    }
+
+    if (!_isInGameSession(emulator)) return;
     switch (e.key) {
       case "F5":
         e.preventDefault();
@@ -1013,15 +1038,6 @@ export function initUI(opts: UIOptions): void {
           );
           if (confirmed) emulator.reset();
         })();
-        break;
-      case "Escape":
-        e.preventDefault();
-        e.stopPropagation();
-        // When a modal overlay is open, let its own capture-phase handler close it
-        // rather than returning to the library (which would close the whole game).
-        if (!document.querySelector(".confirm-overlay")) {
-          onReturnToLibrary();
-        }
         break;
     }
   };
@@ -3547,6 +3563,12 @@ export function buildLandingControls(
 
 let _inGameControlsAc: AbortController | null = null;
 let _inGameMenuOpen = false;
+/** When set, Escape closes the active in-game menu overlay (see unified Escape handler). */
+let _closeInGameMenu: (() => void) | null = null;
+
+function _isInGameSession(emulator: PSPEmulator): boolean {
+  return emulator.state === "running" || emulator.state === "paused";
+}
 
 function buildInGameControls(
   emulator:           PSPEmulator,
@@ -3803,6 +3825,7 @@ async function showInGameMenu(ctx: {
   const systemDisplayName = systemInfo?.shortName ?? systemId.toUpperCase();
 
   const closeMenu = () => {
+    _closeInGameMenu = null;
     overlay.classList.remove("ingame-menu-overlay--visible");
     setTimeout(() => {
       overlay.remove();
@@ -3811,6 +3834,7 @@ async function showInGameMenu(ctx: {
       if (ctx.emulator.state === "paused") ctx.emulator.resume();
     }, 400);
   };
+  _closeInGameMenu = closeMenu;
 
   const menu = make("div", { class: "ingame-menu" });
   overlay.appendChild(menu);
@@ -4350,11 +4374,6 @@ async function showInGameMenu(ctx: {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeMenu();
   }, { signal });
-
-  // Escape to close
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeMenu();
-  }, { signal, once: true });
 
   overlay.addEventListener("keydown", (e: KeyboardEvent) => trapFocus(overlay, e), { signal });
 }

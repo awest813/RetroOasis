@@ -61,6 +61,12 @@ console.error = ((...args: unknown[]) => {
 // ratio high so genuine warnings stand out.
 
 const EXPECTED_WARN_PATTERNS = [
+  // Lanemu desktop adapter: no-ops in jsdom / browser unit tests (expected)
+  "[Lanemu] spawn() called in browser.",
+  "[Lanemu] kill() called for PID:",
+  "[Lanemu] exists() called in browser for path:",
+  "[Lanemu] validateJava() called in browser for path:",
+  "[Lanemu] ping() not supported in browser for IP:",
   // WebGPU post-processor: pipeline build failure (tested explicitly)
   "[RetroOasis] Failed to build WebGPU post-process pipeline:",
   // WebGPU post-processor: device loss path (tested explicitly)
