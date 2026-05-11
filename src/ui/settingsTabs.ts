@@ -340,13 +340,15 @@ export function buildAchievementsTab(
         const trophyList = make("div", { class: "trophy-list" });
         summary.RecentAchievements.slice(0, 5).forEach((ach: RARecentAchievement) => {
           const item = make("div", { class: "trophy-item" });
-          item.innerHTML = `
-            <img src="https://media.retroachievements.org/Badge/${ach.BadgeName}.png" class="trophy-badge" alt="${ach.Title} achievement badge">
-            <div class="trophy-text">
-              <div class="trophy-name">${ach.Title}</div>
-              <div class="trophy-game">${ach.GameTitle}</div>
-            </div>
-          `;
+          const img = make("img", {
+            src: `https://media.retroachievements.org/Badge/${encodeURIComponent(String(ach.BadgeName))}.png`,
+            class: "trophy-badge",
+            alt: `${String(ach.Title)} achievement badge`,
+          });
+          const text = make("div", { class: "trophy-text" });
+          text.appendChild(make("div", { class: "trophy-name" }, String(ach.Title)));
+          text.appendChild(make("div", { class: "trophy-game" }, String(ach.GameTitle)));
+          item.append(img, text);
           trophyList.appendChild(item);
         });
         recentSection.appendChild(trophyList);
@@ -361,10 +363,8 @@ export function buildAchievementsTab(
 
 function _buildStatCard(label: string, value: string | number): HTMLElement {
   const card = make("div", { class: "stat-card" });
-  card.innerHTML = `
-    <div class="stat-card__label">${label}</div>
-    <div class="stat-card__value">${value}</div>
-  `;
+  card.appendChild(make("div", { class: "stat-card__label" }, label));
+  card.appendChild(make("div", { class: "stat-card__value" }, String(value)));
   return card;
 }
 

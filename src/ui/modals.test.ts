@@ -371,6 +371,22 @@ describe("showArchiveEntryPickerDialog", () => {
     document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
     return promise;
   });
+
+  it("focuses the first entry button rather than Cancel on open", async () => {
+    const focusSpy = vi.spyOn(HTMLButtonElement.prototype, "focus");
+    const promise = showArchiveEntryPickerDialog("zip", [makeEntry("mario.nes"), makeEntry("zelda.nes")]);
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const firstEntry = document.querySelector<HTMLButtonElement>(".game-picker-btn");
+    expect(firstEntry).toBeTruthy();
+    // The most recently focused button should be the first entry, not Cancel
+    const focusCalls = focusSpy.mock.instances;
+    expect(focusCalls[focusCalls.length - 1]).toBe(firstEntry);
+
+    firstEntry!.click();
+    await promise;
+    focusSpy.mockRestore();
+  });
 });
 
 // ── showCoverArtPickerDialog (offline discover UX) ────────────────────────────
@@ -416,5 +432,56 @@ describe("showCoverArtPickerDialog", () => {
     expect(document.querySelector(".cover-art-panel__hint--offline")?.textContent).toMatch(/offline/i);
     document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
     await promise;
+  });
+});
+
+// ── showCoverArtCandidatePicker — XSS prevention ──────────────────────────────
+
+describe("showCoverArtCandidatePicker — XSS prevention", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("does not execute injected HTML when gameName contains angle brackets", async () => {
+    const xssName = '<img src=x onerror="window.__xss=1">';
+    const { showCoverArtCandidatePicker } = await import("./modals.js");
+
+    const promise = showCoverArtCandidatePicker(xssName, []);
+    await new Promise((r) => requestAnimationFrame(r));
+
+    // The injected script should not have run
+    expect((window as unknown as Record<string, unknown>).__xss).toBeUndefined();
+
+    // The game name should appear as text, not as a parsed img element
+    const parasiteImgs = document.querySelectorAll('img[src="x"]');
+    expect(parasiteImgs.length).toBe(0);
+
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
+  });
+});
+
+// ── showMultiDiscPicker — initial focus ───────────────────────────────────────
+
+describe("showMultiDiscPicker — initial focus", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("focuses the first disc Select button rather than Cancel on open", async () => {
+    const { showMultiDiscPicker } = await import("./modals.js");
+    const focusSpy = vi.spyOn(HTMLButtonElement.prototype, "focus");
+
+    const promise = showMultiDiscPicker(["disc1.bin", "disc2.bin"]);
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const firstSelectBtn = document.querySelector<HTMLButtonElement>(".multidisc-row .btn");
+    expect(firstSelectBtn).toBeTruthy();
+    const focusCalls = focusSpy.mock.instances;
+    expect(focusCalls[focusCalls.length - 1]).toBe(firstSelectBtn);
+
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
+    focusSpy.mockRestore();
   });
 });
