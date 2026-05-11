@@ -2792,10 +2792,7 @@ export class PSPEmulator {
         break;
 
       case "arcade":
-        set("mame2003_frameskip", weak2D ? "1" : "0");
-        set("mame2003_sample_rate", weak2D ? "22050" : "30000");
-        set("mame2003_cheats", "disabled");
-        set("mame2003_tate_mode", "disabled");
+        // Arcade now pins FBNeo; no MAME2003-specific low-spec clamps apply here.
         break;
 
       case "mame2003":

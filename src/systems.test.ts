@@ -100,7 +100,7 @@ describe('systems performance profiles', () => {
     });
 
     it('detects ambiguous extensions for Arcade and MAME 2003+', () => {
-      // .zip is shared between Arcade (MAME) and MAME 2003+
+      // .zip is shared between Arcade (FBNeo) and MAME 2003+
       const zipDetected = detectSystem('romset.zip');
       expect(Array.isArray(zipDetected)).toBe(true);
       const ids = (zipDetected as SystemInfo[]).map(s => s.id);
@@ -219,7 +219,7 @@ describe('systems performance profiles', () => {
   });
 
   it('adds explicit arcade and handheld 2D core settings', () => {
-    expect(getSystemById('arcade')?.tierSettings?.low?.mame2003_sample_rate).toBe('22050');
+    expect(getSystemById('arcade')?.tierSettings?.low?.retroarch_core).toBe('fbneo');
     expect(getSystemById('mame2003')?.tierSettings?.ultra?.['mame2003-plus_art_resolution']).toBe('2');
     expect(getSystemById('atari7800')?.tierSettings?.high?.retroarch_core).toBe('prosystem');
     expect(getSystemById('lynx')?.tierSettings?.high?.handy_rot).toBe('None');
