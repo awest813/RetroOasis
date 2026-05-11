@@ -59,7 +59,6 @@ import {
   formatTierLabel,
   isLikelyIOS,
   isLikelyAndroid,
-  isChromebookLowRamProfile,
   clearCapabilitiesCache,
   getGraphicsPresetCoreOptions,
   getTextureUpscalerCoreOptions,
@@ -89,6 +88,11 @@ import {
 } from "./emulatorDisplay.js";
 import type { TouchControlsOverlay } from "./touchControls.js";
 import {
+  buildInGameTouchHeaderButtons,
+  buildInGameTouchToggle,
+  buildMobileSection,
+} from "./ui/touchUI.js";
+import {
   getTouchControlsDefaultForSystem,
   isTouchDevice,
   isPortrait,
@@ -108,7 +112,6 @@ import {
   ICON_CLOSE_X_SVG,
   ICON_GAMEPAD_DECOR_SVG,
   ICON_GRID_ALL_SVG,
-  ICON_PWA_INSTALL_SVG,
   ICON_ROTATE_PHONE_SVG,
   ICON_TROPHY_SVG,
   INFO_TOAST_ICON_HTML,
@@ -235,8 +238,8 @@ const resolveAssetUrl = (path: string): string => {
 };
 
 // ── PWA install callbacks (set once from initUI) ───────────────────────────────
-let _canInstallPWA: (() => boolean) | undefined;
-let _onInstallPWA:  (() => Promise<boolean>) | undefined;
+// PWA install UI now lives in buildMobileSection (src/ui/touchUI.ts).
+// Keep the parameters in initUI's signature so callers don't break.
 
 // ── Settings opener callback (set once from initUI, used by showError action buttons) ──
 let _openSettingsFn: ((tab?: string) => void) | null = null;
@@ -781,8 +784,8 @@ export function initUI(opts: UIOptions): void {
   };
   bindEvent(document, LEGACY_EVENTS.libraryCatalogNeedsRefresh, refreshLibraryCatalog);
 
-  _canInstallPWA = canInstallPWA;
-  _onInstallPWA  = onInstallPWA;
+  void canInstallPWA;
+  void onInstallPWA;
   _openSettingsFn = (tab?: string) =>
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab as SettingsTab | undefined);
 
@@ -4043,36 +4046,7 @@ function buildInGameControls(
   }
 
   // ── Touch controls edit/reset buttons (touch devices only) ───────────────────
-  if (isTouchDevice()) {
-    const btnEditTouch = make("button", {
-      class: "btn header-priority-optional",
-      title: "Edit touch control layout",
-      "aria-label": "Edit touch control layout",
-    }) as HTMLButtonElement;
-    btnEditTouch.textContent = "Edit controls";
-    btnEditTouch.disabled = !touchControlsEnabled;
-    btnEditTouch.addEventListener("click", () => {
-      const overlay = getTouchOverlay?.();
-      if (overlay) {
-        overlay.setEditing(true);
-        btnResetTouch.hidden = false;
-      }
-    }, { signal });
-
-    const btnResetTouch = make("button", {
-      class: "btn header-priority-optional",
-      title: "Reset touch control layout to defaults",
-      "aria-label": "Reset touch control layout",
-    }) as HTMLButtonElement;
-    btnResetTouch.textContent = "Reset Layout";
-    btnResetTouch.hidden = true;
-    btnResetTouch.addEventListener("click", () => {
-      const overlay = getTouchOverlay?.();
-      if (overlay) overlay.resetToDefaults();
-    }, { signal });
-
-    container.append(btnEditTouch, btnResetTouch);
-  }
+  buildInGameTouchHeaderButtons(container, getTouchOverlay, touchControlsEnabled, signal);
 
   // ── Reset button ─────────────────────────────────────────────────────────────
   const btnReset = make("button", {
@@ -4441,40 +4415,7 @@ async function showInGameMenu(ctx: {
       }, { signal });
       grid.appendChild(fpsRow);
 
-      // On-screen touch overlay (quick toggle; respects per-system prefs)
-      if (isTouchDevice()) {
-        let touchEnabled = getTouchControlsDefaultForSystem(systemId, ctx.settings);
-        const touchSys = getSystemById(systemId);
-        const touchDesc =
-          touchSys?.touchControlMode === "builtin"
-            ? `Optional ${APP_NAME} layer on top of native touch controls.`
-            : `Virtual buttons over the game — each console gets its own default layout (reset in Edit controls). Turn off for gamepads, keyboards, or a clear screen.`;
-        const touchRow = make("div", { class: "ingame-menu__setting-item" });
-        touchRow.innerHTML = `
-          <div class="ingame-menu__setting-info">
-            <div class="ingame-menu__setting-name">On-screen controls</div>
-            <div class="ingame-menu__setting-desc">${touchDesc}</div>
-          </div>
-          <div class="ingame-menu__setting-control">
-            <button type="button" class="ingame-menu__toggle ${touchEnabled ? "on" : "off"}" aria-pressed="${touchEnabled ? "true" : "false"}">${touchEnabled ? "On" : "Off"}</button>
-          </div>`;
-        const tBtn = touchRow.querySelector("button")!;
-        tBtn.addEventListener("click", () => {
-          const next = !getTouchControlsDefaultForSystem(systemId, ctx.settings);
-          const touchPrefKey = systemId.trim() || systemId;
-          ctx.onSettingsChange({
-            touchControlsBySystem: {
-              ...ctx.settings.touchControlsBySystem,
-              [touchPrefKey]: next,
-            },
-          });
-          touchEnabled = getTouchControlsDefaultForSystem(systemId, ctx.settings);
-          tBtn.className = `ingame-menu__toggle ${touchEnabled ? "on" : "off"}`;
-          tBtn.textContent = touchEnabled ? "On" : "Off";
-          tBtn.setAttribute("aria-pressed", String(touchEnabled));
-        }, { signal });
-        grid.appendChild(touchRow);
-      }
+      buildInGameTouchToggle(grid, systemId, ctx.settings, ctx.onSettingsChange, signal);
 
       // Performance Mode
       const perfRow = make("div", { class: "ingame-menu__setting-item" });
@@ -5539,130 +5480,8 @@ function buildDisplayTab(
   cutoffRow.append(cutoffLabel, cutoffInp, cutoffVal);
   audioSection.appendChild(cutoffRow);
 
-  // Mobile & PWA section
   const mobileSection = make("div", { class: "settings-section" });
-  mobileSection.appendChild(make("h4", { class: "settings-section__title" }, "Mobile & Touch"));
-  const activeSystem = emulatorRef?.currentSystem ?? null;
-  const activeSystemTouchControlsEnabled = getTouchControlsDefaultForSystem(activeSystem?.id ?? null, settings);
-  const touchControlsHelp = activeSystem?.touchControlMode === "builtin"
-    ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use Edit controls in the game toolbar to reposition them.`
-    : `${APP_NAME} shows on-screen buttons when they help; defaults match each console (Game Boy–style A/B, PlayStation-style pad, etc.). Turn off to hide them, or use Edit controls in the toolbar to move or reset layout per console.`;
-
-  const installRow = make("div", { class: "pwa-install-row" });
-  const pwaInstallFallbackHelp = (): string => {
-    if (deviceCaps.isChromOS) {
-      const lowRam = isChromebookLowRamProfile(deviceCaps);
-      return (
-        `Install ${APP_NAME} from the Chrome menu (⋮): choose Install ${APP_NAME}…, or Save and Share → Create shortcut → Open as window. ` +
-        `Launch from the shelf instead of a crowded browser tab.` +
-        (lowRam ? " Especially helpful on 2 GB Chromebooks where fewer tabs leave more RAM for games." : "")
-      );
-    }
-    if (deviceCaps.isAndroid || isLikelyAndroid()) {
-      return `Install ${APP_NAME} on Android: open in Chrome or Edge, tap the browser menu → Install app or Add to Home screen.`;
-    }
-    if (deviceCaps.isIOS || isLikelyIOS()) {
-      return `Install ${APP_NAME} on iPhone or iPad: tap Share → Add to Home Screen.`;
-    }
-    return (
-      `Install ${APP_NAME} on desktop: Chrome or Edge menu (⋮) → Install ${APP_NAME}… ` +
-      `(or Apps → Install this site as an app).`
-    );
-  };
-  const buildInstallBtn = () => {
-    installRow.innerHTML = "";
-    if (!_canInstallPWA?.()) {
-      installRow.appendChild(make("p", { class: "settings-help" }, pwaInstallFallbackHelp()));
-      return;
-    }
-    const btnInstall = make("button", { class: "btn btn--primary pwa-install-btn" });
-    const iconSpan = make("span", { class: "pwa-install__icon", "aria-hidden": "true" });
-    iconSpan.innerHTML = ICON_PWA_INSTALL_SVG;
-    const labelSpan = make("span", { class: "pwa-install__label" }, "Install as App");
-    btnInstall.append(iconSpan, labelSpan);
-    btnInstall.addEventListener("click", async () => {
-      if (!_onInstallPWA) return;
-      const installed = await _onInstallPWA();
-      if (installed) {
-        labelSpan.textContent = "Installing…";
-        btnInstall.disabled = true;
-      }
-    });
-    installRow.appendChild(btnInstall);
-  };
-  buildInstallBtn();
-  document.addEventListener(LEGACY_EVENTS.installPromptReady, () => buildInstallBtn(), { once: true });
-  mobileSection.appendChild(installRow);
-
-  mobileSection.appendChild(buildToggleRow(
-    "On-screen buttons",
-    touchControlsHelp,
-    activeSystemTouchControlsEnabled,
-    (v) => {
-      if (activeSystem?.id) {
-        onSettingsChange({
-          touchControlsBySystem: {
-            ...settings.touchControlsBySystem,
-            [activeSystem.id]: v,
-          },
-        });
-      } else {
-        onSettingsChange({ touchControls: v });
-      }
-    },
-  ));
-
-  // Button opacity slider
-  const opacityRow = make("div", { class: "settings-control-row" });
-  const opacityLabel = make("span", { class: "settings-control-label settings-control-label--wide" }, "Button opacity:");
-  const opacityInp = make("input", {
-    type: "range", min: "0.1", max: "1", step: "0.05",
-    value: String(settings.touchOpacity ?? 0.85),
-    class: "settings-control-field",
-    "aria-label": "Touch button opacity",
-  }) as HTMLInputElement;
-  const opacityVal = make("span", { class: "settings-control-value settings-control-value--short" },
-    `${Math.round((settings.touchOpacity ?? 0.85) * 100)}%`);
-  opacityInp.addEventListener("input", () => {
-    const v = parseFloat(opacityInp.value);
-    opacityVal.textContent = `${Math.round(v * 100)}%`;
-    onSettingsChange({ touchOpacity: v });
-  });
-  opacityRow.append(opacityLabel, opacityInp, opacityVal);
-  mobileSection.appendChild(opacityRow);
-
-  // Button scale slider
-  const scaleRow = make("div", { class: "settings-control-row" });
-  const scaleLabel = make("span", { class: "settings-control-label settings-control-label--wide" }, "Button size:");
-  const scaleInp = make("input", {
-    type: "range", min: "0.5", max: "2", step: "0.1",
-    value: String(settings.touchButtonScale ?? 1.0),
-    class: "settings-control-field",
-    "aria-label": "Touch button scale",
-  }) as HTMLInputElement;
-  const scaleVal = make("span", { class: "settings-control-value settings-control-value--short" },
-    `${Math.round((settings.touchButtonScale ?? 1.0) * 100)}%`);
-  scaleInp.addEventListener("input", () => {
-    const v = parseFloat(scaleInp.value);
-    scaleVal.textContent = `${Math.round(v * 100)}%`;
-    onSettingsChange({ touchButtonScale: v });
-  });
-  scaleRow.append(scaleLabel, scaleInp, scaleVal);
-  mobileSection.appendChild(scaleRow);
-
-  mobileSection.appendChild(buildToggleRow(
-    "Vibration feedback",
-    "Vibrate briefly when pressing on-screen buttons (works on Android Chrome; not supported on iOS)",
-    settings.hapticFeedback,
-    (v) => onSettingsChange({ hapticFeedback: v })
-  ));
-
-  mobileSection.appendChild(buildToggleRow(
-    "Auto-rotate to landscape",
-    "Automatically switches to landscape orientation when a game starts (Android Chrome; not supported on iOS Safari)",
-    settings.orientationLock,
-    (v) => onSettingsChange({ orientationLock: v })
-  ));
+  buildMobileSection(mobileSection, settings, deviceCaps, onSettingsChange, emulatorRef);
 
   container.append(overlaySection, audioSection, mobileSection);
 

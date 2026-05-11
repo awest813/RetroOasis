@@ -18,10 +18,16 @@ This checkpoint completes a safe first pass on stability, startup weight, and to
   - `src/touch/layouts.ts` for built-in layouts and localStorage persistence.
   - `src/touch/index.ts` as the new public touch barrel.
 - Kept compatibility shims in `src/touchControls.ts` and `src/touchPreferences.ts` so existing imports remain valid.
+- Removed the unused `src/touchPreferences.ts` compatibility shim — all consumers now import directly from `src/touch/preferences.js`.
 - Split the touch overlay's DOM builders and pointer binders into focused modules:
   - `src/touch/builders.ts` — pure DOM construction functions (`buildButton`, `buildDpad`, `buildStick`).
   - `src/touch/binders.ts` — pointer event binding functions (`bindButton`, `bindDpad`, `bindStick`) plus `BinderContext` interface.
   - `TouchControlsOverlay` is now orchestration-only (~250 lines), delegating DOM and binding to the new modules.
+- Extracted touch-specific UI from `src/ui.ts` into `src/ui/touchUI.ts`:
+  - `buildMobileSection()` — Settings → Mobile & Touch panel (on-screen buttons, opacity, scale, haptics, rotation).
+  - `buildInGameTouchToggle()` — in-game menu quick-toggle row.
+  - `buildInGameTouchHeaderButtons()` — "Edit controls" / "Reset Layout" header buttons.
+  - `ui.ts` now imports these rather than owning the touch UI code.
 
 ## Debug And Audit Results
 
