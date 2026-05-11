@@ -24,3 +24,6 @@ export {
 } from "./layouts.js";
 
 export { TouchControlsOverlay } from "../touchControls.js";
+
+export { buildButton, buildDpad, buildStick } from "./builders.js";
+export { bindButton, bindDpad, bindStick, type BinderContext } from "./binders.js";

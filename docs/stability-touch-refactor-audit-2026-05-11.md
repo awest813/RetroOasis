@@ -18,6 +18,10 @@ This checkpoint completes a safe first pass on stability, startup weight, and to
   - `src/touch/layouts.ts` for built-in layouts and localStorage persistence.
   - `src/touch/index.ts` as the new public touch barrel.
 - Kept compatibility shims in `src/touchControls.ts` and `src/touchPreferences.ts` so existing imports remain valid.
+- Split the touch overlay's DOM builders and pointer binders into focused modules:
+  - `src/touch/builders.ts` — pure DOM construction functions (`buildButton`, `buildDpad`, `buildStick`).
+  - `src/touch/binders.ts` — pointer event binding functions (`bindButton`, `bindDpad`, `bindStick`) plus `BinderContext` interface.
+  - `TouchControlsOverlay` is now orchestration-only (~250 lines), delegating DOM and binding to the new modules.
 
 ## Debug And Audit Results
 
@@ -25,12 +29,11 @@ This checkpoint completes a safe first pass on stability, startup weight, and to
 - `npm audit --audit-level=moderate`: passed, 0 vulnerabilities.
 - `git diff --check`: passed after trimming two extra EOF blank lines.
 - UTF-8 spot check for touch files: passed, no BOM and no mojibake sequence detected.
-- `npm run build`: passed.
+- `npm run build`: passed (84 modules, touchControls chunk 25 kB raw / 5.6 kB gzipped).
 - `npm run lint`: passed.
 - `npm test`: passed, 38 test files and 2419 tests.
 
 ## Notes For The Next Pass
 
-- The touch overlay still owns DOM construction and pointer binding in one class. The next natural refactor is to split DOM builders and pointer binders into focused modules while leaving `TouchControlsOverlay` as the orchestration layer.
-- A visual/manual mobile pass should follow the next touch refactor, especially for edit mode, orientation changes, D-pad diagonals, analog stick release behavior, and haptic toggles.
+- A visual/manual mobile pass should follow, especially for edit mode, orientation changes, D-pad diagonals, analog stick release behavior, and haptic toggles.
 - Keep the compatibility exports until call sites have fully migrated to `src/touch/index.ts` or direct lightweight modules.
