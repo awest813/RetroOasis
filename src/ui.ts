@@ -603,7 +603,7 @@ export function buildDOM(app: HTMLElement): void {
 
       <div class="footer-right">
         <span class="footer-info">${APP_NAME} v1.4.2</span>
-        <span class="footer-battery"><span class="footer-battery__icon" aria-hidden="true">${ICON_BATTERY_SVG}</span> 100%</span>
+        <span class="footer-battery" id="footer-battery" hidden><span class="footer-battery__icon" aria-hidden="true">${ICON_BATTERY_SVG}</span> <span id="footer-battery-pct"></span></span>
       </div>
     </footer>
   `;
@@ -614,6 +614,26 @@ export function buildDOM(app: HTMLElement): void {
       brandLogoImg.insertAdjacentHTML("afterend", _LOGO_FALLBACK_SVG);
       brandLogoImg.remove();
     };
+  }
+
+  // ── Live battery indicator ───────────────────────────────────────────────────
+  // Only shown when the Battery Status API is available (Chromium-based browsers).
+  // Hidden otherwise to avoid displaying a misleading static value.
+  if (navigator.getBattery) {
+    navigator.getBattery()
+      .then((battery) => {
+        const batteryEl  = document.getElementById("footer-battery");
+        const batteryPct = document.getElementById("footer-battery-pct");
+        if (!batteryEl || !batteryPct) return;
+        const update = () => {
+          batteryPct.textContent = `${Math.round(battery.level * 100)}%`;
+        };
+        update();
+        batteryEl.hidden = false;
+        battery.addEventListener("levelchange",    update);
+        battery.addEventListener("chargingchange", update);
+      })
+      .catch(() => { /* Battery API unavailable or denied — keep element hidden */ });
   }
 }
 
@@ -679,8 +699,19 @@ export function initUI(opts: UIOptions): void {
     const now = new Date();
     clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
-  const clockInterval = setInterval(updateClock, 1000 * 60);
   updateClock();
+  // Align the repeating interval to the next wall-clock minute so the display
+  // never lags more than ~1 s behind the actual time.
+  const msToNextMinute = 60_000 - (Date.now() % 60_000);
+  // clockInterval is assigned inside clockAlignTimeout; the cleanup fn always
+  // runs after initUI returns, so by then the timeout has either fired (and
+  // clockInterval is set) or is still pending (in which case clearInterval(0)
+  // is a safe no-op on all platforms).
+  let clockInterval: ReturnType<typeof setInterval> = 0 as unknown as ReturnType<typeof setInterval>;
+  const clockAlignTimeout = setTimeout(() => {
+    updateClock();
+    clockInterval = setInterval(updateClock, 60_000);
+  }, msToNextMinute);
 
   const { emulator, library, biosLibrary, saveLibrary, settings, deviceCaps,
           onLaunchGame, onSettingsChange, onReturnToLibrary,
@@ -704,7 +735,7 @@ export function initUI(opts: UIOptions): void {
   });
 
   const cleanupFns: Array<() => void> = [
-    () => clearInterval(clockInterval)
+    () => { clearTimeout(clockAlignTimeout); clearInterval(clockInterval); }
   ];
   const bindEvent = (
     target: EventTarget,
@@ -1088,7 +1119,11 @@ export function initUI(opts: UIOptions): void {
       if (t instanceof HTMLElement && t.classList.contains("ingame-menu__save-rename-input")) return;
 
       const errorBanner = document.getElementById("error-banner");
-      if (errorBanner?.classList.contains("visible")) return;
+      if (errorBanner?.classList.contains("visible")) {
+        e.preventDefault();
+        hideError();
+        return;
+      }
 
       const settingsPanel = document.getElementById("settings-panel");
       if (settingsPanel && !settingsPanel.hidden) return;

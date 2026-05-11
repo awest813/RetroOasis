@@ -11,6 +11,8 @@ declare global {
   interface Navigator {
     /** Legacy WebKit gamepad enumeration (Safari & older Chromium). */
     webkitGetGamepads?: () => (Gamepad | null)[];
+    /** Battery Status API (Chromium-based browsers only). */
+    getBattery?(): Promise<BatteryManager>;
   }
 
   interface Window {
@@ -52,6 +54,17 @@ type IdleRequestCallback = (deadline: IdleDeadline) => void;
 
 interface IdleRequestOptions {
   timeout?: number;
+}
+
+interface BatteryManager extends EventTarget {
+  readonly charging: boolean;
+  readonly chargingTime: number;
+  readonly dischargingTime: number;
+  readonly level: number;
+  onchargingchange: ((this: BatteryManager, ev: Event) => unknown) | null;
+  onchargingtimechange: ((this: BatteryManager, ev: Event) => unknown) | null;
+  ondischargingtimechange: ((this: BatteryManager, ev: Event) => unknown) | null;
+  onlevelchange: ((this: BatteryManager, ev: Event) => unknown) | null;
 }
 
 export {};

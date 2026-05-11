@@ -281,3 +281,39 @@ describe("buildHighlightsPanel — sessions section", () => {
     expect(formatRelativeTime).toHaveBeenCalledWith(9_999_999);
   });
 });
+
+// ── Accessibility: emoji in headings ──────────────────────────────────────────
+
+describe("buildHighlightsPanel — accessibility", () => {
+  it("wraps the ★ emoji in the Favorites heading with aria-hidden", () => {
+    const opts = makeOpts({ favorites: [makeGame()] });
+    const el   = buildHighlightsPanel(opts)!;
+    const h3   = el.querySelector(".highlights-section--favorites h3")!;
+    const icon = h3.querySelector<HTMLElement>("[aria-hidden='true']");
+    expect(icon).not.toBeNull();
+    expect(icon!.textContent).toBe("★");
+    // The visible text should still include "Favorites"
+    expect(h3.textContent).toContain("Favorites");
+  });
+
+  it("wraps the 🕒 emoji in the Recent Sessions heading with aria-hidden", () => {
+    const game    = makeGame();
+    const session = makeSession({ gameId: game.id });
+    const opts    = makeOpts({ recentSessions: [session], allGames: [game] });
+    const el      = buildHighlightsPanel(opts)!;
+    const h3      = el.querySelector(".highlights-section--sessions h3")!;
+    const icon    = h3.querySelector<HTMLElement>("[aria-hidden='true']");
+    expect(icon).not.toBeNull();
+    expect(icon!.textContent).toBe("🕒");
+    expect(h3.textContent).toContain("Recent Sessions");
+  });
+
+  it("gone session entries have tabindex=-1 and aria-label describing unavailability", () => {
+    const session = makeSession({ gameId: "missing", gameName: "Ghost Game" });
+    const opts    = makeOpts({ recentSessions: [session], allGames: [] });
+    const el      = buildHighlightsPanel(opts)!;
+    const entry   = el.querySelector<HTMLElement>(".highlights-session-entry--gone")!;
+    expect(entry.getAttribute("tabindex")).toBe("-1");
+    expect(entry.getAttribute("aria-label")).toMatch(/no longer in library/i);
+  });
+});

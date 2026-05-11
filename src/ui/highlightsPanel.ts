@@ -98,9 +98,10 @@ function _buildFavoritesSection(
   const section = make("div", { class: "highlights-section highlights-section--favorites" });
 
   const header = make("div", { class: "highlights-section__header" });
-  header.appendChild(
-    make("h3", { class: "highlights-section__title" }, "★ Favorites"),
-  );
+  const favTitle = make("h3", { class: "highlights-section__title" });
+  const favIcon = make("span", { "aria-hidden": "true" }, "★");
+  favTitle.append(favIcon, document.createTextNode(" Favorites"));
+  header.appendChild(favTitle);
   section.appendChild(header);
 
   const scroll = make("div", {
@@ -183,9 +184,10 @@ function _buildSessionsSection(
   const section = make("div", { class: "highlights-section highlights-section--sessions" });
 
   const header = make("div", { class: "highlights-section__header" });
-  header.appendChild(
-    make("h3", { class: "highlights-section__title" }, "🕒 Recent Sessions"),
-  );
+  const sessTitle = make("h3", { class: "highlights-section__title" });
+  const sessIcon = make("span", { "aria-hidden": "true" }, "🕒");
+  sessTitle.append(sessIcon, document.createTextNode(" Recent Sessions"));
+  header.appendChild(sessTitle);
   section.appendChild(header);
 
   const list = make("div", {

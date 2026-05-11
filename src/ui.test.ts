@@ -5546,3 +5546,45 @@ describe("buildLibraryTab — Organization toggle", () => {
     expect(region?.contains(orgHeading ?? null)).toBe(true);
   });
 });
+
+// ── showError — Escape key global handler ─────────────────────────────────────
+
+describe("showError — Escape key dismisses banner from any focus position", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+    initUI(makeOpts(makeSettings()));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    hideError();
+  });
+
+  it("hides the error banner when Escape is pressed globally while banner is visible", () => {
+    showError("Network timeout");
+
+    const banner = document.getElementById("error-banner");
+    expect(banner?.classList.contains("visible")).toBe(true);
+
+    // Simulate Escape from the document (capture-phase handler)
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+
+    expect(banner?.classList.contains("visible")).toBe(false);
+  });
+
+  it("does not dismiss the banner when a different key is pressed", () => {
+    showError("Network timeout");
+
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    );
+
+    const banner = document.getElementById("error-banner");
+    expect(banner?.classList.contains("visible")).toBe(true);
+  });
+});

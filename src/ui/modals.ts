@@ -333,7 +333,8 @@ export function showArchiveEntryPickerDialog(
     document.body.appendChild(overlay);
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
-      btnCancel.focus();
+      const firstEntry = box.querySelector<HTMLButtonElement>(".game-picker-btn");
+      (firstEntry ?? btnCancel).focus();
     });
   });
 }
@@ -409,7 +410,8 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
     document.addEventListener("keydown", onKey, { capture: true });
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
-      btnCancel.focus();
+      const firstSelectBtn = box.querySelector<HTMLButtonElement>(".multidisc-row .btn");
+      (firstSelectBtn ?? btnCancel).focus();
     });
   });
 }
@@ -783,13 +785,26 @@ export function showCoverArtCandidatePicker(
     } else {
       // Rich empty state
       const empty = createElement("div", { class: "cover-art-no-results" });
-      empty.innerHTML = `
-        <div class="cover-art-no-results__icon" aria-hidden="true">✦</div>
-        <p class="cover-art-no-results__text">
-          No covers found for <strong>“${gameName}”</strong>.<br>
-          Use <strong>Upload image</strong> or a direct <strong>image URL</strong> from the cover menu.
-        </p>
-      `;
+      const emptyIcon = createElement("div", { class: "cover-art-no-results__icon", "aria-hidden": "true" }, "✦");
+      const emptyP = createElement("p", { class: "cover-art-no-results__text" });
+      const gameNameStrong = createElement("strong", {});
+      gameNameStrong.textContent = `"${gameName}"`;
+      const uploadStrong = createElement("strong", {});
+      uploadStrong.textContent = "Upload image";
+      const urlStrong = createElement("strong", {});
+      urlStrong.textContent = "image URL";
+      emptyP.append(
+        document.createTextNode("No covers found for "),
+        gameNameStrong,
+        document.createTextNode("."),
+        createElement("br", {}),
+        document.createTextNode("Use "),
+        uploadStrong,
+        document.createTextNode(" or a direct "),
+        urlStrong,
+        document.createTextNode(" from the cover menu."),
+      );
+      empty.append(emptyIcon, emptyP);
       box.appendChild(empty);
     }
 
@@ -890,7 +905,7 @@ export function showGameDetails(
       coverWrap.appendChild(createElement("div", { class: "details-cover-placeholder" }, "No Art"));
     }
     
-    const editArtBtn = createElement("button", { class: "details-edit-art", title: "Change Cover Art" }, "✎");
+    const editArtBtn = createElement("button", { class: "details-edit-art", title: "Change Cover Art", "aria-label": "Change Cover Art" }, "✎");
     editArtBtn.addEventListener("click", onEditArt);
     coverWrap.appendChild(editArtBtn);
     left.appendChild(coverWrap);
@@ -983,13 +998,15 @@ export function showGameDetails(
         const list = createElement("div", { class: "details-ach-list" });
         data.achievements.slice(0, 3).forEach((ach: RAAchievement) => {
           const item = createElement("div", { class: `details-ach-item ${ach.isUnlocked ? "unlocked" : "locked"}` });
-          item.innerHTML = `
-            <img src="https://media.retroachievements.org/Badge/${ach.badgeName}.png" class="details-ach-icon" alt="${ach.name} achievement badge">
-            <div class="details-ach-text">
-              <div class="details-ach-name">${ach.name}</div>
-              <div class="details-ach-desc">${ach.description}</div>
-            </div>
-          `;
+          const img = createElement("img", {
+            src: `https://media.retroachievements.org/Badge/${encodeURIComponent(String(ach.badgeName))}.png`,
+            class: "details-ach-icon",
+            alt: `${String(ach.name)} achievement badge`,
+          });
+          const text = createElement("div", { class: "details-ach-text" });
+          text.appendChild(createElement("div", { class: "details-ach-name" }, String(ach.name)));
+          text.appendChild(createElement("div", { class: "details-ach-desc" }, String(ach.description)));
+          item.append(img, text);
           list.appendChild(item);
         });
         progressContainer.appendChild(list);
@@ -1011,7 +1028,7 @@ export function showGameDetails(
       favBtn.classList.toggle("btn--active");
     });
     
-    const strategyBtn = createElement("button", { class: "btn" }, "📚 Strategy");
+    const strategyBtn = createElement("button", { class: "btn", "aria-label": "Strategy guide (opens in new tab)" }, "📚 Strategy");
     strategyBtn.addEventListener("click", () => {
       window.open(`https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(game.name)}`, "_blank");
     });
