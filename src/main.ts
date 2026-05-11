@@ -411,7 +411,6 @@ function wirePwaFileLaunchQueue(onFileChosen: (file: File) => Promise<void>): vo
         } catch {
           /* ignore invalid handles */
         }
-        break;
       }
     });
   } catch {
@@ -666,6 +665,7 @@ async function main(): Promise<void> {
     scheduleIdleTask(() => emulator.preWarmWebGL());
     scheduleIdleTask(() => emulator.warmUpPSPPipeline());
     scheduleIdleTask(() => emulator.warmUpDreamcastPipeline());
+    scheduleIdleTask(() => emulator.warmUp2DPipeline());
     scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
     scheduleIdleTask(() => emulator.prefetchLoader());
     

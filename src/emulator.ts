@@ -292,22 +292,6 @@ export class CoreBridge {
     return this._canvas;
   }
 
-  /**
-   * Simulate input for a player.
-   * @param playerIndex - Player index (0 for single player)
-   * @param buttonIndex - Button index from the input mapping
-   * @param value - Value (0 = release, positive = press with intensity)
-   */
-  simulateInput(playerIndex: number, buttonIndex: number, value: number): void {
-    this.instance.gameManager?.simulateInput?.(playerIndex, buttonIndex, value);
-  }
-
-  /**
-   * Simulate key press.
-   */
-  simulateKey(key: string, pressed: boolean = true): void {
-    this.instance.simulateKey?.(key, pressed);
-  }
 
   /**
    * Get current disk information for multi-disk games.
@@ -716,8 +700,11 @@ class FPSMonitor {
    * (fires ~2×/s) after 3 consecutive healthy callbacks — reducing ring-buffer
    * scan overhead by ~66% during sustained normal gameplay. Narrows back to 10
    * immediately when FPS drops, keeping low-FPS detection prompt.
+   * For 2D cores, set to 60 (~1×/s) via set2DMode(true) since they rarely
+   * need adaptive quality adjustments.
    */
   private _callbackInterval = FPSMonitor._CALLBACK_INTERVAL_LOW;
+  private _is2D = false;
 
   /**
    * Consecutive stable-FPS callback count for hysteresis.
@@ -733,6 +720,7 @@ class FPSMonitor {
   private static readonly _FPS_STABLE_THRESHOLD = 55;
   private static readonly _CALLBACK_INTERVAL_LOW    = 10;
   private static readonly _CALLBACK_INTERVAL_STABLE = 30;
+  private static readonly _CALLBACK_INTERVAL_2D     = 60;
   /** Consecutive stable callbacks required before widening the interval. */
   private static readonly _STABLE_COUNT_REQUIRED = 3;
 
@@ -789,6 +777,13 @@ class FPSMonitor {
     this._enabled = active;
     // NOTE: does not stop the rAF loop — the loop keeps running for accurate
     // stats even when the FPS overlay is hidden, allowing instant resume.
+  }
+
+  set2DMode(is2D: boolean): void {
+    this._is2D = is2D;
+    if (is2D) {
+      this._callbackInterval = FPSMonitor._CALLBACK_INTERVAL_2D;
+    }
   }
 
   getSnapshot(): FPSSnapshot {
@@ -877,12 +872,16 @@ class FPSMonitor {
         if (snap.average >= FPSMonitor._FPS_STABLE_THRESHOLD) {
           this._stableCallbackCount++;
           if (this._stableCallbackCount >= FPSMonitor._STABLE_COUNT_REQUIRED) {
-            this._callbackInterval = FPSMonitor._CALLBACK_INTERVAL_STABLE;
+            this._callbackInterval = this._is2D
+              ? FPSMonitor._CALLBACK_INTERVAL_2D
+              : FPSMonitor._CALLBACK_INTERVAL_STABLE;
             this._stableCallbackCount = 0;
           }
         } else {
           this._stableCallbackCount = 0;
-          this._callbackInterval = FPSMonitor._CALLBACK_INTERVAL_LOW;
+          this._callbackInterval = this._is2D
+            ? FPSMonitor._CALLBACK_INTERVAL_2D
+            : FPSMonitor._CALLBACK_INTERVAL_LOW;
         }
       }
     }
@@ -999,6 +998,7 @@ export class PSPEmulator {
   private _webglPreWarmed = false;
   private _pspPipelineWarmed = false;
   private _dcPipelineWarmed = false;
+  private _2dPipelineWarmed = false;
   private _webgpuDevice: GPUDevice | null = null;
   private _webgpuPreWarmed = false;
   private _webgpuAdapterInfo: WebGPUAdapterInfo | null = null;
@@ -1710,8 +1710,115 @@ export class PSPEmulator {
     }
   }
 
+  warmUp2DPipeline(): void {
+    if (this._2dPipelineWarmed) return;
+    this._2dPipelineWarmed = true;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 8;
+    canvas.height = 8;
+    let gl: WebGLRenderingContext | null = null;
+    try {
+      gl = canvas.getContext("webgl");
+      if (!gl) return;
+
+      const vsSrc = `
+        attribute vec2 a_pos;
+        attribute vec2 a_uv;
+        varying vec2 v_uv;
+        void main() { v_uv = a_uv; gl_Position = vec4(a_pos, 0.0, 1.0); }
+      `;
+
+      const shaders: { vs: string; fs: string }[] = [
+        {
+          vs: vsSrc,
+          fs: `precision mediump float;
+               varying vec2 v_uv;
+               uniform sampler2D u_tex;
+               void main() { gl_FragColor = texture2D(u_tex, v_uv); }`,
+        },
+        {
+          vs: vsSrc,
+          fs: `precision mediump float;
+               varying vec2 v_uv;
+               uniform sampler2D u_tex;
+               uniform float u_alpha;
+               void main() { vec4 c = texture2D(u_tex, v_uv); gl_FragColor = vec4(c.rgb, c.a * u_alpha); }`,
+        },
+        {
+          vs: vsSrc,
+          fs: `precision mediump float;
+               uniform vec4 u_color;
+               void main() { gl_FragColor = u_color; }`,
+        },
+      ];
+
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1, 0, 0,
+         1, -1, 1, 0,
+        -1,  1, 0, 1,
+         1,  1, 1, 1,
+      ]), gl.STATIC_DRAW);
+
+      const tex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([255, 255, 255, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      for (const { vs: vsSrc2, fs: fsSrc } of shaders) {
+        const vs = gl.createShader(gl.VERTEX_SHADER)!;
+        gl.shaderSource(vs, vsSrc2);
+        gl.compileShader(vs);
+        if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) { gl.deleteShader(vs); continue; }
+
+        const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+        gl.shaderSource(fs, fsSrc);
+        gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) { gl.deleteShader(vs); gl.deleteShader(fs); continue; }
+
+        const prog = gl.createProgram()!;
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+          gl.deleteProgram(prog); gl.deleteShader(vs); gl.deleteShader(fs); continue;
+        }
+
+        gl.useProgram(prog);
+        const STRIDE = 4 * Float32Array.BYTES_PER_ELEMENT;
+        const aPos = gl.getAttribLocation(prog, "a_pos");
+        const aUV = gl.getAttribLocation(prog, "a_uv");
+        if (aPos >= 0) {
+          gl.enableVertexAttribArray(aPos);
+          gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, STRIDE, 0);
+        }
+        if (aUV >= 0) {
+          gl.enableVertexAttribArray(aUV);
+          gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, STRIDE, 2 * Float32Array.BYTES_PER_ELEMENT);
+        }
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        shaderCache.record(vsSrc2, fsSrc).catch(() => {});
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+        gl.deleteProgram(prog);
+      }
+
+      gl.deleteTexture(tex);
+      gl.deleteBuffer(buf);
+      gl.flush();
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    } catch {
+      try { gl?.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* ignore */ }
+    }
+  }
+
   /**
-   * Compile a representative set of Flycast GPU shader patterns to prime the
    * GPU driver's pipeline cache before the first rendered Dreamcast frame.
    *
    * Flycast generates WebGL 2 shaders for each unique combination of PowerVR
@@ -2760,6 +2867,10 @@ export class PSPEmulator {
       this.warmUpDreamcastPipeline();
     }
 
+    if (!system.is3D) {
+      this.warmUp2DPipeline();
+    }
+
     // Derive the filename - Blob doesn't have .name, so accept it explicitly
     const fileName = opts.fileName
       ?? (opts.file instanceof File ? opts.file.name : "game.bin");
@@ -3321,9 +3432,16 @@ export class PSPEmulator {
           }
         };
         this._fpsMonitor.start();
+        this._fpsMonitor.set2DMode(!system.is3D);
         this._memoryMonitor.start();
         this._installVisibilityHandler();
         this._installContextLossHandler();
+
+        if (!system.is3D) {
+          try {
+            this._memoryMonitor.start(30_000);
+          } catch { /* best-effort */ }
+        }
 
         // Low-latency AudioWorklet path (loads ./audio-processor.js from the app origin).
         try {

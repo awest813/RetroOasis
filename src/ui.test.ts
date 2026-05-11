@@ -4149,7 +4149,7 @@ describe("library keyboard navigation", () => {
     expect((document.activeElement as HTMLElement)?.querySelector(".game-card__name")?.textContent?.trim()).toBe("Gamma");
   });
 
-  it("navigation is not triggered when no card is focused", async () => {
+  it("horizontal arrow does not focus a card when no card is focused", async () => {
     await setupLibraryWithGames([
       makeGame("g1", "Alpha", "psp"),
       makeGame("g2", "Beta",  "psp"),
@@ -4163,6 +4163,31 @@ describe("library keyboard navigation", () => {
     grid.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
     // Focus should not have moved to a card
     expect(document.activeElement).toBe(before);
+  });
+
+  it("ArrowDown on the grid focuses the first card when no card was focused", async () => {
+    await setupLibraryWithGames([
+      makeGame("g1", "Alpha", "psp"),
+      makeGame("g2", "Beta",  "psp"),
+    ]);
+
+    const grid = document.getElementById("library-grid")!;
+    document.body.focus();
+
+    grid.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect((document.activeElement as HTMLElement)?.querySelector(".game-card__name")?.textContent?.trim()).toBe("Alpha");
+  });
+
+  it("ArrowDown from search moves focus to the first card", async () => {
+    await setupLibraryWithGames([
+      makeGame("g1", "Alpha", "psp"),
+      makeGame("g2", "Beta",  "psp"),
+    ]);
+
+    const search = document.getElementById("library-search") as HTMLInputElement;
+    search.focus();
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect((document.activeElement as HTMLElement)?.querySelector(".game-card__name")?.textContent?.trim()).toBe("Alpha");
   });
 
   it("re-rendering the library preserves keyboard navigation (wired idempotently)", async () => {

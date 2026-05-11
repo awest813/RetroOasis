@@ -27,6 +27,7 @@ import {
   loadLayout,
   saveLayout,
   resetLayout,
+  getDefaultTouchLayoutForSystem,
   isTouchDevice,
   isPortrait,
   vibratePress,
@@ -179,6 +180,41 @@ describe("DEFAULT_LAYOUT", () => {
     const layout2 = loadLayout("__test_isolation__");
     expect(layout2[0]!.x).not.toBe(999);
     cleanLS("__test_isolation__");
+  });
+});
+
+// ── Console-specific default layouts ──────────────────────────────────────────
+
+describe("getDefaultTouchLayoutForSystem", () => {
+  it("uses a compact Game Boy layout for gb/gbc", () => {
+    const land = getDefaultTouchLayoutForSystem("gb", false);
+    expect(land.length).toBeLessThan(DEFAULT_LAYOUT.length);
+    expect(land.map((b) => b.id).sort()).toEqual(["a", "b", "dpad", "select", "start"].sort());
+    expect(land.find((b) => b.id === "a")?.label).toBe("A");
+  });
+
+  it("NES has only D-pad + A/B + Select/Start (no shoulders)", () => {
+    const nes = getDefaultTouchLayoutForSystem("nes", false);
+    expect(nes.some((b) => b.id === "l")).toBe(false);
+    expect(nes.some((b) => b.id === "r")).toBe(false);
+    expect(nes.some((b) => b.id === "dpad")).toBe(true);
+    expect(nes.some((b) => b.id === "a")).toBe(true);
+    expect(nes.some((b) => b.id === "b")).toBe(true);
+    expect(nes.some((b) => b.id === "select")).toBe(true);
+    expect(nes.some((b) => b.id === "start")).toBe(true);
+  });
+
+  it("labels SNES face buttons with Nintendo letters and no analog stick", () => {
+    const snes = getDefaultTouchLayoutForSystem("snes", false);
+    expect(snes.find((b) => b.id === "y")?.label).toBe("Y");
+    expect(snes.find((b) => b.id === "a")?.label).toBe("A");
+    expect(snes.some((b) => b.type === "stick")).toBe(false);
+    expect(snes.some((b) => b.id === "l")).toBe(true);
+    expect(snes.some((b) => b.id === "r")).toBe(true);
+  });
+
+  it("falls back to the full PlayStation-style pad for unknown system ids", () => {
+    expect(getDefaultTouchLayoutForSystem("test_load", false)).toHaveLength(DEFAULT_LAYOUT.length);
   });
 });
 

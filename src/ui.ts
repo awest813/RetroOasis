@@ -47,6 +47,8 @@ import {
   formatBytes,
   formatRelativeTime,
   type GameMetadata,
+  clearGameTierProfile,
+  clearGameGraphicsProfile,
 } from "./library.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import {
@@ -195,6 +197,7 @@ import {
 import { createDebugConsoleController } from "./ui/debugConsole.js";
 import { ArchiveSelectionStore } from "./archiveStore.js";
 import { sessionTracker, formatPlayTime } from "./sessionTracker.js";
+import { shaderCache } from "./shaderCache.js";
 import {
   toggleDevOverlay,
   updateDevOverlay,
@@ -360,10 +363,10 @@ export function buildDOM(app: HTMLElement): void {
                         type="button" aria-label="Clear search" hidden>${ICON_CLOSE_X_SVG}</button>
               </div>
               <div class="library-layout-toggle" id="library-layouts" role="radiogroup" aria-label="Layout">
-                <button class="btn btn--ghost btn--icon layout-btn" data-layout="grid" title="Grid view" role="radio" aria-checked="true">
+                <button type="button" class="btn btn--ghost btn--icon layout-btn" data-layout="grid" title="Grid view" role="radio" aria-checked="true">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 </button>
-                <button class="btn btn--ghost btn--icon layout-btn" data-layout="list" title="List view" role="radio" aria-checked="false">
+                <button type="button" class="btn btn--ghost btn--icon layout-btn" data-layout="list" title="List view" role="radio" aria-checked="false">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                 </button>
               </div>
@@ -904,9 +907,15 @@ export function initUI(opts: UIOptions): void {
   // ── FPS overlay wiring ────────────────────────────────────────────────────
   emulator.setFPSMonitorEnabled(settings.showFPS);
   emulator.onFPSUpdate = (snapshot) => {
-    updateFPSOverlay(snapshot, emulator);
+    const fpsOverlay = document.getElementById("fps-overlay");
+    if (fpsOverlay && !fpsOverlay.hidden) {
+      updateFPSOverlay(snapshot, emulator);
+    }
     updateDevOverlay(snapshot, emulator);
-    updateDebugConsoleLog(emulator);
+    const debugConsole = document.getElementById("debug-console");
+    if (debugConsole && !debugConsole.hidden) {
+      updateDebugConsoleLog(emulator);
+    }
   };
 
   const getEmuJsContainerEl = (): HTMLElement | null =>
@@ -1896,6 +1905,7 @@ let _libraryControlsWired = false;
 // ── Library keyboard / gamepad navigation ─────────────────────────────────────
 let _libraryNavWired = false;
 let _libraryGamepadRafId: number | null = null;
+let _libraryGamepadRestartFn: (() => void) | null = null;
 // Tracks per-axis/button state for gamepad repeat logic
 let _libGpPrevAxes: number[] = [];
 let _libGpPrevBtns: boolean[] = [];
@@ -1946,6 +1956,36 @@ function _libraryGamepadNavSuppressed(): boolean {
   return false;
 }
 
+function _invalidateLibraryGamepadCardCache(): void {
+  _libGpCachedCards = null;
+}
+
+function _queryLibraryGameCards(): HTMLElement[] {
+  const grid = document.getElementById("library-grid");
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
+}
+
+/** Focus first visible library card (toolbar / search → grid). */
+function _focusFirstLibraryCard(): boolean {
+  const cards = _queryLibraryGameCards();
+  if (!cards.length) return false;
+  _invalidateLibraryGamepadCardCache();
+  cards[0]!.focus();
+  _safeScrollIntoView(cards[0]!, { block: "nearest", behavior: "smooth" });
+  return true;
+}
+
+function _focusLastLibraryCard(): boolean {
+  const cards = _queryLibraryGameCards();
+  if (!cards.length) return false;
+  const last = cards[cards.length - 1]!;
+  _invalidateLibraryGamepadCardCache();
+  last.focus();
+  _safeScrollIntoView(last, { block: "nearest", behavior: "smooth" });
+  return true;
+}
+
 /** Move focus among library game cards using arrow keys or gamepad. */
 function _wireLibraryNavigation(): void {
   if (_libraryNavWired) return;
@@ -1960,14 +2000,31 @@ function _wireLibraryNavigation(): void {
     const key = e.key;
     if (key !== "ArrowLeft" && key !== "ArrowRight" &&
         key !== "ArrowUp"   && key !== "ArrowDown"  &&
-        key !== "Home"       && key !== "End") return;
+        key !== "Home"       && key !== "End"       &&
+        key !== "PageUp"     && key !== "PageDown") return;
 
     const cards = Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
     if (!cards.length) return;
 
     const focused = document.activeElement as HTMLElement | null;
     const idx = focused ? cards.indexOf(focused) : -1;
-    if (idx === -1) return;
+    if (idx === -1) {
+      // Enter the grid from the surrounding section without Tab-to-card first.
+      if (key === "ArrowDown" || key === "PageDown") {
+        e.preventDefault();
+        void _focusFirstLibraryCard();
+      } else if (key === "ArrowUp" || key === "PageUp") {
+        e.preventDefault();
+        void _focusLastLibraryCard();
+      } else if (key === "Home") {
+        e.preventDefault();
+        void _focusFirstLibraryCard();
+      } else if (key === "End") {
+        e.preventDefault();
+        void _focusLastLibraryCard();
+      }
+      return;
+    }
 
     e.preventDefault();
 
@@ -1976,9 +2033,9 @@ function _wireLibraryNavigation(): void {
       nextIdx = Math.max(0, idx - 1);
     } else if (key === "ArrowRight") {
       nextIdx = Math.min(cards.length - 1, idx + 1);
-    } else if (key === "Home") {
+    } else if (key === "Home" || key === "PageUp") {
       nextIdx = 0;
-    } else if (key === "End") {
+    } else if (key === "End" || key === "PageDown") {
       nextIdx = cards.length - 1;
     } else {
       // ArrowUp / ArrowDown — find closest card in the row above/below
@@ -2003,9 +2060,29 @@ function _wireLibraryNavigation(): void {
 
     if (nextIdx !== idx) {
       cards[nextIdx]!.focus();
+      _invalidateLibraryGamepadCardCache();
       _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
     }
   });
+
+  // Toolbar / overview / filters → press Arrow Down to move focus into the grid
+  const librarySection = document.getElementById("library-section");
+  if (librarySection) {
+    librarySection.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "ArrowDown") return;
+      const landingEl = document.getElementById("landing");
+      if (!landingEl || landingEl.classList.contains("hidden")) return;
+      if (_libraryGamepadNavSuppressed()) return;
+      const t = e.target as HTMLElement;
+      if (t.closest(".game-card")) return;
+      if (t.id === "library-search") return;
+      if (t.id === "library-sort") return;
+      if (t.closest("#drop-zone")) return;
+      if (!t.closest(".library-toolbar, .system-filter, .library-overview, #library-highlights")) return;
+      e.preventDefault();
+      void _focusFirstLibraryCard();
+    });
+  }
 
   // ── Gamepad polling loop ──────────────────────────────────────────────────
   // Runs continuously but only acts when the landing page is visible.
@@ -2095,10 +2172,16 @@ function _wireLibraryNavigation(): void {
     const needCards = pressedA || pressedB || pressedL1 || pressedR1 || pressedStart || doMove;
     if (!needCards) return;
 
-    if (!_libGpCachedCards) {
-      _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+    // Virtual grid swaps nodes on scroll — never reuse a stale card list.
+    let cards: HTMLElement[];
+    if (_virtualGrid) {
+      cards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+    } else {
+      if (!_libGpCachedCards) {
+        _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+      }
+      cards = _libGpCachedCards;
     }
-    const cards = _libGpCachedCards;
 
     if (pressedStart) {
       // Find the settings button and click it
@@ -2113,6 +2196,7 @@ function _wireLibraryNavigation(): void {
       if (idx !== -1) { cards[idx]!.click(); return; }
       // No card focused — focus & launch first card
       cards[0]!.focus();
+      _invalidateLibraryGamepadCardCache();
       cards[0]!.click();
       return;
     }
@@ -2135,6 +2219,7 @@ function _wireLibraryNavigation(): void {
       
       if (nextIdx !== idx) {
         cards[nextIdx]!.focus();
+        _invalidateLibraryGamepadCardCache();
         _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
       }
       return;
@@ -2148,6 +2233,7 @@ function _wireLibraryNavigation(): void {
     if (idx === -1) {
       // Nothing focused yet — focus the first card
       cards[0]!.focus();
+      _invalidateLibraryGamepadCardCache();
       _safeScrollIntoView(cards[0]!, { block: "nearest", behavior: "smooth" });
       return;
     }
@@ -2179,11 +2265,17 @@ function _wireLibraryNavigation(): void {
 
     if (nextIdx !== idx) {
       cards[nextIdx]!.focus();
+      _invalidateLibraryGamepadCardCache();
       _safeScrollIntoView(cards[nextIdx]!, { block: "nearest", behavior: "smooth" });
     }
   }
 
   _libraryGamepadRafId = requestAnimationFrame(_libGamepadTick);
+  _libraryGamepadRestartFn = () => {
+    if (_libraryGamepadRafId === null) {
+      _libraryGamepadRafId = requestAnimationFrame(_libGamepadTick);
+    }
+  };
 }
 
 // Persists the last non-zero volume across buildInGameControls rebuilds (e.g.
@@ -2240,6 +2332,11 @@ function _wireLibraryControls(
       _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch, 120);
     });
     searchEl.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        void _focusFirstLibraryCard();
+        return;
+      }
       if (event.key !== "Escape" || _librarySearchQuery.length === 0) return;
       event.preventDefault();
       searchEl.value = "";
@@ -2311,9 +2408,14 @@ function _renderSystemFilterChips(
   filterEl.innerHTML = "";
   
   const createChip = (id: string, label: string, icon: string) => {
+    const chipLabel =
+      id === ""
+        ? "Show all systems"
+        : `Filter by ${label}`;
     const chip = make("button", {
       class: `sys-filter-chip${_librarySystemFilter === id ? " active" : ""}`,
       "aria-pressed": _librarySystemFilter === id ? "true" : "false",
+      "aria-label": chipLabel,
     });
     
     const iconEl = make("span", { class: "sys-filter-chip__icon" });
@@ -2500,6 +2602,9 @@ function buildGameCard(
     );
     if (!confirmed) return;
     await library.removeGame(game.id);
+    clearGameTierProfile(game.id);
+    clearGameGraphicsProfile(game.id);
+    void shaderCache.clearForGame(game.id);
     showInfoToast(`"${game.name}" removed from library.`, "info");
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
   });
@@ -4308,7 +4413,7 @@ async function showInGameMenu(ctx: {
         const touchDesc =
           touchSys?.touchControlMode === "builtin"
             ? `Optional ${APP_NAME} layer on top of native touch controls.`
-            : "Virtual buttons over the game. Turn off for gamepads, keyboards, or a clear screen.";
+            : `Virtual buttons over the game — each console gets its own default layout (reset in Edit controls). Turn off for gamepads, keyboards, or a clear screen.`;
         const touchRow = make("div", { class: "ingame-menu__setting-item" });
         touchRow.innerHTML = `
           <div class="ingame-menu__setting-info">
@@ -5392,7 +5497,7 @@ function buildDisplayTab(
   const activeSystemTouchControlsEnabled = getTouchControlsDefaultForSystem(activeSystem?.id ?? null, settings);
   const touchControlsHelp = activeSystem?.touchControlMode === "builtin"
     ? `This system has built-in touch controls, so ${APP_NAME} keeps its overlay off by default. Turn this on if you want ${APP_NAME}'s buttons too, then use Edit controls in the game toolbar to reposition them.`
-    : `${APP_NAME} shows its on-screen buttons on touch devices when they help. Turn this off to hide them, or turn it on for systems that need an overlay you can reposition with Edit controls in the game toolbar.`;
+    : `${APP_NAME} shows on-screen buttons when they help; defaults match each console (Game Boy–style A/B, PlayStation-style pad, etc.). Turn off to hide them, or use Edit controls in the toolbar to move or reset layout per console.`;
 
   const installRow = make("div", { class: "pwa-install-row" });
   const pwaInstallFallbackHelp = (): string => {
@@ -9543,6 +9648,10 @@ function hideEjsContainer(): void  {
 
 function transitionToGame(): void {
   document.body.classList.add("is-playing");
+  if (_libraryGamepadRafId !== null) {
+    cancelAnimationFrame(_libraryGamepadRafId);
+    _libraryGamepadRafId = null;
+  }
   hideLanding();
   requestAnimationFrame(() => showEjsContainer());
 }
@@ -9551,7 +9660,10 @@ export function transitionToLibrary(): void {
   document.body.classList.remove("is-playing");
   syncEmulatorViewportLayout(document.getElementById(EMULATOR_JS_CONTAINER_ID), null);
   hideEjsContainer();
-  requestAnimationFrame(() => showLanding());
+  requestAnimationFrame(() => {
+    showLanding();
+    _libraryGamepadRestartFn?.();
+  });
 }
 function afterNextPaint(callback: () => void): void {
   requestAnimationFrame(() => requestAnimationFrame(callback));

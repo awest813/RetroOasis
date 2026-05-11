@@ -369,6 +369,11 @@ body.is-playing #ejs-container.visible {
   contain: layout paint;
 }
 
+body.is-playing #landing.hidden {
+  contain: strict;
+  content-visibility: hidden;
+}
+
 #landing {
   position: absolute;
   inset: 0;
