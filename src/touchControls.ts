@@ -80,7 +80,7 @@ export class TouchControlsOverlay {
   private _portrait: boolean;
   private _orientationHandler: (() => void) | null = null;
   /**
-   * Cleanup callback set by _bindDpad to release its internal active-direction
+   * Cleanup callback set by bindDpad to release its internal active-direction
    * Set when keys need to be force-released (e.g. entering edit mode).
    */
   private _dpadCleanup: (() => void) | null = null;

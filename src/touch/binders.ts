@@ -84,11 +84,13 @@ export function bindButton(el: HTMLElement, btn: TouchButtonDef, ctx: BinderCont
     if (dragPointerId === e.pointerId) {
       dragPointerId = -1;
       el.style.cursor = "grab";
+      el.releasePointerCapture(e.pointerId);
       saveLayout(ctx.systemId, ctx.buttons, ctx.portrait);
       ctx.onLayoutSaved?.(ctx.systemId, ctx.buttons);
       return;
     }
     activePointers.delete(e.pointerId);
+    el.releasePointerCapture(e.pointerId);
     if (activePointers.size === 0) releaseKey();
   };
 
@@ -241,8 +243,7 @@ export function bindStick(
   scaledSize: number,
   ctx: BinderContext,
 ): void {
-  const radius   = scaledSize / 2;
-  const maxMove  = radius * 0.52;
+  const maxMove  = (scaledSize / 2) * 0.52;
   const deadZone = 0.25;
 
   const active = new Set<string>();

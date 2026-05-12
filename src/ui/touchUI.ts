@@ -157,21 +157,24 @@ export function buildInGameTouchToggle(
       ? "Optional on-screen layer on top of native touch controls."
       : "Virtual buttons over the game — each console gets its own default layout (reset in Edit controls). Turn off for gamepads, keyboards, or a clear screen.";
   const touchRow = make("div", { class: "ingame-menu__setting-item" });
-  touchRow.innerHTML = `
-    <div class="ingame-menu__setting-info">
-      <div class="ingame-menu__setting-name">On-screen controls</div>
-      <div class="ingame-menu__setting-desc">${touchDesc}</div>
-    </div>
-    <div class="ingame-menu__setting-control">
-      <button type="button" class="ingame-menu__toggle ${touchEnabled ? "on" : "off"}" aria-pressed="${touchEnabled ? "true" : "false"}">${touchEnabled ? "On" : "Off"}</button>
-    </div>`;
-  const tBtn = touchRow.querySelector("button")!;
+  const touchInfo = make("div", { class: "ingame-menu__setting-info" });
+  touchInfo.append(
+    make("div", { class: "ingame-menu__setting-name" }, "On-screen controls"),
+    make("div", { class: "ingame-menu__setting-desc" }, touchDesc),
+  );
+  const tBtn = make("button", {
+    class: `ingame-menu__toggle ${touchEnabled ? "on" : "off"}`,
+    "aria-pressed": touchEnabled ? "true" : "false",
+  }, touchEnabled ? "On" : "Off") as HTMLButtonElement;
+  const touchControl = make("div", { class: "ingame-menu__setting-control" });
+  touchControl.appendChild(tBtn);
+  touchRow.append(touchInfo, touchControl);
   tBtn.addEventListener("click", () => {
     const next = !getTouchControlsDefaultForSystem(systemId, settings);
     onSettingsChange({
       touchControlsBySystem: {
         ...settings.touchControlsBySystem,
-        [systemId.trim() || systemId]: next,
+        [systemId]: next,
       },
     });
     touchEnabled = getTouchControlsDefaultForSystem(systemId, settings);

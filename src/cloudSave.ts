@@ -30,6 +30,7 @@
  */
 
 import { MAX_SAVE_SLOTS, AUTO_SAVE_SLOT, type SaveStateEntry } from "./saves.js";
+import { buildBasicAuthHeader, blompAuthenticate } from "./cloudAuth.js";
 
 // ── Manifest ──────────────────────────────────────────────────────────────────
 
@@ -301,16 +302,7 @@ export class WebDAVProvider implements CloudSaveProvider {
 
   constructor(baseUrl: string, username: string, password: string) {
     this.baseUrl    = baseUrl.replace(/\/+$/, "");
-    // Encode credentials as UTF-8 bytes then base64 — avoids the deprecated unescape() trick.
-    // Build the binary string iteratively to avoid spreading large arrays into
-    // String.fromCharCode(), which hits JS engine argument-count limits (~65k args).
-    const credentials = `${username}:${password}`;
-    const utf8Bytes   = new TextEncoder().encode(credentials);
-    let binary = "";
-    for (let i = 0; i < utf8Bytes.length; i++) {
-      binary += String.fromCharCode(utf8Bytes[i]!);
-    }
-    this.authHeader   = "Basic " + btoa(binary);
+    this.authHeader = buildBasicAuthHeader(username, password);
   }
 
   // ── CloudSaveProvider implementation ───────────────────────────────────────
@@ -1309,7 +1301,6 @@ export class BlompProvider implements CloudSaveProvider {
   readonly providerId  = "blomp";
   readonly displayName = "Blomp";
 
-  private static readonly AUTH_URL    = "https://authenticate.blomp.com/v1/auth";
   private static readonly ROOT_PREFIX = "RetroOasis";
 
   private _authToken:  string | null = null;
@@ -1327,17 +1318,10 @@ export class BlompProvider implements CloudSaveProvider {
     const ctl   = new AbortController();
     const timer = setTimeout(() => ctl.abort(), BLOMP_AUTH_TIMEOUT_MS);
     try {
-      const r = await fetch(BlompProvider.AUTH_URL, {
-        method:  "GET",
-        headers: { "X-Auth-User": this.username, "X-Auth-Key": this.password },
-        signal:  ctl.signal,
-      });
-      if (!r.ok) return false;
-      const token      = r.headers.get("X-Auth-Token");
-      const storageUrl = r.headers.get("X-Storage-Url");
-      if (!token || !storageUrl) return false;
-      this._authToken  = token;
-      this._storageUrl = storageUrl;
+      const result = await blompAuthenticate(this.username, this.password, ctl.signal);
+      if (!result) return false;
+      this._authToken  = result.token;
+      this._storageUrl = result.storageUrl;
       return true;
     } catch {
       return false;

@@ -2,6 +2,8 @@
  * cloudLibrary.ts — Cloud Library provider architecture and implementations
  */
 
+import { buildBasicAuthHeader, blompAuthenticate } from "./cloudAuth.js";
+
 export interface CloudFile {
   name: string;
   path: string;
@@ -208,13 +210,7 @@ export class WebDAVLibraryProvider implements CloudProvider {
 
   constructor(private readonly baseUrl: string, username: string, password: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
-    const credentials = `${username}:${password}`;
-    const utf8Bytes = new TextEncoder().encode(credentials);
-    let binary = "";
-    for (let i = 0; i < utf8Bytes.length; i++) {
-      binary += String.fromCharCode(utf8Bytes[i]!);
-    }
-    this.authHeader = "Basic " + btoa(binary);
+    this.authHeader = buildBasicAuthHeader(username, password);
   }
 
   async isAvailable(): Promise<boolean> {
@@ -361,8 +357,6 @@ export class BlompLibraryProvider implements CloudProvider {
   readonly id   = "blomp";
   readonly name = "Blomp";
 
-  private static readonly AUTH_URL = "https://authenticate.blomp.com/v1/auth";
-
   private _authToken:  string | null = null;
   private _storageUrl: string | null = null;
 
@@ -374,16 +368,10 @@ export class BlompLibraryProvider implements CloudProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const r = await fetch(BlompLibraryProvider.AUTH_URL, {
-        method:  "GET",
-        headers: { "X-Auth-User": this.username, "X-Auth-Key": this.password },
-      });
-      if (!r.ok) return false;
-      const token      = r.headers.get("X-Auth-Token");
-      const storageUrl = r.headers.get("X-Storage-Url");
-      if (!token || !storageUrl) return false;
-      this._authToken  = token;
-      this._storageUrl = storageUrl;
+      const result = await blompAuthenticate(this.username, this.password);
+      if (!result) return false;
+      this._authToken  = result.token;
+      this._storageUrl = result.storageUrl;
       return true;
     } catch { return false; }
   }

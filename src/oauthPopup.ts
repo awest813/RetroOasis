@@ -33,10 +33,20 @@ export interface OAuthResult {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** localStorage key where the deployer stores their Google OAuth client ID. */
-const GOOGLE_CLIENT_ID_KEY = "retrooasis_google_client_id";
-/** localStorage key where the deployer stores their Dropbox OAuth app key. */
-const DROPBOX_APP_KEY_KEY = "retrooasis_dropbox_app_key";
+import {
+  getGoogleClientId,
+  getDropboxAppKey,
+} from "./cloudAuth.js";
+
+// Re-export for callers that import from oauthPopup.ts
+export {
+  isGoogleOAuthConfigured,
+  isDropboxOAuthConfigured,
+  setGoogleClientId,
+  setDropboxAppKey,
+  getGoogleClientId,
+  getDropboxAppKey,
+} from "./cloudAuth.js";
 
 const POPUP_WIDTH = 600;
 const POPUP_HEIGHT = 700;
@@ -70,62 +80,6 @@ function resolveRedirectUri(): string {
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
-
-/** Returns true when a Google OAuth client ID has been configured. */
-export function isGoogleOAuthConfigured(): boolean {
-  try {
-    const id = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
-    return !!id && id.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
-
-/** Returns true when a Dropbox OAuth app key has been configured. */
-export function isDropboxOAuthConfigured(): boolean {
-  try {
-    const key = localStorage.getItem(DROPBOX_APP_KEY_KEY);
-    return !!key && key.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
-
-/** Persist the Google OAuth client ID (set by the deployer in settings). */
-export function setGoogleClientId(clientId: string): void {
-  try {
-    localStorage.setItem(GOOGLE_CLIENT_ID_KEY, clientId.trim());
-  } catch {
-    /* quota exceeded or private-browsing restriction */
-  }
-}
-
-/** Persist the Dropbox OAuth app key (set by the deployer in settings). */
-export function setDropboxAppKey(appKey: string): void {
-  try {
-    localStorage.setItem(DROPBOX_APP_KEY_KEY, appKey.trim());
-  } catch {
-    /* quota exceeded or private-browsing restriction */
-  }
-}
-
-/** Read the stored Google OAuth client ID. */
-export function getGoogleClientId(): string {
-  try {
-    return localStorage.getItem(GOOGLE_CLIENT_ID_KEY)?.trim() ?? "";
-  } catch {
-    return "";
-  }
-}
-
-/** Read the stored Dropbox OAuth app key. */
-export function getDropboxAppKey(): string {
-  try {
-    return localStorage.getItem(DROPBOX_APP_KEY_KEY)?.trim() ?? "";
-  } catch {
-    return "";
-  }
-}
 
 /**
  * Launch the Google Drive OAuth popup and return the access token.

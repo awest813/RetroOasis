@@ -2,6 +2,13 @@ import { EasyNetplayManager } from "../netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "../netplay/netplayTypes.js";
 import { createElement as make } from "./dom.js";
 
+const APP_BASE_URL = import.meta.env.BASE_URL;
+
+function resolveAssetUrl(path: string): string {
+  const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
+  return `${base}${path}`;
+}
+
 let easyNetplayManager: EasyNetplayManager | null = null;
 
 export function getEasyNetplayManager(serverUrl?: string): EasyNetplayManager {
@@ -92,9 +99,4 @@ export function renderRoomCard(
   }
   
   container.appendChild(connectedWrap);
-}
-
-function resolveAssetUrl(path: string): string {
-  // Simple helper to match ui.ts asset resolution
-  return path;
 }
