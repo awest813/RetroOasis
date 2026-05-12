@@ -331,7 +331,12 @@ export class GameLibrary {
     const meta = await this.getAllGamesMetadata();
     const match = meta.find(g => g.fileName === fileName && g.systemId === systemId);
     if (!match) return null;
-    return this.getGame(match.id);
+    const entry = await this.getGame(match.id);
+    if (!entry) {
+      invalidateMetadataCache();
+      return null;
+    }
+    return entry;
   }
 
   /**

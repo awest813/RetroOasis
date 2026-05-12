@@ -181,10 +181,12 @@ export class SaveEventBus {
   private readonly _listeners = new Map<SaveEventType | "*", Set<SaveEventListener>>();
 
   on(type: SaveEventType | "*", listener: SaveEventListener): () => void {
-    if (!this._listeners.has(type)) {
-      this._listeners.set(type, new Set());
+    let set = this._listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this._listeners.set(type, set);
     }
-    this._listeners.get(type)!.add(listener);
+    set.add(listener);
     return () => this.off(type, listener);
   }
 
