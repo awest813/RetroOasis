@@ -668,6 +668,24 @@ async function main(): Promise<void> {
       showInfoToast(`Compatibility note: ${compatibilityEntry.knownIssues[0]}`);
     }
 
+    if (gameId && cloudSaveManager.isConnected()) {
+      setLoadingSubtitle("Checking local and cloud save states before launch…");
+      try {
+        const result = await cloudSaveManager.syncGame(gameId, saveLibrary);
+        if (result.errors > 0) {
+          showInfoToast(`Cloud sync had ${result.errors} error(s) — open Save States to retry.`);
+        } else if (result.pulled > 0 || result.pushed > 0) {
+          const parts: string[] = [];
+          if (result.pulled > 0) parts.push(`${result.pulled} pulled from cloud`);
+          if (result.pushed > 0) parts.push(`${result.pushed} uploaded to cloud`);
+          showInfoToast(`Save states updated · ${parts.join(" · ")}`);
+        }
+      } catch {
+        // Cloud sync is best-effort; continue launching with local save states.
+      }
+      setLoadingSubtitle("Preparing the emulator and loading your game…");
+    }
+
     let pendingAutoRestore: Uint8Array | null = null;
     if (gameId && settings.autoSaveEnabled) {
       try {
@@ -753,19 +771,6 @@ async function main(): Promise<void> {
         hardcore: true, // Default to hardcore for Oasis users
       } : undefined,
     });
-
-    if (gameId && cloudSaveManager.isConnected()) {
-      void cloudSaveManager.syncGame(gameId, saveLibrary).then((r) => {
-        if (r.errors > 0) {
-          showInfoToast(`Cloud sync had ${r.errors} error(s) — open Save States to retry.`);
-        } else if (r.pulled > 0 || r.pushed > 0) {
-          const parts: string[] = [];
-          if (r.pulled > 0) parts.push(`${r.pulled} pulled from cloud`);
-          if (r.pushed > 0) parts.push(`${r.pushed} uploaded to cloud`);
-          showInfoToast(`Saves updated · ${parts.join(" · ")}`);
-        }
-      }).catch(() => {});
-    }
 
     const materialised = emulator.getLaunchGameFile();
     if (materialised) {

@@ -6316,7 +6316,7 @@ function showCloudConnectDialog(): Promise<boolean> {
       box.setAttribute("aria-labelledby", titleId);
       box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Connect Cloud Save Backup"));
       box.appendChild(make("p", { class: "confirm-box__body" },
-        "Choose a cloud provider to mirror save states across devices. Your local saves stay on this device; cloud backup keeps them in sync."
+        "Choose a cloud provider to mirror RetroOasis save states across devices. Core-managed save files and memory cards stay local to this browser session."
       ));
 
       const providerGrid = make("div", { class: "cloud-provider-grid" });
@@ -8124,15 +8124,15 @@ function buildCloudTab(
     class: "settings-section__title",
     id: cloudStorageHeadingId,
   }, "Cloud Storage"));
-  section.appendChild(make("p", { class: "settings-section__desc" }, `${APP_NAME} uses cloud storage in two independent ways: cloud saves mirror progress, and cloud library sources add remote games beside your local ROMs.`));
+  section.appendChild(make("p", { class: "settings-section__desc" }, `${APP_NAME} uses cloud storage in two independent ways: cloud save-state backup mirrors RetroOasis snapshots, and cloud library sources add remote games beside your local ROMs.`));
 
   const overview = make("div", { class: "cloud-storage-overview" });
 
   const saveCard = make("div", { class: "cloud-storage-card" });
   saveCard.innerHTML = `
-    <div class="cloud-storage-card__eyebrow">Cloud saves</div>
+    <div class="cloud-storage-card__eyebrow">Cloud save states</div>
     <h5 class="cloud-storage-card__title">Mirror progress, keep local ownership</h5>
-    <p class="cloud-storage-card__body">Save states stay in your browser first. When cloud backup is connected, ${APP_NAME} mirrors those local saves to the provider you chose.</p>
+    <p class="cloud-storage-card__body">Save states stay in your browser first. When cloud backup is connected, ${APP_NAME} mirrors those snapshots to the provider you chose. In-game save files still remain managed by the core.</p>
   `;
 
   const libraryCard = make("div", { class: "cloud-storage-card" });
@@ -8169,7 +8169,7 @@ function buildCloudTab(
       const provName  = make("span", { class: "cloud-save-status__provider" }, `${provLabel} backup active`);
       const lastSync  = cloudManager.lastSyncAt
         ? make("span", { class: "cloud-save-status__lastsync" }, `Last sync: ${formatRelativeTime(cloudManager.lastSyncAt)}`)
-        : make("span", { class: "cloud-save-status__lastsync" }, "Saves will be mirrored after your next game save.");
+        : make("span", { class: "cloud-save-status__lastsync" }, "Save states will be mirrored after your next RetroOasis save.");
       const disconnectBtn = make("button", {
         class: "btn btn--sm",
         type: "button",
@@ -8191,7 +8191,7 @@ function buildCloudTab(
       }
     } else {
       const hint = make("p", { class: "settings-help" },
-        "Save states live in your browser. Connect a cloud provider to keep them backed up and accessible on other devices."
+        "Save states live in your browser. Connect a cloud provider to keep those RetroOasis snapshots backed up and accessible on other devices."
       );
       const connectBtn = make("button", {
         class: "btn btn--primary",
