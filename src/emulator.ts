@@ -3565,10 +3565,16 @@ export class PSPEmulator {
     const gameName = window.EJS_gameName;
     if (!gameName) return null;
 
+    // RetroArch-flavoured cores typically persist under /home/web_user/retroarch/states,
+    // while some EmulatorJS runtimes expose the same save states under /data/states.
+    // Keep /data/saves as a legacy fallback for older packaged layouts.
     const paths = [
       `/home/web_user/retroarch/states/${gameName}.state${slot}`,
       `/home/web_user/retroarch/states/${gameName}.state`,
+      `/data/states/${gameName}.state${slot}`,
+      `/data/states/${gameName}.state`,
       `/data/saves/${gameName}.state${slot}`,
+      `/data/saves/${gameName}.state`,
     ];
 
     for (const path of paths) {
@@ -3594,22 +3600,28 @@ export class PSPEmulator {
     const gameName = window.EJS_gameName;
     if (!gameName) return false;
 
-    const basePath = "/home/web_user/retroarch/states";
-    const statePath = `${basePath}/${gameName}.state${slot}`;
+    const basePaths = [
+      "/home/web_user/retroarch/states",
+      "/data/states",
+    ];
 
     try {
-      try {
-        emu.Module.FS.stat(basePath);
-      } catch {
-        // Directory doesn't exist yet — create it before writing.
+      let writeSucceeded = false;
+      for (const basePath of basePaths) {
         try {
-          emu.Module.FS.mkdir?.(basePath, 0o777);
+          emu.Module.FS.stat(basePath);
         } catch {
-          return false;
+          // Directory doesn't exist yet — create it before writing.
+          try {
+            emu.Module.FS.mkdir?.(basePath, 0o777);
+          } catch {
+            continue;
+          }
         }
+        emu.Module.FS.writeFile(`${basePath}/${gameName}.state${slot}`, data);
+        writeSucceeded = true;
       }
-      emu.Module.FS.writeFile(statePath, data);
-      return true;
+      return writeSucceeded;
     } catch {
       return false;
     }

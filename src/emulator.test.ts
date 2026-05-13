@@ -2487,6 +2487,32 @@ describe('PSPEmulator', () => {
       const result = emulator.readStateData(1);
       expect(result).toEqual(fakeData);
     });
+
+    it('falls back to EmulatorJS /data/states paths when RetroArch paths are absent', () => {
+      const fakeData = new Uint8Array([0xBA, 0xAD, 0xF0, 0x0D]);
+      const analyzePathMock = vi.fn()
+        .mockReturnValueOnce({ exists: false })
+        .mockReturnValueOnce({ exists: false })
+        .mockReturnValueOnce({ exists: true });
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'TestGame';
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: {
+          FS: {
+            readFile: vi.fn().mockReturnValue(fakeData),
+            writeFile: vi.fn(),
+            stat: vi.fn(),
+            readdir: vi.fn(),
+            unlink: vi.fn(),
+            analyzePath: analyzePathMock,
+          },
+        },
+      };
+
+      const result = emulator.readStateData(1);
+      expect(result).toEqual(fakeData);
+      expect(analyzePathMock).toHaveBeenNthCalledWith(3, '/data/states/TestGame.state1');
+    });
   });
 
   describe('writeStateData', () => {
@@ -2509,7 +2535,7 @@ describe('PSPEmulator', () => {
       expect(emulator.writeStateData(1, new Uint8Array([1, 2, 3]))).toBe(false);
     });
 
-    it('returns true when the states directory exists', () => {
+    it('returns true when the states directories exist', () => {
       const writeFileMock = vi.fn();
       const statMock = vi.fn(); // doesn't throw → directory exists
       (window as Window & { EJS_gameName?: string }).EJS_gameName = 'TestGame';
@@ -2521,9 +2547,10 @@ describe('PSPEmulator', () => {
       const result = emulator.writeStateData(1, data);
       expect(result).toBe(true);
       expect(writeFileMock).toHaveBeenCalledWith('/home/web_user/retroarch/states/TestGame.state1', data);
+      expect(writeFileMock).toHaveBeenCalledWith('/data/states/TestGame.state1', data);
     });
 
-    it('creates the states directory and returns true when it does not exist', () => {
+    it('creates missing states directories and returns true when writes succeed', () => {
       const writeFileMock = vi.fn();
       const mkdirMock = vi.fn();
       // stat throws → directory doesn't exist
@@ -2537,10 +2564,30 @@ describe('PSPEmulator', () => {
       const result = emulator.writeStateData(1, data);
       expect(result).toBe(true);
       expect(mkdirMock).toHaveBeenCalledWith('/home/web_user/retroarch/states', 0o777);
+      expect(mkdirMock).toHaveBeenCalledWith('/data/states', 0o777);
       expect(writeFileMock).toHaveBeenCalledWith('/home/web_user/retroarch/states/TestGame.state1', data);
+      expect(writeFileMock).toHaveBeenCalledWith('/data/states/TestGame.state1', data);
     });
 
-    it('returns false when mkdir also fails', () => {
+    it('returns true when one states directory fails but another write succeeds', () => {
+      const data = new Uint8Array([1, 2]);
+      const statMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/home/web_user/retroarch/states') throw new Error('No such file');
+      });
+      const mkdirMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/home/web_user/retroarch/states') throw new Error('mkdir failed');
+      });
+      const writeFileMock = vi.fn();
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'TestGame';
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: { FS: { readFile: vi.fn(), writeFile: writeFileMock, mkdir: mkdirMock, stat: statMock, readdir: vi.fn(), unlink: vi.fn(), analyzePath: vi.fn() } },
+      };
+      expect(emulator.writeStateData(1, data)).toBe(true);
+      expect(writeFileMock).toHaveBeenCalledWith('/data/states/TestGame.state1', data);
+    });
+
+    it('returns false when every states directory write path fails', () => {
       const statMock = vi.fn().mockImplementation(() => { throw new Error('No such file'); });
       const mkdirMock = vi.fn().mockImplementation(() => { throw new Error('mkdir failed'); });
       (window as Window & { EJS_gameName?: string }).EJS_gameName = 'TestGame';
