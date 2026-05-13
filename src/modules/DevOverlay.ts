@@ -181,12 +181,13 @@ export function stopAudioVisualiser(): void {
 function _getDevOverlayEls(): Record<string, HTMLElement | null> {
   if (!_devOverlayEls) {
     _devOverlayEls = {
-      ft:     document.getElementById("dev-frame-time"),
-      fps:    document.getElementById("dev-fps"),
-      p95:    document.getElementById("dev-p95"),
-      mem:    document.getElementById("dev-memory"),
-      state:  document.getElementById("dev-state"),
-      canvas: document.getElementById("dev-framegraph"),
+      ft:      document.getElementById("dev-frame-time"),
+      fps:     document.getElementById("dev-fps"),
+      p95:     document.getElementById("dev-p95"),
+      dropped: document.getElementById("dev-dropped"),
+      mem:     document.getElementById("dev-memory"),
+      state:   document.getElementById("dev-state"),
+      canvas:  document.getElementById("dev-framegraph"),
     };
   }
   return _devOverlayEls;
@@ -229,6 +230,7 @@ export function updateDevOverlay(snapshot: FPSSnapshot, emulator: PSPEmulator): 
   if (els.ft) els.ft.textContent = `${frameTimeMs}ms`;
   if (els.fps) els.fps.textContent = `${snapshot.current} FPS`;
   if (els.p95) els.p95.textContent = `${snapshot.p95FrameTimeMs}ms`;
+  if (els.dropped) els.dropped.textContent = `${snapshot.droppedFrames}`;
 
   if (els.mem) {
     const perf = performance as Performance & { memory?: { usedJSHeapSize?: number } };
