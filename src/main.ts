@@ -673,6 +673,10 @@ async function main(): Promise<void> {
       try {
         const result = await cloudSaveManager.syncGame(gameId, saveLibrary);
         if (result.errors > 0) {
+          console.warn(
+            `[${APP_NAME}] Cloud save-state sync completed with slot errors before launch.`,
+            result,
+          );
           showInfoToast(`Cloud sync had ${result.errors} error(s) — open Save States to retry.`);
         } else if (result.pulled > 0 || result.pushed > 0) {
           const parts: string[] = [];

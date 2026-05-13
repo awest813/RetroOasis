@@ -3565,6 +3565,9 @@ export class PSPEmulator {
     const gameName = window.EJS_gameName;
     if (!gameName) return null;
 
+    // RetroArch-flavoured cores typically persist under /home/web_user/retroarch/states,
+    // while some EmulatorJS runtimes expose the same save states under /data/states.
+    // Keep /data/saves as a legacy fallback for older packaged layouts.
     const paths = [
       `/home/web_user/retroarch/states/${gameName}.state${slot}`,
       `/home/web_user/retroarch/states/${gameName}.state`,
@@ -3603,7 +3606,7 @@ export class PSPEmulator {
     ];
 
     try {
-      let wroteAny = false;
+      let writeSucceeded = false;
       for (const basePath of basePaths) {
         try {
           emu.Module.FS.stat(basePath);
@@ -3616,9 +3619,9 @@ export class PSPEmulator {
           }
         }
         emu.Module.FS.writeFile(`${basePath}/${gameName}.state${slot}`, data);
-        wroteAny = true;
+        writeSucceeded = true;
       }
-      return wroteAny;
+      return writeSucceeded;
     } catch {
       return false;
     }
