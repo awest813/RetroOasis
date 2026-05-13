@@ -4935,6 +4935,53 @@ body.using-gamepad .game-card:focus {
   height: 14px;
 }
 
+/* ── Perf Suggestion Toast ─────────────────────────────────── */
+
+.perf-suggestion {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(22,22,26,0.94);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
+  backdrop-filter: blur(16px) saturate(155%);
+  box-shadow: var(--shadow-lift);
+  color: var(--c-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition:
+    opacity 0.3s var(--ease-out),
+    transform 0.3s var(--ease-out);
+}
+
+.perf-suggestion--visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.perf-suggestion--hiding {
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+}
+
+.perf-suggestion__msg {
+  flex: 1;
+  min-width: 0;
+}
+
 .debug-console-entry {
   padding: 4px 0;
   border-bottom: 1px solid var(--c-border);
@@ -5934,7 +5981,10 @@ body.using-gamepad .game-card:focus {
 }
 
 .fps-separator {
-  color: var(--c-border);
+  width: 1px;
+  align-self: stretch;
+  background: var(--c-border);
+  margin-block: 2px;
 }
 
 .fps-detail {
@@ -5946,6 +5996,10 @@ body.using-gamepad .game-card:focus {
   color: var(--c-danger);
   font-size: 0.7rem;
 }
+
+.fps-val.fps-good { color: var(--c-success); }
+.fps-val.fps-ok   { color: var(--c-warn); }
+.fps-val.fps-bad  { color: var(--c-danger); }
 
 /* ── Netplay System Chips ──────────────────────────────────── */
 
