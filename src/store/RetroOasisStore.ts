@@ -36,11 +36,6 @@ export interface SettingsSlice {
   useWebGPU: boolean;
   postProcessEffect: PostProcessEffect;
   autoSaveEnabled: boolean;
-  touchControls: boolean;
-  touchControlsBySystem: Record<string, boolean>;
-  hapticFeedback: boolean;
-  touchOpacity: number;
-  touchButtonScale: number;
   orientationLock: boolean;
   netplayEnabled: boolean;
   netplayServerUrl: string;
@@ -148,11 +143,7 @@ function defaultSettings(): SettingsSlice {
     useWebGPU: false,
     postProcessEffect: "none" as PostProcessEffect,
     autoSaveEnabled: true,
-    touchControls: false,
-    touchControlsBySystem: {},
-    hapticFeedback: true,
-    touchOpacity: 0.85,
-    touchButtonScale: 1.0,
+    coreOptions: {},
     orientationLock: true,
     netplayEnabled: false,
     netplayServerUrl: "",
@@ -166,7 +157,6 @@ function defaultSettings(): SettingsSlice {
     libraryLayout: "grid",
     libraryGrouped: true,
     recordPlayHistory: true,
-    coreOptions: {},
     dynamicResolutionScaling: false,
   };
 }

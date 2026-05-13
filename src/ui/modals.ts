@@ -2,7 +2,7 @@ import { formatBytes, type GameMetadata } from "../library.js";
 import type { ArchiveFormat } from "../archive.js";
 import type { SystemInfo } from "../systems.js";
 import { getSystemById, getSystemFeatureSummary } from "../systems.js";
-import { createElement } from "./dom.js";
+import { createElement, trapFocus } from "./dom.js";
 import type { RAProgress, SGDBAssets, IGDBMetadata, IGDBGenre, RAAchievement } from "../types/metadata.js";
 
 /**
@@ -108,6 +108,7 @@ export function showConfirmDialog(
 ): Promise<boolean> {
   const { title, confirmLabel = "Confirm", isDanger = false } = opts;
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const box = createElement("div", { class: "confirm-box", role: "dialog", "aria-modal": "true" });
     if (title) box.setAttribute("aria-label", title);
@@ -127,24 +128,24 @@ export function showConfirmDialog(
     document.body.appendChild(overlay);
 
     const close = (result: boolean) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 200);
       resolve(result);
     };
-    const onKey = (e: KeyboardEvent) => {
+    btnCancel.addEventListener("click", () => close(false), { signal: ac.signal });
+    btnConfirm.addEventListener("click", () => close(true), { signal: ac.signal });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(false);
       }
-    };
-    btnCancel.addEventListener("click", () => close(false));
-    btnConfirm.addEventListener("click", () => close(true));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(false);
-    });
-    document.addEventListener("keydown", onKey, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
       btnConfirm.focus();
@@ -211,6 +212,7 @@ export function showGamePickerDialog(
   games: GameMetadata[],
 ): Promise<GameMetadata | null> {
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const box = createElement("div", { class: "confirm-box", role: "dialog", "aria-modal": "true", "aria-label": title });
 
@@ -229,14 +231,14 @@ export function showGamePickerDialog(
           : game.systemId,
         fallbackShort: game.systemId,
       });
-      btn.addEventListener("click", () => close(game));
+      btn.addEventListener("click", () => close(game), { signal: ac.signal });
       fragment.appendChild(btn);
     }
     list.appendChild(fragment);
 
     const footer = createElement("div", { class: "confirm-footer" });
     const cancelBtn = createElement("button", { class: "btn", type: "button" }, "Cancel");
-    cancelBtn.addEventListener("click", () => close(null));
+    cancelBtn.addEventListener("click", () => close(null), { signal: ac.signal });
     footer.appendChild(cancelBtn);
     box.appendChild(list);
     box.appendChild(footer);
@@ -244,22 +246,22 @@ export function showGamePickerDialog(
     document.body.appendChild(overlay);
 
     const close = (result: GameMetadata | null) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 200);
       resolve(result);
     };
-    const onKey = (e: KeyboardEvent) => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(null);
+    }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(null);
       }
-    };
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(null);
-    });
-    document.addEventListener("keydown", onKey, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
       const firstBtn = list.querySelector<HTMLButtonElement>(".system-pick-btn");
@@ -273,6 +275,7 @@ export function showArchiveEntryPickerDialog(
   candidates: Array<{ name: string; blob: Blob; size: number }>,
 ): Promise<{ name: string; blob: Blob; size: number } | null> {
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const box = createElement(
       "div",
@@ -296,7 +299,7 @@ export function showArchiveEntryPickerDialog(
       const badge = createElement("span", { class: "sys-badge" }, formatBytes(candidate.size));
       badge.style.background = "var(--c-accent)";
       btn.append(badge, document.createTextNode(` ${candidate.name}`));
-      btn.addEventListener("click", () => close(candidate));
+      btn.addEventListener("click", () => close(candidate), { signal: ac.signal });
       fragment.appendChild(btn);
     }
     list.appendChild(fragment);
@@ -307,27 +310,24 @@ export function showArchiveEntryPickerDialog(
     footer.appendChild(btnCancel);
     box.appendChild(footer);
 
-    let closed = false;
     const close = (picked: { name: string; blob: Blob; size: number } | null) => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onEsc, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 180);
       resolve(picked);
     };
-    const onEsc = (e: KeyboardEvent) => {
+    btnCancel.addEventListener("click", () => close(null), { signal: ac.signal });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(null);
+    }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(null);
       }
-    };
-    btnCancel.addEventListener("click", () => close(null));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(null);
-    });
-    document.addEventListener("keydown", onEsc, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
 
     overlay.appendChild(box);
     document.body.appendChild(overlay);
@@ -341,6 +341,7 @@ export function showArchiveEntryPickerDialog(
 
 export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string, File> | null> {
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const box = createElement(
       "div",
@@ -363,7 +364,7 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
       const fileInput = createElement("input", { type: "file", style: "display:none", "aria-label": `Select ${fileName}` }) as HTMLInputElement;
       const btn = createElement("button", { class: "btn" }, "Select…");
 
-      btn.addEventListener("click", () => fileInput.click());
+      btn.addEventListener("click", () => fileInput.click(), { signal: ac.signal });
       fileInput.addEventListener("change", () => {
         const file = fileInput.files?.[0];
         if (!file) return;
@@ -371,7 +372,7 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
         status.className = "bios-dot bios-dot--ok";
         btn.textContent = file.name;
         checkAllSelected();
-      });
+      }, { signal: ac.signal });
       row.append(status, fileInput, label, btn);
       box.appendChild(row);
     }
@@ -390,24 +391,24 @@ export function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string
     };
 
     const close = (result: Map<string, File> | null) => {
-      document.removeEventListener("keydown", onKey, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 200);
       resolve(result);
     };
-    const onKey = (e: KeyboardEvent) => {
+    btnCancel.addEventListener("click", () => close(null), { signal: ac.signal });
+    btnConfirm.addEventListener("click", () => close(fileMap), { signal: ac.signal });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(null);
+    }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(null);
       }
-    };
-    btnCancel.addEventListener("click", () => close(null));
-    btnConfirm.addEventListener("click", () => close(fileMap));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(null);
-    });
-    document.addEventListener("keydown", onKey, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
       const firstSelectBtn = box.querySelector<HTMLButtonElement>(".multidisc-row .btn");
@@ -456,6 +457,7 @@ export function showCoverArtPickerDialog(
   options?: CoverArtPickerOptions,
 ): Promise<CoverArtPickResult> {
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const titleId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -471,7 +473,7 @@ export function showCoverArtPickerDialog(
 
     box.appendChild(createElement("h3", { id: titleId, class: "confirm-title cover-art-dialog__title" }, "Cover art"));
     box.appendChild(createElement("p", { class: "confirm-body cover-art-dialog__subtitle" },
-      `Choose artwork for “${gameName}”. High-resolution square or portrait images work best.`,
+      `Choose artwork for "${gameName}". High-resolution square or portrait images work best.`,
     ));
 
     // ── File upload section ──────────────────────────────────────────────────
@@ -487,12 +489,12 @@ export function showCoverArtPickerDialog(
       class: "btn btn--primary cover-art-btn",
       type: "button",
     }, "Upload image…");
-    btnFile.addEventListener("click", () => fileInput.click());
+    btnFile.addEventListener("click", () => fileInput.click(), { signal: ac.signal });
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
       if (!file) return;
       close({ type: "file", blob: file });
-    });
+    }, { signal: ac.signal });
     fileSection.append(fileInput, btnFile);
 
     // ── URL section ─────────────────────────────────────────────────────────
@@ -557,7 +559,7 @@ export function showCoverArtPickerDialog(
         setUrlClipFeedback("Pasted from clipboard.", true);
         urlInput.focus();
       })();
-    });
+    }, { signal: ac.signal });
     const urlRow = createElement("div", { class: "cover-art-url-row" });
     urlRow.append(urlInput, btnPasteUrl);
     const btnUrl = createElement("button", {
@@ -569,10 +571,10 @@ export function showCoverArtPickerDialog(
       const url = urlInput.value.trim();
       if (!url) { urlInput.focus(); return; }
       close({ type: "url", url });
-    });
+    }, { signal: ac.signal });
     urlInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); btnUrl.click(); }
-    });
+    }, { signal: ac.signal });
     const openKeysHandler = options?.onOpenApiKeysSettings;
     const btnOpenKeys = openKeysHandler
       ? createElement("button", {
@@ -581,21 +583,8 @@ export function showCoverArtPickerDialog(
         "aria-label": "Close and open Settings on the API Keys tab",
       }, "Configure API keys…")
       : null;
-    urlSection.append(
-      urlRow,
-      urlClipMsg,
-      createElement(
-        "p",
-        { class: "settings-help cover-art-url-hint", id: urlHelpId },
-        "Paste a direct link to an image file (JPEG, PNG, WebP, GIF, AVIF). The host must allow hotlinking (CORS) so the browser can load it. Tip: use Paste, then Enter.",
-      ),
-      btnUrl,
-    );
 
     // ── Auto-fetch section ───────────────────────────────────────────────────
-    // Triggers an online search against the community cover-art-collection.
-    // The caller runs the provider + candidate picker; this dialog only
-    // signals the intent so that all network logic stays in the UI layer.
     const discoverOffline = typeof navigator !== "undefined" && !navigator.onLine;
     const autoSection = createElement("div", {
       class:
@@ -621,7 +610,7 @@ export function showCoverArtPickerDialog(
       },
       "Search & pick…",
     );
-    btnAuto.addEventListener("click", () => close({ type: "auto" }));
+    btnAuto.addEventListener("click", () => close({ type: "auto" }), { signal: ac.signal });
     if (discoverOffline) {
       btnAuto.disabled = true;
       btnAuto.title = "Requires an internet connection";
@@ -645,7 +634,7 @@ export function showCoverArtPickerDialog(
 
     if (hasExistingArt) {
       const btnRemove = createElement("button", { class: "btn btn--danger-filled", type: "button" }, "Remove art");
-      btnRemove.addEventListener("click", () => close({ type: "remove" }));
+      btnRemove.addEventListener("click", () => close({ type: "remove" }), { signal: ac.signal });
       footer.appendChild(btnRemove);
     }
 
@@ -653,11 +642,8 @@ export function showCoverArtPickerDialog(
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    let closed = false;
     const close = (result: CoverArtPickResult) => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onEsc, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 180);
       resolve(result);
@@ -667,19 +653,19 @@ export function showCoverArtPickerDialog(
       btnOpenKeys.addEventListener("click", () => {
         close(null);
         requestAnimationFrame(() => openKeysHandler());
-      });
+      }, { signal: ac.signal });
     }
 
-    const onEsc = (e: KeyboardEvent) => {
+    btnCancel.addEventListener("click", () => close(null), { signal: ac.signal });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(null);
       }
-    };
-    btnCancel.addEventListener("click", () => close(null));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onEsc, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
 
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
@@ -712,6 +698,7 @@ export function showCoverArtCandidatePicker(
   candidates: CoverArtCandidateDisplay[],
 ): Promise<string | null> {
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay" });
     const candTitleId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -730,15 +717,12 @@ export function showCoverArtCandidatePicker(
       "p",
       { class: "confirm-body cover-art-candidate__intro" },
       candidates.length === 0
-        ? `No online matches for “${gameName}”. Upload an image from the previous menu, or paste a direct image URL.`
-        : `${candidates.length} match${candidates.length === 1 ? "" : "es"} for “${gameName}” — choose one, or dismiss to try another source in Settings → API Keys.`,
+        ? `No online matches for "${gameName}". Upload an image from the previous menu, or paste a direct image URL.`
+        : `${candidates.length} match${candidates.length === 1 ? "" : "es"} for "${gameName}" — choose one, or dismiss to try another source in Settings → API Keys.`,
     ));
 
-    let closed = false;
     const close = (result: string | null): void => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onEsc, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => overlay.remove(), 180);
       resolve(result);
@@ -778,7 +762,7 @@ export function showCoverArtCandidatePicker(
         });
         const label = createElement("span", { class: "cover-art-candidate__label" }, c.title);
         card.append(img, badge, label);
-        card.addEventListener("click", () => close(c.imageUrl));
+        card.addEventListener("click", () => close(c.imageUrl), { signal: ac.signal });
         grid.appendChild(card);
       }
       box.appendChild(grid);
@@ -814,26 +798,26 @@ export function showCoverArtCandidatePicker(
         class: "btn btn--ghost",
         type: "button",
       }, "None of these");
-      btnNone.addEventListener("click", () => close(null));
+      btnNone.addEventListener("click", () => close(null), { signal: ac.signal });
       footer.appendChild(btnNone);
     }
     const btnCancel = createElement("button", { class: "btn", type: "button" }, "Close");
-    btnCancel.addEventListener("click", () => close(null));
+    btnCancel.addEventListener("click", () => close(null), { signal: ac.signal });
     footer.appendChild(btnCancel);
 
     box.appendChild(footer);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    const onEsc = (e: KeyboardEvent): void => {
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent): void => {
       if (e.key === "Escape" && isTopmostOverlay(overlay)) {
         e.preventDefault();
         e.stopPropagation();
         close(null);
       }
-    };
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener("keydown", onEsc, { capture: true });
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
 
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
@@ -865,6 +849,7 @@ export function showGameDetails(
   const { system, formatBytes, onLaunch, onRemove, onToggleFav, onEditArt, getRAProgress, getSGDBAssets, getIGDBMetadata } = opts;
 
   return new Promise((resolve) => {
+    const ac = new AbortController();
     const overlay = createElement("div", { class: "confirm-overlay confirm-overlay--details" });
     const box = createElement("div", {
       class: "details-box",
@@ -874,17 +859,9 @@ export function showGameDetails(
     });
 
     const close = () => {
-      document.removeEventListener("keydown", onKey, { capture: true });
+      ac.abort();
       overlay.classList.remove("confirm-overlay--visible");
       setTimeout(() => { overlay.remove(); resolve(); }, 200);
-    };
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isTopmostOverlay(overlay)) {
-        e.preventDefault();
-        e.stopPropagation();
-        close();
-      }
     };
 
     // ── Layout ───────────────────────────────────────────────────────────────
@@ -906,7 +883,7 @@ export function showGameDetails(
     }
     
     const editArtBtn = createElement("button", { class: "details-edit-art", title: "Change Cover Art", "aria-label": "Change Cover Art" }, "✎");
-    editArtBtn.addEventListener("click", onEditArt);
+    editArtBtn.addEventListener("click", onEditArt, { signal: ac.signal });
     coverWrap.appendChild(editArtBtn);
     left.appendChild(coverWrap);
     
@@ -1020,24 +997,24 @@ export function showGameDetails(
     const footer = createElement("div", { class: "details-footer" });
     
     const launchBtn = createElement("button", { class: "btn btn--primary btn--large" }, "▶ Play Game");
-    launchBtn.addEventListener("click", () => { close(); onLaunch(); });
+    launchBtn.addEventListener("click", () => { close(); onLaunch(); }, { signal: ac.signal });
     
     const favBtn = createElement("button", { class: `btn ${game.isFavorite ? "btn--active" : ""}` }, "★ Favorite");
     favBtn.addEventListener("click", () => { 
       onToggleFav(); 
       favBtn.classList.toggle("btn--active");
-    });
+    }, { signal: ac.signal });
     
     const strategyBtn = createElement("button", { class: "btn", "aria-label": "Strategy guide (opens in new tab)" }, "📚 Strategy");
     strategyBtn.addEventListener("click", () => {
       window.open(`https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(game.name)}`, "_blank");
-    });
+    }, { signal: ac.signal });
     
     const removeBtn = createElement("button", { class: "btn btn--danger" }, "Remove");
-    removeBtn.addEventListener("click", () => { close(); onRemove(); });
+    removeBtn.addEventListener("click", () => { close(); onRemove(); }, { signal: ac.signal });
 
     const closeBtn = createElement("button", { class: "btn" }, "Close");
-    closeBtn.addEventListener("click", close);
+    closeBtn.addEventListener("click", close, { signal: ac.signal });
 
     footer.append(launchBtn, favBtn, strategyBtn, removeBtn, closeBtn);
     right.appendChild(footer);
@@ -1047,8 +1024,15 @@ export function showGameDetails(
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-    document.addEventListener("keydown", onKey, { capture: true });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmostOverlay(overlay)) {
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+      }
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
 
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");

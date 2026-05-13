@@ -43,3 +43,33 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+export function trapFocus(container: HTMLElement, signal: AbortSignal): void {
+  const focusable = (): HTMLElement[] => {
+    const all = container.querySelectorAll<HTMLElement & { disabled?: boolean }>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    return Array.from(all).filter((el) => !el.disabled && el.offsetParent !== null);
+  };
+  container.addEventListener(
+    "keydown",
+    (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const els = focusable();
+      if (els.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = els[0]!;
+      const last = els[els.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    },
+    { signal },
+  );
+}
+

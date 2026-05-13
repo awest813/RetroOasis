@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    RetroOasis — Polished NSO Console Design System
    A deep-cleaned, optimized, and performant stylesheet.
    ============================================================ */
@@ -673,7 +673,17 @@ body.is-playing #landing.hidden {
     box-shadow 0.38s var(--ease-premium-out);
   box-shadow: var(--shadow-card), var(--shadow-card-inset);
   cursor: pointer;
+  animation: card-appear 0.5s var(--ease-premium-out) both;
 }
+
+.game-card:nth-child(1) { animation-delay: 0.00s; }
+.game-card:nth-child(2) { animation-delay: 0.04s; }
+.game-card:nth-child(3) { animation-delay: 0.08s; }
+.game-card:nth-child(4) { animation-delay: 0.12s; }
+.game-card:nth-child(5) { animation-delay: 0.16s; }
+.game-card:nth-child(6) { animation-delay: 0.20s; }
+.game-card:nth-child(7) { animation-delay: 0.24s; }
+.game-card:nth-child(8) { animation-delay: 0.28s; }
 
 .game-card:hover {
   transform: translateY(-7px);
@@ -900,45 +910,6 @@ body.is-playing #landing.hidden {
   image-rendering: crisp-edges;
 }
 
-.touch-controls {
-  position: absolute;
-  inset: 0;
-  z-index: 12;
-  pointer-events: none;
-  opacity: var(--tc-opacity, 0.85);
-  transition: opacity 0.2s ease;
-  /* Keep thumbs off the OS home indicator on notched phones */
-  box-sizing: border-box;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.touch-controls--editing {
-  outline: 1px dashed rgba(255, 255, 255, 0.2);
-  outline-offset: -4px;
-}
-
-.tc-btn {
-  position: absolute;
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  border-radius: 50%;
-  color: #fff;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tc-dpad,
-.tc-stick {
-  position: absolute;
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  border-radius: 12px;
-}
 
 /* ── Modals ── */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); z-index: 1000; }
@@ -1310,620 +1281,6 @@ body.is-playing #landing.hidden {
   }
 }
 
-/* ── In-Game Menu Overlay (NSO Console Style) ── */
-
-.ingame-menu-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  /* Safe-area: phones / tablets with notch or home indicator */
-  padding:
-    env(safe-area-inset-top, 0px)
-    env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
-  box-sizing: border-box;
-  background-color: transparent;
-  /* Do not animate backdrop-filter (heavy); fade opacity + tint only */
-  transition: opacity 0.22s ease, background-color 0.22s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  overscroll-behavior: contain;
-}
-
-.ingame-menu-overlay--visible {
-  background-color: rgba(0, 0, 0, 0.9);
-  opacity: 1;
-  pointer-events: all;
-}
-
-/* Blur: desktops / laptops only — skips phones, tablets, and most Chromebooks (coarse pointer) */
-@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
-  .ingame-menu-overlay--visible {
-    background-color: rgba(0, 0, 0, 0.78);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-  }
-}
-
-.ingame-menu {
-  position: relative;
-  /* Slightly narrower max width for readable settings columns; a bit more horizontal margin on laptop widths */
-  width: min(1200px, 92vw);
-  box-sizing: border-box;
-  /* dvh avoids mobile browser UI clipping; vh fallback for older engines */
-  height: 85vh;
-  height: 85dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
-  background: var(--c-bg);
-  border-radius: 36px;
-  border: 4px solid var(--c-surface3);
-  display: flex;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-  transform: scale(0.98) translateY(12px);
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-}
-
-.ingame-menu button {
-  touch-action: manipulation;
-}
-
-.ingame-menu__close {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top, 0px));
-  right: max(12px, env(safe-area-inset-right, 0px));
-  z-index: 5;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 12px;
-  border: 2px solid var(--c-border);
-  background: var(--c-surface2);
-  color: var(--c-white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-.ingame-menu__close:hover {
-  background: var(--c-surface3);
-  border-color: var(--c-border-lt);
-}
-
-.ingame-menu__close:focus-visible {
-  background: var(--c-surface3);
-  border-color: var(--c-border-lt);
-  outline: 2px solid var(--c-accent-light);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .ingame-menu__close {
-    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s var(--spring);
-  }
-  .ingame-menu__close:hover {
-    transform: scale(1.05);
-  }
-  .ingame-menu__close:focus-visible {
-    transform: scale(1.05);
-  }
-}
-
-.ingame-menu-overlay--visible .ingame-menu {
-  transform: scale(1) translateY(0);
-}
-
-/* Short laptop / small-window desktop: reclaim vertical space without touching tablet full-screen (≤1024px) */
-@media (min-width: 1025px) and (max-height: 780px) {
-  .ingame-menu {
-    height: min(92vh, calc(100vh - 32px));
-    height: min(92dvh, calc(100dvh - 32px));
-    border-radius: 28px;
-  }
-}
-
-@media (min-width: 1025px) and (max-height: 640px) {
-  .ingame-menu {
-    height: min(96vh, calc(100vh - 24px));
-    height: min(96dvh, calc(100dvh - 24px));
-    border-radius: 24px;
-  }
-}
-
-/* Sidebar Navigation */
-.ingame-menu__sidebar {
-  width: 320px;
-  background: var(--c-surface);
-  border-right: 2px solid var(--c-border);
-  padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.ingame-menu__sidebar-title {
-  font-family: 'Exo 2', sans-serif;
-  font-weight: 900;
-  font-size: 1.6rem;
-  color: var(--c-accent);
-  margin-bottom: 32px;
-  padding-left: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.ingame-menu__sidebar-btn {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 24px;
-  min-height: 48px;
-  border-radius: 20px;
-  color: #fff;
-  font-weight: 700;
-  font-size: 1.1rem;
-  transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  text-align: left;
-}
-
-.ingame-menu__sidebar-btn svg {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-}
-
-.ingame-menu__sidebar-btn:hover {
-  background: var(--c-surface2);
-  transform: translateX(8px);
-}
-
-.ingame-menu__sidebar-btn:focus-visible {
-  background: var(--c-surface2);
-  transform: translateX(8px);
-  outline: 2px solid var(--c-accent-light);
-  outline-offset: 2px;
-}
-
-.ingame-menu__sidebar-btn--active {
-  background: var(--c-accent);
-  box-shadow: 0 8px 24px var(--c-accent-glow);
-  transform: scale(1.02) translateX(8px);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .ingame-menu__sidebar-btn--active {
-    transform: scale(1.05) translateX(12px);
-    box-shadow: 0 10px 30px var(--c-accent-glow);
-  }
-}
-
-.ingame-menu__sidebar-btn--danger {
-  color: #ff9f9f;
-}
-
-/* Content Area */
-.ingame-menu__content {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--c-bg);
-  padding: 60px 60px 60px 48px;
-  padding-top: 56px;
-  box-sizing: border-box;
-}
-
-.ingame-menu__content-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y pinch-zoom;
-  padding-right: 8px;
-  scroll-behavior: smooth;
-}
-
-.ingame-menu__header {
-  margin-bottom: 48px;
-  border-bottom: 2px solid var(--c-surface3);
-  padding-bottom: 24px;
-}
-
-.ingame-menu__header-main {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-
-.ingame-menu__system-icon {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  flex: 0 0 auto;
-}
-
-.ingame-menu__header-text {
-  min-width: 0;
-}
-
-.ingame-menu__game-name {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 2.8rem;
-  font-weight: 900;
-  color: #fff;
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
-}
-
-.ingame-menu__system-tag {
-  background: var(--c-surface3);
-  padding: 6px 16px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: var(--c-text-dim);
-  text-transform: uppercase;
-}
-
-.ingame-menu__body > .cloud-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 20px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
-  border-radius: 16px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-}
-.ingame-menu__body .cloud-bar__status {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-.ingame-menu__body .cloud-bar__status-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ingame-menu__body .cloud-bar__error-note {
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--c-warning-toned, #ffb020);
-}
-
-/* Saves Grid */
-.ingame-menu__saves-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 32px;
-}
-
-.ingame-menu__save-card {
-  background: var(--c-surface);
-  border-radius: 24px;
-  border: 3px solid var(--c-border);
-  overflow: hidden;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
-}
-
-.ingame-menu__save-card:hover {
-  border-color: #fff;
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-lg);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .ingame-menu__save-card:hover {
-    transform: translateY(-8px);
-  }
-}
-
-.ingame-menu__save-visual {
-  aspect-ratio: 16 / 9;
-  background: #000;
-  position: relative;
-  overflow: hidden;
-}
-
-.ingame-menu__save-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.ingame-menu__save-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  background: rgba(0,0,0,0.7);
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-weight: 900;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-}
-
-.ingame-menu__save-details {
-  padding: 24px;
-}
-
-.ingame-menu__save-label {
-  font-weight: 900;
-  font-size: 1.1rem;
-  margin-bottom: 4px;
-}
-
-.ingame-menu__save-time {
-  font-size: 0.85rem;
-  color: var(--c-text-dim);
-}
-
-.ingame-menu__save-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  justify-content: center;
-}
-
-.ingame-menu__save-card:hover .ingame-menu__save-overlay,
-.ingame-menu__save-card:focus-within .ingame-menu__save-overlay {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Touch / no-hover: save actions must be reachable without hover */
-@media (hover: none) {
-  .ingame-menu__save-card .ingame-menu__save-overlay {
-    opacity: 1;
-    pointer-events: auto;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
-    justify-content: flex-end;
-    padding-bottom: 16px;
-  }
-}
-
-.ingame-menu__save-action-btn {
-  width: 100%;
-  padding: 14px;
-  min-height: 44px;
-  border-radius: 12px;
-  border: none;
-  font-weight: 900;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: transform 0.15s ease, outline-color 0.15s ease;
-}
-
-.ingame-menu__save-action-btn.btn-save { background: var(--c-accent); color: var(--c-white); }
-.ingame-menu__save-action-btn.btn-load { background: var(--c-white); color: var(--c-black); }
-.ingame-menu__save-action-btn.btn-rename { background: var(--c-surface3); color: var(--c-white); }
-.ingame-menu__save-action-btn.btn-delete { background: rgba(200, 64, 64, 0.9); color: var(--c-white); }
-
-.ingame-menu__save-action-btn:hover,
-.ingame-menu__save-action-btn:focus-visible {
-  transform: scale(1.05);
-  outline: 2px solid var(--c-accent-light);
-  outline-offset: 2px;
-}
-
-/* Settings items */
-.ingame-menu__setting-item {
-  background: var(--c-surface);
-  padding: 24px 32px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  border: 2px solid transparent;
-  transition: border-color 0.15s ease;
-}
-
-.ingame-menu__setting-item:hover { border-color: var(--c-border-lt); }
-
-.ingame-menu__setting-name { font-weight: 800; font-size: 1.1rem; }
-
-.ingame-menu__setting-desc {
-  margin-top: 6px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--c-text-dim);
-  line-height: 1.4;
-  max-width: 42ch;
-}
-
-.ingame-menu__range { accent-color: var(--c-accent); cursor: pointer; }
-.ingame-menu__select { 
-  background: var(--c-surface2); color: #fff; border: 2px solid var(--c-border); 
-  min-height: 44px;
-  padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer;
-}
-
-.ingame-menu__range:focus-visible,
-.ingame-menu__select:focus-visible,
-.ingame-menu__toggle:focus-visible,
-.ingame-menu__btn:focus-visible {
-  outline: 2px solid var(--c-accent-light);
-  outline-offset: 3px;
-}
-
-.ingame-menu__toggle {
-  min-height: 44px;
-  padding: 10px 24px;
-  border-radius: 999px;
-  border: none;
-  font-weight: 900;
-  cursor: pointer;
-}
-.ingame-menu__toggle.on { background: var(--c-accent); color: #fff; }
-.ingame-menu__toggle.off { background: var(--c-surface3); color: var(--c-text-dim); }
-
-.ingame-menu__btn {
-  min-height: 44px;
-  border: 1px solid var(--c-border-lt);
-  border-radius: 12px;
-  padding: 0 18px;
-  background: var(--c-surface2);
-  color: var(--c-white);
-  font-weight: 900;
-  cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-}
-
-.ingame-menu__btn:hover {
-  background: var(--c-surface3);
-  border-color: var(--c-text-dim);
-  transform: translateY(-1px);
-}
-
-.ingame-menu__btn--primary {
-  background: var(--c-accent);
-  border-color: var(--c-accent-light);
-}
-
-.ingame-menu__btn--block {
-  width: 100%;
-}
-
-.ingame-menu__btn--spaced {
-  margin-top: 16px;
-}
-
-.ingame-menu__empty-state,
-.ingame-menu__multiplayer-actions {
-  display: grid;
-  gap: 16px;
-}
-
-.ingame-menu__stat-card {
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: 16px;
-  padding: 18px;
-}
-
-.ingame-menu__stat-val {
-  color: var(--c-white);
-  font-weight: 900;
-  font-size: 1.1rem;
-}
-
-.ingame-menu__stat-label {
-  margin-top: 4px;
-  color: var(--c-text-dim);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-
-.ingame-menu__netplay-status {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.ingame-menu__save-rename-input {
-  width: 100%;
-  border: 1px solid var(--c-border-lt);
-  border-radius: 8px;
-  background: var(--c-surface3);
-  color: var(--c-white);
-  padding: 8px 10px;
-  font-weight: 800;
-}
-
-@media (max-width: 1024px) {
-  /* Fill overlay (safe-area already applied on overlay padding) */
-  .ingame-menu-overlay--visible {
-    align-items: stretch;
-  }
-
-  .ingame-menu {
-    width: 100%;
-    flex: 1 1 auto;
-    min-width: 0;
-    align-self: stretch;
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
-    /* Fill padded overlay region (respects safe-area via overlay padding) */
-  }
-
-  .ingame-menu__sidebar { width: 80px; padding: max(16px, env(safe-area-inset-top, 0px)) 10px 16px; }
-  .ingame-menu__sidebar-title { display: none; }
-  .ingame-menu__sidebar-btn span { display: none; }
-  .ingame-menu__sidebar-btn { justify-content: center; padding: 18px 0; border-radius: 12px; min-height: 48px; }
-  .ingame-menu__content { padding: 40px max(24px, env(safe-area-inset-right, 0px)) 28px max(20px, env(safe-area-inset-left, 0px)); }
-  .ingame-menu__game-name { font-size: 2rem; }
-}
-
-@media (max-width: 600px) {
-  .ingame-menu__sidebar { width: 64px; padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); }
-  .ingame-menu__content { padding: 44px max(12px, env(safe-area-inset-right, 4px)) max(20px, env(safe-area-inset-bottom, 8px)) max(12px, env(safe-area-inset-left, 4px)); }
-  .ingame-menu__close {
-    top: max(10px, env(safe-area-inset-top, 0px));
-    right: max(10px, env(safe-area-inset-right, 0px));
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .ingame-menu__header { margin-bottom: 32px; }
-  .ingame-menu__setting-item { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px 20px; }
-  .ingame-menu__setting-name { font-size: 1rem; }
-  .ingame-menu__select, .ingame-menu__range { width: 100%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ingame-menu-overlay,
-  .ingame-menu,
-  .ingame-menu-overlay--visible .ingame-menu {
-    transition: none !important;
-  }
-  .ingame-menu-overlay--visible {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-  }
-  .ingame-menu__content-scroll {
-    scroll-behavior: auto;
-  }
-  .ingame-menu__sidebar-btn,
-  .ingame-menu__sidebar-btn--active,
-  .ingame-menu__sidebar-btn:hover,
-  .ingame-menu__sidebar-btn:focus-visible {
-    transform: none !important;
-  }
-  .ingame-menu__save-card:hover {
-    transform: none !important;
-  }
-}
 
 /* ── In-Game Overlays (HUD) ── */
 
@@ -2089,11 +1446,6 @@ body:has(#ejs-container.visible) .app-header {
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-.touch-controls--editing .tc-btn,
-.touch-controls--editing .tc-dpad,
-.touch-controls--editing .tc-stick {
-  cursor: grab;
-}
 
 .mobile-fab {
   position: fixed;
@@ -2665,7 +2017,7 @@ body:has(#ejs-container.visible) .app-header {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity var(--transition), transform var(--transition), visibility var(--transition);
+  transition: opacity 0.3s var(--ease-premium-out), transform 0.35s var(--spring), visibility 0.3s;
 }
 
 #error-banner.visible {
@@ -2720,9 +2072,21 @@ body:has(#ejs-container.visible) .app-header {
   border: 6px solid rgba(255,255,255,0.1);
   border-top-color: var(--c-accent);
   border-radius: 50%;
-  animation: loading-spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
   margin-bottom: 32px;
   box-shadow: 0 0 30px var(--c-accent-glow);
+  animation:
+    loading-spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite,
+    loading-pulse 2s ease-in-out infinite;
+}
+
+.loading-brand {
+  margin-bottom: 24px;
+}
+
+.loading-brand__logo {
+  display: block;
+  animation: loading-logo-breathe 2.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 16px var(--c-accent-glow));
 }
 
 @keyframes loading-spin {
@@ -3080,6 +2444,54 @@ body:has(#ejs-container.visible) .app-header {
   transform: translateX(100%);
 }
 
+/* ── Skeleton loading cards ──────────────────────────────────── */
+
+.game-card--skeleton {
+  pointer-events: none;
+  cursor: default;
+  border-color: var(--c-surface3) !important;
+  box-shadow: none !important;
+  animation: skeleton-pulse 2s ease-in-out infinite !important;
+}
+
+.game-card--skeleton .game-card__icon {
+  background: var(--c-surface2);
+}
+
+.game-card--skeleton .game-card__info {
+  transform: translateY(0);
+  pointer-events: none;
+  padding: 18px;
+}
+
+.skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--c-surface3) 0%,
+    var(--c-border-lt) 40%,
+    var(--c-surface3) 70%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-line--wide {
+  width: 85%;
+  height: 16px;
+}
+
+.skeleton-line--mid {
+  width: 60%;
+}
+
+.skeleton-line--short {
+  width: 35%;
+}
+
 /* ── Premium Onboarding ── */
 
 .onboarding {
@@ -3233,12 +2645,6 @@ body:has(#ejs-container.visible) .app-header {
 
 /* ── Premium Settings Menu Overhaul ── */
 
-.confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-}
-
 #settings-panel {
   position: fixed;
   inset: 0;
@@ -3260,6 +2666,7 @@ body:has(#ejs-container.visible) .app-header {
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   z-index: -1;
+  animation: fade-in 0.3s var(--ease-premium-out);
 }
 
 #settings-content {
@@ -3276,8 +2683,22 @@ body:has(#ejs-container.visible) .app-header {
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 50px 100px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  animation: modal-pop 0.3s var(--spring);
+  animation: modal-pop 0.35s var(--spring);
 }
+
+.settings-sidebar__item {
+  animation: slide-in-right-fade 0.35s var(--ease-premium-out) both;
+}
+.settings-sidebar__item:nth-child(1)  { animation-delay: 0.12s; }
+.settings-sidebar__item:nth-child(2)  { animation-delay: 0.16s; }
+.settings-sidebar__item:nth-child(3)  { animation-delay: 0.20s; }
+.settings-sidebar__item:nth-child(4)  { animation-delay: 0.24s; }
+.settings-sidebar__item:nth-child(5)  { animation-delay: 0.28s; }
+.settings-sidebar__item:nth-child(6)  { animation-delay: 0.32s; }
+.settings-sidebar__item:nth-child(7)  { animation-delay: 0.36s; }
+.settings-sidebar__item:nth-child(8)  { animation-delay: 0.40s; }
+.settings-sidebar__item:nth-child(9)  { animation-delay: 0.44s; }
+.settings-sidebar__item:nth-child(10) { animation-delay: 0.48s; }
 
 @keyframes modal-pop {
   0% { transform: scale(0.97) translateY(24px); opacity: 0; }
@@ -5160,26 +4581,7 @@ body.using-gamepad .game-card:focus {
   animation: modal-pop 0.3s var(--spring);
 }
 
-.confirm-box__title {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 12px;
-  color: var(--c-text);
-}
-
-.confirm-box__body {
-  color: var(--c-text-dim);
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
-
-.confirm-box__actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
+.confirm-box__title,
 .confirm-title {
   font-family: var(--font-display);
   font-size: 1.25rem;
@@ -5188,12 +4590,14 @@ body.using-gamepad .game-card:focus {
   color: var(--c-text);
 }
 
+.confirm-box__body,
 .confirm-body {
   color: var(--c-text-dim);
   line-height: 1.6;
   margin-bottom: 20px;
 }
 
+.confirm-box__actions,
 .confirm-footer {
   display: flex;
   gap: 12px;
@@ -6670,9 +6074,6 @@ body.using-gamepad .game-card:focus {
   gap: 10px;
 }
 
-.ingame-menu__empty-state--netplay {
-  align-items: flex-start;
-}
 
 .netplay-session-note {
   margin-top: 6px;
@@ -6732,8 +6133,14 @@ body.using-gamepad .game-card:focus {
     opacity: 1;
   }
 
-  .loading-spinner::before {
+  .loading-brand__logo {
     animation: none;
+    opacity: 1;
+  }
+
+  .game-card--skeleton {
+    animation: none !important;
+    opacity: 0.6;
   }
 
   .info-toast {

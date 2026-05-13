@@ -22,17 +22,12 @@ test.describe("Add ROM journey", () => {
     await dropFakeRom(page, { fileName: "super-mario.nes", content: "NES\x1a\x01\x01\x00\x00" });
 
     // Dropping a ROM usually auto-launches; the library (and its cards) stay in the DOM but are
-    // hidden while `body.is-playing`. Return to the library so the card is actually visible.
+    // hidden while `body.is-playing`. Escape returns to library directly.
     const card = page.locator(".game-card, .library-game-card, [data-game-id]").first();
     await card.waitFor({ state: "attached", timeout: 10_000 });
     const playing = await page.evaluate(() => document.body.classList.contains("is-playing"));
     if (playing) {
       await page.keyboard.press("Escape");
-      await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible({ timeout: 8_000 });
-      await expect(page.locator(".ingame-menu__saves-grid")).toBeVisible({ timeout: 15_000 });
-      await page
-        .locator('.ingame-menu__sidebar-btn[data-tab="library"]')
-        .evaluate((btn) => (btn as HTMLButtonElement).click());
       await page.waitForFunction(() => !document.body.classList.contains("is-playing"), { timeout: 15_000 });
       await expect(page.locator("#landing")).not.toHaveClass("hidden", { timeout: 10_000 });
     }
@@ -44,11 +39,6 @@ test.describe("Add ROM journey", () => {
     await dropFakeRom(page, { fileName: "quick-actions.nes", content: "NES\x1a\x01\x01\x00\x00" });
     await expect(page.locator("#ejs-container")).toBeVisible({ timeout: 15_000 });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "In-Game Menu" })).toBeVisible({ timeout: 8_000 });
-    await expect(page.locator(".ingame-menu__saves-grid")).toBeVisible({ timeout: 15_000 });
-    await page
-      .locator('.ingame-menu__sidebar-btn[data-tab="library"]')
-      .evaluate((btn) => (btn as HTMLButtonElement).click());
     await page.waitForFunction(() => !document.body.classList.contains("is-playing"), { timeout: 15_000 });
     await expect(page.locator("#landing")).not.toHaveClass("hidden", { timeout: 10_000 });
 

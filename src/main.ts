@@ -48,14 +48,8 @@ import { buildDOM, initUI,
           resolveSystemAndAdd,
           showError, showInfoToast, showLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
-          openEasyNetplayModal,
-          TOUCH_CONTROLS_CHANGED_EVENT } from "./ui.js";
+          openEasyNetplayModal } from "./ui.js";
 import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
-import {
-  getTouchControlsDefaultForSystem,
-  isTouchDevice,
-  setTouchControlsPreferenceForSystem,
-} from "./touch/preferences.js";
 import { sessionTracker } from "./sessionTracker.js";
 import { store } from "./store/index.js";
 import type { NetplayIceServer } from "./store/index.js";
@@ -76,7 +70,6 @@ import {
   type PostProcessEffect,
   type WebGpuGlCapturePolicyInput,
 } from "./webgpuPostProcess.js";
-import { EMULATOR_JS_CONTAINER_ID } from "./emulatorDisplay.js";
 import { getApiKeyStore } from "./ui/coverArtRegistry.js";
 import { parseRAKey } from "./raCredentials.js";
 import { installWebGlContextPolicy } from "./webglContextPolicy.js";
@@ -109,24 +102,8 @@ export interface Settings {
   postProcessEffect: PostProcessEffect;
   /** Whether to auto-save on tab close / visibility hidden. */
   autoSaveEnabled: boolean;
-  /** Whether to show touch controls on touch-capable devices. */
-  touchControls:   boolean;
-  /** Per-system touch control overrides. */
-  touchControlsBySystem: Record<string, boolean>;
-  /** Whether haptic feedback fires on virtual button presses (Android only). */
-  hapticFeedback:  boolean;
   /** System-specific core option overrides (libretro keys). */
   coreOptions:     Record<string, string>;
-  /**
-   * Opacity of the on-screen touch buttons (0.1–1.0).
-   * Lower values make the buttons more transparent so the game is easier to see.
-   */
-  touchOpacity: number;
-  /**
-   * Global scale factor for all on-screen buttons (0.5–2.0).
-   * Values above 1 make buttons larger; values below 1 make them smaller.
-   */
-  touchButtonScale: number;
   /** Whether to lock screen orientation to landscape while a game runs. */
   orientationLock: boolean;
   /** Whether the built-in EmulatorJS Netplay feature is enabled. */
@@ -193,11 +170,7 @@ const DEFAULT_SETTINGS: Settings = {
   useWebGPU:       false,
   postProcessEffect: "none" as PostProcessEffect,
   autoSaveEnabled: true,
-  touchControls:   isTouchDevice(),
-  touchControlsBySystem: {},
-  hapticFeedback:  true,
-  touchOpacity:    0.85,
-  touchButtonScale: 1.0,
+  coreOptions: {},
   orientationLock: true,
   netplayEnabled:  false,
   netplayServerUrl: "",
@@ -210,7 +183,6 @@ const DEFAULT_SETTINGS: Settings = {
   uiMode: "auto",
   libraryLayout: "grid",
   libraryGrouped: true,
-  coreOptions: {},
   recordPlayHistory: true,
   dynamicResolutionScaling: false,
 };
@@ -257,21 +229,6 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
       autoSaveEnabled: typeof parsed.autoSaveEnabled === "boolean"
         ? parsed.autoSaveEnabled
         : DEFAULT_SETTINGS.autoSaveEnabled,
-      touchControls: typeof parsed.touchControls === "boolean"
-        ? parsed.touchControls
-        : DEFAULT_SETTINGS.touchControls,
-      touchControlsBySystem: (typeof parsed.touchControlsBySystem === "object" && parsed.touchControlsBySystem !== null && !Array.isArray(parsed.touchControlsBySystem))
-        ? (parsed.touchControlsBySystem as Record<string, boolean>)
-        : DEFAULT_SETTINGS.touchControlsBySystem,
-      hapticFeedback: typeof parsed.hapticFeedback === "boolean"
-        ? parsed.hapticFeedback
-        : DEFAULT_SETTINGS.hapticFeedback,
-      touchOpacity: typeof parsed.touchOpacity === "number"
-        ? Math.max(0.1, Math.min(1, parsed.touchOpacity))
-        : DEFAULT_SETTINGS.touchOpacity,
-      touchButtonScale: typeof parsed.touchButtonScale === "number"
-        ? Math.max(0.5, Math.min(2, parsed.touchButtonScale))
-        : DEFAULT_SETTINGS.touchButtonScale,
       orientationLock: typeof parsed.orientationLock === "boolean"
         ? parsed.orientationLock
         : DEFAULT_SETTINGS.orientationLock,
@@ -567,8 +524,6 @@ async function main(): Promise<void> {
     };
   });
 
-  // Lazy-create the touch controls overlay only when a game starts on a touch device
-  let touchOverlay: import("./touchControls.js").TouchControlsOverlay | null = null;
 
   /**
    * Applies WebGPU post-processing via {@link resolveWebGpuPostProcessEffectForShell}.
@@ -595,36 +550,6 @@ async function main(): Promise<void> {
         webGpuGlCaptureInput(tier, perGameMerged),
       ),
     );
-  };
-
-  /** Refresh touch overlay visibility and lazy-create overlay when prefs change mid-session. */
-  const refreshTouchOverlayFromSettings = (): void => {
-    void (async () => {
-      if (!isTouchDevice()) return;
-
-      if (getTouchControlsDefaultForSystem(currentSystemId, settings)) {
-        if (!touchOverlay && currentSystemId && (emulator.state === "running" || emulator.state === "paused")) {
-          const ejsContainer = document.getElementById(EMULATOR_JS_CONTAINER_ID);
-          if (ejsContainer) {
-            const { TouchControlsOverlay } = await import("./touchControls.js");
-            touchOverlay = new TouchControlsOverlay(
-              ejsContainer, currentSystemId, settings.hapticFeedback,
-              settings.touchOpacity, settings.touchButtonScale,
-            );
-          }
-        }
-        if (touchOverlay) {
-          if (currentSystemId) touchOverlay.setSystem(currentSystemId);
-          touchOverlay.setHapticEnabled(settings.hapticFeedback);
-          touchOverlay.setOpacity(settings.touchOpacity);
-          touchOverlay.setScale(settings.touchButtonScale);
-          touchOverlay.show();
-        }
-      } else {
-        touchOverlay?.hide();
-      }
-      document.dispatchEvent(new CustomEvent(TOUCH_CONTROLS_CHANGED_EVENT));
-    })();
   };
 
   // 4a. Preconnect to CDN early for faster game launches
@@ -717,27 +642,6 @@ async function main(): Promise<void> {
       (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })
         .lock?.("landscape-primary")
         .catch(() => {});
-    }
-
-    // Touch controls
-    if (isTouchDevice() && getTouchControlsDefaultForSystem(systemId, settings)) {
-      const ejsContainer = document.getElementById(EMULATOR_JS_CONTAINER_ID);
-      if (ejsContainer) {
-        if (!touchOverlay) {
-          const { TouchControlsOverlay } = await import("./touchControls.js");
-          touchOverlay = new TouchControlsOverlay(
-            ejsContainer, systemId, settings.hapticFeedback,
-            settings.touchOpacity, settings.touchButtonScale,
-          );
-        } else {
-          touchOverlay.setSystem(systemId);
-          touchOverlay.setHapticEnabled(settings.hapticFeedback);
-          touchOverlay.setOpacity(settings.touchOpacity);
-          touchOverlay.setScale(settings.touchButtonScale);
-        }
-      }
-    } else {
-      touchOverlay?.hide();
     }
 
     currentGameFile     = file;
@@ -1009,9 +913,6 @@ async function main(): Promise<void> {
       (screen.orientation as ScreenOrientation & { unlock?: () => void }).unlock?.();
     } catch { /* not supported */ }
 
-    // Hide touch controls overlay
-    touchOverlay?.hide();
-
     transitionToLibrary();
     document.title = APP_NAME;
     sessionGamePostEffectOverride = undefined;
@@ -1026,20 +927,9 @@ async function main(): Promise<void> {
   // Previously the event listeners used a simplified handler that skipped syncing
   // emulator state (WebGPU, post-process effects, touch controls, verbose logging).
   const onSettingsChange = (patch: Partial<Settings>): void => {
-    const prevGlobalTouch = settings.touchControls;
     const playingOrPaused =
       emulator.state === "running" || emulator.state === "paused";
     Object.assign(settings, patch);
-    // Legacy `{ touchControls }` patches while in-game scoped to `currentSystemId` must not clobber global default.
-    // (On the library screen `currentSystemId` can remain set from the last session, so gate on emulator state.)
-    if (
-      typeof patch.touchControls === "boolean" &&
-      currentSystemId &&
-      playingOrPaused
-    ) {
-      setTouchControlsPreferenceForSystem(settings, currentSystemId, patch.touchControls);
-      settings.touchControls = prevGlobalTouch;
-    }
     if (
       patch.useWebGPU !== undefined ||
       patch.postProcessEffect !== undefined ||
@@ -1059,24 +949,6 @@ async function main(): Promise<void> {
       } else {
         syncEmulatorPostProcessFromSettings(undefined, postSyncOpts);
       }
-    }
-    // Sync haptic feedback setting to the active overlay in real time
-    if (typeof patch.hapticFeedback === "boolean" && touchOverlay) {
-      touchOverlay.setHapticEnabled(patch.hapticFeedback);
-    }
-    // Sync opacity and scale changes immediately
-    if (typeof patch.touchOpacity === "number" && touchOverlay) {
-      touchOverlay.setOpacity(patch.touchOpacity);
-    }
-    if (typeof patch.touchButtonScale === "number" && touchOverlay) {
-      touchOverlay.setScale(patch.touchButtonScale);
-    }
-    // Show or hide the touch overlay when global default, per-system map, or session changes mid-game.
-    if (
-      typeof patch.touchControls === "boolean" ||
-      patch.touchControlsBySystem !== undefined
-    ) {
-      refreshTouchOverlayFromSettings();
     }
     // Sync verbose logging flag so debug output can be toggled without reload.
     if (typeof patch.verboseLogging === "boolean") {
@@ -1138,7 +1010,6 @@ async function main(): Promise<void> {
     onUpdateCoreOption: (key, value) => {
       onSettingsChange({ coreOptions: { ...settings.coreOptions, [key]: value } });
     },
-    getTouchOverlay:    () => touchOverlay,
     getNetplayManager,
     canInstallPWA,
     onInstallPWA:       promptPWAInstall,
