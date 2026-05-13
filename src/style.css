@@ -422,7 +422,7 @@ body.is-playing #landing.hidden {
 .library-search-wrap {
   position: relative;
   flex: 1 1 280px;
-  max-width: clamp(360px, 36vw, 460px);
+  max-width: clamp(320px, 36vw, 440px);
 }
 
 .library-search {
@@ -931,7 +931,7 @@ body.is-playing #landing.hidden {
 }
 
 .settings-modal-box {
-  width: min(var(--library-shell-max-w), calc(100vw - (var(--shell-gutter) * 2)));
+  width: var(--library-shell-max-w);
   max-width: none;
   height: min(800px, calc(100vh - (var(--shell-gutter) * 2)));
   max-height: none;
