@@ -482,9 +482,9 @@ export function buildDOM(app: HTMLElement): void {
       <!-- EmulatorJS mount point (hidden until a game launches) -->
       <div id="${EMULATOR_JS_CONTAINER_ID}">
         <div id="ejs-player"></div>
-        <div id="in-game-overlay" class="in-game-overlay" hidden aria-label="In-game session controls" aria-hidden="true"></div>
+        <div id="in-game-overlay" class="in-game-overlay" hidden aria-label="In-game session controls"></div>
         <!-- Premium In-Game Performance Overlay -->
-        <div id="fps-overlay" class="fps-overlay" hidden role="status" aria-label="Frame rate and performance overlay" aria-live="polite" aria-atomic="true" aria-hidden="true">
+        <div id="fps-overlay" class="fps-overlay" hidden role="status" aria-label="Frame rate and performance overlay" aria-live="polite" aria-atomic="true">
           <div class="fps-current">
             <span id="fps-current-val" class="fps-val">--</span>
             <span class="fps-label">FPS</span>
@@ -497,7 +497,7 @@ export function buildDOM(app: HTMLElement): void {
           <canvas id="fps-visualiser" class="fps-visualiser" width="60" height="18" hidden aria-hidden="true"></canvas>
         </div>
         <!-- High-Fidelity Developer Dashboard (F3) -->
-        <div id="dev-overlay" class="dev-overlay" hidden role="status" aria-label="System diagnostic dashboard" aria-live="off" aria-hidden="true">
+        <div id="dev-overlay" class="dev-overlay" hidden role="status" aria-label="System diagnostic dashboard" aria-live="off">
           <div class="dev-overlay__title">System Diagnostic</div>
           <div class="dev-overlay__grid">
             <span class="dev-overlay__label">Frame Time</span><span id="dev-frame-time" class="dev-overlay__value">--ms</span>

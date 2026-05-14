@@ -2207,7 +2207,7 @@ describe("F3 developer debug overlay", () => {
     const overlay = document.getElementById("in-game-overlay");
     expect(overlay).toBeTruthy();
     expect(overlay!.hidden).toBe(true);
-    expect(overlay!.getAttribute("aria-hidden")).toBe("true");
+    expect(overlay!.hasAttribute("aria-hidden")).toBe(false);
   });
 
   it("buildDOM includes footer connectivity status for network UX", () => {
