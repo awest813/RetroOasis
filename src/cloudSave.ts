@@ -1448,11 +1448,13 @@ export class BlompProvider implements CloudSaveProvider {
   }
 
   private _objectUrl(path: string): string {
-    return `${this._storageUrl!}/${this.container}/${path}`;
+    if (!this._storageUrl) throw new Error("Blomp: storage URL not available — ensure isAvailable() succeeded before calling this.");
+    return `${this._storageUrl}/${this.container}/${path}`;
   }
 
   private _authHeaders(): HeadersInit {
-    return { "X-Auth-Token": this._authToken! };
+    if (!this._authToken) throw new Error("Blomp: auth token not available — ensure isAvailable() succeeded before calling this.");
+    return { "X-Auth-Token": this._authToken };
   }
 
   private async _put(path: string, content: Blob, contentType: string): Promise<void> {
@@ -2230,7 +2232,9 @@ export class MegaProvider implements CloudSaveProvider {
   ): string | null {
     try {
       const keyParts = n.k.split(":");
-      const encNodeKey = mega._base64ToUint8(keyParts[keyParts.length - 1]!);
+      const lastPart = keyParts[keyParts.length - 1];
+      if (!lastPart) return null;
+      const encNodeKey = mega._base64ToUint8(lastPart);
       const decNodeKey = mega._aesEcbDecrypt(encNodeKey, this._masterKey!);
       let attrKey: Uint8Array;
       if (decNodeKey.length >= 32) {

@@ -1530,11 +1530,17 @@ export class WebGPUPostProcessor {
     this._destroyTimestampQuery();
   }
 
+  /** Cached tier-adjusted config — only recomputed when config or tier changes. */
+  _adjustedConfig: PostProcessConfig | null = null;
+
   /** Update post-processing configuration. Rebuilds the pipeline if the effect changes. */
   updateConfig(patch: Partial<PostProcessConfig>): void {
     const prevEffect      = this._config.effect;
     const prevPixelPerfect = this._config.pixelPerfect;
     Object.assign(this._config, patch);
+
+    // Invalidate the adjusted-config cache when the config or tier changes
+    this._adjustedConfig = null;
 
     if (this._config.effect !== prevEffect) {
       this._rebuildPipeline().catch(console.error);
@@ -1920,8 +1926,8 @@ export class WebGPUPostProcessor {
   private _writeUniforms(width: number, height: number): void {
     if (!this._effectPipeline?.uniformBuffer) return;
 
-    // Apply tier-based adjustments before writing to the GPU buffer
-    const cfg = adjustConfigForTier(this._config);
+    // Use cached tier-adjusted config — recomputed only in updateConfig()
+    const cfg = this._adjustedConfig ?? (this._adjustedConfig = adjustConfigForTier(this._config));
 
     // Reuse the pre-allocated buffer — no heap allocation
     const data = this._uniformData;

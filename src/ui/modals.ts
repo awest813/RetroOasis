@@ -1017,7 +1017,7 @@ export function showGameDetails(
     
     const strategyBtn = createElement("button", { class: "btn", "aria-label": "Strategy guide (opens in new tab)" }, "📚 Strategy");
     strategyBtn.addEventListener("click", () => {
-      window.open(`https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(game.name)}`, "_blank");
+      window.open(`https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(game.name)}`, "_blank", "noopener");
     }, { signal: ac.signal });
     
     const removeBtn = createElement("button", { class: "btn btn--danger" }, "Remove");

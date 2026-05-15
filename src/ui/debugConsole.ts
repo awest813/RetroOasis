@@ -69,12 +69,12 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         consoleEl.style.left = `${x}px`;
         consoleEl.style.top = `${y}px`;
         position = { x, y };
-        localStorage.setItem("ro_debug_console_pos", JSON.stringify(position));
       }, { signal });
 
       window.addEventListener("mouseup", () => {
         isDragging = false;
         handle.style.cursor = "grab";
+        localStorage.setItem("ro_debug_console_pos", JSON.stringify(position));
       }, { signal });
     }
 

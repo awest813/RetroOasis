@@ -625,26 +625,6 @@ export function buildDOM(app: HTMLElement): void {
       brandLogoImg.remove();
     };
   }
-
-  // ── Live battery indicator ───────────────────────────────────────────────────
-  // Only shown when the Battery Status API is available (Chromium-based browsers).
-  // Hidden otherwise to avoid displaying a misleading static value.
-  if (navigator.getBattery) {
-    navigator.getBattery()
-      .then((battery) => {
-        const batteryEl  = document.getElementById("footer-battery");
-        const batteryPct = document.getElementById("footer-battery-pct");
-        if (!batteryEl || !batteryPct) return;
-        const update = () => {
-          batteryPct.textContent = `${Math.round(battery.level * 100)}%`;
-        };
-        update();
-        batteryEl.hidden = false;
-        battery.addEventListener("levelchange",    update);
-        battery.addEventListener("chargingchange", update);
-      })
-      .catch(() => { /* Battery API unavailable or denied — keep element hidden */ });
-  }
 }
 
 // ── Public init ───────────────────────────────────────────────────────────────
@@ -691,14 +671,6 @@ export function initUI(opts: UIOptions): void {
     registerNetplayInstance(opts.netplayManager);
   }
 
-  // ── Gamepad connection toast ───────────────────────────────────────────
-  window.addEventListener("gamepadconnected", (e) => {
-    showInfoToast(`Gamepad connected: ${e.gamepad.id}`, "info");
-  });
-  window.addEventListener("gamepaddisconnected", (e) => {
-    showInfoToast(`Disconnected: ${e.gamepad.id}`, "warning");
-  });
-
   // ── Console Clock Loop ──
   const updateClock = () => {
     const clockEl = document.getElementById("footer-clock");
@@ -710,11 +682,7 @@ export function initUI(opts: UIOptions): void {
   // Align the repeating interval to the next wall-clock minute so the display
   // never lags more than ~1 s behind the actual time.
   const msToNextMinute = 60_000 - (Date.now() % 60_000);
-  // clockInterval is assigned inside clockAlignTimeout; the cleanup fn always
-  // runs after initUI returns, so by then the timeout has either fired (and
-  // clockInterval is set) or is still pending (in which case clearInterval(0)
-  // is a safe no-op on all platforms).
-  let clockInterval: ReturnType<typeof setInterval> = 0 as unknown as ReturnType<typeof setInterval>;
+  let clockInterval: ReturnType<typeof setInterval> | null = null;
   const clockAlignTimeout = setTimeout(() => {
     updateClock();
     clockInterval = setInterval(updateClock, 60_000);
@@ -741,7 +709,7 @@ export function initUI(opts: UIOptions): void {
   });
 
   const cleanupFns: Array<() => void> = [
-    () => { clearTimeout(clockAlignTimeout); clearInterval(clockInterval); }
+    () => { clearTimeout(clockAlignTimeout); if (clockInterval !== null) clearInterval(clockInterval); }
   ];
   const bindEvent = (
     target: EventTarget,
@@ -752,6 +720,38 @@ export function initUI(opts: UIOptions): void {
     target.addEventListener(type, handler, options);
     cleanupFns.push(() => target.removeEventListener(type, handler, options));
   };
+
+  // ── Gamepad connection toast ───────────────────────────────────────────
+  const _onGamepadConnected = (e: Event) => {
+    showInfoToast(`Gamepad connected: ${(e as GamepadEvent).gamepad.id}`, "info");
+  };
+  const _onGamepadDisconnected = (e: Event) => {
+    showInfoToast(`Disconnected: ${(e as GamepadEvent).gamepad.id}`, "warning");
+  };
+  bindEvent(window, "gamepadconnected", _onGamepadConnected);
+  bindEvent(window, "gamepaddisconnected", _onGamepadDisconnected);
+
+  // ── Live battery indicator ───────────────────────────────────────────────────
+  if (navigator.getBattery) {
+    navigator.getBattery()
+      .then((battery) => {
+        const batteryEl  = document.getElementById("footer-battery");
+        const batteryPct = document.getElementById("footer-battery-pct");
+        if (!batteryEl || !batteryPct) return;
+        const update = () => {
+          batteryPct.textContent = `${Math.round(battery.level * 100)}%`;
+        };
+        update();
+        batteryEl.hidden = false;
+        battery.addEventListener("levelchange",    update);
+        battery.addEventListener("chargingchange", update);
+        cleanupFns.push(() => {
+          battery.removeEventListener("levelchange",    update);
+          battery.removeEventListener("chargingchange", update);
+        });
+      })
+      .catch(() => { /* Battery API unavailable or denied — keep element hidden */ });
+  }
 
   const applyConnectivityFooter = (online: boolean): void => {
     setNetworkDocumentState(online);
@@ -806,6 +806,8 @@ export function initUI(opts: UIOptions): void {
         currentSystemId:  getCurrentSystemId?.() ?? null,
         onOpenPlayTogetherSettings: openPlayTogetherSettings,
       });
+    }).catch(err => {
+      console.warn("Failed to open Play Together lobby:", err);
     });
   };
 
@@ -1944,16 +1946,27 @@ function _gamepadBtnDown(btn: GamepadButton | undefined): boolean {
   return v > 0.35;
 }
 
-/** True while modals/overlays own focus — keep library gamepad from fighting them. */
+/**
+ * True while modals/overlays own focus — keep library gamepad from fighting them.
+ * Cached per-frame: re-evaluates on each call but stores result for the same rAF
+ * tick so that multiple consumers (_libGamepadTick + keydown handlers) share one
+ * DOM query set.  Flag is invalidated on next requestAnimationFrame.
+ */
+let _gpNavSuppressedCache = false;
+let _gpNavSuppressedFrame = -1;
+
 function _libraryGamepadNavSuppressed(): boolean {
-  const errBanner = document.getElementById("error-banner");
-  if (errBanner?.classList.contains("visible")) return true;
-  if (document.querySelector(".confirm-overlay")) return true;
-  const settingsPanel = document.getElementById("settings-panel");
-  if (settingsPanel && !settingsPanel.hidden) return true;
-  if (document.querySelector("#system-picker:not([hidden])")) return true;
-  if (document.querySelector(".easy-netplay-overlay")) return true;
-  return false;
+  const now = performance.now();
+  if (Math.floor(now / 16) !== _gpNavSuppressedFrame) {
+    _gpNavSuppressedFrame = Math.floor(now / 16);
+    _gpNavSuppressedCache =
+      !!document.getElementById("error-banner")?.classList.contains("visible") ||
+      !!document.querySelector(".confirm-overlay") ||
+      !!(document.getElementById("settings-panel") && !document.getElementById("settings-panel")!.hidden) ||
+      !!document.querySelector("#system-picker:not([hidden])") ||
+      !!document.querySelector(".easy-netplay-overlay");
+  }
+  return _gpNavSuppressedCache;
 }
 
 function _invalidateLibraryGamepadCardCache(): void {
@@ -2071,7 +2084,13 @@ function _wireLibraryNavigation(): void {
     librarySection.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "ArrowDown") return;
       const landingEl = document.getElementById("landing");
-      if (!landingEl || landingEl.classList.contains("hidden")) return;
+    if (!landingEl || landingEl.classList.contains("hidden")) {
+      if (_libraryGamepadRafId !== null) {
+        cancelAnimationFrame(_libraryGamepadRafId);
+        _libraryGamepadRafId = null;
+      }
+      return;
+    }
       if (_libraryGamepadNavSuppressed()) return;
       const t = e.target as HTMLElement;
       if (t.closest(".game-card")) return;
@@ -2091,7 +2110,11 @@ function _wireLibraryNavigation(): void {
 
     // Only navigate when the library landing is visible (not while a game runs)
     const landingEl = document.getElementById("landing");
-    if (!landingEl || landingEl.classList.contains("hidden")) return;
+    if (!landingEl || landingEl.classList.contains("hidden")) {
+      cancelAnimationFrame(_libraryGamepadRafId);
+      _libraryGamepadRafId = null;
+      return;
+    }
 
     if (_libraryGamepadNavSuppressed()) return;
 
@@ -2172,10 +2195,15 @@ function _wireLibraryNavigation(): void {
     const needCards = pressedA || pressedB || pressedL1 || pressedR1 || pressedStart || doMove;
     if (!needCards) return;
 
-    // Virtual grid swaps nodes on scroll — never reuse a stale card list.
+    // Virtual grid reuses DOM elements on scroll — querySelectorAll returns the same
+    // element references, so we can cache them.  The cache is invalidated when
+    // setItems rebuilds the pool or buildDOM re-creates the grid.
     let cards: HTMLElement[];
     if (_virtualGrid) {
-      cards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+      if (!_libGpCachedCards) {
+        _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
+      }
+      cards = _libGpCachedCards;
     } else {
       if (!_libGpCachedCards) {
         _libGpCachedCards = Array.from(grid!.querySelectorAll<HTMLElement>(".game-card"));
@@ -2901,7 +2929,9 @@ function buildGameCard(
       onRemove:    () => btnRemove.click(),
       onToggleFav: () => btnFav.click(),
       onEditArt:   () => {
-        void showCoverArtPickerDialog(game.name, !!coverArtObjectUrl).then(res => handleCoverArtResult(res, btnArt));
+        void showCoverArtPickerDialog(game.name, !!coverArtObjectUrl).then(res => handleCoverArtResult(res, btnArt)).catch(err => {
+          console.warn("Cover art dialog failed:", err);
+        });
       },
       getRAProgress: system?.hasAchievements ? async () => {
         const cached = getCachedRAProgress(game.id);
@@ -3090,12 +3120,13 @@ function systemIcon(systemId: string): string {
 
 
 function _escHtml(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => {
+  return s.replace(/[&<>"']/g, (c) => {
     switch (c) {
       case "&": return "&amp;";
       case "<": return "&lt;";
       case ">": return "&gt;";
       case '"': return "&quot;";
+      case "'": return "&#39;";
       default: return c;
     }
   });
@@ -3910,7 +3941,7 @@ export function buildLandingControls(
     if (nmNow) {
       openWith(nmNow);
     } else if (getNetplayManager) {
-      void getNetplayManager().then(openWith);
+      void getNetplayManager().then(openWith).catch(err => console.warn("Failed to get netplay manager:", err));
     }
   });
 
@@ -6399,7 +6430,7 @@ function showCloudConnectDialog(): Promise<boolean> {
       ));
 
       const providerGrid = make("div", { class: "cloud-provider-grid" });
-      let selectedId = CLOUD_SAVE_PROVIDERS[0]!.id;
+      let selectedId = CLOUD_SAVE_PROVIDERS[0]?.id ?? "local";
 
       for (const p of CLOUD_SAVE_PROVIDERS) {
         const pCard = make("button", {
@@ -6436,7 +6467,8 @@ function showCloudConnectDialog(): Promise<boolean> {
 
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
-      const meta = CLOUD_SAVE_PROVIDERS.find(p => p.id === providerId)!;
+      const meta = CLOUD_SAVE_PROVIDERS.find(p => p.id === providerId);
+      if (!meta) { close(false); return; }
       const stepTitleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", stepTitleId);
       box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `Connect ${meta.label}`));
@@ -6679,7 +6711,7 @@ function buildMultiplayerTab(
   const callNm = (fn: (m: import("./multiplayer.js").NetplayManager) => void): void => {
     const nm = peekNetplayManager();
     if (nm) { fn(nm); }
-    else if (getNetplayManager) { void getNetplayManager().then(fn); }
+    else if (getNetplayManager) { void getNetplayManager().then(fn).catch(err => console.warn("Failed to get netplay manager:", err)); }
   };
 
   const introHeadingId = "settings-playtogether-intro-heading";
@@ -7773,6 +7805,7 @@ export async function showTierDowngradePrompt(
 
 let _lowFPSCount = 0;
 let _perfSuggestionShown = false;
+let _perfSuggestionAutoDismissTimer: ReturnType<typeof setTimeout> | null = null;
 const LOW_FPS_THRESHOLD = 25;
 const LOW_FPS_TRIGGER   = 6;
 
@@ -7837,9 +7870,9 @@ function showPerfSuggestion(): void {
     `<button class="perf-suggestion__close" aria-label="Dismiss">${ICON_CLOSE_X_SVG}</button>`;
   document.body.appendChild(toast);
 
-  let autoDismissTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => { autoDismissTimer = null; dismiss(); }, PERF_SUGGESTION_AUTO_DISMISS_MS);
+  _perfSuggestionAutoDismissTimer = setTimeout(() => { _perfSuggestionAutoDismissTimer = null; dismiss(); }, PERF_SUGGESTION_AUTO_DISMISS_MS);
   const dismiss = () => {
-    if (autoDismissTimer !== null) { clearTimeout(autoDismissTimer); autoDismissTimer = null; }
+    if (_perfSuggestionAutoDismissTimer !== null) { clearTimeout(_perfSuggestionAutoDismissTimer); _perfSuggestionAutoDismissTimer = null; }
     toast.classList.add("perf-suggestion--hiding"); setTimeout(() => toast.remove(), PERF_SUGGESTION_FADE_DELAY_MS);
   };
   toast.querySelector(".perf-suggestion__close")?.addEventListener("click", dismiss);
@@ -7849,6 +7882,7 @@ function showPerfSuggestion(): void {
 function resetPerfSuggestion(): void {
   _lowFPSCount = 0;
   _perfSuggestionShown = false;
+  if (_perfSuggestionAutoDismissTimer !== null) { clearTimeout(_perfSuggestionAutoDismissTimer); _perfSuggestionAutoDismissTimer = null; }
   document.getElementById("perf-suggestion")?.remove();
 }
 
@@ -7976,7 +8010,8 @@ function showAddCloudLibraryDialog(
 
     const renderStep2 = (providerId: string) => {
       box.innerHTML = "";
-      const meta = CLOUD_LIBRARY_PROVIDERS.find(p => p.id === providerId)!;
+      const meta = CLOUD_LIBRARY_PROVIDERS.find(p => p.id === providerId);
+      if (!meta) { close(); return; }
       const stepTitleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", stepTitleId);
       box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} library`));

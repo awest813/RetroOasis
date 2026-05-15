@@ -343,7 +343,7 @@ export function getDreamcastOptimalResolution(
   estimatedVRAMMB: number,
 ): string {
   const ladder = RESOLUTION_LADDERS["segaDC"];
-  if (!ladder) return "640x480";
+  if (!ladder || ladder.values.length === 0) return "640x480";
 
   let best = ladder.values[0]!;
   for (let i = ladder.values.length - 1; i >= 0; i--) {
@@ -614,6 +614,77 @@ export function isChromebookLowRamProfile(
   caps: Pick<DeviceCapabilities, "isChromOS" | "deviceMemoryGB">,
 ): boolean {
   return caps.isChromOS && caps.deviceMemoryGB !== null && caps.deviceMemoryGB <= 2;
+}
+
+// ── Chromebook GPU class detection ─────────────────────────────────────────────
+
+/** Chromebook GPU capability class for tier-penalty tuning. */
+export type ChromebookGpuClass = "unknown" | "ultra-low" | "low" | "mid" | "high";
+
+/**
+ * Classify a Chromebook GPU by its WebGL renderer string so we can apply
+ * differentiated performance caps instead of treating all Chromebooks equally.
+ *
+ * Mali-G31/G52 (entry-level ARM Chromebooks) struggle with 3D emulation at
+ * any resolution >1x. Mali-G57/G76 (mid/high-end ARM) can handle 2x–4x.
+ * Intel UHD (x86 Chromebooks) sit between mid and high depending on generation.
+ *
+ * | GPU String                                    | Class       | Penalty |
+ * |-----------------------------------------------|-------------|---------|
+ * | Mali-400, Mali-450, Mali-G31, Mali-Txxx        | ultra-low   | 0.55x   |
+ * | Mali-G52, Mali-G57, Mali-G610                  | mid         | 0.75x   |
+ * | Mali-G68, Mali-G76, Mali-G77, Mali-G78         | high        | 0.85x   |
+ * | Intel UHD / HD Graphics 500/600/610/615        | low         | 0.65x   |
+ * | Intel Iris Xe, UHD 11th-gen+                   | high        | 0.90x   |
+ * | PowerVR / Vivante / other                      | low         | 0.60x   |
+ */
+export function detectChromebookGpuClass(gpuRenderer: string): ChromebookGpuClass {
+  // Normalise: strip (R), (TM), and extra version info that browsers inject
+  const r = gpuRenderer.toLowerCase().replace(/\(r\)|\(tm\)/g, "");
+
+  if (!r || r === "unknown") return "unknown";
+
+  // Mali GPU family
+  if (r.includes("mali")) {
+    if (/\bmali-4\d{2}\b/.test(r)) return "ultra-low";   // Mali-400/450
+    if (/\bmali-t[1-8]\d{2}\b/.test(r)) return "ultra-low"; // Mali-T6xx/T7xx/T8xx
+    if (/\bmali-g31\b/.test(r)) return "ultra-low";      // Mali-G31 (entry)
+    if (/\bmali-g52\b/.test(r)) return "mid";             // Mali-G52 (mid-range)
+    if (/\bmali-g57\b/.test(r)) return "mid";             // Mali-G57 (mid-range)
+    if (/\bmali-g610\b/.test(r)) return "mid";            // Mali-G610 (mid-range)
+    if (/\bmali-g68\b/.test(r)) return "high";            // Mali-G68 (high-end)
+    if (/\bmali-g7[6-8]\b/.test(r)) return "high";       // Mali-G76/G77/G78
+    if (/\bmali-g7[1-5]\b/.test(r)) return "mid";        // Mali-G71/G72/G75
+    return "low"; // Unrecognized Mali → conservative
+  }
+
+  // Intel GPU family
+  if (r.includes("intel") || r.includes("uhd") || r.includes("hd graphics") || r.includes("iris")) {
+    if (r.includes("iris xe") || r.includes("arc")) return "high";
+    if (/uhd\s*graphics\s*(7[3-7]0|6[3-7]0)/i.test(r)) return "high"; // 11th-gen+
+    if (/uhd\s*graphics\s*6[0-2][05]/i.test(r)) return "mid";          // 10th-gen
+    if (/hd\s*graphics\s*(6[0-9]\d|5[0-9]\d|61[05])/i.test(r)) return "low"; // Bay Trail / Apollo Lake / Gemini Lake
+    if (/hd\s*graphics\s*(4[0-9]\d|5[0-9]\d)/i.test(r)) return "ultra-low"; // Haswell/Broadwell
+    return "low"; // Unrecognized Intel → conservative
+  }
+
+  // Other mobile/Chromebook GPUs
+  if (r.includes("powervr") || r.includes("vivante") || r.includes("adreno") || r.includes("tegra")) {
+    return "low";
+  }
+
+  return "unknown";
+}
+
+/** Map Chromebook GPU class to a points multiplier for tier classification. */
+function chromebookGpuPenalty(gpuClass: ChromebookGpuClass): number {
+  switch (gpuClass) {
+    case "ultra-low": return 0.55;
+    case "low":       return 0.65;
+    case "mid":       return 0.75;
+    case "high":      return 0.88;
+    default:          return 0.75; // same as the old flat penalty
+  }
 }
 
 // ── iOS / Android detection ───────────────────────────────────────────────────
@@ -1193,10 +1264,13 @@ function classifyTier(
   // (probe failed — no information to act on).
   if (gpuCaps.maxTextureSize > 0 && gpuCaps.maxTextureSize < 2048) points -= 8;
 
-  // Chrome OS / Chromebook penalty: these devices use power-constrained
-  // ARM/Intel Celeron SoCs and often throttle under sustained GPU load.
-  // Reduce effective points to avoid over-estimating their capability.
-  if (chromeos) points = Math.round(points * 0.75);
+  // Chrome OS / Chromebook penalty: use differentiated GPU class detection
+  // instead of a flat 0.75× multiplier.  Mali-G31 Chromebooks get 0.55×
+  // while Intel UHD 11th-gen+ Chromebooks get 0.88×.
+  if (chromeos) {
+    const gpuClass = detectChromebookGpuClass(gpuCaps.renderer);
+    points = Math.round(points * chromebookGpuPenalty(gpuClass));
+  }
 
   // Classify
   let tier: PerformanceTier;

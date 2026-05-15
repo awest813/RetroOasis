@@ -86,6 +86,7 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       _db = req.result;
       _db.onclose = () => { _db = null; _dbPromise = null; };
+      _db.onversionchange = () => { _db?.close(); _db = null; _dbPromise = null; };
       resolve(_db);
     };
 

@@ -61,6 +61,22 @@ import {
 // Initialize Chrome-specific performance optimizations early
 import { optimizeBrowserPerformance } from "./performance.js";
 optimizeBrowserPerformance();
+import { requestPersistentStorage, installStoragePressureListener, startStorageMonitoring, checkStorageQuota, getStorageWarning } from "./storage.js";
+
+/**
+ * Notify the service worker about gaming state so it can defer SW updates
+ * while a game is running (preserving COI headers and SharedArrayBuffer).
+ */
+function notifyServiceWorkerGamingState(gaming: boolean): void {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({
+      type: "retro-oasis-gaming-status",
+      gaming,
+    });
+  } catch {
+    // Non-critical — service worker may not be active.
+  }
+}
 import type { PerformanceMode, PerformanceTier } from "./performance.js";
 import {
   parsePostProcessEffect,
@@ -387,7 +403,22 @@ async function main(): Promise<void> {
   // on page navigations and soft-reloads within the same browser session.
   const deviceCaps = detectCapabilitiesCached();
 
-  // 3. Load settings
+  // 3. Request persistent storage early — prevents ChromeOS from evicting
+  //    IndexedDB data (ROMs, saves, BIOS) under quota pressure.
+  const persistGranted = await requestPersistentStorage();
+  installStoragePressureListener();
+  if (!persistGranted && deviceCaps.isChromOS) {
+    console.warn("[RetroOasis] Persistent storage denied — data may be evicted under quota pressure. Enable a cloud backup provider in Settings → Cloud.");
+  }
+
+  // 4. Monitor storage and warn when quota is dangerously low.
+  startStorageMonitoring(async () => {
+    const quota = await checkStorageQuota();
+    const warning = getStorageWarning(quota);
+    if (warning) showInfoToast(warning.message, "warning");
+  });
+
+  // 5. Load settings
   const settings = loadSettings(deviceCaps);
 
   // Hydrate the RetroOasisStore from the loaded settings in a single atomic
@@ -850,6 +881,8 @@ async function main(): Promise<void> {
     // Flip the session slice to "running" so observers can gate UI that
     // only applies once the core has actually booted.
     store.set("session", { phase: "running" });
+    // Tell the service worker to defer updates while gaming (preserves COI/SAB).
+    notifyServiceWorkerGamingState(true);
     if (settings.recordPlayHistory && currentGameId && currentSystemId) {
       sessionTracker.startSession(
         currentGameId,
@@ -906,6 +939,9 @@ async function main(): Promise<void> {
   const onReturnToLibrary = (): void => {
     if (emulator.state !== "running" && emulator.state !== "paused") return;
     if (emulator.state === "running") emulator.pause();
+
+    // Tell the service worker it can now apply any pending updates.
+    notifyServiceWorkerGamingState(false);
 
     // End any in-progress play session before leaving the game view.
     void sessionTracker.endSession().catch(() => {});
@@ -1028,15 +1064,16 @@ async function main(): Promise<void> {
   });
 
   // Handle core restart requests (e.g. from internal resolution changes)
-  document.addEventListener(LEGACY_EVENTS.restartRequired, async () => {
+  const onRestartRequired = async () => {
     if (currentGameId && currentSystemId) {
       const entry = await library.getGame(currentGameId);
-      if (entry) {
-        const file = new File([entry.blob!], entry.fileName, { type: entry.blob!.type });
+      if (entry && entry.blob) {
+        const file = new File([entry.blob], entry.fileName, { type: entry.blob.type });
         void onLaunchGame(file, currentSystemId, currentGameId);
       }
     }
-  });
+  };
+  document.addEventListener(LEGACY_EVENTS.restartRequired, onRestartRequired);
 
   // End any in-progress play session when the page is closed or navigated away.
   // The IDB write is best-effort — modern browsers give async tasks a short

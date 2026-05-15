@@ -75,6 +75,13 @@ const DB_VERSION = 3;
 const STORE_NAME = "games";
 const INDEX_FILE_SYSTEM = "fileNameSystemId";
 
+/** Milliseconds in one day, used by {@link formatRelativeTime}. */
+const MS_PER_DAY = 86_400_000;
+/** Milliseconds in one hour, used by {@link formatRelativeTime}. */
+const MS_PER_HOUR = 3_600_000;
+/** Milliseconds in one minute, used by {@link formatRelativeTime}. */
+const MS_PER_MINUTE = 60_000;
+
 // ── Database helper ───────────────────────────────────────────────────────────
 
 let _db: IDBDatabase | null = null;
@@ -117,6 +124,7 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       _db = req.result;
       _db.onclose = () => { _db = null; _dbPromise = null; };
+      _db.onversionchange = () => { _db?.close(); _db = null; _dbPromise = null; };
       resolve(_db);
     };
 
@@ -775,9 +783,9 @@ export function formatBytes(bytes: number): string {
 /** Format a timestamp as a relative string ("3 days ago", "just now"). */
 export function formatRelativeTime(ts: number): string {
   const diff   = Date.now() - ts;
-  const mins   = Math.floor(diff / 60_000);
-  const hours  = Math.floor(diff / 3_600_000);
-  const days   = Math.floor(diff / 86_400_000);
+  const mins   = Math.floor(diff / MS_PER_MINUTE);
+  const hours  = Math.floor(diff / MS_PER_HOUR);
+  const days   = Math.floor(diff / MS_PER_DAY);
   const months = Math.floor(days / 30);
 
   if (mins    < 1)   return "just now";

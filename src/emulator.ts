@@ -271,8 +271,9 @@ export class CoreBridge {
     if (!canvas || canvas.width === 0 || canvas.height === 0) return null;
 
     return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => resolve(null), 5000);
       canvas.toBlob(
-        (blob) => resolve(blob),
+        (blob) => { clearTimeout(timeoutId); resolve(blob); },
         options.format,
         options.quality
       );
@@ -387,39 +388,6 @@ export class CoreBridge {
    */
   get frameCount(): number {
     return this.instance.frameCount ?? 0;
-  }
-}
-
-declare global {
-  interface Window {
-    EJS_player:        string;
-    EJS_core:          string;
-    EJS_gameUrl:       string | File;
-    EJS_pathtodata:    string;
-    EJS_gameName:      string;
-    EJS_startOnLoaded: boolean;
-    EJS_threads:       boolean;
-    EJS_volume:        number;
-    EJS_defaultOptions?: Record<string, string>;
-    EJS_Settings?:     Record<string, string>;
-    EJS_biosUrl?:      string | File;
-    /** Override path to the core `.data` bundle (absolute URL). Used for cores not on the CDN. */
-    EJS_corePath?:     string;
-    EJS_ready?:        () => void;
-    EJS_onGameStart?:  () => void;
-    EJS_emulator?:     EJSEmulatorInstance;
-    /** Netplay signalling server WebSocket URL (set when netplay is active). */
-    EJS_netplayServer?:     string;
-    /** ICE server list forwarded to WebRTC peer connections. */
-    EJS_netplayICEServers?: RTCIceServer[];
-    /** Numeric room-scoping ID derived from the game's string identifier. */
-    EJS_gameID?:            number;
-    /** Canonical string room key used for compatibility discovery. */
-    EJS_roomKey?:           string;
-    /** Friendly room name presented by supported netplay UIs. */
-    EJS_netplayRoom?:       string;
-    /** Player display name shown to others in a netplay room. Empty means anonymous. */
-    EJS_playerName?:        string;
   }
 }
 
@@ -988,6 +956,7 @@ export class PSPEmulator {
   private _fpsMonitor: FPSMonitor;
   private _visibilityHandler: (() => void) | null = null;
   private _beforeUnloadHandler: (() => void) | null = null;
+  private _pageHideHandler: (() => void) | null = null;
   private _contextLossHandler: ((event: Event) => void) | null = null;
   private _pausedByVisibility = false;
   private _preconnected = false;
@@ -1680,15 +1649,18 @@ export class PSPEmulator {
       ];
 
       for (const { vs: vsSrc, fs: fsSrc } of shaderVariants) {
-        const vs = gl.createShader(gl.VERTEX_SHADER)!;
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        if (!vs) continue;
         gl.shaderSource(vs, vsSrc);
         gl.compileShader(vs);
 
-        const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        if (!fs) { gl.deleteShader(vs); continue; }
         gl.shaderSource(fs, fsSrc);
         gl.compileShader(fs);
 
-        const prog = gl.createProgram()!;
+        const prog = gl.createProgram();
+        if (!prog) { gl.deleteShader(vs); gl.deleteShader(fs); continue; }
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
@@ -1771,17 +1743,20 @@ export class PSPEmulator {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
       for (const { vs: vsSrc2, fs: fsSrc } of shaders) {
-        const vs = gl.createShader(gl.VERTEX_SHADER)!;
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        if (!vs) continue;
         gl.shaderSource(vs, vsSrc2);
         gl.compileShader(vs);
         if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) { gl.deleteShader(vs); continue; }
 
-        const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        if (!fs) { gl.deleteShader(vs); continue; }
         gl.shaderSource(fs, fsSrc);
         gl.compileShader(fs);
         if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) { gl.deleteShader(vs); gl.deleteShader(fs); continue; }
 
-        const prog = gl.createProgram()!;
+        const prog = gl.createProgram();
+        if (!prog) { gl.deleteShader(vs); gl.deleteShader(fs); continue; }
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
@@ -2035,15 +2010,18 @@ export class PSPEmulator {
       ];
 
       for (const { vs: vsSrc, fs: fsSrc } of shaderVariants) {
-        const vs = gl.createShader(gl.VERTEX_SHADER)!;
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        if (!vs) continue;
         gl.shaderSource(vs, vsSrc);
         gl.compileShader(vs);
 
-        const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        if (!fs) { gl.deleteShader(vs); continue; }
         gl.shaderSource(fs, fsSrc);
         gl.compileShader(fs);
 
-        const prog = gl.createProgram()!;
+        const prog = gl.createProgram();
+        if (!prog) { gl.deleteShader(vs); gl.deleteShader(fs); continue; }
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
@@ -3774,10 +3752,17 @@ export class PSPEmulator {
       } else if (!document.hidden && this._pausedByVisibility && this._state === "paused") {
         this._pausedByVisibility = false;
         this._lowFPSStartTime = 0;   // prevent false-positive low-FPS alert after a hidden period
+        // ChromeOS tab suspension clears audio; resume all contexts on wake
+        this.resumeAudioOutput();
         window.EJS_emulator?.resume?.();
         this._fpsMonitor.start();
         this._memoryMonitor.start();
         this._setState("running");
+      } else if (!document.hidden) {
+        // Page became visible but wasn't explicitly paused-by-us (e.g. ChromeOS
+        // background-tab suspension). Restore audio — the emulator may still have
+        // its internal running state.
+        this.resumeAudioOutput();
       }
     };
 
@@ -3787,8 +3772,17 @@ export class PSPEmulator {
       }
     };
 
+    // ChromeOS tab-discard fires `pagehide` before evicting the page; its
+    // `beforeunload` counterpart may skip the auto-save in some ChromeOS versions.
+    this._pageHideHandler = () => {
+      if (this._state === "running" || this._state === "paused") {
+        this._triggerAutoSave();
+      }
+    };
+
     document.addEventListener("visibilitychange", this._visibilityHandler);
     window.addEventListener("beforeunload", this._beforeUnloadHandler);
+    window.addEventListener("pagehide", this._pageHideHandler);
   }
 
   private _removeVisibilityHandler(): void {
@@ -3799,6 +3793,10 @@ export class PSPEmulator {
     if (this._beforeUnloadHandler) {
       window.removeEventListener("beforeunload", this._beforeUnloadHandler);
       this._beforeUnloadHandler = null;
+    }
+    if (this._pageHideHandler) {
+      window.removeEventListener("pagehide", this._pageHideHandler);
+      this._pageHideHandler = null;
     }
     this._pausedByVisibility = false;
   }

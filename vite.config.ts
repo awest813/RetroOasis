@@ -18,8 +18,10 @@ function copyEmulatorDataPlugin(): Plugin {
 }
 
 /**
- * Emit `dist/pwa-precache.json`: every hashed JS/CSS/WASM under ./assets plus shell URLs.
- * The COI service worker loads this at install time so the installed PWA precaches the full app shell.
+ * Emit `dist/pwa-precache.json`: every hashed JS/CSS/WASM under ./assets plus
+ * shell URLs and critical emulator data files.  The COI service worker loads
+ * this at install time so the installed PWA precaches the full app shell and
+ * can launch games offline.
  */
 function pwaPrecacheManifestPlugin(): Plugin {
   return {
@@ -36,8 +38,15 @@ function pwaPrecacheManifestPlugin(): Plugin {
       };
 
       const html = readFileSync(indexPath, "utf-8");
+
+      // Capture any ./assets/... references from scripts/styles
       for (const m of html.matchAll(/\b(?:src|href)="(\.\/assets\/[^"]+)"/g)) {
         addRel(m[1]!.replace(/^\.\//, ""));
+      }
+
+      // Also capture absolute /assets/... (some templates emit these)
+      for (const m of html.matchAll(/\b(?:src|href)="\/(assets\/[^"]+)"/g)) {
+        addRel(m[1]!);
       }
 
       const viteManifestPath = resolve(distDir, ".vite", "manifest.json");
@@ -61,9 +70,32 @@ function pwaPrecacheManifestPlugin(): Plugin {
       urls.add("./manifest.json");
       urls.add("./audio-processor.js");
 
+      // ── Emulator data files (critical for offline game launch) ──────────
+      // These live outside the Vite build pipeline (copied from data/ to dist/data/)
+      // and are loaded by EmulatorJS at game launch time.
+      const dataDir = resolve(distDir, "data");
+      const addDataFile = (rel: string) => {
+        const p = `./data/${rel}`;
+        if (existsSync(resolve(distDir, p.slice(2)))) urls.add(p);
+      };
+      if (existsSync(dataDir)) {
+        // Essential loader infrastructure — small files that must be available offline
+        addDataFile("loader.js");
+        addDataFile("emulator.css");
+        addDataFile("version.json");
+        addDataFile("localization/en.json");
+
+        // Compression WASM — needed for archive extraction during import
+        addDataFile("compression/libunrar.wasm");
+      }
+
       const list = [...urls]
         .filter((u) => {
           if (u === "./index.html" || u === "./manifest.json" || u === "./audio-processor.js") return true;
+          if (u.startsWith("./data/")) {
+            const tail = u.slice("./data/".length);
+            return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
+          }
           if (!u.startsWith("./assets/")) return false;
           const tail = u.slice("./assets/".length);
           return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");

@@ -155,6 +155,7 @@ function openCacheDB(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       _cacheDB = req.result;
       _cacheDB.onclose = () => { _cacheDB = null; _cacheDBPromise = null; };
+      _cacheDB.onversionchange = () => { _cacheDB?.close(); _cacheDB = null; _cacheDBPromise = null; };
       resolve(_cacheDB);
     };
 

@@ -2442,3 +2442,24 @@ describe("CloudSaveManager — persists mega providerId", () => {
     expect(m2.providerId).toBe("mega");
   });
 });
+
+describe("MegaProvider — handles malformed node data", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("does not crash when a node has an empty key field", async () => {
+    const loginResp = { tsid: "session123", k: "AAAAAAAAAAAAAAAAAAAAAA" };
+    // Node with empty k field — would have caused TypeError before the fix
+    const nodesResp = { f: [{ h: "rootH", t: 2, p: "", a: "", k: "" }] };
+
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve([loginResp]) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve([nodesResp]) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve([nodesResp]) });
+
+    vi.stubGlobal("fetch", mockFetch);
+
+    const p = new MegaProvider("user@mega.nz", "pass");
+    try { await p.isAvailable(); } catch { /* ignore */ }
+    await expect(p.delete("game1", 1)).resolves.toBeUndefined();
+  }, 20_000);
+});

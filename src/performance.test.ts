@@ -5,6 +5,7 @@ import {
   clearCapabilitiesCache,
   isLikelyChromeOS,
   isChromebookLowRamProfile,
+  detectChromebookGpuClass,
   isLikelyIOS,
   isLikelyAndroid,
   isLikelySafari,
@@ -3009,5 +3010,82 @@ describe('getLaunchCounts / recordSystemLaunch / getTopLaunchedSystems', () => {
   it('getLaunchCounts returns empty object when stored value is an array', () => {
     localStorage.setItem('rv:launchCounts', '[1,2,3]');
     expect(getLaunchCounts()).toEqual({});
+  });
+});
+
+// ── Chromebook GPU class detection ────────────────────────────────────────────
+
+describe("detectChromebookGpuClass", () => {
+  it("detects Mali-400 as ultra-low", () => {
+    expect(detectChromebookGpuClass("Mali-400 MP")).toBe("ultra-low");
+  });
+
+  it("detects Mali-T860 as ultra-low", () => {
+    expect(detectChromebookGpuClass("Mali-T860")).toBe("ultra-low");
+  });
+
+  it("detects Mali-G31 as ultra-low (entry-level ARM Chromebook)", () => {
+    expect(detectChromebookGpuClass("Mali-G31")).toBe("ultra-low");
+  });
+
+  it("detects Mali-G52 as mid-range", () => {
+    expect(detectChromebookGpuClass("Mali-G52")).toBe("mid");
+  });
+
+  it("detects Mali-G57 as mid-range", () => {
+    expect(detectChromebookGpuClass("Mali-G57")).toBe("mid");
+  });
+
+  it("detects Mali-G76 as high-end", () => {
+    expect(detectChromebookGpuClass("Mali-G76")).toBe("high");
+  });
+
+  it("detects Mali-G78 as high-end", () => {
+    expect(detectChromebookGpuClass("Mali-G78")).toBe("high");
+  });
+
+  it("detects Intel UHD Graphics 11th-gen+ as high", () => {
+    expect(detectChromebookGpuClass("Intel(R) UHD Graphics 730")).toBe("high");
+  });
+
+  it("detects Intel Iris Xe as high (handles (R) trademark markers from browser)", () => {
+    expect(detectChromebookGpuClass("Intel(R) Iris(R) Xe Graphics")).toBe("high");
+  });
+
+  it("detects Intel HD Graphics 610 as low (Gemini Lake)", () => {
+    expect(detectChromebookGpuClass("Intel(R) HD Graphics 610")).toBe("low");
+  });
+
+  it("detects Intel HD Graphics 500 as low (Apollo Lake)", () => {
+    expect(detectChromebookGpuClass("Intel(R) HD Graphics 500")).toBe("low");
+  });
+
+  it("detects Intel HD Graphics 4000 as ultra-low (Ivy Bridge)", () => {
+    expect(detectChromebookGpuClass("Intel(R) HD Graphics 4000")).toBe("ultra-low");
+  });
+
+  it("detects PowerVR as low", () => {
+    expect(detectChromebookGpuClass("PowerVR GX6250")).toBe("low");
+  });
+
+  it("detects Vivante as low", () => {
+    expect(detectChromebookGpuClass("Vivante GC7000")).toBe("low");
+  });
+
+  it("detects Adreno as low", () => {
+    expect(detectChromebookGpuClass("Adreno (TM) 618")).toBe("low");
+  });
+
+  it("returns unknown for empty string", () => {
+    expect(detectChromebookGpuClass("")).toBe("unknown");
+  });
+
+  it("returns unknown for unrecognized GPU", () => {
+    expect(detectChromebookGpuClass("Some Unknown GPU")).toBe("unknown");
+  });
+
+  it("is case-insensitive", () => {
+    expect(detectChromebookGpuClass("mali-g31")).toBe("ultra-low");
+    expect(detectChromebookGpuClass("INTEL(R) UHD GRAPHICS 750")).toBe("high");
   });
 });
