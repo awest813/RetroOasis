@@ -137,6 +137,7 @@ import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from ".
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
+export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
 const resolveAssetUrl = (path: string): string => {
@@ -2217,14 +2218,6 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 }
 
 
-
-// ── BIOS tab ──────────────────────────────────────────────────────────────────
-
-export { openEasyNetplayModalImpl as openEasyNetplayModal };
-
-
-
-// ── About tab ─────────────────────────────────────────────────────────────────
 
 // ── Tier downgrade prompt ─────────────────────────────────────────────────────
 
