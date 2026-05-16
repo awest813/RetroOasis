@@ -108,11 +108,6 @@
   --toast-bottom: calc(var(--footer-h) + var(--safe-bottom) + 14px);
 
   /* ── Scaled layout — all dimensions multiply by --ui-scale ── */
-  --scaled-header-h: calc(var(--header-h) * var(--ui-scale));
-  --scaled-footer-h: calc(var(--footer-h) * var(--ui-scale));
-  --scaled-shell-gutter: calc(var(--shell-gutter) * var(--ui-scale));
-  --scaled-section-gap: calc(var(--section-gap) * var(--ui-scale));
-  --scaled-font-size: calc(var(--font-size-base, 15px) * var(--ui-scale));
 
   /* ── Transitions ── */
   --transition:       0.18s ease;
@@ -141,7 +136,7 @@
   --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", "Trebuchet MS", sans-serif;
   --font-mono:    "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
   font-family: var(--font-sans);
-  font-size: var(--scaled-font-size, clamp(14px, 0.14vw + 13.1px, 15px));
+  font-size: calc(clamp(14px, 0.14vw + 13.1px, 15px) * var(--ui-scale));
   color: var(--c-text);
   background: var(--c-bg);
   color-scheme: dark;
