@@ -1,6 +1,6 @@
 import { formatRelativeTime, type GameLibrary, type GameMetadata } from "../library.js";
 import { getSystemById } from "../systems.js";
-import type { Settings } from "../main.js";
+import type { Settings } from "../types/settings.js";
 import type { PSPEmulator } from "../emulator.js";
 import { createElement as make } from "./dom.js";
 

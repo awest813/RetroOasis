@@ -1,30 +1,30 @@
-/**
- * ui.ts — Build and wire the full application UI
+﻿/**
+ * ui.ts â€” Build and wire the full application UI
  *
  * Views:
- *   landing    — game library grid + "Add Game" drop zone (shown on startup)
- *   emulator   — EmulatorJS fills the screen (shown while a game runs)
+ *   landing    â€” game library grid + "Add Game" drop zone (shown on startup)
+ *   emulator   â€” EmulatorJS fills the screen (shown while a game runs)
  *
  * Panels (overlays over the current view):
- *   settings   — tabbed: Performance, Display, Library, BIOS
- *   systemPicker — shown when a file extension maps to multiple systems
- *   loading    — spinner during emulator boot
- *   error      — dismissible error banner
+ *   settings   â€” tabbed: Performance, Display, Library, BIOS
+ *   systemPicker â€” shown when a file extension maps to multiple systems
+ *   loading    â€” spinner during emulator boot
+ *   error      â€” dismissible error banner
  *
- * Keyboard shortcuts (global, while a game session is active — running or paused):
- *   F5  → Quick Save slot 1
- *   F7  → Quick Load slot 1
- *   F1  → Reset (confirmation dialog — same as toolbar)
- *   Esc → Close in-game menu if open; otherwise open the in-game menu (immersive mode).
- *         Return to the library via the menu’s “Back to Library” action.
+ * Keyboard shortcuts (global, while a game session is active â€” running or paused):
+ *   F5  â†’ Quick Save slot 1
+ *   F7  â†’ Quick Load slot 1
+ *   F1  â†’ Reset (confirmation dialog â€” same as toolbar)
+ *   Esc â†’ Close in-game menu if open; otherwise open the in-game menu (immersive mode).
+ *         Return to the library via the menuâ€™s â€œBack to Libraryâ€ action.
  *
  * All shortcut handlers use the capture phase and stopPropagation() so the
  * intercepted keys never reach the EmulatorJS key-input handler, while all
  * regular game-control keys (arrows, letters, etc.) pass through untouched.
  *
  * Global keyboard shortcuts (always active):
- *   F9  → Open Settings → Debug tab
- *   F3  → Toggle developer debug overlay (FPS, frame time, memory, draw calls)
+ *   F9  â†’ Open Settings â†’ Debug tab
+ *   F3  â†’ Toggle developer debug overlay (FPS, frame time, memory, draw calls)
  */
 
 import { diagWarn } from "./diagnosticLog.js";
@@ -39,7 +39,6 @@ import {
   ALL_EXTENSIONS,
   detectSystem,
   getSystemById,
-  getSystemFeatureSummary,
   type SystemInfo,
 } from "./systems.js";
 import {
@@ -53,36 +52,24 @@ import {
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import {
   type DeviceCapabilities,
-  type PerformanceMode,
   type PerformanceTier,
-  formatCapabilitiesSummary,
   formatTierLabel,
   isLikelyIOS,
   isLikelyAndroid,
-  clearCapabilitiesCache,
-  resolveTier,
 } from "./performance.js";
 import {
-  POST_PROCESS_EFFECT_UI_ORDER,
-  shouldDeferWebGpuPostFor3DSession,
-  type PostProcessEffect,
-} from "./webgpuPostProcess.js";
-import {
   BiosLibrary,
-  BIOS_REQUIREMENTS,
 } from "./bios.js";
 import {
   SaveStateLibrary,
 } from "./saves.js";
-import type { Settings } from "./main.js";
+import type { Settings } from "./types/settings.js";
 import {
   EMULATOR_JS_CONTAINER_ID,
   syncEmulatorViewportLayout,
 } from "./emulatorDisplay.js";
 import type { NetplayManager } from "./multiplayer.js";
 import {
-  DEFAULT_ICE_SERVERS,
-  validateIceServerUrl as standaloneValidateIceServerUrl,
   isNetplaySupportedSystemId,
 } from "./multiplayerUtils.js";
 import { getNetplayManager, peekNetplayManager, registerNetplayInstance } from "./netplaySingleton.js";
@@ -101,41 +88,17 @@ import {
   ONBOARD_ICON_LOCK_SVG,
   isSvgMarkup,
 } from "./chromeIcons.js";
-import { fromNetplayIceServers, toNetplayIceServers } from "./store/bridge.js";
 import { resolveNetplayRoomKey } from "./multiplayer.js"; // Stay in lazy chunk for now
 import { EasyNetplayManager } from "./netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "./netplay/netplayTypes.js";
 import { normaliseInviteCode, INVITE_CODE_LEN } from "./netplay/signalingClient.js";
 import { checkSystemSupport } from "./netplay/compatibility.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
-import {
-  WebDAVProvider,
-  GoogleDriveProvider,
-  DropboxProvider,
-  pCloudProvider,
-  BlompProvider,
-  BoxProvider,
-  OneDriveProvider,
-  MegaProvider,
-} from "./cloudSave.js";
-// Cloud library types moved to lazy functions to satisfy strict TSC
 import { createProvider } from "./cloudLibrary.js";
-import type { CloudLibraryConnection } from "./main.js";
-import {
-  isGoogleOAuthConfigured,
-  isDropboxOAuthConfigured,
-  startGoogleOAuth,
-  startDropboxOAuth,
-  getGoogleClientId,
-  getDropboxAppKey,
-  setGoogleClientId,
-  setDropboxAppKey,
-} from "./oauthPopup.js";
-import { createUuid } from "./uuid.js";
 import { SaveGameService } from "./saveService.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "./archive.js";
 import { LEGACY_EVENTS } from "./legacy.js";
-import { queryRequired as el, createElement as make, buildToggleRow } from "./ui/dom.js";
+import { queryRequired as el, createElement as make } from "./ui/dom.js";
 import {
   getEasyNetplayManager as sharedGetEasyNetplayManager,
   renderEasyDiagnosticEntry as sharedRenderEasyDiagnosticEntry,
@@ -172,10 +135,6 @@ import {
   buildLibraryHero as buildLibraryHeroSection,
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
-import {
-  buildCurrentGameCompatibilitySection,
-  buildSupportedSystemsSection,
-} from "./ui/multiplayerInfo.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
 import { ArchiveSelectionStore } from "./archiveStore.js";
 import { sessionTracker, formatPlayTime } from "./sessionTracker.js";
@@ -193,6 +152,12 @@ import { parseRAKey } from "./raCredentials.js";
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 import type { RAProgress } from "./types/metadata.js";
+import { buildPerfTab } from "./ui/tabs/PerfTab.js";
+import { buildDisplayTab } from "./ui/tabs/DisplayTab.js";
+import { buildLibraryTab } from "./ui/tabs/LibraryTab.js";
+import { buildCloudTab } from "./ui/tabs/CloudTab.js";
+import { buildMultiplayerTab } from "./ui/tabs/MultiplayerTab.js";
+import { buildDebugTab } from "./ui/tabs/DebugTab.js";
 
 // Cache for RetroAchievements progress to avoid redundant API hits during a session.
 const _raProgressCache = new Map<string, { data: RAProgress; ts: number }>();
@@ -219,7 +184,7 @@ const resolveAssetUrl = (path: string): string => {
   return `${base}${path}`;
 };
 
-// ── Settings opener callback (set once from initUI, used by showError action buttons) ──
+// â”€â”€ Settings opener callback (set once from initUI, used by showError action buttons) â”€â”€
 let _openSettingsFn: ((tab?: string) => void) | null = null;
 
 let _initUICleanup: (() => void) | null = null;
@@ -234,12 +199,12 @@ let _settingsTabBarRo: ResizeObserver | null = null;
 let _settingsContentCleanups: Array<() => void> = [];
 let _settingsContentToken = 0;
 
-// ── API key store + cover-art provider registry ──────────────────────────────
+// â”€â”€ API key store + cover-art provider registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Registry singletons live in ./ui/coverArtRegistry.ts; see there for the
-// rebuild subscription that wires Settings → API Keys tab changes back into
+// rebuild subscription that wires Settings â†’ API Keys tab changes back into
 // the composed provider chain.
 
-// ── DOM helpers ───────────────────────────────────────────────────────────────
+// â”€â”€ DOM helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** True when the primary input is a touchscreen (not a mouse). */
 function isTouchDevice(): boolean {
@@ -272,7 +237,7 @@ function isPortrait(): boolean {
   }
 }
 
-// ── Debug Console State & Logic ──────────────────────────────────────────────
+// â”€â”€ Debug Console State & Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _debugConsole = createDebugConsoleController({ onToggleDevOverlay: () => toggleDevOverlay() });
 
 function toggleDebugConsole(emulator?: PSPEmulator): void {
@@ -283,7 +248,7 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
   _debugConsole.update(emulator);
 }
 
-// ── Build DOM ─────────────────────────────────────────────────────────────────
+// â”€â”€ Build DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
   <rect width="44" height="44" rx="12" fill="#111318" />
@@ -335,8 +300,8 @@ export function buildDOM(app: HTMLElement): void {
   const acceptExts = [...new Set([...ALL_EXTENSIONS, ...archivePickerExts])];
   const acceptList = acceptExts.map(e => `.${e}`).join(",");
   // Build a concise format hint: first extension of the first 8 systems + archive note
-  const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" · ");
-  const formatHint = `${hintExts} + more · ZIP auto-extracted · 7Z/RAR/TAR/GZ supported`;
+  const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" Â· ");
+  const formatHint = `${hintExts} + more Â· ZIP auto-extracted Â· 7Z/RAR/TAR/GZ supported`;
   const touchUI = isTouchDevice();
   const pwaMode = isPwaDisplayMode();
 
@@ -348,7 +313,7 @@ export function buildDOM(app: HTMLElement): void {
     <!-- Skip navigation link for keyboard users -->
     <a class="skip-link" href="#landing">Skip to content</a>
 
-    <!-- ── Header ── -->
+    <!-- â”€â”€ Header â”€â”€ -->
     <header class="app-header">
         <div class="app-header__brand" aria-label="${APP_NAME}">
           <img src="${resolveAssetUrl("assets/retrooasis-logo.svg")}" alt="" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" aria-hidden="true" />
@@ -360,7 +325,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
     </header>
 
-    <!-- ── Main content area ── -->
+    <!-- â”€â”€ Main content area â”€â”€ -->
     <main class="app-main">
 
       <!-- Library / landing view -->
@@ -381,7 +346,7 @@ export function buildDOM(app: HTMLElement): void {
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input class="library-search" id="library-search"
-                       type="search" placeholder="Search games…" autocomplete="off"
+                       type="search" placeholder="Search gamesâ€¦" autocomplete="off"
                        aria-label="Search games" />
                 <button class="library-search-clear" id="library-search-clear"
                         type="button" aria-label="Clear search" hidden>${ICON_CLOSE_X_SVG}</button>
@@ -409,7 +374,7 @@ export function buildDOM(app: HTMLElement): void {
               </button>
               <button class="btn btn--ghost library-controls__fetch-covers" id="library-fetch-covers"
                       type="button" aria-label="Fetch missing cover art from online"
-                      title="Match games against online cover databases (Settings → API Keys)">
+                      title="Match games against online cover databases (Settings â†’ API Keys)">
                 Fetch covers
               </button>
             </div>
@@ -421,7 +386,7 @@ export function buildDOM(app: HTMLElement): void {
             <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
           </div>
           <div class="system-filter" id="system-filter">
-            <!-- System filter chips — populated by renderLibrary() -->
+            <!-- System filter chips â€” populated by renderLibrary() -->
           </div>
           <div class="library-grid" id="library-grid">
             <!-- Cards populated by renderLibrary() -->
@@ -450,7 +415,7 @@ export function buildDOM(app: HTMLElement): void {
           <p class="drop-zone__formats" id="drop-zone-formats" title="Supported file formats">${formatHint}</p>
         </div>
 
-        <!-- Onboarding — only visible when library is empty -->
+        <!-- Onboarding â€” only visible when library is empty -->
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
             <p class="welcome-hero__eyebrow">First run</p>
@@ -536,7 +501,7 @@ export function buildDOM(app: HTMLElement): void {
         </div>
         <div class="loading-spinner" aria-hidden="true"></div>
         <div class="loading-content">
-          <p id="loading-message">Loading…</p>
+          <p id="loading-message">Loadingâ€¦</p>
           <p id="loading-subtitle" hidden></p>
           <div class="loading-progress" id="loading-progress-container" hidden>
             <div class="loading-progress-bar" id="loading-progress-bar"></div>
@@ -594,23 +559,23 @@ export function buildDOM(app: HTMLElement): void {
         <div class="debug-console__body" id="debug-console-log"></div>
         <div class="debug-console__footer">
           <input type="text" class="debug-console__input" id="debug-console-input" 
-                 placeholder="Type a command (reset, pause, step, help)…" 
+                 placeholder="Type a command (reset, pause, step, help)â€¦" 
                  spellcheck="false" autocomplete="off" />
         </div>
       </div>
 
-      <!-- Mobile floating action button — touch devices only (CSS hides on pointer:fine) -->
+      <!-- Mobile floating action button â€” touch devices only (CSS hides on pointer:fine) -->
       <button class="mobile-fab mobile-fab--hidden" id="mobile-fab"
-              aria-label="Add a game" title="Add a game file">＋</button>
+              aria-label="Add a game" title="Add a game file">ï¼‹</button>
 
-      <!-- Portrait rotation hint — visible when playing in portrait orientation -->
+      <!-- Portrait rotation hint â€” visible when playing in portrait orientation -->
       <div class="rotate-hint" id="rotate-hint" aria-live="polite" aria-atomic="true">
         <span class="rotate-hint__icon" aria-hidden="true">${ICON_ROTATE_PHONE_SVG}</span> Rotate for best experience
       </div>
 
     </main>
 
-    <!-- ── Footer ── -->
+    <!-- â”€â”€ Footer â”€â”€ -->
     <footer class="app-footer">
       <div class="footer-left">
         <div class="status-item">
@@ -622,7 +587,7 @@ export function buildDOM(app: HTMLElement): void {
           <span class="footer-connectivity__dot status--online" id="footer-connectivity-dot" aria-hidden="true"></span>
           <span class="footer-connectivity__label" id="footer-connectivity-label">Online</span>
         </div>
-        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. PSP and N64 performance may be reduced." title="Cross-origin isolation is not active — PSP/N64 performance may be reduced."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
+        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. PSP and N64 performance may be reduced." title="Cross-origin isolation is not active â€” PSP/N64 performance may be reduced."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
       </div>
       
       <div class="footer-center">
@@ -645,7 +610,7 @@ export function buildDOM(app: HTMLElement): void {
   }
 }
 
-// ── Public init ───────────────────────────────────────────────────────────────
+// â”€â”€ Public init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface UIOptions {
   emulator:          PSPEmulator;
@@ -669,7 +634,7 @@ export interface UIOptions {
   /** Update a specific core option at runtime. */
   onUpdateCoreOption?: (key: string, value: string) => void;
   getNetplayManager?:  () => Promise<import("./multiplayer.js").NetplayManager>;
-  /** Pre-existing NetplayManager instance — registers it as the singleton when provided (useful for tests). */
+  /** Pre-existing NetplayManager instance â€” registers it as the singleton when provided (useful for tests). */
   netplayManager?:    import("./multiplayer.js").NetplayManager;
   canInstallPWA?:     () => boolean;
   onInstallPWA?:      () => Promise<boolean>;
@@ -689,7 +654,7 @@ export function initUI(opts: UIOptions): void {
     registerNetplayInstance(opts.netplayManager);
   }
 
-  // ── Console Clock Loop ──
+  // â”€â”€ Console Clock Loop â”€â”€
   const updateClock = () => {
     const clockEl = document.getElementById("footer-clock");
     if (!clockEl) return;
@@ -739,7 +704,7 @@ export function initUI(opts: UIOptions): void {
     cleanupFns.push(() => target.removeEventListener(type, handler, options));
   };
 
-  // ── Gamepad connection toast ───────────────────────────────────────────
+  // â”€â”€ Gamepad connection toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const _onGamepadConnected = (e: Event) => {
     showInfoToast(`Gamepad connected: ${(e as GamepadEvent).gamepad.id}`, "info");
   };
@@ -749,7 +714,7 @@ export function initUI(opts: UIOptions): void {
   bindEvent(window, "gamepadconnected", _onGamepadConnected);
   bindEvent(window, "gamepaddisconnected", _onGamepadDisconnected);
 
-  // ── Live battery indicator ───────────────────────────────────────────────────
+  // â”€â”€ Live battery indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (navigator.getBattery) {
     navigator.getBattery()
       .then((battery) => {
@@ -768,10 +733,10 @@ export function initUI(opts: UIOptions): void {
           battery.removeEventListener("chargingchange", update);
         });
       })
-      .catch(() => { /* Battery API unavailable or denied — keep element hidden */ });
+      .catch(() => { /* Battery API unavailable or denied â€” keep element hidden */ });
   }
 
-  // ── Chromebook tablet mode listener ──────────────────────────────────────────
+  // â”€â”€ Chromebook tablet mode listener â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // When a Chromebook switches between laptop and tablet mode, the pointer type
   // changes from "fine" (trackpad) to "coarse" (touch). Toggle the touch-ui class
   // so the UI can adapt: show the FAB, use 44px tap targets, etc.
@@ -800,7 +765,7 @@ export function initUI(opts: UIOptions): void {
       wrap.classList.toggle("footer-connectivity--offline", !online);
       wrap.title = online
         ? "Network connection available"
-        : "No network — online-only features are unavailable";
+        : "No network â€” online-only features are unavailable";
     }
     _syncLibraryControlState();
   };
@@ -844,7 +809,7 @@ export function initUI(opts: UIOptions): void {
     });
   };
 
-  // ── File drop / pick ──────────────────────────────────────────────────────
+  // â”€â”€ File drop / pick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fileInput = el<HTMLInputElement>("#file-input");
   const dropZone  = el("#drop-zone");
   let dragDepth = 0;
@@ -940,7 +905,7 @@ export function initUI(opts: UIOptions): void {
     const file = e.dataTransfer?.files[0];
     if (!file) return;
     if (emulator.state === "running") {
-      showError("Return to the library first (Esc or ← Library) before loading a new game.");
+      showError("Return to the library first (Esc or â† Library) before loading a new game.");
       return;
     }
     void onFileChosen(file);
@@ -951,10 +916,10 @@ export function initUI(opts: UIOptions): void {
   bindEvent(document, "drop", onDrop);
   bindEvent(window, "blur", clearDragOver);
 
-  // ── Error banner ──────────────────────────────────────────────────────────
+  // â”€â”€ Error banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   bindEvent(el("#error-close"), "click", hideError);
 
-  // ── Mobile FAB — "Add Game" button (touch devices) ───────────────────────
+  // â”€â”€ Mobile FAB â€” "Add Game" button (touch devices) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // The FAB is visible on the library page; hidden during gameplay.
   // It is rendered in the DOM for all builds and hidden via CSS (pointer: fine).
   const mobileFab = document.getElementById("mobile-fab");
@@ -962,7 +927,7 @@ export function initUI(opts: UIOptions): void {
     bindEvent(mobileFab, "click", () => openFilePicker());
   }
 
-  // ── Portrait rotation hint ────────────────────────────────────────────────
+  // â”€â”€ Portrait rotation hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Shown on touch devices when a game is running in portrait orientation.
   const rotateHintEl = document.getElementById("rotate-hint");
   const updateRotateHint = () => {
@@ -974,7 +939,7 @@ export function initUI(opts: UIOptions): void {
   bindEvent(window, "orientationchange", updateRotateHint);
   bindEvent(window, "resize", updateRotateHint);
 
-  // ── FPS overlay wiring ────────────────────────────────────────────────────
+  // â”€â”€ FPS overlay wiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   emulator.setFPSMonitorEnabled(settings.showFPS);
   emulator.onFPSUpdate = (snapshot) => {
     const fpsOverlay = document.getElementById("fps-overlay");
@@ -996,7 +961,7 @@ export function initUI(opts: UIOptions): void {
     syncEmulatorViewportLayout(getEmuJsContainerEl(), sid);
   };
 
-  // ── Emulator lifecycle → DOM ──────────────────────────────────────────────
+  // â”€â”€ Emulator lifecycle â†’ DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   emulator.onStateChange = (state) => {
     updateStatusDot(state);
     updateRotateHint();
@@ -1013,10 +978,10 @@ export function initUI(opts: UIOptions): void {
     transitionToGame();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
-    setStatusSystem(sys ? sys.shortName : "—");
+    setStatusSystem(sys ? sys.shortName : "â€”");
     setStatusGame(name);
     setStatusTier(emulator.activeTier);
-    document.title = `${name} — ${APP_NAME}`;
+    document.title = `${name} â€” ${APP_NAME}`;
     const openSettingsWith = (tab?: SettingsTab) =>
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
     buildInGameControls(
@@ -1051,8 +1016,8 @@ export function initUI(opts: UIOptions): void {
     transitionToGame();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
-    document.title = `${name} — ${APP_NAME}`;
-    setStatusSystem(sys ? sys.shortName : "—");
+    document.title = `${name} â€” ${APP_NAME}`;
+    setStatusSystem(sys ? sys.shortName : "â€”");
     setStatusGame(name);
     const openSettingsWithResume = (tab?: SettingsTab) =>
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab);
@@ -1091,7 +1056,7 @@ export function initUI(opts: UIOptions): void {
   };
   bindEvent(document, LEGACY_EVENTS.returnToLibrary, onReturnToLibraryEvent);
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Register in the capture phase (third argument `true`) so our shortcuts
   // are processed before the EmulatorJS keydown handler (which listens on the
   // player element). Calling stopPropagation() here prevents F5/F7/F1/F9/Esc
@@ -1129,7 +1094,7 @@ export function initUI(opts: UIOptions): void {
       return;
     }
 
-    // ── Escape — return to library when playing ────────────────────────────
+    // â”€â”€ Escape â€” return to library when playing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (e.key === "Escape") {
       const t = e.target;
       if (t instanceof HTMLElement && t.closest(".confirm-overlay--visible")) return;
@@ -1161,7 +1126,7 @@ export function initUI(opts: UIOptions): void {
         e.stopPropagation();
         void saveService.saveSlot(1).then((entry) => {
           if (entry) showInfoToast("Saved to Slot 1");
-          else showError("Quick save failed — add this game to your library or wait for the core to finish starting.");
+          else showError("Quick save failed â€” add this game to your library or wait for the core to finish starting.");
         });
         break;
       case "F7":
@@ -1178,7 +1143,7 @@ export function initUI(opts: UIOptions): void {
         void saveService.findNextSlot().then((slot) => {
           void saveService.saveSlot(slot).then((entry) => {
             if (entry) showInfoToast(`Saved to Slot ${slot}`);
-            else showError("Save failed — wait for the core to finish starting.");
+            else showError("Save failed â€” wait for the core to finish starting.");
           });
         });
         break;
@@ -1197,7 +1162,7 @@ export function initUI(opts: UIOptions): void {
   };
   bindEvent(document, "keydown", onGlobalShortcutKeydown, { capture: true });
 
-  // ── Landing header controls ───────────────────────────────────────────────
+  // â”€â”€ Landing header controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, getNetplayManager, openPlayTogetherSettings);
 
   if (typeof ResizeObserver !== "undefined") {
@@ -1209,7 +1174,7 @@ export function initUI(opts: UIOptions): void {
     }
   }
 
-  // ── Initial library render ────────────────────────────────────────────────
+  // â”€â”€ Initial library render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _initUICleanup = () => {
     cleanupFns.forEach((cleanup) => cleanup());
     cleanupFns.length = 0;
@@ -1222,7 +1187,7 @@ export function initUI(opts: UIOptions): void {
   void renderLibrary(library, settings, onLaunchGame, emulator, onApplyPatch);
 }
 
-// ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
+// â”€â”€ Cinematic Overhaul Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Build the cinematic hero card for the most-recently played game.
@@ -1273,11 +1238,11 @@ function _syncLibraryControlState(): void {
     fetchCoversBtn.disabled = offline;
     fetchCoversBtn.title = offline
       ? "Requires an internet connection"
-      : "Match games against online cover databases (Settings → API Keys)";
+      : "Match games against online cover databases (Settings â†’ API Keys)";
     fetchCoversBtn.setAttribute(
       "aria-label",
       offline
-        ? "Fetch missing cover art — unavailable while offline"
+        ? "Fetch missing cover art â€” unavailable while offline"
         : "Fetch missing cover art from online",
     );
   }
@@ -1347,7 +1312,7 @@ async function _runBulkCoverArtFetch(
     if (!button) return;
     button.textContent = "Fetch covers";
     button.setAttribute("aria-label", "Fetch missing cover art from online");
-    button.title = "Match games against online cover databases (Settings → API Keys)";
+    button.title = "Match games against online cover databases (Settings â†’ API Keys)";
     button.removeAttribute("aria-busy");
     button.classList.remove("library-controls__fetch-covers--busy");
     button.disabled = false;
@@ -1362,7 +1327,7 @@ async function _runBulkCoverArtFetch(
   }
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    showInfoToast("You're offline — connect to the internet to fetch covers.", "warning");
+    showInfoToast("You're offline â€” connect to the internet to fetch covers.", "warning");
     return;
   }
 
@@ -1379,9 +1344,9 @@ async function _runBulkCoverArtFetch(
     button.textContent = `0/${missing.length}`;
     button.setAttribute(
       "aria-label",
-      `Fetching covers, 0 of ${missing.length} complete — activate to cancel`,
+      `Fetching covers, 0 of ${missing.length} complete â€” activate to cancel`,
     );
-    button.title = "Fetching covers — click again to cancel";
+    button.title = "Fetching covers â€” click again to cancel";
     button.setAttribute("aria-busy", "true");
     button.classList.add("library-controls__fetch-covers--busy");
     button.disabled = false;
@@ -1395,7 +1360,7 @@ async function _runBulkCoverArtFetch(
   let skipped = 0;
   let cursor = 0;
 
-  showInfoToast(`Fetching covers for ${missing.length} games…`, "info");
+  showInfoToast(`Fetching covers for ${missing.length} gamesâ€¦`, "info");
 
   const worker = async (): Promise<void> => {
     while (!controller.signal.aborted) {
@@ -1440,7 +1405,7 @@ async function _runBulkCoverArtFetch(
           button.textContent = `${gamesCompleted}/${missing.length}`;
           button.setAttribute(
             "aria-label",
-            `Fetching covers, ${gamesCompleted} of ${missing.length} complete — activate to cancel`,
+            `Fetching covers, ${gamesCompleted} of ${missing.length} complete â€” activate to cancel`,
           );
         }
       }
@@ -1455,12 +1420,12 @@ async function _runBulkCoverArtFetch(
   }
 
   if (controller.signal.aborted) {
-    showInfoToast(`Cover fetch cancelled — ${applied} applied so far.`, "warning");
+    showInfoToast(`Cover fetch cancelled â€” ${applied} applied so far.`, "warning");
   } else if (applied === 0) {
     showInfoToast(`No high-confidence matches found (${skipped} skipped).`, "info");
   } else {
     showInfoToast(
-      `Fetched ${applied} cover${applied === 1 ? "" : "s"}${skipped > 0 ? ` — ${skipped} needs manual review` : ""}.`,
+      `Fetched ${applied} cover${applied === 1 ? "" : "s"}${skipped > 0 ? ` â€” ${skipped} needs manual review` : ""}.`,
       "success",
     );
   }
@@ -1560,7 +1525,7 @@ export async function renderLibrary(
     _virtualGrid = null;
   }
 
-  // ── Highlights panel (favorites + recent sessions) ─────────────────────────
+  // â”€â”€ Highlights panel (favorites + recent sessions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Only shown when the library is in its "clean" state (no active search,
   // system filter, or favorites-only filter) so it does not compete with the
   // user's focused browsing actions.
@@ -1588,12 +1553,12 @@ export async function renderLibrary(
         formatPlayTime,
         onPlayFavorite: (game) => { void (async () => {
           showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
+          setLoadingMessage(`Starting ${game.name}â€¦`);
           setLoadingSubtitle("Getting ready to play");
           try {
             let blob = await library.getGameBlob(game.id);
             if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
+              setLoadingMessage("Streaming from cloudâ€¦");
               setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
               blob = await fetchFromCloud(game, settings);
             }
@@ -1612,12 +1577,12 @@ export async function renderLibrary(
         onPlaySession: (game, _session) => { void (async () => {
           if (!game) return;
           showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
+          setLoadingMessage(`Starting ${game.name}â€¦`);
           setLoadingSubtitle("Getting ready to play");
           try {
             let blob = await library.getGameBlob(game.id);
             if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
+              setLoadingMessage("Streaming from cloudâ€¦");
               setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
               blob = await fetchFromCloud(game, settings);
             }
@@ -1641,7 +1606,7 @@ export async function renderLibrary(
       highlightsEl.innerHTML = "";
     }
   }
-  // ── End highlights panel ───────────────────────────────────────────────────
+  // â”€â”€ End highlights panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const layout = settings.libraryLayout;
   _libraryLastLayout = layout;
@@ -1780,7 +1745,7 @@ export async function renderLibrary(
   // Standard Grid Rendering
   grid.classList.remove("library-section__rows");
 
-  // ── Virtual grid for large libraries ──────────────────────────────────────
+  // â”€â”€ Virtual grid for large libraries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // When the displayed set exceeds VIRTUAL_THRESHOLD items, activate the
   // windowed virtual grid so only cards near the viewport are in the DOM.
   // Smaller sets still use incremental chunked rendering (simpler, no overhead).
@@ -1804,7 +1769,7 @@ export async function renderLibrary(
     return;
   }
 
-  // ── Incremental rendering for small libraries ──────────────────────────────
+  // â”€â”€ Incremental rendering for small libraries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Incremental rendering for large grids (Phase 5 Optimization)
   const CHUNK_SIZE = 24;
   const initial = displayed.slice(0, CHUNK_SIZE);
@@ -1938,7 +1903,7 @@ function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadat
 
 let _libraryControlsWired = false;
 
-// ── Library keyboard / gamepad navigation ─────────────────────────────────────
+// â”€â”€ Library keyboard / gamepad navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _libraryNavWired = false;
 let _libraryGamepadRafId: number | null = null;
 let _libraryGamepadRestartFn: (() => void) | null = null;
@@ -1951,7 +1916,7 @@ const _LIB_NAV_REPEAT_RATE   = 150; // ms between repeats once held
 
 /**
  * Reads the live gamepad snapshot (standard Gamepad API + legacy WebKit).
- * Returns only non-null pads that report `connected` — avoids ghost entries
+ * Returns only non-null pads that report `connected` â€” avoids ghost entries
  * and matches browser behaviour until the user presses a face button on some platforms.
  */
 function _getNavigatorGamepads(): Gamepad[] {
@@ -1980,7 +1945,7 @@ function _gamepadBtnDown(btn: GamepadButton | undefined): boolean {
 }
 
 /**
- * True while modals/overlays own focus — keep library gamepad from fighting them.
+ * True while modals/overlays own focus â€” keep library gamepad from fighting them.
  * Cached per-frame: re-evaluates on each call but stores result for the same rAF
  * tick so that multiple consumers (_libGamepadTick + keydown handlers) share one
  * DOM query set.  Flag is invalidated on next requestAnimationFrame.
@@ -2012,7 +1977,7 @@ function _queryLibraryGameCards(): HTMLElement[] {
   return Array.from(grid.querySelectorAll<HTMLElement>(".game-card"));
 }
 
-/** Focus first visible library card (toolbar / search → grid). */
+/** Focus first visible library card (toolbar / search â†’ grid). */
 function _focusFirstLibraryCard(): boolean {
   const cards = _queryLibraryGameCards();
   if (!cards.length) return false;
@@ -2041,7 +2006,7 @@ function _wireLibraryNavigation(): void {
 
   _libraryNavWired = true;
 
-  // ── Arrow key navigation on the grid container ────────────────────────────
+  // â”€â”€ Arrow key navigation on the grid container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   grid.addEventListener("keydown", (e: KeyboardEvent) => {
     const key = e.key;
     if (key !== "ArrowLeft" && key !== "ArrowRight" &&
@@ -2084,7 +2049,7 @@ function _wireLibraryNavigation(): void {
     } else if (key === "End" || key === "PageDown") {
       nextIdx = cards.length - 1;
     } else {
-      // ArrowUp / ArrowDown — find closest card in the row above/below
+      // ArrowUp / ArrowDown â€” find closest card in the row above/below
       const curRect = cards[idx]!.getBoundingClientRect();
       const curMidX = curRect.left + curRect.width / 2;
       const curTop  = curRect.top;
@@ -2111,7 +2076,7 @@ function _wireLibraryNavigation(): void {
     }
   });
 
-  // Toolbar / overview / filters → press Arrow Down to move focus into the grid
+  // Toolbar / overview / filters â†’ press Arrow Down to move focus into the grid
   const librarySection = document.getElementById("library-section");
   if (librarySection) {
     librarySection.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -2136,7 +2101,7 @@ function _wireLibraryNavigation(): void {
     });
   }
 
-  // ── Gamepad polling loop ──────────────────────────────────────────────────
+  // â”€â”€ Gamepad polling loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Runs continuously but only acts when the landing page is visible.
   function _libGamepadTick(): void {
     _libraryGamepadRafId = requestAnimationFrame(_libGamepadTick);
@@ -2166,11 +2131,11 @@ function _wireLibraryNavigation(): void {
 
     const ax = gp.axes[0] ?? 0;
     const ay = gp.axes[1] ?? 0;
-    // Certain pads expose the D-pad as extra axes instead of buttons 12–15.
+    // Certain pads expose the D-pad as extra axes instead of buttons 12â€“15.
     const hatX = gp.axes.length > 6 ? (gp.axes[6] ?? 0) : 0;
     const hatY = gp.axes.length > 7 ? (gp.axes[7] ?? 0) : 0;
 
-    // Directional: standard D-pad (12–15), left stick, optional hat axes (6–7)
+    // Directional: standard D-pad (12â€“15), left stick, optional hat axes (6â€“7)
     const rawUp =
       _gamepadBtnDown(gp.buttons[12]) || ay < -0.55 || hatY < -0.55;
     const rawDown =
@@ -2214,11 +2179,11 @@ function _wireLibraryNavigation(): void {
     let doMove = false;
     if (anyDir) {
       if (_libGpPrevAxes[0] !== 1) {
-        // First frame the direction was pressed → move immediately
+        // First frame the direction was pressed â†’ move immediately
         doMove = true;
         _libGpRepeatTimer = now + _LIB_NAV_INITIAL_DELAY;
       } else if (now >= _libGpRepeatTimer) {
-        // Held long enough → auto-repeat
+        // Held long enough â†’ auto-repeat
         doMove = true;
         _libGpRepeatTimer = now + _LIB_NAV_REPEAT_RATE;
       }
@@ -2228,7 +2193,7 @@ function _wireLibraryNavigation(): void {
     const needCards = pressedA || pressedB || pressedL1 || pressedR1 || pressedStart || doMove;
     if (!needCards) return;
 
-    // Virtual grid reuses DOM elements on scroll — querySelectorAll returns the same
+    // Virtual grid reuses DOM elements on scroll â€” querySelectorAll returns the same
     // element references, so we can cache them.  The cache is invalidated when
     // setItems rebuilds the pool or buildDOM re-creates the grid.
     let cards: HTMLElement[];
@@ -2255,7 +2220,7 @@ function _wireLibraryNavigation(): void {
       const focused = document.activeElement as HTMLElement | null;
       const idx = focused ? cards.indexOf(focused) : -1;
       if (idx !== -1) { cards[idx]!.click(); return; }
-      // No card focused — focus & launch first card
+      // No card focused â€” focus & launch first card
       cards[0]!.focus();
       _invalidateLibraryGamepadCardCache();
       cards[0]!.click();
@@ -2292,7 +2257,7 @@ function _wireLibraryNavigation(): void {
     const idx = focused ? cards.indexOf(focused) : -1;
 
     if (idx === -1) {
-      // Nothing focused yet — focus the first card
+      // Nothing focused yet â€” focus the first card
       cards[0]!.focus();
       _invalidateLibraryGamepadCardCache();
       _safeScrollIntoView(cards[0]!, { block: "nearest", behavior: "smooth" });
@@ -2305,7 +2270,7 @@ function _wireLibraryNavigation(): void {
     } else if (rawRight) {
       nextIdx = Math.min(cards.length - 1, idx + 1);
     } else {
-      // Up / Down — same column-detection logic as keyboard
+      // Up / Down â€” same column-detection logic as keyboard
       const curRect = cards[idx]!.getBoundingClientRect();
       const curMidX = curRect.left + curRect.width / 2;
       const curTop  = curRect.top;
@@ -2687,7 +2652,7 @@ function buildGameCard(
     title: game.isFavorite ? "Remove from favorites" : "Add to favorites",
     "aria-label": game.isFavorite ? `Remove ${game.name} from favorites` : `Add ${game.name} to favorites`,
     "aria-pressed": String(game.isFavorite),
-  }, "★");
+  }, "â˜…");
   btnFav.addEventListener("click", async (e) => {
     e.stopPropagation();
     const next = !game.isFavorite;
@@ -2716,7 +2681,7 @@ function buildGameCard(
       class: "game-card__patch",
       title: "Apply IPS/BPS/UPS patch",
       "aria-label": `Apply patch to ${game.name}`,
-    }, "⊕") as HTMLButtonElement;
+    }, "âŠ•") as HTMLButtonElement;
 
     btnPatch.addEventListener("click", (e) => { e.stopPropagation(); patchInput!.click(); });
     patchInput.addEventListener("change", async () => {
@@ -2725,7 +2690,7 @@ function buildGameCard(
       patchInput!.value = "";
       try {
         showLoadingOverlay();
-        setLoadingMessage(`Applying patch to ${game.name}…`);
+        setLoadingMessage(`Applying patch to ${game.name}â€¦`);
         await onApplyPatch(game.id, patchFile);
         hideLoadingOverlay();
         showInfoToast(`Patch applied to "${game.name}".`, "success");
@@ -2741,7 +2706,7 @@ function buildGameCard(
     class: "game-card__change-sys",
     title: "Change system / emulator",
     "aria-label": `Change system for ${game.name}`,
-  }, "⟳");
+  }, "âŸ³");
 
   btnChangeSystem.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -2760,11 +2725,11 @@ function buildGameCard(
   });
 
   const playOverlay = make("div", { class: "game-card__play-overlay", "aria-hidden": "true" });
-  const playBtn     = make("div", { class: "game-card__play-btn" }, "▶");
+  const playBtn     = make("div", { class: "game-card__play-btn" }, "â–¶");
   playOverlay.appendChild(playBtn);
 
 
-  // ── Cover art button ───────────────────────────────────────────────────────
+  // â”€â”€ Cover art button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const btnArt = make("button", {
     class: "game-card__art-btn",
     title: game.hasCoverArt || game.thumbnailUrl ? "Change cover art" : "Set cover art",
@@ -2927,12 +2892,12 @@ function buildGameCard(
 
   const launch = async () => {
     showLoadingOverlay();
-    setLoadingMessage(`Starting ${game.name}…`);
+    setLoadingMessage(`Starting ${game.name}â€¦`);
     setLoadingSubtitle("Getting ready to play");
     try {
       let blob = await library.getGameBlob(game.id);
       if (!blob && game.cloudId) {
-        setLoadingMessage("Streaming from cloud…");
+        setLoadingMessage("Streaming from cloudâ€¦");
         setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
         blob = await fetchFromCloud(game, settings);
         
@@ -3170,7 +3135,7 @@ const OVERLAY_FADE_DELAY_MS = 200;
 const PERF_SUGGESTION_FADE_DELAY_MS = 300;
 const TOAST_REMOVE_DELAY_MS = 400;
 
-// ── Performance & Network Constants ──────────────────────────────────────────
+// â”€â”€ Performance & Network Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LATENCY_GOOD_THRESHOLD_MS = 80;
 const LATENCY_WARN_THRESHOLD_MS = 200;
 const FILE_SIZE_DECIMALS = 1;
@@ -3197,12 +3162,12 @@ function toLaunchFile(blob: Blob, fileName: string): File {
   return new File([blob], fileName, { type: blob.type });
 }
 
-// ── Custom confirm dialog ─────────────────────────────────────────────────────
+// â”€â”€ Custom confirm dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Returns true when `overlay` is the most recently appended `.confirm-overlay`
  * in the document.  Used by all modal Escape handlers so only the *topmost*
- * dialog closes when the user presses Escape — an outer gallery does not
+ * dialog closes when the user presses Escape â€” an outer gallery does not
  * collapse while an inner confirm dialog is still open.
  */
 function showConfirmDialog(
@@ -3236,13 +3201,13 @@ function _safeScrollIntoView(target: HTMLElement, options: ScrollIntoViewOptions
 }
 
 
-// ── System picker modal ───────────────────────────────────────────────────────
+// â”€â”€ System picker modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function pickSystem(fileName: string, candidates: SystemInfo[], subtitleText?: string): Promise<SystemInfo | null> {
   return pickSystemImpl(fileName, candidates, subtitleText);
 }
 
-// ── Resolve system then add to library and launch ─────────────────────────────
+// â”€â”€ Resolve system then add to library and launch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PATCH_EXT_SET = new Set(["ips", "bps", "ups"]);
 const IMPORT_ARCHIVE_EXT_SET = new Set([
@@ -3326,7 +3291,7 @@ function logImportWarn(
   if (settings.verboseLogging) console.warn(`[${APP_NAME}] ${message}`);
 }
 
-// ── Import retry helpers ───────────────────────────────────────────────────────
+// â”€â”€ Import retry helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Maximum automatic retry attempts for transient import errors. */
 const IMPORT_MAX_ATTEMPTS = 3;
@@ -3335,11 +3300,11 @@ const IMPORT_RETRY_BASE_DELAY_MS = 300;
 
 /**
  * Returns true when the error is likely transient and worth retrying automatically.
- * Quota / storage exhaustion errors are excluded — those require user action.
+ * Quota / storage exhaustion errors are excluded â€” those require user action.
  */
 export function isTransientImportError(err: Error): boolean {
   const msg = err.message.toLowerCase();
-  // Quota exceeded is permanent until the user frees space — do not auto-retry.
+  // Quota exceeded is permanent until the user frees space â€” do not auto-retry.
   if (msg.includes("quota") || msg.includes("no space") || msg.includes("storage full")) return false;
   // IDB lock / transaction errors, network hiccups, and generic unknown errors are transient.
   return (
@@ -3359,7 +3324,7 @@ interface RetryOptions {
   maxAttempts?: number;
   /** Base delay between attempts in ms. Actual delay scales linearly with attempt index. */
   delayMs?: number;
-  /** Called before each retry (attempt ≥ 2). Receives the 1-based attempt index and last error. */
+  /** Called before each retry (attempt â‰¥ 2). Receives the 1-based attempt index and last error. */
   onRetry?: (attempt: number, err: Error) => void;
   /** Predicate deciding whether an error should trigger a retry. Defaults to always retry. */
   isRetryable?: (err: Error) => boolean;
@@ -3476,8 +3441,8 @@ export async function resolveSystemAndAdd(
   if (EXTRACTABLE_ARCHIVE_FORMATS.has(archiveFormat)) {
     const archiveModule = await getArchiveModule();
     showLoadingOverlay();
-    setLoadingMessage(`Opening ${archiveFormat.toUpperCase()} archive…`);
-    setLoadingSubtitle("Extracting game files — this may take a moment");
+    setLoadingMessage(`Opening ${archiveFormat.toUpperCase()} archiveâ€¦`);
+    setLoadingSubtitle("Extracting game files â€” this may take a moment");
     logImport(
       emulatorRef,
       settings,
@@ -3487,7 +3452,7 @@ export async function resolveSystemAndAdd(
     try {
       // Always route through extractFromArchive so magic-detected ZIPs (mobile
       // pickers often strip extensions) get the same progress UI and multi-ROM
-      // candidate picker as desktop — extractFromArchive delegates to the
+      // candidate picker as desktop â€” extractFromArchive delegates to the
       // streaming ZIP path on mobile browsers when appropriate.
       const extracted = await archiveModule.extractFromArchive(file, {
         onProgress: (progress) => {
@@ -3506,7 +3471,7 @@ export async function resolveSystemAndAdd(
 
         if (shouldPreferNativePackageRouting) {
           resolvedFile = file;
-          setLoadingMessage("Detected native package archive — using original file…");
+          setLoadingMessage("Detected native package archive â€” using original fileâ€¦");
           setLoadingSubtitle("");
           logImport(
             emulatorRef,
@@ -3534,7 +3499,7 @@ export async function resolveSystemAndAdd(
           if (!picked) return;
           resolvedFile = new File([picked.blob!], picked.name, { type: picked.blob!.type });
           showLoadingOverlay();
-          setLoadingMessage("File selected — detecting game system…");
+          setLoadingMessage("File selected â€” detecting game systemâ€¦");
           setLoadingSubtitle("");
           logImport(
             emulatorRef,
@@ -3544,7 +3509,7 @@ export async function resolveSystemAndAdd(
         } else {
           resolvedFile = new File([extracted.blob!], extracted.name, { type: extracted.blob!.type });
         }
-        setLoadingMessage("Detecting game system…");
+        setLoadingMessage("Detecting game systemâ€¦");
         setLoadingSubtitle("");
         logImport(
           emulatorRef,
@@ -3600,7 +3565,7 @@ export async function resolveSystemAndAdd(
     }
   } else if (IMPORT_ARCHIVE_EXT_SET.has(ext) && archiveFormat === "unknown") {
     // Extension says "archive", but content signature was unrecognised.
-    // Keep going — this may still be a native package for arcade cores.
+    // Keep going â€” this may still be a native package for arcade cores.
     logImportWarn(
       emulatorRef,
       settings,
@@ -3641,7 +3606,7 @@ export async function resolveSystemAndAdd(
       showError(
         `"${resolvedFile.name}" isn't a recognised ROM format.\n\n` +
         `Try a common format like .iso, .gba, .sfc, .nes, or .nds.\n` +
-        `See Settings → Help for the full list of supported formats.`
+        `See Settings â†’ Help for the full list of supported formats.`
       );
       return;
     }
@@ -3650,7 +3615,7 @@ export async function resolveSystemAndAdd(
     system = await pickSystem(resolvedFile.name, detected);
     if (!system) return;
   } else {
-    // Single system detected — do not hide the overlay here.
+    // Single system detected â€” do not hide the overlay here.
     // If an archive was just extracted the overlay may still be showing;
     // keeping it visible avoids hide/show flicker on the happy path.
     system = detected;
@@ -3677,12 +3642,12 @@ export async function resolveSystemAndAdd(
       );
       if (!playExisting) return;
       showLoadingOverlay();
-      setLoadingMessage(`Starting ${existing.name}…`);
+      setLoadingMessage(`Starting ${existing.name}â€¦`);
       setLoadingSubtitle("Getting ready to play");
       try {
         let blob = existing.blob;
         if (!blob && existing.cloudId) {
-          setLoadingSubtitle(`Downloading from ${existing.cloudId}…`);
+          setLoadingSubtitle(`Downloading from ${existing.cloudId}â€¦`);
           blob = await fetchFromCloud(existing, settings);
         }
         if (!blob) {
@@ -3707,7 +3672,7 @@ export async function resolveSystemAndAdd(
   } catch { /* fall through */ }
 
   showLoadingOverlay();
-  setLoadingMessage("Saving game to library…");
+  setLoadingMessage("Saving game to libraryâ€¦");
   setLoadingSubtitle("This only takes a moment the first time");
 
   try {
@@ -3716,11 +3681,11 @@ export async function resolveSystemAndAdd(
       {
         isRetryable: isTransientImportError,
         onRetry: (attempt, _err) => {
-          setLoadingMessage(`Saving game to library… (retry ${attempt})`);
+          setLoadingMessage(`Saving game to libraryâ€¦ (retry ${attempt})`);
           logImportWarn(
             emulatorRef,
             settings,
-            `library.addGame failed on attempt ${attempt}; retrying…`,
+            `library.addGame failed on attempt ${attempt}; retryingâ€¦`,
           );
         },
       },
@@ -3732,7 +3697,7 @@ export async function resolveSystemAndAdd(
       `Game added to library: "${entry.name}" (id: ${entry.id}, system: ${entry.systemId})`,
     );
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    setLoadingMessage(`Starting ${entry.name}…`);
+    setLoadingMessage(`Starting ${entry.name}â€¦`);
     setLoadingSubtitle("Getting ready to play");
     logImport(
       emulatorRef,
@@ -3774,7 +3739,7 @@ async function handlePatchFileDrop(
 
   try {
     showLoadingOverlay();
-    setLoadingMessage(`Applying patch to ${chosen.name}…`);
+    setLoadingMessage(`Applying patch to ${chosen.name}â€¦`);
     await onApplyPatch(chosen.id, patchFile);
     hideLoadingOverlay();
     void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
@@ -3833,7 +3798,7 @@ async function handleM3UFile(
     const userPicked = await showMultiDiscPicker(missingDiscs);
     if (!userPicked) return;
     showLoadingOverlay();
-    setLoadingMessage("Storing disc images…");
+    setLoadingMessage("Storing disc imagesâ€¦");
     for (const [fn, f] of userPicked) {
       try {
         const entry = await library.addGame(f, system.id);
@@ -3845,7 +3810,7 @@ async function handleM3UFile(
     discFiles = new Map();
     for (const [fn, { blob }] of storedDiscs) { discFiles.set(fn, blob); }
     showLoadingOverlay();
-    setLoadingMessage("Preparing multi-disc game…");
+    setLoadingMessage("Preparing multi-disc gameâ€¦");
   }
 
   const blobUrls: string[] = [];
@@ -3881,7 +3846,7 @@ async function handleM3UFile(
     }
     // Revoke the disc blob URLs when the user returns to the library. The emulator
     // core keeps its own reference via the loaded game URL, so revoking here is
-    // safe once the game has started — the emulator holds the data, not the URL.
+    // safe once the game has started â€” the emulator holds the data, not the URL.
     const revokeOnReturn = () => { blobUrls.forEach(u => URL.revokeObjectURL(u)); };
     document.addEventListener(LEGACY_EVENTS.returnToLibrary, revokeOnReturn, { once: true });
   } catch (err) {
@@ -3892,7 +3857,7 @@ async function handleM3UFile(
   }
 }
 
-// ── Header controls ───────────────────────────────────────────────────────────
+// â”€â”€ Header controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function buildLandingControls(
   settings:         Settings,
@@ -3922,14 +3887,14 @@ export function buildLandingControls(
   container.innerHTML = "";
 
   if (onResumeGame) {
-    const btnResume = make("button", { class: "btn btn--primary", title: "Return to the paused game" }, "▶ Resume");
+    const btnResume = make("button", { class: "btn btn--primary", title: "Return to the paused game" }, "â–¶ Resume");
     btnResume.addEventListener("click", onResumeGame);
     container.appendChild(btnResume);
   }
 
   if (deviceCaps.isLowSpec || deviceCaps.isChromOS) {
     const label = deviceCaps.isChromOS ? "Chromebook" : "Low-spec";
-    const tip   = deviceCaps.isChromOS ? "Chromebook detected — Performance mode recommended" : "Performance mode recommended for this device";
+    const tip   = deviceCaps.isChromOS ? "Chromebook detected â€” Performance mode recommended" : "Performance mode recommended for this device";
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
   }
 
@@ -3956,7 +3921,7 @@ export function buildLandingControls(
 
   const btnMultiplayer = make("button", {
     class: "btn btn--highlight",
-    title: "Open Play Together — Host or join a game with friends",
+    title: "Open Play Together â€” Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
   btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" class="btn__icon" alt="" /> Play Together`;
@@ -4077,7 +4042,7 @@ function buildInGameControls(
   }, { once: true, signal });
 }
 
-// ── Auto-save restore prompt ──────────────────────────────────────────────────
+// â”€â”€ Auto-save restore prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameId: string): Promise<boolean> {
   const hasAuto = await saveLibrary.hasAutoSave(gameId);
@@ -4090,11 +4055,11 @@ export async function promptAutoSaveRestore(saveLibrary: SaveStateLibrary, gameI
 
 
 
-// ── Settings panel ────────────────────────────────────────────────────────────
+// â”€â”€ Settings panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about";
 
-/** Sidebar nav icons (24×24, stroke) — replaces emoji for consistent UI chrome. */
+/** Sidebar nav icons (24Ã—24, stroke) â€” replaces emoji for consistent UI chrome. */
 const SETTINGS_SIDEBAR_ICON_SVG: Record<SettingsTab, string> = {
   performance: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
   display: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>`,
@@ -4132,7 +4097,7 @@ export function openSettingsPanel(
 
   // Normalise: accept either a factory function or a direct NetplayManager instance.
   // When a direct instance is passed, register it as the global singleton so that
-  // peekNetplayManager() returns it — enabling synchronous calls in tab builders.
+  // peekNetplayManager() returns it â€” enabling synchronous calls in tab builders.
   if (typeof getNetplayManagerOrInstance !== "function" && getNetplayManagerOrInstance != null) {
     registerNetplayInstance(getNetplayManagerOrInstance);
   }
@@ -4261,12 +4226,12 @@ function buildSettingsContent(
   const tierFriendlyMap: Record<string, string> = { low: "entry-level", medium: "mid-range", high: "high-end" };
   const tierFriendly = tierFriendlyMap[deviceCaps.tier] ?? "unknown";
   const quickInfo = make("p", { class: "settings-quickbar__summary" },
-    `Graphics: ${perfModeLabel} · ${tierFriendly} device${deviceCaps.isLowSpec ? " · optimised mode active" : ""}`
+    `Graphics: ${perfModeLabel} Â· ${tierFriendly} device${deviceCaps.isLowSpec ? " Â· optimised mode active" : ""}`
   );
   const searchInput = make("input", {
     class: "settings-search-input",
     type: "search",
-    placeholder: "Search settings…",
+    placeholder: "Search settingsâ€¦",
     "aria-label": "Search settings",
   }) as HTMLInputElement;
   const searchStatus = make("p", { class: "settings-search-status", "aria-live": "polite" });
@@ -4407,11 +4372,11 @@ function buildSettingsContent(
   switchTab(activeTab);
 
   // Fill tabs
-  buildPerfTab(panels[0]!, settings, deviceCaps, onSettingsChange, emulatorRef);
-  buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef);
-  buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef);
-  buildCloudTab(panels[3]!, settings, library, onSettingsChange);
-  buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id);
+  buildPerfTab(panels[0]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
+  buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
+  buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef, APP_NAME);
+  buildCloudTab(panels[3]!, settings, library, onSettingsChange, APP_NAME);
+  buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id, APP_NAME);
   buildDebugTab(panels[8]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
   panels[9]!.appendChild(make("p", { class: "settings-help", role: "status" }, "Loading help..."));
 
@@ -4433,10 +4398,10 @@ function buildSettingsContent(
       panels[9]!.textContent = "";
       st.buildAboutTab(panels[9]!, APP_NAME);
     }).catch(() => {
-      // Dynamic import failed (e.g. test environment) — tabs will render without lazy content.
+      // Dynamic import failed (e.g. test environment) â€” tabs will render without lazy content.
     });
   } catch {
-    // _loadSettingsTabs is unavailable (test environment) — skip lazy tab loading.
+    // _loadSettingsTabs is unavailable (test environment) â€” skip lazy tab loading.
   }
 
   const applySearchFilter = () => {
@@ -4474,7 +4439,7 @@ function buildSettingsContent(
           class: "settings-jumpbar__btn",
           type: "button",
           "aria-label": `Jump to ${tabs[i]!.label} settings`,
-        }, `${tabs[i]!.label}${firstMatchLabel ? ` · ${firstMatchLabel}` : ""}`) as HTMLButtonElement;
+        }, `${tabs[i]!.label}${firstMatchLabel ? ` Â· ${firstMatchLabel}` : ""}`) as HTMLButtonElement;
         jumpBtn.addEventListener("click", () => {
           switchTab(tabs[i]!.id);
           requestAnimationFrame(() => {
@@ -4505,570 +4470,8 @@ function buildSettingsContent(
   });
 }
 
-// ── Performance tab ───────────────────────────────────────────────────────────
 
-/** Format a WebGPU availability status string for the technical details panel. */
-function formatWebGPUStatus(
-  available: boolean,
-  adapterInfo?: { device?: string; vendor?: string; isFallbackAdapter?: boolean } | null
-): string {
-  if (!available) return "Not available (browser does not expose WebGPU)";
-  if (adapterInfo?.device) {
-    const suffix = adapterInfo.isFallbackAdapter ? " (software fallback)" : "";
-    return `${adapterInfo.device}${suffix}`;
-  }
-  if (adapterInfo?.vendor) return String(adapterInfo.vendor);
-  return "Available";
-}
-
-function buildPerfTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  deviceCaps:       DeviceCapabilities,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  emulatorRef?:     import("./emulator.js").PSPEmulator
-): void {
-  const activeSystem = emulatorRef?.currentSystem ?? null;
-  const activeTier = emulatorRef?.activeTier ?? null;
-  if (activeSystem) {
-    const coreSection = make("div", { class: "settings-section" });
-    coreSection.appendChild(make("h4", { class: "settings-section__title" }, "Current Core"));
-
-    const heading = make("div", { class: "settings-core-heading" });
-    if (activeSystem.iconUrl) {
-      heading.appendChild(make("img", { src: activeSystem.iconUrl, class: "settings-core-heading__icon", alt: "" }));
-    }
-    const headerText = make("div", { class: "settings-core-heading__text" });
-    headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
-
-    const slotId = activeSystem.coreId ?? activeSystem.id;
-    const wasmPkg = emulatorRef?.resolvedWasmCoreName;
-    const coreLabel =
-      wasmPkg && wasmPkg !== slotId
-        ? `WASM core: ${wasmPkg} · System slot: ${slotId}`
-        : `Core: ${wasmPkg ?? slotId}`;
-    const coreMeta = make("div", { class: "settings-core-heading__meta" },
-      `${coreLabel} · ` +
-      (activeTier ? `Hardware: ${formatTierLabel(activeTier)}` : "Hardware: Auto")
-    );
-    headerText.appendChild(coreMeta);
-    heading.appendChild(headerText);
-    coreSection.appendChild(heading);
-
-    const profileBits = [
-      activeTier ? `${formatTierLabel(activeTier)} tier` : null,
-      settings.performanceMode === "auto" ? "Auto graphics mode" : `${settings.performanceMode === "performance" ? "Performance" : "Quality"} graphics mode`,
-      activeSystem.is3D ? "3D visuals tuned for heavier rendering" : "Lightweight core profile",
-    ].filter((bit): bit is string => Boolean(bit));
-    coreSection.appendChild(make("p", { class: "settings-help" }, profileBits.join(" • ")));
-
-    const featureRow = buildSystemFeatureRow(activeSystem, {
-      includeExperimental: true,
-      includeOnline: true,
-      className: "system-feature-row system-feature-row--settings",
-    });
-    if (featureRow) coreSection.appendChild(featureRow);
-    container.appendChild(coreSection);
-  }
-
-  // Performance mode
-  const perfSection = make("div", { class: "settings-section" });
-  perfSection.appendChild(make("h4", { class: "settings-section__title" }, "Graphics Mode"));
-  perfSection.appendChild(make("p", { class: "settings-help" },
-    "Controls emulation quality versus speed for games that honour tier presets. " +
-    "Try Performance mode if gameplay feels sluggish. Changes apply when you start or restart a game. " +
-    "This graphics mode also steers WebGL power hints when cores create a GPU context."
-  ));
-
-  const autoModeActive = deviceCaps.isLowSpec || deviceCaps.tier === "medium" ? "Performance" : "Quality";
-  const modes: Array<{ value: PerformanceMode; label: string; desc: string }> = [
-    { value: "auto",        label: "Auto (Recommended)", desc: `Let ${APP_NAME} choose — right now leaning toward ${autoModeActive} for this device.` },
-    { value: "performance", label: "Performance — smoother gameplay",  desc: "Lower-resolution presets but faster. Great for older devices or when games feel sluggish." },
-    { value: "quality",     label: "Quality — sharper visuals",        desc: "Higher-resolution presets where available. May tax weaker hardware." },
-  ];
-
-  const perfRg = make("div", {
-    role: "radiogroup",
-    class: "settings-radio-group",
-    "aria-label": "Graphics mode for games",
-  });
-  perfSection.appendChild(perfRg);
-  for (const m of modes) {
-    const row   = make("label", { class: "radio-row" });
-    const radio = make("input", { type: "radio", name: "perf-mode", value: m.value }) as HTMLInputElement;
-    if (settings.performanceMode === m.value) radio.checked = true;
-    radio.addEventListener("change", () => { if (radio.checked) onSettingsChange({ performanceMode: m.value }); });
-    const txt = make("span", { class: "radio-row__text" });
-    txt.append(make("span", { class: "radio-row__label" }, m.label), make("span", { class: "radio-row__desc" }, m.desc));
-    row.append(radio, txt);
-    perfRg.appendChild(row);
-  }
-
-  perfSection.appendChild(buildToggleRow(
-    "Dynamic resolution",
-    "For PSP, PS1, Nintendo 64, DS, and Dreamcast, lowers internal resolution automatically when FPS stays below a steady threshold, then ramps back when performance recovers. A per-game graphics profile can turn this off for that title.",
-    settings.dynamicResolutionScaling,
-    (v) => onSettingsChange({ dynamicResolutionScaling: v }),
-  ));
-
-  // Device info
-  const deviceSection = make("div", { class: "settings-section" });
-  deviceSection.appendChild(make("h4", { class: "settings-section__title" }, "Your Device"));
-  deviceSection.appendChild(make("p", { class: "settings-help" },
-    `${APP_NAME} automatically picks the best settings for your device.`
-  ));
-
-  const capText = formatCapabilitiesSummary(deviceCaps);
-  deviceSection.appendChild(make("p", { class: "device-info" }, capText));
-
-  const tierClass = deviceCaps.tier === "low" ? "tier-badge tier-badge--warn" : deviceCaps.tier === "medium" ? "tier-badge tier-badge--mid" : "tier-badge tier-badge--ok";
-  const tierLabel = deviceCaps.tier === "low"
-    ? "Entry-level graphics"
-    : deviceCaps.tier === "medium"
-    ? "Mid-range graphics"
-    : "High-performance graphics";
-  deviceSection.appendChild(make("span", { class: tierClass }, tierLabel));
-
-  // Technical GPU details behind a disclosure
-  const gpuDisclosure = make("details", { class: "settings-details" }) as HTMLDetailsElement;
-  gpuDisclosure.appendChild(make("summary", {}, "Technical details"));
-
-  const gpuDetails = make("div", { class: "settings-details__content" });
-  const adapterInfo = emulatorRef?.webgpuAdapterInfo;
-  const webgpuStatusText = formatWebGPUStatus(deviceCaps.webgpuAvailable, adapterInfo);
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `GPU score: ${deviceCaps.gpuBenchmarkScore}/100`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `Max texture size: ${deviceCaps.gpuCaps.maxTextureSize}px · VRAM: ~${deviceCaps.estimatedVRAMMB} MB`));
-  if (deviceCaps.gpuCaps.anisotropicFiltering) {
-    gpuDetails.appendChild(make("p", { class: "device-info" }, `Anisotropic filtering: ${deviceCaps.gpuCaps.maxAnisotropy}×`));
-  }
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "Yes" : "No"} · WebGPU: ${webgpuStatusText}`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "Yes (PSP supported)" : "No"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "Yes" : "No"}`));
-  gpuDisclosure.appendChild(gpuDetails);
-  deviceSection.appendChild(gpuDisclosure);
-  container.append(perfSection, deviceSection);
-
-  // UI Mode (Lite vs Quality)
-  const uiSection = make("div", { class: "settings-section" });
-  uiSection.appendChild(make("h4", { class: "settings-section__title" }, "UI Visual Fidelity"));
-  uiSection.appendChild(make("p", { class: "settings-help" },
-    "Controls the chrome around the library and menus — not in-game emulation. Lite mode trims blurs and heavy animations " +
-    "so the interface stays snappy on constrained devices."
-  ));
-
-  const uiModes: Array<{ value: Settings["uiMode"]; label: string; desc: string }> = [
-    { value: "auto",    label: "Auto (Recommended)",    desc: "Uses device class, Motion preferences, and data-saver cues when deciding." },
-    { value: "quality", label: "Quality — full effects", desc: "Full chrome: blurs, motion, richer gradients." },
-    { value: "lite",    label: "Lite — max speed",      desc: "Minimal chrome for maximum UI responsiveness." },
-  ];
-
-  const uiRg = make("div", {
-    role: "radiogroup",
-    class: "settings-radio-group",
-    "aria-label": "Library and shell visual style",
-  });
-  uiSection.appendChild(uiRg);
-  for (const m of uiModes) {
-    const row   = make("label", { class: "radio-row" });
-    const radio = make("input", { type: "radio", name: "ui-mode", value: m.value }) as HTMLInputElement;
-    if (settings.uiMode === m.value) radio.checked = true;
-    radio.addEventListener("change", () => { if (radio.checked) onSettingsChange({ uiMode: m.value }); });
-    const txt = make("span", { class: "radio-row__text" });
-    txt.append(make("span", { class: "radio-row__label" }, m.label), make("span", { class: "radio-row__desc" }, m.desc));
-    row.append(radio, txt);
-    uiRg.appendChild(row);
-  }
-  container.appendChild(uiSection);
-}
-
-// ── Display tab ───────────────────────────────────────────────────────────────
-
-function buildDisplayTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  deviceCaps:       DeviceCapabilities,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  emulatorRef?:     import("./emulator.js").PSPEmulator
-): void {
-  // FPS & Audio section
-  const overlaySection = make("div", { class: "settings-section" });
-  overlaySection.appendChild(make("h4", { class: "settings-section__title" }, "In-Game Overlays"));
-
-  overlaySection.appendChild(buildToggleRow(
-    "Show FPS counter",
-    "Shows frame rate while a game is running.",
-    settings.showFPS,
-    (v) => {
-      onSettingsChange({ showFPS: v });
-      showFPSOverlay(v, emulatorRef, settings.showAudioVis);
-      emulatorRef?.setFPSMonitorEnabled(v);
-    }
-  ));
-
-  overlaySection.appendChild(buildToggleRow(
-    "Audio waveform",
-    "Adds a waveform next to the FPS readout (FPS counter must be on).",
-    settings.showAudioVis,
-    (v) => {
-      onSettingsChange({ showAudioVis: v });
-      if (settings.showFPS) showFPSOverlay(true, emulatorRef, v);
-    }
-  ));
-
-  // Audio Enhancement section
-  const audioSection = make("div", { class: "settings-section" });
-  audioSection.appendChild(make("h4", { class: "settings-section__title" }, "Audio Enhancement"));
-  audioSection.appendChild(make("p", { class: "settings-help" },
-    "Apply an audio filter to reduce harshness or rumble in emulated audio output."
-  ));
-
-  const filterTypeRow = make("div", { class: "settings-control-row" });
-  const filterTypeLabel = make("span", { class: "settings-control-label" }, "Filter type:");
-  const filterTypeSel = make("select", {
-    class: "settings-select settings-control-field settings-control-field--compact",
-    "aria-label": "Audio filter type",
-  }) as HTMLSelectElement;
-  const filterTypeOptions: Array<[string, string]> = [
-    ["none",     "None (off)"],
-    ["lowpass",  "Low-pass (reduce crunch)"],
-    ["highpass", "High-pass (reduce rumble)"],
-  ];
-  for (const [val, lbl] of filterTypeOptions) {
-    const o = make("option", { value: val }, lbl) as HTMLOptionElement;
-    if (settings.audioFilterType === val) o.selected = true;
-    filterTypeSel.appendChild(o);
-  }
-  filterTypeSel.addEventListener("change", () => {
-    onSettingsChange({ audioFilterType: filterTypeSel.value as Settings["audioFilterType"] });
-    cutoffRow.hidden = filterTypeSel.value === "none";
-  });
-  filterTypeRow.append(filterTypeLabel, filterTypeSel);
-  audioSection.appendChild(filterTypeRow);
-
-  const cutoffRow = make("div", { class: "settings-control-row" });
-  cutoffRow.hidden = settings.audioFilterType === "none";
-  const cutoffLabel = make("span", { class: "settings-control-label" }, "Cutoff frequency:");
-  const cutoffInp = make("input", {
-    type: "range", min: "1000", max: "18000", step: "500",
-    value: String(settings.audioFilterCutoff),
-    class: "settings-control-field",
-    "aria-label": "Audio filter cutoff frequency",
-  }) as HTMLInputElement;
-  const cutoffVal = make("span", { class: "settings-control-value" }, `${settings.audioFilterCutoff} Hz`);
-  cutoffInp.addEventListener("input", () => {
-    const hz = parseInt(cutoffInp.value, 10);
-    cutoffVal.textContent = `${hz} Hz`;
-  });
-  cutoffInp.addEventListener("change", () => {
-    const hz = parseInt(cutoffInp.value, 10);
-    onSettingsChange({ audioFilterCutoff: hz });
-  });
-  cutoffRow.append(cutoffLabel, cutoffInp, cutoffVal);
-  audioSection.appendChild(cutoffRow);
-
-  container.append(overlaySection, audioSection);
-
-  // WebGPU section — appended last so Overlays and Mobile always appear first
-  if (deviceCaps.webgpuAvailable) {
-    const gpuSection = make("div", { class: "settings-section" });
-    gpuSection.appendChild(make("h4", {
-      class: "settings-section__title",
-      id: "visual-effects-heading",
-    }, "Visual Effects"));
-    gpuSection.appendChild(make("p", { class: "settings-help" },
-      `Optional fullscreen filters layered over the emulator via WebGPU. When an effect runs, ${APP_NAME} may keep each WebGL frame in memory between presents ` +
-      "so the overlay can sample it — a slight increase in VRAM or bandwidth on some GPUs.",
-    ));
-
-    {
-      const tierForHint = resolveTier(settings.performanceMode, deviceCaps);
-      if (shouldDeferWebGpuPostFor3DSession(true, tierForHint, deviceCaps)) {
-        gpuSection.appendChild(make("p", { class: "settings-help" },
-          "On this tier, WebGPU overlays stay off for heavier 3D systems (PSP, PS1, N64, DS) so more GPU time stays on the emulator. " +
-          `Set a per-game effect in ${APP_NAME}'s graphics profile when you explicitly want filters on those cores.`
-        ));
-      }
-    }
-
-    gpuSection.appendChild(buildToggleRow(
-      "Enable GPU effects",
-      "Turns on the selectable filters below. Experimental; skipped effects are remembered but not drawn until they're allowed.",
-      settings.useWebGPU,
-      (v) => onSettingsChange({ useWebGPU: v }),
-    ));
-
-    type FxOption = { value: PostProcessEffect; label: string; desc: string };
-    const fxOptions: FxOption[] = [
-      { value: "none",       label: "No effect",        desc: "Clean output — exactly as the game renders it" },
-      { value: "fsr",        label: "FSR 1.0",          desc: "Edge-adaptive upsampling + sharpening — AMD FidelityFX inspired" },
-      { value: "taa",        label: "TAA",              desc: "Temporal anti-aliasing — blends frames to reduce shimmer on 3D geometry" },
-      { value: "crt",        label: "CRT screen",       desc: "Scanlines and glow — like playing on a real CRT TV" },
-      { value: "sharpen",    label: "Sharper image",    desc: "Crisper pixels — great for upscaled handheld games" },
-      { value: "lcd",        label: "LCD handheld",     desc: "Sub-pixel grid — simulates a handheld LCD screen" },
-      { value: "bloom",      label: "Soft glow",        desc: "Gentle glow on bright areas — warm, cinematic feel" },
-      { value: "fxaa",       label: "Smooth edges",     desc: "Reduces jagged edges on 3D game geometry" },
-      { value: "grain",      label: "Film grain",       desc: "Cinematic noise overlay — adds texture to flat backgrounds" },
-      { value: "retro",      label: "Retro pixel art",  desc: "Limited palette with ordered dithering — classic console look" },
-      { value: "colorgrade", label: "Color grading",    desc: "Adjust contrast, saturation, and brightness for a custom look" },
-      { value: "pixelate",   label: "Pixelate",         desc: "Blocky upscale — emphasises hard pixel edges (mostly 2D-friendly)" },
-      { value: "ntsc",       label: "NTSC composite",   desc: "Colour bleed and composite artifacts — CRT broadcast look" },
-      { value: "hdr",        label: "HDR tone map",     desc: "Brighter highlights — intended for 3D; often disabled on 2D cores automatically" },
-    ];
-    if (import.meta.env.DEV) {
-      fxOptions.forEach((o, i) => {
-        if (POST_PROCESS_EFFECT_UI_ORDER[i] !== o.value) {
-          throw new Error(
-            `[${APP_NAME}] Visual Effects UI list diverged from POST_PROCESS_EFFECT_UI_ORDER at index ${i}`,
-          );
-        }
-      });
-    }
-
-    const fxRg = make("div", {
-      role: "radiogroup",
-      class: "settings-radio-group",
-      "aria-labelledby": "visual-effects-heading",
-    });
-    gpuSection.appendChild(fxRg);
-
-    for (const opt of fxOptions) {
-      const row   = make("label", { class: "radio-row" });
-      const radio = make("input", { type: "radio", name: "postfx-mode", value: opt.value }) as HTMLInputElement;
-      if (settings.postProcessEffect === opt.value) radio.checked = true;
-      radio.disabled = !settings.useWebGPU;
-      radio.addEventListener("change", () => {
-        if (radio.checked) onSettingsChange({ postProcessEffect: opt.value as import("./webgpuPostProcess.js").PostProcessEffect });
-      });
-      const txt = make("span", { class: "radio-row__text" });
-      txt.append(make("span", { class: "radio-row__label" }, opt.label), make("span", { class: "radio-row__desc" }, opt.desc));
-      row.append(radio, txt);
-      fxRg.appendChild(row);
-    }
-
-    container.appendChild(gpuSection);
-  }
-}
-
-// ── Library tab ───────────────────────────────────────────────────────────────
-
-function buildLibraryTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  library:          GameLibrary,
-  saveLibrary:      SaveStateLibrary | undefined,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  onLaunchGame?:    (file: File, systemId: string, gameId?: string) => Promise<void>,
-  emulatorRef?:     import("./emulator.js").PSPEmulator
-): void {
-  // Library stats
-  const libraryMyGamesHeadingId = "settings-library-my-games-heading";
-  const libSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": libraryMyGamesHeadingId,
-  });
-  libSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: libraryMyGamesHeadingId,
-  }, "My Game Library"));
-
-  const statsEl = make("p", { class: "device-info" }, "Calculating…");
-  libSection.appendChild(statsEl);
-  const loadStats = () => {
-    Promise.all([library.count(), library.totalSize()]).then(([count, total]) => {
-      statsEl.textContent = count === 0
-        ? "No games added yet — drop a ROM file to get started!"
-        : `${count} game${count !== 1 ? "s" : ""} · ${formatBytes(total)} stored in your browser`;
-    }).catch(() => {
-      statsEl.textContent = "Could not load library stats. ";
-      const retryBtn = make("button", { class: "btn btn--sm btn--ghost", type: "button" }, "Retry");
-      retryBtn.addEventListener("click", () => { retryBtn.remove(); loadStats(); });
-      statsEl.appendChild(retryBtn);
-    });
-  };
-  loadStats();
-
-  const btnClear = make("button", { class: "btn btn--danger settings-clear-btn" }, "Remove All Games");
-  btnClear.addEventListener("click", async () => {
-    const confirmed = await showConfirmDialog(
-      "This will remove all games from your library. Your save states will not be deleted.",
-      { title: "Remove All Games?", confirmLabel: "Remove All", isDanger: true }
-    );
-    if (!confirmed) return;
-    await library.clearAll();
-    // Close the settings panel through the close button so the Escape key
-    // handler is removed and focus is properly restored to the caller.
-    (document.getElementById("settings-close") as HTMLButtonElement | null)?.click();
-    document.title = APP_NAME;
-    if (onLaunchGame) void renderLibrary(library, settings, onLaunchGame, emulatorRef);
-  });
-  libSection.appendChild(btnClear);
-  container.appendChild(libSection);
-
-  // Organization
-  const libraryOrgHeadingId = "settings-library-organization-heading";
-  const orgSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": libraryOrgHeadingId,
-  });
-  orgSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: libraryOrgHeadingId,
-  }, "Organization"));
-
-  orgSection.appendChild(buildToggleRow(
-    "Group by system",
-    "Enable this to group games by their system (PSP, NES, etc.) or favorites when browsing your library.",
-    settings.libraryGrouped,
-    (v) => onSettingsChange({ libraryGrouped: v })
-  ));
-  container.appendChild(orgSection);
-
-  // Save states
-  if (saveLibrary) {
-    const librarySavesHeadingId = "settings-library-saved-progress-heading";
-    const saveSection = make("div", {
-      class: "settings-section",
-      role: "region",
-      "aria-labelledby": librarySavesHeadingId,
-    });
-    saveSection.appendChild(make("h4", {
-      class: "settings-section__title",
-      id: librarySavesHeadingId,
-    }, "Saved Progress"));
-
-    const saveStatsEl = make("p", { class: "device-info" }, "Calculating…");
-    saveSection.appendChild(saveStatsEl);
-    saveLibrary.count().then((count) => {
-      saveStatsEl.textContent = count === 0
-        ? "No save states yet — use Save State in-game to snapshot your progress"
-        : `${count} save state${count !== 1 ? "s" : ""} stored in your browser`;
-    }).catch(() => { saveStatsEl.textContent = "Could not load save stats."; });
-
-    saveSection.appendChild(buildToggleRow(
-      "Auto-save when leaving",
-      "Automatically save your progress when you close the tab or switch away — so you never lose unsaved work",
-      settings.autoSaveEnabled,
-      (v) => onSettingsChange({ autoSaveEnabled: v })
-    ));
-
-    const migrateSection = make("div", { class: "settings-subsection" });
-    migrateSection.appendChild(make("p", { class: "settings-help" },
-      "If you renamed a ROM file, use this tool to move its saves to the new library entry."
-    ));
-
-    const btnMigrate = make("button", { class: "btn" }, "Migrate Saves…");
-    btnMigrate.addEventListener("click", async () => {
-      let games: GameMetadata[];
-      try { games = await library.getAllGamesMetadata(); } catch { games = []; }
-      if (games.length < 2) { showError("You need at least two games in your library to migrate saves."); return; }
-
-      const source = await showGamePickerDialog("Select Source Game", "Choose the game whose saves you want to move:", games);
-      if (!source) return;
-      const targets = games.filter(g => g.id !== source.id);
-      const target = await showGamePickerDialog("Select Target Game", "Choose the game to receive the saves:", targets);
-      if (!target) return;
-
-      try {
-        const count = await saveLibrary.migrateSaves(source.id, target.id, target.name);
-        showInfoToast(count > 0
-          ? `Migrated ${count} save state${count !== 1 ? "s" : ""} from "${source.name}" to "${target.name}".`
-          : `No saves found for "${source.name}".`
-        );
-      } catch (err) {
-        showError(`Migration failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    });
-    migrateSection.appendChild(btnMigrate);
-    saveSection.appendChild(migrateSection);
-
-    const btnClearSaves = make("button", { class: "btn btn--danger settings-clear-btn" }, "Clear All Saves");
-    btnClearSaves.addEventListener("click", async () => {
-      const confirmed = await showConfirmDialog(
-        "This will delete all save states and cannot be undone.",
-        { title: "Clear All Saves?", confirmLabel: "Clear All", isDanger: true }
-      );
-      if (!confirmed) return;
-      await saveLibrary.clearAll();
-      saveStatsEl.textContent = "0 save states stored locally";
-    });
-    saveSection.appendChild(btnClearSaves);
-    container.appendChild(saveSection);
-  }
-
-  // Play History
-  const libraryHistoryHeadingId = "settings-library-play-history-heading";
-  const historySection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": libraryHistoryHeadingId,
-  });
-  historySection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: libraryHistoryHeadingId,
-  }, "Play History"));
-
-  const historyStatsEl = make("p", { class: "device-info" }, "Calculating…");
-  historySection.appendChild(historyStatsEl);
-  sessionTracker.getAllStats().then((statsMap) => {
-    if (statsMap.size === 0) {
-      historyStatsEl.textContent = "No play history recorded yet — launch a game to start tracking.";
-      return;
-    }
-    let totalMs = 0;
-    let sessionCount = 0;
-    for (const stats of statsMap.values()) {
-      totalMs      += stats.totalMs;
-      sessionCount += stats.sessionCount;
-    }
-    historyStatsEl.textContent =
-      `${formatPlayTime(totalMs)} played across ${sessionCount} session${sessionCount !== 1 ? "s" : ""} ` +
-      `in ${statsMap.size} game${statsMap.size !== 1 ? "s" : ""}`;
-  }).catch(() => { historyStatsEl.textContent = "Could not load play history stats."; });
-
-  historySection.appendChild(buildToggleRow(
-    "Record play time",
-    "Track how long you play each game. Data is stored only in your browser.",
-    settings.recordPlayHistory,
-    (v) => onSettingsChange({ recordPlayHistory: v })
-  ));
-
-  const btnClearHistory = make("button", { class: "btn btn--danger settings-clear-btn" }, "Clear Play History");
-  btnClearHistory.addEventListener("click", async () => {
-    const confirmed = await showConfirmDialog(
-      "This will delete all recorded play sessions and cannot be undone.",
-      { title: "Clear Play History?", confirmLabel: "Clear All", isDanger: true }
-    );
-    if (!confirmed) return;
-    await sessionTracker.clearAll();
-    historyStatsEl.textContent = "No play history recorded yet — launch a game to start tracking.";
-  });
-  historySection.appendChild(btnClearHistory);
-  container.appendChild(historySection);
-
-  // Supported systems
-  const librarySystemsHeadingId = "settings-library-supported-systems-heading";
-  const sysSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": librarySystemsHeadingId,
-  });
-  sysSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: librarySystemsHeadingId,
-  }, "Supported Systems"));
-  const sysList = make("div", { class: "sys-list" });
-  for (const sys of SYSTEMS) {
-    const chip = make("span", { class: "sys-chip" }, sys.shortName);
-    chip.style.setProperty("--sys-color", sys.color);
-    chip.title = [sys.name, ...getSystemFeatureSummary(sys)].join(" • ");
-    sysList.appendChild(chip);
-  }
-  sysSection.appendChild(sysList);
-  container.appendChild(sysSection);
-}
-
-// ── BIOS tab ──────────────────────────────────────────────────────────────────
+// â”€â”€ BIOS tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OPEN_SOURCE_NETPLAY_SERVER_OPTIONS = [
   {
@@ -5179,7 +4582,7 @@ export function openEasyNetplayModal(opts: {
   const easyMgr = sharedGetEasyNetplayManager(serverUrl);
   const panelCleanups: Array<() => void> = [];
 
-  // ── Overlay / container ──────────────────────────────────────────────────
+  // â”€â”€ Overlay / container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const overlay = make("div", { class: "confirm-overlay easy-netplay-overlay" });
   const dialog  = make("div", {
     class:      "confirm-box easy-netplay-dialog",
@@ -5188,7 +4591,7 @@ export function openEasyNetplayModal(opts: {
     "aria-label": "Play Together lobby",
   });
 
-  // ── Header ───────────────────────────────────────────────────────────────
+  // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const header = make("div", { class: "enp-header" });
   const brand = make("div", { class: "enp-header-brand" });
   const logoImg = make("img", {
@@ -5221,7 +4624,7 @@ export function openEasyNetplayModal(opts: {
     const titleLine = `${APP_NAME} Multiplayer Diagnostics (${new Date().toISOString()})`;
     const body = entries.map((entry) => {
       const ts = new Date(entry.timestamp).toISOString();
-      const detail = entry.detail ? ` — ${entry.detail}` : "";
+      const detail = entry.detail ? ` â€” ${entry.detail}` : "";
       return `[${ts}] [${entry.level.toUpperCase()}] ${entry.message}${detail}`;
     }).join("\n");
     const text = `${titleLine}\n${body}`;
@@ -5244,7 +4647,7 @@ export function openEasyNetplayModal(opts: {
   const preTabs = make("div", { class: "enp-pre-tabs" });
   dialog.appendChild(preTabs);
 
-  // ── First-time / setup strip (server or enable missing) ──────────────────
+  // â”€â”€ First-time / setup strip (server or enable missing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const needsServerUrl = serverUrl.trim().length === 0;
   const needsEnable = !netplayEnabled;
   if (needsServerUrl || needsEnable) {
@@ -5252,8 +4655,8 @@ export function openEasyNetplayModal(opts: {
     const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up multiplayer (one minute)");
     const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
     const step1 = needsEnable
-      ? "Open Settings → Play Together and turn on Online play."
-      : "Online play is on — add your server URL in Settings → Play Together.";
+      ? "Open Settings â†’ Play Together and turn on Online play."
+      : "Online play is on â€” add your server URL in Settings â†’ Play Together.";
     const step2 = "Paste the WebSocket address your host gave you (starts with wss:// or ws://).";
     const step3 = "Come back here, host or join, and use the same game as your friend.";
     setupSteps.append(
@@ -5276,7 +4679,7 @@ export function openEasyNetplayModal(opts: {
     preTabs.appendChild(setupStrip);
   }
 
-  // ── Current game badge ───────────────────────────────────────────────────
+  // â”€â”€ Current game badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const hasGame = !!(currentGameId || currentGameName);
   const topLevelSystemSupport = currentSystemId ? checkSystemSupport(currentSystemId) : null;
   if (currentGameName) {
@@ -5293,7 +4696,7 @@ export function openEasyNetplayModal(opts: {
     preTabs.appendChild(gameBadge);
   }
 
-  // ── Tab bar ──────────────────────────────────────────────────────────────
+  // â”€â”€ Tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const tabs: Array<{ id: string; label: string }> = [
     { id: "host",    label: "Host"        },
     { id: "join",    label: "Join code"   },
@@ -5348,13 +4751,13 @@ export function openEasyNetplayModal(opts: {
   dialog.appendChild(tabBar);
   dialog.appendChild(panelWrap);
 
-  // ── Host panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Host panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   panelCleanups.push(_buildHostPanel(panels[0]!, {
     easyMgr, username, currentGameId, currentGameName, currentSystemId, serverUrl,
     onRoomCreated: () => {/* panel updates itself via onEvent */},
   }));
 
-  // ── Join panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Join panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Capture refs so the Browse panel can pre-fill and quick-join without
   // forcing extra taps.
   let _fillJoinCode: ((code: string) => void) | null = null;
@@ -5365,7 +4768,7 @@ export function openEasyNetplayModal(opts: {
     onJoinActionReady: (joinNow) => { _quickJoinCode = joinNow; },
   }));
 
-  // ── LANemu panel ────────────────────────────────────────────────────────
+  // â”€â”€ LANemu panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   panels[2]!.appendChild(make("p", { class: "enp-panel-desc", role: "status" }, "Loading LAN rooms..."));
   void import("./multiplayer/ui/MultiplayerHome.js")
     .then(({ buildMultiplayerHome }) => {
@@ -5383,7 +4786,7 @@ export function openEasyNetplayModal(opts: {
       ));
     });
 
-  // ── Browse panel ─────────────────────────────────────────────────────────
+  // â”€â”€ Browse panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Watch-tab pre-fill refs
   let _fillWatchCode: ((code: string) => void) | null = null;
   let _quickWatchCode: ((code: string) => void) | null = null;
@@ -5403,14 +4806,14 @@ export function openEasyNetplayModal(opts: {
     },
   }));
 
-  // ── Watch panel ───────────────────────────────────────────────────────────
+  // â”€â”€ Watch panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   panelCleanups.push(_buildWatchPanel(panels[4]!, {
     easyMgr, username: username || "Anonymous", serverUrl,
     onCodeSetterReady: (setter) => { _fillWatchCode = setter; },
     onWatchActionReady: (watchNow) => { _quickWatchCode = watchNow; },
   }));
 
-  // ── Append + animate ─────────────────────────────────────────────────────
+  // â”€â”€ Append + animate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   overlay.appendChild(dialog);
   document.body.appendChild(overlay);
 
@@ -5467,7 +4870,7 @@ export function openEasyNetplayModal(opts: {
   });
 }
 
-// ── Easy Netplay — Host panel ─────────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Host panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildHostPanel(
   container: HTMLElement,
@@ -5498,10 +4901,10 @@ function _buildHostPanel(
   const typeOptions: Array<{ value: string; label: string; desc: string }> = [
     {
       value: "local",
-      label: "Same Wi‑Fi / LAN",
+      label: "Same Wiâ€‘Fi / LAN",
       desc: "Lowest latency when everyone is nearby. You still need the same server URL so this device can register the room (paste it in Play Together settings).",
     },
-    { value: "private", label: "Private (invite code)", desc: "Only people with the code can join — best for playing with a specific friend." },
+    { value: "private", label: "Private (invite code)", desc: "Only people with the code can join â€” best for playing with a specific friend." },
     { value: "public",  label: "Public lobby",        desc: "Shows in Browse so anyone on the same game can join." },
   ];
   for (const opt of typeOptions) {
@@ -5521,7 +4924,7 @@ function _buildHostPanel(
   // No-server warning
   if (!serverUrl) {
     const warn = make("p", { class: "enp-server-warn" },
-      "No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings → Play Together."
+      "No server URL configured. Local-only rooms cannot be discovered by others. Add a server in Settings â†’ Play Together."
     );
     container.appendChild(warn);
   }
@@ -5563,18 +4966,18 @@ function _buildHostPanel(
 
   btnCreate.addEventListener("click", async () => {
     btnCreate.disabled = true;
-    btnCreate.textContent = "Creating room…";
+    btnCreate.textContent = "Creating roomâ€¦";
     statusArea.hidden = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     // Subscribe to events once
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
         const item = sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail);
-        // Clear "Connecting…" placeholder on first real message
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        // Clear "Connectingâ€¦" placeholder on first real message
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(item);
@@ -5615,7 +5018,7 @@ function _buildHostPanel(
   };
 }
 
-// ── Easy Netplay — Join panel ─────────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Join panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildJoinPanel(
   container: HTMLElement,
@@ -5646,7 +5049,7 @@ function _buildJoinPanel(
     id:           "enp-join-code",
     name:         "inviteCode",
     class:        "enp-code-input",
-    placeholder:  "ABC123…",
+    placeholder:  "ABC123â€¦",
     maxlength:    String(INVITE_CODE_LEN),
     autocomplete: "off",
     autocapitalize: "characters",
@@ -5709,7 +5112,7 @@ function _buildJoinPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "No server URL configured. Joining by code requires a server. Add one in Settings → Play Together."
+      "No server URL configured. Joining by code requires a server. Add one in Settings â†’ Play Together."
     ));
   }
 
@@ -5741,15 +5144,15 @@ function _buildJoinPanel(
     }
 
     btnJoin.disabled = true;
-    btnJoin.textContent = "Joining…";
+    btnJoin.textContent = "Joiningâ€¦";
     statusArea.hidden  = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail));
@@ -5792,7 +5195,7 @@ function _buildJoinPanel(
   };
 }
 
-// ── Easy Netplay — Browse panel ───────────────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Browse panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Interval (ms) between automatic room list refreshes in the Browse panel. */
 const _BROWSE_AUTO_REFRESH_MS = 30_000;
@@ -5824,7 +5227,7 @@ function _buildBrowsePanel(
   // When no server is configured, show a helpful message instead of loading skeletons.
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "No server URL configured. Add one in Settings → Play Together to browse online rooms."
+      "No server URL configured. Add one in Settings â†’ Play Together to browse online rooms."
     ));
   }
 
@@ -5832,11 +5235,11 @@ function _buildBrowsePanel(
   const filterWrap = make("div", { class: "enp-filter-row" });
   const filterBtns: HTMLButtonElement[] = [];
   const filters = [
-    { id: "nearby", label: "📶 Nearby" },
-    { id: "all",    label: "🌐 All Rooms" },
+    { id: "nearby", label: "ðŸ“¶ Nearby" },
+    { id: "all",    label: "ðŸŒ All Rooms" },
   ];
   if (gameRoomKey) {
-    filters.splice(1, 0, { id: "this_game", label: "🎯 This Game" });
+    filters.splice(1, 0, { id: "this_game", label: "ðŸŽ¯ This Game" });
   }
   let activeFilter = "nearby";
 
@@ -5895,7 +5298,7 @@ function _buildBrowsePanel(
         ? "No nearby rooms found. Try \"All Rooms\" or host one yourself."
         : activeFilter === "this_game"
           ? "No compatible rooms for this game yet. Host one to get started."
-        : "No open rooms right now — be the first to create one!";
+        : "No open rooms right now â€” be the first to create one!";
       listEl.appendChild(make("p", { class: "enp-room-empty" }, emptyMsg));
       return;
     }
@@ -5947,13 +5350,13 @@ function _buildBrowsePanel(
           if (opts.onJoinByCode) {
             opts.onJoinByCode(room.code);
           } else {
-            showInfoToast(`Code: ${room.code} — switch to the Join tab to connect`);
+            showInfoToast(`Code: ${room.code} â€” switch to the Join tab to connect`);
           }
         });
         card.appendChild(btnJoinRoom);
       }
 
-      // Spectate button — shown on all open rooms regardless of fullness.
+      // Spectate button â€” shown on all open rooms regardless of fullness.
       if (!incompatibleSystem) {
         const btnWatch = make("button", {
           class: "btn enp-room-watch-btn",
@@ -5964,7 +5367,7 @@ function _buildBrowsePanel(
           if (opts.onWatchByCode) {
             opts.onWatchByCode(room.code);
           } else {
-            showInfoToast(`Code: ${room.code} — open Watch tab or switch to Join tab`);
+            showInfoToast(`Code: ${room.code} â€” open Watch tab or switch to Join tab`);
           }
         });
         card.appendChild(btnWatch);
@@ -5975,7 +5378,7 @@ function _buildBrowsePanel(
     listEl.appendChild(frag);
   };
 
-  // ── Auto-refresh countdown ──────────────────────────────────────────────────
+  // â”€â”€ Auto-refresh countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Polls every _BROWSE_AUTO_REFRESH_MS ms and shows a live countdown so
   // users know the list is staying fresh without manual intervention.
 
@@ -6006,7 +5409,7 @@ function _buildBrowsePanel(
     }, 1_000);
   };
 
-  // Refresh function — skips network call when no server is configured.
+  // Refresh function â€” skips network call when no server is configured.
   const doRefresh = async () => {
     if (!serverUrl) {
       renderRooms([]);
@@ -6015,7 +5418,7 @@ function _buildBrowsePanel(
     if (loadAbort) loadAbort.abort();
     loadAbort = new AbortController();
     refreshBtn.disabled = true;
-    refreshBtn.textContent = "Refreshing…";
+    refreshBtn.textContent = "Refreshingâ€¦";
     countdownEl.textContent = "";
 
     listEl.innerHTML = "";
@@ -6064,7 +5467,7 @@ function _buildBrowsePanel(
   };
 }
 
-// ── Easy Netplay — Watch (Spectator) panel ────────────────────────────────────
+// â”€â”€ Easy Netplay â€” Watch (Spectator) panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _buildWatchPanel(
   container: HTMLElement,
@@ -6092,7 +5495,7 @@ function _buildWatchPanel(
     id:            "enp-watch-code",
     name:          "spectatorInviteCode",
     class:         "enp-code-input",
-    placeholder:   "ABC123…",
+    placeholder:   "ABC123â€¦",
     maxlength:     String(INVITE_CODE_LEN),
     autocomplete:  "off",
     autocapitalize: "characters",
@@ -6129,7 +5532,7 @@ function _buildWatchPanel(
   // No-server warning
   if (!serverUrl) {
     container.appendChild(make("p", { class: "enp-server-warn" },
-      "No server URL configured. Spectating requires a server. Add one in Settings → Play Together."
+      "No server URL configured. Spectating requires a server. Add one in Settings â†’ Play Together."
     ));
   }
 
@@ -6161,15 +5564,15 @@ function _buildWatchPanel(
     }
 
     btnWatch.disabled = true;
-    btnWatch.textContent = "Connecting…";
+    btnWatch.textContent = "Connectingâ€¦";
     statusArea.hidden   = false;
     statusArea.innerHTML = "";
-    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connecting…"));
+    statusArea.appendChild(make("p", { class: "enp-diag enp-diag--info" }, "Connectingâ€¦"));
 
     activeUnsub?.();
     activeUnsub = easyMgr.onEvent(ev => {
       if (ev.type === "diagnostic") {
-        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connecting…") {
+        if (statusArea.children.length === 1 && statusArea.children[0]!.textContent === "Connectingâ€¦") {
           statusArea.innerHTML = "";
         }
         statusArea.appendChild(sharedRenderEasyDiagnosticEntry(ev.diagnostic.level, ev.diagnostic.message, ev.diagnostic.detail));
@@ -6186,15 +5589,15 @@ function _buildWatchPanel(
         codeWrap.appendChild(make("span", { class: "enp-active-room__code" }, room.name));
         card.appendChild(codeWrap);
         const info = make("div", { class: "enp-active-room__info" });
-        info.appendChild(make("span", { class: "enp-active-room__name" }, `${room.isLocal ? "📶 Local" : "🌐 Online"} · ${room.playerCount}/${room.maxPlayers} players`));
+        info.appendChild(make("span", { class: "enp-active-room__name" }, `${room.isLocal ? "ðŸ“¶ Local" : "ðŸŒ Online"} Â· ${room.playerCount}/${room.maxPlayers} players`));
         if (room.gameName) {
           info.appendChild(make("span", { class: "enp-active-room__detail" }, `Game: ${room.gameName}`));
         }
         if (spectatorCount > 0) {
-          info.appendChild(make("span", { class: "enp-active-room__detail" }, `👁 ${spectatorCount} spectator${spectatorCount !== 1 ? "s" : ""}`));
+          info.appendChild(make("span", { class: "enp-active-room__detail" }, `ðŸ‘ ${spectatorCount} spectator${spectatorCount !== 1 ? "s" : ""}`));
         }
         card.appendChild(info);
-        card.appendChild(make("p", { class: "enp-active-room__waiting" }, "👁 Spectating — watching the game…"));
+        card.appendChild(make("p", { class: "enp-active-room__waiting" }, "ðŸ‘ Spectating â€” watching the gameâ€¦"));
         const btnLeave = make("button", { class: "btn btn--danger enp-leave-btn" }, "Stop Watching") as HTMLButtonElement;
         btnLeave.addEventListener("click", async () => {
           await easyMgr.leaveRoom();
@@ -6232,1568 +5635,9 @@ function _buildWatchPanel(
   };
 }
 
-interface CloudProviderMeta {
-  id:    string;
-  label: string;
-}
+// â”€â”€ About tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/**
- * Inline SVGs (24×24, currentColor) for cloud wizards — crisp at any DPI, no emoji.
- * Keys match {@link CloudProviderMeta.id}.
- */
-const CLOUD_PROVIDER_ICON_SVG: Record<string, string> = {
-  gdrive: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v11z"/></svg>`,
-  dropbox: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
-  onedrive: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
-  webdav: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
-  pcloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/></svg>`,
-  blomp: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
-  box: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/></svg>`,
-  mega: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-};
-
-function cloudProviderPickerIconEl(providerId: string): HTMLElement {
-  const wrap = make("span", { class: "cloud-provider-card__icon", "aria-hidden": "true" });
-  const svg = CLOUD_PROVIDER_ICON_SVG[providerId];
-  wrap.innerHTML = svg ?? CLOUD_PROVIDER_ICON_SVG["webdav"]!;
-  return wrap;
-}
-
-/** Providers supported for cloud *save* backup. */
-const CLOUD_SAVE_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive" },
-  { id: "dropbox",  label: "Dropbox" },
-  { id: "onedrive", label: "OneDrive" },
-  { id: "webdav",   label: "WebDAV" },
-  { id: "pcloud",   label: "pCloud" },
-  { id: "blomp",    label: "Blomp" },
-  { id: "box",      label: "Box" },
-  { id: "mega",     label: "MEGA" },
-];
-
-/** Providers supported for cloud *library* sources (adds OneDrive, MEGA). */
-const CLOUD_LIBRARY_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive" },
-  { id: "dropbox",  label: "Dropbox" },
-  { id: "onedrive", label: "OneDrive" },
-  { id: "webdav",   label: "WebDAV" },
-  { id: "pcloud",   label: "pCloud" },
-  { id: "blomp",    label: "Blomp" },
-  { id: "box",      label: "Box" },
-  { id: "mega",     label: "MEGA" },
-];
-
-/** Combined lookup table for display name resolution (dedupes gdrive, dropbox etc.). */
-const ALL_CLOUD_PROVIDERS: CloudProviderMeta[] = [
-  { id: "gdrive",   label: "Google Drive" },
-  { id: "dropbox",  label: "Dropbox" },
-  { id: "onedrive", label: "OneDrive" },
-  { id: "webdav",   label: "WebDAV" },
-  { id: "pcloud",   label: "pCloud" },
-  { id: "blomp",    label: "Blomp" },
-  { id: "box",      label: "Box" },
-  { id: "mega",     label: "MEGA" },
-];
-
-function getCloudProviderLabel(id: string): string {
-  return ALL_CLOUD_PROVIDERS.find(p => p.id === id)?.label ?? id;
-}
-
-/** Paste clipboard text into a cloud wizard field (toast on failure). */
-function pasteIntoCloudWizardInput(input: HTMLInputElement, fieldNameForErrors: string): void {
-  void (async () => {
-    try {
-      if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
-        showError("Clipboard paste is not available. Use Ctrl+V (⌘V on Mac) in the field.");
-        input.focus();
-        return;
-      }
-      const text = await navigator.clipboard.readText();
-      const t = typeof text === "string" ? text.trim() : "";
-      if (!t) {
-        showError("Clipboard was empty.");
-        input.focus();
-        return;
-      }
-      input.value = t;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.focus();
-    } catch {
-      showError(
-        `Could not read the clipboard for ${fieldNameForErrors} — paste with Ctrl+V in the field, or allow clipboard access for this site.`,
-      );
-      input.focus();
-    }
-  })();
-}
-
-/**
- * Label + [input, Paste] row for cloud backup / library wizards.
- * `input` must have a unique `id` for the label association.
- */
-function appendCloudWizardLabeledField(
-  form: HTMLElement,
-  labelText: string,
-  input: HTMLInputElement,
-  pasteAccessibilityName: string,
-): void {
-  const row = make("div", { class: "settings-input-row" });
-  const label = make("label", { class: "settings-input-label", for: input.id }, labelText);
-  const line = make("div", { class: "settings-input-paste-line" });
-  const pasteBtn = make("button", {
-    type: "button",
-    class: "btn btn--ghost btn--sm",
-    "aria-label": `Paste ${pasteAccessibilityName} from clipboard`,
-    title: "Insert text from the clipboard",
-  }, "Paste") as HTMLButtonElement;
-  pasteBtn.addEventListener("click", () => pasteIntoCloudWizardInput(input, pasteAccessibilityName));
-  line.append(input, pasteBtn);
-  row.append(label, line);
-  form.appendChild(row);
-}
-
-function cloudWizardHeadingId(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? `cloud-wizard-h-${crypto.randomUUID()}`
-    : `cloud-wizard-h-${Date.now().toString(36)}`;
-}
-
-/**
- * Append an OAuth "Sign in with…" button + divider to `container` for the given
- * provider, if OAuth is configured.  On success the resulting access token is
- * written into `tokenInput`.  Errors are shown in `errorEl` (lazily resolved so
- * it can be created after this call).
- *
- * @returns true if the OAuth UI was added, false otherwise.
- */
-function appendOAuthSignInButton(opts: {
-  providerId: string;
-  providerLabel: string;
-  container: HTMLElement;
-  tokenInput: HTMLInputElement;
-  getErrorEl: () => HTMLElement;
-}): boolean {
-  const oauthAvailable =
-    (opts.providerId === "gdrive" && isGoogleOAuthConfigured()) ||
-    (opts.providerId === "dropbox" && isDropboxOAuthConfigured());
-
-  if (!oauthAvailable) return false;
-
-  const oauthRow = make("div", { class: "settings-input-row oauth-signin-row" });
-  const oauthBtn = make("button", {
-    class: "btn btn--primary oauth-signin-btn",
-    type: "button",
-    "aria-label": `Sign in with ${opts.providerLabel} (browser OAuth)`,
-  }, `Sign in with ${opts.providerLabel}`) as HTMLButtonElement;
-  oauthRow.appendChild(oauthBtn);
-  opts.container.appendChild(oauthRow);
-
-  const divider = make("div", { class: "oauth-divider", role: "separator" });
-  divider.appendChild(make("span", { class: "oauth-divider__line", "aria-hidden": "true" }));
-  divider.appendChild(make("span", { class: "oauth-divider__text" }, "Or paste a token"));
-  divider.appendChild(make("span", { class: "oauth-divider__line", "aria-hidden": "true" }));
-  opts.container.appendChild(divider);
-
-  oauthBtn.addEventListener("click", async () => {
-    oauthBtn.disabled = true;
-    oauthBtn.textContent = "Waiting for sign-in…";
-    try {
-      const result = opts.providerId === "gdrive"
-        ? await startGoogleOAuth()
-        : await startDropboxOAuth();
-      opts.tokenInput.value = result.accessToken;
-      oauthBtn.textContent = "Signed in";
-    } catch (err) {
-      oauthBtn.disabled = false;
-      oauthBtn.textContent = `Sign in with ${opts.providerLabel}`;
-      const msg = err instanceof Error ? err.message : "OAuth sign-in failed.";
-      const errorEl = opts.getErrorEl();
-      errorEl.textContent = msg;
-      errorEl.hidden = false;
-    }
-  });
-
-  return true;
-}
-
-
-/**
- * Two-step cloud save backup wizard.
- *
- * Step 1 — pick a provider from a visual grid.
- * Step 2 — enter credentials appropriate for that provider.
- *
- * On success, saves credentials via CloudSaveManager helpers and calls
- * cloudManager.connect(provider).  Returns true when connected.
- */
-function showCloudConnectDialog(): Promise<boolean> {
-  const cloudManager = getCloudSaveManager();
-
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", {
-      class: "confirm-box cloud-wizard-box",
-      role:  "dialog",
-      "aria-modal": "true",
-      "aria-label": "Cloud Connection",
-    });
-
-    const close = (result: boolean) => {
-      document.removeEventListener("keydown", onKeydown, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
-      resolve(result);
-    };
-
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); close(false); }
-    };
-    document.addEventListener("keydown", onKeydown, { capture: true });
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
-
-    // ── Step 1: Provider picker ───────────────────────────────────────────────
-
-    const renderStep1 = () => {
-      box.innerHTML = "";
-      const titleId = cloudWizardHeadingId();
-      box.setAttribute("aria-labelledby", titleId);
-      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Connect Cloud Save Backup"));
-      box.appendChild(make("p", { class: "confirm-box__body" },
-        "Choose a cloud provider to mirror RetroOasis save states across devices. Core-managed save files and memory cards stay local to this browser."
-      ));
-
-      const providerGrid = make("div", { class: "cloud-provider-grid" });
-      let selectedId = CLOUD_SAVE_PROVIDERS[0]?.id ?? "local";
-
-      for (const p of CLOUD_SAVE_PROVIDERS) {
-        const pCard = make("button", {
-          class: `cloud-provider-card${p.id === selectedId ? " active" : ""}`,
-          type: "button",
-          "aria-label": `${p.label} — backup provider`,
-          "aria-pressed": p.id === selectedId ? "true" : "false",
-        }) as HTMLButtonElement;
-        pCard.appendChild(cloudProviderPickerIconEl(p.id));
-        pCard.appendChild(make("span", { class: "cloud-provider-card__label" }, p.label));
-        pCard.addEventListener("click", () => {
-          selectedId = p.id;
-          providerGrid.querySelectorAll(".cloud-provider-card").forEach((c) => {
-            c.classList.remove("active");
-            c.setAttribute("aria-pressed", "false");
-          });
-          pCard.classList.add("active");
-          pCard.setAttribute("aria-pressed", "true");
-        });
-        providerGrid.appendChild(pCard);
-      }
-      box.appendChild(providerGrid);
-
-      const actions = make("div", { class: "confirm-box__actions" });
-      const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-      const nextBtn   = make("button", { class: "btn btn--primary" }, "Next →") as HTMLButtonElement;
-      cancelBtn.addEventListener("click", () => close(false));
-      nextBtn.addEventListener("click", () => renderStep2(selectedId));
-      actions.append(cancelBtn, nextBtn);
-      box.appendChild(actions);
-    };
-
-    // ── Step 2: Credential form ───────────────────────────────────────────────
-
-    const renderStep2 = (providerId: string) => {
-      box.innerHTML = "";
-      const meta = CLOUD_SAVE_PROVIDERS.find(p => p.id === providerId);
-      if (!meta) { close(false); return; }
-      const stepTitleId = cloudWizardHeadingId();
-      box.setAttribute("aria-labelledby", stepTitleId);
-      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `Connect ${meta.label}`));
-
-      const form = make("div", { class: "cloud-wizard-form" });
-
-      type CredResult = { ok: false; error: string } | { ok: true; data: Record<string, string> };
-      let getCredentials: () => CredResult = () => ({ ok: true, data: {} });
-
-      if (providerId === "webdav") {
-        const urlInp  = make("input", { type: "url",  id: "csd-url",  class: "settings-input", placeholder: "https://dav.example.com/saves", autocomplete: "off" }) as HTMLInputElement;
-        const userInp = make("input", { type: "text", id: "csd-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
-        appendCloudWizardLabeledField(form, "Username", userInp, "username");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        getCredentials = () => {
-          const url  = urlInp.value.trim();
-          const user = userInp.value.trim();
-          const pass = passInp.value;
-          if (!url)  return { ok: false, error: "Server URL is required." };
-          if (!user) return { ok: false, error: "Username is required." };
-          return { ok: true, data: { url, user, pass } };
-        };
-
-      } else if (providerId === "pcloud") {
-        const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "pCloud access token", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-
-        const regionRow = make("div", { class: "settings-input-row" });
-        const regionSel = make("select", { id: "csd-region", class: "settings-input" }) as HTMLSelectElement;
-        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "us", textContent: "US" }));
-        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "eu", textContent: "EU" }));
-        regionRow.append(make("label", { class: "settings-input-label", for: "csd-region" }, "Region"), regionSel);
-
-        form.append(regionRow);
-        getCredentials = () => {
-          const token  = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required." };
-          return { ok: true, data: { token, region: regionSel.value } };
-        };
-
-      } else if (providerId === "blomp") {
-        const userInp = make("input", { type: "text", id: "csd-user", class: "settings-input", placeholder: "Blomp username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        const containerInp = make("input", { type: "text", id: "csd-container", class: "settings-input", placeholder: "retrooasis", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Username", userInp, "username");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        appendCloudWizardLabeledField(form, "Container (optional)", containerInp, "container name");
-        getCredentials = () => {
-          const user      = userInp.value.trim();
-          const pass      = passInp.value;
-          const container = containerInp.value.trim() || "retrooasis";
-          if (!user) return { ok: false, error: "Username is required." };
-          return { ok: true, data: { user, pass, container } };
-        };
-
-      } else if (providerId === "box") {
-        const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "Box OAuth access token", autocomplete: "off" }) as HTMLInputElement;
-        const folderInp = make("input", { type: "text", id: "csd-folder", class: "settings-input", placeholder: "0 (root)", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", folderInp, "folder ID");
-        getCredentials = () => {
-          const token    = tokenInp.value.trim();
-          const folderId = folderInp.value.trim() || "0";
-          if (!token) return { ok: false, error: "Access token is required." };
-          return { ok: true, data: { token, folderId } };
-        };
-
-      } else if (providerId === "onedrive") {
-        const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: "OneDrive access token", autocomplete: "off" }) as HTMLInputElement;
-        const rootInp = make("input", { type: "text", id: "csd-rootid", class: "settings-input", placeholder: "root (optional)", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", rootInp, "root folder ID");
-        getCredentials = () => {
-          const token = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required." };
-          return { ok: true, data: { token, rootId: rootInp.value.trim() || "root" } };
-        };
-
-      } else if (providerId === "mega") {
-        const emailInp = make("input", { type: "email", id: "csd-email", class: "settings-input", placeholder: "MEGA email address", autocomplete: "email" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Email", emailInp, "email");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        getCredentials = () => {
-          const email = emailInp.value.trim();
-          const pass  = passInp.value;
-          if (!email) return { ok: false, error: "Email is required." };
-          if (!pass)  return { ok: false, error: "Password is required." };
-          return { ok: true, data: { email, pass } };
-        };
-
-      } else {
-        // gdrive, dropbox — OAuth sign-in button + manual access token fallback
-        const tokenInp = make("input", { type: "text", id: "csd-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
-
-        appendOAuthSignInButton({
-          providerId,
-          providerLabel: meta.label,
-          container: form,
-          tokenInput: tokenInp,
-          getErrorEl: () => errorMsg,
-        });
-
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        getCredentials = () => {
-          const token = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required." };
-          return { ok: true, data: { token } };
-        };
-      }
-
-      box.appendChild(form);
-
-      const errorMsg = make("p", { class: "cloud-wizard-error", "aria-live": "assertive" });
-      errorMsg.hidden = true;
-      box.appendChild(errorMsg);
-
-      const actions = make("div", { class: "confirm-box__actions" });
-      const backBtn    = make("button", { class: "btn" }, "← Back") as HTMLButtonElement;
-      const connectBtn = make("button", { class: "btn btn--primary" }, "Connect") as HTMLButtonElement;
-      actions.append(backBtn, connectBtn);
-      box.appendChild(actions);
-
-      backBtn.addEventListener("click", () => renderStep1());
-
-      connectBtn.addEventListener("click", async () => {
-        const creds = getCredentials();
-        if (!creds.ok) {
-          errorMsg.textContent = creds.error;
-          errorMsg.hidden = false;
-          return;
-        }
-        errorMsg.hidden = true;
-        connectBtn.disabled = true;
-        connectBtn.textContent = "Connecting…";
-
-        try {
-          let provider;
-          const d = creds.data;
-          if (providerId === "webdav") {
-            cloudManager.saveWebDAVConfig(d["url"]!, d["user"]!, d["pass"]!);
-            provider = new WebDAVProvider(d["url"]!, d["user"]!, d["pass"]!);
-          } else if (providerId === "gdrive") {
-            cloudManager.saveGDriveConfig(d["token"]!);
-            provider = new GoogleDriveProvider(d["token"]!);
-          } else if (providerId === "dropbox") {
-            cloudManager.saveDropboxConfig(d["token"]!);
-            provider = new DropboxProvider(d["token"]!);
-          } else if (providerId === "pcloud") {
-            cloudManager.savePCloudConfig(d["token"]!, d["region"] as "us" | "eu");
-            provider = new pCloudProvider(d["token"]!, d["region"] as "us" | "eu");
-          } else if (providerId === "blomp") {
-            cloudManager.saveBlompConfig(d["user"]!, d["pass"]!, d["container"]!);
-            provider = new BlompProvider(d["user"]!, d["pass"]!, d["container"]!);
-          } else if (providerId === "box") {
-            cloudManager.saveBoxConfig(d["token"]!, d["folderId"]!);
-            provider = new BoxProvider(d["token"]!, d["folderId"]!);
-          } else if (providerId === "onedrive") {
-            cloudManager.saveOneDriveConfig(d["token"]!, d["rootId"]!);
-            provider = new OneDriveProvider(d["token"]!, d["rootId"]!);
-          } else if (providerId === "mega") {
-            cloudManager.saveMegaConfig(d["email"]!, d["pass"]!);
-            provider = new MegaProvider(d["email"]!, d["pass"]!);
-          } else {
-            throw new Error("Unknown provider.");
-          }
-          await cloudManager.connect(provider);
-          close(true);
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : "Connection failed.";
-          errorMsg.textContent = msg;
-          errorMsg.hidden = false;
-          connectBtn.disabled = false;
-          connectBtn.textContent = "Connect";
-        }
-      });
-    };
-
-    // Kick off step 1
-    renderStep1();
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  });
-}
-
-// ── Multiplayer tab ───────────────────────────────────────────────────────────
-
-function buildMultiplayerTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
-  currentGameName?: string | null,
-  currentSystemId?: string | null,
-): void {
-  // Use peek for immediate status checks to avoid eager loading the manager
-  peekNetplayManager();
-  let currentEnabled = settings.netplayEnabled;
-  let currentServerUrl = settings.netplayServerUrl.trim();
-
-  const validateServerUrl = (url: string): string | null => {
-    const netplayManager = peekNetplayManager();
-    if (netplayManager) return netplayManager.validateServerUrl(url);
-    const trimmed = url.trim();
-    if (trimmed.length === 0) return null;
-    if (!/^wss?:\/\//i.test(trimmed)) {
-      return "Server URL must start with ws:// or wss://";
-    }
-    try {
-      new URL(trimmed);
-    } catch {
-      return "Server URL is not a valid URL";
-    }
-    return null;
-  };
-
-  const validateUsername = (name: string): string | null => {
-    const netplayManager = peekNetplayManager();
-    if (netplayManager) return netplayManager.validateUsername(name);
-    return name.trim().length > 32 ? "Display name must be 32 characters or fewer" : null;
-  };
-
-  const getNetplayStatus = (): {
-    enabled: boolean;
-    hasUrl: boolean;
-    ready: boolean;
-  } => {
-    const enabled = currentEnabled;
-    const hasUrl = currentServerUrl.length > 0;
-    const ready = enabled && hasUrl && !validateServerUrl(currentServerUrl);
-    return { enabled, hasUrl, ready };
-  };
-
-  // Sync-first helper: calls a method on the manager synchronously if already loaded,
-  // otherwise falls back to the async factory. This keeps tests synchronous.
-  const callNm = (fn: (m: import("./multiplayer.js").NetplayManager) => void): void => {
-    const nm = peekNetplayManager();
-    if (nm) { fn(nm); }
-    else if (getNetplayManager) { void getNetplayManager().then(fn).catch(err => console.warn("Failed to get netplay manager:", err)); }
-  };
-
-  const introHeadingId = "settings-playtogether-intro-heading";
-  const introSection = make("div", {
-    class: "settings-section settings-section--playtogether-intro",
-    role: "region",
-    "aria-labelledby": introHeadingId,
-  });
-  introSection.appendChild(make("h4", { class: "settings-section__title", id: introHeadingId }, "Play Together overview"));
-  introSection.appendChild(make("p", { class: "settings-help" },
-    "Point each device at the same WebSocket server with the same ROM, then host or join through the lobby. " +
-    `${APP_NAME} Play Together does not piggy‑back Nintendo WFC or other ROM-internal Wi‑Fi menus.`,
-  ));
-
-  // Status badge — shows whether netplay is ready to use
-  const statusBadge = make("span", { class: "netplay-status-pill netplay-status-pill--inactive" });
-  const updateStatusBadge = () => {
-    const { enabled, hasUrl, ready } = getNetplayStatus();
-    statusBadge.textContent = ready
-      ? "Ready to play online"
-      : enabled && !hasUrl
-        ? "Add a server URL"
-        : !enabled && hasUrl
-          ? "Turn on Online play"
-          : "Not set up yet";
-    statusBadge.className = ready
-      ? "netplay-status-pill netplay-status-pill--active"
-      : "netplay-status-pill netplay-status-pill--inactive";
-  };
-  updateStatusBadge();
-  introSection.appendChild(statusBadge);
-
-  // Enable toggle
-  introSection.appendChild(buildToggleRow(
-    "Online play",
-    "Shows Play Together on the home screen and Online in the game toolbar. In-game Wi-Fi or WFC features inside a ROM are separate from this setting.",
-    settings.netplayEnabled,
-    (v) => {
-      currentEnabled = v;
-      onSettingsChange({ netplayEnabled: v });
-      callNm(m => m.setEnabled(v));
-      serverSection.hidden = !v;
-      updateStatusBadge();
-    }
-  ));
-
-  container.appendChild(introSection);
-  container.appendChild(buildSupportedSystemsSection(APP_NAME));
-
-  const netplayServerHeadingId = "settings-netplay-server-heading";
-  const netplayUrlHelpId = "settings-netplay-url-help";
-  const netplayUsernameHelpId = "settings-netplay-username-help";
-
-  const serverSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": netplayServerHeadingId,
-  });
-  serverSection.hidden = !settings.netplayEnabled;
-  serverSection.appendChild(make("h4", { class: "settings-section__title", id: netplayServerHeadingId }, "Server address"));
-  serverSection.appendChild(make("p", {
-    class: "settings-help",
-    id: netplayUrlHelpId,
-  },
-    "Paste the full Play Together WebSocket URL (example: wss://games.example.net:443/netplay). " +
-    "Keep the scheme, host, port, and path identical for everyone in the match."
-  ));
-
-  const urlRow   = make("div", { class: "settings-input-row" });
-  const urlLabel = make("label", { class: "settings-input-label", for: "netplay-server-url" }, "WebSocket URL (wss:// or ws://)");
-  const urlInput = make("input", {
-    type:               "text",
-    id:                 "netplay-server-url",
-    name:               "netplayServerUrl",
-    class:              "settings-input",
-    placeholder:        "wss://netplay.example.com/room…",
-    value:              settings.netplayServerUrl,
-    autocomplete:       "off",
-    autocorrect:        "off",
-    autocapitalize:     "none",
-    spellcheck:         "false",
-    "aria-describedby": netplayUrlHelpId,
-  }) as HTMLInputElement;
-  urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
-  urlInput.addEventListener("change", () => {
-    const url = urlInput.value.trim();
-    const err = validateServerUrl(url);
-    if (err) {
-      urlInput.setCustomValidity(err);
-      urlInput.reportValidity();
-      return;
-    }
-    urlInput.setCustomValidity("");
-    currentServerUrl = url;
-    const patch: Partial<Settings> = { netplayServerUrl: url };
-    if (!currentEnabled) {
-      currentEnabled = true;
-      patch.netplayEnabled = true;
-      callNm(m => m.setEnabled(true));
-      serverSection.hidden = false;
-      const toggleInput = introSection.querySelector<HTMLInputElement>(".toggle-row input[type=checkbox]");
-      if (toggleInput) toggleInput.checked = true;
-    }
-    onSettingsChange(patch);
-    callNm(m => m.setServerUrl(url));
-    updateStatusBadge();
-  });
-  urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
-  urlRow.append(urlLabel, urlInput);
-  serverSection.appendChild(urlRow);
-
-  // Username / display name row
-  const unameRow   = make("div", { class: "settings-input-row" });
-  const unameLabel = make("label", { class: "settings-input-label", for: "netplay-username" }, "Display Name");
-  const unameInput = make("input", {
-    type:               "text",
-    id:                 "netplay-username",
-    name:               "netplayUsername",
-    class:              "settings-input",
-    placeholder:        "Display name (optional)…",
-    value:              settings.netplayUsername,
-    autocomplete:       "nickname",
-    autocorrect:        "off",
-    autocapitalize:     "words",
-    spellcheck:         "false",
-    maxlength:          "32",
-    "aria-describedby": netplayUsernameHelpId,
-  }) as HTMLInputElement;
-  unameInput.addEventListener("input", () => unameInput.setCustomValidity(""));
-  unameInput.addEventListener("change", () => {
-    const name = unameInput.value.trim();
-    const err = validateUsername(name);
-    if (err) {
-      unameInput.setCustomValidity(err);
-      unameInput.reportValidity();
-      return;
-    }
-    unameInput.setCustomValidity("");
-    onSettingsChange({ netplayUsername: name });
-    callNm(m => m.setUsername(name));
-  });
-  unameRow.append(unameLabel, unameInput);
-  serverSection.appendChild(unameRow);
-  serverSection.appendChild(make("p", {
-    class: "settings-help",
-    id: netplayUsernameHelpId,
-  },
-    "Optional name visible in the lobby. Leave blank to stay anonymous-looking to other players.",
-  ));
-
-  // ICE / STUN section — collapsed by default as an Advanced disclosure
-  const iceDetails = make("details", { class: "netplay-advanced" }) as HTMLDetailsElement;
-  const iceSummary = make("summary", {}, "Advanced: Connection Servers (STUN / ICE)");
-  iceDetails.appendChild(iceSummary);
-
-  const iceContent = make("div", { class: "netplay-advanced-content" });
-  iceContent.appendChild(make("p", { class: "settings-help" },
-    "Google STUN servers are used by default for WebRTC hole-punching. " +
-    "For networks with strict symmetric NAT, add a TURN server (e.g. turn:turn.example.com:3478)."
-  ));
-
-  // Mutable local copy driven by the RetroOasisStore `settings` slice.
-  //
-  // At first render, if the store slice is empty (fresh install or settings
-  // without `netplayIceServers`), fall back to whatever the NetplayManager
-  // currently holds so existing users don't lose legacy-persisted servers.
-  // From this point on, all mutations flow through
-  // `onSettingsChange({ netplayIceServers: … })`, which mirrors into the
-  // store and — via the main.ts subscriber — back into
-  // `NetplayManager.setIceServers()`.
-  let iceServers: RTCIceServer[] = (() => {
-    const fromStore = store.get("settings").netplayIceServers;
-    if (fromStore.length > 0) return fromNetplayIceServers(fromStore);
-    return [...(peekNetplayManager()?.iceServers ?? DEFAULT_ICE_SERVERS)];
-  })();
-
-  /** Commit the local list to the store (single source of truth). */
-  const commitIceServers = (): void => {
-    onSettingsChange({
-      netplayIceServers: toNetplayIceServers(iceServers),
-    });
-  };
-
-  // List of current entries, rebuilt on every mutation
-  const iceList = make("div", { class: "netplay-ice-list" });
-  const renderIceList = () => {
-    iceList.innerHTML = "";
-    if (iceServers.length === 0) {
-      iceList.appendChild(make("p", { class: "netplay-ice-empty" },
-        "No ICE servers configured — peer connections may fail."
-      ));
-      return;
-    }
-    const fragment = document.createDocumentFragment();
-    for (const srv of iceServers) {
-      const urls   = Array.isArray(srv.urls) ? srv.urls : [srv.urls];
-      const urlStr = urls.join(", ");
-      const row = make("div", { class: "netplay-ice-row" });
-      row.appendChild(make("span", { class: "netplay-ice-url" }, urlStr));
-      const removeBtn = make("button", {
-        class: "btn netplay-ice-remove",
-        "aria-label": `Remove ${urlStr}`,
-      }) as HTMLButtonElement;
-      removeBtn.innerHTML = ICON_CLOSE_X_SVG;
-      removeBtn.addEventListener("click", () => {
-        const idx = iceServers.indexOf(srv);
-        if (idx !== -1) iceServers.splice(idx, 1);
-        commitIceServers();
-        renderIceList();
-      });
-      row.appendChild(removeBtn);
-      fragment.appendChild(row);
-    }
-    iceList.appendChild(fragment);
-  };
-  renderIceList();
-  iceContent.appendChild(iceList);
-
-  // Add-server row
-  const addRow = make("div", { class: "settings-input-row" });
-  const addInput = make("input", {
-    type:         "text",
-    id:           "netplay-ice-add",
-    name:         "iceServerUrl",
-    class:        "settings-input",
-    placeholder:  "stun:stun.example.com:3478…",
-    "aria-label": "New ICE server URL",
-    autocomplete: "off",
-    autocorrect:  "off",
-    autocapitalize: "none",
-    spellcheck:   "false",
-  }) as HTMLInputElement;
-  const addBtn = make("button", { class: "btn btn--primary" }, "Add") as HTMLButtonElement;
-  addBtn.addEventListener("click", () => {
-    const url = addInput.value.trim();
-    if (!url) return;
-    const netplayManager = peekNetplayManager();
-    const err = netplayManager
-      ? netplayManager.validateIceServerUrl(url)
-      : standaloneValidateIceServerUrl(url);
-    if (err) {
-      addInput.setCustomValidity(err);
-      addInput.reportValidity();
-      return;
-    }
-    addInput.setCustomValidity("");
-    iceServers.push({ urls: url });
-    commitIceServers();
-    addInput.value = "";
-    renderIceList();
-  });
-  addInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addBtn.click();
-    }
-  });
-  addInput.addEventListener("input", () => addInput.setCustomValidity(""));
-  addRow.append(addInput, addBtn);
-  iceContent.appendChild(addRow);
-
-  // Reset-to-defaults button
-  const resetBtn = make("button", { class: "btn settings-clear-btn" }, "Reset to defaults") as HTMLButtonElement;
-  resetBtn.addEventListener("click", () => {
-    iceServers = [...DEFAULT_ICE_SERVERS];
-    commitIceServers();
-    renderIceList();
-  });
-  iceContent.appendChild(resetBtn);
-
-  iceDetails.appendChild(iceContent);
-  serverSection.appendChild(iceDetails);
-
-  container.append(serverSection);
-
-  const netplayLobbyHeadingId = "settings-netplay-lobby-heading";
-  const lobbySection = make("div", {
-    class: "settings-section netplay-lobby",
-    role: "region",
-    "aria-labelledby": netplayLobbyHeadingId,
-  });
-  lobbySection.hidden = !getNetplayStatus().ready;
-  lobbySection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: netplayLobbyHeadingId,
-  }, "Room Browser"));
-
-  // Show game-scope hint — if a game is running, name it; otherwise give
-  // a generic prompt so the user knows rooms are per-game.
-  const lobbyScopeHint = currentGameName
-    ? `Showing rooms for: ${currentGameName}`
-    : "Open a game and come back here to see rooms for that title.";
-  lobbySection.appendChild(make("p", { class: "settings-help" }, lobbyScopeHint));
-
-  const lobbyRoomList = make("div", { class: "netplay-lobby-list" });
-  let lobbyAbort: AbortController | null = null;
-  let lobbyAutoRefreshTimer: ReturnType<typeof setInterval> | null = null;
-  const lobbyLastRefreshed = make("p", { class: "netplay-lobby-timestamp" });
-
-  // Tracks the room currently selected in the lobby list
-  let selectedLobbyRoom: import("./multiplayer.js").NetplayLobbyRoom | null = null;
-  // Reference to the Join button — set later, updated by syncJoinBtn()
-  let joinBtnRef: HTMLButtonElement | null = null;
-  const syncJoinBtn = () => {
-    if (!joinBtnRef) return;
-    joinBtnRef.disabled = !selectedLobbyRoom;
-    joinBtnRef.title = selectedLobbyRoom
-      ? `Join "${selectedLobbyRoom.name || "selected room"}"`
-      : "Select a room above to join";
-  };
-
-  const renderLobbyRooms = (rooms: import("./multiplayer.js").NetplayLobbyRoom[]) => {
-    lobbyRoomList.innerHTML = "";
-    selectedLobbyRoom = null;
-    syncJoinBtn();
-    if (rooms.length === 0) {
-      lobbyRoomList.appendChild(make("p", { class: "netplay-lobby-empty" },
-        "No open rooms right now — be the first to create one!"
-      ));
-      return;
-    }
-    const fragment = document.createDocumentFragment();
-    for (const room of rooms) {
-      const row = make("div", { class: "netplay-lobby-row" });
-
-      const nameEl = make("span", { class: "netplay-lobby-name" },
-        room.name ?? `Room ${room.id}`
-      );
-
-      // Status chip: Full > Locked > Open
-      const isFull = room.players !== undefined && room.maxPlayers !== undefined
-        && room.players >= room.maxPlayers;
-      const statusVariant = isFull ? "full" : room.hasPassword ? "locked" : "open";
-      const statusLabel   = isFull ? "Full" : room.hasPassword ? "Password" : "Open";
-      const statusChip = make("span", {
-        class: `netplay-room-status netplay-room-status--${statusVariant}`,
-      }, statusLabel);
-
-      // Host
-      const hostEl = room.host
-        ? make("span", { class: "netplay-lobby-host" }, room.host)
-        : null;
-
-      // Player count — compact "2/4" format
-      const playersEl = (room.players !== undefined)
-        ? make("span", { class: "netplay-lobby-players" },
-            room.maxPlayers !== undefined
-              ? `${room.players}/${room.maxPlayers}`
-              : `${room.players}`
-          )
-        : null;
-
-      // Latency with color severity: ≤80 ms green, ≤200 ms yellow, >200 ms red
-      let latencyEl: HTMLElement | null = null;
-      if (room.latencyMs !== undefined) {
-        const ms = Math.round(room.latencyMs);
-        const latencyVariant = ms <= LATENCY_GOOD_THRESHOLD_MS ? "good" : ms <= LATENCY_WARN_THRESHOLD_MS ? "warn" : "bad";
-        latencyEl = make("span", {
-          class: `netplay-lobby-latency netplay-lobby-latency--${latencyVariant}`,
-          title: "Round-trip latency",
-        }, `${ms} ms`);
-      }
-
-      row.appendChild(nameEl);
-      row.appendChild(statusChip);
-      if (hostEl)    row.appendChild(hostEl);
-      if (playersEl) row.appendChild(playersEl);
-      if (latencyEl) row.appendChild(latencyEl);
-
-      // Click-to-select: highlight the row and enable the Join button
-      row.addEventListener("click", () => {
-        lobbyRoomList.querySelectorAll<HTMLElement>(".netplay-lobby-row--selected")
-          .forEach(el => el.classList.remove("netplay-lobby-row--selected"));
-        row.classList.add("netplay-lobby-row--selected");
-        selectedLobbyRoom = room;
-        syncJoinBtn();
-      });
-
-      fragment.appendChild(row);
-    }
-    lobbyRoomList.appendChild(fragment);
-  };
-  renderLobbyRooms([]);
-  lobbySection.appendChild(lobbyRoomList);
-
-  const lobbyFooter = make("div", { class: "netplay-lobby-footer" });
-  const refreshBtn = make("button", {
-    class: "btn btn--primary netplay-lobby-refresh",
-    "aria-label": "Refresh room list",
-  }) as HTMLButtonElement;
-  refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refresh`;
-
-  const doLobbyRefresh = async () => {
-    const netplayManager = peekNetplayManager();
-    if (!netplayManager) return;
-    // If the lobby section has been removed from the DOM (e.g. settings panel was
-    // rebuilt) or is inside a hidden ancestor (e.g. settings panel was closed),
-    // clear the stale interval and bail out so we don't mutate detached/hidden
-    // elements or keep making unnecessary network requests.
-    if (!lobbySection.isConnected || !!lobbySection.closest("[hidden]")) {
-      if (lobbyAutoRefreshTimer) {
-        clearInterval(lobbyAutoRefreshTimer);
-        lobbyAutoRefreshTimer = null;
-      }
-      if (lobbyAbort) {
-        lobbyAbort.abort();
-        lobbyAbort = null;
-      }
-      return;
-    }
-    if (lobbyAbort) lobbyAbort.abort();
-    lobbyAbort = new AbortController();
-    refreshBtn.disabled = true;
-    refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refreshing…`;
-    lobbyLastRefreshed.textContent = "";
-
-    // Show skeleton rows while loading
-    lobbyRoomList.innerHTML = "";
-    const skelFrag = document.createDocumentFragment();
-    for (let i = 0; i < 3; i++) {
-      const skel = make("div", { class: "netplay-lobby-skeleton" });
-      skel.appendChild(make("div", { class: "netplay-lobby-skeleton__bar netplay-lobby-skeleton__bar--grow" }));
-      skel.appendChild(make("div", { class: "netplay-lobby-skeleton__bar netplay-lobby-skeleton__bar--medium" }));
-      skel.appendChild(make("div", { class: "netplay-lobby-skeleton__bar netplay-lobby-skeleton__bar--short" }));
-      skelFrag.appendChild(skel);
-    }
-    lobbyRoomList.appendChild(skelFrag);
-
-    try {
-      const rooms = await netplayManager.fetchLobbyRooms(lobbyAbort.signal);
-      renderLobbyRooms(rooms);
-      const now = new Date();
-      lobbyLastRefreshed.textContent =
-        `Updated ${now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
-    } catch (err) {
-      // AbortError means the user clicked Refresh again — not a real failure.
-      if (err instanceof Error && err.name === "AbortError") return;
-      diagWarn(settings.verboseLogging, `[${APP_NAME}] Lobby fetch failed:`, err);
-      lobbyRoomList.innerHTML = "";
-      lobbyRoomList.appendChild(make("p", { class: "netplay-lobby-error" },
-        "Couldn't reach the server. Check your connection and server URL, then try again."
-      ));
-    } finally {
-      refreshBtn.disabled = false;
-      refreshBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg> Refresh`;
-    }
-  };
-
-  refreshBtn.addEventListener("click", doLobbyRefresh);
-
-  const autoNote = make("p", { class: "netplay-auto-note" }, "auto-refreshes every 30 s");
-  lobbyFooter.append(refreshBtn, lobbyLastRefreshed, autoNote);
-  lobbySection.appendChild(lobbyFooter);
-
-  // Keep the lobby section visibility in sync with enable/server-URL changes.
-  // When the section transitions from hidden → visible, trigger an auto-refresh
-  // so the user immediately sees current rooms without a manual click.
-  const syncLobbyVisibility = () => {
-    const wasHidden = lobbySection.hidden;
-    const netplayManager = peekNetplayManager();
-    const nowActive = netplayManager?.isActive ?? false;
-    lobbySection.hidden = !nowActive;
-    if (wasHidden && nowActive) {
-      void doLobbyRefresh();
-      // Start 30-second auto-refresh interval
-      if (lobbyAutoRefreshTimer) clearInterval(lobbyAutoRefreshTimer);
-      lobbyAutoRefreshTimer = setInterval(() => { void doLobbyRefresh(); }, 30_000);
-    } else if (!nowActive && lobbyAutoRefreshTimer) {
-      clearInterval(lobbyAutoRefreshTimer);
-      lobbyAutoRefreshTimer = null;
-    }
-  };
-  introSection.addEventListener("change", syncLobbyVisibility);
-  urlInput.addEventListener("change", syncLobbyVisibility);
-
-  container.append(lobbySection);
-
-  // === Current game compatibility section ====================================
-  const gameCompatSection = buildCurrentGameCompatibilitySection({
-    appName: APP_NAME,
-    currentGameName,
-    currentSystemId,
-  });
-  if (gameCompatSection) {
-    container.appendChild(gameCompatSection);
-  }
-
-  // === Room actions section ==================================================
-  const netplayRoomActionsHeadingId = "settings-netplay-room-actions-heading";
-  const roomSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": netplayRoomActionsHeadingId,
-  });
-  roomSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: netplayRoomActionsHeadingId,
-  }, "Room Actions"));
-
-  if (!getNetplayStatus().ready) {
-    roomSection.appendChild(make("p", { class: "settings-help" },
-      "Server URL is required — enable Online play and add a server URL above to start playing with others."
-    ));
-  } else {
-    const hasGame = !!currentGameName;
-    roomSection.appendChild(make("p", { class: "settings-help" },
-      hasGame
-        ? `Use the Online button in the toolbar while playing ${currentGameName} to create or join a room. ${APP_NAME} Play Together uses a separate lobby from in-game Wi-Fi features.`
-        : `Open a game, then use the Online button in the toolbar to create or join a room. ${APP_NAME} Play Together uses a separate lobby from in-game Wi-Fi features.`
-    ));
-    const actionRow = make("div", { class: "netplay-room-actions" });
-    const createBtn = make("button", {
-      class: "btn btn--primary netplay-create-room",
-      title: "Start a game and use the Online button to create a Play Together room",
-      "aria-label": "Create room — shows how to start a room from the in-game Online button",
-    }) as HTMLButtonElement;
-    createBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Room`;
-    const joinBtn = make("button", {
-      class: "btn netplay-join-room",
-      title: "Select a room above to join",
-      disabled: "",
-      "aria-label": "Join selected room — shows how to connect after choosing a room above",
-    }) as HTMLButtonElement;
-    joinBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Join Room`;
-    // Wire the join button to the selection tracker in the lobby browser
-    joinBtnRef = joinBtn;
-    syncJoinBtn();
-    createBtn.addEventListener("click", () => {
-      showInfoToast(
-        hasGame
-          ? `Use the Online button in the toolbar to create a room for ${currentGameName}.`
-          : "Start a game first, then use the Online button in the toolbar to create a room."
-      );
-    });
-    joinBtn.addEventListener("click", () => {
-      const room = selectedLobbyRoom;
-      showInfoToast(
-        room
-          ? `Start "${currentGameName || "the game"}" — the app will connect you to "${room.name ?? "the selected room"}".`
-          : "Select a room in the Room Browser above, then start the same game to join it."
-      );
-    });
-    actionRow.append(createBtn, joinBtn);
-    roomSection.appendChild(actionRow);
-  }
-  container.appendChild(roomSection);
-}
-
-function buildDebugTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  deviceCaps:       DeviceCapabilities,
-  emulatorRef?:     import("./emulator.js").PSPEmulator,
-  getNetplayManager?: () => Promise<import("./multiplayer.js").NetplayManager>,
-  biosLibrary?:     BiosLibrary
-): void {
-  // Settings section
-  const debugAdvancedHeadingId = "settings-debug-advanced-heading";
-  const settingsSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugAdvancedHeadingId,
-  });
-  settingsSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugAdvancedHeadingId,
-  }, "Advanced Settings"));
-  settingsSection.appendChild(make("p", { class: "settings-help" },
-    "These settings are for troubleshooting. You don't normally need to change them."
-  ));
-
-  settingsSection.appendChild(buildToggleRow(
-    "Detailed logging",
-    "Write extra diagnostic information to the browser console — helpful when reporting issues",
-    settings.verboseLogging,
-    (v) => onSettingsChange({ verboseLogging: v })
-  ));
-
-  // Environment section
-  const debugEnvHeadingId = "settings-debug-environment-heading";
-  const envSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugEnvHeadingId,
-  });
-  envSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugEnvHeadingId,
-  }, "Environment"));
-
-  const isIsolated = "crossOriginIsolated" in self ? self.crossOriginIsolated : false;
-  const hasSAB     = typeof SharedArrayBuffer !== "undefined";
-  const hasWasm    = typeof WebAssembly !== "undefined";
-
-  envSection.appendChild(make("p", { class: "device-info" },
-    `Cross-Origin Isolated: ${isIsolated ? "Yes (PSP supported)" : "No — PSP games will fail (reload after coi-serviceworker.js)"}`
-  ));
-  envSection.appendChild(make("p", { class: "device-info" },
-    `SharedArrayBuffer: ${hasSAB ? "Available" : "Not available"}`
-  ));
-  envSection.appendChild(make("p", { class: "device-info" },
-    `WebAssembly: ${hasWasm ? "Available" : "Not available"}`
-  ));
-
-  if (getNetplayManager) {
-    const netplayStatus = make("p", { class: "device-info" }, "Checking Play Together status…");
-    envSection.appendChild(netplayStatus);
-    getNetplayManager().then(nm => {
-      // NetplayManager doesn't have isConnected/isEnabled, it has enabled and isActive
-      netplayStatus.textContent = nm.isActive
-        ? "Play Together: Active and configured"
-        : nm.enabled
-        ? "Play Together: Enabled but server missing"
-        : "Play Together: Disabled";
-    }).catch(() => {
-      netplayStatus.textContent = "Play Together: Error loading manager";
-    });
-  }
-  envSection.appendChild(make("p", { class: "device-info" },
-    `User Agent: ${navigator.userAgent}`
-  ));
-
-  // GPU & VRAM section
-  const debugGpuHeadingId = "settings-debug-gpu-heading";
-  const gpuSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugGpuHeadingId,
-  });
-  gpuSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugGpuHeadingId,
-  }, "GPU & Memory"));
-  gpuSection.appendChild(make("p", { class: "device-info" },
-    `GPU: ${deviceCaps.gpuCaps.renderer}`
-  ));
-  gpuSection.appendChild(make("p", { class: "device-info" },
-    `Estimated VRAM: ${deviceCaps.estimatedVRAMMB} MB`
-  ));
-  gpuSection.appendChild(make("p", { class: "device-info" },
-    `Max Texture Size: ${deviceCaps.gpuCaps.maxTextureSize}px`
-  ));
-  gpuSection.appendChild(make("p", { class: "device-info" },
-    `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures ? "Yes" : "No"} ` +
-    `(ETC2: ${deviceCaps.gpuCaps.etc2Textures ? "Yes" : "No"}, ASTC: ${deviceCaps.gpuCaps.astcTextures ? "Yes" : "No"})`
-  ));
-  gpuSection.appendChild(make("p", { class: "device-info" },
-    `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments} | Multi-Draw: ${deviceCaps.gpuCaps.multiDraw ? "Yes" : "No"}`
-  ));
-
-  // PS1 status section — shows BIOS file availability and core info
-  const debugPs1HeadingId = "settings-debug-ps1-heading";
-  const ps1Section = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugPs1HeadingId,
-  });
-  ps1Section.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugPs1HeadingId,
-  }, "PS1 Status"));
-  ps1Section.appendChild(make("p", { class: "settings-help" },
-    "PlayStation 1 uses the Beetle PSX HW core (mednafen_psx_hw). A BIOS file is " +
-    "optional but improves game compatibility. Upload BIOS files in the BIOS tab."
-  ));
-
-  const psxBiosReqs = BIOS_REQUIREMENTS["psx"] ?? [];
-  // Snapshot map populated by async checks — used by the "Copy Debug Info" button
-  const psxBiosSnapshot = new Map<string, boolean | null>();
-  for (const req of psxBiosReqs) psxBiosSnapshot.set(req.fileName, null);
-
-  for (const req of psxBiosReqs) {
-    const row = make("p", { class: "device-info" });
-    row.textContent = `${req.displayName}: checking…`;
-    ps1Section.appendChild(row);
-
-    if (biosLibrary) {
-      biosLibrary.findBios("psx", req.fileName).then(found => {
-        psxBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "Uploaded" : "Not found"}`;
-      }).catch(() => {
-        psxBiosSnapshot.set(req.fileName, null);
-        row.textContent = `${req.displayName}: — (could not check)`;
-      });
-    } else {
-      psxBiosSnapshot.set(req.fileName, null);
-      row.textContent = `${req.displayName}: — (BIOS library unavailable)`;
-    }
-  }
-
-  // NDS status section — shows BIOS file availability and active DeSmuME settings
-  const debugNdsHeadingId = "settings-debug-nds-heading";
-  const ndsSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugNdsHeadingId,
-  });
-  ndsSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugNdsHeadingId,
-  }, "NDS Status"));
-  ndsSection.appendChild(make("p", { class: "settings-help" },
-    "Nintendo DS uses the DeSmuME 2015 core. BIOS files are optional — DeSmuME falls back to a " +
-    "built-in HLE BIOS when they are absent — but some games require the real files. " +
-    "Upload BIOS files in the BIOS tab."
-  ));
-
-  const ndsBiosReqs = BIOS_REQUIREMENTS["nds"] ?? [];
-  // Snapshot map populated by async checks — used by the "Copy Debug Info" button
-  const ndsBiosSnapshot = new Map<string, boolean | null>();
-  for (const req of ndsBiosReqs) ndsBiosSnapshot.set(req.fileName, null);
-
-  for (const req of ndsBiosReqs) {
-    const row = make("p", { class: "device-info" });
-    row.textContent = `${req.displayName}: checking…`;
-    ndsSection.appendChild(row);
-
-    if (biosLibrary) {
-      biosLibrary.findBios("nds", req.fileName).then(found => {
-        ndsBiosSnapshot.set(req.fileName, found !== null);
-        row.textContent = `${req.displayName}: ${found ? "Uploaded" : "Not found (optional)"}`;
-      }).catch(() => {
-        ndsBiosSnapshot.set(req.fileName, null);
-        row.textContent = `${req.displayName}: — (could not check)`;
-      });
-    } else {
-      ndsBiosSnapshot.set(req.fileName, null);
-      row.textContent = `${req.displayName}: — (BIOS library unavailable)`;
-    }
-  }
-
-  // Show active DeSmuME performance settings when an NDS game is running
-  const activeSystem = emulatorRef?.currentSystem;
-  const activeCoreSettingsForNds = emulatorRef?.activeCoreSettings;
-  if (activeSystem?.id === "nds" && activeCoreSettingsForNds) {
-    const dsCpuMode    = activeCoreSettingsForNds["desmume_cpu_mode"]             ?? "—";
-    const dsFrameskip  = activeCoreSettingsForNds["desmume_frameskip"]            ?? "—";
-    const dsResolution = activeCoreSettingsForNds["desmume_internal_resolution"]  ?? "—";
-    const dsOpenGL     = activeCoreSettingsForNds["desmume_opengl_mode"]          ?? "—";
-    const dsTiming     = activeCoreSettingsForNds["desmume_advanced_timing"]      ?? "—";
-    const dsColorDepth = activeCoreSettingsForNds["desmume_color_depth"]          ?? "—";
-    const dsPointer    = activeCoreSettingsForNds["desmume_pointer_type"]         ?? "—";
-    const dsMicMode    = activeCoreSettingsForNds["desmume_mic_mode"]             ?? "—";
-    ndsSection.appendChild(make("p", { class: "device-info" },
-      `Active DeSmuME settings (tier: ${emulatorRef?.activeTier ?? "—"})`
-    ));
-    ndsSection.appendChild(make("p", { class: "device-info" },
-      `CPU mode: ${dsCpuMode} | Frameskip: ${dsFrameskip} | Resolution: ${dsResolution}`
-    ));
-    ndsSection.appendChild(make("p", { class: "device-info" },
-      `OpenGL: ${dsOpenGL} | Advanced timing: ${dsTiming} | Color depth: ${dsColorDepth}`
-    ));
-    ndsSection.appendChild(make("p", { class: "device-info" },
-      `Touchscreen mode: ${dsPointer} | Mic mode: ${dsMicMode}`
-    ));
-  }
-
-  // Emulator state section
-  const debugStateHeadingId = "settings-debug-emulator-state-heading";
-  const stateSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugStateHeadingId,
-  });
-  stateSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugStateHeadingId,
-  }, "Emulator State"));
-
-  stateSection.appendChild(make("p", { class: "device-info" },
-    `State: ${emulatorRef?.state ?? "unknown"}`
-  ));
-  stateSection.appendChild(make("p", { class: "device-info" },
-    `Active System: ${emulatorRef?.currentSystem?.name ?? "—"} (id: ${emulatorRef?.currentSystem?.id ?? "—"})`
-  ));
-  stateSection.appendChild(make("p", { class: "device-info" },
-    `Active Tier: ${emulatorRef?.activeTier ?? "—"}`
-  ));
-  const adapterInfo = emulatorRef?.webgpuAdapterInfo;
-  const adapterLabel = (adapterInfo?.vendor || adapterInfo?.device)
-    ? `${adapterInfo.device || adapterInfo.vendor}${adapterInfo.isFallbackAdapter ? " (software)" : ""}`
-    : null;
-  if (adapterLabel) {
-    stateSection.appendChild(make("p", { class: "device-info" },
-      `WebGPU Adapter: ${adapterLabel}`
-    ));
-  }
-
-  // Active core settings section (PSP / RetroArch options applied at launch)
-  const activeCoreSettings = emulatorRef?.activeCoreSettings;
-  if (activeCoreSettings && Object.keys(activeCoreSettings).length > 0) {
-    const debugCoreHeadingId = "settings-debug-active-core-heading";
-    const coreSettingsSection = make("div", {
-      class: "settings-section",
-      role: "region",
-      "aria-labelledby": debugCoreHeadingId,
-    });
-    coreSettingsSection.appendChild(make("h4", {
-      class: "settings-section__title",
-      id: debugCoreHeadingId,
-    }, "Active Core Settings"));
-    coreSettingsSection.appendChild(make("p", { class: "settings-help" },
-      "RetroArch / PPSSPP core options that were passed to the emulator at launch."
-    ));
-    const list = make("ul", { class: "core-settings-list" });
-    for (const [key, value] of Object.entries(activeCoreSettings)) {
-      const item = make("li", { class: "core-settings-item" });
-      item.appendChild(make("span", { class: "core-settings-key" }, key));
-      item.appendChild(make("span", { class: "core-settings-value" }, String(value)));
-      list.appendChild(item);
-    }
-    coreSettingsSection.appendChild(list);
-    stateSection.appendChild(coreSettingsSection);
-  }
-
-  // Startup profiler section (Phase 9)
-  const profSummary = emulatorRef?.startupProfiler?.summary();
-  if (profSummary && profSummary.records.length > 0) {
-    const debugProfHeadingId = "settings-debug-launch-profile-heading";
-    const profSection = make("div", {
-      class: "settings-section",
-      role: "region",
-      "aria-labelledby": debugProfHeadingId,
-    });
-    profSection.appendChild(make("h4", {
-      class: "settings-section__title",
-      id: debugProfHeadingId,
-    }, "Last Launch Profile"));
-    profSection.appendChild(make("p", { class: "settings-help" },
-      "Time spent in each phase of the most recent game launch."
-    ));
-    const profList = make("ul", { class: "core-settings-list" });
-    for (const r of profSummary.records) {
-      const item = make("li", { class: "core-settings-item" });
-      const isSlowest = r === profSummary.slowest;
-      item.appendChild(make("span", { class: "core-settings-key" }, `${isSlowest ? "[slowest] " : ""}${r.phase}`));
-      item.appendChild(make("span", { class: "core-settings-value" }, `${r.durationMs.toFixed(0)} ms`));
-      profList.appendChild(item);
-    }
-    const totalItem = make("li", { class: "core-settings-item" });
-    totalItem.appendChild(make("span", { class: "core-settings-key" }, "total"));
-    totalItem.appendChild(make("span", { class: "core-settings-value" }, `${profSummary.totalMs.toFixed(0)} ms`));
-    profList.appendChild(totalItem);
-    profSection.appendChild(profList);
-    stateSection.appendChild(profSection);
-  }
-
-  // Diagnostic event timeline section
-  const debugTimelineHeadingId = "settings-debug-diagnostic-timeline-heading";
-  const timelineSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugTimelineHeadingId,
-  });
-  timelineSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugTimelineHeadingId,
-  }, "Diagnostic Timeline"));
-  timelineSection.appendChild(make("p", { class: "settings-help" },
-    "Recent performance and system events logged during emulator operation."
-  ));
-
-  const diagnosticEvents = emulatorRef?.diagnosticLog ?? [];
-  if (diagnosticEvents.length === 0) {
-    timelineSection.appendChild(make("p", { class: "device-info" },
-      "No diagnostic events recorded yet. Events appear after launching a game."
-    ));
-  } else {
-    const eventList = make("ul", { class: "core-settings-list" });
-    // Display only the most recent events to keep the panel responsive
-    const MAX_DISPLAYED_DIAGNOSTIC_EVENTS = 20;
-    const recentEvents = diagnosticEvents.slice(-MAX_DISPLAYED_DIAGNOSTIC_EVENTS).reverse();
-    for (const evt of recentEvents) {
-      const item = make("li", { class: "core-settings-item" });
-      const time = new Date(evt.timestamp).toLocaleTimeString();
-      const badge = evt.category === "error" ? "[error]"
-        : evt.category === "performance" ? "[perf]"
-        : evt.category === "audio" ? "[audio]"
-        : evt.category === "render" ? "[render]"
-        : "[info]";
-      item.appendChild(make("span", { class: "core-settings-key" }, `${badge} ${time}`));
-      item.appendChild(make("span", { class: "core-settings-value" }, evt.message));
-      eventList.appendChild(item);
-    }
-    timelineSection.appendChild(eventList);
-  }
-
-  // Actions section
-  const debugActionsHeadingId = "settings-debug-actions-heading";
-  const actionsSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugActionsHeadingId,
-  });
-  actionsSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugActionsHeadingId,
-  }, "Actions"));
-  actionsSection.appendChild(make("p", { class: "settings-help" },
-    "Copy a snapshot of diagnostics to the clipboard for bug reports."
-  ));
-
-  const btnCopy = make("button", { class: "btn" }, "Copy Debug Info");
-  btnCopy.addEventListener("click", () => {
-    const lines = [
-      `${APP_NAME} Debug Info — ${new Date().toISOString()}`,
-      ``,
-      `[Environment]`,
-      `Cross-Origin Isolated: ${isIsolated}`,
-      `SharedArrayBuffer: ${hasSAB}`,
-      `WebAssembly: ${hasWasm}`,
-      `User Agent: ${navigator.userAgent}`,
-      ``,
-      `[Device]`,
-      `Tier: ${deviceCaps.tier}`,
-      `GPU Score: ${deviceCaps.gpuBenchmarkScore}/100`,
-      `Estimated VRAM: ${deviceCaps.estimatedVRAMMB} MB`,
-      `Low-Spec: ${deviceCaps.isLowSpec}`,
-      `ChromeOS: ${deviceCaps.isChromOS}`,
-      `WebGL2: ${deviceCaps.gpuCaps.webgl2}`,
-      `WebGPU: ${deviceCaps.webgpuAvailable}`,
-      `Max Texture: ${deviceCaps.gpuCaps.maxTextureSize}px`,
-      `Anisotropic: ${deviceCaps.gpuCaps.anisotropicFiltering} (max ${deviceCaps.gpuCaps.maxAnisotropy}×)`,
-      `Float Textures: ${deviceCaps.gpuCaps.floatTextures}`,
-      `Instanced Arrays: ${deviceCaps.gpuCaps.instancedArrays}`,
-      `ETC2 Textures: ${deviceCaps.gpuCaps.etc2Textures}`,
-      `ASTC Textures: ${deviceCaps.gpuCaps.astcTextures}`,
-      `Compressed Textures: ${deviceCaps.gpuCaps.compressedTextures}`,
-      `MRT Attachments: ${deviceCaps.gpuCaps.maxColorAttachments}`,
-      `Multi-Draw: ${deviceCaps.gpuCaps.multiDraw}`,
-      ``,
-      `[Emulator]`,
-      `State: ${emulatorRef?.state ?? "unknown"}`,
-      `System: ${emulatorRef?.currentSystem?.id ?? "—"}`,
-      `Tier: ${emulatorRef?.activeTier ?? "—"}`,
-      `Thermal Pressure: ${emulatorRef?.thermalPressureState ?? "unknown"}`,
-    ];
-    if (adapterLabel) {
-      lines.push(`WebGPU Adapter: ${adapterLabel}`);
-    }
-    const snapshotSettings = emulatorRef?.activeCoreSettings;
-    if (snapshotSettings && Object.keys(snapshotSettings).length > 0) {
-      lines.push(``, `[Core Settings]`);
-      for (const [key, value] of Object.entries(snapshotSettings)) {
-        lines.push(`${key}: ${String(value)}`);
-      }
-    }
-    // Include startup profiler summary
-    const profSummary = emulatorRef?.startupProfiler?.summary();
-    if (profSummary && profSummary.records.length > 0) {
-      lines.push(``, `[Startup Profile]`);
-      for (const r of profSummary.records) {
-        lines.push(`${r.phase}: ${r.durationMs.toFixed(0)} ms`);
-      }
-      lines.push(`total: ${profSummary.totalMs.toFixed(0)} ms`);
-    }
-    // Include PS1 BIOS status (populated asynchronously when the tab opened)
-    if (psxBiosReqs.length > 0) {
-      lines.push(``, `[PS1 BIOS]`);
-      for (const req of psxBiosReqs) {
-        const status = psxBiosSnapshot.get(req.fileName);
-        lines.push(`${req.fileName}: ${status === true ? "present" : status === false ? "missing" : "unknown"}`);
-      }
-    }
-    // Include NDS BIOS status (populated asynchronously when the tab opened)
-    if (ndsBiosReqs.length > 0) {
-      lines.push(``, `[NDS BIOS]`);
-      for (const req of ndsBiosReqs) {
-        const status = ndsBiosSnapshot.get(req.fileName);
-        lines.push(`${req.fileName}: ${status === true ? "present" : status === false ? "missing (optional)" : "unknown"}`);
-      }
-    }
-    lines.push(
-      ``,
-      `[Netplay]`,
-      `Enabled: ${peekNetplayManager()?.enabled ?? false}`,
-      `Active: ${peekNetplayManager()?.isActive ?? false}`,
-      `Server: ${peekNetplayManager()?.serverUrl || "—"}`,
-      `ICE Servers: ${peekNetplayManager()?.iceServers?.length ?? 0}`,
-      ...(peekNetplayManager()?.iceServers ?? []).map((s) =>
-        `  ${Array.isArray(s.urls) ? s.urls.join(", ") : s.urls}`
-      ),
-    );
-
-    // Include diagnostic event log
-    const diagEvents = emulatorRef?.diagnosticLog ?? [];
-    if (diagEvents.length > 0) {
-      lines.push(``, `[Diagnostic Timeline (last ${Math.min(50, diagEvents.length)} events)]`);
-      const recentDiag = diagEvents.slice(-50);
-      for (const evt of recentDiag) {
-        const t = new Date(evt.timestamp).toLocaleTimeString();
-        lines.push(`[${t}] [${evt.category}] ${evt.message}`);
-      }
-    }
-
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      showInfoToast("Debug info copied to clipboard.");
-    }).catch(() => {
-      showError("Could not copy to clipboard.");
-    });
-  });
-  actionsSection.appendChild(btnCopy);
-
-  // Clear device capability cache — forces full re-detection on next page load
-  const btnClearCaps = make("button", { class: "btn btn--secondary" }, "Clear Capability Cache");
-  btnClearCaps.title = "Force re-detection of GPU tier and device capabilities on next reload.";
-  btnClearCaps.addEventListener("click", () => {
-    clearCapabilitiesCache();
-    showInfoToast("Capability cache cleared. Reload the page to re-detect device capabilities.");
-  });
-  actionsSection.appendChild(btnClearCaps);
-
-  // Thermal pressure section (Phase 9)
-  const debugThermalHeadingId = "settings-debug-thermal-heading";
-  const thermalSection = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": debugThermalHeadingId,
-  });
-  thermalSection.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: debugThermalHeadingId,
-  }, "Thermal & Pressure"));
-  thermalSection.appendChild(make("p", { class: "settings-help" },
-    "Compute Pressure API — monitors CPU thermal load to proactively prevent OS-forced throttling. " +
-    "Requires Chrome 125+ (or a compatible browser)."
-  ));
-  const thermalState = emulatorRef?.thermalPressureState ?? "unknown";
-  const thermalLabel = thermalState === "nominal"  ? "✅ Nominal — device is cool"
-    : thermalState === "fair"     ? "🟡 Fair — minor thermal load"
-    : thermalState === "serious"  ? "🟠 Serious — sustained high thermal load"
-    : thermalState === "critical" ? "🔴 Critical — OS throttling is active"
-    : "⚪ Unknown — Compute Pressure API unavailable";
-  thermalSection.appendChild(make("p", { class: "device-info" },
-    `Thermal Pressure: ${thermalLabel}`
-  ));
-  if (thermalState === "unknown") {
-    thermalSection.appendChild(make("p", { class: "device-info" },
-      "Compute Pressure API is not available in this browser."
-    ));
-  }
-
-  container.append(settingsSection, envSection, gpuSection, ps1Section, ndsSection, stateSection, timelineSection, thermalSection, actionsSection);
-}
-
-// ── About tab ─────────────────────────────────────────────────────────────────
-
-// ── Multi-disc helpers ────────────────────────────────────────────────────────
+// â”€â”€ Multi-disc helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function parseM3U(content: string): string[] {
   return content
@@ -7807,7 +5651,7 @@ function showMultiDiscPicker(discFileNames: string[]): Promise<Map<string, File>
   return showMultiDiscPickerImpl(discFileNames);
 }
 
-// ── Tier downgrade prompt ─────────────────────────────────────────────────────
+// â”€â”€ Tier downgrade prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function showTierDowngradePrompt(
   averageFPS:  number,
@@ -7821,7 +5665,7 @@ export async function showTierDowngradePrompt(
     `Switching to the ${tierNames[targetTier] ?? targetTier} tier will reduce rendering ` +
     `quality but should provide a smoother experience on this device. ` +
     `This preference will be remembered for this game.\n\n` +
-    `Tip: turn on \"Dynamic resolution\" in Settings → Performance so supported 3D systems ` +
+    `Tip: turn on \"Dynamic resolution\" in Settings â†’ Performance so supported 3D systems ` +
     `can scale internal resolution automatically before you change tiers.`;
   return showConfirmDialog(message, {
     title: "Low Frame Rate Detected",
@@ -7830,7 +5674,7 @@ export async function showTierDowngradePrompt(
   });
 }
 
-// ── Audio Visualiser, Dev Overlay, FPS overlay toggle ──────────────────────────
+// â”€â”€ Audio Visualiser, Dev Overlay, FPS overlay toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Extracted to src/modules/DevOverlay.ts.
 // Functions toggleDevOverlay, isDevOverlayVisible, updateDevOverlay,
 // showFPSOverlay, startAudioVisualiser, stopAudioVisualiser, _uiDirtyTracker
@@ -7899,7 +5743,7 @@ function showPerfSuggestion(): void {
 
   const toast = make("div", { id: "perf-suggestion", class: "perf-suggestion", role: "status" });
   toast.innerHTML =
-    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> or turn on <strong>Dynamic resolution</strong> under Settings → Performance.${mobileTip}</span>` +
+    `<span class="perf-suggestion__msg">Game running slowly? Try <strong>Performance mode</strong> or turn on <strong>Dynamic resolution</strong> under Settings â†’ Performance.${mobileTip}</span>` +
     `<button class="perf-suggestion__close" aria-label="Dismiss">${ICON_CLOSE_X_SVG}</button>`;
   document.body.appendChild(toast);
 
@@ -7919,7 +5763,7 @@ function resetPerfSuggestion(): void {
   document.getElementById("perf-suggestion")?.remove();
 }
 
-// ── Header overflow indicator ─────────────────────────────────────────────────
+// â”€â”€ Header overflow indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function updateHeaderOverflow(): void {
   const actions = document.getElementById("header-actions");
@@ -7929,7 +5773,7 @@ function updateHeaderOverflow(): void {
   });
 }
 
-// ── State-driven DOM updates ──────────────────────────────────────────────────
+// â”€â”€ State-driven DOM updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function updateStatusDot(state: EmulatorState): void {
   const dot   = document.getElementById("status-dot");
@@ -7937,7 +5781,7 @@ function updateStatusDot(state: EmulatorState): void {
   if (!dot || !label) return;
   const labels: Record<EmulatorState, string> = {
     idle: "Ready",
-    loading: "Loading…",
+    loading: "Loadingâ€¦",
     running: "Playing",
     paused: "Paused",
     error: "Something went wrong"
@@ -7946,7 +5790,7 @@ function updateStatusDot(state: EmulatorState): void {
   label.textContent = labels[state];
   if (state === "loading") showLoadingOverlay();
 
-  // Show/hide the "Playing: …" items in footer
+  // Show/hide the "Playing: â€¦" items in footer
   const isActive = state === "running" || state === "paused";
   const sysItem  = document.getElementById("status-system-item");
   const sysLabel = document.getElementById("status-system-label");
@@ -7955,7 +5799,7 @@ function updateStatusDot(state: EmulatorState): void {
   if (sysLabel) sysLabel.classList.toggle("status-item--hidden", !isActive);
   if (tierItem) tierItem.classList.toggle("status-item--hidden", !isActive);
 
-  if (state === "idle" || state === "error") { setStatusGame("—"); setStatusSystem("—"); setStatusTier(null); }
+  if (state === "idle" || state === "error") { setStatusGame("â€”"); setStatusSystem("â€”"); setStatusTier(null); }
 }
 
 
@@ -7971,581 +5815,6 @@ function setLoadingProgress(percent: number | null): void {
     bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
   }
 }
-
-/**
- * Dialog wizard for adding a new cloud library source.
- *
- * Step 1 — pick a provider from the visual grid.
- * Step 2 — enter a connection name and the credentials for that provider.
- *
- * On success, appends the new CloudLibraryConnection to settings and calls
- * onSettingsChange so the tab re-renders.
- */
-function showAddCloudLibraryDialog(
-  settings:         Settings,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-  rebuildTab:       () => void,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
-    const box = make("div", {
-      class: "confirm-box cloud-wizard-box",
-      role:  "dialog",
-      "aria-modal": "true",
-      "aria-label": "Add Cloud Library Source",
-    });
-
-    const close = () => {
-      document.removeEventListener("keydown", onKeydown, { capture: true });
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
-      resolve();
-    };
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); close(); }
-    };
-    document.addEventListener("keydown", onKeydown, { capture: true });
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-
-    // ── Step 1: Provider picker ───────────────────────────────────────────────
-
-    const renderStep1 = () => {
-      box.innerHTML = "";
-      const titleId = cloudWizardHeadingId();
-      box.setAttribute("aria-labelledby", titleId);
-      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Add Cloud Library Source"));
-      box.appendChild(make("p", { class: "confirm-box__body" },
-        "Choose a cloud provider. Remote games will appear in your library alongside local files."
-      ));
-
-      const grid = make("div", { class: "cloud-provider-grid" });
-      for (const p of CLOUD_LIBRARY_PROVIDERS) {
-        const card = make("button", {
-          class: "cloud-provider-card",
-          type:  "button",
-          "aria-label": p.label,
-        }) as HTMLButtonElement;
-        card.appendChild(cloudProviderPickerIconEl(p.id));
-        card.appendChild(make("span", { class: "cloud-provider-card__label" }, p.label));
-        card.addEventListener("click", () => renderStep2(p.id));
-        grid.appendChild(card);
-      }
-      box.appendChild(grid);
-
-      const actions = make("div", { class: "confirm-box__actions" });
-      const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-      cancelBtn.addEventListener("click", close);
-      actions.appendChild(cancelBtn);
-      box.appendChild(actions);
-    };
-
-    // ── Step 2: Credential form ───────────────────────────────────────────────
-
-    const renderStep2 = (providerId: string) => {
-      box.innerHTML = "";
-      const meta = CLOUD_LIBRARY_PROVIDERS.find(p => p.id === providerId);
-      if (!meta) { close(); return; }
-      const stepTitleId = cloudWizardHeadingId();
-      box.setAttribute("aria-labelledby", stepTitleId);
-      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} library`));
-
-      const form = make("div", { class: "cloud-wizard-form" });
-
-      // Connection name
-      const nameInp = make("input", {
-        type:        "text",
-        id:          "cld-name",
-        class:       "settings-input",
-        placeholder: `My ${meta.label} Library`,
-        autocomplete: "off",
-      }) as HTMLInputElement;
-      appendCloudWizardLabeledField(form, "Display Name", nameInp, "display name");
-      form.appendChild(make("p", { class: "settings-help" }, "This name will appear in your library filters."));
-
-      type LibCredResult = { ok: false; error: string } | { ok: true; config: CloudLibraryConnection["config"] };
-      let getCredentials: () => LibCredResult = () => ({
-        ok: true,
-        config: "{}",
-      });
-
-      if (providerId === "webdav") {
-        const urlInp  = make("input", { type: "url",      id: "cld-url",  class: "settings-input", placeholder: "https://dav.example.com/roms", autocomplete: "off" }) as HTMLInputElement;
-        const userInp = make("input", { type: "text",     id: "cld-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
-        appendCloudWizardLabeledField(form, "Username", userInp, "username");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        getCredentials = () => {
-          const url  = urlInp.value.trim();
-          const user = userInp.value.trim();
-          const pass = passInp.value;
-          if (!url)  return { ok: false, error: "Server URL is required.", config: "{}" };
-          if (!user) return { ok: false, error: "Username is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ url, username: user, password: pass }) };
-        };
-
-      } else if (providerId === "pcloud") {
-        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: "pCloud access token", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-
-        const regionRow = make("div", { class: "settings-input-row" });
-        const regionSel = make("select", { id: "cld-region", class: "settings-input" }) as HTMLSelectElement;
-        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "us", textContent: "US" }));
-        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "eu", textContent: "EU" }));
-        regionRow.append(make("label", { class: "settings-input-label", for: "cld-region" }, "Region"), regionSel);
-
-        form.append(regionRow);
-        getCredentials = () => {
-          const token  = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ accessToken: token, region: regionSel.value }) };
-        };
-
-      } else if (providerId === "blomp") {
-        const userInp = make("input", { type: "text",     id: "cld-user",      class: "settings-input", placeholder: "Blomp username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "cld-pass",      class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        const containerInp = make("input", { type: "text", id: "cld-container", class: "settings-input", placeholder: "retrooasis", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Username", userInp, "username");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        appendCloudWizardLabeledField(form, "Container (optional)", containerInp, "container name");
-        getCredentials = () => {
-          const user = userInp.value.trim();
-          if (!user) return { ok: false, error: "Username is required.", config: "{}" };
-          const container = containerInp.value.trim() || "retrooasis";
-          return { ok: true, config: JSON.stringify({ username: user, password: passInp.value, container }) };
-        };
-
-      } else if (providerId === "onedrive") {
-        const tokenInp = make("input", { type: "text", id: "cld-token",  class: "settings-input", placeholder: "OneDrive access token", autocomplete: "off" }) as HTMLInputElement;
-        const rootInp = make("input", { type: "text", id: "cld-rootid", class: "settings-input", placeholder: "root (optional)", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", rootInp, "root folder ID");
-        getCredentials = () => {
-          const token = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ accessToken: token, rootId: rootInp.value.trim() || undefined }) };
-        };
-
-      } else if (providerId === "box") {
-        const tokenInp = make("input", { type: "text", id: "cld-token",  class: "settings-input", placeholder: "Box OAuth access token", autocomplete: "off" }) as HTMLInputElement;
-        const folderInp = make("input", { type: "text", id: "cld-folder", class: "settings-input", placeholder: "0 (root)", autocomplete: "off" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", folderInp, "folder ID");
-        getCredentials = () => {
-          const token = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ accessToken: token, rootFolderId: folderInp.value.trim() || "0" }) };
-        };
-
-      } else if (providerId === "mega") {
-        const emailInp = make("input", { type: "email", id: "cld-email", class: "settings-input", placeholder: "MEGA email address", autocomplete: "email" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
-        appendCloudWizardLabeledField(form, "Email", emailInp, "email");
-        appendCloudWizardLabeledField(form, "Password", passInp, "password");
-        getCredentials = () => {
-          const email = emailInp.value.trim();
-          const pass  = passInp.value;
-          if (!email) return { ok: false, error: "Email is required.", config: "{}" };
-          if (!pass)  return { ok: false, error: "Password is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ megaEmail: email, megaPassword: pass }) };
-        };
-
-      } else {
-        // gdrive, dropbox — OAuth sign-in button + manual access token fallback
-        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
-
-        appendOAuthSignInButton({
-          providerId,
-          providerLabel: meta.label,
-          container: form,
-          tokenInput: tokenInp,
-          getErrorEl: () => errorMsg,
-        });
-
-        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
-        getCredentials = () => {
-          const token = tokenInp.value.trim();
-          if (!token) return { ok: false, error: "Access token is required.", config: "{}" };
-          return { ok: true, config: JSON.stringify({ accessToken: token }) };
-        };
-      }
-
-      box.appendChild(form);
-
-      const errorMsg = make("p", { class: "cloud-wizard-error", "aria-live": "assertive" });
-      errorMsg.hidden = true;
-      box.appendChild(errorMsg);
-
-      const actions = make("div", { class: "confirm-box__actions" });
-      const backBtn  = make("button", { class: "btn" }, "← Back") as HTMLButtonElement;
-      const saveBtn  = make("button", { class: "btn btn--primary" }, "Add Source") as HTMLButtonElement;
-      actions.append(backBtn, saveBtn);
-      box.appendChild(actions);
-
-      backBtn.addEventListener("click", () => renderStep1());
-
-      saveBtn.addEventListener("click", () => {
-        void (async () => {
-          const creds = getCredentials();
-          if (!creds.ok) {
-            errorMsg.textContent = creds.error;
-            errorMsg.hidden = false;
-            return;
-          }
-          errorMsg.hidden = true;
-
-          const probe = createProvider({
-            provider: providerId as CloudLibraryConnection["provider"],
-            config: creds.config,
-          });
-          if (!probe) {
-            errorMsg.textContent =
-              "Those details could not be assembled into a valid connection. Double-check every field.";
-            errorMsg.hidden = false;
-            return;
-          }
-
-          const prevLabel = saveBtn.textContent;
-          saveBtn.disabled = true;
-          saveBtn.textContent = "Verifying…";
-
-          try {
-            if (!(await probe.isAvailable())) {
-              errorMsg.textContent =
-                "Cannot reach this provider right now. Check the URL or token, fix typos, then try again.";
-              errorMsg.hidden = false;
-              return;
-            }
-
-            const connName = nameInp.value.trim() || meta.label;
-            const newConn: CloudLibraryConnection = {
-              id:       createUuid(),
-              provider: providerId as CloudLibraryConnection["provider"],
-              name:     connName,
-              enabled:  true,
-              config:   creds.config,
-            };
-
-            onSettingsChange({ cloudLibraries: [...settings.cloudLibraries, newConn] });
-            rebuildTab();
-            close();
-          } catch (e) {
-            errorMsg.textContent =
-              e instanceof Error ? e.message : "Could not verify this connection.";
-            errorMsg.hidden = false;
-          } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = prevLabel ?? "Add Source";
-          }
-        })();
-      });
-    };
-
-    // Kick off step 1
-    renderStep1();
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-  });
-}
-
-
-function buildCloudTab(
-  container:        HTMLElement,
-  settings:         Settings,
-  library:          GameLibrary,
-  onSettingsChange: (patch: Partial<Settings>) => void,
-): void {
-  container.innerHTML = "";
-  const netOffline = typeof navigator !== "undefined" && !navigator.onLine;
-  const cloudStorageHeadingId = "settings-cloud-storage-heading";
-  const cloudSaveBackupHeadingId = "settings-cloud-save-backup-heading";
-  const cloudLibrarySourcesHeadingId = "settings-cloud-library-sources-heading";
-  const cloudOauthKeysHeadingId = "settings-cloud-oauth-keys-heading";
-  const cloudOauthKeysHelpId = "settings-cloud-oauth-keys-help";
-
-  const section = make("div", {
-    class: "settings-section",
-    role: "region",
-    "aria-labelledby": cloudStorageHeadingId,
-  });
-  section.appendChild(make("h4", {
-    class: "settings-section__title",
-    id: cloudStorageHeadingId,
-  }, "Cloud Storage"));
-  section.appendChild(make("p", { class: "settings-section__desc" }, `${APP_NAME} uses cloud storage in two independent ways: cloud save-state backup mirrors RetroOasis snapshots, and cloud library sources add remote games beside your local ROMs.`));
-
-  const overview = make("div", { class: "cloud-storage-overview" });
-
-  const saveCard = make("div", { class: "cloud-storage-card" });
-  saveCard.innerHTML = `
-    <div class="cloud-storage-card__eyebrow">Cloud save states</div>
-    <h5 class="cloud-storage-card__title">Mirror progress, keep local ownership</h5>
-    <p class="cloud-storage-card__body">Save states stay in your browser first. When cloud backup is connected, ${APP_NAME} mirrors those snapshots to the provider you chose. In-game save files still remain managed by the core.</p>
-  `;
-
-  const libraryCard = make("div", { class: "cloud-storage-card" });
-  libraryCard.innerHTML = `
-    <div class="cloud-storage-card__eyebrow">Cloud library</div>
-    <h5 class="cloud-storage-card__title">Add remote games next to local ROMs</h5>
-    <p class="cloud-storage-card__body">Remote games are indexed as their own entries, so they can sit alongside files stored on this device without replacing them.</p>
-  `;
-
-  overview.append(saveCard, libraryCard);
-  section.appendChild(overview);
-
-  // ── Cloud save backup section ───────────────────────────────────────────────
-
-  const cloudManager = getCloudSaveManager();
-  const cloudSaveTitleEl = () => make("h5", {
-    class: "cloud-library-section__title",
-    id: cloudSaveBackupHeadingId,
-  }, "Cloud Save Backup");
-
-  const saveSection = make("div", {
-    class: "cloud-library-section",
-    role: "region",
-    "aria-labelledby": cloudSaveBackupHeadingId,
-  });
-  saveSection.appendChild(cloudSaveTitleEl());
-
-  const buildSaveStatus = () => {
-    const statusRow = make("div", { class: "cloud-save-status-row" });
-
-    if (cloudManager.isConnected()) {
-      const provLabel = getCloudProviderLabel(cloudManager.providerId);
-      const statusDot = make("span", { class: "cloud-connection-item__status status--online" }, "● Connected");
-      const provName  = make("span", { class: "cloud-save-status__provider" }, `${provLabel} backup active`);
-      const lastSync  = cloudManager.lastSyncAt
-        ? make("span", { class: "cloud-save-status__lastsync" }, `Last sync: ${formatRelativeTime(cloudManager.lastSyncAt)}`)
-        : make("span", { class: "cloud-save-status__lastsync" }, "Save states will be mirrored after your next RetroOasis save.");
-      const disconnectBtn = make("button", {
-        class: "btn btn--sm",
-        type: "button",
-        "aria-label": `Disconnect cloud save backup (${provLabel})`,
-      }, "Disconnect") as HTMLButtonElement;
-      disconnectBtn.addEventListener("click", () => {
-        cloudManager.disconnect();
-        saveSection.innerHTML = "";
-        saveSection.appendChild(cloudSaveTitleEl());
-        saveSection.appendChild(buildSaveStatus());
-      });
-      statusRow.append(statusDot, provName, lastSync, disconnectBtn);
-      if (cloudManager.lastError) {
-        statusRow.appendChild(make("p", {
-          class: "cloud-save-status__error",
-          role: "status",
-          "aria-live": "polite",
-        }, `Last backup issue: ${cloudManager.lastError}`));
-      }
-    } else {
-      const hint = make("p", { class: "settings-help" },
-        "Save states live in your browser. Connect a cloud provider to keep those RetroOasis snapshots backed up and accessible on other devices."
-      );
-      const connectBtn = make("button", {
-        class: "btn btn--primary",
-        type: "button",
-        "aria-label": `Connect cloud backup — ${APP_NAME} will open a dialog to choose a cloud provider`,
-      }, "Connect cloud backup") as HTMLButtonElement;
-      connectBtn.addEventListener("click", () => {
-        void showCloudConnectDialog().then(connected => {
-          if (connected) {
-            saveSection.innerHTML = "";
-            saveSection.appendChild(cloudSaveTitleEl());
-            saveSection.appendChild(buildSaveStatus());
-          }
-        });
-      });
-      if (netOffline) {
-        connectBtn.disabled = true;
-        connectBtn.title = "Connect when you're back online";
-      }
-      statusRow.append(hint, connectBtn);
-    }
-
-    return statusRow;
-  };
-
-  saveSection.appendChild(buildSaveStatus());
-  section.appendChild(saveSection);
-
-  // ── Cloud library sources section ──────────────────────────────────────────
-
-  const rebuildTab = () => buildCloudTab(container, settings, library, onSettingsChange);
-
-  const list = make("div", { class: "cloud-connection-list" });
-
-  const librarySection = make("div", {
-    class: "cloud-library-section",
-    role: "region",
-    "aria-labelledby": cloudLibrarySourcesHeadingId,
-  });
-  librarySection.appendChild(make("h5", {
-    class: "cloud-library-section__title",
-    id: cloudLibrarySourcesHeadingId,
-  }, "Cloud Library Sources"));
-  librarySection.appendChild(make("p", { class: "settings-help" },
-    "Connect a remote folder below — supported ROM filenames in that folder’s root are indexed beside your local games. Nested subfolders are not scanned yet."));
-
-  if (settings.cloudLibraries.length === 0) {
-    const empty = make("div", { class: "cloud-connection-empty" });
-    empty.innerHTML = `<p>No cloud library sources connected yet.</p><p>Your local library still works normally. Add a cloud source to browse remote games alongside it.</p>`;
-    list.appendChild(empty);
-  } else {
-    settings.cloudLibraries.forEach((conn) => {
-      const item   = make("div", { class: "cloud-connection-item" });
-      const info   = make("div", { class: "cloud-connection-item__info" });
-      info.appendChild(make("strong", {}, conn.name));
-      info.appendChild(make("span", {}, getCloudProviderLabel(conn.provider)));
-
-      const statusDot = make("span", { class: "cloud-connection-item__status" }, "● Checking…");
-      info.appendChild(statusDot);
-
-      // Async availability check — update badge once resolved
-      const provider = createProvider(conn);
-      if (provider) {
-        provider.isAvailable().then(ok => {
-          statusDot.textContent = ok ? "● Ready" : "● Unavailable";
-          statusDot.className   = `cloud-connection-item__status ${ok ? "status--online" : "status--offline"}`;
-        }).catch(() => {
-          statusDot.textContent = "● Unavailable";
-          statusDot.className   = "cloud-connection-item__status status--offline";
-        });
-      } else {
-        statusDot.textContent = "● Config error";
-        statusDot.className   = "cloud-connection-item__status status--offline";
-      }
-
-      const actions = make("div", { class: "cloud-connection-item__actions" });
-
-      const syncBtn = make("button", {
-        class: "btn btn--sm",
-        type: "button",
-        "aria-label": `Sync remote games from ${conn.name}`,
-      }, "↻ Sync");
-      syncBtn.addEventListener("click", () => { void syncCloudLibrary(conn, library, syncBtn); });
-      if (netOffline) {
-        syncBtn.disabled = true;
-        syncBtn.title = "Requires an internet connection";
-      }
-
-      const removeBtn = make("button", {
-        class: "btn btn--sm btn--danger",
-        type: "button",
-        "aria-label": `Remove cloud library source ${conn.name}`,
-      }, "Remove");
-      removeBtn.addEventListener("click", () => {
-        const filtered = settings.cloudLibraries.filter(c => c.id !== conn.id);
-        onSettingsChange({ cloudLibraries: filtered });
-        rebuildTab();
-      });
-
-      actions.append(syncBtn, removeBtn);
-      item.append(info, actions);
-      list.appendChild(item);
-    });
-  }
-
-  const addBtn = make("button", {
-    class: "btn btn--primary cloud-connection-add",
-    type: "button",
-    "aria-label": "Add a new cloud library source",
-  }, "+ Connect New Source");
-  addBtn.addEventListener("click", () => {
-    void showAddCloudLibraryDialog(settings, onSettingsChange, rebuildTab);
-  });
-  if (netOffline) {
-    addBtn.disabled = true;
-    addBtn.title = "Requires an internet connection";
-  }
-
-  librarySection.append(list, addBtn);
-  section.append(librarySection);
-
-  // ── OAuth App Keys section ────────────────────────────────────────────────
-  // Lets the deployer / power-user configure OAuth client IDs so the
-  // "Sign in with…" button appears in the provider dialogs above.
-
-  const oauthSection = make("div", {
-    class: "cloud-library-section",
-    role: "region",
-    "aria-labelledby": cloudOauthKeysHeadingId,
-  });
-  oauthSection.appendChild(make("h5", {
-    class: "cloud-library-section__title",
-    id: cloudOauthKeysHeadingId,
-  }, "OAuth App Keys (optional)"));
-  oauthSection.appendChild(make("p", {
-    class: "settings-help",
-    id: cloudOauthKeysHelpId,
-  },
-    "If you have your own Google or Dropbox OAuth app, paste the client ID / app key here (or use Paste next to each field). " +
-    "This enables a \"Sign in with…\" button so you can authenticate with one click instead of pasting tokens manually."
-  ));
-
-  const gIdRow = make("div", { class: "settings-input-row" });
-  const gIdLine = make("div", { class: "settings-input-paste-line" });
-  const gIdInp = make("input", {
-    type: "text",
-    id: "oauth-google-client-id",
-    class: "settings-input",
-    placeholder: "Google OAuth Client ID",
-    autocomplete: "off",
-    "aria-describedby": cloudOauthKeysHelpId,
-  }) as HTMLInputElement;
-  gIdInp.value = getGoogleClientId();
-  const gIdPaste = make("button", {
-    type: "button",
-    class: "btn btn--ghost btn--sm",
-    "aria-label": "Paste Google OAuth Client ID from clipboard",
-    title: "Insert text from the clipboard",
-  }, "Paste") as HTMLButtonElement;
-  gIdPaste.addEventListener("click", () => pasteIntoCloudWizardInput(gIdInp, "Google Client ID"));
-  gIdLine.append(gIdInp, gIdPaste);
-  gIdRow.append(
-    make("label", { class: "settings-input-label", for: "oauth-google-client-id" }, "Google Client ID"),
-    gIdLine,
-  );
-
-  const dbKeyRow = make("div", { class: "settings-input-row" });
-  const dbKeyLine = make("div", { class: "settings-input-paste-line" });
-  const dbKeyInp = make("input", {
-    type: "text",
-    id: "oauth-dropbox-app-key",
-    class: "settings-input",
-    placeholder: "Dropbox App Key",
-    autocomplete: "off",
-    "aria-describedby": cloudOauthKeysHelpId,
-  }) as HTMLInputElement;
-  dbKeyInp.value = getDropboxAppKey();
-  const dbKeyPaste = make("button", {
-    type: "button",
-    class: "btn btn--ghost btn--sm",
-    "aria-label": "Paste Dropbox App Key from clipboard",
-    title: "Insert text from the clipboard",
-  }, "Paste") as HTMLButtonElement;
-  dbKeyPaste.addEventListener("click", () => pasteIntoCloudWizardInput(dbKeyInp, "Dropbox App Key"));
-  dbKeyLine.append(dbKeyInp, dbKeyPaste);
-  dbKeyRow.append(
-    make("label", { class: "settings-input-label", for: "oauth-dropbox-app-key" }, "Dropbox App Key"),
-    dbKeyLine,
-  );
-
-  const oauthSaveBtn = make("button", { class: "btn btn--sm", type: "button" }, "Save Keys") as HTMLButtonElement;
-  oauthSaveBtn.addEventListener("click", () => {
-    setGoogleClientId(gIdInp.value);
-    setDropboxAppKey(dbKeyInp.value);
-    oauthSaveBtn.textContent = "Saved";
-    setTimeout(() => { oauthSaveBtn.textContent = "Save Keys"; }, 1500);
-  });
-
-  oauthSection.append(gIdRow, dbKeyRow, oauthSaveBtn);
-  section.appendChild(oauthSection);
-
-  container.appendChild(section);
-}
-
 
 async function fetchFromCloud(game: GameMetadata, settings: Settings): Promise<Blob> {
   const conn = settings.cloudLibraries.find(c => c.id === game.cloudId);
@@ -8602,87 +5871,8 @@ async function fetchFromCloud(game: GameMetadata, settings: Settings): Promise<B
   return new Blob(chunks);
 }
 
-/** Prevents overlapping manual sync runs for the same connection. */
-const _cloudLibrarySyncConnIds = new Set<string>();
 
-async function syncCloudLibrary(
-  conn: CloudLibraryConnection,
-  library: GameLibrary,
-  syncTrigger?: HTMLButtonElement,
-): Promise<void> {
-  if (_cloudLibrarySyncConnIds.has(conn.id)) return;
-  _cloudLibrarySyncConnIds.add(conn.id);
-
-  const provider = createProvider(conn);
-  if (!provider) {
-    _cloudLibrarySyncConnIds.delete(conn.id);
-    showError("This connection is missing required fields. Edit or remove it and add the source again.");
-    return;
-  }
-
-  if (syncTrigger) {
-    syncTrigger.disabled = true;
-    syncTrigger.setAttribute("aria-busy", "true");
-    syncTrigger.classList.add("is-loading");
-  }
-
-  showLoadingOverlay();
-  setLoadingMessage(`Syncing ${conn.name}…`);
-  try {
-    if (!(await provider.isAvailable())) {
-      throw new Error(
-        "Could not reach this provider. Check the network, token expiry, or reconnect the source in Settings → Cloud Storage.",
-      );
-    }
-
-    setLoadingSubtitle("Scanning root folder for playable files…");
-    const files = await provider.listFiles();
-    const romFiles = files.filter((f) => !f.isDirectory && detectSystem(f.name));
-
-    setLoadingSubtitle(`Found ${romFiles.length} matching file(s). Updating library…`);
-
-    for (const f of romFiles) {
-      const res = detectSystem(f.name);
-      if (res) {
-        const sys = Array.isArray(res) ? res[0] : res;
-        if (!sys) continue;
-        const systemId = sys.id;
-        await library.upsertVirtualGame(
-          f.name.replace(/\.[^.]+$/, ""),
-          f.name,
-          systemId,
-          f.size,
-          conn.id,
-          f.path,
-          f.thumbnailUrl
-        );
-      }
-    }
-
-    if (romFiles.length === 0) {
-      showInfoToast(
-        `Connected to ${conn.name}, but no supported ROM extensions were found in the root folder. Add files there or nested-folder listing is not run yet.`,
-        "info",
-      );
-    } else {
-      showInfoToast(`Synced ${romFiles.length} game file(s) from ${conn.name}.`, "success");
-    }
-    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Cloud library sync failed.";
-    showError(message);
-  } finally {
-    _cloudLibrarySyncConnIds.delete(conn.id);
-    hideLoadingOverlay();
-    if (syncTrigger) {
-      syncTrigger.disabled = false;
-      syncTrigger.removeAttribute("aria-busy");
-      syncTrigger.classList.remove("is-loading");
-    }
-  }
-}
-
-// ── Visibility helpers ────────────────────────────────────────────────────────
+// â”€â”€ Visibility helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function hideLanding(): void    { el("#landing").classList.add("hidden"); }
 function showLanding(): void    { el("#landing").classList.remove("hidden"); }
@@ -8716,6 +5906,31 @@ function transitionToGame(): void {
     _libraryGamepadRafId = null;
   }
   hideLanding();
+  // Ensure the settings panel is hidden so its text does not leak into
+  // the in-game status header or overlay.
+  const settingsPanel = document.getElementById("settings-panel");
+  if (settingsPanel && !settingsPanel.hidden) {
+    settingsPanel.hidden = true;
+    if (_settingsPanelEscHandler) {
+      document.removeEventListener("keydown", _settingsPanelEscHandler);
+      _settingsPanelEscHandler = null;
+    }
+    if (_settingsPanelFocusTrap) {
+      document.removeEventListener("keydown", _settingsPanelFocusTrap);
+      _settingsPanelFocusTrap = null;
+    }
+    if (_settingsPanelSearchShortcutHandler) {
+      document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
+      _settingsPanelSearchShortcutHandler = null;
+    }
+    _settingsTabBarRo?.disconnect();
+    _settingsTabBarRo = null;
+    _settingsContentCleanups.forEach((fn) => {
+      try { fn(); } catch { /* ignore stale settings cleanup */ }
+    });
+    _settingsContentCleanups = [];
+    _settingsContentToken += 1;
+  }
   requestAnimationFrame(() => showEjsContainer());
 }
 
@@ -8742,7 +5957,7 @@ export function setLoadingSubtitle(msg: string): void {
 }
 function setStatusGame(name: string): void    { const e = document.getElementById("status-game");    if (e) e.textContent = name; }
 function setStatusSystem(name: string): void  { const e = document.getElementById("status-system");  if (e) e.textContent = name; }
-function setStatusTier(tier: PerformanceTier | null): void { const e = document.getElementById("status-tier"); if (e) e.textContent = tier ? formatTierLabel(tier) : "—"; }
+function setStatusTier(tier: PerformanceTier | null): void { const e = document.getElementById("status-tier"); if (e) e.textContent = tier ? formatTierLabel(tier) : "â€”"; }
 
 let _errorDismissTimer: ReturnType<typeof setTimeout> | null = null;
 const ERROR_DISMISS_TIMEOUT_MS = 12_000;
@@ -8784,7 +5999,7 @@ function friendlyErrorMessage(msg: string): string {
     return "Game file not found. The file may have been deleted from this browser.\n\nTry adding the game again from your device.";
   }
   if (m.includes("quota") || m.includes("storage") || m.includes("no space")) {
-    return "Not enough storage space to save this game. Try clearing some old games or saves in Settings → My Games.";
+    return "Not enough storage space to save this game. Try clearing some old games or saves in Settings â†’ My Games.";
   }
   if (m.includes("network") || m.includes("fetch") || m.includes("failed to load")) {
     return "Couldn't load a required file. Check your internet connection and try again.";
@@ -8793,7 +6008,7 @@ function friendlyErrorMessage(msg: string): string {
     return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nIf it fails, try another title, lower the load on your device, and make sure both Dreamcast BIOS files are installed.";
   }
   if (m.includes("bios") || m.includes("startup file")) {
-    return "This game needs a startup file (BIOS). Go to Settings → System Files to add one.";
+    return "This game needs a startup file (BIOS). Go to Settings â†’ System Files to add one.";
   }
   return msg; // Return original if no friendly mapping found
 }
@@ -8943,4 +6158,4 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   scheduleToastDismiss();
 }
 
-// ── Test helpers ──────────────────────────────────────────────────────────────
+// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

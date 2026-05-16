@@ -141,7 +141,7 @@ minify/               Minification tooling
 index.html            App entry point
 vite.config.ts        Dev / build configuration
 vitest.config.ts      Test runner configuration
-ROADMAP.md            Planned improvements and upcoming work
+docs/ROADMAP.md       Planned improvements and upcoming work
 guide.md              Static-host deployment guide
 ```
 
@@ -299,22 +299,7 @@ Open a GitHub issue with the output of "Copy Debug Info" from the Settings → D
 
 ## Roadmap
 
-RetroOasis tracks planned work in [`ROADMAP.md`](ROADMAP.md). Current priorities are:
-
-**Technical Debt & Modernisation**
-
-- **Architectural componentization** — `ui.ts` (~7000 lines) is being split into a feature-based module system. `src/ui/` already contains extracted UI components; further extraction into `src/modules/` is planned.
-- **State management** — Introducing a centralised `RetroOasisStore` with an Observer pattern to replace prop-drilling and prevent unnecessary full-page re-renders.
-- **Testing & CI** — Moving toward Playwright integration tests for critical user journeys (Add ROM → Play → Save → Cloud Sync) alongside the existing Vitest unit suite.
-
-**Netplay & Online UX Overhaul**
-
-- **Visual lobby browser** — Replace raw IP entry with a room-grid UI showing the game being played, player counts, and region-based latency.
-- **"Play Together" share links** — Instant session invitations via deep-link URL that auto-launch the emulator and load the correct game.
-- **In-game social overlay** — Non-intrusive chat, ping radar, and desync-protection indicator accessible during gameplay.
-- **Advanced networking** — Full STUN/TURN NAT punching and rollback netplay depth controls for supported cores.
-
-See [`ROADMAP.md`](ROADMAP.md) for the full phase-by-phase breakdown.
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full breakdown of what's shipped, what's in progress, and what's planned across all areas.
 
 ## Contributing
 
