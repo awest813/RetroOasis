@@ -162,16 +162,21 @@ These items have partial implementation or active work in the codebase.
 | Area | Item | Status |
 |------|------|--------|
 | **UI refactor** | Extract layout helpers (`make`, `el`) into `src/ui/dom.ts` | DONE |
-| | Settings tabs separated into `src/ui/settingsTabs.ts` | DONE (one file, not per-tab) |
-| | `UIDirtyTracker` integrated into DevOverlay | DONE |
-| | VirtualGrid integrated into library | DONE |
-| | Split remaining monolithic `src/ui.ts` (~8900 lines) into modules | NOT STARTED |
-| | Move tabs to `src/ui/tabs/` | NOT STARTED |
-| | Move screens to `src/ui/screens/` | NOT STARTED |
-| | Move widgets to `src/ui/widgets/` | NOT STARTED |
-| | Introduce `UIManager` top-level coordinator | NOT STARTED |
-| | Introduce centralized `InputRouter` | NOT STARTED |
-| | Wire `UIDirtyTracker` into library, header, overlay paths | NOT STARTED |
+| | Settings tabs separated into `src/ui/settingsTabs.ts` | DONE |
+| | Toasts/loading/feature-pills → `toasts.ts`, `loadingOverlay.ts`, `systemFeatures.ts` | DONE |
+| | Tabs → `src/ui/tabs/` (PerfTab, DisplayTab, LibraryTab, CloudTab, MultiplayerTab, DebugTab) | DONE |
+| | Centralized `InputRouter` in `src/ui/InputRouter.ts` | DONE |
+| | Easy Netplay modal → `src/ui/easyNetplayModal.ts` (1,115 lines) | DONE |
+| | Import helpers → `src/ui/gameImportHelpers.ts` (140 lines) | DONE |
+| | `systemIcon`/`escHtml` → `src/ui/viewHelpers.ts` | DONE |
+| | `buildGameCard` → `src/ui/widgets/gameCard.ts` (605 lines) | DONE |
+| | Split remaining monolithic `src/ui.ts` (~8,946→2,610 lines) into modules | PARTIAL (2,610 lines remain) |
+| | Extract settings panel shell → `src/ui/screens/settingsPanel.ts` (~440 lines) | DONE |
+| | Extract library gamepad navigation → `src/ui/widgets/libraryNav.ts` (~370 lines) | DONE |
+| | Extract `resolveSystemAndAdd` + import pipeline → `src/ui/screens/gameImport.ts` (~530 lines) | DONE |
+| | Extract FPS overlay + perf suggestion → `src/ui/widgets/fpsOverlay.ts` (~110 lines) | DONE |
+| | Introduce `UIManager` top-level coordinator | PENDING |
+| | Wire `UIDirtyTracker` into library, header, overlay paths | PENDING |
 | **UX polish** | UI scale slider (`--ui-scale`) | NOT STARTED |
 | | Font size preference (`--font-scale`) | NOT STARTED |
 | | High-contrast mode toggle | NOT STARTED |
