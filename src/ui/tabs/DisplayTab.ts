@@ -93,6 +93,35 @@ export function buildDisplayTab(
 
   container.append(overlaySection, audioSection);
 
+  // UI Scale section
+  const uiScaleSection = make("div", { class: "settings-section" });
+  uiScaleSection.appendChild(make("h4", { class: "settings-section__title" }, "UI Scale"));
+  uiScaleSection.appendChild(make("p", { class: "settings-help" },
+    "Adjust the size of all UI elements. Useful for tablets, Chromebooks, or if text feels too small."
+  ));
+
+  const uiScaleRow = make("div", { class: "settings-control-row" });
+  const uiScaleLabel = make("span", { class: "settings-control-label" }, "Scale:");
+  const uiScaleInp = make("input", {
+    type: "range", min: "80", max: "150", step: "5",
+    value: String(Math.round(settings.uiScale * 100)),
+    class: "settings-control-field",
+    "aria-label": "UI scale",
+  }) as HTMLInputElement;
+  const uiScaleVal = make("span", { class: "settings-control-value" }, `${Math.round(settings.uiScale * 100)}%`);
+  uiScaleInp.addEventListener("input", () => {
+    const pct = parseInt(uiScaleInp.value, 10);
+    uiScaleVal.textContent = `${pct}%`;
+  });
+  uiScaleInp.addEventListener("change", () => {
+    const scale = parseInt(uiScaleInp.value, 10) / 100;
+    onSettingsChange({ uiScale: scale });
+  });
+  uiScaleRow.append(uiScaleLabel, uiScaleInp, uiScaleVal);
+  uiScaleSection.appendChild(uiScaleRow);
+
+  container.appendChild(uiScaleSection);
+
   // WebGPU section — appended last so Overlays and Mobile always appear first
   if (deviceCaps.webgpuAvailable) {
     const gpuSection = make("div", { class: "settings-section" });

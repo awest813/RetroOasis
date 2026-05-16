@@ -56,6 +56,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     libraryGrouped: true,
     recordPlayHistory: true,
     dynamicResolutionScaling: false,
+    uiScale: 1.0,
   };
   return {
     ...settings,
@@ -4732,5 +4733,88 @@ describe("showError — Escape key dismisses banner from any focus position", ()
 
     const banner = document.getElementById("error-banner");
     expect(banner?.classList.contains("visible")).toBe(true);
+  });
+});
+
+describe("UI scale slider", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows UI Scale section in Display tab", () => {
+    openSettingsPanel(
+      makeSettings(),
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      vi.fn(),
+      undefined, undefined, undefined, undefined,
+      "display",
+    );
+    const panel = document.getElementById("tab-panel-display")!;
+    const headings = Array.from(panel.querySelectorAll("h4")).map(h => h.textContent);
+    expect(headings).toContain("UI Scale");
+  });
+
+  it("shows 100% when uiScale is 1.0", () => {
+    openSettingsPanel(
+      makeSettings({ uiScale: 1.0 }),
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      vi.fn(),
+      undefined, undefined, undefined, undefined,
+      "display",
+    );
+    const panel = document.getElementById("tab-panel-display")!;
+    const uiScaleSection = Array.from(panel.querySelectorAll(".settings-section")).find(s =>
+      s.querySelector("h4")?.textContent === "UI Scale"
+    )!;
+    const valueEl = uiScaleSection.querySelector(".settings-control-value");
+    expect(valueEl?.textContent).toBe("100%");
+  });
+
+  it("shows 125% when uiScale is 1.25", () => {
+    openSettingsPanel(
+      makeSettings({ uiScale: 1.25 }),
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      vi.fn(),
+      undefined, undefined, undefined, undefined,
+      "display",
+    );
+    const panel = document.getElementById("tab-panel-display")!;
+    const uiScaleSection = Array.from(panel.querySelectorAll(".settings-section")).find(s =>
+      s.querySelector("h4")?.textContent === "UI Scale"
+    )!;
+    const valueEl = uiScaleSection.querySelector(".settings-control-value");
+    expect(valueEl?.textContent).toBe("125%");
+  });
+
+  it("calls onSettingsChange with uiScale when slider changes", () => {
+    const onSettingsChange = vi.fn();
+    openSettingsPanel(
+      makeSettings({ uiScale: 1.0 }),
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      onSettingsChange,
+      undefined, undefined, undefined, undefined,
+      "display",
+    );
+    const panel = document.getElementById("tab-panel-display")!;
+    const slider = panel.querySelector<HTMLInputElement>('input[type="range"][aria-label="UI scale"]');
+    expect(slider).not.toBeNull();
+    slider!.value = "125";
+    slider!.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onSettingsChange).toHaveBeenCalledWith({ uiScale: 1.25 });
   });
 });

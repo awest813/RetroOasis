@@ -63,6 +63,7 @@ export interface SettingsSlice {
   recordPlayHistory: boolean;
   coreOptions: Record<string, string>;
   dynamicResolutionScaling: boolean;
+  uiScale: number;
 }
 
 export interface CloudLibrarySlice {
@@ -158,6 +159,7 @@ function defaultSettings(): SettingsSlice {
     libraryGrouped: true,
     recordPlayHistory: true,
     dynamicResolutionScaling: false,
+    uiScale: 1.0,
   };
 }
 

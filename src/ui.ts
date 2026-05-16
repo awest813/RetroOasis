@@ -650,6 +650,9 @@ export function initUI(opts: UIOptions): void {
   };
 
   // ── Gamepad connection toast ───────────────────────────────────────────
+  // Apply initial UI scale
+  document.documentElement.style.setProperty("--ui-scale", String(settings.uiScale));
+
   const _onGamepadConnected = (e: Event) => {
     showInfoToast(`Gamepad connected: ${(e as GamepadEvent).gamepad.id}`, "info");
   };

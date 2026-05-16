@@ -177,8 +177,8 @@ These items have partial implementation or active work in the codebase.
 | | Extract FPS overlay + perf suggestion → `src/ui/widgets/fpsOverlay.ts` (~110 lines) | DONE |
 | | Introduce `UIManager` top-level coordinator | PENDING |
 | | Wire `UIDirtyTracker` into library, header, overlay paths | PENDING |
-| **UX polish** | UI scale slider (`--ui-scale`) | NOT STARTED |
-| | Font size preference (`--font-scale`) | NOT STARTED |
+ | **UX polish** | UI scale slider (`--ui-scale`) — Display tab, 80%-150%, persisted | DONE |
+ | | Font size preference (`--font-scale`) | NOT STARTED |
 | | High-contrast mode toggle | NOT STARTED |
 | | Controller navigation in settings panel | NOT STARTED |
 | | Colorblind-safe system badges | NOT STARTED |

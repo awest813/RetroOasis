@@ -82,4 +82,9 @@ export interface Settings {
    * Per-game graphics profiles can override with `drsEnabled`.
    */
   dynamicResolutionScaling: boolean;
+  /**
+   * UI scale multiplier (0.8–1.5). Applied via `--ui-scale` CSS variable
+   * to the root element so all layout tokens scale proportionally.
+   */
+  uiScale: number;
 }

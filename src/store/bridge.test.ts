@@ -37,6 +37,7 @@ function fullSettings(partial: Partial<SettingsSlice> = {}): SettingsSlice {
     recordPlayHistory: false,
     dynamicResolutionScaling: true,
     coreOptions: { psx_resolution: "2x" },
+    uiScale: 1.0,
     ...partial,
   };
 }

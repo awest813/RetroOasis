@@ -133,6 +133,7 @@ const DEFAULT_SETTINGS: Settings = {
   libraryGrouped: true,
   recordPlayHistory: true,
   dynamicResolutionScaling: false,
+  uiScale: 1.0,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -225,6 +226,9 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
         : (deviceCaps
           ? inferDynamicResolutionScalingDefault(deviceCaps)
           : DEFAULT_SETTINGS.dynamicResolutionScaling),
+      uiScale: typeof parsed.uiScale === "number" && parsed.uiScale >= 0.5 && parsed.uiScale <= 2.0
+        ? Math.round(parsed.uiScale * 100) / 100
+        : DEFAULT_SETTINGS.uiScale,
     };
   } catch {
     const s = { ...DEFAULT_SETTINGS };

@@ -53,6 +53,7 @@ const SETTINGS_KEYS: ReadonlyArray<keyof SettingsSlice> = [
   "recordPlayHistory",
   "coreOptions",
   "dynamicResolutionScaling",
+  "uiScale",
 ];
 
 /**
