@@ -1319,7 +1319,7 @@ export const SYSTEMS: SystemInfo[] = [
     name: "PlayStation Portable",
     shortName: "PSP",
     iconUrl: "/assets/psp_system_icon_premium_1775433994525.png",
-    extensions: ["iso", "cso", "elf", "pbp"],
+    extensions: ["iso", "cso", "elf", "pbp", "chd"],
     color: "#0070cc",
     needsThreads: true,
     needsWebGL2: true,

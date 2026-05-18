@@ -103,14 +103,15 @@ describe('systems performance profiles', () => {
       expect(detectSystem('zip')).toBeNull();
     });
 
-    it('detects ambiguous extensions for Saturn, PSX, and Dreamcast', () => {
-      // .chd is shared between PSX, Saturn, and Dreamcast
+    it('detects ambiguous extensions for Saturn, PSX, Dreamcast, and PSP', () => {
+      // .chd is shared between PSX, Saturn, Dreamcast, and PSP (ppsspp supports CHD)
       const chdDetected = detectSystem('game.chd');
       expect(Array.isArray(chdDetected)).toBe(true);
       const ids = (chdDetected as SystemInfo[]).map(s => s.id);
       expect(ids).toContain('psx');
       expect(ids).toContain('segaSaturn');
       expect(ids).toContain('segaDC');
+      expect(ids).toContain('psp');
     });
 
     it('detects ambiguous extensions for Arcade and MAME 2003+', () => {

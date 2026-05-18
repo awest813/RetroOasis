@@ -589,8 +589,15 @@ export async function fetchAndValidateCoverArt(
 
   try {
     const resp = await impl(url, { mode: "cors", signal: ctl.signal });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} — the image is not available at that URL.`);
+    const contentType = (resp.headers.get("content-type") ?? "").toLowerCase();
+    // Some CDNs (e.g. thumbnails.libretro.com) serve a 200 HTML error page
+    // instead of a proper 404 — reject those up-front with a clear message.
+    if (contentType && !contentType.startsWith("image/") && !contentType.startsWith("application/octet-stream")) {
+      throw new Error(`Server returned ${contentType || "non-image"} content instead of an image — the cover may not exist.`);
+    }
     const blob = await resp.blob();
+    if (blob.size === 0) throw new Error("Server returned an empty response.");
     const bitmap = await createImageBitmap(blob);
     bitmap.close();
     return blob;
