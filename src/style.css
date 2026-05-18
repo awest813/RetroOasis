@@ -1916,6 +1916,15 @@ body:has(#ejs-container.visible) .app-header {
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
+.cover-art-candidate--unavailable,
+.cover-art-candidate--unavailable:hover {
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.8);
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .cover-art-candidate__img {
   width: 100%;
   aspect-ratio: 1 / 1.4;

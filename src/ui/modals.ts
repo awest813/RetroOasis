@@ -756,13 +756,21 @@ export function showCoverArtCandidatePicker(
         (sourceSpan as HTMLElement).setAttribute("data-source", c.sourceName);
         badge.append(scoreSpan, sourceSpan);
 
+        const cardBtn = card as HTMLButtonElement;
         img.addEventListener("error", () => {
           img.style.opacity = "0.25";
           img.alt = "Image unavailable";
+          cardBtn.disabled = true;
+          cardBtn.title = `${c.title} — image unavailable (skipped)`;
+          cardBtn.setAttribute("aria-label", `Unavailable: ${c.title}`);
+          cardBtn.classList.add("cover-art-candidate--unavailable");
         });
         const label = createElement("span", { class: "cover-art-candidate__label" }, c.title);
         card.append(img, badge, label);
-        card.addEventListener("click", () => close(c.imageUrl), { signal: ac.signal });
+        card.addEventListener("click", () => {
+          if (cardBtn.disabled) return;
+          close(c.imageUrl);
+        }, { signal: ac.signal });
         grid.appendChild(card);
       }
       box.appendChild(grid);

@@ -2131,7 +2131,7 @@ function _isInGameSession(emulator: PSPEmulator): boolean {
 
 /** Minimal in-game overlay: hamburger button that expands to show controls. */
 function buildInGameControls(
-  _emulator:          PSPEmulator,
+  emulator:           PSPEmulator,
   settings:           Settings,
   _onSettingsChange:  (patch: Partial<Settings>) => void,
   onReturnToLibrary:  () => void,
@@ -2223,6 +2223,18 @@ function buildInGameControls(
       btnSettings.addEventListener("click", () => _onOpenSettings("performance"), { signal });
       actions.append(btnSettings);
     }
+    const btnRestart = make("button", {
+      class: "btn btn--ghost in-game-overlay__btn",
+      type: "button",
+      title: "Restart the current game",
+      "aria-label": "Restart Game",
+      role: "menuitem",
+    }, "Restart");
+    btnRestart.addEventListener("click", () => {
+      try { emulator.reset(); }
+      catch (err) { console.warn("In-game restart failed:", err); }
+    }, { signal });
+    actions.append(btnRestart);
     actions.append(buildLibraryButton("btn btn--gradient in-game-overlay__btn"));
     const libBtn = actions.lastElementChild as HTMLElement;
     if (libBtn) libBtn.setAttribute("role", "menuitem");
