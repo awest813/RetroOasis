@@ -1031,7 +1031,8 @@ export function initUI(opts: UIOptions): void {
     (e) => { if (e.key === "F9") { openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "debug"); return true; } return false; },
     // F3 � toggle dev overlay; Shift+F3 toggles debug console
     (e) => { if (e.key === "F3") { if (e.shiftKey) toggleDebugConsole(emulator); else toggleDevOverlay(); return true; } return false; },
-    // Escape � dismiss error banner or return to library
+    // Escape � dismiss overlays top-down: confirm, error, settings, system-picker,
+    // netplay, in-game panel, or return to library
     (e) => {
       if (e.key !== "Escape") return false;
       const t = e.target;
@@ -1042,6 +1043,12 @@ export function initUI(opts: UIOptions): void {
       if (settingsEl && !settingsEl.hidden) return false;
       if (document.querySelector("#system-picker:not([hidden])")) return false;
       if (document.querySelector(".easy-netplay-overlay")) return false;
+      const inGamePanel = document.querySelector("#in-game-overlay .in-game-overlay__panel:not([hidden])");
+      if (inGamePanel) {
+        const closeBtn = inGamePanel.querySelector(".in-game-overlay__close") as HTMLElement | null;
+        closeBtn?.click();
+        return true;
+      }
       if (document.body.classList.contains("is-playing")) { onReturnToLibrary(); return true; }
       return false;
     },
@@ -2122,7 +2129,7 @@ function _isInGameSession(emulator: PSPEmulator): boolean {
   return emulator.state === "running" || emulator.state === "paused";
 }
 
-/** Minimal in-game overlay: "Now playing" chip + quick actions. EmulatorJS handles the rest. */
+/** Minimal in-game overlay: hamburger button that expands to show controls. */
 function buildInGameControls(
   _emulator:          PSPEmulator,
   settings:           Settings,
@@ -2183,19 +2190,77 @@ function buildInGameControls(
   headerContainer.append(buildNowPlayingChip(), buildLibraryButton("btn btn--gradient header-priority-primary"));
 
   if (overlayContainer) {
-    const actions = make("div", { class: "in-game-overlay__actions", role: "group", "aria-label": "In-game quick actions" });
+    let isExpanded = false;
+
+    const hamburgerBtn = make("button", {
+      class: "in-game-overlay__hamburger",
+      type: "button",
+      title: "Open game menu",
+      "aria-label": "Open game menu",
+      "aria-expanded": "false",
+    });
+    hamburgerBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+
+    const expandedPanel = make("div", {
+      class: "in-game-overlay__panel",
+      role: "menu",
+      "aria-label": "In-game controls",
+      hidden: "",
+    });
+
+    const chip = make("div", { class: "in-game-overlay__panel-chip" });
+    chip.textContent = `Now playing \u00b7 ${currentGameName}`;
+
+    const actions = make("div", { class: "in-game-overlay__panel-actions", role: "group", "aria-label": "In-game quick actions" });
     if (_onOpenSettings) {
       const btnSettings = make("button", {
         class: "btn btn--ghost in-game-overlay__btn",
         type: "button",
         title: "Open Settings (F9)",
         "aria-label": "Open Settings",
+        role: "menuitem",
       }, "Settings");
       btnSettings.addEventListener("click", () => _onOpenSettings("performance"), { signal });
       actions.append(btnSettings);
     }
     actions.append(buildLibraryButton("btn btn--gradient in-game-overlay__btn"));
-    overlayContainer.append(buildNowPlayingChip(), actions);
+    const libBtn = actions.lastElementChild as HTMLElement;
+    if (libBtn) libBtn.setAttribute("role", "menuitem");
+
+    const closeBtn = make("button", {
+      class: "in-game-overlay__close",
+      type: "button",
+      title: "Close menu",
+      "aria-label": "Close menu",
+    });
+    closeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+    expandedPanel.append(chip, actions, closeBtn);
+    overlayContainer.append(hamburgerBtn, expandedPanel);
+
+    const togglePanel = () => {
+      isExpanded = !isExpanded;
+      expandedPanel.hidden = !isExpanded;
+      hamburgerBtn.setAttribute("aria-expanded", String(isExpanded));
+      overlayContainer.classList.toggle("in-game-overlay--expanded", isExpanded);
+      if (isExpanded) {
+        const firstBtn = expandedPanel.querySelector(".in-game-overlay__btn, .in-game-overlay__close") as HTMLElement | null;
+        afterNextPaint(() => firstBtn?.focus());
+      } else {
+        hamburgerBtn.focus();
+      }
+    };
+
+    hamburgerBtn.addEventListener("click", togglePanel, { signal });
+    closeBtn.addEventListener("click", togglePanel, { signal });
+
+    document.addEventListener("click", (e) => {
+      if (!isExpanded) return;
+      const target = e.target as HTMLElement;
+      if (!expandedPanel.contains(target) && !hamburgerBtn.contains(target)) {
+        togglePanel();
+      }
+    }, { signal });
   }
 
   document.addEventListener(LEGACY_EVENTS.returnToLibrary, () => {

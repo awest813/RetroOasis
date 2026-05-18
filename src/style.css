@@ -703,7 +703,7 @@ body.is-playing #landing.hidden {
 }
 
 .game-card__icon { width: 100%; height: 100%; position: relative; background: var(--sys-gradient, #000); overflow: hidden; border-radius: inherit; }
-.game-card__cover-art { width: 100%; height: 100%; object-fit: cover; transition: transform 0.65s var(--ease-premium-out); }
+.game-card__cover-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; transition: transform 0.65s var(--ease-premium-out); }
 .game-card:hover .game-card__cover-art { transform: scale(1.08); }
 
 .game-card__info {
@@ -1375,13 +1375,11 @@ html.touch-ui #landing {
 .in-game-overlay {
   position: absolute;
   top: max(clamp(12px, 2vw, 18px), env(safe-area-inset-top, 0px));
-  left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
   right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
   z-index: 620;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: clamp(10px, 2vw, 16px);
+  align-items: flex-start;
+  justify-content: flex-end;
   pointer-events: none;
 }
 
@@ -1393,41 +1391,129 @@ html.touch-ui #landing {
   pointer-events: auto;
 }
 
-.in-game-overlay .now-playing-chip {
-  max-width: min(52vw, 520px);
-  min-width: 0;
-  overflow: hidden;
+.in-game-overlay__hamburger {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(18, 18, 18, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   color: var(--c-text);
-  background: rgba(18,18,18,0.76);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.in-game-overlay__hamburger:hover,
+.in-game-overlay__hamburger:focus-visible {
+  background: rgba(34, 38, 50, 0.88);
+  transform: scale(1.05);
+}
+
+.in-game-overlay__hamburger:focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+}
+
+.in-game-overlay__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(18, 18, 18, 0.88);
   -webkit-backdrop-filter: blur(16px) saturate(135%);
   backdrop-filter: blur(16px) saturate(135%);
-  border-color: rgba(255,255,255,0.14);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: panel-slide-in 0.25s var(--spring);
+}
+
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.in-game-overlay__panel[hidden] {
+  display: none;
+}
+
+.in-game-overlay__panel-chip {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--c-text);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.in-game-overlay .now-playing-chip::before {
-  flex: 0 0 auto;
+.in-game-overlay__panel-chip::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background: var(--c-accent);
+  border-radius: 50%;
+  animation: pulse-shadow 2s infinite;
 }
 
-.in-game-overlay__actions {
+.in-game-overlay__panel-actions {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 8px;
-  padding: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--radius-pill);
-  background: rgba(18,18,18,0.62);
-  -webkit-backdrop-filter: blur(14px) saturate(130%);
-  backdrop-filter: blur(14px) saturate(130%);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.32);
 }
 
 .in-game-overlay__btn {
   min-height: 38px;
   padding-inline: 14px;
+  width: 100%;
+}
+
+.in-game-overlay__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--c-text);
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.in-game-overlay__close:hover,
+.in-game-overlay__close:focus-visible {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.in-game-overlay__close:focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
 }
 
 .fps-overlay {
@@ -1497,23 +1583,14 @@ html.touch-ui #landing {
 }
 
 @media (max-width: 700px) {
-  .in-game-overlay {
-    align-items: stretch;
-    flex-direction: column;
+  .in-game-overlay__hamburger {
+    width: 36px;
+    height: 36px;
   }
 
-  .in-game-overlay .now-playing-chip,
-  .in-game-overlay__actions {
-    max-width: none;
-    width: 100%;
-  }
-
-  .in-game-overlay__actions {
-    justify-content: space-between;
-  }
-
-  .in-game-overlay__btn {
-    flex: 1 1 0;
+  .in-game-overlay__panel {
+    min-width: 220px;
+    right: 0;
   }
 
   .fps-overlay {
