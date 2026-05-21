@@ -140,6 +140,7 @@ export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
+const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=luxe-20260521";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
@@ -204,13 +205,11 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <rect width="44" height="44" rx="12" fill="#111318" />
-  <circle cx="22" cy="22" r="16" fill="#56B6C2" />
-  <path d="M11 25C13.5 19.8 17.6 17 22 17C26.4 17 30.5 19.8 33 25C30.5 30.2 26.4 33 22 33C17.6 33 13.5 30.2 11 25Z" fill="#E0A44C" />
-  <rect x="14" y="20" width="16" height="8" rx="4" fill="#151922" stroke="#F7F3E8" stroke-width="1.5" />
-  <path d="M18 23V25M17 24H19" stroke="#F7F3E8" stroke-width="1.4" stroke-linecap="round" />
-  <circle cx="25" cy="24" r="1.1" fill="#56B6C2" />
-  <circle cx="28" cy="24" r="1.1" fill="#E0A44C" />
+  <rect width="44" height="44" rx="10" fill="#050506" />
+  <circle cx="22" cy="22" r="14.5" stroke="#E7C979" stroke-width="2" />
+  <path d="M32 9L11.5 34.5" stroke="#A80F1F" stroke-width="2.4" stroke-linecap="round" />
+  <path d="M15.5 31V14H24C27.6 14 30 16.2 30 19.4C30 22.4 27.9 24.45 24.85 24.75L30.7 31H26.05L20.85 25.25H19.2V31H15.5ZM19.2 22.1H23.45C25.15 22.1 26.25 21.15 26.25 19.55C26.25 18 25.15 17.1 23.45 17.1H19.2V22.1Z" fill="#F6E8B7" />
+  <path d="M21.5 33.5C16.35 33.25 12.25 29.05 12.25 23.85C12.25 20.4 14.05 17.35 16.75 15.65" stroke="#F6E8B7" stroke-opacity="0.48" stroke-width="1.5" stroke-linecap="round" />
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {
@@ -261,7 +260,7 @@ export function buildDOM(app: HTMLElement): void {
     <!-- ── Header ── -->
     <header class="app-header">
         <div class="app-header__brand" aria-label="${APP_NAME}">
-          <img src="${resolveAssetUrl("assets/retrooasis-logo.svg")}" alt="" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" aria-hidden="true" />
+          <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="brand-logo" width="44" height="44" decoding="async" fetchpriority="high" draggable="false" aria-hidden="true" />
           <span class="brand-long">${APP_NAME}</span>
         </div>
 
@@ -455,7 +454,7 @@ export function buildDOM(app: HTMLElement): void {
       <!-- Loading overlay -->
       <div id="loading-overlay" role="status" aria-live="polite" aria-hidden="true">
         <div class="loading-brand" aria-hidden="true">
-          <img src="${resolveAssetUrl("assets/retrooasis-logo.svg")}" alt="" class="loading-brand__logo" width="72" height="72" decoding="async" draggable="false" />
+          <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="loading-brand__logo" width="72" height="72" decoding="async" draggable="false" />
         </div>
         <div class="loading-spinner" aria-hidden="true"></div>
         <div class="loading-content">

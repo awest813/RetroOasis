@@ -314,7 +314,7 @@ html[data-network="offline"] .app-header::after {
   font-family: 'Exo 2', sans-serif;
   font-weight: 900;
   font-size: clamp(1.35rem, 1.05rem + 1vw, 1.7rem);
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   color: #fff;
   text-transform: uppercase;
   text-shadow: 0 0 15px var(--c-accent-glow);
@@ -325,9 +325,9 @@ html[data-network="offline"] .app-header::after {
   width: clamp(40px, 4vw, 44px);
   height: clamp(40px, 4vw, 44px);
   object-fit: contain;
-  transition: transform 0.3s var(--spring);
+  transition: transform 0.28s var(--spring), filter 0.28s ease;
 }
-.brand-logo:hover { transform: scale(1.1); }
+.brand-logo:hover { transform: translateY(-1px) scale(1.045); }
 
 .perf-chip {
   min-height: clamp(28px, 3vw, 30px);
@@ -7127,10 +7127,17 @@ body {
   text-shadow: none;
 }
 
+.brand-long {
+  font-weight: 760;
+  color: rgba(249,244,226,0.94);
+}
+
 .brand-logo {
-  width: 38px;
-  height: 38px;
-  filter: drop-shadow(0 8px 20px rgba(205,177,114,0.24));
+  width: 42px;
+  height: 42px;
+  filter:
+    drop-shadow(0 10px 22px rgba(0,0,0,0.46))
+    drop-shadow(0 2px 10px rgba(231,201,121,0.22));
 }
 
 #landing {
