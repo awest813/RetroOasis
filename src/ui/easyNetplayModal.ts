@@ -24,12 +24,7 @@ import {
 import { isTopmostOverlay } from "./modals.js";
 import { showInfoToast } from "./toasts.js";
 
-const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const resolveAssetUrl = (path: string): string => {
-  const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
-  return `${base}${path}`;
-};
 
 const OVERLAY_FADE_DELAY_MS = 200;
 const LATENCY_GOOD_THRESHOLD_MS = 80;
@@ -149,15 +144,8 @@ export function openEasyNetplayModal(opts: {
 
   const header = make("div", { class: "enp-header" });
   const brand = make("div", { class: "enp-header-brand" });
-  const logoImg = make("img", {
-    class:       "enp-header__logo",
-    src:         resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png"),
-    width:       "24",
-    height:      "24",
-    alt:         "",
-    "aria-hidden": "true",
-    decoding:    "async",
-  }) as HTMLImageElement;
+  const logoImg = make("span", { class: "enp-header__logo", "aria-hidden": "true" });
+  logoImg.innerHTML = `<svg viewBox="0 0 24 24" fill="none"><path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="7" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg>`;
   const titleStack = make("div", { class: "enp-header-titles" });
   titleStack.append(
     make("span", { class: "enp-title" }, "Play Together"),

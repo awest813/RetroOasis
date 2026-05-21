@@ -6,8 +6,8 @@ import { createElement, trapFocus } from "./dom.js";
 import type { RAProgress, SGDBAssets, IGDBMetadata, IGDBGenre, RAAchievement } from "../types/metadata.js";
 
 /**
- * Shared picker row (ambiguous extension + duplicate library entries): premium
- * system icon when available, consistent typography and experimental badge.
+ * Shared picker row (ambiguous extension + duplicate library entries):
+ * restrained system mark, consistent typography and experimental badge.
  */
 function wireSystemPickerRow(
   btn: HTMLButtonElement,
@@ -24,32 +24,9 @@ function wireSystemPickerRow(
   const color = system?.color ?? "#555";
 
   const visual = createElement("div", { class: "system-pick-btn__visual" });
-  if (system?.iconUrl) {
-    const img = createElement("img", {
-      class: "system-pick-btn__icon",
-      src: system.iconUrl,
-      alt: "",
-      loading: "lazy",
-      decoding: "async",
-    }) as HTMLImageElement;
-    img.addEventListener(
-      "error",
-      () => {
-        img.remove();
-        const fb = createElement("span", { class: "sys-badge system-pick-btn__badge-fallback" }, short);
-        fb.style.setProperty("--sys-color", color);
-        fb.style.background = color;
-        visual.appendChild(fb);
-      },
-      { once: true },
-    );
-    visual.appendChild(img);
-  } else {
-    const badge = createElement("span", { class: "sys-badge system-pick-btn__badge-fallback" }, short);
-    badge.style.setProperty("--sys-color", color);
-    badge.style.background = color;
-    visual.appendChild(badge);
-  }
+  const badge = createElement("span", { class: "sys-badge system-pick-btn__badge-fallback" }, short);
+  badge.style.setProperty("--sys-color", color);
+  visual.appendChild(badge);
 
   const content = createElement("div", { class: "system-pick-btn__content" });
   const titleRow = createElement("div", { class: "system-pick-btn__title-row" });

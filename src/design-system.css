@@ -18,13 +18,13 @@
   --c-border:     rgba(255, 255, 255, 0.08);
   --c-border-lt:  rgba(255, 255, 255, 0.15);
 
-  /* Primary accent: Silver / Steel Blue */
-  --c-accent:       #7a98b8;
-  --c-accent-h:     #9bb5d1;
-  --c-accent-light: #b4c9df;
-  --c-accent-dark:  #4a6582;
-  --c-accent-dim:   rgba(122, 152, 184, 0.15);
-  --c-accent-glow:  rgba(122, 152, 184, 0.35);
+  /* Primary accent: polished champagne metal */
+  --c-accent:       #cdb172;
+  --c-accent-h:     #ead7a1;
+  --c-accent-light: #f6e7bb;
+  --c-accent-dark:  #7f6537;
+  --c-accent-dim:   rgba(205, 177, 114, 0.14);
+  --c-accent-glow:  rgba(205, 177, 114, 0.32);
 
   /* Secondary accent: Muted Gold (for warnings/highlights) */
   --c-gold:       #a88c54;
@@ -141,7 +141,9 @@
   color-scheme: dark;
 
   /* ── Premium Console Helpers ── */
-  --bg-gradient: radial-gradient(circle at top left, #121215 0%, #000000 100%);
+  --bg-gradient:
+    linear-gradient(115deg, rgba(255,255,255,0.055) 0%, transparent 28%),
+    linear-gradient(180deg, #08080a 0%, #000000 72%);
   --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-dark) 100%);
   --glass-fx: saturate(150%) blur(25px);
   --glass-bg-accent: rgba(122, 152, 184, 0.05);

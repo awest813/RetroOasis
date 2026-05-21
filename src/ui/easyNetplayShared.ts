@@ -2,13 +2,6 @@ import { EasyNetplayManager } from "../netplay/EasyNetplayManager.js";
 import type { EasyNetplayRoom } from "../netplay/netplayTypes.js";
 import { createElement as make } from "./dom.js";
 
-const APP_BASE_URL = import.meta.env.BASE_URL;
-
-function resolveAssetUrl(path: string): string {
-  const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
-  return `${base}${path}`;
-}
-
 let easyNetplayManager: EasyNetplayManager | null = null;
 
 export function getEasyNetplayManager(serverUrl?: string): EasyNetplayManager {
@@ -52,7 +45,7 @@ export function renderRoomCard(
   if (isHost) {
     const pulseWrap = make("div", { class: "enp-waiting-pulse" });
     const circle = make("div", { class: "enp-pulse-circle" });
-    circle.innerHTML = `<img src="${resolveAssetUrl("assets/retro_oasis_logo_1777161669657.png")}" width="60" />`;
+    circle.innerHTML = `<svg viewBox="0 0 48 48" width="60" height="60" fill="none" aria-hidden="true"><path d="M8 28c4-8 9.5-12 16-12s12 4 16 12c-4 8-9.5 12-16 12S12 36 8 28Z" stroke="currentColor" stroke-width="2.6"/><path d="M15 27h8M19 23v8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="30.5" cy="27" r="2" fill="currentColor"/><circle cx="36" cy="27" r="2" fill="currentColor"/></svg>`;
     
     const codeLabel = make("p", { class: "enp-help" }, "Share this code with your friend:");
     const codeLarge = make("div", { class: "enp-invite-code-large", title: "Click to copy" }, room.code);

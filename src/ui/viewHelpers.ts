@@ -2,12 +2,9 @@
  * viewHelpers.ts — Simple rendering and DOM helpers shared across UI modules.
  */
 
-import { getSystemById } from "../systems.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../chromeIcons.js";
 
-export function systemIcon(systemId: string): string {
-  const sys = getSystemById(systemId);
-  if (sys?.iconUrl) return sys.iconUrl;
+export function systemIcon(_systemId: string): string {
   return ICON_GAMEPAD_DECOR_SVG;
 }
 

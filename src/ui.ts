@@ -341,7 +341,6 @@ export function buildDOM(app: HTMLElement): void {
           <div class="library-grid" id="library-grid">
             <!-- Cards populated by renderLibrary() -->
           </div>
-        </div>
 
         <!-- Drop zone -->
           <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Add a game file" aria-describedby="drop-zone-subtitle drop-zone-formats">
@@ -2112,7 +2111,7 @@ export function buildLandingControls(
     title: "Open Play Together — Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<img src="${resolveAssetUrl("assets/netplay_icon_premium_1775434064140.png")}" width="18" height="18" class="btn__icon" alt="" /> Play Together`;
+  btnMultiplayer.innerHTML = `<svg class="btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="7" cy="12" r="4" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="12" r="4" stroke="currentColor" stroke-width="1.9"/></svg> Play Together`;
   btnMultiplayer.addEventListener("click", () => {
     const openWith = (nm: import("./multiplayer.js").NetplayManager) => {
       openEasyNetplayModalImpl({

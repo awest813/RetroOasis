@@ -32,9 +32,9 @@ export function buildPerfTab(
     coreSection.appendChild(make("h4", { class: "settings-section__title" }, "Current Core"));
 
     const heading = make("div", { class: "settings-core-heading" });
-    if (activeSystem.iconUrl) {
-      heading.appendChild(make("img", { src: activeSystem.iconUrl, class: "settings-core-heading__icon", alt: "" }));
-    }
+    const coreMark = make("span", { class: "settings-core-heading__mark", "aria-hidden": "true" }, activeSystem.shortName);
+    coreMark.style.setProperty("--sys-color", activeSystem.color);
+    heading.appendChild(coreMark);
     const headerText = make("div", { class: "settings-core-heading__text" });
     headerText.appendChild(make("strong", { class: "settings-core-heading__title" }, activeSystem.name));
 
