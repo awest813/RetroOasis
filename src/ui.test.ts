@@ -1562,9 +1562,12 @@ describe("buildDebugTab", () => {
     const debugPanel = document.getElementById("tab-panel-debug")!;
     expect(debugPanel).toBeTruthy();
     expect(debugPanel.hidden).toBe(false);
-    // Performance panel should be hidden
-    const perfPanel = document.getElementById("tab-panel-performance")!;
-    expect(perfPanel.hidden).toBe(true);
+    // In the scroll-based layout all panels are visible; verify the active tab
+    // button state instead of panel visibility.
+    const perfTabBtn = document.getElementById("tab-performance")!;
+    expect(perfTabBtn.getAttribute("aria-selected")).toBe("false");
+    const debugTabBtn = document.getElementById("tab-debug")!;
+    expect(debugTabBtn.getAttribute("aria-selected")).toBe("true");
   });
 
   it("Debug Environment section exposes a landmark labelled by its heading", () => {
@@ -1592,10 +1595,11 @@ describe("buildDebugTab", () => {
       "not-a-real-tab" as unknown as "performance"
     );
 
-    const perfPanel = document.getElementById("tab-panel-performance")!;
-    const debugPanel = document.getElementById("tab-panel-debug")!;
-    expect(perfPanel.hidden).toBe(false);
-    expect(debugPanel.hidden).toBe(true);
+    // In the scroll-based layout all panels are visible; verify active tab button state.
+    const perfTabBtn = document.getElementById("tab-performance")!;
+    const debugTabBtn = document.getElementById("tab-debug")!;
+    expect(perfTabBtn.getAttribute("aria-selected")).toBe("true");
+    expect(debugTabBtn.getAttribute("aria-selected")).toBe("false");
   });
 
 
@@ -1610,11 +1614,13 @@ describe("buildDebugTab", () => {
     const displayTabBtn = document.getElementById("tab-display") as HTMLButtonElement;
     displayTabBtn.click();
     const displayPanel = document.getElementById("tab-panel-display")!;
-    const debugPanel = document.getElementById("tab-panel-debug")!;
+    const debugTabBtn = document.getElementById("tab-debug") as HTMLButtonElement;
     expect(displayTabBtn.getAttribute("aria-selected")).toBe("true");
     expect(displayTabBtn.getAttribute("tabindex")).toBe("0");
     expect(displayPanel.hidden).toBe(false);
-    expect(debugPanel.hidden).toBe(true);
+    // In scroll-based layout all panels stay visible; verify tab button state.
+    expect(debugTabBtn.getAttribute("aria-selected")).toBe("false");
+    expect(debugTabBtn.getAttribute("tabindex")).toBe("-1");
   });
 
   it("ArrowLeft keyboard navigation switches tabs from Debug to API Keys", () => {
@@ -1623,11 +1629,12 @@ describe("buildDebugTab", () => {
     debugTabBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
     const apiTabBtn = document.getElementById("tab-apikeys") as HTMLButtonElement;
     const apiPanel = document.getElementById("tab-panel-apikeys")!;
-    const debugPanel = document.getElementById("tab-panel-debug")!;
     expect(apiTabBtn.getAttribute("aria-selected")).toBe("true");
     expect(apiTabBtn.getAttribute("tabindex")).toBe("0");
     expect(apiPanel.hidden).toBe(false);
-    expect(debugPanel.hidden).toBe(true);
+    // In scroll-based layout all panels stay visible; verify tab button state.
+    expect(debugTabBtn.getAttribute("aria-selected")).toBe("false");
+    expect(debugTabBtn.getAttribute("tabindex")).toBe("-1");
   });
 
   it("verbose logging toggle is unchecked by default", () => {

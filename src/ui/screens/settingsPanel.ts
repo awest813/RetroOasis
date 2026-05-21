@@ -30,6 +30,7 @@ let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsTabBarRo: ResizeObserver | null = null;
+let _settingsPanelIo: IntersectionObserver | null = null;
 let _settingsContentCleanups: Array<() => void> = [];
 let _settingsContentToken = 0;
 let _settingsTabsModule: typeof import("../settingsTabs.js") | null = null;
@@ -159,25 +160,29 @@ function buildSettingsContent(
     
     if (scroll && activeIndex >= 0) {
       const panel = panels[activeIndex]!;
-      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      safeScrollIntoView(panel, { behavior: "smooth", block: "start" });
     }
   };
 
-  // IntersectionObserver to spy on scroll position and update active tab
-  const observer = new IntersectionObserver((entries) => {
-    let bestMatch = activeTab;
-    let maxRatio = 0;
-    entries.forEach(entry => {
-      if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-        maxRatio = entry.intersectionRatio;
-        const id = entry.target.id.replace("tab-panel-", "") as SettingsTab;
-        bestMatch = id;
-      }
-    });
-    if (maxRatio > 0 && bestMatch !== activeTab) {
-      switchTab(bestMatch, false);
-    }
-  }, { root: bodyEl, threshold: 0.2 });
+  // IntersectionObserver to spy on scroll position and update active tab.
+  // Guard against environments that do not implement the API (e.g. jsdom).
+  _settingsPanelIo?.disconnect();
+  _settingsPanelIo = typeof IntersectionObserver !== "undefined"
+    ? new IntersectionObserver((entries) => {
+        let bestMatch = activeTab;
+        let maxRatio = 0;
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            const id = entry.target.id.replace("tab-panel-", "") as SettingsTab;
+            bestMatch = id;
+          }
+        });
+        if (maxRatio > 0 && bestMatch !== activeTab) {
+          switchTab(bestMatch, false);
+        }
+      }, { root: bodyEl, threshold: 0.2 })
+    : null;
 
   tabs.forEach((tab, i) => {
     const iconEl = settingsSidebarIconEl(tab.id);
@@ -229,7 +234,7 @@ function buildSettingsContent(
 
     panels.push(panel);
     panelsEl.appendChild(panel);
-    observer.observe(panel);
+    _settingsPanelIo?.observe(panel);
   });
 
   bodyEl.appendChild(panelsEl);
@@ -365,6 +370,8 @@ export function closeSettingsPanel(): void {
   }
   _settingsTabBarRo?.disconnect();
   _settingsTabBarRo = null;
+  _settingsPanelIo?.disconnect();
+  _settingsPanelIo = null;
   _settingsContentCleanups.forEach((fn) => {
     try { fn(); } catch { /* ignore stale settings cleanup */ }
   });
