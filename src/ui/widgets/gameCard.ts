@@ -143,6 +143,8 @@ export function buildGameCard(
       fallbackIcon.textContent = system?.shortName ?? game.systemId.toUpperCase();
     }, { once: true });
     fallbackIcon.appendChild(fallbackImg);
+  } else if (isSvgMarkup(iconOutput)) {
+    fallbackIcon.innerHTML = iconOutput;
   } else {
     fallbackIcon.textContent = iconOutput;
   }

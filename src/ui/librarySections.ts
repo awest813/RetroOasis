@@ -2,6 +2,7 @@ import { formatRelativeTime, type GameLibrary, type GameMetadata } from "../libr
 import { getSystemById } from "../systems.js";
 import type { Settings } from "../types/settings.js";
 import type { PSPEmulator } from "../emulator.js";
+import { isSvgMarkup } from "../chromeIcons.js";
 import { createElement as make } from "./dom.js";
 
 export function buildLibraryHero(opts: {
@@ -57,7 +58,11 @@ export function buildLibraryHero(opts: {
   const meta = make("div", { class: "library-hero__meta" });
   const sysName = system?.shortName ?? game.systemId.toUpperCase();
   const iconOutput = systemIcon(game.systemId);
-  const iconHtml = iconOutput.includes("/assets/") ? `<img src="${iconOutput}" alt="" class="hero-sys-icon" />` : iconOutput;
+  const iconHtml = iconOutput.includes("/assets/")
+    ? `<img src="${iconOutput}" alt="" class="hero-sys-icon" />`
+    : isSvgMarkup(iconOutput)
+      ? iconOutput
+      : escapeHtml(iconOutput);
   meta.innerHTML = `<span>${iconHtml} ${escapeHtml(sysName)}</span> • <span>${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
 
   const actions = make("div", { class: "library-hero__actions" });
@@ -136,6 +141,8 @@ export function buildLibraryRow(opts: {
     const icon = make("span", { class: "library-row__icon-span" });
     if (iconOutput.includes("/assets/")) {
       icon.innerHTML = `<img src="${iconOutput}" alt="" class="row-sys-icon" />`;
+    } else if (isSvgMarkup(iconOutput)) {
+      icon.innerHTML = iconOutput;
     } else {
       icon.textContent = iconOutput;
     }
