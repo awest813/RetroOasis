@@ -46,6 +46,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function safeScrollIntoView(target: HTMLElement, options: ScrollIntoViewOptions): void {
+  if (typeof target.scrollIntoView !== "function") return;
   try {
     target.scrollIntoView(options);
   } catch {
