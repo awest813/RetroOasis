@@ -1318,7 +1318,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "psp",
     name: "PlayStation Portable",
     shortName: "PSP",
-    extensions: ["iso", "cso", "elf", "pbp", "chd"],
+    extensions: ["iso", "cso", "elf", "pbp"],
     color: "#0070cc",
     needsThreads: true,
     needsWebGL2: true,

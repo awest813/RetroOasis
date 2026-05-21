@@ -802,6 +802,35 @@ describe('PSPEmulator', () => {
       expect(emulator.state).toBe('running');
     });
 
+    it.each(["game.iso", "game.cso", "game.pbp"])(
+      'loads PSP %s with PPSSPP nightly paths after PSP is selected',
+      async (fileName) => {
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({}) as never);
+        (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+          async () => {
+            await Promise.resolve();
+            window.EJS_onGameStart?.();
+          };
+
+        await emulator.launch({
+          file:            new File(['data'], fileName),
+          volume:          0.7,
+          systemId:        'psp',
+          performanceMode: 'auto',
+          deviceCaps:      pspCaps,
+        });
+
+        expect(window.EJS_core).toBe('psp');
+        expect(window.EJS_paths?.['ppsspp-thread-wasm.data']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-thread-wasm.data`);
+        expect(window.EJS_paths?.['ppsspp-wasm.data']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-wasm.data`);
+        expect(window.EJS_paths?.['ppsspp.json']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/reports/ppsspp.json`);
+        expect(window.EJS_paths?.['ppsspp-assets.zip']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-assets.zip`);
+        expect(window.EJS_Settings?.ppsspp_rendering_mode).toBe('OpenGL');
+        expect(emulator.resolvedWasmCoreName).toBe('ppsspp');
+        expect(emulator.state).toBe('running');
+      },
+    );
+
     it('routes new 4.3-pre selected cores to the EmulatorJS nightly channel', async () => {
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
         async () => {

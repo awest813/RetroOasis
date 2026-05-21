@@ -3944,6 +3944,78 @@ describe("Dreamcast experimental messaging", () => {
   });
 });
 
+describe("PSP disc imports", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("offers PSP and launches .iso as PSP when selected", async () => {
+    const fileName = "ridge.iso";
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(async (incoming: File, systemId: string) => ({
+        id: "psp-game",
+        name: incoming.name.replace(/\.[^.]+$/, ""),
+        fileName: incoming.name,
+        systemId,
+        size: incoming.size,
+        addedAt: Date.now(),
+        lastPlayedAt: null,
+      })),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+    const onLaunchGame = vi.fn(async () => {});
+
+    const importPromise = resolveSystemAndAdd(
+      new File([new Uint8Array([1, 2, 3])], fileName),
+      library,
+      makeSettings(),
+      onLaunchGame,
+    );
+    await flushUI();
+
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".system-pick-btn"));
+    const pspButton = buttons.find((button) => button.textContent?.includes("PlayStation Portable"));
+    expect(pspButton, `${fileName} picker should include PSP`).toBeTruthy();
+
+    pspButton!.click();
+    await importPromise;
+
+    expect(library.addGame).toHaveBeenCalledWith(expect.objectContaining({ name: fileName }), "psp");
+    expect(onLaunchGame).toHaveBeenCalledWith(expect.objectContaining({ name: fileName }), "psp", "psp-game");
+  });
+
+  it("does not offer PSP for .chd because the current PPSSPP web core aborts on CHD", async () => {
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    const importPromise = resolveSystemAndAdd(
+      new File([new Uint8Array([1, 2, 3])], "gran-turismo.chd"),
+      library,
+      makeSettings(),
+      vi.fn(async () => {}),
+    );
+    await flushUI();
+
+    const pickerText = document.getElementById("system-picker-list")?.textContent ?? "";
+    expect(pickerText).not.toContain("PlayStation Portable");
+    expect(pickerText).toContain("PlayStation 1");
+
+    document.getElementById("system-picker-close")?.click();
+    await importPromise;
+  });
+});
+
 describe("isTransientImportError", () => {
   it("returns true for TransactionInactiveError", () => {
     const err = Object.assign(new Error("transaction error"), { name: "TransactionInactiveError" });
