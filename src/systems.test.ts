@@ -12,6 +12,7 @@ import {
   getGBCSettingsForTier,
   type SystemInfo,
 } from "./systems.js";
+import { wasmCorePackageNameFor } from "./emulator.js";
 
 describe('systems performance profiles', () => {
   describe('detectSystem', () => {
@@ -257,6 +258,47 @@ describe('systems performance profiles', () => {
     expect(getSystemById('3ds')?.experimental).toBe(true);
     expect(getSystemById('3ds')?.needsThreads).toBe(true);
     expect(getSystemById('dos')?.needsThreads).toBe(true);
+  });
+
+  it('wires every supported system to an explicit EmulatorJS core package', () => {
+    const expectedCoreBySystem: Record<string, string> = {
+      psp: "ppsspp",
+      nes: "fceumm",
+      snes: "snes9x",
+      snesBsnes: "bsnes",
+      gba: "mgba",
+      gbc: "gambatte",
+      gb: "gambatte",
+      nds: "desmume2015",
+      "3ds": "azahar",
+      n64: "mupen64plus_next",
+      psx: "mednafen_psx_hw",
+      segaMD: "genesis_plus_gx",
+      segaMDWide: "genesis_plus_gx_wide",
+      segaGG: "genesis_plus_gx",
+      segaMS: "genesis_plus_gx",
+      atari2600: "stella2014",
+      intv: "freeintv",
+      dos: "dosbox_pure",
+      arcade: "fbneo",
+      segaSaturn: "yabause",
+      segaDC: "flycast",
+      mame2003: "mame2003_plus",
+      atari7800: "prosystem",
+      lynx: "handy",
+      ngp: "mednafen_ngp",
+    };
+
+    for (const system of SYSTEMS) {
+      const tierSettings = system.tierSettings?.high ?? system.qualitySettings;
+      const resolvedCore = system.corePath
+        ? system.coreId ?? system.id
+        : wasmCorePackageNameFor(system, tierSettings);
+
+      expect(resolvedCore, system.id).toBe(expectedCoreBySystem[system.id]);
+      expect(resolvedCore, system.id).not.toContain("/");
+      expect(resolvedCore, system.id).not.toContain(".data");
+    }
   });
 
   describe('PSP audio latency settings', () => {

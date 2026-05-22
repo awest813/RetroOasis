@@ -877,6 +877,82 @@ describe('PSPEmulator', () => {
       expect(emulator.state).toBe('running');
     });
 
+    it('launch-stub wires every supported system to its resolved EmulatorJS core package', async () => {
+      clearWebGL2SupportCache();
+      const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as {
+        mockImplementation(fn: (contextId: string) => object | null): void;
+      };
+      getContextSpy.mockImplementation((contextId: string) => {
+        if (contextId === 'webgl2') return {} as RenderingContext;
+        return null;
+      });
+      vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() });
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      const expectedCoreBySystem: Record<string, string> = {
+        psp: "ppsspp",
+        nes: "fceumm",
+        snes: "snes9x",
+        snesBsnes: "bsnes",
+        gba: "mgba",
+        gbc: "gambatte",
+        gb: "gambatte",
+        nds: "desmume2015",
+        "3ds": "azahar",
+        n64: "mupen64plus_next",
+        psx: "mednafen_psx_hw",
+        segaMD: "genesis_plus_gx",
+        segaMDWide: "genesis_plus_gx_wide",
+        segaGG: "genesis_plus_gx",
+        segaMS: "genesis_plus_gx",
+        atari2600: "stella2014",
+        intv: "freeintv",
+        dos: "dosbox_pure",
+        arcade: "fbneo",
+        segaSaturn: "yabause",
+        segaDC: "flycast",
+        mame2003: "mame2003_plus",
+        atari7800: "prosystem",
+        lynx: "handy",
+        ngp: "mednafen_ngp",
+      };
+
+      for (const system of SYSTEMS) {
+        const ext = system.extensions[0] ?? "rom";
+        const file = new File(['data'], `core-smoke-${system.id}.${ext}`);
+        await emulator.launch({
+          file,
+          volume: 0.7,
+          systemId: system.id,
+          performanceMode: 'auto',
+          deviceCaps: {
+            ...nesCaps,
+            cpuCores: 8,
+            deviceMemoryGB: 8,
+            tier: 'high' as const,
+            gpuCaps: { ...nesCaps.gpuCaps, webgl2: true, maxTextureSize: 8192 },
+            gpuBenchmarkScore: 85,
+            estimatedVRAMMB: 2048,
+          },
+        });
+
+        const expectedCore = expectedCoreBySystem[system.id];
+        expect(emulator.state, system.id).toBe('running');
+        expect(emulator.resolvedWasmCoreName, system.id).toBe(expectedCore);
+        expect(window.EJS_core, system.id).toBe(system.coreId ?? system.id);
+        if (system.corePath) {
+          expect(window.EJS_corePath, system.id).toBe(system.corePath);
+        } else {
+          expect(window.EJS_paths?.[`${expectedCore}.json`], system.id).toContain(`/cores/reports/${expectedCore}.json`);
+          expect(window.EJS_paths?.[`${expectedCore}-wasm.data`], system.id).toContain(`/cores/${expectedCore}-wasm.data`);
+        }
+      }
+    });
+
     it('emits an error and transitions to "error" state if EJS_onGameStart never fires within 120 s', async () => {
       const errors: string[] = [];
       const states: string[] = [];
