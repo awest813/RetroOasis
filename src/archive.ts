@@ -25,6 +25,7 @@ import libunrarWasmUrl from "../data/compression/libunrar.wasm?url";
 const _romExtensions = new Set(
   ALL_EXTENSIONS.filter(ext => ext !== "zip" && ext !== "7z")
 );
+const _discPayloadExtensions = new Set(["bin", "img", "mdf", "ccd", "iso", "chd", "pbp"]);
 
 // ── ZIP magic constants ───────────────────────────────────────────────────────
 
@@ -629,7 +630,7 @@ function shouldExcludeDescriptorEntries(entries: CentralDirEntry[]): boolean {
   for (const entry of entries) {
     const ext = extensionOf(entry.name);
     if (ext === "cue" || ext === "m3u") hasDescriptor = true;
-    if (["bin", "img", "mdf", "ccd", "iso", "chd", "pbp"].includes(ext)) {
+    if (_discPayloadExtensions.has(ext)) {
       hasDiscPayload = true;
     }
     if (hasDescriptor && hasDiscPayload) return true;
