@@ -31,6 +31,7 @@ import {
   MIN_NATIVE_PACKAGE_BIN_ENTRY_COUNT,
   NATIVE_PACKAGE_BIN_EXT,
   hasKnownRomHintInArchiveName,
+  looksLikeNativeRomSetArchive,
   inferFileForSystem,
   formatArchiveProgressMessage,
   logImport,
@@ -58,6 +59,21 @@ import { showError, showInfoToast } from "../toasts.js";
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
+
+function canRouteArchiveAsNativePackage(format: ArchiveFormat, fileName: string): boolean {
+  if (format === "zip") return true;
+  if (format === "7z") return looksLikeNativeRomSetArchive(fileName);
+  return false;
+}
+
+function showNoArchivePayloadError(format: ArchiveFormat, fileName: string, reason?: string): void {
+  const pretty = format === "gzip" ? "GZIP" : format.toUpperCase();
+  const detail = reason ? `:\n${reason}` : ".";
+  showError(
+    `Could not extract ${pretty} archive "${fileName}"${detail}\n\n` +
+    "Please extract the archive manually and import the ROM file directly."
+  );
+}
 
 function parseM3U(content: string): string[] {
   return content
@@ -236,6 +252,15 @@ export async function resolveSystemAndAddImpl(
           );
           return;
         }
+        if (!canRouteArchiveAsNativePackage(archiveFormat, file.name)) {
+          showNoArchivePayloadError(archiveFormat, file.name);
+          logImportWarn(
+            emulatorRef,
+            settings,
+            `${archiveFormat.toUpperCase()} extraction produced no ROM candidate for "${file.name}"`,
+          );
+          return;
+        }
         logImport(
           emulatorRef,
           settings,
@@ -245,12 +270,9 @@ export async function resolveSystemAndAddImpl(
     } catch (err) {
       hideLoadingOverlay();
       const reason = err instanceof Error ? err.message : String(err);
-      const fallbackAllowed = archiveFormat === "zip" || archiveFormat === "7z";
+      const fallbackAllowed = canRouteArchiveAsNativePackage(archiveFormat, file.name);
       if (!fallbackAllowed) {
-        showError(
-          `Could not extract ${archiveFormat.toUpperCase()} archive:\n${reason}\n\n` +
-          "Please extract the archive manually and import the ROM file directly."
-        );
+        showNoArchivePayloadError(archiveFormat, file.name, reason);
         logImportWarn(
           emulatorRef,
           settings,

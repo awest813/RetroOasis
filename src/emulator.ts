@@ -2787,9 +2787,6 @@ export class PSPEmulator {
         break;
 
       case "gba":
-        if (weak2D) set("mgba_frameskip", "1");
-        set("mgba_color_correction", weak2D ? "disabled" : "Game Boy Advance");
-        set("mgba_interframe_blending", "disabled");
         set("mgba_audio_buffer_size", weak2D ? "2048" : "1024");
         break;
 

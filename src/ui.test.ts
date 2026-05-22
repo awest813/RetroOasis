@@ -531,6 +531,57 @@ describe("resolveSystemAndAdd mobile archive handling", () => {
     expect(launchedFile.name).toBe("sf2.zip");
   });
 
+  it("does not route descriptive PS1 .7z archives to native MAME fallback when extraction finds no ROM", async () => {
+    vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("7z");
+    vi.spyOn(archive, "extractFromArchive").mockResolvedValue(null);
+
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    const onLaunchGame = vi.fn(async () => {});
+    const file = new File([new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])], "Metal Gear Solid (USA) (Disc 1) (Rev 1).7z", {
+      type: "application/x-7z-compressed",
+    });
+
+    await resolveSystemAndAdd(file, library, makeSettings(), onLaunchGame);
+
+    const errorMessage = document.getElementById("error-message")?.textContent ?? "";
+    expect(errorMessage).toContain("Could not extract 7Z archive");
+    expect(errorMessage).toContain("Metal Gear Solid");
+    expect(library.addGame).not.toHaveBeenCalled();
+    expect(onLaunchGame).not.toHaveBeenCalled();
+  });
+
+  it("keeps native 7Z routing for short arcade-style set names when extraction finds no ROM", async () => {
+    vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("7z");
+    vi.spyOn(archive, "extractFromArchive").mockResolvedValue(null);
+
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(async (incoming: File, systemId: string) => ({
+        id: "game-7z-native-1",
+        name: incoming.name.replace(/\.[^.]+$/, ""),
+        fileName: incoming.name,
+        systemId,
+      })),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    const onLaunchGame = vi.fn(async () => {});
+    const file = new File([new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])], "sf2.7z", {
+      type: "application/x-7z-compressed",
+    });
+
+    await resolveSystemAndAdd(file, library, makeSettings(), onLaunchGame);
+
+    expect(onLaunchGame).toHaveBeenCalledTimes(1);
+    const [launchedFile] = onLaunchGame.mock.calls[0] as unknown as [File, string, string?];
+    expect(launchedFile.name).toBe("sf2.7z");
+  });
+
   it("shows a clear error for .zst files (Zstandard, unsupported)", async () => {
     vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("unknown");
 

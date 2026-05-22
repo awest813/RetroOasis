@@ -330,9 +330,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     // Rice plugin: lightest-weight RDP; skips most accuracy features.
     "mupen64plus-rdp-plugin": "rice",
     "mupen64plus-resolution-factor": "1",
-    "mupen64plus-cpucore": "dynamic_recompiler",
     "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-virefresh": "auto",
     "mupen64plus-BilinearMode": "standard",
     "mupen64plus-EnableFBEmulation": "False",
     "mupen64plus-EnableCopyColorToRDRAM": "Off",
@@ -350,9 +348,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     retroarch_core: "mupen64plus_next",
     "mupen64plus-rdp-plugin": "gliden64",
     "mupen64plus-resolution-factor": "1",
-    "mupen64plus-cpucore": "dynamic_recompiler",
     "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-virefresh": "auto",
     "mupen64plus-BilinearMode": "standard",
     "mupen64plus-EnableFBEmulation": "True",
     "mupen64plus-EnableCopyColorToRDRAM": "Async",
@@ -371,9 +367,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     retroarch_core: "mupen64plus_next",
     "mupen64plus-rdp-plugin": "gliden64",
     "mupen64plus-resolution-factor": "2",
-    "mupen64plus-cpucore": "dynamic_recompiler",
     "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-virefresh": "auto",
     // 3-point bilinear filtering: better texture quality than standard bilinear
     "mupen64plus-BilinearMode": "3point",
     "mupen64plus-EnableFBEmulation": "True",
@@ -399,9 +393,7 @@ const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     "mupen64plus-rdp-plugin": "gliden64",
     // 4× internal resolution for sharp, clean geometry at high DPI
     "mupen64plus-resolution-factor": "4",
-    "mupen64plus-cpucore": "dynamic_recompiler",
     "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-virefresh": "auto",
     "mupen64plus-BilinearMode": "3point",
     "mupen64plus-EnableFBEmulation": "True",
     "mupen64plus-EnableCopyColorToRDRAM": "Async",
@@ -509,9 +501,6 @@ const NDS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
  * mGBA RetroArch core options per performance tier.
  *
  * Key options:
- *   mgba_frameskip         — 0 = no skip, 1–4 = skip N frames
- *   mgba_color_correction  — GBA LCD colour correction (CPU cost on low-spec)
- *   mgba_interframe_blending — Ghost/blend between frames (mimics LCD blur)
  *   mgba_skip_bios         — Skip the GBA boot logo (always ON for speed)
  *   mgba_idle_optimization — Detect busy-wait loops and replace with halts
  *   mgba_audio_buffer_size — Audio output buffer in samples (512/1024/2048/4096).
@@ -521,10 +510,8 @@ const NDS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
  */
 const GBA_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
+    retroarch_core: "mgba",
     mgba_skip_bios: "ON",
-    mgba_frameskip: "1",
-    mgba_color_correction: "disabled",
-    mgba_interframe_blending: "disabled",
     mgba_idle_optimization: "Remove Known",
     mgba_solar_sensor_level: "0",
     mgba_allow_opposing_directions: "no",
@@ -534,10 +521,8 @@ const GBA_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     mgba_audio_buffer_size: "2048",
   },
   medium: {
+    retroarch_core: "mgba",
     mgba_skip_bios: "ON",
-    mgba_frameskip: "0",
-    mgba_color_correction: "Game Boy Advance",
-    mgba_interframe_blending: "disabled",
     mgba_idle_optimization: "Remove Known",
     mgba_solar_sensor_level: "0",
     mgba_allow_opposing_directions: "no",
@@ -545,10 +530,8 @@ const GBA_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     mgba_audio_buffer_size: "1024",
   },
   high: {
+    retroarch_core: "mgba",
     mgba_skip_bios: "ON",
-    mgba_frameskip: "0",
-    mgba_color_correction: "Game Boy Advance",
-    mgba_interframe_blending: "mix",
     mgba_idle_optimization: "Remove Known",
     mgba_solar_sensor_level: "0",
     mgba_allow_opposing_directions: "no",
@@ -557,10 +540,8 @@ const GBA_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     mgba_audio_buffer_size: "512",
   },
   ultra: {
+    retroarch_core: "mgba",
     mgba_skip_bios: "ON",
-    mgba_frameskip: "0",
-    mgba_color_correction: "Game Boy Advance",
-    mgba_interframe_blending: "mix",
     mgba_idle_optimization: "Remove Known",
     mgba_solar_sensor_level: "0",
     mgba_allow_opposing_directions: "no",

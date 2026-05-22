@@ -42,6 +42,10 @@ export const UNSUPPORTED_ARCHIVE_EXT_SET = new Set(["zst", "lz", "lzma", "cab"])
 export const MIN_NATIVE_PACKAGE_BIN_ENTRY_COUNT = 4;
 export const NATIVE_PACKAGE_BIN_EXT = "bin";
 export const NATIVE_PACKAGE_ARCHIVE_SUFFIX_RE = /\.(zip|7z)$/i;
+const ARCADE_SET_ARCHIVE_SUFFIX_RE = /\.(zip|7z)$/i;
+const ARCADE_SET_STEM_RE = /^[a-z0-9][a-z0-9_+.-]{1,15}$/i;
+const DESCRIPTIVE_DISC_ARCHIVE_RE =
+  /\b(disc|disk|track|usa|europe|japan|rev|playstation|psx|ps1)\b/i;
 
 export function fileExt(fileName: string): string {
   const dotIdx = fileName.lastIndexOf(".");
@@ -53,6 +57,12 @@ export function hasKnownRomHintInArchiveName(fileName: string): boolean {
   const stem = fileName.replace(NATIVE_PACKAGE_ARCHIVE_SUFFIX_RE, "");
   const stemExt = fileExt(stem);
   return stemExt !== "" && ALL_EXTENSIONS.includes(stemExt);
+}
+
+export function looksLikeNativeRomSetArchive(fileName: string): boolean {
+  const stem = fileName.replace(ARCADE_SET_ARCHIVE_SUFFIX_RE, "");
+  if (stem === fileName || DESCRIPTIVE_DISC_ARCHIVE_RE.test(stem)) return false;
+  return ARCADE_SET_STEM_RE.test(stem);
 }
 
 export function inferFileForSystem(original: File, system: SystemInfo): File {

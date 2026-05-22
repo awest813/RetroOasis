@@ -380,27 +380,21 @@ describe('systems performance profiles', () => {
       expect(gba?.tierSettings?.ultra).toBeDefined();
     });
 
-    it('enables frameskip on low tier only', () => {
+    it('routes through mGBA and omits frameskip options rejected by the web core', () => {
       const gba = getSystemById('gba');
-      expect(gba?.tierSettings?.low?.mgba_frameskip).toBe('1');
-      expect(gba?.tierSettings?.medium?.mgba_frameskip).toBe('0');
-      expect(gba?.tierSettings?.high?.mgba_frameskip).toBe('0');
-      expect(gba?.tierSettings?.ultra?.mgba_frameskip).toBe('0');
+      expect(gba?.tierSettings?.low?.retroarch_core).toBe('mgba');
+      expect(gba?.tierSettings?.low?.mgba_frameskip).toBeUndefined();
+      expect(gba?.tierSettings?.medium?.mgba_frameskip).toBeUndefined();
+      expect(gba?.tierSettings?.high?.mgba_frameskip).toBeUndefined();
+      expect(gba?.tierSettings?.ultra?.mgba_frameskip).toBeUndefined();
     });
 
-    it('disables color correction on low tier to save CPU', () => {
+    it('does not send stale mGBA visual options rejected by the web core', () => {
       const gba = getSystemById('gba');
-      expect(gba?.tierSettings?.low?.mgba_color_correction).toBe('disabled');
-      expect(gba?.tierSettings?.medium?.mgba_color_correction).toBe('Game Boy Advance');
-      expect(gba?.tierSettings?.high?.mgba_color_correction).toBe('Game Boy Advance');
-    });
-
-    it('disables interframe blending on low and medium tiers', () => {
-      const gba = getSystemById('gba');
-      expect(gba?.tierSettings?.low?.mgba_interframe_blending).toBe('disabled');
-      expect(gba?.tierSettings?.medium?.mgba_interframe_blending).toBe('disabled');
-      expect(gba?.tierSettings?.high?.mgba_interframe_blending).toBe('mix');
-      expect(gba?.tierSettings?.ultra?.mgba_interframe_blending).toBe('mix');
+      for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
+        expect(gba?.tierSettings?.[tier]?.mgba_color_correction).toBeUndefined();
+        expect(gba?.tierSettings?.[tier]?.mgba_interframe_blending).toBeUndefined();
+      }
     });
 
     it('always skips BIOS', () => {
@@ -411,12 +405,13 @@ describe('systems performance profiles', () => {
 
     it('getGBASettingsForTier returns a copy of the correct tier settings', () => {
       const lowSettings = getGBASettingsForTier('low');
-      expect(lowSettings.mgba_frameskip).toBe('1');
-      expect(lowSettings.mgba_color_correction).toBe('disabled');
+      expect(lowSettings.retroarch_core).toBe('mgba');
+      expect(lowSettings.mgba_frameskip).toBeUndefined();
+      expect(lowSettings.mgba_color_correction).toBeUndefined();
 
       const ultraSettings = getGBASettingsForTier('ultra');
-      expect(ultraSettings.mgba_frameskip).toBe('0');
-      expect(ultraSettings.mgba_interframe_blending).toBe('mix');
+      expect(ultraSettings.mgba_frameskip).toBeUndefined();
+      expect(ultraSettings.mgba_interframe_blending).toBeUndefined();
     });
   });
 
@@ -702,12 +697,12 @@ describe('systems performance profiles', () => {
       expect(n64?.tierSettings?.ultra?.['mupen64plus-MaxTxCacheSize']).toBe('4000');
     });
 
-    it('uses dynamic recompiler for CPU on all tiers', () => {
+    it('omits N64 CPU and VI options rejected by the web core', () => {
       const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
-      expect(n64?.tierSettings?.high?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-cpucore']).toBe('dynamic_recompiler');
+      for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
+        expect(n64?.tierSettings?.[tier]?.['mupen64plus-cpucore']).toBeUndefined();
+        expect(n64?.tierSettings?.[tier]?.['mupen64plus-virefresh']).toBeUndefined();
+      }
     });
   });
 
