@@ -160,7 +160,13 @@ function buildSettingsContent(
     
     if (scroll && activeIndex >= 0) {
       const panel = panels[activeIndex]!;
-      safeScrollIntoView(panel, { behavior: "smooth", block: "start" });
+      const top = Math.max(0, panel.offsetTop - panelsEl.offsetTop);
+      try {
+        bodyEl.scrollTo({ top, behavior: "smooth" });
+      } catch {
+        bodyEl.scrollTop = top;
+        safeScrollIntoView(panel, { behavior: "smooth", block: "start" });
+      }
     }
   };
 
@@ -168,17 +174,18 @@ function buildSettingsContent(
   // Guard against environments that do not implement the API (e.g. jsdom).
   _settingsPanelIo?.disconnect();
   _settingsPanelIo = typeof IntersectionObserver !== "undefined"
-    ? new IntersectionObserver((entries) => {
+    ? new IntersectionObserver(() => {
+        const scrollAnchor = bodyEl.scrollTop + 96;
         let bestMatch = activeTab;
-        let maxRatio = 0;
-        entries.forEach(entry => {
-          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-            maxRatio = entry.intersectionRatio;
-            const id = entry.target.id.replace("tab-panel-", "") as SettingsTab;
-            bestMatch = id;
+        let bestOffset = Number.NEGATIVE_INFINITY;
+        panels.forEach((panel) => {
+          const offset = panel.offsetTop;
+          if (offset <= scrollAnchor && offset >= bestOffset) {
+            bestOffset = offset;
+            bestMatch = panel.id.replace("tab-panel-", "") as SettingsTab;
           }
         });
-        if (maxRatio > 0 && bestMatch !== activeTab) {
+        if (bestOffset > Number.NEGATIVE_INFINITY && bestMatch !== activeTab) {
           switchTab(bestMatch, false);
         }
       }, { root: bodyEl, threshold: 0.2 })
@@ -418,6 +425,14 @@ export function openSettingsPanel(
     content.appendChild(fallback);
   }
   panel.hidden = false;
+  if (initialTab) {
+    const jumpToRequestedTab = () => {
+      content.querySelector<HTMLButtonElement>(`#tab-${initialTab}`)?.click();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(jumpToRequestedTab));
+    window.setTimeout(jumpToRequestedTab, 180);
+    window.setTimeout(jumpToRequestedTab, 520);
+  }
   requestAnimationFrame(() => {
     (document.getElementById("settings-close") as HTMLButtonElement | null)?.focus();
   });

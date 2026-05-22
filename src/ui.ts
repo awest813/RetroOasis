@@ -327,7 +327,12 @@ export function buildDOM(app: HTMLElement): void {
               <button class="btn btn--ghost library-controls__fetch-covers" id="library-fetch-covers"
                       type="button" aria-label="Fetch missing cover art from online"
                       title="Match games against online cover databases (Settings → API Keys)">
-                Fetch covers
+                <svg class="btn__icon library-controls__fetch-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                  <path d="m7 15 3-3 2.2 2.2L15 11l2 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="8" cy="9" r="1" fill="currentColor"/>
+                </svg>
+                <span class="library-controls__fetch-label">Fetch covers</span>
               </button>
             </div>
           </div>
@@ -1206,6 +1211,16 @@ function _resetLibraryFilters(
 // Tracks an in-flight bulk fetch so repeated clicks cancel instead of stacking.
 let _bulkCoverArtController: AbortController | null = null;
 
+function _setFetchCoversButtonLabel(button: HTMLButtonElement | undefined, label: string): void {
+  if (!button) return;
+  const labelEl = button.querySelector<HTMLElement>(".library-controls__fetch-label");
+  if (labelEl) {
+    labelEl.textContent = label;
+  } else {
+    button.textContent = label;
+  }
+}
+
 /**
  * Bulk "Fetch covers" action: iterates over games missing cover art, runs
  * the provider with limited concurrency, and auto-applies candidates whose
@@ -1224,7 +1239,7 @@ async function _runBulkCoverArtFetch(
 ): Promise<void> {
   const restoreFetchCoversButton = (): void => {
     if (!button) return;
-    button.textContent = "Fetch covers";
+    _setFetchCoversButtonLabel(button, "Fetch covers");
     button.setAttribute("aria-label", "Fetch missing cover art from online");
     button.title = "Match games against online cover databases (Settings → API Keys)";
     button.removeAttribute("aria-busy");
@@ -1255,7 +1270,7 @@ async function _runBulkCoverArtFetch(
   const controller = new AbortController();
   _bulkCoverArtController = controller;
   if (button) {
-    button.textContent = `0/${missing.length}`;
+    _setFetchCoversButtonLabel(button, `0 of ${missing.length}`);
     button.setAttribute(
       "aria-label",
       `Fetching covers, 0 of ${missing.length} complete — activate to cancel`,
@@ -1316,7 +1331,7 @@ async function _runBulkCoverArtFetch(
       } finally {
         gamesCompleted++;
         if (button) {
-          button.textContent = `${gamesCompleted}/${missing.length}`;
+          _setFetchCoversButtonLabel(button, `${gamesCompleted} of ${missing.length}`);
           button.setAttribute(
             "aria-label",
             `Fetching covers, ${gamesCompleted} of ${missing.length} complete — activate to cancel`,

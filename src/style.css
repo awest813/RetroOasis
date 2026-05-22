@@ -1217,6 +1217,26 @@ body.is-playing #landing.hidden {
   cursor: not-allowed;
 }
 
+.library-controls__fetch-covers {
+  position: relative;
+  gap: 8px;
+  min-width: 128px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.library-controls__fetch-icon {
+  flex: 0 0 auto;
+  opacity: 0.86;
+}
+
+.library-controls__fetch-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pwa-install__icon {
   display: inline-flex;
   align-items: center;
@@ -6323,12 +6343,22 @@ body.using-gamepad .game-card:focus {
 }
 
 .library-controls__fetch-covers--busy {
-  border-color: rgba(230, 0, 18, 0.45) !important;
-  color: var(--c-accent-light) !important;
+  border-color: rgba(246,231,187,0.45) !important;
+  color: #f6e7bb !important;
+  background: linear-gradient(180deg, rgba(205,177,114,0.14), rgba(255,255,255,0.035)) !important;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   opacity: 1;
   cursor: pointer;
+}
+
+.library-controls__fetch-covers--busy .library-controls__fetch-icon {
+  animation: fetch-covers-pulse 0.85s ease-in-out infinite alternate;
+}
+
+@keyframes fetch-covers-pulse {
+  from { transform: scale(0.94); opacity: 0.55; }
+  to { transform: scale(1.04); opacity: 1; }
 }
 
 .cover-art-url-row {
