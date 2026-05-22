@@ -25,6 +25,7 @@ import libunrarWasmUrl from "../data/compression/libunrar.wasm?url";
 const _romExtensions = new Set(
   ALL_EXTENSIONS.filter(ext => ext !== "zip" && ext !== "7z")
 );
+const _discPayloadExtensions = new Set(["bin", "img", "mdf", "ccd", "iso", "chd", "pbp"]);
 
 // ── ZIP magic constants ───────────────────────────────────────────────────────
 
@@ -622,6 +623,30 @@ function toArchiveCandidates(entries: ArchiveEntry[]): ArchiveExtractCandidate[]
   }));
 }
 
+function shouldExcludeDescriptorEntries(entries: CentralDirEntry[]): boolean {
+  let hasDescriptor = false;
+  let hasDiscPayload = false;
+
+  for (const entry of entries) {
+    const ext = extensionOf(entry.name);
+    if (ext === "cue" || ext === "m3u") hasDescriptor = true;
+    if (_discPayloadExtensions.has(ext)) {
+      hasDiscPayload = true;
+    }
+    if (hasDescriptor && hasDiscPayload) return true;
+  }
+
+  return false;
+}
+
+function filterDescriptorEntries(entries: CentralDirEntry[]): CentralDirEntry[] {
+  if (!shouldExcludeDescriptorEntries(entries)) return entries;
+  return entries.filter((entry) => {
+    const ext = extensionOf(entry.name);
+    return ext !== "cue" && ext !== "m3u";
+  });
+}
+
 interface DecompressStreamOptions {
   /** Yield to the main thread while reading output (reduces WebKit tab freezes). */
   yieldWhileReading?: boolean;
@@ -986,7 +1011,7 @@ async function runZipExtractionAfterEntries(
   opts: ArchiveCandidateOptions,
   zipMode: ZipExtractMode
 ): Promise<{ name: string; blob: Blob; candidates?: ArchiveExtractCandidate[] } | null> {
-  const files = entries.filter(e => !e.name.endsWith("/"));
+  const files = filterDescriptorEntries(entries.filter(e => !e.name.endsWith("/")));
   const romCandidates = files
     .filter(e => _romExtensions.has(extensionOf(e.name)))
     .map(e => ({
@@ -1393,4 +1418,3 @@ export const ARCHIVE_SUPPORT_NOTE =
   "BZIP2 (.bz2), XZ (.xz), Zstandard (.zst), and Cabinet (.cab) files must be extracted " +
   "manually before importing. Inside ZIP archives, only Stored and Deflate compression are " +
   "supported; Deflate64, BZip2, and LZMA methods require manual extraction.";
-
