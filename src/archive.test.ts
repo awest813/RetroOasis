@@ -1132,6 +1132,23 @@ describe('extractFromZip — ROM/ISO format coverage', () => {
     expect(result!.name).toBe('game.cue');
   });
 
+  it('prefers PS1 disc payload over descriptor entries when cue/bin are both present', async () => {
+    const cueData = new TextEncoder().encode('FILE "track01.bin" BINARY\nTRACK 01 MODE2/2352\n');
+    const binData = new Uint8Array([0x00, 0xff, 0xff, 0xff]);
+
+    const zipBuf = buildZipWithTwoEntries(
+      'game.cue', cueData,
+      'track01.bin', binData,
+    );
+    const result = await extractFromZip(new Blob([zipBuf]), { includeCandidates: true, maxCandidates: 10 });
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('track01.bin');
+    const names = (result!.candidates ?? []).map(c => c.name);
+    expect(names).toContain('track01.bin');
+    expect(names).not.toContain('game.cue');
+  });
+
   it('extracts a .m3u file (multi-disc playlist)', async () => {
     const content = new TextEncoder().encode('disc1.cue\ndisc2.cue\n');
     const zipBuf  = buildZip('game.m3u', content);
