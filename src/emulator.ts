@@ -3347,8 +3347,17 @@ export class PSPEmulator {
       } else {
         delete window.EJS_corePath;
         const selectedCore = coreNameForSystem(system, ejsSettings);
+        const runtimeCore = system.coreId ?? system.id;
         const coreCdnBase = cdnBaseForCore(selectedCore);
+        const corePathAliases: Record<string, string> = runtimeCore === selectedCore ? {} : {
+          [`${runtimeCore}.json`]:                    `${coreCdnBase}cores/reports/${selectedCore}.json`,
+          [`${runtimeCore}-wasm.data`]:               `${coreCdnBase}cores/${selectedCore}-wasm.data`,
+          [`${runtimeCore}-legacy-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-legacy-wasm.data`,
+          [`${runtimeCore}-thread-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-thread-wasm.data`,
+          [`${runtimeCore}-thread-legacy-wasm.data`]: `${coreCdnBase}cores/${selectedCore}-thread-legacy-wasm.data`,
+        };
         window.EJS_paths = {
+          ...corePathAliases,
           [`${selectedCore}.json`]:                    `${coreCdnBase}cores/reports/${selectedCore}.json`,
           [`${selectedCore}-wasm.data`]:               `${coreCdnBase}cores/${selectedCore}-wasm.data`,
           [`${selectedCore}-legacy-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-legacy-wasm.data`,

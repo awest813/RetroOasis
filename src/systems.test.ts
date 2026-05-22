@@ -51,6 +51,12 @@ describe('systems performance profiles', () => {
       expect(n64Detected && !Array.isArray(n64Detected) ? n64Detected.id : null).toBe('n64');
     });
 
+    it('defaults Genesis ROMs to the standard core instead of prompting for the wide variant', () => {
+      const detected = detectSystem('Shining Force (USA).md');
+      expect(Array.isArray(detected)).toBe(false);
+      expect(detected && !Array.isArray(detected) ? detected.id : null).toBe('segaMD');
+    });
+
     it('.iso is shared between PSP and PSX — returns an array of candidates', () => {
       const detected = detectSystem('game.iso');
       expect(Array.isArray(detected)).toBe(true);
@@ -714,6 +720,7 @@ describe('systems performance profiles', () => {
 
     it('uses DMG hardware mode on the low tier for authentic monochrome experience', () => {
       const settings = getGBSettingsForTier('low');
+      expect(settings['retroarch_core']).toBe('gambatte');
       expect(settings['gambatte_gb_hwmode']).toBe('GB');
       expect(settings['gambatte_gb_colorization']).toBe('disabled');
     });
@@ -722,6 +729,9 @@ describe('systems performance profiles', () => {
       const medium = getGBSettingsForTier('medium');
       const high   = getGBSettingsForTier('high');
       const ultra  = getGBSettingsForTier('ultra');
+      expect(medium['retroarch_core']).toBe('gambatte');
+      expect(high['retroarch_core']).toBe('gambatte');
+      expect(ultra['retroarch_core']).toBe('gambatte');
       expect(medium['gambatte_gb_hwmode']).toBe('GBC');
       expect(high['gambatte_gb_hwmode']).toBe('GBC');
       expect(ultra['gambatte_gb_hwmode']).toBe('GBC');
@@ -766,6 +776,7 @@ describe('systems performance profiles', () => {
     it('always uses GBC hardware mode on all tiers', () => {
       const tiers = (['low', 'medium', 'high', 'ultra'] as const);
       for (const tier of tiers) {
+        expect(getGBCSettingsForTier(tier)['retroarch_core']).toBe('gambatte');
         expect(getGBCSettingsForTier(tier)['gambatte_gb_hwmode']).toBe('GBC');
       }
     });

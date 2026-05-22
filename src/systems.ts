@@ -865,6 +865,7 @@ const SNES_BSNES_TIER_SETTINGS = fixedCoreTierSettings("bsnes");
 
 const GB_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
+    retroarch_core: "gambatte",
     // Emulate the original DMG hardware for authenticity and lowest CPU cost.
     gambatte_gb_hwmode: "GB",
     gambatte_gb_colorization: "disabled",
@@ -875,6 +876,7 @@ const GB_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   medium: {
+    retroarch_core: "gambatte",
     // Run GB games in GBC mode to enable built-in GBC colour palettes.
     gambatte_gb_hwmode: "GBC",
     gambatte_gb_colorization: "internal",
@@ -885,6 +887,7 @@ const GB_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   high: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     gambatte_gb_colorization: "internal",
     gambatte_gb_internal_palette: "GB - DMG",
@@ -895,6 +898,7 @@ const GB_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   ultra: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     gambatte_gb_colorization: "internal",
     gambatte_gb_internal_palette: "GB - DMG",
@@ -919,6 +923,7 @@ const GB_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 
 const GBC_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     gambatte_mix_frames: "disabled",
     gambatte_up_down_allowed: "disabled",
@@ -926,6 +931,7 @@ const GBC_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   medium: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     gambatte_mix_frames: "disabled",
     gambatte_up_down_allowed: "disabled",
@@ -933,6 +939,7 @@ const GBC_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   high: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     // GBC LCD ghosting is subtler than DMG but still present on capable hardware
     gambatte_mix_frames: "mix",
@@ -941,6 +948,7 @@ const GBC_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     gambatte_dark_filter_level: "0",
   },
   ultra: {
+    retroarch_core: "gambatte",
     gambatte_gb_hwmode: "GBC",
     gambatte_mix_frames: "mix",
     gambatte_up_down_allowed: "disabled",
@@ -1687,6 +1695,14 @@ const UNIQUE_EXT: Map<string, SystemInfo> = new Map();
 /** Extension → multiple candidate systems (ambiguous). */
 const AMBIGUOUS_EXT: Map<string, SystemInfo[]> = new Map();
 
+function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | null {
+  const coreIds = new Set(systems.map(sys => sys.coreId ?? sys.id));
+  if (coreIds.size !== 1) return null;
+
+  const canonical = systems.find(sys => !sys.experimental && !sys.coreId);
+  return canonical ?? systems.find(sys => !sys.experimental) ?? null;
+}
+
 (function buildMaps() {
   const extToSystems = new Map<string, SystemInfo[]>();
   for (const sys of SYSTEMS) {
@@ -1725,7 +1741,10 @@ export function detectSystem(
     : "";
   if (!ext) return null;
   if (UNIQUE_EXT.has(ext))    return UNIQUE_EXT.get(ext)!;
-  if (AMBIGUOUS_EXT.has(ext)) return AMBIGUOUS_EXT.get(ext)!;
+  if (AMBIGUOUS_EXT.has(ext)) {
+    const systems = AMBIGUOUS_EXT.get(ext)!;
+    return preferredCandidateForSharedCore(systems) ?? systems;
+  }
   return null;
 }
 

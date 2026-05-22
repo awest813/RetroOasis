@@ -949,6 +949,11 @@ describe('PSPEmulator', () => {
         } else {
           expect(window.EJS_paths?.[`${expectedCore}.json`], system.id).toContain(`/cores/reports/${expectedCore}.json`);
           expect(window.EJS_paths?.[`${expectedCore}-wasm.data`], system.id).toContain(`/cores/${expectedCore}-wasm.data`);
+          const runtimeCore = system.coreId ?? system.id;
+          if (runtimeCore !== expectedCore) {
+            expect(window.EJS_paths?.[`${runtimeCore}.json`], system.id).toContain(`/cores/reports/${expectedCore}.json`);
+            expect(window.EJS_paths?.[`${runtimeCore}-legacy-wasm.data`], system.id).toContain(`/cores/${expectedCore}-legacy-wasm.data`);
+          }
         }
       }
     });
