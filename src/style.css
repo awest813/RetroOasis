@@ -408,6 +408,10 @@ body.is-playing #landing.hidden {
   overflow-y: auto;
 }
 
+.landing-sidebar--empty {
+  display: none;
+}
+
 .landing-sidebar__header {
   font-family: var(--font-display);
   font-size: 1.1rem;
@@ -7068,6 +7072,46 @@ body.using-gamepad .game-card:focus {
 .game-card__art-btn { right: 126px; }
 .game-card__patch { right: 164px; }
 
+.game-card__patch,
+.game-card__art-btn,
+.game-card__change-sys {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+}
+
+.game-card:hover .game-card__patch,
+.game-card:hover .game-card__art-btn,
+.game-card:hover .game-card__change-sys,
+.game-card:focus-within .game-card__patch,
+.game-card:focus-within .game-card__art-btn,
+.game-card:focus-within .game-card__change-sys {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+@media (max-width: 720px) {
+  .game-card__fav,
+  .game-card__remove {
+    right: 12px;
+  }
+
+  .game-card__fav {
+    top: 48px;
+  }
+
+  .game-card__remove {
+    top: 86px;
+  }
+
+  .game-card__patch,
+  .game-card__art-btn,
+  .game-card__change-sys {
+    display: none;
+  }
+}
+
 .library-search,
 .library-sort {
   border-width: 1px;
@@ -7348,6 +7392,10 @@ body {
   filter: drop-shadow(0 12px 30px rgba(205,177,114,0.12));
 }
 
+.game-card__fallback-name {
+  display: none;
+}
+
 .game-card__fallback-img,
 .sys-icon-img,
 .hero-sys-icon,
@@ -7368,10 +7416,22 @@ body {
 .game-card__change-sys,
 .game-card__fav,
 .game-card__remove {
-  background: rgba(4,4,5,0.62);
-  border-color: rgba(255,255,255,0.14);
+  background: linear-gradient(180deg, rgba(18,18,20,0.82), rgba(4,4,5,0.68));
+  border-color: rgba(246,231,187,0.22);
+  color: rgba(255,255,255,0.86);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+}
+
+.game-card__patch:hover,
+.game-card__art-btn:hover,
+.game-card__change-sys:hover,
+.game-card__fav:hover,
+.game-card__remove:hover {
+  border-color: rgba(246,231,187,0.42);
+  color: #fff;
+  box-shadow: 0 16px 28px rgba(0,0,0,0.48), 0 0 0 1px rgba(246,231,187,0.08);
 }
 
 .library-row__header {

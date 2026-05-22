@@ -1934,17 +1934,22 @@ function _renderSystemFilterChips(
 ): void {
   const filterEl = document.getElementById("system-filter");
   if (!filterEl || games.length === 0) {
-    if (filterEl) filterEl.innerHTML = "";
+    if (filterEl) {
+      filterEl.innerHTML = "";
+      filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
+    }
     return;
   }
 
   const systemIds = [...new Set(games.map(g => g.systemId))].sort();
   if (systemIds.length < 2) {
     filterEl.innerHTML = "";
+    filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
     return;
   }
 
   filterEl.innerHTML = "";
+  filterEl.closest(".landing-sidebar")?.classList.remove("landing-sidebar--empty");
   
   const createChip = (id: string, label: string, icon: string) => {
     const chipLabel =
