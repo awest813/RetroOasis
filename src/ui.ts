@@ -1644,6 +1644,33 @@ export async function renderLibrary(
     return;
   }
 
+  // ── Jump Back In (recently played strip) ──────────────────────────────────
+  // Only shown in the default "clean" browse state (no search / filter / sort
+  // overrides) so it doesn't interfere with focused browsing actions.
+  const showJumpBackIn =
+    !_librarySearchQuery &&
+    !_librarySystemFilter &&
+    !_libraryShowFavorites &&
+    _librarySortMode === "lastPlayed" &&
+    displayed.length >= 2;
+
+  if (showJumpBackIn) {
+    const recent = displayed.slice(0, 6);
+    grid.appendChild(buildLibraryRowSection({
+      title: "Jump Back In",
+      systemId: null,
+      games: recent,
+      library,
+      settings,
+      onLaunchGame,
+      emulatorRef,
+      onApplyPatch,
+      systemIcon,
+      buildGameCard,
+    }));
+  }
+  // ── End Jump Back In ───────────────────────────────────────────────────────
+
   // Favorites grouping if enabled
   const hasFavorites = displayed.some(g => g.isFavorite);
   if (settings.libraryGrouped && (hasFavorites || [...new Set(displayed.map(g => g.systemId))].length > 1)) {
