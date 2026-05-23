@@ -3145,15 +3145,13 @@ describe("openEasyNetplayModal", () => {
     const joinTab = Array.from(tabs).find(t => t.textContent?.includes("Join"))!;
     joinTab.click();
 
-    const codeInput = document.querySelector<HTMLInputElement>(".enp-code-input")!;
-    expect(codeInput).toBeTruthy();
+    const segBoxes = Array.from(document.querySelectorAll<HTMLInputElement>(".enp-seg-box"));
+    expect(segBoxes.length).toBe(6);
 
     // Simulate typing lowercase
-    codeInput.value = "ab12cd";
-    codeInput.dispatchEvent(new Event("input"));
-
-    // The handler should normalise to uppercase
-    expect(codeInput.value).toBe("AB12CD");
+    segBoxes[0].value = "a";
+    segBoxes[0].dispatchEvent(new Event("input"));
+    expect(segBoxes[0].value).toBe("A");
   });
 
   it("join tab Join button is disabled until the full 6-character invite code is entered", () => {
@@ -3162,20 +3160,25 @@ describe("openEasyNetplayModal", () => {
     const joinTab = Array.from(tabs).find(t => t.textContent?.includes("Join"))!;
     joinTab.click();
 
-    const codeInput = document.querySelector<HTMLInputElement>(".enp-code-input")!;
+    const segBoxes = Array.from(document.querySelectorAll<HTMLInputElement>(".enp-seg-box"));
     const joinBtn   = document.querySelector<HTMLButtonElement>(".enp-btn-join")!;
 
     expect(joinBtn.disabled).toBe(true);
 
-    codeInput.value = "AB12";
-    codeInput.dispatchEvent(new Event("input"));
+    // Fill only 4 of 6 boxes — button should stay disabled
+    segBoxes.slice(0, 4).forEach((box, i) => {
+      box.value = ["A", "B", "1", "2"][i]!;
+      box.dispatchEvent(new Event("input"));
+    });
     expect(joinBtn.disabled).toBe(true);
 
-    codeInput.value = "AB12CD";
-    codeInput.dispatchEvent(new Event("input"));
+    // Fill all 6 boxes — button should enable
+    segBoxes.forEach((box, i) => {
+      box.value = ["A", "B", "1", "2", "C", "D"][i]!;
+      box.dispatchEvent(new Event("input"));
+    });
     expect(joinBtn.disabled).toBe(false);
   });
-
   it("join tab can paste an invite code from the clipboard", async () => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -3187,13 +3190,14 @@ describe("openEasyNetplayModal", () => {
     const joinTab = Array.from(tabs).find(t => t.textContent?.includes("Join"))!;
     joinTab.click();
 
-    const codeInput = document.querySelector<HTMLInputElement>(".enp-code-input")!;
+    const segBoxes2 = Array.from(document.querySelectorAll<HTMLInputElement>(".enp-seg-box"));
     const joinBtn = document.querySelector<HTMLButtonElement>(".enp-btn-join")!;
     const pasteBtn = document.querySelector<HTMLButtonElement>(".enp-btn-paste-code")!;
     pasteBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(codeInput.value).toBe("AB12CD");
+    const fullCode = segBoxes2.map(b => b.value).join("");
+    expect(fullCode).toBe("AB12CD");
     expect(joinBtn.disabled).toBe(false);
   });
 

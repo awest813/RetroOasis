@@ -39,6 +39,7 @@ import {
   isTransientImportError,
   withRetry,
   toLaunchFile,
+  DESCRIPTIVE_DISC_ARCHIVE_RE,
 } from "../gameImportHelpers.js";
 import {
   hideLoadingOverlay,
@@ -177,9 +178,13 @@ export async function resolveSystemAndAddImpl(
 
       if (extracted) {
         const extractedCandidates = extracted.candidates ?? [];
+        const hasDiscImageHint = DESCRIPTIVE_DISC_ARCHIVE_RE.test(file.name.replace(/\.7z$/i, ""));
+        const hasCueFile = extractedCandidates.some(c => fileExt(c.name) === "cue");
         const shouldPreferNativePackageRouting =
           (archiveFormat === "zip" || archiveFormat === "7z") &&
           !hasKnownRomHintInArchiveName(file.name) &&
+          !hasDiscImageHint &&
+          !hasCueFile &&
           extractedCandidates.length >= MIN_NATIVE_PACKAGE_BIN_ENTRY_COUNT &&
           extractedCandidates.every((candidate) => fileExt(candidate.name) === NATIVE_PACKAGE_BIN_EXT);
         const shouldPreferDosPackageRouting =
