@@ -1,41 +1,21 @@
 <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RetroOasis">
   <defs>
-    <linearGradient id="ro-case" x1="16" y1="10" x2="82" y2="88" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1B1B1F"/>
-      <stop offset="0.48" stop-color="#070708"/>
+    <linearGradient id="ro-metal" x1="25" y1="17" x2="71" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7EDCF"/>
+      <stop offset="0.44" stop-color="#B9A06B"/>
+      <stop offset="1" stop-color="#6F6045"/>
+    </linearGradient>
+    <linearGradient id="ro-ink" x1="18" y1="12" x2="82" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#141417"/>
+      <stop offset="0.62" stop-color="#050506"/>
       <stop offset="1" stop-color="#000000"/>
     </linearGradient>
-    <linearGradient id="ro-metal" x1="27" y1="17" x2="68" y2="83" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF7DA"/>
-      <stop offset="0.23" stop-color="#D7BE78"/>
-      <stop offset="0.55" stop-color="#6D6250"/>
-      <stop offset="0.78" stop-color="#EFE2B0"/>
-      <stop offset="1" stop-color="#9E7B34"/>
-    </linearGradient>
-    <linearGradient id="ro-red" x1="62" y1="15" x2="24" y2="80" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F05A5F"/>
-      <stop offset="0.42" stop-color="#A80F1F"/>
-      <stop offset="1" stop-color="#470309"/>
-    </linearGradient>
-    <linearGradient id="ro-glass" x1="24" y1="19" x2="70" y2="75" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity="0.18"/>
-      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.02"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
-    </linearGradient>
-    <filter id="ro-shadow" x="6" y="4" width="84" height="90" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="16" stdDeviation="10" flood-color="#000000" flood-opacity="0.55"/>
-      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#E7C979" flood-opacity="0.18"/>
-    </filter>
   </defs>
-  <rect width="96" height="96" rx="22" fill="url(#ro-case)"/>
-  <path d="M18 16H78C82.42 16 86 19.58 86 24V26H10V24C10 19.58 13.58 16 18 16Z" fill="url(#ro-glass)"/>
-  <g filter="url(#ro-shadow)">
-    <circle cx="48" cy="48" r="31.5" stroke="url(#ro-metal)" stroke-width="4"/>
-    <circle cx="48" cy="48" r="24" stroke="#F7F1DC" stroke-opacity="0.16" stroke-width="1"/>
-    <path d="M71.5 20.5L22.5 78.5" stroke="url(#ro-red)" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M32 66V30H49.5C57.23 30 62.5 34.85 62.5 42C62.5 48.64 57.92 53.15 51.15 53.84L64 66H54.3L42.85 54.5H39.6V66H32ZM39.6 47.55H48.45C52.25 47.55 54.8 45.45 54.8 42.15C54.8 38.85 52.25 36.95 48.45 36.95H39.6V47.55Z" fill="#F6E8B7"/>
-    <path d="M48.5 70C38.01 70 29.5 61.49 29.5 51C29.5 43.97 33.32 37.83 39 34.54" stroke="url(#ro-metal)" stroke-width="3" stroke-linecap="round"/>
-    <path d="M58 60.5C61.72 57.76 64.1 53.38 64.1 48.45C64.1 41.72 59.65 36.02 53.52 34.14" stroke="#FFF3C7" stroke-opacity="0.82" stroke-width="2.5" stroke-linecap="round"/>
-  </g>
-  <path d="M18 82H78" stroke="#FFFFFF" stroke-opacity="0.1" stroke-linecap="round"/>
+  <rect x="10" y="10" width="76" height="76" rx="20" fill="url(#ro-ink)"/>
+  <rect x="10.75" y="10.75" width="74.5" height="74.5" rx="19.25" stroke="white" stroke-opacity="0.08" stroke-width="1.5"/>
+  <path d="M26 48C26 35.85 35.85 26 48 26C60.15 26 70 35.85 70 48C70 60.15 60.15 70 48 70C35.85 70 26 60.15 26 48Z" stroke="url(#ro-metal)" stroke-width="3.25"/>
+  <path d="M36 61V35H49.25C55.05 35 59 38.55 59 43.85C59 49.15 55.05 52.65 49.25 52.65H43.15V61H36ZM43.15 46.7H48.4C50.8 46.7 52.35 45.6 52.35 43.85C52.35 42.1 50.8 41.05 48.4 41.05H43.15V46.7Z" fill="#F4E9C8"/>
+  <path d="M56.5 61L47.8 51.9H56.2L64.7 61H56.5Z" fill="#BCA36F"/>
+  <path d="M34 76H62" stroke="#F7EDCF" stroke-opacity="0.2" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M26 20H70" stroke="white" stroke-opacity="0.07" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

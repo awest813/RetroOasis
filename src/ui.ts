@@ -140,7 +140,7 @@ export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=luxe-20260521";
+const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=minimal-20260523";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
@@ -205,11 +205,11 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <rect width="44" height="44" rx="10" fill="#050506" />
-  <circle cx="22" cy="22" r="14.5" stroke="#E7C979" stroke-width="2" />
-  <path d="M32 9L11.5 34.5" stroke="#A80F1F" stroke-width="2.4" stroke-linecap="round" />
-  <path d="M15.5 31V14H24C27.6 14 30 16.2 30 19.4C30 22.4 27.9 24.45 24.85 24.75L30.7 31H26.05L20.85 25.25H19.2V31H15.5ZM19.2 22.1H23.45C25.15 22.1 26.25 21.15 26.25 19.55C26.25 18 25.15 17.1 23.45 17.1H19.2V22.1Z" fill="#F6E8B7" />
-  <path d="M21.5 33.5C16.35 33.25 12.25 29.05 12.25 23.85C12.25 20.4 14.05 17.35 16.75 15.65" stroke="#F6E8B7" stroke-opacity="0.48" stroke-width="1.5" stroke-linecap="round" />
+  <rect x="4.5" y="4.5" width="35" height="35" rx="9" fill="#050506" />
+  <rect x="5" y="5" width="34" height="34" rx="8.5" stroke="#FFFFFF" stroke-opacity="0.08" />
+  <circle cx="22" cy="22" r="12.8" stroke="#DCCB9F" stroke-width="1.6" />
+  <path d="M16.4 29.5V14.5H23.9C27.25 14.5 29.55 16.55 29.55 19.55C29.55 22.55 27.25 24.55 23.9 24.55H20.5V29.5H16.4ZM20.5 21.25H23.45C24.85 21.25 25.75 20.62 25.75 19.55C25.75 18.5 24.85 17.9 23.45 17.9H20.5V21.25Z" fill="#F4E9C8" />
+  <path d="M27.2 29.5L22.3 24.25H27L31.8 29.5H27.2Z" fill="#BCA36F" />
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {
