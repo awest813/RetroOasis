@@ -582,6 +582,57 @@ function chromebookGpuPenalty(gpuClass: ChromebookGpuClass): number {
   }
 }
 
+export interface ChromebookSupportProfile {
+  /** True when startup work should avoid heavy 3D pipelines and large WASM prefetches. */
+  constrained: boolean;
+  /** Short user-facing label for settings/debug UI. */
+  label: "Standard" | "Conservative";
+  /** Whether idle startup should warm heavy 3D WebGL pipelines before launch. */
+  warmHeavyPipelines: boolean;
+  /** Whether idle startup should pre-compile cached shaders. */
+  warmShaderCache: boolean;
+  /** Launch-history systems to prefetch on first play intent. */
+  prefetchTopSystems: number;
+  /** Extra heavy 3D systems to prefetch on first play intent. */
+  prefetchHeavy3D: number;
+  /** Extra small 2D systems to prefetch on first play intent. */
+  prefetchLight2D: number;
+  /** Concurrent asset/network work recommended for this device. */
+  assetConcurrency: number;
+  /** Per-frame deferred-work budget recommended for this device. */
+  frameBudgetMs: number;
+}
+
+export function isLowEndChromebookProfile(
+  caps: Pick<DeviceCapabilities, "isChromOS" | "isLowSpec" | "deviceMemoryGB" | "cpuCores" | "tier" | "gpuRenderer">,
+): boolean {
+  if (!caps.isChromOS) return false;
+  const gpuClass = detectChromebookGpuClass(caps.gpuRenderer);
+  return (
+    caps.isLowSpec ||
+    caps.tier === "low" ||
+    (caps.deviceMemoryGB !== null && caps.deviceMemoryGB <= 4) ||
+    caps.cpuCores <= 4 ||
+    gpuClass === "ultra-low" ||
+    gpuClass === "low"
+  );
+}
+
+export function getChromebookSupportProfile(caps: DeviceCapabilities): ChromebookSupportProfile {
+  const constrained = isLowEndChromebookProfile(caps);
+  return {
+    constrained,
+    label: constrained ? "Conservative" : "Standard",
+    warmHeavyPipelines: !constrained,
+    warmShaderCache: !constrained,
+    prefetchTopSystems: constrained ? 1 : 2,
+    prefetchHeavy3D: constrained ? 0 : 2,
+    prefetchLight2D: 2,
+    assetConcurrency: recommendedAssetConcurrency(caps),
+    frameBudgetMs: recommendedFrameBudgetMs(caps),
+  };
+}
+
 // ── iOS / Android detection ───────────────────────────────────────────────────
 
 /**

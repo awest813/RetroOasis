@@ -6,6 +6,8 @@ import {
   isLikelyChromeOS,
   isChromebookLowRamProfile,
   detectChromebookGpuClass,
+  isLowEndChromebookProfile,
+  getChromebookSupportProfile,
   isLikelyIOS,
   isLikelyAndroid,
   isLikelySafari,
@@ -2497,6 +2499,63 @@ describe('recommendedAssetConcurrency', () => {
       expect(recommendedAssetConcurrency(mobileCaps(tier)))
         .toBeLessThan(recommendedAssetConcurrency(desktopCaps(tier)));
     }
+  });
+});
+
+describe('Chromebook support profile', () => {
+  const caps = (overrides: Partial<DeviceCapabilities>): DeviceCapabilities => ({
+    tier: 'medium',
+    isChromOS: true,
+    isLowSpec: false,
+    deviceMemoryGB: 4,
+    cpuCores: 4,
+    gpuRenderer: 'ANGLE (Intel, Intel(R) HD Graphics 500)',
+    isMobile: false,
+    isIOS: false,
+    isAndroid: false,
+    isSafari: false,
+    safariVersion: null,
+    isSoftwareGPU: false,
+    recommendedMode: 'performance',
+    gpuCaps: {} as GPUCapabilities,
+    gpuBenchmarkScore: 30,
+    prefersReducedMotion: false,
+    webgpuAvailable: false,
+    connectionQuality: 'unknown',
+    jsHeapLimitMB: null,
+    estimatedVRAMMB: 512,
+    ...overrides,
+  });
+
+  it('treats 4 GB Intel HD Chromebooks as constrained', () => {
+    expect(isLowEndChromebookProfile(caps({}))).toBe(true);
+    const profile = getChromebookSupportProfile(caps({}));
+    expect(profile.constrained).toBe(true);
+    expect(profile.warmHeavyPipelines).toBe(false);
+    expect(profile.warmShaderCache).toBe(false);
+    expect(profile.prefetchHeavy3D).toBe(0);
+  });
+
+  it('allows high-end Chromebooks to use the standard warmup profile', () => {
+    const profile = getChromebookSupportProfile(caps({
+      tier: 'high',
+      deviceMemoryGB: 8,
+      cpuCores: 8,
+      gpuRenderer: 'ANGLE (Intel, Intel(R) Iris Xe Graphics)',
+      recommendedMode: 'quality',
+      gpuBenchmarkScore: 70,
+    }));
+    expect(profile.constrained).toBe(false);
+    expect(profile.warmHeavyPipelines).toBe(true);
+    expect(profile.prefetchHeavy3D).toBe(2);
+  });
+
+  it('does not mark non-ChromeOS low-memory devices as Chromebook constrained', () => {
+    expect(isLowEndChromebookProfile(caps({
+      isChromOS: false,
+      deviceMemoryGB: 4,
+      cpuCores: 4,
+    }))).toBe(false);
   });
 });
 

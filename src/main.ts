@@ -35,6 +35,7 @@ import {
   scheduleIdleTask,
   getResolutionCoreOptions,
   getResolutionLadder,
+  getChromebookSupportProfile,
   inferDynamicResolutionScalingDefault,
   isChromebookLowRamProfile,
   resolveTier,
@@ -330,6 +331,7 @@ async function main(): Promise<void> {
   // 2. Detect hardware — use session cache to skip the GPU benchmark (~12ms)
   // on page navigations and soft-reloads within the same browser session.
   const deviceCaps = detectCapabilitiesCached();
+  const chromebookSupport = getChromebookSupportProfile(deviceCaps);
 
   // 3. Request persistent storage early — prevents ChromeOS from evicting
   //    IndexedDB data (ROMs, saves, BIOS) under quota pressure.
@@ -547,14 +549,22 @@ async function main(): Promise<void> {
     // Defer blocking GPU warm-up work to idle time so it does not delay the
     // current interaction frame.
     scheduleIdleTask(() => emulator.preWarmWebGL());
-    scheduleIdleTask(() => emulator.warmUpPSPPipeline());
-    scheduleIdleTask(() => emulator.warmUpDreamcastPipeline());
+    if (chromebookSupport.warmHeavyPipelines) {
+      scheduleIdleTask(() => emulator.warmUpPSPPipeline());
+      scheduleIdleTask(() => emulator.warmUpDreamcastPipeline());
+    }
     scheduleIdleTask(() => emulator.warmUp2DPipeline());
-    scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
+    if (chromebookSupport.warmShaderCache) {
+      scheduleIdleTask(() => emulator.preWarmShaderCache().catch(() => {}));
+    }
     scheduleIdleTask(() => emulator.prefetchLoader());
     
     // Intelligent core preloading — launch history, heavy 3D blobs, then common 2D cores
-    scheduleIdleTask(() => emulator.prefetchTopSystems(2, 2, 2));
+    scheduleIdleTask(() => emulator.prefetchTopSystems(
+      chromebookSupport.prefetchTopSystems,
+      chromebookSupport.prefetchHeavy3D,
+      chromebookSupport.prefetchLight2D,
+    ));
   };
 
   // Listen for intent signals from the landing page

@@ -1,5 +1,5 @@
 import { createElement as make, buildToggleRow } from "../dom.js";
-import { formatCapabilitiesSummary, formatTierLabel, type DeviceCapabilities, type PerformanceMode } from "../../performance.js";
+import { formatCapabilitiesSummary, formatTierLabel, getChromebookSupportProfile, type DeviceCapabilities, type PerformanceMode } from "../../performance.js";
 import type { Settings } from "../../types/settings.js";
 import type { PSPEmulator } from "../../emulator.js";
 import { buildSystemFeatureRow } from "../systemFeatures.js";
@@ -117,6 +117,13 @@ export function buildPerfTab(
 
   const capText = formatCapabilitiesSummary(deviceCaps);
   deviceSection.appendChild(make("p", { class: "device-info" }, capText));
+  if (deviceCaps.isChromOS) {
+    const profile = getChromebookSupportProfile(deviceCaps);
+    const profileText = profile.constrained
+      ? "Chromebook support: Conservative profile active. Heavy 3D warmups are deferred until launch, and startup prefetch stays light."
+      : "Chromebook support: Standard profile active. This Chromebook has enough headroom for normal warmups.";
+    deviceSection.appendChild(make("p", { class: "settings-help" }, profileText));
+  }
 
   const tierClass = deviceCaps.tier === "low" ? "tier-badge tier-badge--warn" : deviceCaps.tier === "medium" ? "tier-badge tier-badge--mid" : "tier-badge tier-badge--ok";
   const tierLabel = deviceCaps.tier === "low"
