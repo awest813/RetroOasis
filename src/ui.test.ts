@@ -3935,7 +3935,7 @@ describe("selectImportFileFromSelection", () => {
     ], "Final Fantasy VII (USA) (Disc 1).cue", { type: "text/plain" });
 
     await expect(selectImportFileFromSelection([cue])).resolves.toBeNull();
-    expect(document.body.textContent).toMatch(/matching \.bin file/i);
+    expect(document.body.textContent).toMatch(/matching binary track file/i);
   });
 });
 

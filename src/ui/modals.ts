@@ -1037,3 +1037,95 @@ export function showGameDetails(
     });
   });
 }
+
+export function showConflictDialog(
+  conflict: {
+    local: { timestamp: number; gameName: string; slot: number; label: string };
+    remote: { timestamp: number; gameName: string; slot: number; label: string };
+  }
+): Promise<"local" | "remote"> {
+  return new Promise((resolve) => {
+    const ac = new AbortController();
+    const overlay = createElement("div", { class: "confirm-overlay" });
+    const box = createElement("div", {
+      class: "confirm-box conflict-resolver-box",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Resolve Save Conflict",
+    });
+
+    box.appendChild(createElement("h3", { class: "confirm-title" }, "Save Conflict Detected"));
+    box.appendChild(createElement("p", { class: "confirm-body" },
+      `Conflict detected for Slot ${conflict.local.slot} of "${conflict.local.gameName}". ` +
+      "Select which save state you would like to keep. The other copy will be overwritten:"
+    ));
+
+    const grid = createElement("div", { class: "conflict-grid" });
+
+    // Local Card
+    const localCard = createElement("button", {
+      class: "conflict-card conflict-card--local",
+      type: "button",
+    });
+    const localHeader = createElement("div", { class: "conflict-card__header" }, "Local Save State");
+    const localLabel = createElement("div", { class: "conflict-card__label" }, conflict.local.label);
+    const localTime = createElement("div", { class: "conflict-card__time" }, new Date(conflict.local.timestamp).toLocaleString());
+    const localBadge = createElement("span", { class: "sys-badge conflict-card__badge" }, "On this device");
+    localCard.append(localHeader, localLabel, localTime, localBadge);
+    localCard.addEventListener("click", () => close("local"), { signal: ac.signal });
+
+    // Remote Card
+    const remoteCard = createElement("button", {
+      class: "conflict-card conflict-card--remote",
+      type: "button",
+    });
+    const remoteHeader = createElement("div", { class: "conflict-card__header" }, "Cloud Save State");
+    const remoteLabel = createElement("div", { class: "conflict-card__label" }, conflict.remote.label);
+    const remoteTime = createElement("div", { class: "conflict-card__time" }, new Date(conflict.remote.timestamp).toLocaleString());
+    const remoteBadge = createElement("span", { class: "sys-badge conflict-card__badge" }, "In the cloud");
+    remoteCard.append(remoteHeader, remoteLabel, remoteTime, remoteBadge);
+    remoteCard.addEventListener("click", () => close("remote"), { signal: ac.signal });
+
+    // Highlight newest save state!
+    if (conflict.local.timestamp > conflict.remote.timestamp) {
+      localCard.classList.add("conflict-card--newest");
+      localHeader.appendChild(createElement("span", { class: "sys-badge sys-badge--newest" }, "Newer"));
+    } else if (conflict.remote.timestamp > conflict.local.timestamp) {
+      remoteCard.classList.add("conflict-card--newest");
+      remoteHeader.appendChild(createElement("span", { class: "sys-badge sys-badge--newest" }, "Newer"));
+    }
+
+    grid.append(localCard, remoteCard);
+    box.appendChild(grid);
+
+    const footer = createElement("div", { class: "confirm-footer" });
+    const cancelBtn = createElement("button", { class: "btn", type: "button" }, "Cancel (Keep Local)");
+    cancelBtn.addEventListener("click", () => close("local"), { signal: ac.signal });
+    footer.appendChild(cancelBtn);
+    box.appendChild(footer);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const close = (result: "local" | "remote") => {
+      ac.abort();
+      overlay.classList.remove("confirm-overlay--visible");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    };
+
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmostOverlay(overlay)) {
+        e.preventDefault();
+        e.stopPropagation();
+        close("local");
+      }
+    }, { signal: ac.signal, capture: true });
+
+    trapFocus(box, ac.signal);
+    requestAnimationFrame(() => {
+      overlay.classList.add("confirm-overlay--visible");
+      (conflict.local.timestamp >= conflict.remote.timestamp ? localCard : remoteCard).focus();
+    });
+  });
+}

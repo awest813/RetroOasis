@@ -167,6 +167,10 @@ class EJS_Download {
                     });
                     clearTimeout(timer);
                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const contentType = resp.headers.get("Content-Type") || "";
+                    if (contentType.includes("text/html")) {
+                        throw new Error(`Invalid content type: ${contentType} (received HTML instead of binary/script data)`);
+                    }
                     const cd = resp.headers.get("Content-Disposition");
                     if (cd) {
                         const match = cd.match(/filename="?([^";]+)"?/);

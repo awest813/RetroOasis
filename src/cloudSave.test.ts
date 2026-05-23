@@ -10,6 +10,7 @@ import {
   BoxProvider,
   OneDriveProvider,
   MegaProvider,
+  NextcloudProvider,
   CloudSaveManager,
   type CloudSaveProvider,
   type CloudSaveManifest,
@@ -514,6 +515,38 @@ describe("WebDAVProvider — delete", () => {
   });
 });
 
+// ── NextcloudProvider ─────────────────────────────────────────────────────────
+
+describe("NextcloudProvider — construction", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("has providerId 'nextcloud' and a non-empty displayName", () => {
+    const p = new NextcloudProvider("https://nextcloud.example.com", "user", "pass");
+    expect(p.providerId).toBe("nextcloud");
+    expect(p.displayName).toBe("Nextcloud");
+  });
+
+  it("automatically appends remote.php/dav/files/USERNAME to Nextcloud base URLs", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ status: 200, ok: true });
+    vi.stubGlobal("fetch", mockFetch);
+    const p = new NextcloudProvider("https://nextcloud.example.com", "myuser", "pass");
+    await p.isAvailable();
+    expect(mockFetch).toHaveBeenCalled();
+    const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toBe("https://nextcloud.example.com/remote.php/dav/files/myuser/");
+  });
+
+  it("preserves URL if it already contains the Nextcloud WebDAV path", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ status: 200, ok: true });
+    vi.stubGlobal("fetch", mockFetch);
+    const p = new NextcloudProvider("https://nextcloud.example.com/remote.php/dav/files/myuser", "myuser", "pass");
+    await p.isAvailable();
+    expect(mockFetch).toHaveBeenCalled();
+    const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toBe("https://nextcloud.example.com/remote.php/dav/files/myuser/");
+  });
+});
+
 // ── CloudSaveManager ──────────────────────────────────────────────────────────
 
 describe("CloudSaveManager — initial state", () => {
@@ -695,6 +728,46 @@ describe("CloudSaveManager — settings persistence", () => {
     m.saveWebDAVConfig("https://dav.example.com", "alice", "pass");
     m.clearWebDAVConfig();
     expect(m.loadWebDAVConfig()).toBeNull();
+  });
+
+  it("saveNextcloudConfig / loadNextcloudConfig round-trip", () => {
+    const m = new CloudSaveManager();
+    m.saveNextcloudConfig("https://nextcloud.example.com", "alice", "s3cr3t");
+    const cfg = m.loadNextcloudConfig();
+    expect(cfg?.url).toBe("https://nextcloud.example.com");
+    expect(cfg?.username).toBe("alice");
+    expect(cfg?.password).toBe("s3cr3t");
+  });
+
+  it("clearNextcloudConfig removes stored credentials", () => {
+    const m = new CloudSaveManager();
+    m.saveNextcloudConfig("https://nextcloud.example.com", "alice", "pass");
+    m.clearNextcloudConfig();
+    expect(m.loadNextcloudConfig()).toBeNull();
+  });
+
+  it("tryAutoConnect auto-connects WebDAV at constructor if config exists", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ status: 200, ok: true });
+    vi.stubGlobal("fetch", mockFetch);
+    
+    localStorage.setItem("retro-oasis-cloud", JSON.stringify({
+      providerId: "webdav",
+      autoSyncEnabled: true,
+      conflictResolution: "newest"
+    }));
+    localStorage.setItem("retro-oasis-cloud-webdav", JSON.stringify({
+      url: "https://dav.example.com",
+      username: "user",
+      password: "pwd"
+    }));
+
+    const m = new CloudSaveManager();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(m.isConnected()).toBe(true);
+    expect(m.activeProvider.providerId).toBe("webdav");
+
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 });
 

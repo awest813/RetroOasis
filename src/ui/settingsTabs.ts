@@ -17,13 +17,15 @@ export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, o
   appName: string;
   onError(message: string): void;
 }): void {
-  const { appName, onError } = opts;
+  const { onError } = opts;
+  void opts.appName; // part of standardized opts interface
   const biosSection = make("div", { class: "settings-section" });
   biosSection.appendChild(make("h4", { class: "settings-section__title" }, "System Startup Files"));
   biosSection.appendChild(make("p", { class: "settings-help" },
     "Some older consoles need a startup file to run games. " +
     "If a game won't start, you may need to add one here. " +
-    `You can extract these files from a physical console you own — ${appName} cannot provide them.`
+    "PS1 works out of the box (compatibility core). For higher accuracy, upload an official " +
+    `BIOS extracted from a console you own, or download the free OpenBIOS below.`
   ));
 
   const biosGrid = make("div", { class: "bios-grid" });
@@ -74,21 +76,52 @@ export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, o
           await biosLibrary.addBios(canonical, sysId);
           statusDot.className = "bios-dot bios-dot--ok";
           uploadBtn.textContent = "Replace";
+          if (downloadBtn) downloadBtn.textContent = "Re-download";
         } catch (err) {
           onError(`BIOS upload failed: ${err instanceof Error ? err.message : String(err)}`);
         }
       });
 
+      // "Download Free" button — only shown for entries with a free downloadUrl.
+      let downloadBtn: HTMLButtonElement | null = null;
+      if (req.downloadUrl) {
+        downloadBtn = make("button", { class: "btn bios-download-btn" }, "Download Free") as HTMLButtonElement;
+        downloadBtn.title = `Fetch ${req.displayName} automatically`;
+        downloadBtn.addEventListener("click", async () => {
+          if (!downloadBtn) return;
+          const origText = downloadBtn.textContent ?? "Download Free";
+          downloadBtn.disabled = true;
+          downloadBtn.textContent = "Downloading…";
+          try {
+            const resp = await fetch(req.downloadUrl!);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const canonical = new File([blob], req.fileName, { type: "application/octet-stream" });
+            await biosLibrary.addBios(canonical, sysId);
+            statusDot.className = "bios-dot bios-dot--ok";
+            uploadBtn.textContent = "Replace";
+            downloadBtn.textContent = "Re-download";
+          } catch (err) {
+            onError(`Download failed: ${err instanceof Error ? err.message : String(err)}`);
+            downloadBtn.textContent = origText;
+          } finally {
+            downloadBtn.disabled = false;
+          }
+        });
+      }
+
       void biosLibrary.findBios(sysId, req.fileName).then((found) => {
         if (found) {
           statusDot.className = "bios-dot bios-dot--ok";
           uploadBtn.textContent = "Replace";
+          if (downloadBtn) downloadBtn.textContent = "Re-download";
         } else if (req.required) {
           statusDot.className = "bios-dot bios-dot--missing";
         }
       }).catch(() => {});
 
       row.append(statusDot, uploadInput, labelWrap, requiredBadge, desc, uploadBtn);
+      if (downloadBtn) row.appendChild(downloadBtn);
       sysBlock.appendChild(row);
     }
 

@@ -294,8 +294,8 @@ const WEBDAV_OPERATION_TIMEOUT_MS   = 15_000;
  * must allow CORS requests from the app origin.
  */
 export class WebDAVProvider implements CloudSaveProvider {
-  readonly providerId  = "webdav";
-  readonly displayName = "WebDAV";
+  readonly providerId: string  = "webdav";
+  readonly displayName: string = "WebDAV";
 
   private readonly baseUrl: string;
   private readonly authHeader: string;
@@ -476,6 +476,25 @@ export class WebDAVProvider implements CloudSaveProvider {
   private async _deleteFile(url: string): Promise<void> {
     const r = await this._timedFetch(url, { method: "DELETE", headers: this._headers() });
     if (!r.ok) throw new Error(`WebDAV DELETE failed (${r.status}): ${url}`);
+  }
+}
+
+// ── NextcloudProvider ─────────────────────────────────────────────────────────
+
+/**
+ * CloudSaveProvider backed by a Nextcloud instance.
+ * Underneath, it uses WebDAV protocol on the Nextcloud remote DAV files endpoint.
+ */
+export class NextcloudProvider extends WebDAVProvider {
+  override readonly providerId  = "nextcloud";
+  override readonly displayName = "Nextcloud";
+
+  constructor(baseUrl: string, username: string, password: string) {
+    let fullUrl = baseUrl.trim();
+    if (!fullUrl.includes("/remote.php/dav/files/")) {
+      fullUrl = fullUrl.replace(/\/+$/, "") + `/remote.php/dav/files/${encodeURIComponent(username)}`;
+    }
+    super(fullUrl, username, password);
   }
 }
 
@@ -2480,7 +2499,7 @@ export class MegaProvider implements CloudSaveProvider {
 
 /** Settings persisted in localStorage under "retro-oasis-cloud". */
 export interface CloudSaveSettings {
-  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega";
+  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega" | "nextcloud";
   autoSyncEnabled:    boolean;
   conflictResolution: ConflictResolution;
 }
@@ -2516,7 +2535,7 @@ export class CloudSaveManager {
   private _lastError:   string | null = null;
 
   /** Persisted settings */
-  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega" = "null";
+  providerId:         "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega" | "nextcloud" = "null";
   autoSyncEnabled:    boolean           = false;
   conflictResolution: ConflictResolution = "newest";
 
@@ -2588,9 +2607,58 @@ export class CloudSaveManager {
   private static readonly BOX_KEY       = "retro-oasis-cloud-box";
   private static readonly ONEDRIVE_KEY  = "retro-oasis-cloud-onedrive";
   private static readonly MEGA_KEY      = "retro-oasis-cloud-mega";
+  private static readonly NEXTCLOUD_KEY = "retro-oasis-cloud-nextcloud";
 
   constructor() {
     this._loadSettings();
+    if (this.providerId !== "null") {
+      void this.tryAutoConnect().catch(() => {});
+    }
+  }
+
+  async tryAutoConnect(): Promise<void> {
+    try {
+      let provider: CloudSaveProvider | null = null;
+      if (this.providerId === "webdav") {
+        const c = this.loadWebDAVConfig();
+        if (c) provider = new WebDAVProvider(c.url, c.username, c.password);
+      } else if (this.providerId === "nextcloud") {
+        const c = this.loadNextcloudConfig();
+        if (c) provider = new NextcloudProvider(c.url, c.username, c.password);
+      } else if (this.providerId === "gdrive") {
+        const c = this.loadGDriveConfig();
+        if (c) provider = new GoogleDriveProvider(c.accessToken);
+      } else if (this.providerId === "dropbox") {
+        const c = this.loadDropboxConfig();
+        if (c) provider = new DropboxProvider(c.accessToken);
+      } else if (this.providerId === "pcloud") {
+        const c = this.loadPCloudConfig();
+        if (c) provider = new pCloudProvider(c.accessToken, c.region as "us" | "eu");
+      } else if (this.providerId === "blomp") {
+        const c = this.loadBlompConfig();
+        if (c) provider = new BlompProvider(c.username, c.password, c.container);
+      } else if (this.providerId === "box") {
+        const c = this.loadBoxConfig();
+        if (c) provider = new BoxProvider(c.accessToken, c.rootFolderId);
+      } else if (this.providerId === "onedrive") {
+        const c = this.loadOneDriveConfig();
+        if (c) provider = new OneDriveProvider(c.accessToken, c.rootId);
+      } else if (this.providerId === "mega") {
+        const c = this.loadMegaConfig();
+        if (c) provider = new MegaProvider(c.email, c.password);
+      }
+
+      if (provider) {
+        const ok = await provider.isAvailable();
+        if (ok) {
+          this._provider = provider;
+          this._connected = true;
+          this._emitStatusChange();
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 
   // ── Read-only state ─────────────────────────────────────────────────────────
@@ -2619,7 +2687,7 @@ export class CloudSaveManager {
 
     this._provider      = provider;
     this._connected     = true;
-    this.providerId     = provider.providerId as "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega";
+    this.providerId     = provider.providerId as "null" | "webdav" | "gdrive" | "dropbox" | "pcloud" | "blomp" | "box" | "onedrive" | "mega" | "nextcloud";
     this._lastError     = null;
     this._saveSettings();
     this._emitStatusChange();
@@ -2838,6 +2906,30 @@ export class CloudSaveManager {
   /** Remove persisted WebDAV credentials from localStorage. */
   clearWebDAVConfig(): void {
     try { localStorage.removeItem(CloudSaveManager.WEBDAV_KEY); } catch { /* ignore */ }
+  }
+
+  /** Persist Nextcloud connection parameters. */
+  saveNextcloudConfig(url: string, username: string, password: string): void {
+    try {
+      localStorage.setItem(
+        CloudSaveManager.NEXTCLOUD_KEY,
+        JSON.stringify({ url, username, password }),
+      );
+    } catch { /* ignore */ }
+  }
+
+  /** Load previously saved Nextcloud parameters, or null if none exist. */
+  loadNextcloudConfig(): { url: string; username: string; password: string } | null {
+    try {
+      const raw = localStorage.getItem(CloudSaveManager.NEXTCLOUD_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as { url: string; username: string; password: string };
+    } catch { return null; }
+  }
+
+  /** Remove persisted Nextcloud credentials from localStorage. */
+  clearNextcloudConfig(): void {
+    try { localStorage.removeItem(CloudSaveManager.NEXTCLOUD_KEY); } catch { /* ignore */ }
   }
 
   // ── Google Drive credential storage ─────────────────────────────────────────
@@ -3068,7 +3160,7 @@ export class CloudSaveManager {
           p.providerId === "gdrive" || p.providerId === "dropbox" ||
           p.providerId === "pcloud" || p.providerId === "blomp" ||
           p.providerId === "box" || p.providerId === "onedrive" ||
-          p.providerId === "mega") {
+          p.providerId === "mega" || p.providerId === "nextcloud") {
         this.providerId = p.providerId;
       }
       if (p.autoSyncEnabled === true) this.autoSyncEnabled = true;

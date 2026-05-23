@@ -23,6 +23,7 @@ import {
   BoxProvider,
   OneDriveProvider,
   MegaProvider,
+  NextcloudProvider,
 } from "../../cloudSave.js";
 import { createUuid } from "../../uuid.js";
 import { detectSystem } from "../../systems.js";
@@ -48,6 +49,7 @@ const CLOUD_PROVIDER_ICON_SVG: Record<string, string> = {
   blomp: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
   box: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/></svg>`,
   mega: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  nextcloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
 };
 
 const OVERLAY_FADE_DELAY_MS = 200;
@@ -64,6 +66,7 @@ const CLOUD_SAVE_PROVIDERS: CloudProviderMeta[] = [
   { id: "dropbox",  label: "Dropbox" },
   { id: "onedrive", label: "OneDrive" },
   { id: "webdav",   label: "WebDAV" },
+  { id: "nextcloud",label: "Nextcloud" },
   { id: "pcloud",   label: "pCloud" },
   { id: "blomp",    label: "Blomp" },
   { id: "box",      label: "Box" },
@@ -75,6 +78,7 @@ const CLOUD_LIBRARY_PROVIDERS: CloudProviderMeta[] = [
   { id: "dropbox",  label: "Dropbox" },
   { id: "onedrive", label: "OneDrive" },
   { id: "webdav",   label: "WebDAV" },
+  { id: "nextcloud",label: "Nextcloud" },
   { id: "pcloud",   label: "pCloud" },
   { id: "blomp",    label: "Blomp" },
   { id: "box",      label: "Box" },
@@ -86,6 +90,7 @@ const ALL_CLOUD_PROVIDERS: CloudProviderMeta[] = [
   { id: "dropbox",  label: "Dropbox" },
   { id: "onedrive", label: "OneDrive" },
   { id: "webdav",   label: "WebDAV" },
+  { id: "nextcloud",label: "Nextcloud" },
   { id: "pcloud",   label: "pCloud" },
   { id: "blomp",    label: "Blomp" },
   { id: "box",      label: "Box" },
@@ -285,10 +290,10 @@ function showCloudConnectDialog(): Promise<boolean> {
       type CredResult = { ok: false; error: string } | { ok: true; data: Record<string, string> };
       let getCredentials: () => CredResult = () => ({ ok: true, data: {} });
 
-      if (providerId === "webdav") {
-        const urlInp  = make("input", { type: "url",  id: "csd-url",  class: "settings-input", placeholder: "https://dav.example.com/saves", autocomplete: "off" }) as HTMLInputElement;
+      if (providerId === "webdav" || providerId === "nextcloud") {
+        const urlInp  = make("input", { type: "url",  id: "csd-url",  class: "settings-input", placeholder: providerId === "nextcloud" ? "https://nextcloud.example.com" : "https://dav.example.com/saves", autocomplete: "off" }) as HTMLInputElement;
         const userInp = make("input", { type: "text", id: "csd-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
+        const passInp = make("input", { type: "password", id: "csd-pass", class: "settings-input", placeholder: "Password (or App Password)", autocomplete: "current-password" }) as HTMLInputElement;
         appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
         appendCloudWizardLabeledField(form, "Username", userInp, "username");
         appendCloudWizardLabeledField(form, "Password", passInp, "password");
@@ -420,6 +425,9 @@ function showCloudConnectDialog(): Promise<boolean> {
           if (providerId === "webdav") {
             cloudManager.saveWebDAVConfig(d["url"]!, d["user"]!, d["pass"]!);
             provider = new WebDAVProvider(d["url"]!, d["user"]!, d["pass"]!);
+          } else if (providerId === "nextcloud") {
+            cloudManager.saveNextcloudConfig(d["url"]!, d["user"]!, d["pass"]!);
+            provider = new NextcloudProvider(d["url"]!, d["user"]!, d["pass"]!);
           } else if (providerId === "gdrive") {
             cloudManager.saveGDriveConfig(d["token"]!);
             provider = new GoogleDriveProvider(d["token"]!);
@@ -552,10 +560,10 @@ function showAddCloudLibraryDialog(
         config: "{}",
       });
 
-      if (providerId === "webdav") {
-        const urlInp  = make("input", { type: "url",      id: "cld-url",  class: "settings-input", placeholder: "https://dav.example.com/roms", autocomplete: "off" }) as HTMLInputElement;
+      if (providerId === "webdav" || providerId === "nextcloud") {
+        const urlInp  = make("input", { type: "url",      id: "cld-url",  class: "settings-input", placeholder: providerId === "nextcloud" ? "https://nextcloud.example.com" : "https://dav.example.com/roms", autocomplete: "off" }) as HTMLInputElement;
         const userInp = make("input", { type: "text",     id: "cld-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
-        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
+        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password (or App Password)", autocomplete: "current-password" }) as HTMLInputElement;
         appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
         appendCloudWizardLabeledField(form, "Username", userInp, "username");
         appendCloudWizardLabeledField(form, "Password", passInp, "password");

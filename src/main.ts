@@ -62,6 +62,7 @@ import {
 // Initialize Chrome-specific performance optimizations early
 import { optimizeBrowserPerformance } from "./performance.js";
 optimizeBrowserPerformance();
+import { showConflictDialog } from "./ui/modals.js";
 import { requestPersistentStorage, installStoragePressureListener, startStorageMonitoring, checkStorageQuota, getStorageWarning } from "./storage.js";
 
 /**
@@ -407,6 +408,9 @@ async function main(): Promise<void> {
   const biosLibrary   = new BiosLibrary();
   const saveLibrary   = new SaveStateLibrary();
   const cloudSaveManager = getCloudSaveManager();
+  cloudSaveManager.onConflict = async (conflict) => {
+    return showConflictDialog(conflict);
+  };
   const saveService   = new SaveGameService({
     saveLibrary,
     emulator,
@@ -716,16 +720,33 @@ async function main(): Promise<void> {
     }
 
     let biosAsset: Blob | undefined;
+    let biosFileName: string | undefined;
     try {
-      const primaryBios = await biosLibrary.getLaunchBiosAsset(systemId);
-      if (primaryBios) biosAsset = primaryBios;
+      const asset = await biosLibrary.getLaunchBiosAsset(systemId);
+      if (asset) {
+        biosAsset = asset;
+      }
+      const primaryBios = await biosLibrary.getPrimaryBios(systemId);
+      if (primaryBios) {
+        biosFileName = primaryBios.fileName;
+      }
     } catch {
       // BIOS asset lookup failed — launch without BIOS (best-effort).
     }
 
-    if (systemId === "psx" && !biosAsset && !coreSettingsOverride.retroarch_core) {
-      coreSettingsOverride.retroarch_core = "pcsx_rearmed";
-      showInfoToast("PS1 BIOS not found - using the compatibility core. Add scph5501.bin for Beetle PSX HW.");
+    if (systemId === "psx") {
+      // Beetle PSX HW (mednafen_psx_hw) requires an official Sony BIOS dump.
+      // Force pcsx_rearmed (which has a built-in HLE BIOS) in two cases:
+      //   1. No BIOS stored at all.
+      //   2. OpenBIOS detected — it is compatible with pcsx_rearmed but not
+      //      mednafen_psx_hw's strict signature checks.
+      const isOpenBios = biosFileName === "openbios.bin";
+      if (!biosAsset || isOpenBios) {
+        coreSettingsOverride.retroarch_core = "pcsx_rearmed";
+        if (!biosAsset) {
+          showInfoToast("No PS1 BIOS found — using compatibility core. Upload a BIOS in Settings → BIOS for better accuracy.");
+        }
+      }
     }
 
     await syncNetplayManagerFromSettings(settings);

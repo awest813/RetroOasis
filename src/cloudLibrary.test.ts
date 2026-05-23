@@ -92,6 +92,14 @@ describe("createProvider", () => {
     expect(p).toBeInstanceOf(MegaLibraryProvider);
   });
 
+  it("returns WebDAVLibraryProvider for 'nextcloud' with canonicalized Nextcloud path", () => {
+    const p = createProvider({
+      provider: "nextcloud",
+      config: JSON.stringify({ url: "https://nextcloud.example.com", username: "u", password: "p" }),
+    });
+    expect(p).toBeInstanceOf(WebDAVLibraryProvider);
+  });
+
   it("returns null for an unknown provider", () => {
     const p = createProvider({ provider: "unknown", config: "{}" });
     expect(p).toBeNull();

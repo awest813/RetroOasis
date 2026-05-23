@@ -1000,6 +1000,15 @@ export function createProvider(connection: { provider: string; config: string })
         return config.url && config.username && config.password
           ? new WebDAVLibraryProvider(config.url, config.username, config.password)
           : null;
+      case "nextcloud":
+        if (config.url && config.username && config.password) {
+          let fullUrl = config.url.trim();
+          if (!fullUrl.includes("/remote.php/dav/files/")) {
+            fullUrl = fullUrl.replace(/\/+$/, "") + `/remote.php/dav/files/${encodeURIComponent(config.username)}`;
+          }
+          return new WebDAVLibraryProvider(fullUrl, config.username, config.password);
+        }
+        return null;
       case "onedrive":
         return config.accessToken ? new OneDriveLibraryProvider(config.accessToken, config.rootId) : null;
       case "pcloud":

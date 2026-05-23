@@ -107,10 +107,30 @@ function pwaPrecacheManifestPlugin(): Plugin {
   };
 }
 
+function dev404Plugin(): Plugin {
+  return {
+    name: "dev-404-middleware",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const urlPath = req.url ? (req.url.split("?")[0] ?? "").split("#")[0] ?? "" : "";
+        if (urlPath && (urlPath.startsWith("/data/") || urlPath.startsWith("/cores/"))) {
+          const filePath = resolve(urlPath.slice(1));
+          if (!existsSync(filePath)) {
+            res.statusCode = 404;
+            res.end("Not Found");
+            return;
+          }
+        }
+        next();
+      });
+    }
+  };
+}
+
 export default defineConfig({
   // Serve from repo root; Vite will pick up index.html automatically.
   root: ".",
-  plugins: [copyEmulatorDataPlugin(), pwaPrecacheManifestPlugin()],
+  plugins: [dev404Plugin(), copyEmulatorDataPlugin(), pwaPrecacheManifestPlugin()],
 
   // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
   // Has no effect during local `vite dev` because the dev server serves from /.

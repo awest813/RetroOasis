@@ -7,7 +7,7 @@
  * Systems that require BIOS files:
  *   PlayStation 1  — SCPH-5500 (NTSC-J) / SCPH-1001 / SCPH-5501 / SCPH-5502 (optional but improves compatibility)
  *   Sega Saturn    — sega_101.bin or mpr-17933.bin  (required)
- *   Dreamcast      — dc_boot.bin + dc_flash.bin     (required)
+ *   Dreamcast      — (dc_boot.bin or dreamdash.bin) + dc_flash.bin (required)
  *   Atari Lynx     — lynxboot.img                   (optional)
  *
  * Schema
@@ -60,16 +60,30 @@ export interface BiosRequirement {
    * check passes as soon as one of them is found.
    *
    * Entries without a group are treated as standalone requirements —
-   * each must individually be present (e.g. Dreamcast dc_boot.bin and
+   * each must individually be present (e.g. Dreamcast bootloader and
    * dc_flash.bin are two distinct files that are both needed).
    */
   group?: string;
+  /**
+   * Optional direct-download URL for a freely redistributable BIOS binary.
+   * When present, the settings UI shows a "Download Free" button that
+   * fetches the file and stores it in the BIOS library automatically.
+   * Only set this for files that are legally redistributable (e.g. open-source BIOS).
+   */
+  downloadUrl?: string;
 }
 
 // ── Known BIOS requirements per system ────────────────────────────────────────
 
 export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
   psx: [
+    {
+      fileName: "openbios.bin",
+      displayName: "OpenBIOS (Free & Open Source)",
+      required: false,
+      description: "Free open-source PS1 BIOS from the PCSX-Redux project — no console needed. Compatible with most PS1 titles via the pcsx_rearmed core.",
+      downloadUrl: "https://github.com/grumpycoders/pcsx-redux/releases/latest/download/openbios.bin",
+    },
     {
       fileName: "scph5500.bin",
       displayName: "PS1 BIOS NTSC-J v3.0 (SCPH-5500)",
@@ -80,7 +94,7 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
       fileName: "scph5501.bin",
       displayName: "PS1 BIOS NTSC-U v3.0 (SCPH-5501)",
       required: false,
-      description: "Recommended US BIOS — improves compatibility with NTSC-U titles",
+      description: "Recommended US BIOS — improves compatibility with NTSC-U titles. Enables Beetle PSX HW (highest accuracy).",
     },
     {
       fileName: "scph1001.bin",
@@ -116,7 +130,16 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
       fileName: "dc_boot.bin",
       displayName: "Dreamcast BIOS (dc_boot.bin)",
       required: true,
-      description: "Main Dreamcast BIOS ROM — emulation will not start without this",
+      group: "dc-boot",
+      description: "Official/retail SEGA Dreamcast BIOS boot ROM — required for standard boot",
+    },
+    {
+      fileName: "dreamdash.bin",
+      displayName: "DreamDash Custom BIOS (dreamdash.bin)",
+      required: true,
+      group: "dc-boot",
+      description: "A modern, open-source replacement boot ROM for the Sega Dreamcast (https://github.com/darcagn/DreamDash)",
+      downloadUrl: "./assets/dreamdash.bin",
     },
     {
       fileName: "dc_flash.bin",
@@ -397,7 +420,7 @@ export class BiosLibrary {
       return this.getPrimaryBiosBlob(systemId);
     }
 
-    const boot = await this.findBios(systemId, "dc_boot.bin");
+    const boot = (await this.findBios(systemId, "dreamdash.bin")) || (await this.findBios(systemId, "dc_boot.bin"));
     const flash = await this.findBios(systemId, "dc_flash.bin");
     if (!boot || !flash) return null;
 

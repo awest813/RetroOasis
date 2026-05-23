@@ -10,7 +10,7 @@
  *   - isBiosReady logic:
  *       • Systems with no requirements always return true
  *       • Systems with optional-only BIOS entries always return true
- *       • Dreamcast requires BOTH dc_boot.bin AND dc_flash.bin
+ *       • Dreamcast requires BOTH dc_boot.bin/dreamdash.bin AND dc_flash.bin
  *       • Saturn requires AT LEAST ONE of sega_101.bin / mpr-17933.bin
  *   - Listing all stored BIOS entries (metadata only, no blob)
  *   - Removing BIOS entries by id
@@ -86,13 +86,14 @@ describe('BIOS_REQUIREMENTS', () => {
     expect(fileNames).toContain('scph5502.bin');
   });
 
-  it('Dreamcast has two required BIOS files', () => {
+  it('Dreamcast has three required BIOS files', () => {
     const dcReqs = BIOS_REQUIREMENTS['segaDC'];
     expect(dcReqs).toBeDefined();
     const required = dcReqs!.filter((r: BiosRequirement) => r.required);
-    expect(required).toHaveLength(2);
+    expect(required).toHaveLength(3);
     const fileNames = required.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('dc_boot.bin');
+    expect(fileNames).toContain('dreamdash.bin');
     expect(fileNames).toContain('dc_flash.bin');
   });
 
@@ -110,13 +111,19 @@ describe('BIOS_REQUIREMENTS', () => {
     expect([...groups][0]).toBeTruthy();
   });
 
-  it('Dreamcast entries do NOT share a group (each file is independently required)', () => {
+  it('Dreamcast has alternative boot BIOS entries in a group and a standalone flash ROM', () => {
     const dcReqs = BIOS_REQUIREMENTS['segaDC'];
     const required = dcReqs!.filter((r: BiosRequirement) => r.required);
-    // Either both have no group, or they have distinct groups
-    const groups = required.map((r: BiosRequirement) => r.group ?? r.fileName);
-    const uniqueGroups = new Set(groups);
-    expect(uniqueGroups.size).toBe(required.length);
+    
+    const bootEntries = required.filter(r => r.group === 'dc-boot');
+    expect(bootEntries).toHaveLength(2);
+    const bootFileNames = bootEntries.map(r => r.fileName);
+    expect(bootFileNames).toContain('dc_boot.bin');
+    expect(bootFileNames).toContain('dreamdash.bin');
+
+    const flashEntries = required.filter(r => !r.group);
+    expect(flashEntries).toHaveLength(1);
+    expect(flashEntries[0]?.fileName).toBe('dc_flash.bin');
   });
 
   it('Lynx BIOS is optional', () => {
@@ -387,6 +394,20 @@ describe('BiosLibrary.getLaunchBiosAsset', () => {
     expect(text).toContain('dc/dc_boot.bin');
     expect(text).toContain('dc/dc_flash.bin');
   });
+
+  it('returns a ZIP File for Dreamcast containing DreamDash as the boot BIOS', async () => {
+    await lib.addBios(makeBiosFile('dreamdash.bin', 'dreamdash-data'), 'segaDC');
+    await lib.addBios(makeBiosFile('dc_flash.bin'), 'segaDC');
+
+    const asset = await lib.getLaunchBiosAsset('segaDC');
+    expect(asset).toBeInstanceOf(File);
+    expect((asset as File).name).toBe('dreamcast-bios.zip');
+
+    const bytes = new Uint8Array(await (asset as File).arrayBuffer());
+    const text = new TextDecoder().decode(bytes);
+    expect(text).toContain('dc/dc_boot.bin');
+    expect(text).toContain('dc/dc_flash.bin');
+  });
 });
 
 // ── getBiosStatus ─────────────────────────────────────────────────────────────
@@ -507,7 +528,7 @@ describe('BiosLibrary.isBiosReady', () => {
     expect(ready).toBe(true);
   });
 
-  // ── Dreamcast — requires BOTH dc_boot.bin AND dc_flash.bin ────────────────
+  // ── Dreamcast — requires BOTH dc_boot.bin/dreamdash.bin AND dc_flash.bin ────────────────
 
   it('returns false for Dreamcast when neither BIOS file is stored', async () => {
     const ready = await lib.isBiosReady('segaDC');
@@ -520,6 +541,12 @@ describe('BiosLibrary.isBiosReady', () => {
     expect(ready).toBe(false);
   });
 
+  it('returns false for Dreamcast when only dreamdash.bin is stored', async () => {
+    await lib.addBios(makeBiosFile('dreamdash.bin'), 'segaDC');
+    const ready = await lib.isBiosReady('segaDC');
+    expect(ready).toBe(false);
+  });
+
   it('returns false for Dreamcast when only dc_flash.bin is stored', async () => {
     await lib.addBios(makeBiosFile('dc_flash.bin'), 'segaDC');
     const ready = await lib.isBiosReady('segaDC');
@@ -528,6 +555,13 @@ describe('BiosLibrary.isBiosReady', () => {
 
   it('returns true for Dreamcast when BOTH dc_boot.bin and dc_flash.bin are stored', async () => {
     await lib.addBios(makeBiosFile('dc_boot.bin'), 'segaDC');
+    await lib.addBios(makeBiosFile('dc_flash.bin'), 'segaDC');
+    const ready = await lib.isBiosReady('segaDC');
+    expect(ready).toBe(true);
+  });
+
+  it('returns true for Dreamcast when BOTH dreamdash.bin and dc_flash.bin are stored', async () => {
+    await lib.addBios(makeBiosFile('dreamdash.bin'), 'segaDC');
     await lib.addBios(makeBiosFile('dc_flash.bin'), 'segaDC');
     const ready = await lib.isBiosReady('segaDC');
     expect(ready).toBe(true);

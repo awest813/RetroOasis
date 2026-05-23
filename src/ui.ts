@@ -656,27 +656,39 @@ export async function selectImportFileFromSelection(
   const selected = filesToArray(files);
   if (selected.length === 0) return null;
 
+  // Single non-CUE file — fast path, no special handling needed.
+  if (selected.length === 1 && !selected[0]!.name.toLowerCase().endsWith(".cue")) {
+    return selected[0]!;
+  }
+
   const cueFiles = selected.filter(file => file.name.toLowerCase().endsWith(".cue"));
+  const nonCueFiles = selected.filter(file => !file.name.toLowerCase().endsWith(".cue"));
+
   if (cueFiles.length > 0) {
+    // Try to find the disc binary that this CUE sheet describes.
     for (const cueFile of cueFiles) {
       const referencedNames = await parseCueReferencedFileNames(cueFile);
-      const referencedPayload = selected.find(file =>
-        referencedNames.includes(fileBaseName(file.name)) &&
-        !file.name.toLowerCase().endsWith(".cue")
+      const referencedPayload = nonCueFiles.find(file =>
+        referencedNames.includes(fileBaseName(file.name))
       );
       if (referencedPayload) return referencedPayload;
     }
 
     if (selected.length === 1) {
+      // Only a .cue was provided — the binary track is missing.
       showError(
-        "This PS1 .cue file points to a separate disc image.\n\n" +
-        "Choose or drop the matching .bin file instead, or select/drop both the .cue and .bin together."
+        "This disc image (.cue) needs its matching binary track file.\n\n" +
+        "Select or drop both the .cue and .bin together, or use the .bin / .chd / .iso file directly."
       );
       return null;
     }
+
+    // Multiple files selected but CUE names didn't match any — prefer the
+    // non-CUE file over handing a bare .cue to the import pipeline.
+    if (nonCueFiles.length > 0) return nonCueFiles[0]!;
   }
 
-  return selected[0] ?? null;
+  return selected[0]!;
 }
 
 export function initUI(opts: UIOptions): void {
@@ -2245,7 +2257,7 @@ function buildInGameControls(
   _onSettingsChange:  (patch: Partial<Settings>) => void,
   onReturnToLibrary:  () => void,
   _saveLibrary?:      SaveStateLibrary,
-  _saveService?:      SaveGameService,
+  saveService?:      SaveGameService,
   _getCurrentGameId?:  () => string | null,
   getCurrentGameName?: () => string | null,
   _getCurrentSystemId?: () => string | null,
@@ -2344,6 +2356,57 @@ function buildInGameControls(
       catch (err) { console.warn("In-game restart failed:", err); }
     }, { signal });
     actions.append(btnRestart);
+
+    if (saveService) {
+      const btnQuickSave = make("button", {
+        class: "btn btn--ghost in-game-overlay__btn",
+        type: "button",
+        title: "Save state to Slot 1 (F5)",
+        "aria-label": "Quick Save",
+        role: "menuitem",
+      }, "Quick Save");
+      btnQuickSave.addEventListener("click", () => {
+        void saveService.saveSlot(1).then((entry) => {
+          if (entry) showInfoToast("Saved to Slot 1");
+          else showError("Quick save failed — add this game to your library or wait for the core to finish starting.");
+        });
+      }, { signal });
+      actions.append(btnQuickSave);
+
+      const btnQuickLoad = make("button", {
+        class: "btn btn--ghost in-game-overlay__btn",
+        type: "button",
+        title: "Load state from Slot 1 (F7)",
+        "aria-label": "Quick Load",
+        role: "menuitem",
+      }, "Quick Load");
+      btnQuickLoad.addEventListener("click", () => {
+        void saveService.loadSlot(1).then((ok) => {
+          if (ok) showInfoToast("Loaded Slot 1");
+          else showError("Nothing saved in Slot 1 yet, or the emulator is still starting.");
+        });
+      }, { signal });
+      actions.append(btnQuickLoad);
+
+      const btnSyncCloud = make("button", {
+        class: "btn btn--ghost in-game-overlay__btn",
+        type: "button",
+        title: "Sync saves with the cloud",
+        "aria-label": "Sync Cloud",
+        role: "menuitem",
+      }, "Sync Cloud");
+      btnSyncCloud.addEventListener("click", async () => {
+        try {
+          await saveService.syncGameMetadata();
+          showInfoToast("Cloud sync completed successfully");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          showError(`Cloud sync failed: ${msg}`);
+        }
+      }, { signal });
+      actions.append(btnSyncCloud);
+    }
+
     actions.append(buildLibraryButton("btn btn--gradient in-game-overlay__btn"));
     const libBtn = actions.lastElementChild as HTMLElement;
     if (libBtn) libBtn.setAttribute("role", "menuitem");
