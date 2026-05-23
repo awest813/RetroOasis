@@ -900,8 +900,8 @@ describe("libretroFilenameSafe", () => {
   });
 
   it("replaces all filename-unsafe characters with underscores", () => {
-    // Each of & * / : ` < > ? \ | must be substituted.
-    expect(libretroFilenameSafe("a&b*c/d:e`f<g>h?i\\j|k")).toBe("a_b_c_d_e_f_g_h_i_j_k");
+    // Each of & * / : ` < > ? \ | " must be substituted.
+    expect(libretroFilenameSafe("a&b*c/d:e`f<g>h?i\\j|k\"l")).toBe("a_b_c_d_e_f_g_h_i_j_k_l");
   });
 
   it("is idempotent and leaves safe characters alone", () => {

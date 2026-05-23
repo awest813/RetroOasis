@@ -740,7 +740,7 @@ export function cleanRomNameForLibretro(raw: string): string {
  */
 export function libretroFilenameSafe(name: string): string {
   // Order does not matter — none of the targets overlap.
-  return name.replace(/[&*/:`<>?\\|]/g, "_");
+  return name.replace(/[&*/:`<>?\\|"]/g, "_");
 }
 
 /** Tunable options for `LibretroCoverArtProvider`. Exposed mainly for tests. */
