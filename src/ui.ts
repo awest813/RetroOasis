@@ -93,7 +93,6 @@ import {
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
 import {
-  buildLibraryHero as buildLibraryHeroSection,
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
@@ -107,7 +106,7 @@ import {
 import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
-import { systemIcon, escHtml, isEditableTarget } from "./ui/viewHelpers.js";
+import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
 import { resolveSystemAndAddImpl } from "./ui/screens/gameImport.js";
@@ -1632,8 +1631,6 @@ export async function renderLibrary(
 
   grid.className = `library-grid library-grid--${layout}`;
 
-  const isCinematicMode = settings.libraryGrouped && !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites && _librarySortMode === "lastPlayed" && displayed.length >= 5;
-
   if (displayed.length === 0 && allGames.length > 0) {
     const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
     const empty = buildFilteredLibraryEmptyState({
@@ -1647,76 +1644,9 @@ export async function renderLibrary(
     return;
   }
 
-  if (isCinematicMode && displayed.length > 0) {
-    grid.classList.add("library-section__rows");
-    
-    // 1. Hero (Last Played)
-    const lastPlayed = displayed[0]!;
-    const hero = buildLibraryHeroSection({
-      game: lastPlayed,
-      library,
-      settings,
-      onLaunchGame,
-      systemIcon,
-      escapeHtml: escHtml,
-      fetchFromCloud,
-      toLaunchFile,
-      showLoadingOverlay,
-      setLoadingMessage,
-      setLoadingSubtitle,
-      hideLoadingOverlay,
-      showError,
-    });
-    hero.style.setProperty("--row-i", "0");
-    hero.classList.add("library-hero--entering");
-    grid.appendChild(hero);
-    
-    // 2. Continue Playing Row (Recent 2-6 excluding hero)
-    const recent = displayed.slice(1, 7);
-    if (recent.length > 0) {
-      grid.appendChild(buildLibraryRowSection({
-        title: "Jump Back In",
-        systemId: null,
-        games: recent,
-        library,
-        settings,
-        onLaunchGame,
-        emulatorRef,
-        onApplyPatch,
-        systemIcon,
-        buildGameCard,
-      }));
-    }
-    
-    // 3. System Groups
-    const systemIds = [...new Set(displayed.map(g => g.systemId))].sort();
-    systemIds.forEach((sid, idx) => {
-      const sysGames = displayed.filter(g => g.systemId === sid);
-      if (sysGames.length > 0) {
-        const sys = getSystemById(sid);
-        const row = buildLibraryRowSection({
-          title: sys?.name ?? sid.toUpperCase(),
-          systemId: sid,
-          games: sysGames,
-          library,
-          settings,
-          onLaunchGame,
-          emulatorRef,
-          onApplyPatch,
-          systemIcon,
-          buildGameCard,
-        });
-        row.style.setProperty("--row-i", String(idx + 1));
-        row.classList.add("library-row--entering");
-        grid.appendChild(row);
-      }
-    });
-    return;
-  }
-
-  // Favorites grouping if enabled and not in cinematic mode
+  // Favorites grouping if enabled
   const hasFavorites = displayed.some(g => g.isFavorite);
-  if (settings.libraryGrouped && !isCinematicMode && (hasFavorites || [...new Set(displayed.map(g => g.systemId))].length > 1)) {
+  if (settings.libraryGrouped && (hasFavorites || [...new Set(displayed.map(g => g.systemId))].length > 1)) {
     let pool = [...displayed];
     
     if (hasFavorites) {
