@@ -2101,11 +2101,13 @@ export async function resolveSystemAndAdd(
   settings:      Settings,
   onLaunchGame:  (file: File, systemId: string, gameId?: string) => Promise<void>,
   emulatorRef?:  PSPEmulator,
-  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
+  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>,
+  preferredSystemId?: string,
 ): Promise<void> {
   return resolveSystemAndAddImpl(file, library, settings, onLaunchGame, emulatorRef, onApplyPatch,
     () => { void renderLibrary(library, settings, onLaunchGame, emulatorRef, onApplyPatch); },
     fetchFromCloud,
+    preferredSystemId,
   );
 }
 

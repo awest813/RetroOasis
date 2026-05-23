@@ -18,6 +18,7 @@ import {
   SYSTEMS,
   ALL_EXTENSIONS,
   detectSystem,
+  getSystemById,
   type SystemInfo,
 } from "../../systems.js";
 import type { Settings } from "../../types/settings.js";
@@ -93,6 +94,7 @@ export async function resolveSystemAndAddImpl(
   onApplyPatch:  ((gameId: string, patchFile: File) => Promise<void>) | undefined,
   onRenderLibrary: () => void,
   onFetchFromCloud: (game: GameMetadata, settings: Settings, libraryForCache?: GameLibrary) => Promise<Blob>,
+  preferredSystemId?: string,
 ): Promise<void> {
   const ext = fileExt(file.name);
   if (PATCH_EXT_SET.has(ext)) {
@@ -299,10 +301,19 @@ export async function resolveSystemAndAddImpl(
     );
   }
 
+  const preferredSystem = preferredSystemId ? getSystemById(preferredSystemId) ?? null : null;
   const detected = detectSystem(resolvedFile.name);
   let system: SystemInfo | null = null;
 
-  if (detected === null) {
+  if (preferredSystem) {
+    system = preferredSystem;
+    resolvedFile = inferFileForSystem(resolvedFile, preferredSystem);
+    logImport(
+      emulatorRef,
+      settings,
+      `System resolved from launch hint: ${preferredSystem.id} (${preferredSystem.name}) for "${resolvedFile.name}"`,
+    );
+  } else if (detected === null) {
     const resolvedExt = fileExt(resolvedFile.name);
     const shouldOfferSystemPicker =
       resolvedExt === "" || (!ALL_EXTENSIONS.includes(resolvedExt) && !IMPORT_ARCHIVE_EXT_SET.has(resolvedExt));
@@ -466,7 +477,7 @@ export async function resolveSystemAndAddImpl(
     const errMsg = `Could not add game: ${err instanceof Error ? err.message : String(err)}`;
     logImportWarn(emulatorRef, settings, errMsg);
     showError(errMsg, () => {
-      void resolveSystemAndAddImpl(file, library, settings, onLaunchGame, emulatorRef, onApplyPatch, onRenderLibrary, onFetchFromCloud);
+      void resolveSystemAndAddImpl(file, library, settings, onLaunchGame, emulatorRef, onApplyPatch, onRenderLibrary, onFetchFromCloud, preferredSystemId);
     });
   }
 }

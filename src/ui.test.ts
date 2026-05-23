@@ -3979,6 +3979,37 @@ describe("system picker subtitle for unknown extension", () => {
     document.getElementById("system-picker-close")?.click();
     await importPromise;
   });
+
+  it("uses a URL/core import hint to skip ambiguous system picking", async () => {
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(async (incoming: File, systemId: string) => ({
+        id: "hinted-game",
+        name: incoming.name.replace(/\.[^.]+$/, ""),
+        fileName: incoming.name,
+        systemId,
+        size: incoming.size,
+        addedAt: Date.now(),
+        lastPlayedAt: null,
+      })),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+    const onLaunchGame = vi.fn(async () => {});
+
+    await resolveSystemAndAdd(
+      new File([new Uint8Array([1, 2, 3])], "mystery.bin"),
+      library,
+      makeSettings(),
+      onLaunchGame,
+      undefined,
+      undefined,
+      "n64",
+    );
+
+    expect(document.getElementById("system-picker")?.hasAttribute("hidden")).toBe(true);
+    expect(library.addGame).toHaveBeenCalledWith(expect.objectContaining({ name: "mystery.64" }), "n64");
+    expect(onLaunchGame).toHaveBeenCalledWith(expect.objectContaining({ name: "mystery.64" }), "n64", "hinted-game");
+  });
 });
 
 describe("Dreamcast experimental messaging", () => {

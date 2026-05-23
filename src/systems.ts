@@ -1676,6 +1676,33 @@ const UNIQUE_EXT: Map<string, SystemInfo> = new Map();
 /** Extension → multiple candidate systems (ambiguous). */
 const AMBIGUOUS_EXT: Map<string, SystemInfo[]> = new Map();
 
+const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
+  desmume: "nds",
+  desmume2015: "nds",
+  fbneo: "arcade",
+  fceumm: "nes",
+  flycast: "segaDC",
+  freeintv: "intv",
+  gambatte: "gbc",
+  genesis_plus_gx: "segaMD",
+  handy: "lynx",
+  mame2003_plus: "mame2003",
+  mednafen_ngp: "ngp",
+  mednafen_psx: "psx",
+  mednafen_psx_hw: "psx",
+  melonds: "nds",
+  mgba: "gba",
+  mupen64plus_next: "n64",
+  nestopia: "nes",
+  parallel_n64: "n64",
+  pcsx_rearmed: "psx",
+  ppsspp: "psp",
+  prosystem: "atari7800",
+  snes9x: "snes",
+  stella2014: "atari2600",
+  yabause: "segaSaturn",
+};
+
 function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | null {
   const coreIds = new Set(systems.map(sys => sys.coreId ?? sys.id));
   if (coreIds.size !== 1) return null;
@@ -1732,6 +1759,13 @@ export function detectSystem(
 /** Look up a system by its EJS core identifier (O(1) via Map). */
 export function getSystemById(id: string): SystemInfo | undefined {
   return SYSTEM_BY_ID.get(id);
+}
+
+export function getSystemByCoreHint(coreHint: string | null | undefined): SystemInfo | undefined {
+  if (!coreHint) return undefined;
+  const normalized = coreHint.trim().toLowerCase().replace(/-/g, "_");
+  if (!normalized || normalized === "autodetect") return undefined;
+  return SYSTEM_BY_ID.get(WEBRETRO_CORE_TO_SYSTEM_ID[normalized] ?? normalized);
 }
 
 /**
