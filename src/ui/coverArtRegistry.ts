@@ -40,7 +40,7 @@ let _keyedProviders: Map<string, ApiKeyedProvider> | null = null;
 let _coverArtProvider: CoverArtProvider | null = null;
 let _subscribed = false;
 
-export interface ApiKeyTester {
+interface ApiKeyTester {
   testConnection(opts?: { signal?: AbortSignal }): Promise<true | string>;
 }
 

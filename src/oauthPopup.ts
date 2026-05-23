@@ -21,13 +21,7 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface OAuthConfig {
-  clientId: string;
-  /** Fully-qualified redirect URI pointing to oauth-callback.html on this origin. */
-  redirectUri: string;
-}
-
-export interface OAuthResult {
+interface OAuthResult {
   accessToken: string;
 }
 

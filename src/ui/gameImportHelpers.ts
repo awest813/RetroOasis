@@ -41,7 +41,7 @@ export const EXTRACTABLE_ARCHIVE_FORMATS = new Set<ArchiveFormat>(["zip", "7z", 
 export const UNSUPPORTED_ARCHIVE_EXT_SET = new Set(["zst", "lz", "lzma", "cab"]);
 export const MIN_NATIVE_PACKAGE_BIN_ENTRY_COUNT = 4;
 export const NATIVE_PACKAGE_BIN_EXT = "bin";
-export const NATIVE_PACKAGE_ARCHIVE_SUFFIX_RE = /\.(zip|7z)$/i;
+const NATIVE_PACKAGE_ARCHIVE_SUFFIX_RE = /\.(zip|7z)$/i;
 const ARCADE_SET_ARCHIVE_SUFFIX_RE = /\.(zip|7z)$/i;
 const ARCADE_SET_STEM_RE = /^[a-z0-9][a-z0-9_+.-]{1,15}$/i;
 const DESCRIPTIVE_DISC_ARCHIVE_RE =
@@ -97,8 +97,8 @@ export function logImportWarn(
   if (settings.verboseLogging) console.warn(`[${APP_NAME}] ${message}`);
 }
 
-export const IMPORT_MAX_ATTEMPTS = 3;
-export const IMPORT_RETRY_BASE_DELAY_MS = 300;
+const IMPORT_MAX_ATTEMPTS = 3;
+const IMPORT_RETRY_BASE_DELAY_MS = 300;
 
 export function isTransientImportError(err: Error): boolean {
   const msg = err.message.toLowerCase();

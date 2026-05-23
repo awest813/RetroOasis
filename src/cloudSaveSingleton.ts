@@ -8,7 +8,3 @@ export function getCloudSaveManager(): CloudSaveManager {
   return _instance;
 }
 
-/** Test helper: clears the singleton so each test gets an isolated manager. */
-export function resetCloudSaveManagerForTests(): void {
-  _instance = null;
-}
