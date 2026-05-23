@@ -79,10 +79,10 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
   psx: [
     {
       fileName: "openbios.bin",
-      displayName: "OpenBIOS (Free & Open Source)",
+      displayName: "OpenBIOS (Free & Open Source — bundled)",
       required: false,
-      description: "Free open-source PS1 BIOS from the PCSX-Redux project — no console needed. Compatible with most PS1 titles via the pcsx_rearmed core.",
-      downloadUrl: "https://github.com/grumpycoders/pcsx-redux/releases/latest/download/openbios.bin",
+      description: "Free open-source PS1 BIOS from the PCSX-Redux project, bundled directly with RetroOasis. No external download needed. Compatible with most PS1 titles via the pcsx_rearmed core.",
+      downloadUrl: "/bios/openbios.bin",
     },
     {
       fileName: "scph5500.bin",
