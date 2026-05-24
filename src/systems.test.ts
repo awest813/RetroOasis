@@ -206,6 +206,8 @@ describe('systems performance profiles', () => {
   describe('getSystemByCoreHint', () => {
     it('maps webretro N64 core URLs to the RetroOasis N64 profile', () => {
       expect(getSystemByCoreHint('parallel_n64')?.id).toBe('n64');
+      // mupen64plus_next is kept as a backward-compat alias for older saved game records
+      expect(getSystemByCoreHint('mupen64plus-next')?.id).toBe('n64');
     });
 
     it('ignores autodetect because RetroOasis already auto-detects file imports', () => {

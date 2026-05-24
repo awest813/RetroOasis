@@ -150,7 +150,7 @@ export function getGraphicsPresetCoreOptions(
   const out = { ...getResolutionCoreOptions(systemId, GRAPHICS_PRESET_TO_RESOLUTION[preset]) };
 
   switch (systemId) {
-case "psp":
+    case "psp":
       if (preset === "native") {
         Object.assign(out, {
           ppsspp_gpu_anisotropic_filtering: "off",

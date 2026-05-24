@@ -19,3 +19,11 @@ coverage/
 jsdoc/
 playwright-report/
 test-results/
+
+# Scratch / debug files — never commit these
+screenshot_*.png
+test_*.js
+test_*.cjs
+test_*.mjs
+test_*.html
+old_*.ts

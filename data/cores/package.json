@@ -29,7 +29,6 @@
         "@emulatorjs/core-gambatte": "latest",
         "@emulatorjs/core-mgba": "latest",
         "@emulatorjs/core-beetle_vb": "latest",
-        "@emulatorjs/core-mupen64plus_next": "latest",
         "@emulatorjs/core-melonds": "latest",
         "@emulatorjs/core-desmume2015": "latest",
         "@emulatorjs/core-desmume": "latest",

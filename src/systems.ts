@@ -1683,6 +1683,9 @@ const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
   mednafen_psx_hw: "psx",
   melonds: "nds",
   mgba: "gba",
+  // mupen64plus_next is kept as a backward-compatibility alias so that games
+  // previously stored with the old default core still resolve to the n64 system.
+  mupen64plus_next: "n64",
   nestopia: "nes",
   parallel_n64: "n64",
   pcsx_rearmed: "psx",
