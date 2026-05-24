@@ -735,11 +735,8 @@ async function main(): Promise<void> {
     }
 
     if (systemId === "psx") {
-      // Beetle PSX HW (mednafen_psx_hw) requires an official Sony BIOS dump.
-      // Force pcsx_rearmed (which has a built-in HLE BIOS) in two cases:
-      //   1. No BIOS stored at all.
-      //   2. OpenBIOS detected — it is compatible with pcsx_rearmed but not
-      //      mednafen_psx_hw's strict signature checks.
+      // PS1 is pinned to PCSX ReARMed. It can run with its built-in HLE BIOS,
+      // but an official BIOS or OpenBIOS still improves compatibility for some titles.
       const isOpenBios = biosFileName === "openbios.bin";
       if (!biosAsset || isOpenBios) {
         coreSettingsOverride.retroarch_core = "pcsx_rearmed";

@@ -20,7 +20,7 @@ Each section follows the pattern:
 2. Unsupported archive format (e.g. bzip2, xz, Deflate64 inside ZIP).
 3. BIOS missing for a system that requires it (PS1, PSP, NDS, GBA-BIOS-requiring games).
 4. WASM compilation failed or cached module is incompatible after an update.
-5. Browser lacks SharedArrayBuffer support (required for PSP / N64 cores).
+5. Browser lacks SharedArrayBuffer support (required for PSP and other threaded cores).
 
 **Fix**
 - Ask the user to open DevTools → Console and share any red errors.

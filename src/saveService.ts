@@ -50,6 +50,7 @@ interface SaveGameContext {
 
 const DEFAULT_STATE_CAPTURE_RETRIES = 8;
 const SLOW_STATE_CAPTURE_RETRIES = 18;
+const PSX_STATE_CAPTURE_RETRIES = 30;
 const SLOW_STATE_CAPTURE_SYSTEMS = new Set([
   "psp",
   "nds",
@@ -66,6 +67,9 @@ const SLOW_STATE_CAPTURE_SYSTEMS = new Set([
 
 export function stateCaptureRetriesForSystem(systemId: string, configuredRetries: number): number {
   const baseline = Math.max(configuredRetries, DEFAULT_STATE_CAPTURE_RETRIES);
+  if (systemId === "psx") {
+    return Math.max(baseline, PSX_STATE_CAPTURE_RETRIES);
+  }
   return SLOW_STATE_CAPTURE_SYSTEMS.has(systemId)
     ? Math.max(baseline, SLOW_STATE_CAPTURE_RETRIES)
     : baseline;

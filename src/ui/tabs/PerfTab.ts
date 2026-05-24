@@ -103,7 +103,7 @@ export function buildPerfTab(
 
   perfSection.appendChild(buildToggleRow(
     "Dynamic resolution",
-    "For PSP, PS1, Nintendo 64, DS, and Dreamcast, lowers internal resolution automatically when FPS stays below a steady threshold, then ramps back when performance recovers. A per-game graphics profile can turn this off for that title.",
+    "For PSP, Nintendo 64, DS, and Dreamcast, lowers internal resolution automatically when FPS stays below a steady threshold, then ramps back when performance recovers. A per-game graphics profile can turn this off for that title.",
     settings.dynamicResolutionScaling,
     (v) => onSettingsChange({ dynamicResolutionScaling: v }),
   ));

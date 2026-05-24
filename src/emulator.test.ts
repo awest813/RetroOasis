@@ -795,6 +795,11 @@ describe('PSPEmulator', () => {
       expect(window.EJS_paths?.['ppsspp.json']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/reports/ppsspp.json`);
       expect(window.EJS_paths?.['ppsspp-assets.zip']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-assets.zip`);
       expect(window.EJS_Settings?.ppsspp_rendering_mode).toBe('OpenGL');
+      expect(window.EJS_Settings?.ppsspp_fast_memory).toBe('disabled');
+      expect(window.EJS_Settings?.ppsspp_io_timing_method).toBe('Host');
+      expect(window.EJS_Settings?.ppsspp_separate_io_thread).toBe('disabled');
+      expect(window.EJS_Settings?.ppsspp_unsafe_func_replacements).toBe('disabled');
+      expect(window.EJS_Settings?.ppsspp_force_max_fps).toBe('0');
       expect(window.EJS_disableAutoUnload).toBe(true);
       expect(window.EJS_askBeforeExit).toBe(true);
       expect(window.EJS_fixedSaveInterval).toBe(30000);
@@ -868,7 +873,7 @@ describe('PSPEmulator', () => {
       },
     );
 
-    it('routes PS1 no-BIOS fallback launches through PCSX ReARMed without Beetle-only options', async () => {
+    it('routes PS1 launches through PCSX ReARMed without Beetle-only options', async () => {
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
         async () => {
           await Promise.resolve();
@@ -881,7 +886,10 @@ describe('PSPEmulator', () => {
         systemId:             'psx',
         performanceMode:      'auto',
         deviceCaps:           nesCaps,
-        coreSettingsOverride: { retroarch_core: 'pcsx_rearmed' },
+        coreSettingsOverride: {
+          retroarch_core: 'mednafen_psx_hw',
+          beetle_psx_hw_internal_resolution: '4x',
+        },
       });
 
       expect(window.EJS_core).toBe('psx');
@@ -891,6 +899,28 @@ describe('PSPEmulator', () => {
       expect(window.EJS_paths?.['pcsx_rearmed-wasm.data']).toBe(`${EJS_CDN_BASE}cores/pcsx_rearmed-wasm.data`);
       expect(emulator.resolvedWasmCoreName).toBe('pcsx_rearmed');
       expect(window.EJS_disableCue).toBeUndefined();
+      expect(emulator.state).toBe('running');
+    });
+
+    it('keeps stale N64 core overrides pinned to ParaLLEl N64', async () => {
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      await emulator.launch({
+        file:                 new File(['data'], 'Mario Kart 64.z64'),
+        volume:               0.7,
+        systemId:             'n64',
+        performanceMode:      'auto',
+        deviceCaps:           nesCaps,
+        coreSettingsOverride: { retroarch_core: 'mupen64plus_next' },
+      });
+
+      expect(window.EJS_core).toBe('n64');
+      expect(window.EJS_Settings?.retroarch_core).toBe('parallel_n64');
+      expect(emulator.resolvedWasmCoreName).toBe('parallel_n64');
       expect(emulator.state).toBe('running');
     });
 
@@ -941,7 +971,7 @@ describe('PSPEmulator', () => {
         nds: "desmume2015",
         "3ds": "azahar",
         n64: "parallel_n64",
-        psx: "mednafen_psx_hw",
+        psx: "pcsx_rearmed",
         segaMD: "genesis_plus_gx",
         segaMDWide: "genesis_plus_gx_wide",
         segaCD: "genesis_plus_gx",
@@ -2319,7 +2349,7 @@ describe('PSPEmulator', () => {
     });
 
 
-    it('clamps PS1 Beetle HW settings on weak WebGL hardware', async () => {
+    it('keeps PS1 launches on PCSX ReARMed without Beetle-only clamps', async () => {
       emulator.onError = () => {};
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
         async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
@@ -2339,14 +2369,15 @@ describe('PSPEmulator', () => {
       });
 
       const settings = emulator.activeCoreSettings;
-      expect(settings?.beetle_psx_hw_internal_resolution).toBe('1x(native)');
-      expect(settings?.beetle_psx_hw_frame_duping).toBe('enabled');
-      expect(settings?.beetle_psx_hw_pgxp_mode).toBe('disabled');
-      expect(settings?.beetle_psx_hw_msaa).toBe('disabled');
-      expect(settings?.beetle_psx_hw_super_sampling).toBe('disabled');
+      expect(settings?.retroarch_core).toBe('pcsx_rearmed');
+      expect(settings?.beetle_psx_hw_internal_resolution).toBeUndefined();
+      expect(settings?.beetle_psx_hw_frame_duping).toBeUndefined();
+      expect(settings?.beetle_psx_hw_pgxp_mode).toBeUndefined();
+      expect(settings?.beetle_psx_hw_msaa).toBeUndefined();
+      expect(settings?.beetle_psx_hw_super_sampling).toBeUndefined();
       expect(emulator.diagnosticLog.some(e =>
         e.category === 'performance' && e.message.startsWith('PS1 WebGL clamp:')
-      )).toBe(true);
+      )).toBe(false);
     });
 
     it('clamps Dreamcast Flycast settings on weak WebGL hardware', async () => {
@@ -2737,7 +2768,10 @@ describe('PSPEmulator', () => {
     it('reads EmulatorJS quick-save state files first', () => {
       const fakeData = new Uint8Array([0x51, 0x53]);
       const analyzePathMock = vi.fn().mockImplementation((path: string) => ({ exists: path === '/1-quick.state' }));
-      const readFileMock = vi.fn().mockReturnValue(fakeData);
+      const readFileMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/1-quick.state') return fakeData;
+        throw new Error('missing');
+      });
       (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Gran Turismo (USA) (EnFrEs) (v2.00)';
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
         setVolume: vi.fn(),
@@ -2756,7 +2790,6 @@ describe('PSPEmulator', () => {
       const result = emulator.readStateData(1);
 
       expect(result).toEqual(fakeData);
-      expect(analyzePathMock).toHaveBeenCalledWith('/1-quick.state');
       expect(readFileMock).toHaveBeenCalledWith('/1-quick.state');
     });
 
@@ -2766,11 +2799,15 @@ describe('PSPEmulator', () => {
         exists: path === '/data/states/TestGame.state1',
       }));
       (window as Window & { EJS_gameName?: string }).EJS_gameName = 'TestGame';
+      const readFileMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/data/states/TestGame.state1') return fakeData;
+        throw new Error('missing');
+      });
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
         setVolume: vi.fn(),
         Module: {
           FS: {
-            readFile: vi.fn().mockReturnValue(fakeData),
+            readFile: readFileMock,
             writeFile: vi.fn(),
             stat: vi.fn(),
             readdir: vi.fn(),
@@ -2782,7 +2819,68 @@ describe('PSPEmulator', () => {
 
       const result = emulator.readStateData(1);
       expect(result).toEqual(fakeData);
-      expect(analyzePathMock).toHaveBeenCalledWith('/data/states/TestGame.state1');
+      expect(readFileMock).toHaveBeenCalledWith('/data/states/TestGame.state1');
+    });
+
+    it('reads quick-save bytes even when analyzePath has stale metadata', () => {
+      const fakeData = new Uint8Array([0x48, 0x53, 0x47]);
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Hot Shots Golf 2';
+      const analyzePathMock = vi.fn().mockReturnValue({ exists: false });
+      const readFileMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/1-quick.state') return fakeData;
+        throw new Error('missing');
+      });
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: {
+          FS: {
+            readFile: readFileMock,
+            writeFile: vi.fn(),
+            stat: vi.fn(),
+            readdir: vi.fn(),
+            unlink: vi.fn(),
+            analyzePath: analyzePathMock,
+          },
+        },
+      };
+
+      expect(emulator.readStateData(1)).toEqual(fakeData);
+      expect(readFileMock).toHaveBeenCalledWith('/1-quick.state');
+    });
+
+    it('scans known state directories for matching RetroArch state files', () => {
+      const fakeData = new Uint8Array([0x50, 0x53, 0x58]);
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Hot Shots Golf 2 (USA)';
+      const readFileMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/home/web_user/retroarch/states/hot shots golf 2.state1') return fakeData;
+        throw new Error('missing');
+      });
+      const readdirMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/home/web_user/retroarch/states') return ['.', '..', 'hot shots golf 2.state1'];
+        throw new Error('missing dir');
+      });
+      const statMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/home/web_user/retroarch/states/hot shots golf 2.state1') {
+          return { size: fakeData.byteLength, mtime: new Date(1000) };
+        }
+        throw new Error('missing');
+      });
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: {
+          FS: {
+            readFile: readFileMock,
+            writeFile: vi.fn(),
+            stat: statMock,
+            readdir: readdirMock,
+            unlink: vi.fn(),
+            analyzePath: vi.fn().mockReturnValue({ exists: false }),
+          },
+        },
+      };
+
+      expect(emulator.readStateData(1)).toEqual(fakeData);
+      expect(readdirMock).toHaveBeenCalledWith('/home/web_user/retroarch/states');
     });
   });
 
@@ -4730,8 +4828,8 @@ describe("setAudioFilter", () => {
 describe("wasmCorePackageNameFor", () => {
   it("prefers retroarch_core over system slot / CDN map", () => {
     const psx = getSystemById("psx")!;
-    expect(wasmCorePackageNameFor(psx, { retroarch_core: "mednafen_psx_hw" })).toBe(
-      "mednafen_psx_hw",
+    expect(wasmCorePackageNameFor(psx, { retroarch_core: "pcsx_rearmed" })).toBe(
+      "pcsx_rearmed",
     );
   });
 
@@ -4779,7 +4877,7 @@ describe("wasmCorePackageNameFor", () => {
     };
 
     for (const system of SYSTEMS) {
-      if (system.id === "psx") continue; // psx is checked separately below (two-core strategy)
+      if (system.id === "psx") continue; // psx is checked separately below.
       const expected = expectedPackages[system.id];
       expect(expected, `${system.id} should be covered by the core audit`).toBeDefined();
       for (const tier of ["low", "medium", "high", "ultra"] as const) {
@@ -4790,12 +4888,12 @@ describe("wasmCorePackageNameFor", () => {
       }
     }
 
-    // PSX uses pcsx_rearmed (low/medium) and mednafen_psx_hw (high/ultra)
+    // PSX uses pcsx_rearmed on every tier.
     const psxSystem = SYSTEMS.find(s => s.id === "psx")!;
     expect(psxSystem, "psx system must exist").toBeDefined();
     expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["low"] ?? {}), "psx low").toBe("pcsx_rearmed");
     expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["medium"] ?? {}), "psx medium").toBe("pcsx_rearmed");
-    expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["high"] ?? {}), "psx high").toBe("mednafen_psx_hw");
-    expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["ultra"] ?? {}), "psx ultra").toBe("mednafen_psx_hw");
+    expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["high"] ?? {}), "psx high").toBe("pcsx_rearmed");
+    expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["ultra"] ?? {}), "psx ultra").toBe("pcsx_rearmed");
   });
 });

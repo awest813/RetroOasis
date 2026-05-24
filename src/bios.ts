@@ -95,7 +95,7 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
       fileName: "scph5501.bin",
       displayName: "PS1 BIOS NTSC-U v3.0 (SCPH-5501)",
       required: false,
-      description: "Recommended US BIOS — improves compatibility with NTSC-U titles. Enables Beetle PSX HW (highest accuracy).",
+      description: "Recommended US BIOS — improves compatibility with NTSC-U titles in PCSX ReARMed.",
     },
     {
       fileName: "scph1001.bin",

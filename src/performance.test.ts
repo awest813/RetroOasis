@@ -2250,12 +2250,12 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('psp', '4x')).toEqual({ ppsspp_internal_resolution: '4' });
     });
 
-    it('returns correct PS1 2× option', () => {
-      expect(getResolutionCoreOptions('psx', '2x')).toEqual({ beetle_psx_hw_internal_resolution: '2x' });
+    it('returns empty PS1 2x option because PCSX ReARMed has no resolution ladder', () => {
+      expect(getResolutionCoreOptions('psx', '2x')).toEqual({});
     });
 
-    it('returns correct PS1 4× option', () => {
-      expect(getResolutionCoreOptions('psx', '4x')).toEqual({ beetle_psx_hw_internal_resolution: '4x' });
+    it('returns empty PS1 4x option because PCSX ReARMed has no resolution ladder', () => {
+      expect(getResolutionCoreOptions('psx', '4x')).toEqual({});
     });
 
     it('returns empty object for Saturn (Yabause has no resolution ladder in RetroOasis)', () => {
@@ -2375,7 +2375,7 @@ describe('performance', () => {
 
     describe('getGraphicsPresetCoreOptions', () => {
       it('provides graphics presets for every supported 3D console', () => {
-        for (const systemId of ['psp', 'nds', 'psx', 'segaSaturn', 'segaDC', 'n64']) {
+        for (const systemId of ['psp', 'nds', 'segaSaturn', 'segaDC', 'n64']) {
           expect(Object.keys(getGraphicsPresetCoreOptions(systemId, 'quality')).length).toBeGreaterThan(0);
         }
       });
@@ -2390,12 +2390,9 @@ describe('performance', () => {
       });
 
 
-      it('maps PSX native preset to fastest hardware-renderer options', () => {
-        expect(getGraphicsPresetCoreOptions('psx', 'native')).toMatchObject({
-          beetle_psx_hw_filter: 'nearest',
-          beetle_psx_hw_dither_mode: '1x(native)',
-          beetle_psx_hw_pgxp_mode: 'disabled',
-        });
+      it('does not emit Beetle PSX graphics options for PCSX ReARMed', () => {
+        expect(getGraphicsPresetCoreOptions('psx', 'native')).toEqual({});
+        expect(getGraphicsPresetCoreOptions('psx', 'quality')).toEqual({});
       });
 
       it('maps Saturn quality preset to Yabause performance options', () => {

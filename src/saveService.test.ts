@@ -361,6 +361,43 @@ describe("SaveGameService", () => {
     vi.useRealTimers();
   });
 
+  it("gives PSX cores a longer window to expose quick-save state bytes", async () => {
+    vi.useFakeTimers();
+    const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
+    const saveLibrary = {
+      saveState,
+      getState: vi.fn(async (_gameId: string, slot: number) => makeEntry(slot)),
+    } as unknown as SaveStateLibrary;
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(() => true),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => null as Uint8Array | null),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => null),
+    };
+    emulator.readStateData.mockImplementation(() => (
+      emulator.readStateData.mock.calls.length >= 24 ? new Uint8Array([2, 4, 6]) : null
+    ));
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Hot Shots Golf 2", systemId: "psx" }),
+      readinessRetries: 2,
+      readinessRetryDelayMs: 100,
+    });
+
+    const promise = service.saveSlot(1);
+    await vi.advanceTimersByTimeAsync(2400);
+    const result = await promise;
+
+    expect(result).not.toBeNull();
+    expect(emulator.readStateData.mock.calls.length).toBeGreaterThan(18);
+    expect(saveState).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it("emits an integrity warning but still loads a valid slot", async () => {
     const entry = makeEntry(1);
     entry.checksum = "00000000";

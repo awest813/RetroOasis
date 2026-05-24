@@ -436,7 +436,7 @@ interface EJSEmulatorInstance {
       readFile(path: string): Uint8Array;
       writeFile(path: string, data: Uint8Array): void;
       mkdir?(path: string, mode?: number): void;
-      stat(path: string): { size: number };
+      stat(path: string): { size: number; mtime?: Date | number };
       readdir(path: string): string[];
       unlink(path: string): void;
       analyzePath(path: string): { exists: boolean; object?: unknown };
@@ -491,13 +491,6 @@ const DRS_SYSTEM_THRESHOLDS: Record<string, { stepDownFps: number; stepUpFps: nu
     stepDownMs: 2_500,
     stepUpMs: 12_000,
   },
-  /** PS1 targets ~60/50; step down when averages suggest sustained GPU pressure. */
-  psx: {
-    stepDownFps: 26,
-    stepUpFps: 54,
-    stepDownMs: 2_000,
-    stepUpMs: 10_000,
-  },
 };
 
 let cachedWebGL2Support: boolean | null = null;
@@ -505,7 +498,6 @@ let cachedWebGL2Support: boolean | null = null;
 const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
 const NDS_RESOLUTION_STEPS = ["256x192", "512x384", "768x576", "1024x768"];
 
-const PSX_RESOLUTION_STEPS = ["1x(native)", "2x", "4x", "8x", "16x"];
 const DREAMCAST_RESOLUTION_STEPS = ["640x480", "1280x960", "1920x1440", "2560x1920"];
 
 function clampLadderValue(value: string | undefined, ladder: readonly string[], maxIdx: number): string {
@@ -1193,7 +1185,7 @@ export class PSPEmulator {
   }
 
   /**
-   * The WASM package basename used for this session (e.g. `fceumm`, `mednafen_psx_hw`),
+   * The WASM package basename used for this session (e.g. `fceumm`, `pcsx_rearmed`),
    * after `retroarch_core` and CDN path mapping. Mirrors `EJS_paths` / prefetch keys.
    * Null when no game is active.
    */
@@ -1252,8 +1244,8 @@ export class PSPEmulator {
    *
    * When enabled, the emulator monitors FPS and fires `onDRSChange` when the
    * resolution should be stepped down (low FPS) or up (recovered FPS).
-   * DRS only has effect for systems that have a resolution ladder (PSP, PS1,
-   * N64, NDS, Dreamcast). For other systems this is a no-op.
+   * DRS only has effect for systems that have a resolution ladder (PSP, N64,
+   * NDS, Dreamcast). For other systems this is a no-op.
    */
   enableDRS(enabled: boolean): void {
     this._drsEnabled = enabled;
@@ -2496,7 +2488,6 @@ export class PSPEmulator {
           ppsspp_lazy_texture_caching: "enabled",
           ppsspp_retain_changed_textures: "disabled",
           ppsspp_inflight_frames: "1",
-          ppsspp_force_max_fps: "30",
         });
       } else if (constrainedMemory) {
         ejsSettings["ppsspp_texture_scaling_level"] = "1";
@@ -2552,49 +2543,7 @@ export class PSPEmulator {
     }
 
     if (systemId === "psx") {
-      // pcsx_rearmed (low/medium) has no beetle_psx_hw_* options — nothing to clamp.
-      const isUsingBeetle = ejsSettings.retroarch_core === "mednafen_psx_hw";
-      if (!isUsingBeetle) return;
-
-      let maxPsxResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
-      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
-        maxPsxResIdx = Math.min(maxPsxResIdx, 1);
-      }
-      if (weakWebGL) maxPsxResIdx = 0;
-
-      const previousRes = ejsSettings["beetle_psx_hw_internal_resolution"];
-      const nextRes = clampLadderValue(previousRes, PSX_RESOLUTION_STEPS, maxPsxResIdx);
-      ejsSettings["beetle_psx_hw_internal_resolution"] = nextRes;
-
-      if (weakWebGL || chromebookMediumHeavy3D) {
-        Object.assign(ejsSettings, {
-          beetle_psx_hw_frame_duping: "enabled",
-          beetle_psx_hw_filter: "nearest",
-          beetle_psx_hw_dither_mode: "1x(native)",
-          beetle_psx_hw_depth: "16bpp(native)",
-          beetle_psx_hw_pgxp_mode: "disabled",
-          beetle_psx_hw_pgxp_texture: "disabled",
-          beetle_psx_hw_pgxp_vertex: "disabled",
-          beetle_psx_hw_gte_overclock: "disabled",
-          beetle_psx_hw_renderer_software_fb: "enabled",
-          beetle_psx_hw_gpu_overclock: "1x(native)",
-          beetle_psx_hw_super_sampling: "disabled",
-          beetle_psx_hw_msaa: "disabled",
-        });
-      } else if (constrainedMemory) {
-        ejsSettings["beetle_psx_hw_super_sampling"] = "disabled";
-        ejsSettings["beetle_psx_hw_msaa"] = "disabled";
-      }
-
-      if (previousRes !== nextRes || weakWebGL || chromebookMediumHeavy3D) {
-        this.logDiagnostic(
-          "performance",
-          `PS1 WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
-          `pgxp=${ejsSettings["beetle_psx_hw_pgxp_mode"] ?? "?"}, ` +
-          `msaa=${ejsSettings["beetle_psx_hw_msaa"] ?? "?"}, ` +
-          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
-        );
-      }
+      this._stripLegacyPsxSettings(ejsSettings);
       return;
     }
 
@@ -2817,12 +2766,20 @@ export class PSPEmulator {
 
   // ── launch ──────────────────────────────────────────────────────────────────
 
-  private _stripBeetlePsxSettingsForFallbackCore(ejsSettings: Record<string, string>): void {
-    if (ejsSettings.retroarch_core === "mednafen_psx_hw") return;
+  private _stripLegacyPsxSettings(ejsSettings: Record<string, string>): void {
     for (const key of Object.keys(ejsSettings)) {
       if (key.startsWith("beetle_psx_hw_")) {
         delete ejsSettings[key];
       }
+    }
+  }
+
+  private _pinPrimaryCore(systemId: string, ejsSettings: Record<string, string>): void {
+    if (systemId === "psx") {
+      ejsSettings.retroarch_core = "pcsx_rearmed";
+      this._stripLegacyPsxSettings(ejsSettings);
+    } else if (systemId === "n64") {
+      ejsSettings.retroarch_core = "parallel_n64";
     }
   }
 
@@ -2986,6 +2943,7 @@ export class PSPEmulator {
           `Per-game core overrides: ${JSON.stringify(opts.coreSettingsOverride)}`
         );
       }
+      this._pinPrimaryCore(opts.systemId, ejsSettings);
 
 
       // Override the audio buffer size from tier defaults when the hardware
@@ -3017,21 +2975,6 @@ export class PSPEmulator {
       }
 
       // N64 audio buffer override removed: no longer needed for parallel_n64
-
-      // PS1 audio adaptation: beetle_psx_hw_cd_access_method can be forced to
-      // "sync" on high-latency hardware to prevent audio desync from async
-      // disc reads racing the audio output thread.
-      if (audioCaps && opts.systemId === "psx" && audioCaps.suggestedBufferTier === "high") {
-        if (ejsSettings["beetle_psx_hw_cd_access_method"] === "async") {
-          ejsSettings["beetle_psx_hw_cd_access_method"] = "sync";
-          if (this.verboseLogging) {
-            console.info(
-              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
-              `— switching PS1 CD access to sync for audio stability.`
-            );
-          }
-        }
-      }
 
       // GBA audio adaptation: mgba_audio_buffer_size maps sample-count to
       // hardware latency tier.  The tier default already picks an appropriate
@@ -3112,9 +3055,7 @@ export class PSPEmulator {
       // without having to dig through EJS_Settings manually.
       this._applyHeavyCoreGpuOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
       this._applyLightCorePerformanceOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
-      if (opts.systemId === "psx") {
-        this._stripBeetlePsxSettingsForFallbackCore(ejsSettings);
-      }
+      this._pinPrimaryCore(opts.systemId, ejsSettings);
       this._syncDRSInitialStep(opts.systemId, ejsSettings);
 
       {
@@ -3172,6 +3113,10 @@ export class PSPEmulator {
         const pspLowerEffectsRes    = ejsSettings["ppsspp_lower_resolution_for_effects"] ?? "?";
         const pspMaxFps             = ejsSettings["ppsspp_force_max_fps"]         ?? "?";
         const pspCpuSpeed           = ejsSettings["ppsspp_change_emulated_psp_cpu_clock"] ?? "?";
+        const pspFastMemory         = ejsSettings["ppsspp_fast_memory"]           ?? "?";
+        const pspIoTiming           = ejsSettings["ppsspp_io_timing_method"]      ?? "?";
+        const pspSeparateIo         = ejsSettings["ppsspp_separate_io_thread"]    ?? "?";
+        const pspUnsafeRepl         = ejsSettings["ppsspp_unsafe_func_replacements"] ?? "?";
         const pspAudioLatency       = ejsSettings["ppsspp_audio_latency"]          ?? "?";
         const pspBackend            = ejsSettings["ppsspp_rendering_mode"]         ?? "?";
         const pspDriver             = ejsSettings["ppsspp_gpu_driver"]             ?? "?";
@@ -3180,7 +3125,8 @@ export class PSPEmulator {
           `PSP tier=${tier}: res=${pspResolution} fs=${pspAutoFrameskip}/${pspFrameskip} ` +
           `cpu=${pspCpuCore} af=${pspAnisotropic} tex=${pspTexScale}/${pspTexType} ` +
           `deposterize=${pspDeposterize} lowerfx=${pspLowerEffectsRes} maxfps=${pspMaxFps} ` +
-          `cpuspeed=${pspCpuSpeed} audio=${pspAudioLatency} backend=${pspBackend} driver=${pspDriver}`
+          `cpuspeed=${pspCpuSpeed} fastmem=${pspFastMemory} io=${pspIoTiming}/${pspSeparateIo} ` +
+          `unsafe=${pspUnsafeRepl} audio=${pspAudioLatency} backend=${pspBackend} driver=${pspDriver}`
         );
         if (this.verboseLogging) {
           console.info(
@@ -3188,7 +3134,9 @@ export class PSPEmulator {
             `resolution: ${pspResolution}, auto_frameskip: ${pspAutoFrameskip}, frameskip: ${pspFrameskip}, ` +
             `cpu_core: ${pspCpuCore}, anisotropic: ${pspAnisotropic}, texture_scaling: ${pspTexScale}/${pspTexType}, ` +
             `deposterize: ${pspDeposterize}, lower_resolution_for_effects: ${pspLowerEffectsRes}, ` +
-            `force_max_fps: ${pspMaxFps}, cpu_clock: ${pspCpuSpeed}, audio_latency: ${pspAudioLatency}, ` +
+            `force_max_fps: ${pspMaxFps}, cpu_clock: ${pspCpuSpeed}, fast_memory: ${pspFastMemory}, ` +
+            `io_timing: ${pspIoTiming}, separate_io_thread: ${pspSeparateIo}, unsafe_replacements: ${pspUnsafeRepl}, ` +
+            `audio_latency: ${pspAudioLatency}, ` +
             `rendering_mode: ${pspBackend}, gpu_driver: ${pspDriver}`
           );
         }
@@ -3198,19 +3146,20 @@ export class PSPEmulator {
 
       // ── PS1 performance diagnostics ─────────────────────────────────────────
       if (opts.systemId === "psx") {
-        const psxIr    = ejsSettings["beetle_psx_hw_internal_resolution"] ?? "?";
-        const psxDup   = ejsSettings["beetle_psx_hw_frame_duping"]       ?? "?";
-        const psxPgxp  = ejsSettings["beetle_psx_hw_pgxp_mode"]          ?? "?";
-        const psxMsaa  = ejsSettings["beetle_psx_hw_msaa"]               ?? "?";
-        const psxDyn   = ejsSettings["beetle_psx_hw_cpu_dynarec"]        ?? "?";
+        const psxCore = ejsSettings.retroarch_core ?? "pcsx_rearmed";
+        const psxDrc  = ejsSettings.pcsx_rearmed_drc ?? "?";
+        const psxFs   = ejsSettings.pcsx_rearmed_frameskip ?? "?";
+        const psxSpu  = ejsSettings.pcsx_rearmed_spu_update_freq ?? "?";
+        const psxBoot = ejsSettings.pcsx_rearmed_show_bios_bootlogo ?? "?";
         this.logDiagnostic(
           "performance",
-          `PS1 tier=${tier}: ir=${psxIr} dup=${psxDup} pgxp=${psxPgxp} msaa=${psxMsaa} dyn=${psxDyn}`
+          `PS1 tier=${tier}: core=${psxCore} drc=${psxDrc} frameskip=${psxFs} spu=${psxSpu} bootlogo=${psxBoot}`
         );
         if (this.verboseLogging) {
           console.info(
             `[RetroOasis] PS1 performance settings — ` +
-            `internal_res: ${psxIr}, frame_duping: ${psxDup}, pgxp: ${psxPgxp}, msaa: ${psxMsaa}, dynarec: ${psxDyn}`
+            `core: ${psxCore}, drc: ${psxDrc}, frameskip: ${psxFs}, ` +
+            `spu_update_freq: ${psxSpu}, bootlogo: ${psxBoot}`
           );
         }
       }
@@ -3552,6 +3501,72 @@ export class PSPEmulator {
     return window.EJS_emulator?.gameManager?.supportsStates?.() ?? false;
   }
 
+  private _readVfsStateFile(path: string): Uint8Array | null {
+    const fs = window.EJS_emulator?.Module?.FS;
+    if (!fs) return null;
+    try {
+      const data = fs.readFile(path);
+      return data.byteLength > 0 ? data : null;
+    } catch { /* path doesn't exist */ }
+    try {
+      const analysis = fs.analyzePath(path);
+      if (analysis.exists) {
+        const data = fs.readFile(path);
+        return data.byteLength > 0 ? data : null;
+      }
+    } catch { /* path doesn't exist */ }
+    return null;
+  }
+
+  private _scanVfsStateFiles(slot: number, gameName: string, safeGameName: string): string[] {
+    const fs = window.EJS_emulator?.Module?.FS;
+    if (!fs) return [];
+    const slotName = String(slot || 1);
+    const nameNeedles = [gameName, safeGameName]
+      .flatMap((name) => {
+        const stripped = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+        return stripped && stripped !== name ? [name, stripped] : [name];
+      })
+      .map((name) => name.toLowerCase())
+      .filter((name, index, names) => name && names.indexOf(name) === index);
+    const basePaths = [
+      "/",
+      "/home/web_user/retroarch/states",
+      "/data/states",
+      "/data/saves",
+    ];
+    const candidates: Array<{ path: string; mtime: number }> = [];
+
+    for (const basePath of basePaths) {
+      let entries: string[];
+      try {
+        entries = fs.readdir(basePath);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        if (!entry || entry === "." || entry === "..") continue;
+        const lower = entry.toLowerCase();
+        const quickMatch = lower === `${slotName}-quick.state`;
+        const stateMatch = lower.includes(".state") && nameNeedles.some((needle) => lower.includes(needle));
+        if (!quickMatch && !stateMatch) continue;
+        const path = basePath === "/" ? `/${entry}` : `${basePath}/${entry}`;
+        let mtime = 0;
+        try {
+          const stat = fs.stat(path);
+          const rawMtime = stat.mtime;
+          mtime = rawMtime instanceof Date ? rawMtime.getTime() : Number(rawMtime || 0);
+        } catch { /* stat metadata is best-effort */ }
+        candidates.push({ path, mtime });
+      }
+    }
+
+    return candidates
+      .sort((a, b) => b.mtime - a.mtime)
+      .map((candidate) => candidate.path);
+  }
+
   /**
    * Try to read the most recent save state data from the emulator's
    * virtual filesystem. Returns null if FS access is unavailable or
@@ -3564,34 +3579,36 @@ export class PSPEmulator {
     const gameName = window.EJS_gameName;
     if (!gameName) return null;
     const safeGameName = emulatorJsBaseFileName(gameName) || gameName;
-    const quickStatePath = `/${slot || 1}-quick.state`;
+    const normalizedSlot = slot || 1;
+    const quickStatePath = `/${normalizedSlot}-quick.state`;
 
     // RetroArch-flavoured cores typically persist under /home/web_user/retroarch/states,
     // while some EmulatorJS runtimes expose the same save states under /data/states.
     // Keep /data/saves as a legacy fallback for older packaged layouts.
     const paths = [...new Set([
       quickStatePath,
-      `/home/web_user/retroarch/states/${gameName}.state${slot}`,
+      `/home/web_user/retroarch/states/${gameName}.state${normalizedSlot}`,
       `/home/web_user/retroarch/states/${gameName}.state`,
-      `/home/web_user/retroarch/states/${safeGameName}.state${slot}`,
+      `/home/web_user/retroarch/states/${safeGameName}.state${normalizedSlot}`,
       `/home/web_user/retroarch/states/${safeGameName}.state`,
-      `/data/states/${gameName}.state${slot}`,
+      `/data/states/${gameName}.state${normalizedSlot}`,
       `/data/states/${gameName}.state`,
-      `/data/states/${safeGameName}.state${slot}`,
+      `/data/states/${safeGameName}.state${normalizedSlot}`,
       `/data/states/${safeGameName}.state`,
-      `/data/saves/${gameName}.state${slot}`,
+      `/data/saves/${gameName}.state${normalizedSlot}`,
       `/data/saves/${gameName}.state`,
-      `/data/saves/${safeGameName}.state${slot}`,
+      `/data/saves/${safeGameName}.state${normalizedSlot}`,
       `/data/saves/${safeGameName}.state`,
     ])];
 
     for (const path of paths) {
-      try {
-        const analysis = emu.Module.FS.analyzePath(path);
-        if (analysis.exists) {
-          return emu.Module.FS.readFile(path);
-        }
-      } catch { /* path doesn't exist */ }
+      const data = this._readVfsStateFile(path);
+      if (data) return data;
+    }
+
+    for (const path of this._scanVfsStateFiles(normalizedSlot, gameName, safeGameName)) {
+      const data = this._readVfsStateFile(path);
+      if (data) return data;
     }
 
     return null;
@@ -3907,7 +3924,7 @@ export class PSPEmulator {
    * A 60-second cooldown prevents spamming the user during loading screens.
    *
    * When DRS is enabled, sustained low FPS triggers a resolution step-down after a
-   * short window (defaults in {@link DRS_SYSTEM_THRESHOLDS} per PSP / PS1 / N64 /
+   * short window (defaults in {@link DRS_SYSTEM_THRESHOLDS} per PSP / N64 /
    * NDS / DC). Recovery uses a separate step-up FPS and dwell time per system.
    */
   private _checkAdaptiveQuality(averageFPS: number): void {

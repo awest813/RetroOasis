@@ -125,7 +125,7 @@ export function buildDebugTab(
     id: debugPs1HeadingId,
   }, "PS1 Status"));
   ps1Section.appendChild(make("p", { class: "settings-help" },
-    "PlayStation 1 uses the Beetle PSX HW core (mednafen_psx_hw). A BIOS file is " +
+    "PlayStation 1 uses the PCSX ReARMed core (pcsx_rearmed). A BIOS file is " +
     "optional but improves game compatibility. Upload BIOS files in the BIOS tab."
   ));
 

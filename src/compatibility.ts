@@ -78,7 +78,7 @@ const BUILTIN_COMPAT_DB: CompatibilityDb = {
     verified:     true,
   },
 
-  // PS1 — games that benefit from PGXP or specific BIOS
+  // PS1 — games that benefit from a higher tier or specific BIOS
   "gran_turismo_2": {
     title:        "Gran Turismo 2",
     tierOverride: "high",
@@ -86,7 +86,7 @@ const BUILTIN_COMPAT_DB: CompatibilityDb = {
     verified:     false,
   },
 
-  // N64 — titles that benefit from the more compatible GLideN64 path
+  // N64 — titles that benefit from the more compatible ParaLLEl N64 tier path
   "paper_mario": {
     title:        "Paper Mario",
     tierOverride: "medium",

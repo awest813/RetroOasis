@@ -62,11 +62,6 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
     values: ["1", "2", "4", "8"],
   },
 
-  psx: {
-    key: "beetle_psx_hw_internal_resolution",
-    // Matches Beetle PSX HW libretro steps (preset "4×" maps to index 2 = 4x).
-    values: ["1x(native)", "2x", "4x", "8x", "16x"],
-  },
   n64: {
     key: "parallel-n64-parallel-rdp-upscaling",
     values: ["1x", "2x", "4x", "8x"],
@@ -235,15 +230,6 @@ export function getGraphicsPresetCoreOptions(
       break;
 
     case "psx":
-      Object.assign(out, {
-        beetle_psx_hw_filter: preset === "native" ? "nearest" : "bilinear",
-        beetle_psx_hw_dither_mode: preset === "native" ? "1x(native)" : preset === "balanced" ? "internal resolution" : "disabled",
-        beetle_psx_hw_depth: preset === "native" ? "16bpp(native)" : "32bpp",
-        beetle_psx_hw_pgxp_mode: preset === "ultra" ? "memory + CPU (Buggy)" : preset === "quality" ? "memory only" : "disabled",
-        beetle_psx_hw_pgxp_texture: preset === "native" || preset === "balanced" ? "disabled" : "enabled",
-        beetle_psx_hw_gte_overclock: preset === "native" ? "disabled" : "enabled",
-        beetle_psx_hw_msaa: preset === "ultra" ? "4x" : preset === "quality" ? "2x" : "disabled",
-      });
       break;
 
     case "nds":
@@ -308,13 +294,8 @@ export function getTextureUpscalerCoreOptions(
       };
     }
     case "n64":
-      return {};
     case "psx":
-      return {
-        beetle_psx_hw_filter: upscaler === "off" || upscaler === "sharp" ? "nearest" : "bilinear",
-        beetle_psx_hw_adaptive_smoothing: upscaler === "smooth" ? "enabled" : "disabled",
-        beetle_psx_hw_super_sampling: upscaler === "xbrz" ? "enabled" : "disabled",
-      };
+      return {};
     case "nds":
       return { desmume_filtering: upscaler === "off" || upscaler === "sharp" ? "none" : "bilinear" };
     case "segaDC":
@@ -1149,7 +1130,7 @@ function benchmarkGPU(): number {
  * Brave / Opera; Gecko: Firefox; WebKit: Safari).
  *
  * Records a navigation-timing mark and warns when cross-origin isolation is
- * missing — SharedArrayBuffer (needed for threaded PSP/N64-class cores) requires
+ * missing — SharedArrayBuffer (needed for threaded cores such as PSP) requires
  * COOP/COEP in every browser, not only Chrome.
  */
 export function optimizeBrowserPerformance(): void {
@@ -1162,7 +1143,7 @@ export function optimizeBrowserPerformance(): void {
   }
 
   if (typeof window !== "undefined" && !window.crossOriginIsolated) {
-    console.warn("[RetroOasis] Not cross-origin isolated — PSP/N64 performance may be degraded (no SharedArrayBuffer).");
+    console.warn("[RetroOasis] Not cross-origin isolated — threaded cores such as PSP may be unavailable (no SharedArrayBuffer).");
   }
 }
 

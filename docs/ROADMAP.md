@@ -12,7 +12,7 @@ All phases 1–9 listed in prior roadmaps are complete. Below is the current sta
 
 ### Emulation & Systems
 
-- Multi-system integration via EmulatorJS stable CDN: PSP (PPSSPP), N64, PS1 (Beetle PSX HW), NDS (DeSmuME 2015 pinned), GBA, SNES, NES, Genesis, Saturn (Yabause), Dreamcast (experimental Flycast), arcade (FBNeo / MAME 2003+), Atari 7800, Lynx, Neo Geo Pocket
+- Multi-system integration via EmulatorJS stable CDN: PSP (PPSSPP), N64 (ParaLLEl N64), PS1 (PCSX ReARMed), NDS (DeSmuME 2015 pinned), GBA, SNES, NES, Genesis, Saturn (Yabause), Dreamcast (experimental Flycast), arcade (FBNeo / MAME 2003+), Atari 7800, Lynx, Neo Geo Pocket
 - Hardware tier classification (Low / Medium / High / Ultra) via WebGL GPU benchmark + CPU/RAM heuristics
 - Per-system, per-tier RetroArch core-option tables for all supported systems
 - ROM library with IndexedDB blob storage and metadata cache
@@ -29,7 +29,7 @@ All phases 1–9 listed in prior roadmaps are complete. Below is the current sta
 
 ### 3D Rendering & Post-Processing
 
-- Tier-tuned 3D settings for PSP (xBRZ, anisotropic), N64 (smoothing, resolution), PS1 (PGXP, GPU overclock, super-sampling), NDS, Saturn, Dreamcast
+- Tier-tuned 3D settings for PSP (xBRZ, anisotropic), N64 (ParaLLEl RDP scaling), PS1 (PCSX ReARMed compatibility profile), NDS, Saturn, Dreamcast
 - GPU benchmark: VAO-aware draw-call benchmark, logarithmic scoring (`log10(drawCalls) * 21.5`)
 - GPU capability detection: Multi-Draw, MRT, VAO, compressed textures (ETC2/ASTC), half-float — surfaced as tier-bonus points
 - VRAM estimation from `maxTextureSize`, MRT count, compression
@@ -55,7 +55,7 @@ All phases 1–9 listed in prior roadmaps are complete. Below is the current sta
 - Dynamic audio buffer sizing: silent-frame monitoring, `emulator.onAudioUnderrun` callback
 - Audio enhancement filters: `BiquadFilterNode` (lowpass/highpass) with adjustable cutoff
 - Audio visualiser overlay: oscilloscope in FPS overlay, ≤30 fps
-- N64/PS1 audio adaptation for high-latency hardware
+- Per-core audio adaptation for high-latency hardware
 
 ### Saves & Cloud
 
@@ -144,7 +144,7 @@ Credential management via `ApiKeyStore`, per-provider caching (5 min – 24 h), 
 
 ### Correctness Fixes
 
-- PS1 core pinned to Beetle PSX HW (`mednafen_psx_hw`)
+- PS1 core pinned to PCSX ReARMed (`pcsx_rearmed`)
 - NDS core pinned to DeSmuME 2015 (`desmume2015`)
 - Saturn options corrected to Yabause keys (`yabause_*`)
 - Keyboard shortcuts isolated with `{ capture: true }` + `stopPropagation()`
@@ -236,8 +236,8 @@ Items with no implementation yet, ordered by estimated priority.
 | GPU benchmark duration | ~12 ms | ≤8 ms | Adaptive budget based on warmup |
 | Shader cache pre-compile (50 programs) | ~200 ms | ≤100 ms | `KHR_parallel_shader_compile` + tier-adaptive polling |
 | Post-process frame time (CRT + bloom) | ~2 ms | ≤1 ms | Bind group caching + tier reduction |
-| N64 sustained FPS (medium, 1× res) | ~45–55 fps | ≥58 fps | Optimised GLideN64 settings |
-| PS1 sustained FPS (high, 2× res) | ~50–55 fps | ≥58 fps | PGXP + GTE overclock tuning |
+| N64 sustained FPS (medium, 1× res) | ~45–55 fps | ≥58 fps | ParaLLEl N64 tier tuning |
+| PS1 sustained FPS (high, compatibility profile) | ~50–55 fps | ≥58 fps | PCSX ReARMed tier tuning |
 | Diagnostic timeline overhead | N/A | ≤0.01 ms/event | Append-only array, capped at 200 |
 
 ---

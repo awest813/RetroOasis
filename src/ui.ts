@@ -550,7 +550,7 @@ export function buildDOM(app: HTMLElement): void {
           <span class="footer-connectivity__dot status--online" id="footer-connectivity-dot" aria-hidden="true"></span>
           <span class="footer-connectivity__label" id="footer-connectivity-label">Online</span>
         </div>
-        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. PSP and N64 performance may be reduced." title="Cross-origin isolation is not active — PSP/N64 performance may be reduced."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
+        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. Threaded cores such as PSP may be unavailable." title="Cross-origin isolation is not active — threaded cores such as PSP may be unavailable."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
       </div>
       
       <div class="footer-center">

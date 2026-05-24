@@ -77,8 +77,8 @@ export interface Settings {
    */
   recordPlayHistory: boolean;
   /**
-   * When the active system exposes scalable internal resolution (PSP, PS1,
-   * N64, DS, Dreamcast), allow automatic step-down during sustained low FPS.
+   * When the active system exposes scalable internal resolution (PSP, N64,
+   * DS, Dreamcast), allow automatic step-down during sustained low FPS.
    * Per-game graphics profiles can override with `drsEnabled`.
    */
   dynamicResolutionScaling: boolean;

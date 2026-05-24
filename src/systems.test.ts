@@ -206,8 +206,7 @@ describe('systems performance profiles', () => {
   describe('getSystemByCoreHint', () => {
     it('maps webretro N64 core URLs to the RetroOasis N64 profile', () => {
       expect(getSystemByCoreHint('parallel_n64')?.id).toBe('n64');
-      // mupen64plus_next is kept as a backward-compat alias for older saved game records
-      expect(getSystemByCoreHint('mupen64plus-next')?.id).toBe('n64');
+      expect(getSystemByCoreHint('mupen64plus-next')).toBeUndefined();
     });
 
     it('ignores autodetect because RetroOasis already auto-detects file imports', () => {
@@ -316,7 +315,7 @@ describe('systems performance profiles', () => {
       nds: "desmume2015",
       "3ds": "azahar",
       n64: "parallel_n64",
-      psx: "mednafen_psx_hw",
+      psx: "pcsx_rearmed",
       segaMD: "genesis_plus_gx",
       segaMDWide: "genesis_plus_gx_wide",
       segaCD: "genesis_plus_gx",
@@ -394,17 +393,28 @@ describe('systems performance profiles', () => {
       expect(psp?.tierSettings?.ultra?.ppsspp_rendering_mode).toBe('OpenGL');
     });
 
-    it('caps FPS to 30 on low tier for consistent 3D rendering on low-spec hardware', () => {
+    it('leaves FPS uncapped on low tier to avoid PSP loading-state timing bugs', () => {
       const psp = getSystemById('psp');
-      // 30 fps gives the GPU twice as much time per frame vs 60 fps, improving
-      // frame consistency on devices that cannot sustain full PSP speed.
-      expect(psp?.tierSettings?.low?.ppsspp_force_max_fps).toBe('30');
+      expect(psp?.tierSettings?.low?.ppsspp_force_max_fps).toBe('0');
     });
 
     it('uncaps FPS on high and ultra tiers', () => {
       const psp = getSystemById('psp');
       expect(psp?.tierSettings?.high?.ppsspp_force_max_fps).toBe('0');
       expect(psp?.tierSettings?.ultra?.ppsspp_force_max_fps).toBe('0');
+    });
+
+    it('uses compatibility-safe PSP CPU and I/O options on every tier', () => {
+      const psp = getSystemById('psp');
+      for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
+        const settings = psp?.tierSettings?.[tier];
+        expect(settings?.ppsspp_fast_memory).toBe('disabled');
+        expect(settings?.ppsspp_io_timing_method).toBe('Host');
+        expect(settings?.ppsspp_separate_io_thread).toBe('disabled');
+        expect(settings?.ppsspp_unsafe_func_replacements).toBe('disabled');
+        expect(settings?.ppsspp_locked_cpu_speed).toBe('0');
+        expect(settings?.ppsspp_change_emulated_psp_cpu_clock).toBe('0');
+      }
     });
   });
 
@@ -457,7 +467,7 @@ describe('systems performance profiles', () => {
 
   // ── PSX tier settings ───────────────────────────────────────────────────
 
-  describe('PS1 (Beetle PSX HW) tier settings', () => {
+  describe('PS1 (PCSX ReARMed) tier settings', () => {
     it('provides tier settings for PSX', () => {
       const psx = getSystemById('psx');
       expect(psx?.tierSettings).toBeDefined();
@@ -465,17 +475,17 @@ describe('systems performance profiles', () => {
       expect(psx?.tierSettings?.ultra).toBeDefined();
     });
 
-    it('uses native resolution on Beetle tiers (high/ultra) and pcsx_rearmed on low/medium', () => {
+    it('does not include Beetle-only resolution settings on PS1 tiers', () => {
       const psx = getSystemById('psx');
-      // pcsx_rearmed (low/medium) has no beetle resolution key
+      // pcsx_rearmed has no beetle resolution key.
       expect(psx?.tierSettings?.low?.beetle_psx_hw_internal_resolution).toBeUndefined();
       expect(psx?.tierSettings?.medium?.beetle_psx_hw_internal_resolution).toBeUndefined();
     });
 
-    it('uses higher resolution on high and ultra tiers', () => {
+    it('omits Beetle resolution settings on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_internal_resolution).toBe('2x');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_internal_resolution).toBe('4x');
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_internal_resolution).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_internal_resolution).toBeUndefined();
     });
 
     it('pcsx_rearmed low/medium tiers have no frame duping option (not a beetle key)', () => {
@@ -484,10 +494,10 @@ describe('systems performance profiles', () => {
       expect(psx?.tierSettings?.medium?.beetle_psx_hw_frame_duping).toBeUndefined();
     });
 
-    it('uses bilinear filtering on high/ultra (Beetle) tiers', () => {
+    it('omits Beetle filtering settings on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_filter).toBe('bilinear');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_filter).toBe('bilinear');
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_filter).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_filter).toBeUndefined();
       // low/medium use pcsx_rearmed — no beetle_psx_hw_ filter key
       expect(psx?.tierSettings?.low?.beetle_psx_hw_filter).toBeUndefined();
     });
@@ -497,34 +507,32 @@ describe('systems performance profiles', () => {
       const lowSettings = getPSXSettingsForTier('low');
       expect(lowSettings.pcsx_rearmed_drc).toBe('enabled');
       expect(lowSettings.pcsx_rearmed_frameskip).toBe('0');
-      expect(lowSettings.retroarch_core).toBeUndefined(); // no override — pcsx_rearmed is the default
+      expect(lowSettings.retroarch_core).toBe('pcsx_rearmed');
 
       const mediumSettings = getPSXSettingsForTier('medium');
       expect(mediumSettings.pcsx_rearmed_drc).toBe('enabled');
-      expect(mediumSettings.retroarch_core).toBeUndefined();
+      expect(mediumSettings.retroarch_core).toBe('pcsx_rearmed');
 
-      // high/ultra: Beetle PSX HW with upscaling
+      // high/ultra remain on PCSX ReARMed.
       const highSettings = getPSXSettingsForTier('high');
-      expect(highSettings.retroarch_core).toBe('mednafen_psx_hw');
-      expect(highSettings.beetle_psx_hw_internal_resolution).toBe('2x');
+      expect(highSettings.retroarch_core).toBe('pcsx_rearmed');
+      expect(highSettings.pcsx_rearmed_drc).toBe('enabled');
 
       const ultraSettings = getPSXSettingsForTier('ultra');
-      expect(ultraSettings.retroarch_core).toBe('mednafen_psx_hw');
-      expect(ultraSettings.beetle_psx_hw_internal_resolution).toBe('4x');
+      expect(ultraSettings.retroarch_core).toBe('pcsx_rearmed');
+      expect(ultraSettings.pcsx_rearmed_drc).toBe('enabled');
     });
 
-    it('uses pcsx_rearmed (no core override) for low/medium and mednafen_psx_hw for high/ultra', () => {
-      // low + medium: EmulatorJS default (pcsx_rearmed) — no retroarch_core key
+    it('uses pcsx_rearmed for every PS1 tier', () => {
       const psx = getSystemById('psx');
-      expect(psx?.tierSettings?.low?.retroarch_core).toBeUndefined();
-      expect(psx?.tierSettings?.medium?.retroarch_core).toBeUndefined();
-      // high + ultra: override to Beetle PSX HW
-      expect(psx?.tierSettings?.high?.retroarch_core).toBe('mednafen_psx_hw');
-      expect(psx?.tierSettings?.ultra?.retroarch_core).toBe('mednafen_psx_hw');
+      expect(psx?.tierSettings?.low?.retroarch_core).toBe('pcsx_rearmed');
+      expect(psx?.tierSettings?.medium?.retroarch_core).toBe('pcsx_rearmed');
+      expect(psx?.tierSettings?.high?.retroarch_core).toBe('pcsx_rearmed');
+      expect(psx?.tierSettings?.ultra?.retroarch_core).toBe('pcsx_rearmed');
     });
 
-    it('getPSXSettingsForTier low/medium have pcsx_rearmed_ options, not beetle_psx_hw_ options', () => {
-      const tiers = ['low', 'medium'] as const;
+    it('getPSXSettingsForTier has pcsx_rearmed_ options, not beetle_psx_hw_ options', () => {
+      const tiers = ['low', 'medium', 'high', 'ultra'] as const;
       for (const tier of tiers) {
         const settings = getPSXSettingsForTier(tier);
         expect(settings.pcsx_rearmed_drc).toBe('enabled');
@@ -532,38 +540,35 @@ describe('systems performance profiles', () => {
       }
     });
 
-    it('uses valid Lightrec dynarec enum values on high/ultra (not "enabled")', () => {
-      // Beetle PSX HW Lightrec dynarec only applies to high/ultra tiers
+    it('omits Beetle Lightrec dynarec settings on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_cpu_dynarec).toBe('execute');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_cpu_dynarec).toBe('execute');
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_cpu_dynarec).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_cpu_dynarec).toBeUndefined();
       // low/medium use pcsx_rearmed DRC instead
       expect(psx?.tierSettings?.low?.pcsx_rearmed_drc).toBe('enabled');
       expect(psx?.tierSettings?.medium?.pcsx_rearmed_drc).toBe('enabled');
     });
 
-    it('uses upstream PGXP mode strings', () => {
+    it('omits Beetle PGXP settings on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_pgxp_mode).toBe('memory only');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_pgxp_mode).toBe('memory + CPU (Buggy)');
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_pgxp_mode).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_pgxp_mode).toBeUndefined();
     });
 
-    it('enables GTE overclock on high and ultra tiers only', () => {
+    it('omits Beetle GTE overclock settings on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      // Only Beetle PSX HW (high/ultra) has GTE overclock
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_gte_overclock).toBe('enabled');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_gte_overclock).toBe('enabled');
-      // low/medium use pcsx_rearmed — no beetle_psx_hw_ GTE key
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_gte_overclock).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_gte_overclock).toBeUndefined();
+      // PCSX ReARMed has no beetle_psx_hw_ GTE key.
       expect(psx?.tierSettings?.low?.beetle_psx_hw_gte_overclock).toBeUndefined();
       expect(psx?.tierSettings?.medium?.beetle_psx_hw_gte_overclock).toBeUndefined();
     });
 
-    it('enables analog calibration on Beetle tiers (high/ultra)', () => {
+    it('omits Beetle analog calibration on high and ultra tiers', () => {
       const psx = getSystemById('psx');
-      // Beetle PSX HW has analog calibration from high tier upward
-      expect(psx?.tierSettings?.high?.beetle_psx_hw_analog_calibration).toBe('enabled');
-      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_analog_calibration).toBe('enabled');
-      // low/medium use pcsx_rearmed — no beetle_psx_hw_ analog key
+      expect(psx?.tierSettings?.high?.beetle_psx_hw_analog_calibration).toBeUndefined();
+      expect(psx?.tierSettings?.ultra?.beetle_psx_hw_analog_calibration).toBeUndefined();
+      // PCSX ReARMed has no beetle_psx_hw_ analog key.
       expect(psx?.tierSettings?.low?.beetle_psx_hw_analog_calibration).toBeUndefined();
       expect(psx?.tierSettings?.medium?.beetle_psx_hw_analog_calibration).toBeUndefined();
     });

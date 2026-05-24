@@ -141,7 +141,7 @@ function overrideRetroarchCore(
  *   ppsspp_auto_frameskip        — Dynamic frameskip to maintain speed
  *   ppsspp_frameskip             — Fixed number of frames to skip (0–9)
  *   ppsspp_frameskip_type        — "Number of frames" or "Percent of FPS"
- *   ppsspp_fast_memory           — Skip memory access safety checks (faster)
+ *   ppsspp_fast_memory           — Skip memory access safety checks (faster, but less compatible)
  *   ppsspp_locked_cpu_speed      — Lock CPU clock (0 = default PSP speed)
  *   ppsspp_force_max_fps         — Force max FPS cap (0 = uncapped, 60 = standard)
  *   ppsspp_change_emulated_psp_cpu_clock — Over/underclock emulated PSP CPU (±MHz)
@@ -149,7 +149,7 @@ function overrideRetroarchCore(
  *
  * I/O & audio:
  *   ppsspp_io_timing_method      — I/O timing (fast/host/simulate UMD)
- *   ppsspp_separate_io_thread    — Run I/O on a separate thread (reduces stalls)
+ *   ppsspp_separate_io_thread    — Run I/O on a separate thread (can race loading on web builds)
  *   ppsspp_audio_latency         — Audio buffer size: 0=low, 1=medium, 2=high
  *   ppsspp_audio_resampling      — High-quality audio resampling
  *
@@ -165,7 +165,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_auto_frameskip: "enabled",
     ppsspp_frameskip: "3",
     ppsspp_frameskip_type: "Number of frames",
-    ppsspp_fast_memory: "enabled",
+    ppsspp_fast_memory: "disabled",
     ppsspp_block_transfer_gpu: "enabled",
     ppsspp_texture_scaling_level: "1",
     ppsspp_texture_scaling_type: "xBRZ",
@@ -178,7 +178,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_retain_changed_textures: "disabled",
     ppsspp_spline_quality: "low",
     ppsspp_software_skinning: "enabled",
-    ppsspp_io_timing_method: "Fast",
+    ppsspp_io_timing_method: "Host",
     ppsspp_lower_resolution_for_effects: "2",
     ppsspp_inflight_frames: "1",
     ppsspp_rendering_mode: "OpenGL",
@@ -186,15 +186,15 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_audio_latency: "2",
     ppsspp_audio_resampling: "disabled",
     ppsspp_locked_cpu_speed: "0",
-    ppsspp_force_max_fps: "30",
+    ppsspp_force_max_fps: "0",
     ppsspp_cheats: "enabled",
     ppsspp_skip_buffer_effects: "enabled",
     ppsspp_disable_slow_framebuf_effects: "enabled",
     ppsspp_gpu_anisotropic_filtering: "off",
     ppsspp_texture_shader: "Off",
     ppsspp_change_emulated_psp_cpu_clock: "0",
-    ppsspp_separate_io_thread: "enabled",
-    ppsspp_unsafe_func_replacements: "enabled",
+    ppsspp_separate_io_thread: "disabled",
+    ppsspp_unsafe_func_replacements: "disabled",
     ppsspp_gpu_driver: "OpenGL",
   },
 
@@ -204,7 +204,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_auto_frameskip: "enabled",
     ppsspp_frameskip: "1",
     ppsspp_frameskip_type: "Number of frames",
-    ppsspp_fast_memory: "enabled",
+    ppsspp_fast_memory: "disabled",
     ppsspp_block_transfer_gpu: "enabled",
     ppsspp_texture_scaling_level: "1",
     ppsspp_texture_scaling_type: "xBRZ",
@@ -217,7 +217,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_retain_changed_textures: "enabled",
     ppsspp_spline_quality: "medium",
     ppsspp_software_skinning: "enabled",
-    ppsspp_io_timing_method: "Fast",
+    ppsspp_io_timing_method: "Host",
     ppsspp_lower_resolution_for_effects: "0",
     ppsspp_inflight_frames: "2",
     ppsspp_rendering_mode: "OpenGL",
@@ -232,8 +232,8 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_gpu_anisotropic_filtering: "2x",
     ppsspp_texture_shader: "Off",
     ppsspp_change_emulated_psp_cpu_clock: "0",
-    ppsspp_separate_io_thread: "enabled",
-    ppsspp_unsafe_func_replacements: "enabled",
+    ppsspp_separate_io_thread: "disabled",
+    ppsspp_unsafe_func_replacements: "disabled",
     ppsspp_gpu_driver: "OpenGL",
   },
 
@@ -243,7 +243,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_auto_frameskip: "disabled",
     ppsspp_frameskip: "0",
     ppsspp_frameskip_type: "Number of frames",
-    ppsspp_fast_memory: "enabled",
+    ppsspp_fast_memory: "disabled",
     ppsspp_block_transfer_gpu: "enabled",
     ppsspp_texture_scaling_level: "2",
     ppsspp_texture_scaling_type: "xBRZ",
@@ -256,7 +256,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_retain_changed_textures: "enabled",
     ppsspp_spline_quality: "high",
     ppsspp_software_skinning: "enabled",
-    ppsspp_io_timing_method: "Fast",
+    ppsspp_io_timing_method: "Host",
     ppsspp_lower_resolution_for_effects: "0",
     ppsspp_inflight_frames: "2",
     ppsspp_rendering_mode: "OpenGL",
@@ -271,8 +271,8 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_gpu_anisotropic_filtering: "8x",
     ppsspp_texture_shader: "Off",
     ppsspp_change_emulated_psp_cpu_clock: "0",
-    ppsspp_separate_io_thread: "enabled",
-    ppsspp_unsafe_func_replacements: "enabled",
+    ppsspp_separate_io_thread: "disabled",
+    ppsspp_unsafe_func_replacements: "disabled",
     ppsspp_gpu_driver: "OpenGL",
   },
 
@@ -282,7 +282,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_auto_frameskip: "disabled",
     ppsspp_frameskip: "0",
     ppsspp_frameskip_type: "Number of frames",
-    ppsspp_fast_memory: "enabled",
+    ppsspp_fast_memory: "disabled",
     ppsspp_block_transfer_gpu: "enabled",
     ppsspp_texture_scaling_level: "5",
     ppsspp_texture_scaling_type: "xBRZ",
@@ -295,23 +295,23 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     ppsspp_retain_changed_textures: "enabled",
     ppsspp_spline_quality: "high",
     ppsspp_software_skinning: "enabled",
-    ppsspp_io_timing_method: "Fast",
+    ppsspp_io_timing_method: "Host",
     ppsspp_lower_resolution_for_effects: "0",
     ppsspp_inflight_frames: "2",
     ppsspp_rendering_mode: "OpenGL",
     ppsspp_cpu_core: "JIT",
     ppsspp_audio_latency: "0",
     ppsspp_audio_resampling: "enabled",
-    ppsspp_locked_cpu_speed: "222",
+    ppsspp_locked_cpu_speed: "0",
     ppsspp_force_max_fps: "0",
     ppsspp_cheats: "enabled",
     ppsspp_skip_buffer_effects: "disabled",
     ppsspp_disable_slow_framebuf_effects: "disabled",
     ppsspp_gpu_anisotropic_filtering: "16x",
     ppsspp_texture_shader: "xBRZ",
-    ppsspp_change_emulated_psp_cpu_clock: "333",
-    ppsspp_separate_io_thread: "enabled",
-    ppsspp_unsafe_func_replacements: "enabled",
+    ppsspp_change_emulated_psp_cpu_clock: "0",
+    ppsspp_separate_io_thread: "disabled",
+    ppsspp_unsafe_func_replacements: "disabled",
     ppsspp_gpu_driver: "OpenGL",
   },
 };
@@ -319,8 +319,7 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 /**
  * parallel_n64 RetroArch core options per tier.
  *
- * Replaced mupen64plus_next with parallel_n64 as the default core to fix
- * booting issues with titles like Banjo-Kazooie.
+ * parallel_n64 is the only Nintendo 64 core RetroOasis selects.
  */
 const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
@@ -487,101 +486,51 @@ const GBA_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 // ── PS1 tier-specific core options ───────────────────────────────────────────
 //
 // Strategy:
-//   low / medium  → pcsx_rearmed (EmulatorJS default; lightweight, high compat)
-//   high / ultra  → mednafen_psx_hw (Beetle PSX HW with Vulkan, PGXP, upscaling)
+//   all tiers -> pcsx_rearmed (lightweight, high compatibility)
 //
 // pcsx_rearmed key options:
-//   pcsx_rearmed_drc               — Dynamic recompiler (big speed win)
-//   pcsx_rearmed_frameskip         — 0 = off; raise only if GPU bound
-//   pcsx_rearmed_spu_update_freq   — SPU update frequency (lower = faster)
-//   pcsx_rearmed_show_bios_bootlogo — Skip the PS1 boot logo for speed
-//
-// mednafen_psx_hw (Beetle PSX HW) key options:
-//   beetle_psx_hw_internal_resolution — GPU resolution multiplier (1x–16x)
-//   beetle_psx_hw_frame_duping        — Repeat last frame when unchanged
-//   beetle_psx_hw_filter              — Texture filter (nearest = fastest)
-//   beetle_psx_hw_pgxp_mode          — Perspective-correct geometry
-//   beetle_psx_hw_gte_overclock      — One-cycle GTE latency
+//   pcsx_rearmed_drc                - Dynamic recompiler (big speed win)
+//   pcsx_rearmed_frameskip          - 0 = off; raise only if GPU bound
+//   pcsx_rearmed_spu_update_freq    - SPU update frequency (lower = faster)
+//   pcsx_rearmed_show_bios_bootlogo - Skip the PS1 boot logo for speed
 /**
  * PS1 RetroArch core options per tier.
  *
- * low/medium: pcsx_rearmed (default, no retroarch_core override needed).
- * high/ultra: mednafen_psx_hw (Beetle PSX HW — Vulkan, PGXP, high-res).
+ * PCSX ReARMed is the only PS1 core RetroOasis selects by default.
  */
 const PSX_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
-  // pcsx_rearmed is the EmulatorJS default — no retroarch_core override needed.
-  // Only set performance-critical pcsx_rearmed_ options.
+  // Set retroarch_core explicitly so runtime core selection and prefetch agree.
   low: {
+    retroarch_core: "pcsx_rearmed",
     pcsx_rearmed_drc: "enabled",
     pcsx_rearmed_frameskip: "0",
     pcsx_rearmed_spu_update_freq: "50",
     pcsx_rearmed_show_bios_bootlogo: "disabled",
   },
   medium: {
+    retroarch_core: "pcsx_rearmed",
     pcsx_rearmed_drc: "enabled",
     pcsx_rearmed_frameskip: "0",
     pcsx_rearmed_spu_update_freq: "100",
     pcsx_rearmed_show_bios_bootlogo: "disabled",
   },
   high: {
-    retroarch_core: "mednafen_psx_hw",
-    beetle_psx_hw_renderer: "hardware",
-    beetle_psx_hw_internal_resolution: "2x",
-    beetle_psx_hw_frame_duping: "disabled",
-    beetle_psx_hw_filter: "bilinear",
-    beetle_psx_hw_dither_mode: "internal resolution",
-    beetle_psx_hw_depth: "32bpp",
-    beetle_psx_hw_cd_access_method: "async",
-    beetle_psx_hw_cpu_dynarec: "execute",
-    beetle_psx_hw_dynarec_invalidate: "full",
-    // Upstream labels: "memory only" / "memory + CPU (Buggy)"
-    beetle_psx_hw_pgxp_mode: "memory only",
-    beetle_psx_hw_pgxp_texture: "enabled",
-    // Core docs recommend leaving vertex cache off — fewer false-positive glitches
-    beetle_psx_hw_pgxp_vertex: "disabled",
-    beetle_psx_hw_analog_calibration: "enabled",
-    beetle_psx_hw_widescreen_hack: "disabled",
-    beetle_psx_hw_renderer_software_fb: "enabled",
-    beetle_psx_hw_gpu_overclock: "4x",
-    beetle_psx_hw_cd_fastload: "6x",
-    beetle_psx_hw_gte_overclock: "enabled",
-    beetle_psx_hw_adaptive_smoothing: "enabled",
-    beetle_psx_hw_super_sampling: "disabled",
-    beetle_psx_hw_mdec_yuv: "enabled",
-    beetle_psx_hw_msaa: "2x",
+    retroarch_core: "pcsx_rearmed",
+    pcsx_rearmed_drc: "enabled",
+    pcsx_rearmed_frameskip: "0",
+    pcsx_rearmed_spu_update_freq: "100",
+    pcsx_rearmed_show_bios_bootlogo: "disabled",
+    pcsx_rearmed_vibration: "enabled",
+    pcsx_rearmed_neon_interlace_enable: "disabled",
   },
   ultra: {
-    retroarch_core: "mednafen_psx_hw",
-    beetle_psx_hw_renderer: "hardware",
-    beetle_psx_hw_internal_resolution: "4x",
-    beetle_psx_hw_frame_duping: "disabled",
-    beetle_psx_hw_filter: "bilinear",
-    beetle_psx_hw_dither_mode: "disabled",
-    beetle_psx_hw_depth: "32bpp",
-    beetle_psx_hw_cd_access_method: "async",
-    beetle_psx_hw_cpu_dynarec: "execute",
-    beetle_psx_hw_dynarec_invalidate: "full",
-    beetle_psx_hw_pgxp_mode: "memory + CPU (Buggy)",
-    beetle_psx_hw_pgxp_texture: "enabled",
-    beetle_psx_hw_pgxp_vertex: "disabled",
-    beetle_psx_hw_analog_calibration: "enabled",
-    beetle_psx_hw_widescreen_hack: "disabled",
-    beetle_psx_hw_renderer_software_fb: "enabled",
-    beetle_psx_hw_gpu_overclock: "8x",
-    beetle_psx_hw_cd_fastload: "8x",
-    beetle_psx_hw_gte_overclock: "enabled",
-    beetle_psx_hw_adaptive_smoothing: "enabled",
-    beetle_psx_hw_super_sampling: "enabled",
-    beetle_psx_hw_mdec_yuv: "enabled",
-    beetle_psx_hw_msaa: "4x",
-    beetle_psx_hw_enable_gpu_prim_bufs: "enabled",
-    beetle_psx_hw_spu_overclock: "200",
-    beetle_psx_hw_show_video_resolution: "enabled",
-    beetle_psx_hw_lightrec_timing: "performance",
-    beetle_psx_hw_executes_on_mcu: "disabled",
-    beetle_psx_hw_rcnt_mode: "fast",
-    beetle_psx_hw_ignore_badreads: "enabled",
-    beetle_psx_hw_itype2_timing: "fast",
+    retroarch_core: "pcsx_rearmed",
+    pcsx_rearmed_drc: "enabled",
+    pcsx_rearmed_frameskip: "0",
+    pcsx_rearmed_spu_update_freq: "100",
+    pcsx_rearmed_show_bios_bootlogo: "disabled",
+    pcsx_rearmed_vibration: "enabled",
+    pcsx_rearmed_neon_interlace_enable: "disabled",
   },
 };
 
@@ -623,7 +572,7 @@ export function getGBCSettingsForTier(tier: PerformanceTier): Record<string, str
 }
 
 /**
- * Get the appropriate Beetle PSX settings for a given performance tier.
+ * Get the appropriate PCSX ReARMed settings for a given performance tier.
  */
 export function getPSXSettingsForTier(tier: PerformanceTier): Record<string, string> {
   return { ...PSX_TIER_SETTINGS[tier] };
@@ -1255,14 +1204,20 @@ export const SYSTEMS: SystemInfo[] = [
       ppsspp_internal_resolution: "2",
       ppsspp_auto_frameskip: "disabled",
       ppsspp_frameskip: "0",
-      ppsspp_fast_memory: "enabled",
+      ppsspp_fast_memory: "disabled",
+      ppsspp_io_timing_method: "Host",
+      ppsspp_separate_io_thread: "disabled",
+      ppsspp_unsafe_func_replacements: "disabled",
     },
     perfSettings: {
       ppsspp_internal_resolution: "1",
       ppsspp_auto_frameskip: "enabled",
       ppsspp_frameskip: "1",
-      ppsspp_fast_memory: "enabled",
+      ppsspp_fast_memory: "disabled",
       ppsspp_block_transfer_gpu: "enabled",
+      ppsspp_io_timing_method: "Host",
+      ppsspp_separate_io_thread: "disabled",
+      ppsspp_unsafe_func_replacements: "disabled",
     },
     tierSettings: PSP_TIER_SETTINGS,
   },
@@ -1653,13 +1608,8 @@ const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
   handy: "lynx",
   mame2003_plus: "mame2003",
   mednafen_ngp: "ngp",
-  mednafen_psx: "psx",
-  mednafen_psx_hw: "psx",
   melonds: "nds",
   mgba: "gba",
-  // mupen64plus_next is kept as a backward-compatibility alias so that games
-  // previously stored with the old default core still resolve to the n64 system.
-  mupen64plus_next: "n64",
   nestopia: "nes",
   parallel_n64: "n64",
   pcsx_rearmed: "psx",
