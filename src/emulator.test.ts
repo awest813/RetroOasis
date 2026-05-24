@@ -940,7 +940,7 @@ describe('PSPEmulator', () => {
         gb: "gambatte",
         nds: "desmume2015",
         "3ds": "azahar",
-        n64: "mupen64plus_next",
+        n64: "parallel_n64",
         psx: "mednafen_psx_hw",
         segaMD: "genesis_plus_gx",
         segaMDWide: "genesis_plus_gx_wide",
@@ -2318,35 +2318,6 @@ describe('PSPEmulator', () => {
       )).toBe(true);
     });
 
-    it('clamps N64 renderer settings on weak WebGL hardware', async () => {
-      emulator.onError = () => {};
-      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
-        async () => { await Promise.resolve(); window.EJS_onGameStart?.(); };
-
-      await emulator.launch({
-        file:            new File(['data'], 'game.z64'),
-        volume:          0.7,
-        systemId:        'n64',
-        performanceMode: 'quality',
-        deviceCaps:      {
-          ...fakeCaps,
-          tier: 'ultra' as const,
-          gpuBenchmarkScore: 10,
-          estimatedVRAMMB: 128,
-          gpuCaps: { ...fakeCaps.gpuCaps, webgl2: false, maxTextureSize: 2048 },
-        },
-      });
-
-      const settings = emulator.activeCoreSettings;
-      expect(settings?.['mupen64plus-resolution-factor']).toBe('1');
-      expect(settings?.['mupen64plus-rdp-plugin']).toBe('rice');
-      expect(settings?.['mupen64plus-EnableFBEmulation']).toBe('False');
-      expect(settings?.['mupen64plus-txFilterMode']).toBe('None');
-      expect(settings?.['mupen64plus-EnableN64DepthCompare']).toBe('False');
-      expect(emulator.diagnosticLog.some(e =>
-        e.category === 'performance' && e.message.startsWith('N64 WebGL clamp:')
-      )).toBe(true);
-    });
 
     it('clamps PS1 Beetle HW settings on weak WebGL hardware', async () => {
       emulator.onError = () => {};
@@ -4787,7 +4758,7 @@ describe("wasmCorePackageNameFor", () => {
       gb: "gambatte",
       nds: "desmume2015",
       "3ds": "azahar",
-      n64: "mupen64plus_next",
+      n64: "parallel_n64",
       psx: "mednafen_psx_hw",
       segaMD: "genesis_plus_gx",
       segaMDWide: "genesis_plus_gx_wide",

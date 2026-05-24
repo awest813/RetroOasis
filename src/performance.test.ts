@@ -2235,8 +2235,7 @@ describe('performance', () => {
     });
 
     it('returns empty object for native preset (native = index 0)', () => {
-      expect(getResolutionCoreOptions('psp', 'native')).toEqual({});
-      expect(getResolutionCoreOptions('n64', 'native')).toEqual({});
+      expect(getResolutionCoreOptions('psx', 'native')).toEqual({});
     });
 
     it('returns correct PSP 2× option', () => {
@@ -2247,12 +2246,8 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('psp', '4x')).toEqual({ ppsspp_internal_resolution: '4' });
     });
 
-    it('returns correct N64 2× option', () => {
-      expect(getResolutionCoreOptions('n64', '2x')).toEqual({ 'mupen64plus-resolution-factor': '2' });
-    });
-
-    it('returns correct N64 4× option', () => {
-      expect(getResolutionCoreOptions('n64', '4x')).toEqual({ 'mupen64plus-resolution-factor': '4' });
+    it('returns correct PSP 4× option (step index 2)', () => {
+      expect(getResolutionCoreOptions('psp', '4x')).toEqual({ ppsspp_internal_resolution: '4' });
     });
 
     it('returns correct PS1 2× option', () => {
@@ -2279,6 +2274,18 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('segaDC', 'native')).toEqual({});
     });
 
+    it('returns correct N64 2x upscaling option', () => {
+      expect(getResolutionCoreOptions('n64', '2x')).toEqual({ 'parallel-n64-parallel-rdp-upscaling': '2x' });
+    });
+
+    it('returns correct N64 4x upscaling option', () => {
+      expect(getResolutionCoreOptions('n64', '4x')).toEqual({ 'parallel-n64-parallel-rdp-upscaling': '4x' });
+    });
+
+    it('returns empty object for N64 native resolution', () => {
+      expect(getResolutionCoreOptions('n64', 'native')).toEqual({});
+    });
+
     it('display_match returns a valid resolution option for Dreamcast', () => {
       const result = getResolutionCoreOptions('segaDC', 'display_match');
       // Must be either {} (native) or { flycast_internal_resolution: ... }
@@ -2288,10 +2295,6 @@ describe('performance', () => {
       }
     });
 
-    it('clamps 4× to the ladder maximum when the system only has fewer steps', () => {
-      // N64 ladder: ["1","2","4"] — 3 entries; index 2 is "4"
-      expect(getResolutionCoreOptions('n64', '4x')).toEqual({ 'mupen64plus-resolution-factor': '4' });
-    });
 
     it('display_match returns a non-empty object for PSP (fallback path in tests)', () => {
       // In test environments window.screen may not be populated — just verify
@@ -2333,21 +2336,6 @@ describe('performance', () => {
       }
     });
 
-    it('display_match returns step 2 (4×) for N64 on a 4K display', () => {
-      // N64 benefits greatly from 4× upscaling on 4K displays (1280×960 output)
-      const origWindow = globalThis.window;
-      try {
-        Object.defineProperty(globalThis, 'window', {
-          value: { devicePixelRatio: 1, screen: { width: 3840 } },
-          configurable: true,
-        });
-        const result = getResolutionCoreOptions('n64', 'display_match');
-        expect(result).toEqual({ 'mupen64plus-resolution-factor': '4' });
-      } finally {
-        Object.defineProperty(globalThis, 'window', { value: origWindow, configurable: true });
-      }
-    });
-
     it('display_match uses devicePixelRatio to calculate physical resolution', () => {
       // A 2560×1440 logical display at 2× DPR has 5120 physical pixels — selects 4×
       const origWindow = globalThis.window;
@@ -2376,11 +2364,6 @@ describe('performance', () => {
         expect(ladder!.values[0]).toBe('1');
       });
 
-      it('returns the N64 ladder', () => {
-        const ladder = getResolutionLadder('n64');
-        expect(ladder).not.toBeNull();
-        expect(ladder!.key).toBe('mupen64plus-resolution-factor');
-      });
 
       it('returns the Dreamcast ladder', () => {
         const ladder = getResolutionLadder('segaDC');
@@ -2392,7 +2375,7 @@ describe('performance', () => {
 
     describe('getGraphicsPresetCoreOptions', () => {
       it('provides graphics presets for every supported 3D console', () => {
-        for (const systemId of ['psp', 'nds', 'n64', 'psx', 'segaSaturn', 'segaDC']) {
+        for (const systemId of ['psp', 'nds', 'psx', 'segaSaturn', 'segaDC', 'n64']) {
           expect(Object.keys(getGraphicsPresetCoreOptions(systemId, 'quality')).length).toBeGreaterThan(0);
         }
       });
@@ -2406,13 +2389,6 @@ describe('performance', () => {
         });
       });
 
-      it('maps N64 ultra preset to GLideN64 accuracy and resolution options', () => {
-        expect(getGraphicsPresetCoreOptions('n64', 'ultra')).toMatchObject({
-          'mupen64plus-rdp-plugin': 'gliden64',
-          'mupen64plus-resolution-factor': '4',
-          'mupen64plus-EnableN64DepthCompare': 'True',
-        });
-      });
 
       it('maps PSX native preset to fastest hardware-renderer options', () => {
         expect(getGraphicsPresetCoreOptions('psx', 'native')).toMatchObject({
@@ -2428,6 +2404,34 @@ describe('performance', () => {
           yabause_frameskip: 'disabled',
           yabause_addon_cartridge: '1M_ram',
           yabause_numthreads: '4',
+        });
+      });
+
+      it('maps N64 preset levels to optimal parallel_n64 options', () => {
+        expect(getGraphicsPresetCoreOptions('n64', 'native')).toEqual({
+          'parallel-n64-gfxplugin': 'glide64',
+          'parallel-n64-rspplugin': 'hle',
+          'parallel-n64-screensize': '320x240',
+          'parallel-n64-framerate': 'fullspeed',
+        });
+
+        expect(getGraphicsPresetCoreOptions('n64', 'balanced')).toEqual({
+          'parallel-n64-gfxplugin': 'glide64',
+          'parallel-n64-rspplugin': 'hle',
+          'parallel-n64-screensize': '640x480',
+          'parallel-n64-framerate': 'fullspeed',
+        });
+
+        expect(getGraphicsPresetCoreOptions('n64', 'quality')).toEqual({
+          'parallel-n64-gfxplugin': 'parallel',
+          'parallel-n64-rspplugin': 'parallel',
+          'parallel-n64-parallel-rdp-upscaling': '2x',
+        });
+
+        expect(getGraphicsPresetCoreOptions('n64', 'ultra')).toEqual({
+          'parallel-n64-gfxplugin': 'parallel',
+          'parallel-n64-rspplugin': 'parallel',
+          'parallel-n64-parallel-rdp-upscaling': '4x',
         });
       });
 

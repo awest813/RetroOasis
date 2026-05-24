@@ -317,103 +317,37 @@ const PSP_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 };
 
 /**
- * mupen64plus-next RetroArch core options per tier.
+ * parallel_n64 RetroArch core options per tier.
  *
- * `retroarch_core: "mupen64plus_next"` is injected on every tier so EmulatorJS
- * always loads GLideN64/Rice-capable mupen64plus-next. Without it, Safari
- * mobile reverses the core list and would default to parallel_n64, ignoring
- * these `mupen64plus-*` keys.
+ * Replaced mupen64plus_next with parallel_n64 as the default core to fix
+ * booting issues with titles like Banjo-Kazooie.
  */
 const N64_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
-    retroarch_core: "mupen64plus_next",
-    // Rice plugin: lightest-weight RDP; skips most accuracy features.
-    "mupen64plus-rdp-plugin": "rice",
-    "mupen64plus-resolution-factor": "1",
-    "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-BilinearMode": "standard",
-    "mupen64plus-EnableFBEmulation": "False",
-    "mupen64plus-EnableCopyColorToRDRAM": "Off",
-    "mupen64plus-EnableCopyDepthToRDRAM": "Off",
-    "mupen64plus-EnableCopyColorFromRDRAM": "False",
-    "mupen64plus-EnableLOD": "False",
-    "mupen64plus-EnableHWLighting": "False",
-    "mupen64plus-txFilterMode": "None",
-    "mupen64plus-txHiresEnable": "False",
-    "mupen64plus-EnableNoise": "False",
-    "mupen64plus-astick-deadzone": "15",
-    "mupen64plus-CountPerOp": "0",
+    retroarch_core: "parallel_n64",
+    "parallel-n64-gfxplugin": "glide64",
+    "parallel-n64-rspplugin": "hle",
+    "parallel-n64-screensize": "320x240",
+    "parallel-n64-framerate": "fullspeed",
   },
   medium: {
-    retroarch_core: "mupen64plus_next",
-    "mupen64plus-rdp-plugin": "gliden64",
-    "mupen64plus-resolution-factor": "1",
-    "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-BilinearMode": "standard",
-    "mupen64plus-EnableFBEmulation": "True",
-    "mupen64plus-EnableCopyColorToRDRAM": "Async",
-    // FromMem is faster and more compatible than Software on medium tier
-    "mupen64plus-EnableCopyDepthToRDRAM": "FromMem",
-    "mupen64plus-EnableCopyColorFromRDRAM": "False",
-    "mupen64plus-EnableLOD": "True",
-    "mupen64plus-EnableHWLighting": "False",
-    "mupen64plus-txFilterMode": "None",
-    "mupen64plus-txHiresEnable": "False",
-    "mupen64plus-EnableNoise": "False",
-    "mupen64plus-astick-deadzone": "15",
-    "mupen64plus-CountPerOp": "0",
+    retroarch_core: "parallel_n64",
+    "parallel-n64-gfxplugin": "glide64",
+    "parallel-n64-rspplugin": "hle",
+    "parallel-n64-screensize": "640x480",
+    "parallel-n64-framerate": "fullspeed",
   },
   high: {
-    retroarch_core: "mupen64plus_next",
-    "mupen64plus-rdp-plugin": "gliden64",
-    "mupen64plus-resolution-factor": "2",
-    "mupen64plus-framerate": "fullspeed",
-    // 3-point bilinear filtering: better texture quality than standard bilinear
-    "mupen64plus-BilinearMode": "3point",
-    "mupen64plus-EnableFBEmulation": "True",
-    "mupen64plus-EnableCopyColorToRDRAM": "Async",
-    "mupen64plus-EnableCopyDepthToRDRAM": "Software",
-    "mupen64plus-EnableCopyColorFromRDRAM": "True",
-    "mupen64plus-EnableLOD": "True",
-    "mupen64plus-EnableHWLighting": "True",
-    // Smooth filtering 1: gentle texture smoothing that removes pixel crawl
-    // without the blurriness of stronger filters.
-    "mupen64plus-txFilterMode": "Smooth filtering 1",
-    "mupen64plus-txHiresEnable": "False",
-    // "As Is" passes textures through the enhancement pipeline without altering them,
-    // enabling texture filtering and caching without additional processing
-    "mupen64plus-txEnhancementMode": "As Is",
-    "mupen64plus-EnableN64DepthCompare": "False",
-    "mupen64plus-EnableNoise": "True",
-    "mupen64plus-astick-deadzone": "15",
-    "mupen64plus-CountPerOp": "0",
+    retroarch_core: "parallel_n64",
+    "parallel-n64-gfxplugin": "parallel",
+    "parallel-n64-rspplugin": "parallel",
+    "parallel-n64-parallel-rdp-upscaling": "2x",
   },
   ultra: {
-    retroarch_core: "mupen64plus_next",
-    "mupen64plus-rdp-plugin": "gliden64",
-    // 4× internal resolution for sharp, clean geometry at high DPI
-    "mupen64plus-resolution-factor": "4",
-    "mupen64plus-framerate": "fullspeed",
-    "mupen64plus-BilinearMode": "3point",
-    "mupen64plus-EnableFBEmulation": "True",
-    "mupen64plus-EnableCopyColorToRDRAM": "Async",
-    "mupen64plus-EnableCopyDepthToRDRAM": "Software",
-    "mupen64plus-EnableCopyColorFromRDRAM": "True",
-    "mupen64plus-EnableLOD": "True",
-    "mupen64plus-EnableHWLighting": "True",
-    // Smooth filtering 4: strongest smoothing pass — appropriate at 4× res
-    // where the original pixel grid is no longer visible.
-    "mupen64plus-txFilterMode": "Smooth filtering 4",
-    // Enhancement mode preserves original texture data while applying filters
-    "mupen64plus-txEnhancementMode": "As Is",
-    "mupen64plus-txHiresEnable": "False",
-    // N64 depth compare for highest accuracy at ultra tier
-    "mupen64plus-EnableN64DepthCompare": "True",
-    // Larger texture cache for better performance with enhanced textures
-    "mupen64plus-MaxTxCacheSize": "4000",
-    "mupen64plus-EnableNoise": "True",
-    "mupen64plus-astick-deadzone": "15",
-    "mupen64plus-CountPerOp": "0",
+    retroarch_core: "parallel_n64",
+    "parallel-n64-gfxplugin": "parallel",
+    "parallel-n64-rspplugin": "parallel",
+    "parallel-n64-parallel-rdp-upscaling": "4x",
   },
 };
 
@@ -1749,7 +1683,6 @@ const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
   mednafen_psx_hw: "psx",
   melonds: "nds",
   mgba: "gba",
-  mupen64plus_next: "n64",
   nestopia: "nes",
   parallel_n64: "n64",
   pcsx_rearmed: "psx",

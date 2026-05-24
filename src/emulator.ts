@@ -504,7 +504,7 @@ let cachedWebGL2Support: boolean | null = null;
 
 const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
 const NDS_RESOLUTION_STEPS = ["256x192", "512x384", "768x576", "1024x768"];
-const N64_RESOLUTION_STEPS = ["1", "2", "4"];
+
 const PSX_RESOLUTION_STEPS = ["1x(native)", "2x", "4x", "8x", "16x"];
 const DREAMCAST_RESOLUTION_STEPS = ["640x480", "1280x960", "1920x1440", "2560x1920"];
 
@@ -562,7 +562,7 @@ export function clearWebGL2SupportCache(): void {
  */
 const CORE_PREFETCH_MAP: Record<string, string> = {
   psp:        "cores/ppsspp-thread-wasm.data",
-  n64:        "cores/mupen64plus_next-wasm.data",
+  n64:        "cores/parallel_n64-wasm.data",
   psx:        "cores/mednafen_psx_hw-wasm.data",
   nds:        "cores/desmume2015-wasm.data",
   gba:        "cores/mgba-wasm.data",
@@ -2547,46 +2547,7 @@ export class PSPEmulator {
     }
 
     if (systemId === "n64") {
-      let maxN64ResIdx = tier === "ultra" ? 2 : tier === "high" ? 1 : 0;
-      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 384 || constrainedMemory) {
-        maxN64ResIdx = Math.min(maxN64ResIdx, 1);
-      }
-      if (weakWebGL) maxN64ResIdx = 0;
-
-      const previousRes = ejsSettings["mupen64plus-resolution-factor"];
-      const nextRes = clampLadderValue(previousRes, N64_RESOLUTION_STEPS, maxN64ResIdx);
-      ejsSettings["mupen64plus-resolution-factor"] = nextRes;
-
-      if (weakWebGL || chromebookMediumHeavy3D) {
-        Object.assign(ejsSettings, {
-          "mupen64plus-rdp-plugin": "rice",
-          "mupen64plus-EnableFBEmulation": "False",
-          "mupen64plus-EnableCopyColorToRDRAM": "Off",
-          "mupen64plus-EnableCopyDepthToRDRAM": "Off",
-          "mupen64plus-EnableCopyColorFromRDRAM": "False",
-          "mupen64plus-EnableLOD": "False",
-          "mupen64plus-EnableHWLighting": "False",
-          "mupen64plus-txFilterMode": "None",
-          "mupen64plus-txEnhancementMode": "As Is",
-          "mupen64plus-txHiresEnable": "False",
-          "mupen64plus-EnableN64DepthCompare": "False",
-          "mupen64plus-MaxTxCacheSize": "1500",
-        });
-      } else if (constrainedMemory) {
-        ejsSettings["mupen64plus-txFilterMode"] = "None";
-        ejsSettings["mupen64plus-txHiresEnable"] = "False";
-        ejsSettings["mupen64plus-MaxTxCacheSize"] = "2000";
-      }
-
-      if (previousRes !== nextRes || weakWebGL || chromebookMediumHeavy3D) {
-        this.logDiagnostic(
-          "performance",
-          `N64 WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
-          `rdp=${ejsSettings["mupen64plus-rdp-plugin"] ?? "?"}, ` +
-          `fb=${ejsSettings["mupen64plus-EnableFBEmulation"] ?? "?"}, ` +
-          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
-        );
-      }
+      // N64 scaling block removed: no longer applicable to parallel_n64
       return;
     }
 
@@ -3055,20 +3016,7 @@ export class PSPEmulator {
         }
       }
 
-      // N64 audio adaptation: mupen64plus-audio-buffer-size can be increased
-      // to prevent crackles on high-latency audio hardware.
-      if (audioCaps && opts.systemId === "n64") {
-        const hwBufTier = audioCaps.suggestedBufferTier;
-        if (hwBufTier === "high") {
-          ejsSettings["mupen64plus-audio-buffer-size"] = "2048";
-          if (this.verboseLogging) {
-            console.info(
-              `[RetroOasis] Audio: high HW latency (${audioCaps.baseLatencyMs?.toFixed(1)} ms) ` +
-              `— setting N64 audio buffer to 2048 samples.`
-            );
-          }
-        }
-      }
+      // N64 audio buffer override removed: no longer needed for parallel_n64
 
       // PS1 audio adaptation: beetle_psx_hw_cd_access_method can be forced to
       // "sync" on high-latency hardware to prevent audio desync from async
@@ -3246,23 +3194,7 @@ export class PSPEmulator {
         }
       }
 
-      // ── N64 performance diagnostics ─────────────────────────────────────────
-      if (opts.systemId === "n64") {
-        const n64Res   = ejsSettings["mupen64plus-resolution-factor"]   ?? "?";
-        const n64Rdp   = ejsSettings["mupen64plus-rdp-plugin"]          ?? "?";
-        const n64Fb    = ejsSettings["mupen64plus-EnableFBEmulation"]  ?? "?";
-        const n64Cpo   = ejsSettings["mupen64plus-CountPerOp"]         ?? "?";
-        this.logDiagnostic(
-          "performance",
-          `N64 tier=${tier}: res=${n64Res} rdp=${n64Rdp} fbEmu=${n64Fb} CountPerOp=${n64Cpo}`
-        );
-        if (this.verboseLogging) {
-          console.info(
-            `[RetroOasis] N64 performance settings — ` +
-            `resolution_factor: ${n64Res}, rdp: ${n64Rdp}, fb_emulation: ${n64Fb}, CountPerOp: ${n64Cpo}`
-          );
-        }
-      }
+      // N64 performance diagnostics removed for parallel_n64
 
       // ── PS1 performance diagnostics ─────────────────────────────────────────
       if (opts.systemId === "psx") {

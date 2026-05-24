@@ -60,7 +60,7 @@ Before running any tests:
 |---|------|----------|
 | 3.1 | Click Play on any game card | Emulator overlay appears; game loads and starts rendering |
 | 3.2 | Launch a PSP game | PPSSPP core loads; `self.crossOriginIsolated === true` required |
-| 3.3 | Launch an N64 game | mupen64plus-Next core loads; game renders at the configured internal resolution |
+| 3.3 | Launch an N64 game | parallel_n64 core loads; game renders at the configured internal resolution |
 | 3.4 | Launch a GBA game | mGBA core loads; game renders immediately |
 | 3.5 | During gameplay, press Escape | Returns to the library; emulator is torn down cleanly |
 | 3.6 | Return to library and relaunch the same game | Game restarts from scratch (or offers auto-save restore if auto-save is enabled) |

@@ -206,7 +206,6 @@ describe('systems performance profiles', () => {
   describe('getSystemByCoreHint', () => {
     it('maps webretro N64 core URLs to the RetroOasis N64 profile', () => {
       expect(getSystemByCoreHint('parallel_n64')?.id).toBe('n64');
-      expect(getSystemByCoreHint('mupen64plus-next')?.id).toBe('n64');
     });
 
     it('ignores autodetect because RetroOasis already auto-detects file imports', () => {
@@ -238,7 +237,7 @@ describe('systems performance profiles', () => {
   it('provides tier settings for PSP, NDS, N64, Saturn and Dreamcast', () => {
     const psp = getSystemById('psp');
     const nds = getSystemById('nds');
-    const n64 = getSystemById('n64');
+
     const saturn = getSystemById('segaSaturn');
     const dc = getSystemById('segaDC');
 
@@ -250,8 +249,7 @@ describe('systems performance profiles', () => {
     expect(getSystemById('segaCD')?.tierSettings?.high?.retroarch_core).toBe('genesis_plus_gx');
     expect(getSystemById('segaCD')?.tierSettings?.high?.genesis_plus_gx_cartridge_slot).toBe('mcd');
     expect(getSystemById('sega32x')?.tierSettings?.high?.retroarch_core).toBe('picodrive');
-    expect(n64?.tierSettings?.low?.['mupen64plus-rdp-plugin']).toBe('rice');
-    expect(n64?.tierSettings?.ultra?.['mupen64plus-resolution-factor']).toBe('4');
+
     expect(saturn?.tierSettings?.low?.retroarch_core).toBe('yabause');
     expect(saturn?.tierSettings?.low?.yabause_frameskip).toBe('enabled');
     expect(saturn?.tierSettings?.ultra?.yabause_addon_cartridge).toBe('4M_ram');
@@ -315,7 +313,7 @@ describe('systems performance profiles', () => {
       gb: "gambatte",
       nds: "desmume2015",
       "3ds": "azahar",
-      n64: "mupen64plus_next",
+      n64: "parallel_n64",
       psx: "mednafen_psx_hw",
       segaMD: "genesis_plus_gx",
       segaMDWide: "genesis_plus_gx_wide",
@@ -644,107 +642,7 @@ describe('systems performance profiles', () => {
     });
   });
 
-  // ── N64 graphics settings ───────────────────────────────────────────────────
 
-  describe('N64 tier graphics settings', () => {
-    it('forces mupen64plus_next core in all tiers', () => {
-      // EmulatorJS lists parallel_n64 second on desktop but reverses the list on
-      // Safari mobile, which would otherwise load parallel_n64 and ignore
-      // mupen64plus-* options. Pin the core like PS1/NDS.
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.retroarch_core).toBe('mupen64plus_next');
-      expect(n64?.tierSettings?.medium?.retroarch_core).toBe('mupen64plus_next');
-      expect(n64?.tierSettings?.high?.retroarch_core).toBe('mupen64plus_next');
-      expect(n64?.tierSettings?.ultra?.retroarch_core).toBe('mupen64plus_next');
-    });
-
-    it('uses Rice plugin on low tier for maximum performance', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.['mupen64plus-rdp-plugin']).toBe('rice');
-    });
-
-    it('uses GliDeN64 plugin on medium, high, and ultra tiers for better accuracy', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-rdp-plugin']).toBe('gliden64');
-      expect(n64?.tierSettings?.high?.['mupen64plus-rdp-plugin']).toBe('gliden64');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-rdp-plugin']).toBe('gliden64');
-    });
-
-    it('uses native resolution on low and medium tiers', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.['mupen64plus-resolution-factor']).toBe('1');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-resolution-factor']).toBe('1');
-    });
-
-    it('uses 2× resolution on high tier and 4× on ultra tier', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.high?.['mupen64plus-resolution-factor']).toBe('2');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-resolution-factor']).toBe('4');
-    });
-
-    it('enables hardware lighting only on high and ultra tiers', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.['mupen64plus-EnableHWLighting']).toBe('False');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-EnableHWLighting']).toBe('False');
-      expect(n64?.tierSettings?.high?.['mupen64plus-EnableHWLighting']).toBe('True');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableHWLighting']).toBe('True');
-    });
-
-    it('enables N64 depth compare only on ultra tier for maximum accuracy', () => {
-      const n64 = getSystemById('n64');
-      // Ultra: enables N64 depth compare for highest rendering accuracy
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableN64DepthCompare']).toBe('True');
-      // High: depth compare disabled — avoids the GPU overhead at 2× resolution
-      expect(n64?.tierSettings?.high?.['mupen64plus-EnableN64DepthCompare']).toBe('False');
-    });
-
-    it('disables FB emulation on low tier to save GPU bandwidth', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.low?.['mupen64plus-EnableFBEmulation']).toBe('False');
-    });
-
-    it('enables FB emulation from medium tier upward for better compatibility', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-EnableFBEmulation']).toBe('True');
-      expect(n64?.tierSettings?.high?.['mupen64plus-EnableFBEmulation']).toBe('True');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-EnableFBEmulation']).toBe('True');
-    });
-
-    it('uses 3-point bilinear filtering on high and ultra tiers', () => {
-      const n64 = getSystemById('n64');
-      // Standard bilinear on low/medium — lower GPU cost
-      expect(n64?.tierSettings?.low?.['mupen64plus-BilinearMode']).toBe('standard');
-      expect(n64?.tierSettings?.medium?.['mupen64plus-BilinearMode']).toBe('standard');
-      // 3-point mode gives better texture quality at higher internal resolutions
-      expect(n64?.tierSettings?.high?.['mupen64plus-BilinearMode']).toBe('3point');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-BilinearMode']).toBe('3point');
-    });
-
-    it('uses progressively stronger texture filtering across tiers', () => {
-      const n64 = getSystemById('n64');
-      // Low: no texture filtering
-      expect(n64?.tierSettings?.low?.['mupen64plus-txFilterMode']).toBe('None');
-      // Medium: no texture filtering
-      expect(n64?.tierSettings?.medium?.['mupen64plus-txFilterMode']).toBe('None');
-      // High: smooth filtering 1 (gentle smoothing)
-      expect(n64?.tierSettings?.high?.['mupen64plus-txFilterMode']).toBe('Smooth filtering 1');
-      // Ultra: smooth filtering 4 (maximum smoothing for 4× resolution)
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-txFilterMode']).toBe('Smooth filtering 4');
-    });
-
-    it('uses a larger texture cache on ultra tier to support 4× resolution', () => {
-      const n64 = getSystemById('n64');
-      expect(n64?.tierSettings?.ultra?.['mupen64plus-MaxTxCacheSize']).toBe('4000');
-    });
-
-    it('omits N64 CPU and VI options rejected by the web core', () => {
-      const n64 = getSystemById('n64');
-      for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
-        expect(n64?.tierSettings?.[tier]?.['mupen64plus-cpucore']).toBeUndefined();
-        expect(n64?.tierSettings?.[tier]?.['mupen64plus-virefresh']).toBeUndefined();
-      }
-    });
-  });
 
   describe('Game Boy (GB) core settings', () => {
     it('detects .gb files as the Game Boy system', () => {

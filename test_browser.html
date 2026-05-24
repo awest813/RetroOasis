@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Extraction</title></head>
+<body>
+  <h1>Testing 7Z Extraction</h1>
+  <div id="output"></div>
+  <script type="module">
+    import { detectArchiveFormat, extractFromArchive } from './src/archive.ts';
+
+    async function run() {
+      const out = document.getElementById('output');
+      const log = (msg) => { out.innerHTML += `<div>${msg}</div>`; console.log(msg); };
+      
+      try {
+        log('Fetching 7z file...');
+        // We'll just fetch a small chunk first to avoid caching the whole 400MB
+        // Actually, we need the whole file to extract it. But wait, we can just pick it via file input to avoid OOM in fetch!
+      } catch (err) {
+        log('Error: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

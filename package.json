@@ -25,5 +25,8 @@
     "vite": "^6.4.1",
     "vitest": "^3.2.4"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "fflate": "^0.8.3"
+  }
 }

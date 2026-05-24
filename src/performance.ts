@@ -61,14 +61,15 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
     key: "ppsspp_internal_resolution",
     values: ["1", "2", "4", "8"],
   },
-  n64: {
-    key: "mupen64plus-resolution-factor",
-    values: ["1", "2", "4"],
-  },
+
   psx: {
     key: "beetle_psx_hw_internal_resolution",
     // Matches Beetle PSX HW libretro steps (preset "4×" maps to index 2 = 4x).
     values: ["1x(native)", "2x", "4x", "8x", "16x"],
+  },
+  n64: {
+    key: "parallel-n64-parallel-rdp-upscaling",
+    values: ["1x", "2x", "4x", "8x"],
   },
   nds: {
     key: "desmume_internal_resolution",
@@ -202,17 +203,34 @@ case "psp":
       break;
 
     case "n64":
-      Object.assign(out, {
-        "mupen64plus-rdp-plugin": preset === "native" ? "rice" : "gliden64",
-        "mupen64plus-BilinearMode": preset === "native" ? "standard" : "3point",
-        "mupen64plus-txFilterMode": preset === "ultra" ? "Smooth filtering 4" : preset === "quality" ? "Smooth filtering 1" : "None",
-        "mupen64plus-EnableFBEmulation": preset === "native" ? "False" : "True",
-        "mupen64plus-EnableHWLighting": preset === "native" || preset === "balanced" ? "False" : "True",
-        "mupen64plus-EnableNoise": preset === "native" ? "False" : "True",
-      });
-      if (preset === "ultra") {
-        out["mupen64plus-EnableN64DepthCompare"] = "True";
-        out["mupen64plus-MaxTxCacheSize"] = "4000";
+      if (preset === "native") {
+        delete out["parallel-n64-parallel-rdp-upscaling"];
+        Object.assign(out, {
+          "parallel-n64-gfxplugin": "glide64",
+          "parallel-n64-rspplugin": "hle",
+          "parallel-n64-screensize": "320x240",
+          "parallel-n64-framerate": "fullspeed",
+        });
+      } else if (preset === "balanced") {
+        delete out["parallel-n64-parallel-rdp-upscaling"];
+        Object.assign(out, {
+          "parallel-n64-gfxplugin": "glide64",
+          "parallel-n64-rspplugin": "hle",
+          "parallel-n64-screensize": "640x480",
+          "parallel-n64-framerate": "fullspeed",
+        });
+      } else if (preset === "quality") {
+        Object.assign(out, {
+          "parallel-n64-gfxplugin": "parallel",
+          "parallel-n64-rspplugin": "parallel",
+          "parallel-n64-parallel-rdp-upscaling": "2x",
+        });
+      } else {
+        Object.assign(out, {
+          "parallel-n64-gfxplugin": "parallel",
+          "parallel-n64-rspplugin": "parallel",
+          "parallel-n64-parallel-rdp-upscaling": "4x",
+        });
       }
       break;
 
@@ -290,10 +308,7 @@ export function getTextureUpscalerCoreOptions(
       };
     }
     case "n64":
-      return {
-        "mupen64plus-txEnhancementMode": upscaler === "off" ? "As Is" : upscaler === "sharp" ? "Sharpen" : "As Is",
-        "mupen64plus-txFilterMode": upscaler === "off" ? "None" : upscaler === "smooth" ? "Smooth filtering 1" : "Smooth filtering 4",
-      };
+      return {};
     case "psx":
       return {
         beetle_psx_hw_filter: upscaler === "off" || upscaler === "sharp" ? "nearest" : "bilinear",
