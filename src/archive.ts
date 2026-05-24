@@ -839,8 +839,9 @@ async function extractWithLegacyWorker(
       reject(new Error(`${format.toUpperCase()} extraction failed: ${event.message}`));
     };
 
-    // Transfer ownership of the bytes buffer into the worker to avoid duplication.
-    worker.postMessage(archiveBytes.buffer, [archiveBytes.buffer]);
+    // We pass archiveBytes (a Uint8Array) so the worker sees a typed array with .length
+    // rather than a raw ArrayBuffer which lacks a .length property.
+    worker.postMessage(archiveBytes, [archiveBytes.buffer]);
   });
 
   return workerResult;
