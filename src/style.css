@@ -5489,13 +5489,50 @@ body.using-gamepad .game-card:focus {
   user-select: none;
 }
 
-.api-key-row__name {
+.api-key-row__title-wrap {
   flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0;
   min-width: 0;
+}
+
+.api-key-row__name {
+  margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--c-text);
+}
+
+.api-key-row__purpose {
+  border: 1px solid color-mix(in srgb, var(--c-accent) 35%, var(--c-border));
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--c-accent-light);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.connections-free-sources {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--c-text-dim);
+  font-size: 0.85rem;
+}
+
+.connections-free-sources__badge {
+  border: 1px solid color-mix(in srgb, var(--c-success) 45%, var(--c-border));
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--c-success);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .api-key-row__title {
@@ -5521,10 +5558,24 @@ body.using-gamepad .game-card:focus {
   gap: 8px;
 }
 
-.api-key-row__key-line .api-key-input {
+.api-key-row__credential-grid {
+  flex: 1 1 320px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.api-key-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.api-key-row__field .api-key-input {
   flex: 1 1 180px;
   min-width: 0;
-  width: auto;
 }
 
 .api-key-input {
@@ -5584,12 +5635,33 @@ body.using-gamepad .game-card:focus {
 }
 
 .api-keys-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.connections-summary-card {
   background: var(--c-surface2);
   border: 1px solid var(--c-border);
   border-radius: var(--radius);
-  padding: 14px;
-  font-size: 0.85rem;
+  padding: 12px;
+  min-width: 0;
+}
+
+.connections-summary-card__label,
+.connections-summary-card__detail {
+  display: block;
   color: var(--c-text-dim);
+  font-size: 0.78rem;
+}
+
+.connections-summary-card__value {
+  display: block;
+  margin: 4px 0;
+  color: var(--c-text);
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .api-keys-footer {

@@ -102,17 +102,20 @@ describe("buildApiKeysTab", () => {
     expect(pill.textContent).toContain("No key");
   });
 
-  it("Save persists a valid key and updates the status to Active", () => {
+  it("Save & test persists a valid key and tests it automatically", async () => {
     const { container, store } = mount();
     const input = container.querySelector('[data-provider-id="rawg"] .api-key-input') as HTMLInputElement;
     input.value = "0123456789abcdef0123456789abcdef";
     const saveBtn = Array.from(
       container.querySelectorAll('[data-provider-id="rawg"] button'),
-    ).find((b) => b.textContent === "Save") as HTMLButtonElement;
+    ).find((b) => b.textContent === "Save & test") as HTMLButtonElement;
     saveBtn.click();
+    await Promise.resolve(); await Promise.resolve();
     expect(store.getKey("rawg")).toBe("0123456789abcdef0123456789abcdef");
     const pill = container.querySelector('[data-provider-id="rawg"] .api-key-status')!;
-    expect(pill.textContent).toContain("Active");
+    expect(pill.textContent).toContain("tested");
+    expect(container.querySelector('[data-provider-id="rawg"] .api-key-row__test-msg')?.textContent)
+      .toContain("Connection OK");
   });
 
   it("Save surfaces validator errors through onError without persisting", () => {
@@ -121,7 +124,7 @@ describe("buildApiKeysTab", () => {
     input.value = "short";
     const saveBtn = Array.from(
       container.querySelectorAll('[data-provider-id="rawg"] button'),
-    ).find((b) => b.textContent === "Save") as HTMLButtonElement;
+    ).find((b) => b.textContent === "Save & test") as HTMLButtonElement;
     saveBtn.click();
     expect(store.getKey("rawg")).toBe("");
     expect(errors.some((e) => /too short/i.test(e))).toBe(true);
@@ -152,7 +155,7 @@ describe("buildApiKeysTab", () => {
     store.setKey("rawg", "0123456789abcdef0123456789abcdef");
     const testBtn = Array.from(
       container.querySelectorAll('[data-provider-id="rawg"] button'),
-    ).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    ).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     // Wait a microtask for the async resolver.
     await Promise.resolve(); await Promise.resolve();
@@ -165,7 +168,7 @@ describe("buildApiKeysTab", () => {
     store.setKey("mobygames", "0123456789abcdef0123456789abcdef");
     const testBtn = Array.from(
       container.querySelectorAll('[data-provider-id="mobygames"] button'),
-    ).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    ).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     await Promise.resolve(); await Promise.resolve();
     const pill = container.querySelector('[data-provider-id="mobygames"] .api-key-status')!;
@@ -189,12 +192,12 @@ describe("buildApiKeysTab", () => {
 
     store.setKey("rawg", "0123456789abcdef0123456789abcdef");
     const row = container.querySelector<HTMLElement>('[data-provider-id="rawg"]')!;
-    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     await Promise.resolve(); await Promise.resolve();
 
     const msg = container.querySelector('[data-provider-id="rawg"] .api-key-row__test-msg')!;
-    expect(msg.textContent).toContain("Could not test RAWG: network down");
+    expect(msg.textContent).toContain("Could not test RAWG Game Artwork: network down");
     expect(msg.className).toMatch(/--error/);
     expect(errors.some((e) => /network down/.test(e))).toBe(true);
     expect(testBtn.disabled).toBe(false);
@@ -236,6 +239,17 @@ describe("buildApiKeysTab", () => {
     expect(container.querySelector(".api-keys-footer")?.textContent).toContain("Wikimedia");
   });
 
+  it("summarizes free sources, connected providers, and the recommended next step", () => {
+    const { container, store } = mount();
+    expect(container.querySelector(".connections-free-sources")?.textContent).toContain("Always on");
+    expect(container.querySelector(".api-keys-summary")?.textContent).toContain("Free covers");
+    expect(container.querySelector(".api-keys-summary")?.textContent).toContain("Connected");
+    expect(container.querySelector(".api-keys-summary")?.textContent).toContain("0 of 2");
+
+    store.setKey("rawg", "0123456789abcdef0123456789abcdef");
+    expect(container.querySelector(".api-keys-summary")?.textContent).toContain("1 of 2");
+  });
+
   it("uses purpose-specific enable labels for achievements and cover-art providers", () => {
     document.body.innerHTML = "";
     const container = document.createElement("div");
@@ -260,7 +274,42 @@ describe("buildApiKeysTab", () => {
     expect(container.querySelector<HTMLInputElement>("#api-key-enabled-retroachievements")?.getAttribute("aria-label"))
       .toBe("Use RetroAchievements for achievement tracking");
     expect(container.querySelector<HTMLInputElement>("#api-key-enabled-igdb")?.getAttribute("aria-label"))
-      .toBe("Use IGDB for cover art and game metadata");
+      .toBe("Use IGDB Covers + Metadata for cover art and game metadata");
+  });
+
+  it("renders IGDB as two friendly fields while saving the existing combined format", () => {
+    document.body.innerHTML = "";
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const store = new ApiKeyStore({
+      storage: makeStorage(),
+      providers: [{
+        id: "igdb", name: "IGDB", description: "IGDB desc",
+        signupUrl: "https://api-docs.igdb.com/",
+        validate: (key) => key.includes(":") ? true : "bad",
+      }],
+    });
+    buildApiKeysTab(container, store, {
+      appName: "RetroOasis",
+      getTester: () => null,
+      onError: vi.fn(),
+    });
+
+    const clientId = container.querySelector<HTMLInputElement>("#api-key-input-igdb-clientId")!;
+    const clientSecret = container.querySelector<HTMLInputElement>("#api-key-input-igdb-clientSecret")!;
+    expect(clientId).toBeTruthy();
+    expect(clientSecret).toBeTruthy();
+    expect(container.querySelector('[data-provider-id="igdb"] .api-key-row__name')?.textContent)
+      .toBe("IGDB Covers + Metadata");
+
+    clientId.value = "client";
+    clientSecret.value = "secret";
+    const saveBtn = Array.from(
+      container.querySelectorAll('[data-provider-id="igdb"] button'),
+    ).find((b) => b.textContent === "Save & test") as HTMLButtonElement;
+    saveBtn.click();
+
+    expect(store.getKey("igdb")).toBe("client:secret");
   });
 });
 
@@ -305,7 +354,7 @@ describe("buildApiKeysTab — polish", () => {
     const { container, store } = mount();
     store.setKey("rawg", "0123456789abcdef0123456789abcdef");
     const row = container.querySelector<HTMLElement>('[data-provider-id="rawg"]')!;
-    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     await Promise.resolve(); await Promise.resolve();
     const msg = row.querySelector(".api-key-row__test-msg")!;
@@ -319,7 +368,7 @@ describe("buildApiKeysTab — polish", () => {
     const { container, store } = mount();
     store.setKey("mobygames", "0123456789abcdef0123456789abcdef");
     const row = container.querySelector<HTMLElement>('[data-provider-id="mobygames"]')!;
-    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     await Promise.resolve(); await Promise.resolve();
     const msg = row.querySelector(".api-key-row__test-msg")!;
@@ -327,12 +376,12 @@ describe("buildApiKeysTab — polish", () => {
     expect(msg.textContent).toMatch(/MobyGames rejected/);
   });
 
-  it("Save clears any stale test message", async () => {
+  it("Save & test replaces stale feedback with the latest test result", async () => {
     const { container, store } = mount();
     store.setKey("mobygames", "0123456789abcdef0123456789abcdef");
     // Fail once.
     const row = container.querySelector<HTMLElement>('[data-provider-id="mobygames"]')!;
-    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test") as HTMLButtonElement;
+    const testBtn = Array.from(row.querySelectorAll("button")).find((b) => b.textContent === "Test again") as HTMLButtonElement;
     testBtn.click();
     await Promise.resolve(); await Promise.resolve();
     expect(container.querySelector('[data-provider-id="mobygames"] .api-key-row__test-msg')!.textContent)
@@ -341,10 +390,11 @@ describe("buildApiKeysTab — polish", () => {
     const row2 = container.querySelector<HTMLElement>('[data-provider-id="mobygames"]')!;
     const input = row2.querySelector<HTMLInputElement>(".api-key-input")!;
     input.value = "fedcba9876543210fedcba9876543210";
-    const saveBtn = Array.from(row2.querySelectorAll("button")).find((b) => b.textContent === "Save") as HTMLButtonElement;
+    const saveBtn = Array.from(row2.querySelectorAll("button")).find((b) => b.textContent === "Save & test") as HTMLButtonElement;
     saveBtn.click();
+    await Promise.resolve(); await Promise.resolve();
     const row3 = container.querySelector<HTMLElement>('[data-provider-id="mobygames"]')!;
-    expect(row3.querySelector(".api-key-row__test-msg")!.textContent).toBe("");
+    expect(row3.querySelector(".api-key-row__test-msg")!.textContent).toMatch(/MobyGames rejected/);
   });
 
   it("drops onto another row to reorder via drag-and-drop", () => {

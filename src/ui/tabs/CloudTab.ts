@@ -236,9 +236,9 @@ function showCloudConnectDialog(): Promise<boolean> {
       box.innerHTML = "";
       const titleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", titleId);
-      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Connect Cloud Save Backup"));
+      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Turn On Save Sync"));
       box.appendChild(make("p", { class: "confirm-box__body" },
-        "Choose a cloud provider to mirror RetroOasis save states across devices. Core-managed save files and memory cards stay local to this browser."
+        "Choose where RetroOasis should mirror save snapshots. Local saves remain in this browser; cloud sync adds a backup copy."
       ));
 
       const providerGrid = make("div", { class: "cloud-provider-grid" });
@@ -268,7 +268,7 @@ function showCloudConnectDialog(): Promise<boolean> {
 
       const actions = make("div", { class: "confirm-box__actions" });
       const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
-      const nextBtn   = make("button", { class: "btn btn--primary" }, "Next →") as HTMLButtonElement;
+      const nextBtn   = make("button", { class: "btn btn--primary" }, "Continue") as HTMLButtonElement;
       cancelBtn.addEventListener("click", () => close(false));
       nextBtn.addEventListener("click", () => renderStep2(selectedId));
       actions.append(cancelBtn, nextBtn);
@@ -283,7 +283,7 @@ function showCloudConnectDialog(): Promise<boolean> {
       if (!meta) { close(false); return; }
       const stepTitleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", stepTitleId);
-      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `Connect ${meta.label}`));
+      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} save sync`));
 
       const form = make("div", { class: "cloud-wizard-form" });
 
@@ -505,9 +505,9 @@ function showAddCloudLibraryDialog(
       box.innerHTML = "";
       const titleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", titleId);
-      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Add Cloud Library Source"));
+      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Add Cloud Library"));
       box.appendChild(make("p", { class: "confirm-box__body" },
-        "Choose a cloud provider. Remote games will appear in your library alongside local files."
+        "Choose where RetroOasis should look for remote games. They will appear beside local games after indexing."
       ));
 
       const grid = make("div", { class: "cloud-provider-grid" });
@@ -539,7 +539,7 @@ function showAddCloudLibraryDialog(
       if (!meta) { close(); return; }
       const stepTitleId = cloudWizardHeadingId();
       box.setAttribute("aria-labelledby", stepTitleId);
-      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} library`));
+      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} cloud library`));
 
       const form = make("div", { class: "cloud-wizard-form" });
 
@@ -846,18 +846,24 @@ export function buildCloudTab(
     class: "settings-section__title",
     id: cloudStorageHeadingId,
   }, "Cloud Storage"));
-  section.appendChild(make("p", { class: "settings-section__desc" }, `${APP_NAME} uses cloud storage in two independent ways: cloud save-state backup mirrors RetroOasis snapshots, and cloud library sources add remote games beside your local ROMs.`));
+  section.appendChild(make("p", { class: "settings-section__desc" }, `Connect cloud once, then let ${APP_NAME} keep save snapshots backed up and remote games available beside your local library.`));
+  const cloudManager = getCloudSaveManager();
   const cloudStorageSummary = make("p", {
     class: "cloud-storage-summary",
     role: "status",
     "aria-live": "polite",
-  }, "Checking local library cache...");
+  }, "Checking cloud connection status...");
   void library.getAllGamesMetadata().then((games) => {
     const remoteIndexed = games.filter(game => game.cloudId).length;
     const browserReady = games.filter(game => game.hasLocalBlob).length;
+    const backupStatus = cloudManager.isConnected()
+      ? `Save sync connected to ${getCloudProviderLabel(cloudManager.providerId)}`
+      : "Save sync not connected";
+    const sourceCount = settings.cloudLibraries.length;
     cloudStorageSummary.textContent =
-      `${browserReady} browser-ready game${browserReady === 1 ? "" : "s"} ` +
-      `and ${remoteIndexed} cloud-indexed game${remoteIndexed === 1 ? "" : "s"} ready in your library.`;
+      `${backupStatus}. ${sourceCount} cloud library source${sourceCount === 1 ? "" : "s"} connected. ` +
+      `${browserReady} browser-ready game${browserReady === 1 ? "" : "s"} and ` +
+      `${remoteIndexed} cloud-indexed game${remoteIndexed === 1 ? "" : "s"}.`;
   }).catch(() => {
     cloudStorageSummary.textContent = "Library storage status could not be read.";
   });
@@ -867,16 +873,16 @@ export function buildCloudTab(
 
   const saveCard = make("div", { class: "cloud-storage-card" });
   saveCard.innerHTML = `
-    <div class="cloud-storage-card__eyebrow">Cloud save states</div>
-    <h5 class="cloud-storage-card__title">Mirror progress, keep local ownership</h5>
-    <p class="cloud-storage-card__body">Snapshots stay in this browser first. When backup is connected, ${APP_NAME} mirrors them quietly to your provider.</p>
+    <div class="cloud-storage-card__eyebrow">Save sync</div>
+    <h5 class="cloud-storage-card__title">Back up progress automatically</h5>
+    <p class="cloud-storage-card__body">Your saves stay local first. When sync is on, ${APP_NAME} mirrors snapshots quietly to your provider.</p>
   `;
 
   const libraryCard = make("div", { class: "cloud-storage-card" });
   libraryCard.innerHTML = `
     <div class="cloud-storage-card__eyebrow">Cloud library</div>
-    <h5 class="cloud-storage-card__title">Index remote games, cache after play</h5>
-    <p class="cloud-storage-card__body">Cloud games appear beside local ROMs. After the first download, a browser copy is kept for faster future launches when storage allows.</p>
+    <h5 class="cloud-storage-card__title">Browse remote games naturally</h5>
+    <p class="cloud-storage-card__body">Remote games appear beside local ROMs, then cache after first launch when browser storage allows.</p>
   `;
 
   overview.append(saveCard, libraryCard);
@@ -884,7 +890,6 @@ export function buildCloudTab(
 
   // ── Cloud save backup section ───────────────────────────────────────────────
 
-  const cloudManager = getCloudSaveManager();
   const cloudSaveTitleEl = () => make("h5", {
     class: "cloud-library-section__title",
     id: cloudSaveBackupHeadingId,
@@ -928,13 +933,13 @@ export function buildCloudTab(
       }
     } else {
       const hint = make("p", { class: "settings-help" },
-        "Save states live in your browser. Connect a cloud provider to keep those RetroOasis snapshots backed up and accessible on other devices."
+        "Turn on save sync to back up RetroOasis snapshots and make progress easier to restore on another device."
       );
       const connectBtn = make("button", {
         class: "btn btn--primary",
         type: "button",
         "aria-label": `Connect cloud backup — ${APP_NAME} will open a dialog to choose a cloud provider`,
-      }, "Connect cloud backup") as HTMLButtonElement;
+      }, "Turn on save sync") as HTMLButtonElement;
       connectBtn.addEventListener("click", () => {
         void showCloudConnectDialog().then(connected => {
           if (connected) {
@@ -973,7 +978,7 @@ export function buildCloudTab(
     id: cloudLibrarySourcesHeadingId,
   }, "Cloud Library Sources"));
   librarySection.appendChild(make("p", { class: "settings-help" },
-    "Connect a remote folder below. Supported ROM files are indexed beside local games; first launch downloads and stores a browser copy when quota allows."));
+    "Add a cloud library source to show supported remote games beside local games. First launch downloads and keeps a browser copy when storage allows."));
 
   if (settings.cloudLibraries.length === 0) {
     const empty = make("div", { class: "cloud-connection-empty" });
@@ -1047,7 +1052,7 @@ export function buildCloudTab(
     class: "btn btn--primary cloud-connection-add",
     type: "button",
     "aria-label": "Add a new cloud library source",
-  }, "Connect New Source");
+  }, "Add cloud library");
   addBtn.addEventListener("click", () => {
     void showAddCloudLibraryDialog(settings, onSettingsChange, rebuildTab);
   });

@@ -431,6 +431,144 @@ export interface ApiKeyProviderTester {
   testConnection(opts?: { signal?: AbortSignal }): Promise<true | string>;
 }
 
+type CredentialField = {
+  id: string;
+  label: string;
+  placeholder: string;
+  secret?: boolean;
+};
+
+type ConnectionProviderMeta = {
+  displayName: string;
+  purposeLabel: string;
+  description: string;
+  signupLabel: string;
+  category: "cover" | "metadata" | "achievements";
+  recommended?: boolean;
+  fields: CredentialField[];
+  serialize(values: Record<string, string>): string;
+  hydrate(key: string): Record<string, string>;
+};
+
+function splitCredentialPair(key: string): [string, string] {
+  const idx = key.indexOf(":");
+  if (idx < 0) return [key, ""];
+  return [key.slice(0, idx), key.slice(idx + 1)];
+}
+
+function getConnectionProviderMeta(cfg: ApiKeyProviderConfig): ConnectionProviderMeta {
+  const singleKey = (label = "API key", placeholder = "Paste your key, then Save or Enter"): ConnectionProviderMeta => ({
+    displayName: cfg.name,
+    purposeLabel: "Cover art",
+    description: cfg.description,
+    signupLabel: "Get key",
+    category: "cover",
+    fields: [{ id: "key", label, placeholder, secret: true }],
+    serialize: (values) => values["key"] ?? "",
+    hydrate: (key) => ({ key }),
+  });
+
+  switch (cfg.id) {
+    case "retroachievements":
+      return {
+        displayName: "RetroAchievements",
+        purposeLabel: "Achievements",
+        description: "Track trophies, progress, and profile stats while you play supported games.",
+        signupLabel: "Open control panel",
+        category: "achievements",
+        fields: [
+          { id: "username", label: "Username", placeholder: "RetroAchievements username" },
+          { id: "apiKey", label: "Web API key", placeholder: "Paste your Web API key", secret: true },
+        ],
+        serialize: (values) => `${values["username"] ?? ""}:${values["apiKey"] ?? ""}`,
+        hydrate: (key) => {
+          const [username, apiKey] = splitCredentialPair(key);
+          return { username, apiKey };
+        },
+      };
+    case "igdb":
+      return {
+        displayName: "IGDB Covers + Metadata",
+        purposeLabel: "Premium covers",
+        description: "Adds broad modern and retro cover fallback plus richer game details from IGDB.",
+        signupLabel: "Open IGDB setup",
+        category: "metadata",
+        recommended: true,
+        fields: [
+          { id: "clientId", label: "Client ID", placeholder: "Twitch Developer client ID" },
+          { id: "clientSecret", label: "Client Secret", placeholder: "Twitch Developer client secret", secret: true },
+        ],
+        serialize: (values) => `${values["clientId"] ?? ""}:${values["clientSecret"] ?? ""}`,
+        hydrate: (key) => {
+          const [clientId, clientSecret] = splitCredentialPair(key);
+          return { clientId, clientSecret };
+        },
+      };
+    case "screenscraper":
+      return {
+        displayName: "ScreenScraper Retro Covers",
+        purposeLabel: "Retro covers",
+        description: "Connects high-quality retro box art and media from your ScreenScraper account.",
+        signupLabel: "Create ScreenScraper account",
+        category: "cover",
+        recommended: true,
+        fields: [
+          { id: "userid", label: "User ID", placeholder: "ScreenScraper user ID" },
+          { id: "password", label: "Password", placeholder: "ScreenScraper password", secret: true },
+        ],
+        serialize: (values) => `${values["userid"] ?? ""}:${values["password"] ?? ""}`,
+        hydrate: (key) => {
+          const [userid, password] = splitCredentialPair(key);
+          return { userid, password };
+        },
+      };
+    case "steamgriddb":
+      return {
+        ...singleKey(),
+        displayName: "SteamGridDB Posters",
+        purposeLabel: "Posters",
+        description: "Adds polished poster-style grids and artwork for games that match SteamGridDB.",
+        signupLabel: "Get SteamGridDB key",
+      };
+    case "rawg":
+      return {
+        ...singleKey(),
+        displayName: "RAWG Game Artwork",
+        purposeLabel: "Artwork",
+        description: "Adds broad artwork and screenshots from RAWG as a connected fallback source.",
+        signupLabel: "Get RAWG key",
+      };
+    case "mobygames":
+      return {
+        ...singleKey(),
+        displayName: "MobyGames Covers",
+        purposeLabel: "Covers",
+        description: "Adds long-running platform-specific cover data from MobyGames.",
+        signupLabel: "Request MobyGames key",
+      };
+    case "thegamesdb":
+      return {
+        ...singleKey(),
+        displayName: "TheGamesDB Box Art",
+        purposeLabel: "Box art",
+        description: "Adds community-maintained front and back box art from TheGamesDB.",
+        signupLabel: "Get TheGamesDB key",
+      };
+    default:
+      return singleKey();
+  }
+}
+
+function buildConnectionSummaryCard(label: string, value: string, detail: string): HTMLElement {
+  const card = make("div", { class: "connections-summary-card" });
+  card.append(
+    make("span", { class: "connections-summary-card__label" }, label),
+    make("strong", { class: "connections-summary-card__value" }, value),
+    make("span", { class: "connections-summary-card__detail" }, detail),
+  );
+  return card;
+}
+
 /** Format a Date as a compact "Xs ago" / "Xm ago" label. */
 function timeAgo(at: number, now: number = Date.now()): string {
   const secs = Math.max(0, Math.round((now - at) / 1000));
@@ -474,15 +612,16 @@ export function buildApiKeysTab(
   container.innerHTML = "";
 
   const intro = make("div", { class: "settings-section" });
-  intro.appendChild(make("h4", { class: "settings-section__title" }, "External API Keys"));
+  intro.appendChild(make("h4", { class: "settings-section__title" }, "Connections"));
   intro.appendChild(make("p", { class: "settings-help" },
-    `${appName} can pull cover art and metadata from third-party services that require an account. ` +
-    "Add an API key to turn a provider on. Keys are stored only in this browser, and are sent directly " +
-    "to the service they belong to — nothing is uploaded by " + appName + ". " +
-    "Use Paste next to each field to insert from the clipboard, then Save (or press Enter)."));
+    `${appName} already searches free cover sources automatically. Connect optional providers here for better cover matches, richer metadata, and achievements. ` +
+    "Credentials stay in this browser and are sent directly to the service they belong to."));
+  intro.appendChild(make("div", { class: "connections-free-sources" },
+    make("span", { class: "connections-free-sources__badge" }, "Always on"),
+    make("span", {}, "Libretro, cover-art-collection, and Wikimedia run without setup."),
+  ));
 
-  // Summary badge: "X of Y providers configured".
-  const summary = make("p", { class: "settings-help api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLParagraphElement;
+  const summary = make("div", { class: "api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLDivElement;
   intro.appendChild(summary);
   container.appendChild(intro);
 
@@ -498,18 +637,41 @@ export function buildApiKeysTab(
     const order = store.getOrder();
     const byId = new Map(store.listProviders().map((p) => [p.id, p]));
     let configured = 0;
+    let activeConnected = 0;
+    let coverConnected = 0;
+    let achievementConnected = 0;
+    const recommendedMissing: string[] = [];
     order.forEach((id, index) => {
       const cfg = byId.get(id);
       if (!cfg) return;
-      if (store.getState(id).key) configured++;
+      const state = store.getState(id);
+      const meta = getConnectionProviderMeta(cfg);
+      if (state.key) configured++;
+      if (state.key && state.enabled) {
+        activeConnected++;
+        if (meta.category === "cover" || meta.category === "metadata") coverConnected++;
+        if (meta.category === "achievements") achievementConnected++;
+      }
+      if (meta.recommended && !state.key) recommendedMissing.push(meta.displayName);
       const row = buildRow(cfg, index, order.length);
       list.appendChild(row);
     });
-    summary.textContent = `${configured} of ${order.length} providers configured.`;
+    const nextStep = recommendedMissing[0]
+      ? `Connect ${recommendedMissing[0]} next`
+      : configured === order.length
+        ? "All optional connections are configured"
+        : "Optional providers can be added anytime";
+    summary.innerHTML = "";
+    summary.append(
+      buildConnectionSummaryCard("Free covers", "3 active", "No setup needed"),
+      buildConnectionSummaryCard("Connected", `${activeConnected} of ${order.length}`, `${coverConnected} artwork / ${achievementConnected} achievements`),
+      buildConnectionSummaryCard("Next step", nextStep, "Recommended providers improve match quality"),
+    );
   };
 
   const buildRow = (cfg: ApiKeyProviderConfig, index: number, total: number): HTMLElement => {
     const state = store.getState(cfg.id);
+    const meta = getConnectionProviderMeta(cfg);
     const row = make("div", {
       class: `api-key-row${state.enabled ? "" : " api-key-row--disabled"}`,
       role: "listitem",
@@ -528,7 +690,12 @@ export function buildApiKeysTab(
     // Header: drag handle + name + status pill.
     const header = make("div", { class: "api-key-row__header" });
     header.appendChild(dragHandle);
-    header.appendChild(make("h5", { class: "api-key-row__name" }, cfg.name));
+    const titleWrap = make("div", { class: "api-key-row__title-wrap" });
+    titleWrap.append(
+      make("h5", { class: "api-key-row__name" }, meta.displayName),
+      make("span", { class: "api-key-row__purpose" }, meta.purposeLabel),
+    );
+    header.appendChild(titleWrap);
     const statusPill = make("span", {
       class: "api-key-status",
       role: "status",
@@ -536,27 +703,41 @@ export function buildApiKeysTab(
     }) as HTMLSpanElement;
     header.appendChild(statusPill);
     row.appendChild(header);
-    row.appendChild(make("p", { class: "settings-help api-key-row__desc" }, cfg.description));
+    row.appendChild(make("p", { class: "settings-help api-key-row__desc" }, meta.description));
 
-    // Key input + paste + show/hide toggle.
+    // Credential input(s) + paste + show/hide toggle.
     const inputWrap = make("div", { class: "api-key-row__input-wrap" });
     const inputId = `api-key-input-${cfg.id}`;
-    const label = make("label", { class: "api-key-row__label", for: inputId }, "API key");
-    const input = make("input", {
-      id: inputId,
-      class: "api-key-input",
-      type: "password",
-      autocomplete: "off",
-      spellcheck: "false",
-      "aria-label": `${cfg.name} API key`,
-      placeholder: state.key ? redactKey(state.key) : "Paste your key, then Save or Enter",
-    }) as HTMLInputElement;
-    if (state.key) input.value = state.key;
+    const hydrated = meta.hydrate(state.key);
+    const credentialInputs: HTMLInputElement[] = [];
+    const credentialGrid = make("div", { class: "api-key-row__credential-grid" });
+    for (const [fieldIndex, field] of meta.fields.entries()) {
+      const fieldId = meta.fields.length === 1 ? inputId : `${inputId}-${field.id}`;
+      const fieldWrap = make("div", { class: "api-key-row__field" });
+      const label = make("label", { class: "api-key-row__label", for: fieldId }, field.label);
+      const input = make("input", {
+        id: fieldId,
+        class: "api-key-input",
+        type: field.secret ? "password" : "text",
+        autocomplete: "off",
+        spellcheck: "false",
+        "data-credential-field": field.id,
+        "data-secret-field": field.secret ? "true" : "false",
+        "aria-label": `${meta.displayName} ${field.label}`,
+        placeholder: state.key && meta.fields.length === 1 && fieldIndex === 0
+          ? redactKey(state.key)
+          : field.placeholder,
+      }) as HTMLInputElement;
+      input.value = hydrated[field.id] ?? "";
+      credentialInputs.push(input);
+      fieldWrap.append(label, input);
+      credentialGrid.appendChild(fieldWrap);
+    }
 
     const pasteBtn = make("button", {
       type: "button",
       class: "btn btn--ghost btn--sm api-key-paste-btn",
-      "aria-label": `Paste ${cfg.name} API key from clipboard`,
+      "aria-label": `Paste ${meta.displayName} credentials from clipboard`,
       title: "Insert text from the clipboard",
     }, "Paste") as HTMLButtonElement;
     pasteBtn.addEventListener("click", () => {
@@ -564,23 +745,32 @@ export function buildApiKeysTab(
         try {
           if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
             onError("Clipboard paste is not available in this browser. Use Ctrl+V (⌘V on Mac) in the field.");
-            input.focus();
+            credentialInputs[0]?.focus();
             return;
           }
           const text = await navigator.clipboard.readText();
           const t = typeof text === "string" ? text.trim() : "";
           if (!t) {
             onError("Clipboard was empty.");
-            input.focus();
+            credentialInputs[0]?.focus();
             return;
           }
-          input.value = t;
-          input.focus();
+          const pasted = meta.hydrate(t);
+          let usedStructuredPaste = false;
+          for (const input of credentialInputs) {
+            const fieldId = input.dataset.credentialField ?? "";
+            if (pasted[fieldId]) {
+              input.value = pasted[fieldId]!;
+              usedStructuredPaste = true;
+            }
+          }
+          if (!usedStructuredPaste && credentialInputs[0]) credentialInputs[0].value = t;
+          credentialInputs[0]?.focus();
         } catch {
           onError(
             "Could not read the clipboard — use Ctrl+V in the field, or allow clipboard access for this site.",
           );
-          input.focus();
+          credentialInputs[0]?.focus();
         }
       })();
     });
@@ -588,35 +778,38 @@ export function buildApiKeysTab(
     const showBtn = make("button", {
       type: "button",
       class: "btn btn--ghost btn--sm api-key-show-btn",
-      "aria-label": `Show or hide the ${cfg.name} API key`,
+      "aria-label": `Show or hide the ${meta.displayName} secret fields`,
       "aria-pressed": "false",
     }, "Show") as HTMLButtonElement;
     showBtn.addEventListener("click", () => {
-      const show = input.type === "password";
-      input.type = show ? "text" : "password";
+      const secretInputs = credentialInputs.filter((input) => input.dataset.secretField === "true");
+      const show = secretInputs.some((input) => input.type === "password");
+      for (const input of secretInputs) {
+        input.type = show ? "text" : "password";
+      }
       showBtn.textContent = show ? "Hide" : "Show";
       showBtn.setAttribute("aria-pressed", String(show));
     });
 
     const keyLine = make("div", { class: "api-key-row__key-line" });
-    keyLine.append(input, pasteBtn, showBtn);
-    inputWrap.append(label, keyLine);
+    keyLine.append(credentialGrid, pasteBtn, showBtn);
+    inputWrap.append(keyLine);
     row.appendChild(inputWrap);
 
     // Warning for placeholder-looking values.
     const warn = make("p", { class: "api-key-row__warn", hidden: "true" }) as HTMLElement;
     warn.setAttribute("role", "note");
     row.appendChild(warn);
-    input.addEventListener("input", () => {
-      if (looksLikePlaceholderOrUrl(input.value)) {
-        warn.textContent = "That value looks like a URL or placeholder — double-check you copied the key.";
-        warn.hidden = false;
-      } else {
-        warn.hidden = true;
-      }
-    });
+    const updatePlaceholderWarning = () => {
+      const suspicious = credentialInputs.some((input) => looksLikePlaceholderOrUrl(input.value));
+      warn.textContent = suspicious
+        ? "That value looks like a URL or placeholder - double-check you copied the credential."
+        : "";
+      warn.hidden = !suspicious;
+    };
+    for (const input of credentialInputs) input.addEventListener("input", updatePlaceholderWarning);
     // Select all on focus so replacing a previously-saved key is one click.
-    input.addEventListener("focus", () => input.select());
+    for (const input of credentialInputs) input.addEventListener("focus", () => input.select());
 
     // Inline test-result line (separate from the pill so the full message
     // stays visible without depending on toasts).
@@ -634,10 +827,10 @@ export function buildApiKeysTab(
     const enabledId = `api-key-enabled-${cfg.id}`;
     const enabledWrap = make("label", { class: "api-key-enabled", for: enabledId });
     const enableLabel = cfg.id === "retroachievements"
-      ? `Use ${cfg.name} for achievement tracking`
+      ? `Use ${meta.displayName} for achievement tracking`
       : cfg.id === "igdb"
-        ? `Use ${cfg.name} for cover art and game metadata`
-        : `Use ${cfg.name} for cover art`;
+        ? `Use ${meta.displayName} for cover art and game metadata`
+        : `Use ${meta.displayName} for cover art`;
     const enabledBox = make("input", {
       id: enabledId, type: "checkbox", class: "api-key-enabled__box",
       "aria-label": enableLabel,
@@ -651,31 +844,36 @@ export function buildApiKeysTab(
     enabledWrap.append(enabledBox, document.createTextNode(" Enabled"));
     actions.appendChild(enabledWrap);
 
-    const saveBtn = make("button", { type: "button", class: "btn btn--primary" }, "Save") as HTMLButtonElement;
-    const saveKey = () => {
+    const saveBtn = make("button", { type: "button", class: "btn btn--primary" }, "Save & test") as HTMLButtonElement;
+    const saveKey = (opts: { testAfterSave?: boolean } = {}) => {
       // Clear stale test feedback BEFORE persisting — persisting triggers a
       // rebuild via the store's change notification, which would otherwise
       // re-render the previous error message from the captured map.
       lastTestMsg.delete(cfg.id);
       lastTestAt.delete(cfg.id);
-      const result = store.setKey(cfg.id, input.value);
+      const values: Record<string, string> = {};
+      for (const input of credentialInputs) values[input.dataset.credentialField ?? "key"] = input.value;
+      const result = store.setKey(cfg.id, meta.serialize(values));
       if (result !== true) {
-        onError(`${cfg.name}: ${result}`);
+        onError(`${meta.displayName}: ${result}`);
         renderStatus("invalid");
         return false;
       }
-      input.value = "";
-      input.placeholder = redactKey(store.getKey(cfg.id));
+      for (const input of credentialInputs) input.value = "";
+      if (credentialInputs.length === 1 && credentialInputs[0]) {
+        credentialInputs[0].placeholder = redactKey(store.getKey(cfg.id));
+      }
       warn.hidden = true;
       testMsg.textContent = "";
       testMsg.className = "api-key-row__test-msg";
       renderStatus();
+      if (opts.testAfterSave) void runTest();
       return true;
     };
-    saveBtn.addEventListener("click", () => { saveKey(); });
+    saveBtn.addEventListener("click", () => { saveKey({ testAfterSave: true }); });
     // Enter to save for keyboard users.
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); saveKey(); }
+    for (const input of credentialInputs) input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); saveKey({ testAfterSave: true }); }
     });
     actions.appendChild(saveBtn);
 
@@ -685,15 +883,17 @@ export function buildApiKeysTab(
       lastTestMsg.delete(cfg.id);
       lastTestAt.delete(cfg.id);
       store.removeKey(cfg.id);
-      input.value = "";
-      input.placeholder = "Paste your key, then Save or Enter";
+      for (const [i, input] of credentialInputs.entries()) {
+        input.value = "";
+        input.placeholder = meta.fields[i]?.placeholder ?? "Paste credential";
+      }
       testMsg.textContent = "";
       testMsg.className = "api-key-row__test-msg";
       renderStatus();
     });
     actions.appendChild(removeBtn);
 
-    const testBtn = make("button", { type: "button", class: "btn" }, "Test") as HTMLButtonElement;
+    const testBtn = make("button", { type: "button", class: "btn" }, "Test again") as HTMLButtonElement;
     testBtn.addEventListener("click", () => { void runTest(); });
     actions.appendChild(testBtn);
 
@@ -702,7 +902,7 @@ export function buildApiKeysTab(
       href: cfg.signupUrl,
       target: "_blank",
       rel: "noopener noreferrer",
-    }, "Get an API key ↗");
+    }, `${meta.signupLabel} ->`);
     actions.appendChild(link);
 
     // Reorder controls (kept as an accessible fallback for drag-and-drop).
@@ -801,6 +1001,9 @@ export function buildApiKeysTab(
       } else if (!s.enabled) {
         statusPill.classList.add("api-key-status--disabled");
         statusPill.textContent = "Disabled";
+      } else if (lastTestMsg.get(cfg.id)?.kind === "error") {
+        statusPill.classList.add("api-key-status--invalid");
+        statusPill.textContent = "Invalid key";
       } else {
         statusPill.classList.add("api-key-status--active");
         const t = lastTestAt.get(cfg.id);
@@ -815,12 +1018,12 @@ export function buildApiKeysTab(
     const runTest = async () => {
       const s = store.getState(cfg.id);
       if (!s.key) {
-        onError(`${cfg.name}: save a key before testing.`);
+        onError(`${meta.displayName}: save credentials before testing.`);
         return;
       }
       const tester = getTester(cfg.id);
       if (!tester) {
-        onError(`${cfg.name}: no tester is registered for this provider.`);
+        onError(`${meta.displayName}: no tester is registered for this provider.`);
         return;
       }
       renderStatus("testing");
@@ -832,19 +1035,19 @@ export function buildApiKeysTab(
         const result = await tester.testConnection();
         if (result === true) {
           lastTestAt.set(cfg.id, Date.now());
-          lastTestMsg.set(cfg.id, { kind: "ok", text: `Connection OK — ${cfg.name} is ready.` });
+          lastTestMsg.set(cfg.id, { kind: "ok", text: `Connection OK - ${meta.displayName} is ready.` });
           testMsg.classList.add("api-key-row__test-msg--ok");
-          testMsg.textContent = `Connection OK — ${cfg.name} is ready.`;
+          testMsg.textContent = `Connection OK - ${meta.displayName} is ready.`;
           renderStatus("ok");
         } else {
           lastTestMsg.set(cfg.id, { kind: "error", text: result });
           testMsg.classList.add("api-key-row__test-msg--error");
           testMsg.textContent = result;
           renderStatus("invalid");
-          onError(`${cfg.name}: ${result}`);
+          onError(`${meta.displayName}: ${result}`);
         }
       } catch (err) {
-        const message = `Could not test ${cfg.name}: ${err instanceof Error ? err.message : String(err)}`;
+        const message = `Could not test ${meta.displayName}: ${err instanceof Error ? err.message : String(err)}`;
         lastTestMsg.set(cfg.id, { kind: "error", text: message });
         testMsg.classList.add("api-key-row__test-msg--error");
         testMsg.textContent = message;
@@ -853,6 +1056,7 @@ export function buildApiKeysTab(
       } finally {
         testBtn.disabled = false;
         testBtn.classList.remove("is-loading");
+        rebuild();
       }
     };
 
