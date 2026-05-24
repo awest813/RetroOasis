@@ -115,11 +115,12 @@ export interface ArchiveExtractProgress {
 
 export interface ArchiveExtractOptions {
   onProgress?: (progress: ArchiveExtractProgress) => void;
+  targetEntryName?: string;
 }
 
 export interface ArchiveExtractCandidate {
   name: string;
-  blob: Blob;
+  blob?: Blob;
   size: number;
 }
 
@@ -134,6 +135,7 @@ interface ArchiveCandidateOptions {
   includeCandidates?: boolean;
   maxCandidates?: number;
   onProgress?: (progress: ArchiveExtractProgress) => void;
+  targetEntryName?: string;
 }
 
 function emitProgress(
@@ -1020,7 +1022,11 @@ async function runZipExtractionAfterEntries(
     }))
     .sort((a, b) => b.score - a.score);
 
-  const target = romCandidates[0]?.entry ?? null;
+  let target = romCandidates[0]?.entry ?? null;
+  if (opts.targetEntryName) {
+    const found = files.find(e => shortNameFromPath(e.name) === opts.targetEntryName);
+    if (found) target = found;
+  }
   if (!target) return null;
 
   const dsOpts: DecompressStreamOptions | undefined = zipMode.yieldInflate
@@ -1142,21 +1148,14 @@ async function runZipExtractionAfterEntries(
   if (opts.includeCandidates) {
     const max = Math.max(1, opts.maxCandidates ?? 8);
     const topEntries = romCandidates.slice(0, max).map(item => item.entry);
-    const cache = new Map<number, ArchiveEntry>();
-    cache.set(target.localHeaderOffset, selected);
-    const topExtracted: ArchiveEntry[] = [];
-    for (const entry of topEntries) {
-      const cached = cache.get(entry.localHeaderOffset);
-      if (cached) {
-        topExtracted.push(cached);
-        continue;
-      }
-      const out = await extractZipEntry(entry);
-      if (!out) continue;
-      cache.set(entry.localHeaderOffset, out);
-      topExtracted.push(out);
-    }
-    candidates = toArchiveCandidates(topExtracted);
+    candidates = topEntries.map(entry => {
+      const isTarget = entry.localHeaderOffset === target.localHeaderOffset;
+      return {
+        name: shortNameFromPath(entry.name),
+        size: entry.uncompressedSize,
+        blob: isTarget ? new Blob([new Uint8Array(selected.bytes)]) : undefined,
+      };
+    });
   }
 
   return {
@@ -1181,7 +1180,11 @@ export async function extractFromTar(
 
   if (streamTar) {
     const refs = await listTarFileRefsStreaming(blob);
-    const selectedRef = selectBestRomTarRef(refs);
+    let selectedRef = selectBestRomTarRef(refs);
+    if (opts.targetEntryName) {
+      const found = refs.find(ref => shortNameFromPath(ref.name) === opts.targetEntryName);
+      if (found) selectedRef = found;
+    }
     if (!selectedRef) return null;
 
     const payload = await blob.slice(
@@ -1193,16 +1196,14 @@ export async function extractFromTar(
     let candidates: ArchiveExtractCandidate[] | undefined;
     if (opts.includeCandidates) {
       const topRefs = selectTopRomTarRefs(refs, Math.max(1, opts.maxCandidates ?? 8));
-      const out: ArchiveExtractCandidate[] = [];
-      for (const ref of topRefs) {
-        const ab = await blob.slice(ref.dataOffset, ref.dataOffset + ref.size).arrayBuffer();
-        out.push({
+      candidates = topRefs.map(ref => {
+        const isTarget = ref.dataOffset === selectedRef.dataOffset;
+        return {
           name: shortNameFromPath(ref.name),
-          blob: new Blob([new Uint8Array(ab)]),
           size: ref.size,
-        });
-      }
-      candidates = out;
+          blob: isTarget ? new Blob([new Uint8Array(selectedBytes)]) : undefined,
+        };
+      });
     }
 
     return {
@@ -1256,13 +1257,24 @@ export async function extractFromTar(
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
 
-  const selected = selectBestRomEntry(entries);
+  let selected = selectBestRomEntry(entries);
+  if (opts.targetEntryName) {
+    const found = entries.find(e => shortNameFromPath(e.name) === opts.targetEntryName);
+    if (found) selected = found;
+  }
   if (!selected) return null;
 
   let candidates: ArchiveExtractCandidate[] | undefined;
   if (opts.includeCandidates) {
     const top = selectTopRomEntries(entries, Math.max(1, opts.maxCandidates ?? 8));
-    candidates = toArchiveCandidates(top);
+    candidates = top.map(entry => {
+      const isTarget = entry.name === selected.name;
+      return {
+        name: shortNameFromPath(entry.name),
+        size: entry.bytes.byteLength,
+        blob: isTarget ? new Blob([new Uint8Array(selected.bytes)]) : undefined,
+      };
+    });
   }
 
   return {
@@ -1341,18 +1353,27 @@ export async function extractFromArchive(
         onProgress: options.onProgress
           ? (p) => emitProgress(options, p)
           : undefined,
+        targetEntryName: options.targetEntryName,
       });
       return extracted ? { ...extracted, format } : null;
     }
 
     case "tar": {
-      const extracted = await extractFromTar(blob, { includeCandidates: true, maxCandidates: 10 });
+      const extracted = await extractFromTar(blob, {
+        includeCandidates: true,
+        maxCandidates: 10,
+        targetEntryName: options.targetEntryName,
+      });
       return extracted ? { ...extracted, format } : null;
     }
 
     case "gzip": {
       const sourceName = blob instanceof File ? blob.name : "archive.gz";
-      const extracted = await extractFromGzip(blob, sourceName, { includeCandidates: true, maxCandidates: 10 });
+      const extracted = await extractFromGzip(blob, sourceName, {
+        includeCandidates: true,
+        maxCandidates: 10,
+        targetEntryName: options.targetEntryName,
+      });
       return extracted ? { ...extracted, format } : null;
     }
 
@@ -1374,7 +1395,11 @@ export async function extractFromArchive(
         stage: "select",
         message: "Selecting ROM payload…",
       });
-      const selected = selectBestRomEntry(entries);
+      let selected = selectBestRomEntry(entries);
+      if (options.targetEntryName) {
+        const found = entries.find(e => shortNameFromPath(e.name) === options.targetEntryName);
+        if (found) selected = found;
+      }
       if (!selected) return null;
       const top = selectTopRomEntries(entries, 10);
       const candidates = toArchiveCandidates(top);

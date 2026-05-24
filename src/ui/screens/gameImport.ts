@@ -225,7 +225,35 @@ export async function resolveSystemAndAddImpl(
           }
 
           if (!picked) return;
-          resolvedFile = new File([picked.blob!], picked.name, { type: picked.blob!.type });
+
+          let finalBlob = picked.blob;
+          if (!finalBlob) {
+            showLoadingOverlay();
+            setLoadingMessage(`Extracting ${picked.name}…`);
+            setLoadingSubtitle("Decompressing selected file");
+            try {
+              const archiveModule = await getArchiveModule();
+              const res = await archiveModule.extractFromArchive(file, {
+                targetEntryName: picked.name,
+                onProgress: (progress) => {
+                  setLoadingMessage(formatArchiveProgressMessage(progress));
+                  if (progress.percent != null) setLoadingProgress(progress.percent);
+                },
+              });
+              if (!res) {
+                hideLoadingOverlay();
+                showError(`Failed to extract "${picked.name}" from the archive.`);
+                return;
+              }
+              finalBlob = res.blob;
+            } catch (err) {
+              hideLoadingOverlay();
+              showError(`Extraction failed: ${err instanceof Error ? err.message : String(err)}`);
+              return;
+            }
+          }
+
+          resolvedFile = new File([finalBlob], picked.name, { type: finalBlob.type });
           showLoadingOverlay();
           setLoadingMessage("File selected — detecting game system…");
           setLoadingSubtitle("");

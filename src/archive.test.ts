@@ -453,7 +453,7 @@ describe('extractFromZip', () => {
   it('throws when the selected entry exceeds the extraction safety limit', async () => {
     const content  = new Uint8Array([0xaa]);
     const zipBuf   = buildZip('game.nes', content);
-    const hugeSize = 600 * 1024 * 1024;
+    const hugeSize = 1200 * 1024 * 1024;
     const broken   = patchSingleEntrySizes(zipBuf, 'game.nes', { uncompressedSize: hugeSize });
 
     await expect(extractFromZip(new Blob([broken]))).rejects.toThrow('too large to extract in-browser');
@@ -1012,6 +1012,21 @@ describe('extractFromArchive', () => {
     const names = (result!.candidates ?? []).map(c => c.name);
     expect(names).toContain('alpha.nes');
     expect(names).toContain('beta.nes');
+
+    // Verify lazy loading behavior
+    const alphaCand = result!.candidates!.find(c => c.name === 'alpha.nes')!;
+    const betaCand = result!.candidates!.find(c => c.name === 'beta.nes')!;
+    expect(alphaCand.blob).toBeDefined();
+    expect(betaCand.blob).toBeUndefined();
+
+    // Now extract the lazy candidate beta.nes specifically
+    const lazyResult = await extractFromArchive(new Blob([zipBuf]), {
+      targetEntryName: 'beta.nes',
+    });
+    expect(lazyResult).not.toBeNull();
+    expect(lazyResult!.name).toBe('beta.nes');
+    const extractedBytes = new Uint8Array(await lazyResult!.blob.arrayBuffer());
+    expect(extractedBytes).toEqual(new Uint8Array([0xbb]));
   });
 
   it('returns null for unsupported formats (bzip2)', async () => {
@@ -1031,6 +1046,21 @@ describe('extractFromArchive', () => {
     const names = (result!.candidates ?? []).map(c => c.name);
     expect(names).toContain('alpha.nes');
     expect(names).toContain('beta.nes');
+
+    // Verify lazy loading behavior
+    const alphaCand = result!.candidates!.find(c => c.name === 'alpha.nes')!;
+    const betaCand = result!.candidates!.find(c => c.name === 'beta.nes')!;
+    expect(alphaCand.blob).toBeDefined();
+    expect(betaCand.blob).toBeUndefined();
+
+    // Now extract the lazy candidate beta.nes specifically
+    const lazyResult = await extractFromArchive(new Blob([tarBuf]), {
+      targetEntryName: 'beta.nes',
+    });
+    expect(lazyResult).not.toBeNull();
+    expect(lazyResult!.name).toBe('beta.nes');
+    const extractedBytes = new Uint8Array(await lazyResult!.blob.arrayBuffer());
+    expect(extractedBytes).toEqual(new Uint8Array([0xbb]));
   });
 
   it('rejects RAR extraction on iPhone with a clear message', async () => {
