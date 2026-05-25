@@ -10,6 +10,7 @@ import {
   type ArchiveFormat,
   type ArchiveExtractProgress,
 } from "./archive.js";
+import { createStoredZip } from "./zip.js";
 
 // ── ZIP binary builder ────────────────────────────────────────────────────────
 
@@ -1449,6 +1450,21 @@ describe('extractFromZip — all system format coverage', () => {
 
     expect(result).not.toBeNull();
     expect(result!.name).toBe('game.gdi');
+  });
+
+  it('prefers the .gdi descriptor when a Dreamcast archive also contains track payloads', async () => {
+    const zipBuf = createStoredZip([
+      { path: 'track01.bin', bytes: new Uint8Array(2 * 1024 * 1024) },
+      { path: 'game.gdi', bytes: new TextEncoder().encode('3\n1 0 4 2048 track01.bin 0\n') },
+    ]);
+
+    const result = await extractFromZip(new Blob([zipBuf.slice()]), { includeCandidates: true, maxCandidates: 10 });
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('game.gdi');
+    expect(result!.candidates?.map((candidate) => candidate.name)).toEqual(
+      expect.arrayContaining(['game.gdi', 'track01.bin']),
+    );
   });
 
   it('extracts a .cdi file (Dreamcast disc image)', async () => {

@@ -259,6 +259,7 @@ describe('systems performance profiles', () => {
     expect(dc?.tierSettings?.ultra?.flycast_internal_resolution).toBe('1920x1440');
     expect(dc?.coreId).toBe('flycast');
     expect(dc?.corePath).toContain('flycast-wasm.data');
+    expect(dc?.extensions).toContain('zip');
     expect(dc?.needsWebGL2).toBe(true);
     expect(dc?.experimental).toBe(true);
     expect(dc?.stabilityNotice).toContain('stabil');

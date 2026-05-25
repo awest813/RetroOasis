@@ -33,4 +33,11 @@ describe("bundled EmulatorJS runtime patches", () => {
     expect(gameManager).toContain('this.EJS.config?.filePaths?.["ppsspp-assets.zip"]');
     expect(gameManager).toContain('"data/cores/ppsspp-assets.zip"');
   });
+
+  it("prefers Dreamcast GDI descriptors when Flycast receives a multi-file archive", () => {
+    const runtime = readFileSync(resolve("data/src/emulator.js"), "utf8");
+
+    expect(runtime).toContain('coreName === "flycast"');
+    expect(runtime).toContain('["gdi", "cue", "ccd", "toc", "m3u"]');
+  });
 });

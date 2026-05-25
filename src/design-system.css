@@ -81,6 +81,11 @@
   --c-text-dim:   #a0a0ab;
   --c-text-faint: #6e6e78;
   --c-text-muted: #80808c;
+  --c-muted:      var(--c-text-muted);
+  --focus-ring:   0 0 0 3px rgba(238, 226, 196, 0.12);
+  --focus-border: rgba(238, 226, 196, 0.42);
+  --panel-bg:     rgba(7, 7, 9, 0.82);
+  --panel-border: rgba(255, 255, 255, 0.105);
 
   /* ── Shape & Sizing ── */
   --radius:       6px;

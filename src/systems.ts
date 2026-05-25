@@ -1524,7 +1524,7 @@ export const SYSTEMS: SystemInfo[] = [
     shortName: "DC",
     experimental: true,
     stabilityNotice: "Experimental: Dreamcast support is still being stabilized. Performance varies by hardware — use Performance mode on low-end devices. Some games may boot slowly, glitch, or crash.",
-    extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf"],
+    extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip"],
     color: "#e07b20",
     needsThreads: false,
     needsWebGL2: true,

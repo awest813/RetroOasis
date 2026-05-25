@@ -1004,6 +1004,45 @@ describe("resolveSystemAndAdd mobile/import fallbacks", () => {
     expect(library.addGame).toHaveBeenCalledWith(zip, "dos");
     expect(onLaunchGame).toHaveBeenCalledWith(zip, "dos", "dos-game");
   });
+
+  it("keeps Dreamcast GDI ZIP sets together and routes them to Flycast", async () => {
+    const gdiBlob = new Blob([new TextEncoder().encode("3\n1 0 4 2048 track01.bin 0\n")]);
+    const trackBlob = new Blob([new Uint8Array([0xaa, 0xbb])]);
+    vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("zip");
+    vi.spyOn(archive, "extractFromArchive").mockResolvedValue({
+      format: "zip",
+      name: "game.gdi",
+      blob: gdiBlob,
+      candidates: [
+        { name: "game.gdi", blob: gdiBlob, size: gdiBlob.size },
+        { name: "track01.bin", blob: trackBlob, size: trackBlob.size },
+      ],
+    });
+
+    const settings = makeSettings();
+    const onLaunchGame = vi.fn(async () => {});
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(async (incoming: File, systemId: string) => ({
+        id: "dc-game",
+        name: incoming.name.replace(/\.[^.]+$/, ""),
+        fileName: incoming.name,
+        systemId,
+        size: incoming.size,
+        addedAt: Date.now(),
+        lastPlayedAt: null,
+        blob: incoming,
+      })),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    const zip = new File([new Uint8Array([0x50, 0x4b])], "sonic-adventure.zip", { type: "application/zip" });
+    await resolveSystemAndAdd(zip, library, settings, onLaunchGame);
+
+    expect(document.getElementById("system-picker")?.hasAttribute("hidden")).toBe(true);
+    expect(library.addGame).toHaveBeenCalledWith(zip, "segaDC");
+    expect(onLaunchGame).toHaveBeenCalledWith(zip, "segaDC", "dc-game");
+  });
 });
 
 describe("game card NEW badge", () => {

@@ -8860,3 +8860,232 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+/* Overall UI polish pass: unify chrome, focus, and dense modal surfaces. */
+.brand-long,
+.library-title,
+.library-hero__title,
+.game-card__name,
+.game-card__scan-title,
+.footer-center,
+.fps-val,
+.settings-section-title,
+.settings-section__title,
+.enp-title,
+.enp-invite-code-large,
+.conflict-card__header {
+  font-family: var(--font-display);
+}
+
+.btn:focus-visible,
+.modal-close:focus-visible,
+.enp-close:focus-visible,
+.enp-tab:focus-visible,
+.enp-radio-card:focus-visible,
+.settings-sidebar__item:focus-visible,
+.settings-input:focus-visible,
+.settings-select:focus-visible,
+.settings-search-input:focus-visible,
+.cloud-provider-card:focus-visible,
+.system-pick-btn:focus-visible,
+.conflict-card:focus-visible,
+.in-game-overlay__hamburger:focus-visible,
+.in-game-overlay__close:focus-visible,
+.in-game-overlay__btn:focus-visible {
+  outline: none;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
+}
+
+.modal-backdrop,
+.easy-netplay-overlay {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(238, 226, 196, 0.08), transparent 42%),
+    rgba(0, 0, 0, 0.82);
+}
+
+.modal-box:not(.settings-modal-box),
+.easy-netplay-dialog,
+.confirm-box,
+.conflict-resolver-box {
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014)),
+    rgba(5, 5, 7, 0.94);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+}
+
+.settings-modal-box {
+  background:
+    linear-gradient(115deg, rgba(238, 226, 196, 0.045), transparent 34%),
+    rgba(3, 3, 5, 0.96);
+}
+
+.settings-modal-box .modal-header,
+.enp-header,
+.library-toolbar {
+  border-bottom-color: rgba(255, 255, 255, 0.075);
+}
+
+.settings-sidebar,
+.settings-panel-content,
+.settings-section,
+.multiplayer-card,
+.cloud-provider-card,
+.cloud-storage-card,
+.cloud-connection-item,
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip,
+.enp-radio-card,
+.conflict-card {
+  border-radius: 8px;
+  border-color: var(--panel-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.012)),
+    rgba(255, 255, 255, 0.018);
+  box-shadow: none;
+}
+
+.settings-sidebar__item,
+.enp-tab,
+.enp-filter-btn,
+.library-search,
+.library-sort,
+.settings-input,
+.settings-select,
+.settings-search-input,
+.cover-art-url-input {
+  border-radius: 6px;
+}
+
+.settings-sidebar__item {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.settings-sidebar__item:hover,
+.settings-sidebar__item.settings-tab--active,
+.enp-tab:hover,
+.enp-tab--active,
+.enp-radio-card:hover,
+.enp-radio-card--active,
+.cloud-provider-card:hover,
+.cloud-provider-card.active,
+.multiplayer-card:hover {
+  border-color: rgba(238, 226, 196, 0.24);
+  background: rgba(255, 255, 255, 0.052);
+  box-shadow: none;
+}
+
+.settings-sidebar__item:hover,
+.settings-sidebar__item.settings-tab--active {
+  transform: none;
+}
+
+.settings-panels {
+  padding: clamp(24px, 4vw, 56px);
+  gap: clamp(28px, 4vw, 48px);
+}
+
+.settings-panel-content {
+  width: min(100%, 1040px);
+  margin-inline: auto;
+}
+
+.settings-panel-header {
+  font-size: clamp(1.55rem, 1.2rem + 1vw, 2rem);
+}
+
+.cloud-storage-overview {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+.cloud-storage-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cloud-storage-card::before {
+  display: none;
+}
+
+.settings-panel-header p,
+.settings-section p,
+.cloud-storage-card__body,
+.cloud-connection-item__info span,
+.multiplayer-card p,
+.enp-readiness__label,
+.enp-radio-card__desc,
+.enp-help,
+.cover-art-panel__hint {
+  color: var(--c-text-dim);
+}
+
+.in-game-overlay {
+  top: max(clamp(14px, 2vw, 20px), env(safe-area-inset-top, 0px));
+}
+
+.in-game-overlay__hamburger,
+.in-game-overlay__panel,
+.fps-overlay,
+.dev-overlay {
+  border-color: var(--panel-border);
+  background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+}
+
+.in-game-overlay__hamburger {
+  width: 42px;
+  height: 42px;
+}
+
+.in-game-overlay__hamburger:hover {
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(238, 226, 196, 0.24);
+  transform: translateY(-1px);
+}
+
+.in-game-overlay__panel {
+  min-width: min(300px, calc(100vw - 32px));
+  gap: 10px;
+}
+
+.in-game-overlay__panel-chip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.in-game-overlay__status {
+  color: var(--c-text-dim);
+  line-height: 1.35;
+}
+
+.game-card__patch,
+.game-card__art-btn,
+.game-card__change-sys,
+.game-card__fav,
+.game-card__remove {
+  border-radius: 6px;
+}
+
+.conflict-card:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

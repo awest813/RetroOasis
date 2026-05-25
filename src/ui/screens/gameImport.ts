@@ -61,6 +61,7 @@ import { showError, showInfoToast } from "../toasts.js";
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
+const DREAMCAST_GDI_TRACK_EXTS = new Set(["bin", "raw", "iso"]);
 
 function canRouteArchiveAsNativePackage(format: ArchiveFormat, fileName: string): boolean {
   if (format === "zip") return true;
@@ -83,6 +84,11 @@ function parseM3U(content: string): string[] {
     .map(line => line.trim())
     .filter(line => line.length > 0 && !line.startsWith("#"))
     .map(line => line.split(/[/\\]/).pop() ?? line);
+}
+
+function isDreamcastGdiPackage(candidates: Array<{ name: string }>): boolean {
+  return candidates.some((candidate) => fileExt(candidate.name) === "gdi") &&
+    candidates.some((candidate) => DREAMCAST_GDI_TRACK_EXTS.has(fileExt(candidate.name)));
 }
 
 export async function resolveSystemAndAddImpl(
@@ -193,16 +199,22 @@ export async function resolveSystemAndAddImpl(
         const shouldPreferDosPackageRouting =
           archiveFormat === "zip" &&
           extractedCandidates.some((candidate) => DOS_NATIVE_PACKAGE_EXTS.has(fileExt(candidate.name)));
+        const shouldPreferDreamcastPackageRouting =
+          archiveFormat === "zip" &&
+          isDreamcastGdiPackage(extractedCandidates);
 
-        if (shouldPreferNativePackageRouting || shouldPreferDosPackageRouting) {
+        if (shouldPreferNativePackageRouting || shouldPreferDosPackageRouting || shouldPreferDreamcastPackageRouting) {
           resolvedFile = file;
           if (shouldPreferDosPackageRouting) forcedSystemId = "dos";
+          if (shouldPreferDreamcastPackageRouting) forcedSystemId = "segaDC";
           setLoadingMessage("Detected native package archive — using original file…");
           setLoadingSubtitle("");
           logImport(
             emulatorRef,
             settings,
-            shouldPreferDosPackageRouting
+            shouldPreferDreamcastPackageRouting
+              ? `${archiveFormat.toUpperCase()} contains a Dreamcast GDI set; keeping descriptor and track files together`
+              : shouldPreferDosPackageRouting
               ? `${archiveFormat.toUpperCase()} appears to be a DOS package; skipping inner extraction routing`
               : `${archiveFormat.toUpperCase()} appears to be a native package set (${extractedCandidates.length} BIN entries); skipping inner extraction routing`,
           );

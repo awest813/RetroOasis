@@ -1090,7 +1090,9 @@ class EmulatorJS {
      */
     selectRomFile(fileNames, coreName) {
         const cueGenerationCores = ["mednafen_psx_hw"];
-        const prioritizeExtensions = ["cue", "ccd", "toc", "m3u"];
+        const prioritizeExtensions = coreName === "flycast"
+            ? ["gdi", "cue", "ccd", "toc", "m3u"]
+            : ["cue", "ccd", "toc", "m3u"];
 
         let createCueFile = cueGenerationCores.includes(this.getCore());
         if (this.determineCueSettings()) {
