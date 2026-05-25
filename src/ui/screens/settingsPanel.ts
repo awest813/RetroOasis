@@ -149,7 +149,7 @@ function buildSettingsContent(
 
   const tabBtns: HTMLButtonElement[] = [];
   const panels: HTMLElement[] = [];
-  let settleActiveTabTimer: number | null = null;
+  let settleActiveTabTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   // Single-page scrolling view: all panels are visible.
   const switchTab = (id: CanonicalSettingsTab, scroll = true) => {
@@ -176,9 +176,10 @@ function buildSettingsContent(
         safeScrollIntoView(panel, { behavior: "smooth", block: "start" });
       }
       if (settleActiveTabTimer !== null) {
-        window.clearTimeout(settleActiveTabTimer);
+        globalThis.clearTimeout(settleActiveTabTimer);
       }
-      settleActiveTabTimer = window.setTimeout(() => {
+      settleActiveTabTimer = globalThis.setTimeout(() => {
+        if (!bodyEl.isConnected || !panel.isConnected) return;
         const currentTop = bodyEl.scrollTop + 96;
         const targetTop = Math.max(0, panel.offsetTop - panelsEl.offsetTop);
         if (Math.abs(currentTop - targetTop) < 180) {

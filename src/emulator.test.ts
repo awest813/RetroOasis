@@ -2730,7 +2730,7 @@ describe('PSPEmulator', () => {
       delete (window as Window & { EJS_emulator?: unknown }).EJS_emulator;
     });
 
-    it('delegates quickSave to the running core only when save states are supported', () => {
+    it('delegates quickSave to the running core when quickSave is available', () => {
       const quickSaveMock = vi.fn().mockReturnValue(true);
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
         setVolume: vi.fn(),
@@ -2746,8 +2746,8 @@ describe('PSPEmulator', () => {
       expect(quickSaveMock).toHaveBeenCalledWith(3);
     });
 
-    it('does not quickSave when the active core reports no state support', () => {
-      const quickSaveMock = vi.fn();
+    it('still tries quickSave when supportsStates is stale but quickSave is available', () => {
+      const quickSaveMock = vi.fn().mockReturnValue(true);
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
         setVolume: vi.fn(),
         gameManager: {
@@ -2758,11 +2758,11 @@ describe('PSPEmulator', () => {
         },
       };
 
-      expect(emulator.quickSave(1)).toBe(false);
-      expect(quickSaveMock).not.toHaveBeenCalled();
+      expect(emulator.quickSave(1)).toBe(true);
+      expect(quickSaveMock).toHaveBeenCalledWith(1);
     });
 
-    it('delegates quickLoad to the running core only when save states are supported', () => {
+    it('delegates quickLoad to the running core when quickLoad is available', () => {
       const quickLoadMock = vi.fn();
       (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
         setVolume: vi.fn(),
@@ -2776,6 +2776,20 @@ describe('PSPEmulator', () => {
 
       emulator.quickLoad(2);
       expect(quickLoadMock).toHaveBeenCalledWith(2);
+    });
+
+    it('treats quick save/load functions as state support even if supportsStates is false', () => {
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        gameManager: {
+          restart: vi.fn(),
+          supportsStates: vi.fn().mockReturnValue(false),
+          quickSave: vi.fn(),
+          quickLoad: vi.fn(),
+        },
+      };
+
+      expect(emulator.supportsStates()).toBe(true);
     });
   });
 

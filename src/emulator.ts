@@ -3485,20 +3485,25 @@ export class PSPEmulator {
   }
 
   quickSave(slot = 1): boolean {
-    const emu = window.EJS_emulator;
-    if (!emu?.gameManager?.supportsStates?.()) return false;
-    return emu.gameManager?.quickSave(slot) ?? false;
+    const gm = window.EJS_emulator?.gameManager;
+    const quickSave = gm?.quickSave;
+    if (typeof quickSave !== "function") return false;
+    const accepted = quickSave.call(gm, slot);
+    return accepted !== false;
   }
 
   quickLoad(slot = 1): void {
-    const emu = window.EJS_emulator;
-    if (!emu?.gameManager?.supportsStates?.()) return;
-    emu.gameManager?.quickLoad(slot);
+    const gm = window.EJS_emulator?.gameManager;
+    const quickLoad = gm?.quickLoad;
+    if (typeof quickLoad === "function") quickLoad.call(gm, slot);
   }
 
   /** True if the running core supports save states. */
   supportsStates(): boolean {
-    return window.EJS_emulator?.gameManager?.supportsStates?.() ?? false;
+    const gm = window.EJS_emulator?.gameManager;
+    if (!gm) return false;
+    if (gm.supportsStates?.() === true) return true;
+    return typeof gm.quickSave === "function" && typeof gm.quickLoad === "function";
   }
 
   private _readVfsStateFile(path: string): Uint8Array | null {

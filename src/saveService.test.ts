@@ -95,8 +95,7 @@ describe("SaveGameService", () => {
     vi.useRealTimers();
   });
 
-  it("waits for running cores to report save-state support before saving", async () => {
-    vi.useFakeTimers();
+  it("does not block running cores on a stale save-state support flag", async () => {
     const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
     const saveLibrary = {
       saveState,
@@ -106,11 +105,7 @@ describe("SaveGameService", () => {
       state: "running" as const,
       quickSave: vi.fn(() => true),
       quickLoad: vi.fn(),
-      supportsStates: vi
-        .fn()
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce(false)
-        .mockReturnValue(true),
+      supportsStates: vi.fn(() => false),
       readStateData: vi.fn(() => new Uint8Array([1, 2, 3])),
       writeStateData: vi.fn(() => true),
       captureScreenshotAsync: vi.fn(async () => null),
@@ -124,18 +119,16 @@ describe("SaveGameService", () => {
       readinessRetryDelayMs: 100,
     });
 
-    const promise = service.saveSlot(1);
-    await vi.advanceTimersByTimeAsync(250);
-    const result = await promise;
+    const result = await service.saveSlot(1);
 
     expect(result).not.toBeNull();
     expect(emulator.quickSave).toHaveBeenCalledWith(1);
+    expect(emulator.supportsStates).not.toHaveBeenCalled();
     expect(saveState).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
   });
 
   it("does not try to read state bytes when the core rejects quick save", async () => {
-    const events: string[] = [];
+    const events: Array<{ status: string; message?: string }> = [];
     const saveLibrary = {
       saveState: vi.fn(),
       getState: vi.fn(async () => null),
@@ -155,13 +148,14 @@ describe("SaveGameService", () => {
       emulator,
       getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "n64" }),
     });
-    service.onStatus((e) => events.push(e.status));
+    service.onStatus((e) => events.push({ status: e.status, message: e.message }));
 
     const result = await service.saveSlot(1);
 
     expect(result).toBeNull();
     expect(emulator.readStateData).not.toHaveBeenCalled();
-    expect(events).toContain("emulator-not-ready");
+    expect(events.some((event) => event.status === "emulator-not-ready")).toBe(true);
+    expect(events.some((event) => event.message?.includes("rejected this quick save"))).toBe(true);
   });
 
   it("loads valid local states through emulator write + quickLoad", async () => {

@@ -124,8 +124,7 @@ export class SaveGameService {
     for (let attempt = 0; attempt <= this.readinessRetries; attempt++) {
       const state = this.emulator.state;
       const running = state === "running" || state === "paused";
-      const statesReady = this.emulator.supportsStates?.() !== false;
-      if (running && statesReady) return true;
+      if (running) return true;
       if (attempt < this.readinessRetries) {
         await new Promise((resolve) => setTimeout(resolve, this.readinessRetryDelayMs));
       }
@@ -182,7 +181,7 @@ export class SaveGameService {
             status: "emulator-not-ready",
             gameId: context.gameId,
             slot,
-            message: "Save states are not ready for this core yet. Try again in a moment.",
+            message: "The emulator rejected this quick save. Wait a moment, then try again.",
           });
           return null;
         }
