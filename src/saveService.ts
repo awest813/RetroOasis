@@ -229,7 +229,7 @@ export class SaveGameService {
           this.emit({ status: "syncing-cloud", gameId: context.gameId, slot });
           try {
             await this.cloudManager.push(saved);
-            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save synced to cloud." });
+            this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save mirrored by save sync." });
           } catch (error) {
             this.emit({
               status: "sync-error",
@@ -252,21 +252,24 @@ export class SaveGameService {
    * Synchronise all save slots for the current game against the cloud.
    * This is typically called on game launch (pull before play) or manually.
    */
-  async syncGameMetadata(override?: Partial<SaveGameContext>): Promise<void> {
+  async syncGameMetadata(override?: Partial<SaveGameContext>): Promise<boolean> {
     const context = this.resolveContext(override);
-    if (!context || !this.cloudManager?.isConnected()) return;
+    if (!context || !this.cloudManager?.isConnected()) return false;
 
     return this.enqueue(async () => {
       this.emit({ status: "syncing-cloud", gameId: context.gameId });
       try {
         await this.cloudManager!.syncGame(context.gameId, this.saveLibrary);
-        this.emit({ status: "sync-success", gameId: context.gameId, message: "Local saves synced with cloud." });
+        this.emit({ status: "sync-success", gameId: context.gameId, message: "Local saves mirrored by save sync." });
+        return true;
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         this.emit({
           status: "sync-error",
           gameId: context.gameId,
-          message: error instanceof Error ? error.message : String(error),
+          message,
         });
+        throw new Error(message);
       } finally {
         this.emit({ status: "idle", gameId: context.gameId });
       }

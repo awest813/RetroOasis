@@ -7,7 +7,7 @@
  *
  * Included providers
  * ------------------
- * - NullCloudProvider   : No-op provider used when cloud sync is not configured.
+ * - NullCloudProvider   : No-op provider used when save sync is not configured.
  * - WebDAVProvider      : User-provided WebDAV server (URL / username / password).
  * - GoogleDriveProvider : Google Drive REST API v3 (OAuth access token).
  * - DropboxProvider     : Dropbox API v2 (OAuth access token).
@@ -253,7 +253,7 @@ export class CloudSaveSync {
 // ── NullCloudProvider ─────────────────────────────────────────────────────────
 
 /**
- * No-op CloudSaveProvider used when cloud sync is not configured or when the
+ * No-op CloudSaveProvider used when save sync is not configured or when the
  * user has not authenticated.
  *
  * - isAvailable() always returns false so CloudSaveSync skips all operations.
@@ -261,7 +261,7 @@ export class CloudSaveSync {
  */
 export class NullCloudProvider implements CloudSaveProvider {
   readonly providerId   = "null";
-  readonly displayName  = "None (cloud sync disabled)";
+  readonly displayName  = "None (save sync disabled)";
 
   async isAvailable(): Promise<boolean>                                   { return false; }
   async upload(_entry: SaveStateEntry): Promise<void>                     { /* no-op */ }

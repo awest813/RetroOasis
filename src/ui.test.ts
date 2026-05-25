@@ -1778,7 +1778,7 @@ describe("buildDebugTab", () => {
     expect(debugTabBtn.getAttribute("tabindex")).toBe("-1");
   });
 
-  it("ArrowLeft keyboard navigation switches tabs from Debug to API Keys", () => {
+  it("ArrowLeft keyboard navigation switches tabs from Debug to Connections", () => {
     openDebugTab();
     const debugTabBtn = document.getElementById("tab-debug") as HTMLButtonElement;
     debugTabBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
@@ -3158,6 +3158,49 @@ describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
     document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.returnToLibrary));
     expect(overlay.hidden).toBe(true);
     expect(overlay.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("reports manual save sync as unavailable instead of showing false success", async () => {
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { id: "psp", shortName: "PSP", name: "PlayStation Portable" },
+      setFPSMonitorEnabled: vi.fn(),
+      prefetchCore: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      reset: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+    const saveService = {
+      syncGameMetadata: vi.fn().mockResolvedValue(false),
+      saveSlot: vi.fn(),
+      loadSlot: vi.fn(),
+    };
+
+    initUI({
+      ...makeOpts(makeSettings({ lastGameName: "Crisis Core" })),
+      emulator: emulatorMock,
+      saveService: saveService as never,
+      getCurrentGameId: () => "game1",
+      getCurrentGameName: () => "Crisis Core",
+      getCurrentSystemId: () => "psp",
+    });
+
+    (emulatorMock as unknown as { onGameStart: () => void }).onGameStart();
+    document.querySelector<HTMLButtonElement>(".in-game-overlay__hamburger")?.click();
+    Array.from(document.querySelectorAll<HTMLButtonElement>(".in-game-overlay__btn"))
+      .find((button) => button.textContent?.includes("Sync Saves"))
+      ?.click();
+    await flushUI();
+
+    expect(saveService.syncGameMetadata).toHaveBeenCalled();
+    expect(document.getElementById("error-banner")?.textContent).toContain("Save sync is not connected");
+    expect(document.getElementById("info-toast")?.textContent ?? "").not.toContain("completed successfully");
   });
 
 
@@ -4604,7 +4647,7 @@ describe("UX polish shortcuts and feedback", () => {
   });
 
   it("uses an assertive live-region toast for error notifications", () => {
-    showInfoToast("Cloud sync failed", "error");
+    showInfoToast("Save sync failed", "error");
 
     const toast = document.getElementById("info-toast");
     expect(toast?.getAttribute("role")).toBe("alert");
@@ -4998,9 +5041,9 @@ describe("buildDisplayTab — Display settings tab", () => {
 
 });
 
-// ── Cloud tab (buildCloudTab) ───────────────────────────────────────────────
+// ── Save Sync tab (buildCloudTab) ────────────────────────────────────────────
 
-describe("buildCloudTab — Cloud settings tab", () => {
+describe("buildCloudTab — Save Sync settings tab", () => {
   function openCloudTab(settings: Settings = makeSettings()) {
     openSettingsPanel(
       settings,
@@ -5027,7 +5070,7 @@ describe("buildCloudTab — Cloud settings tab", () => {
     vi.restoreAllMocks();
   });
 
-  it("OAuth key inputs reference shared help text via aria-describedby", () => {
+  it("OAuth credential inputs reference shared help text via aria-describedby", () => {
     openCloudTab();
     const panel = document.getElementById("tab-panel-cloud")!;
     const google = document.getElementById("oauth-google-client-id") as HTMLInputElement | null;
@@ -5041,7 +5084,7 @@ describe("buildCloudTab — Cloud settings tab", () => {
     expect(pasteBtns.length).toBe(2);
   });
 
-  it("Cloud Save Backup block is a labelled region when not connected", () => {
+  it("Save Sync block is a labelled region when not connected", () => {
     openCloudTab();
     const panel = document.getElementById("tab-panel-cloud")!;
     const region = panel.querySelector<HTMLElement>(
@@ -5050,7 +5093,7 @@ describe("buildCloudTab — Cloud settings tab", () => {
     const heading = panel.querySelector("#settings-cloud-save-backup-heading");
     expect(region?.contains(heading)).toBe(true);
     const connect = panel.querySelector<HTMLButtonElement>(".btn.btn--primary[type=button]");
-    expect(connect?.getAttribute("aria-label")).toMatch(/Connect cloud backup/i);
+    expect(connect?.getAttribute("aria-label")).toMatch(/Turn on save sync/i);
   });
 });
 

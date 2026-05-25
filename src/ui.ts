@@ -153,9 +153,9 @@ let _initUICleanup: (() => void) | null = null;
 
 let _virtualGrid: VirtualGrid<GameMetadata> | null = null;
 
-// ── API key store + cover-art provider registry ──────────────────────────────
+// ── Connection store + cover-art provider registry ───────────────────────────
 // Registry singletons live in ./ui/coverArtRegistry.ts; see there for the
-// rebuild subscription that wires Settings → API Keys tab changes back into
+// rebuild subscription that wires Settings → Connections tab changes back into
 // the composed provider chain.
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
@@ -326,7 +326,7 @@ export function buildDOM(app: HTMLElement): void {
               </button>
               <button class="btn btn--ghost library-controls__fetch-covers" id="library-fetch-covers"
                       type="button" aria-label="Fetch missing cover art from online"
-                      title="Match games against online cover databases (Settings → API Keys)">
+                      title="Match games against online cover databases (Settings → Connections)">
                 <svg class="btn__icon library-controls__fetch-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
                   <path d="m7 15 3-3 2.2 2.2L15 11l2 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1362,7 +1362,7 @@ function _syncLibraryControlState(): void {
     fetchCoversBtn.disabled = offline;
     fetchCoversBtn.title = offline
       ? "Requires an internet connection"
-      : "Match games against online cover databases (Settings → API Keys)";
+      : "Match games against online cover databases (Settings → Connections)";
     fetchCoversBtn.setAttribute(
       "aria-label",
       offline
@@ -1446,7 +1446,7 @@ async function _runBulkCoverArtFetch(
     if (!button) return;
     _setFetchCoversButtonLabel(button, "Fetch covers");
     button.setAttribute("aria-label", "Fetch missing cover art from online");
-    button.title = "Match games against online cover databases (Settings → API Keys)";
+    button.title = "Match games against online cover databases (Settings → Connections)";
     button.removeAttribute("aria-busy");
     button.classList.remove("library-controls__fetch-covers--busy");
     button.disabled = false;
@@ -2484,17 +2484,23 @@ function buildInGameControls(
       const btnSyncCloud = make("button", {
         class: "btn btn--ghost in-game-overlay__btn",
         type: "button",
-        title: "Sync saves with the cloud",
-        "aria-label": "Sync Cloud",
+        title: "Run save sync now",
+        "aria-label": "Sync Saves",
         role: "menuitem",
-      }, "Sync Cloud");
+      }, "Sync Saves");
       btnSyncCloud.addEventListener("click", async () => {
         try {
-          await saveService.syncGameMetadata();
-          showInfoToast("Cloud sync completed successfully");
+          const synced = await saveService.syncGameMetadata();
+          if (synced) {
+            showInfoToast("Save sync completed successfully");
+          } else if (!getCurrentGameId?.()) {
+            showError("Save sync needs an active library game. Return to the library and launch the saved game again.");
+          } else {
+            showError("Save sync is not connected. Turn it on in Settings \u2192 Save Sync.");
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          showError(`Cloud sync failed: ${msg}`);
+          showError(`Save sync failed: ${msg}`);
         }
       }, { signal });
       actions.append(btnSyncCloud);

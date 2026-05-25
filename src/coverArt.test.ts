@@ -824,7 +824,7 @@ describe("RawgCoverArtProvider", () => {
     expect(await p3.testConnection()).toMatch(/Could not reach/i);
 
     const p4 = new RawgCoverArtProvider({ getApiKey: () => "" });
-    expect(await p4.testConnection()).toMatch(/No API key/);
+    expect(await p4.testConnection()).toMatch(/No RAWG connection/);
   });
 
   it("systemIdToRawgPlatformId maps common consoles", () => {
@@ -917,7 +917,7 @@ describe("MobyGamesCoverArtProvider", () => {
     expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok }).testConnection()).toBe(true);
     expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: bad }).testConnection()).toMatch(/rejected/i);
     expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom }).testConnection()).toMatch(/Could not reach/i);
-    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No API key/);
+    expect(await new MobyGamesCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No MobyGames connection/);
   });
 
   it("systemIdToMobyPlatformId maps common consoles", () => {
@@ -1117,7 +1117,7 @@ describe("TheGamesDBCoverArtProvider", () => {
     expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok }).testConnection()).toBe(true);
     expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: bad }).testConnection()).toMatch(/rejected/i);
     expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom }).testConnection()).toMatch(/Could not reach/i);
-    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No API key/);
+    expect(await new TheGamesDBCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No TheGamesDB connection/);
   });
 
   it("systemIdToTgdbPlatformId maps common consoles", () => {
@@ -1183,7 +1183,7 @@ describe("SteamGridDBCoverArtProvider", () => {
     expect(await new SteamGridDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: ok }).testConnection()).toBe(true);
     expect(await new SteamGridDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: bad }).testConnection()).toMatch(/rejected/i);
     expect(await new SteamGridDBCoverArtProvider({ getApiKey: () => "k".repeat(32), fetchImpl: boom }).testConnection()).toMatch(/Could not reach/i);
-    expect(await new SteamGridDBCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No API key/);
+    expect(await new SteamGridDBCoverArtProvider({ getApiKey: () => "" }).testConnection()).toMatch(/No SteamGridDB connection/);
   });
 });
 
@@ -1268,7 +1268,7 @@ describe("IGDBCoverArtProvider", () => {
 // ── WikimediaCoverArtProvider ─────────────────────────────────────────────────
 
 describe("WikimediaCoverArtProvider", () => {
-  it("returns page-image candidates without an API key", async () => {
+  it("returns page-image candidates without a provider credential", async () => {
     const fetchImpl = (async (input: RequestInfo | URL) => {
       const url = String(input);
       expect(url).toContain("origin=*");

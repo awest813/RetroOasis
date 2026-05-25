@@ -44,7 +44,7 @@ function mount(): { container: HTMLElement; store: ApiKeyStore; errors: string[]
   buildApiKeysTab(container, store, {
     appName: "RetroOasis",
     getTester: (id) => ({
-      testConnection: async () => id === "rawg" ? true : "MobyGames rejected the API key.",
+      testConnection: async () => id === "rawg" ? true : "MobyGames rejected the saved credential.",
     }),
     onError: (m) => errors.push(m),
   });

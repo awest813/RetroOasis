@@ -3286,7 +3286,7 @@ export class PSPEmulator {
       if (opts.achievements) {
         ejsSettings["cheevos_enable"] = "true";
         ejsSettings["cheevos_username"] = opts.achievements.username;
-        ejsSettings["cheevos_password"] = opts.achievements.apiKey; // RA uses API key as pass for token auth
+        ejsSettings["cheevos_password"] = opts.achievements.apiKey; // RA uses the saved web token as pass for token auth
         if (opts.achievements.hardcore) {
           ejsSettings["cheevos_hardcore_mode_enable"] = "true";
         }

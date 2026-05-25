@@ -88,7 +88,7 @@ function resolveRedirectUri(): string {
 export function startGoogleOAuth(): Promise<OAuthResult> {
   const clientId = getGoogleClientId();
   if (!clientId) {
-    return Promise.reject(new Error("Google OAuth client ID is not configured. Set it in Settings → Cloud → OAuth App Keys."));
+    return Promise.reject(new Error("Google OAuth client ID is not configured. Set it in Settings → Save Sync → OAuth Apps."));
   }
   const redirectUri = resolveRedirectUri();
   const state = generateState();
@@ -116,7 +116,7 @@ export function startGoogleOAuth(): Promise<OAuthResult> {
 export function startDropboxOAuth(): Promise<OAuthResult> {
   const appKey = getDropboxAppKey();
   if (!appKey) {
-    return Promise.reject(new Error("Dropbox app key is not configured. Set it in Settings → Cloud → OAuth App Keys."));
+    return Promise.reject(new Error("Dropbox app key is not configured. Set it in Settings → Save Sync → OAuth Apps."));
   }
   const redirectUri = resolveRedirectUri();
   const state = generateState();

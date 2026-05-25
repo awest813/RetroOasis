@@ -104,7 +104,7 @@ export class RAClient {
   }
 
   async testConnection(): Promise<true | string> {
-    if (!this.isConfigured) return "No RetroAchievements username/API key saved.";
+    if (!this.isConfigured) return "No RetroAchievements connection saved.";
     try {
       const profile = await this.getUserProfile();
       if (!profile || typeof profile.User !== "string" || profile.User.length === 0) {
@@ -114,7 +114,7 @@ export class RAClient {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       if (/invalid|denied|unauthori[sz]ed|forbidden|key|token/i.test(detail)) {
-        return "RetroAchievements rejected this username/API key.";
+        return "RetroAchievements rejected this connection.";
       }
       return `Could not reach RetroAchievements: ${detail}`;
     }

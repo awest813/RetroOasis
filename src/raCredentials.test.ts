@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseRAKey } from "./raCredentials.js";
 
 describe("parseRAKey", () => {
-  it("parses username and API key", () => {
+  it("parses username and web token", () => {
     expect(parseRAKey("player:abc123")).toEqual({
       username: "player",
       apiKey: "abc123",

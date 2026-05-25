@@ -8,7 +8,7 @@
  *   1. Requests persistent storage on startup (prevents eviction)
  *   2. Monitors quota usage and warns when dangerously low (<500 MB remaining)
  *   3. Listens for `storage-pressure` events (Chrome 138+) to trigger emergency
- *      cloud sync before ChromeOS purges origin data
+ *      save sync before ChromeOS purges origin data
  *
  * API consumers can also call {@link checkStorageQuota} before starting
  * large operations (ROM import, archive extraction) to confirm there is
@@ -144,9 +144,9 @@ export function getStorageWarning(quota: QuotaStatus): StorageWarning | null {
 
   let message: string;
   if (remainingMB <= 100) {
-    message = `Critically low storage: ${remainingMB} MB remaining. ChromeOS may delete your data. Connect a cloud backup provider from Settings → Cloud.`;
+    message = `Critically low storage: ${remainingMB} MB remaining. ChromeOS may delete your data. Turn on save sync from Settings → Save Sync.`;
   } else if (remainingMB <= 250) {
-    message = `Low storage: ${remainingMB} MB remaining. Consider removing unused games or enabling cloud backup in Settings → Cloud.`;
+    message = `Low storage: ${remainingMB} MB remaining. Consider removing unused games or turning on save sync in Settings → Save Sync.`;
   } else {
     message = `Storage running low: ${remainingMB} MB remaining.`;
   }
@@ -197,7 +197,7 @@ async function checkAndNotify(): Promise<void> {
 /**
  * Listen for the `storage-pressure` event (Chrome 138+).
  * When ChromeOS determines origin data must be evicted, this fires
- * BEFORE deletion, giving us a chance to do an emergency cloud sync.
+ * BEFORE deletion, giving us a chance to do an emergency save sync.
  *
  * Call once on startup; safe to call multiple times (listener is idempotent).
  */
@@ -211,7 +211,7 @@ export function installStoragePressureListener(): void {
     // Chrome 138+ storage-pressure event
     window.addEventListener("storage-pressure", () => {
       // Emergency: ChromeOS is about to evict our data.
-      // Log the event — cloud sync is best-effort here.
+      // Log the event — save sync is best-effort here.
       console.warn("[RetroOasis] Storage pressure detected — ChromeOS may evict origin data.");
     }, { once: false });
   } catch {

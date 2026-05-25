@@ -117,11 +117,11 @@ function buildSettingsContent(
     { id: "performance",  label: "Performance",   ariaLabel: "Performance" },
     { id: "display",      label: "Display",        ariaLabel: "Display" },
     { id: "library",      label: "My Games",       ariaLabel: "My Games" },
-    { id: "cloud",        label: "Cloud Storage",  ariaLabel: "Cloud Storage" },
+    { id: "cloud",        label: "Save Sync",      ariaLabel: "Save Sync" },
     { id: "bios",         label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  label: "Play Together",  ariaLabel: "Play Together" },
     { id: "achievements", label: "Achievements",   ariaLabel: "Achievements" },
-    { id: "apikeys",      label: "API Keys",       ariaLabel: "API Keys" },
+    { id: "apikeys",      label: "Connections",    ariaLabel: "Connections" },
     { id: "debug",        label: "Advanced",       ariaLabel: "Advanced" },
     { id: "about",        label: "Help",            ariaLabel: "Help" },
   ];

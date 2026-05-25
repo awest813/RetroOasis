@@ -190,7 +190,7 @@ describe("SaveGameService", () => {
     expect(emulator.quickLoad).toHaveBeenCalledWith(1);
   });
 
-  it("emits a friendly sync success message when cloud sync succeeds", async () => {
+  it("emits a friendly sync success message when save sync succeeds", async () => {
     const entry = makeEntry(1);
     const push = vi.fn().mockResolvedValue(undefined);
     const cloudManager = {
@@ -227,7 +227,36 @@ describe("SaveGameService", () => {
     });
 
     await service.saveSlot(1);
-    expect(events.some((m) => m.includes("synced to cloud"))).toBe(true);
+    expect(events.some((m) => m.includes("mirrored by save sync"))).toBe(true);
+  });
+
+  it("returns false when manual save sync has no active provider", async () => {
+    const service = new SaveGameService({
+      saveLibrary: { getState: vi.fn() } as unknown as SaveStateLibrary,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    await expect(service.syncGameMetadata()).resolves.toBe(false);
+  });
+
+  it("throws after emitting sync-error when manual save sync fails", async () => {
+    const events: string[] = [];
+    const cloudManager = {
+      isConnected: () => true,
+      syncGame: vi.fn().mockRejectedValue(new Error("provider unavailable")),
+    } as unknown as import("./cloudSave.js").CloudSaveManager;
+    const service = new SaveGameService({
+      saveLibrary: { getState: vi.fn() } as unknown as SaveStateLibrary,
+      cloudManager,
+      emulator: { state: "running" as const, quickSave: vi.fn(), quickLoad: vi.fn(), readStateData: vi.fn(() => null), writeStateData: vi.fn(() => true) },
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+    service.onStatus((event) => events.push(event.status));
+
+    await expect(service.syncGameMetadata()).rejects.toThrow("provider unavailable");
+    expect(events).toContain("sync-error");
+    expect(events[events.length - 1]).toBe("idle");
   });
 
   it("preserves user-defined slot label when resaving an occupied slot", async () => {

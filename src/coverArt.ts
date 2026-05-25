@@ -97,7 +97,7 @@ export interface CoverArtProvider {
 
 /**
  * Optional contract implemented by providers that require a user-supplied
- * API key. The Settings UI uses these fields to render a consistent
+ * provider credential. The Settings UI uses these fields to render a consistent
  * "bring your own key" row (signup link + test button + status pill).
  */
 export interface ApiKeyedProvider extends CoverArtProvider {
@@ -830,7 +830,7 @@ export interface LibretroProviderOptions {
  * Libretro-thumbnails-backed cover art provider.
  *
  * Constructs direct image URLs from the public Libretro thumbnails CDN at
- * https://thumbnails.libretro.com/. No API key or authentication is needed.
+ * https://thumbnails.libretro.com/. No credential or authentication is needed.
  *
  * Two name variants are tried for each game:
  *   1. The No-Intro-style name (region tags preserved) — higher confidence.
@@ -1127,7 +1127,7 @@ export class ChainedCoverArtProvider implements CoverArtProvider {
     try {
       for (const provider of this.providers) {
         if (opts.signal?.aborted) break;
-        // Providers that require user configuration (e.g. an API key) may
+        // Providers that require user configuration (e.g. a credential) may
         // advertise themselves as unavailable. Skip silently — treating this
         // as an error would spam logs every time the chain runs.
         if (typeof provider.isAvailable === "function" && !provider.isAvailable()) {
@@ -1212,7 +1212,7 @@ export function systemIdToRawgPlatformId(systemId: string): number | undefined {
 
 /** Tunable options for `RawgCoverArtProvider`. */
 export interface RawgProviderOptions {
-  /** Callable that returns the current API key, or "" when unconfigured. */
+  /** Callable that returns the current provider credential, or "" when unconfigured. */
   getApiKey: () => string;
   /** Override `fetch` (useful for unit tests). */
   fetchImpl?: typeof fetch;
@@ -1233,7 +1233,7 @@ interface RawgGamesResponse {
 
 /**
  * RAWG-backed cover-art / screenshot provider. Requires the user to supply
- * their own RAWG API key via the Settings "API Keys" tab. Free tier allows
+ * their own RAWG credential via the Settings "Connections" tab. Free tier allows
  * ~20,000 requests/month.
  */
 export class RawgCoverArtProvider implements ApiKeyedProvider {
@@ -1324,11 +1324,11 @@ export class RawgCoverArtProvider implements ApiKeyedProvider {
   /** Cheap probe: ask RAWG for a single game record to validate the key. */
   async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
     const key = this.getApiKey().trim();
-    if (!key) return "No API key configured.";
+    if (!key) return "No RAWG connection configured.";
     const url = `https://api.rawg.io/api/games?page_size=1&key=${encodeURIComponent(key)}`;
     try {
       const resp = await this.fetchImpl(url, { signal: opts.signal });
-      if (resp.status === 401 || resp.status === 403) return "RAWG rejected the API key.";
+      if (resp.status === 401 || resp.status === 403) return "RAWG rejected the saved credential.";
       if (!resp.ok) return `RAWG returned HTTP ${resp.status}.`;
       return true;
     } catch (err) {
@@ -1391,7 +1391,7 @@ interface MobyGamesGamesResponse {
 
 /**
  * MobyGames-backed cover art provider. Requires the user to supply their
- * own MobyGames API key via the Settings "API Keys" tab.
+ * own MobyGames credential via the Settings "Connections" tab.
  *
  * Per MobyGames API terms, results include an attribution label — the
  * `sourceName` ("MobyGames") is surfaced in the candidate picker.
@@ -1473,11 +1473,11 @@ export class MobyGamesCoverArtProvider implements ApiKeyedProvider {
 
   async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
     const key = this.getApiKey().trim();
-    if (!key) return "No API key configured.";
+    if (!key) return "No MobyGames connection configured.";
     const url = `https://api.mobygames.com/v1/games?limit=1&api_key=${encodeURIComponent(key)}`;
     try {
       const resp = await this.fetchImpl(url, { signal: opts.signal });
-      if (resp.status === 401 || resp.status === 403) return "MobyGames rejected the API key.";
+      if (resp.status === 401 || resp.status === 403) return "MobyGames rejected the saved credential.";
       if (!resp.ok) return `MobyGames returned HTTP ${resp.status}.`;
       return true;
     } catch (err) {
@@ -1568,7 +1568,7 @@ interface TgdbImagesResponse {
 
 /**
  * TheGamesDB-backed cover art provider. Requires the user to supply their
- * own TheGamesDB API key via the Settings "API Keys" tab (free for personal
+ * own TheGamesDB credential via the Settings "Connections" tab (free for personal
  * use; request at https://thegamesdb.net/).
  *
  * Strategy:
@@ -1706,12 +1706,12 @@ export class TheGamesDBCoverArtProvider implements ApiKeyedProvider {
 
   async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
     const key = this.getApiKey().trim();
-    if (!key) return "No API key configured.";
+    if (!key) return "No TheGamesDB connection configured.";
     // Minimal probe: the platforms endpoint is fixed-size and cheap.
     const url = `https://api.thegamesdb.net/v1/Platforms?apikey=${encodeURIComponent(key)}`;
     try {
       const resp = await this.fetchImpl(url, { signal: opts.signal });
-      if (resp.status === 401 || resp.status === 403) return "TheGamesDB rejected the API key.";
+      if (resp.status === 401 || resp.status === 403) return "TheGamesDB rejected the saved credential.";
       if (!resp.ok) return `TheGamesDB returned HTTP ${resp.status}.`;
       return true;
     } catch (err) {
@@ -2047,14 +2047,14 @@ export class SteamGridDBCoverArtProvider implements ApiKeyedProvider {
 
   async testConnection(opts: { signal?: AbortSignal } = {}): Promise<true | string> {
     const key = this.getApiKey().trim();
-    if (!key) return "No API key configured.";
+    if (!key) return "No SteamGridDB connection configured.";
     const url = "https://www.steamgriddb.com/api/v2/search/autocomplete/portal";
     try {
       const resp = await this.fetchImpl(url, {
         signal: opts.signal,
         headers: { Authorization: `Bearer ${key}` },
       });
-      if (resp.status === 401 || resp.status === 403) return "SteamGridDB rejected the API key.";
+      if (resp.status === 401 || resp.status === 403) return "SteamGridDB rejected the saved credential.";
       if (!resp.ok) return `SteamGridDB returned HTTP ${resp.status}.`;
       return true;
     } catch (err) {
@@ -2071,7 +2071,7 @@ export class SteamGridDBCoverArtProvider implements ApiKeyedProvider {
  * Primary path: ROM hash (MD5) → exact database match → box-2D media URL.
  * Fallback path: ROM filename → near-exact match.
  *
- * Requires a ScreenScraper account (ssid:sspassword in the API Keys settings).
+ * Requires a ScreenScraper account (ssid:sspassword in Connections settings).
  */
 export class ScreenScraperCoverArtProvider implements ApiKeyedProvider {
   readonly id = "screenscraper";

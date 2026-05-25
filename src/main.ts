@@ -339,7 +339,7 @@ async function main(): Promise<void> {
   const persistGranted = await requestPersistentStorage();
   installStoragePressureListener();
   if (!persistGranted && deviceCaps.isChromOS) {
-    console.warn("[RetroOasis] Persistent storage denied — data may be evicted under quota pressure. Enable a cloud backup provider in Settings → Cloud.");
+    console.warn("[RetroOasis] Persistent storage denied — data may be evicted under quota pressure. Turn on save sync in Settings → Save Sync.");
   }
 
   // 4. Monitor storage and warn when quota is dangerously low.
@@ -642,24 +642,24 @@ async function main(): Promise<void> {
     }
 
     if (gameId && cloudSaveManager.isConnected()) {
-      setLoadingSubtitle("Checking local and cloud save states before launch…");
+      setLoadingSubtitle("Checking local and synced save states before launch…");
       try {
         const result = await cloudSaveManager.syncGame(gameId, saveLibrary);
         if (result.errors > 0) {
           console.warn(
-            `[${APP_NAME}] Cloud save-state sync completed with slot errors before launch.`,
+            `[${APP_NAME}] Save-state sync completed with slot errors before launch.`,
             result,
           );
-          showInfoToast(`Cloud sync had ${result.errors} error(s) — open the Save States panel to retry.`);
+          showInfoToast(`Save sync had ${result.errors} error(s) — open the Save States panel to retry.`);
         } else if (result.pulled > 0 || result.pushed > 0) {
           const parts: string[] = [];
-          if (result.pulled > 0) parts.push(`${result.pulled} pulled from cloud`);
-          if (result.pushed > 0) parts.push(`${result.pushed} uploaded to cloud`);
+          if (result.pulled > 0) parts.push(`${result.pulled} restored from sync`);
+          if (result.pushed > 0) parts.push(`${result.pushed} mirrored to sync`);
           showInfoToast(`Save states updated · ${parts.join(" · ")}`);
         }
       } catch (error) {
         console.warn(
-          `[${APP_NAME}] Cloud save-state sync failed before launch; continuing with local save states.`,
+          `[${APP_NAME}] Save-state sync failed before launch; continuing with local save states.`,
           error,
         );
       }
@@ -801,7 +801,7 @@ async function main(): Promise<void> {
   const onApplyPatch = async (gameId: string, patchFile: File): Promise<void> => {
     const entry = await library.getGame(gameId);
     if (!entry) throw new Error("Game not found in library");
-    if (!entry.blob) throw new Error("This game is currently in the cloud. Please launch it once to download it before applying patches.");
+    if (!entry.blob) throw new Error("This game is from a remote library source. Please launch it once to download it before applying patches.");
 
     const romBuffer   = await entry.blob.arrayBuffer();
     const patchBuffer = await patchFile.arrayBuffer();

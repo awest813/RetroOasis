@@ -15,7 +15,7 @@
  * full UI module.
  *
  * The registry subscribes to the {@link ApiKeyStore} so changes made from
- * the Settings → API Keys tab (key edits, enable/disable toggles, reorder)
+ * the Settings → Connections tab (credential edits, enable/disable toggles, reorder)
  * automatically rebuild the provider chain.
  */
 
@@ -45,7 +45,7 @@ interface ApiKeyTester {
   testConnection(opts?: { signal?: AbortSignal }): Promise<true | string>;
 }
 
-/** Single shared store for bring-your-own API keys (RAWG, MobyGames, …). */
+/** Single shared store for bring-your-own provider credentials (RAWG, MobyGames, …). */
 export function getApiKeyStore(): ApiKeyStore {
   if (!_apiKeyStore) {
     _apiKeyStore = new ApiKeyStore({ providers: DEFAULT_API_KEY_PROVIDERS });

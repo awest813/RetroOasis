@@ -138,7 +138,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     "Drop a game file onto the page, or click the upload area to browse for one.",
     "If asked, choose which system to use — this happens with some common file formats.",
     "Your game launches automatically — enjoy!",
-    "Save your progress with F5, load it back with F7, and press Esc to return to your game library. Saves stay local first, and cloud backup can mirror them if you connect it later.",
+    "Save your progress with F5, load it back with F7, and press Esc to return to your game library. Saves stay local first, and save sync can mirror them if you connect it later.",
   ];
   const stepList = make("ol", { class: "help-steps" });
   for (const step of steps) stepList.appendChild(make("li", { class: "help-step" }, step));
@@ -183,7 +183,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     ["PSP game won't start", "PSP games need a special browser feature. Try refreshing the page once — this sets things up automatically."],
     ["No sound", "Make sure the browser tab isn't muted. Some games take a few seconds to start audio."],
     ["Game is slow or choppy", "Open Settings → Performance and switch to Performance mode. Closing other browser tabs can also help."],
-    ["Saves aren't working", "Your saves live in your browser on this device. If you connect cloud backup, it mirrors those saves instead of replacing them. Clearing browser data will erase the local copy, so export saves first if you want a backup."],
+    ["Saves aren't working", "Your saves live in your browser on this device. If you turn on save sync, it mirrors those saves instead of replacing them. Clearing browser data will erase the local copy, so export saves first if you want a backup."],
     ["Controls not responding", "Click on the game screen first to make sure it has focus. Gamepads should be connected before launching a game."],
     ["Stuck on loading screen", "Try refreshing the page. If the issue persists, the game file may be corrupted or an unsupported format."],
     ["Can't connect to a friend online", "Confirm Settings → Play Together has the same server URL for both of you, Online play is on, and you are playing the same game. Try Logs in the Play Together window; strict networks may need a TURN server under Advanced."],
@@ -200,7 +200,7 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
     `${appName} lets you play retro games from classic systems — PSP, N64, PS1, NDS, GBA, SNES, NES, Genesis and more — right in your browser. No installs, no account, nothing to sign up for.`
   ));
   aboutSection.appendChild(make("p", { class: "settings-help" },
-    `Your local game library and saves stay on this device by default. If you connect cloud storage, cloud saves mirror progress and cloud library sources add remote games beside your local ROMs. ${appName} does not upload anything until you connect a provider.`
+    `Your local game library and saves stay on this device by default. If you turn on save sync or add remote library sources, ${appName} can mirror progress and show remote games beside your local ROMs. Nothing uploads until you connect a provider.`
   ));
 
   // Storage usage estimate
@@ -403,7 +403,7 @@ export function buildAchievementsTab(
         dashboard.appendChild(recentSection);
       }
     }).catch(err => {
-      header.querySelector(".settings-help")!.textContent = "Failed to fetch achievements data. Check your API key.";
+      header.querySelector(".settings-help")!.textContent = "Failed to fetch achievements data. Check your RetroAchievements connection.";
       console.error(err);
     });
   }).catch(err => {
@@ -419,7 +419,7 @@ function _buildStatCard(label: string, value: string | number): HTMLElement {
   return card;
 }
 
-// ── API Keys tab ─────────────────────────────────────────────────────────────
+// ── Connections tab ──────────────────────────────────────────────────────────
 
 /**
  * Result of a provider connection test. Providers may be missing a key,
@@ -457,7 +457,7 @@ function splitCredentialPair(key: string): [string, string] {
 }
 
 function getConnectionProviderMeta(cfg: ApiKeyProviderConfig): ConnectionProviderMeta {
-  const singleKey = (label = "API key", placeholder = "Paste your key, then Save or Enter"): ConnectionProviderMeta => ({
+  const singleKey = (label = "Access key", placeholder = "Paste your credential, then Save or Enter"): ConnectionProviderMeta => ({
     displayName: cfg.name,
     purposeLabel: "Cover art",
     description: cfg.description,
@@ -478,7 +478,7 @@ function getConnectionProviderMeta(cfg: ApiKeyProviderConfig): ConnectionProvide
         category: "achievements",
         fields: [
           { id: "username", label: "Username", placeholder: "RetroAchievements username" },
-          { id: "apiKey", label: "Web API key", placeholder: "Paste your Web API key", secret: true },
+          { id: "apiKey", label: "Web token", placeholder: "Paste your RetroAchievements web token", secret: true },
         ],
         serialize: (values) => `${values["username"] ?? ""}:${values["apiKey"] ?? ""}`,
         hydrate: (key) => {
@@ -583,12 +583,12 @@ function timeAgo(at: number, now: number = Date.now()): string {
 }
 
 /**
- * Build the "API Keys" settings tab. Renders one row per registered
+ * Build the "Connections" settings tab. Renders one row per registered
  * {@link ApiKeyProviderConfig} with:
  *   - masked input + show/hide toggle + Save / Remove buttons
  *   - enabled checkbox (and a visually-dimmed row when disabled)
  *   - status pill (Active / No key / Invalid key / Disabled / Testing)
- *   - "Get an API key" external link and Test button
+ *   - provider setup external link and Test button
  *   - inline test result message (ok / error) with `aria-live`
  *   - drag-and-drop reorder via a grab handle, with ▲/▼ buttons as
  *     an accessible fallback

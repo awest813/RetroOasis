@@ -13,8 +13,8 @@
  */
 
 /**
- * Metadata describing one provider that supports a bring-your-own API key.
- * The Settings UI uses this to render a "Get an API key" link and a
+ * Metadata describing one provider that supports bring-your-own credentials.
+ * The Settings UI uses this to render a provider setup link and a
  * descriptive label for each row.
  */
 export interface ApiKeyProviderConfig {
@@ -24,7 +24,7 @@ export interface ApiKeyProviderConfig {
   readonly name: string;
   /** One-sentence description of what this provider offers. */
   readonly description: string;
-  /** URL the user visits to create an account and obtain a free API key. */
+  /** URL the user visits to create an account and obtain a credential. */
   readonly signupUrl: string;
   /**
    * Shape-validation for a trimmed key string. Return `true` for an
@@ -36,7 +36,7 @@ export interface ApiKeyProviderConfig {
 
 /** Persisted per-provider state. */
 export interface ApiKeyState {
-  /** The API key. Empty string means "no key stored". */
+  /** The stored credential. Empty string means nothing is stored. */
   key: string;
   /** User toggle — false keeps the key but skips the provider in the chain. */
   enabled: boolean;
@@ -83,7 +83,7 @@ function defaultState(): PersistedShape {
 }
 
 /**
- * Bring-your-own API key store.
+ * Bring-your-own connection credential store.
  *
  * Instances are cheap to construct; multiple instances sharing the same
  * `namespace` and `storage` observe each other via the Web Storage API's
@@ -289,8 +289,8 @@ function genericKeyValidator(minLen: number, label: string) {
   return (key: string): true | string => {
     const s = key.trim();
     if (s.length < minLen) return `${label} key looks too short (expected at least ${minLen} characters).`;
-    if (looksLikePlaceholderOrUrl(s)) return `${label} key looks like a placeholder or URL, not an API key.`;
-    if (!/^[A-Za-z0-9._~+\-/]+$/.test(s)) return `${label} key contains characters that aren't expected in an API key.`;
+    if (looksLikePlaceholderOrUrl(s)) return `${label} credential looks like a placeholder or URL.`;
+    if (!/^[A-Za-z0-9._~+\-/]+$/.test(s)) return `${label} credential contains unexpected characters.`;
     return true;
   };
 }
@@ -307,14 +307,14 @@ export const DEFAULT_API_KEY_PROVIDERS: readonly ApiKeyProviderConfig[] = Object
   {
     id: "mobygames",
     name: "MobyGames",
-    description: "Long-running games database with box art and platform-accurate covers. Free personal-use API key available on request.",
+    description: "Long-running games database with box art and platform-accurate covers. Free personal-use access is available on request.",
     signupUrl: "https://www.mobygames.com/info/api/",
     validate: genericKeyValidator(16, "MobyGames"),
   },
   {
     id: "thegamesdb",
     name: "TheGamesDB",
-    description: "Community-driven open games database. Front/back boxart, screenshots, and metadata. Personal-use API keys are free.",
+    description: "Community-driven open games database. Front/back boxart, screenshots, and metadata. Personal-use credentials are free.",
     signupUrl: "https://thegamesdb.net/",
     validate: genericKeyValidator(16, "TheGamesDB"),
   },
@@ -334,7 +334,7 @@ export const DEFAULT_API_KEY_PROVIDERS: readonly ApiKeyProviderConfig[] = Object
   {
     id: "steamgriddb",
     name: "SteamGridDB",
-    description: "Premium gaming assets: high-res grids, hero backgrounds, and transparent logos. Free personal API keys.",
+    description: "Premium gaming assets: high-res grids, hero backgrounds, and transparent logos. Free personal access keys.",
     signupUrl: "https://www.steamgriddb.com/profile/api",
     validate: genericKeyValidator(16, "SteamGridDB"),
   },

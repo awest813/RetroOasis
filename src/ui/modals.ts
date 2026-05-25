@@ -401,9 +401,9 @@ export type CoverArtPickResult =
   | { type: "remove" }
   | null;
 
-/** Optional hooks for the cover-art dialog (e.g. jump to Settings → API Keys). */
+/** Optional hooks for the cover-art dialog (e.g. jump to Settings → Connections). */
 export type CoverArtPickerOptions = {
-  /** After the dialog closes, open Settings on the API Keys tab. */
+  /** After the dialog closes, open Settings on the Connections tab. */
   onOpenApiKeysSettings?: () => void;
 };
 
@@ -557,8 +557,8 @@ export function showCoverArtPickerDialog(
       ? createElement("button", {
         class: "btn btn--ghost cover-art-open-apikeys",
         type: "button",
-        "aria-label": "Close and open Settings on the API Keys tab",
-      }, "Configure API keys…")
+        "aria-label": "Close and open Settings on the Connections tab",
+      }, "Configure Connections…")
       : null;
 
     // ── Auto-fetch section ───────────────────────────────────────────────────
@@ -575,7 +575,7 @@ export function showCoverArtPickerDialog(
     ));
     const autoHint = createElement("p", {
       class: "cover-art-panel__hint",
-    }, "Searches your configured cover providers (Libretro, GitHub collection, Wikimedia, and any APIs you enable). Use Configure API keys below if you use RAWG, MobyGames, TheGamesDB, or similar.");
+    }, "Searches your connected cover providers (Libretro, GitHub collection, Wikimedia, plus any optional sources you add). Use Configure Connections below if you use RAWG, MobyGames, TheGamesDB, or similar.");
     const btnAuto = createElement(
       "button",
       {
@@ -695,7 +695,7 @@ export function showCoverArtCandidatePicker(
       { class: "confirm-body cover-art-candidate__intro" },
       candidates.length === 0
         ? `No online matches for "${gameName}". Upload an image from the previous menu, or paste a direct image URL.`
-        : `${candidates.length} match${candidates.length === 1 ? "" : "es"} for "${gameName}" — choose one, or dismiss to try another source in Settings → API Keys.`,
+        : `${candidates.length} match${candidates.length === 1 ? "" : "es"} for "${gameName}" — choose one, or dismiss to try another source in Settings → Connections.`,
     ));
 
     const close = (result: string | null): void => {
@@ -1079,10 +1079,10 @@ export function showConflictDialog(
       class: "conflict-card conflict-card--remote",
       type: "button",
     });
-    const remoteHeader = createElement("div", { class: "conflict-card__header" }, "Cloud Save State");
+    const remoteHeader = createElement("div", { class: "conflict-card__header" }, "Synced Save State");
     const remoteLabel = createElement("div", { class: "conflict-card__label" }, conflict.remote.label);
     const remoteTime = createElement("div", { class: "conflict-card__time" }, new Date(conflict.remote.timestamp).toLocaleString());
-    const remoteBadge = createElement("span", { class: "sys-badge conflict-card__badge" }, "In the cloud");
+    const remoteBadge = createElement("span", { class: "sys-badge conflict-card__badge" }, "From save sync");
     remoteCard.append(remoteHeader, remoteLabel, remoteTime, remoteBadge);
     remoteCard.addEventListener("click", () => close("remote"), { signal: ac.signal });
 
