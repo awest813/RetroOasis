@@ -42,6 +42,11 @@ export interface SaveRuntimeAdapter {
   playerId?: string;
 }
 
+export interface RawStateSaveOptions {
+  screenshot?: Blob | Uint8Array | ArrayBuffer | ArrayBufferView | null;
+  screenshotType?: string;
+}
+
 interface SaveGameContext {
   gameId: string;
   gameName: string;
@@ -150,6 +155,83 @@ export class SaveGameService {
     return null;
   }
 
+  private normalizeStateBytes(data: Uint8Array | ArrayBuffer | ArrayBufferView | number[] | null | undefined): Uint8Array | null {
+    if (!data) return null;
+    if (data instanceof Uint8Array) return data.byteLength > 0 ? data : null;
+    if (data instanceof ArrayBuffer) {
+      const bytes = new Uint8Array(data);
+      return bytes.byteLength > 0 ? bytes : null;
+    }
+    if (ArrayBuffer.isView(data)) {
+      const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      return bytes.byteLength > 0 ? bytes : null;
+    }
+    if (Array.isArray(data)) {
+      const bytes = new Uint8Array(data);
+      return bytes.byteLength > 0 ? bytes : null;
+    }
+    return null;
+  }
+
+  private normalizeScreenshotBlob(
+    screenshot: Blob | Uint8Array | ArrayBuffer | ArrayBufferView | null | undefined,
+    type = "image/png",
+  ): Blob | null {
+    if (!screenshot) return null;
+    if (screenshot instanceof Blob) return screenshot.size > 0 ? screenshot : null;
+    const bytes = this.normalizeStateBytes(screenshot);
+    return bytes ? new Blob([bytes as unknown as Uint8Array<ArrayBuffer>], { type }) : null;
+  }
+
+  private async persistCapturedState(
+    slot: number,
+    context: SaveGameContext,
+    stateBytes: Uint8Array,
+    screenshot: Blob | null,
+  ): Promise<SaveStateEntry | null> {
+    const stateData = stateBytesToBlob(stateBytes);
+    if (!stateData) return null;
+
+    const capturedScreenshot = screenshot ?? (this.emulator.captureScreenshotAsync
+      ? await this.emulator.captureScreenshotAsync()
+      : (this.emulator.playerId ? await captureScreenshot(this.emulator.playerId) : null));
+    const thumbnail = capturedScreenshot ? await createThumbnail(capturedScreenshot) : null;
+
+    const existing = await this.saveLibrary.getState(context.gameId, slot);
+    const entry: SaveStateEntry = {
+      id: saveStateKey(context.gameId, slot),
+      gameId: context.gameId,
+      gameName: context.gameName,
+      systemId: context.systemId,
+      slot,
+      label: existing?.label || defaultSlotLabel(slot),
+      timestamp: Date.now(),
+      thumbnail,
+      stateData,
+      isAutoSave: slot === AUTO_SAVE_SLOT,
+    };
+
+    await this.saveLibrary.saveState(entry);
+    const saved = await this.saveLibrary.getState(context.gameId, slot);
+
+    if (saved && this.cloudManager?.isConnected() && this.cloudManager.autoSyncEnabled) {
+      this.emit({ status: "syncing-cloud", gameId: context.gameId, slot });
+      try {
+        await this.cloudManager.push(saved);
+        this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save mirrored by save sync." });
+      } catch (error) {
+        this.emit({
+          status: "sync-error",
+          gameId: context.gameId,
+          slot,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return saved;
+  }
+
 
   private resolveContext(override?: Partial<SaveGameContext>): SaveGameContext | null {
     if (override?.gameId && override.gameName && override.systemId) {
@@ -199,44 +281,7 @@ export class SaveGameService {
         });
         return null;
       }
-      const stateData = stateBytesToBlob(stateBytes);
-      const screenshot = this.emulator.captureScreenshotAsync
-        ? await this.emulator.captureScreenshotAsync()
-        : (this.emulator.playerId ? await captureScreenshot(this.emulator.playerId) : null);
-      const thumbnail = screenshot ? await createThumbnail(screenshot) : null;
-
-      // Preserve the user-defined label if one already exists for this slot.
-      const existing = await this.saveLibrary.getState(context.gameId, slot);
-      const entry: SaveStateEntry = {
-        id: saveStateKey(context.gameId, slot),
-        gameId: context.gameId,
-        gameName: context.gameName,
-        systemId: context.systemId,
-        slot,
-        label: existing?.label || defaultSlotLabel(slot),
-        timestamp: Date.now(),
-        thumbnail,
-        stateData,
-        isAutoSave: slot === AUTO_SAVE_SLOT,
-      };
-
-      await this.saveLibrary.saveState(entry);
-      const saved = await this.saveLibrary.getState(context.gameId, slot);
-
-      if (saved && this.cloudManager?.isConnected() && this.cloudManager.autoSyncEnabled) {
-        this.emit({ status: "syncing-cloud", gameId: context.gameId, slot });
-        try {
-          await this.cloudManager.push(saved);
-          this.emit({ status: "sync-success", gameId: context.gameId, slot, message: "Local save mirrored by save sync." });
-        } catch (error) {
-          this.emit({
-            status: "sync-error",
-            gameId: context.gameId,
-            slot,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+      const saved = await this.persistCapturedState(slot, context, stateBytes, null);
 
       this.emit({ status: "idle", gameId: context.gameId, slot });
       return saved;
@@ -247,6 +292,35 @@ export class SaveGameService {
     } finally {
       this.pendingSaves.delete(pendingKey);
     }
+  }
+
+  async saveRawState(
+    slot: number,
+    stateData: Uint8Array | ArrayBuffer | ArrayBufferView | number[] | null | undefined,
+    opts: RawStateSaveOptions = {},
+    override?: Partial<SaveGameContext>,
+  ): Promise<SaveStateEntry | null> {
+    const context = this.resolveContext(override);
+    if (!context) return null;
+
+    const stateBytes = this.normalizeStateBytes(stateData);
+    if (!stateBytes) {
+      this.emit({
+        status: "idle",
+        gameId: context.gameId,
+        slot,
+        message: "Could not capture save data from the emulator menu.",
+      });
+      return null;
+    }
+
+    return this.enqueue(async () => {
+      this.emit({ status: "saving-local", gameId: context.gameId, slot });
+      const screenshot = this.normalizeScreenshotBlob(opts.screenshot, opts.screenshotType);
+      const saved = await this.persistCapturedState(slot, context, stateBytes, screenshot);
+      this.emit({ status: "idle", gameId: context.gameId, slot });
+      return saved;
+    });
   }
 
   /**

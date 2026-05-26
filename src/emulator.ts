@@ -89,6 +89,8 @@ declare global {
     EJS_ready?:        () => void;
     EJS_onGameStart?:  () => void;
     EJS_onExit?:       () => void;
+    EJS_onLoadState?:  () => void;
+    EJS_onSaveState?:  (event: EJSSaveStateEvent) => void;
     EJS_emulator?:     EJSEmulatorInstance;
     /** Netplay signalling server WebSocket URL (set when netplay is active). */
     EJS_netplayServer?:     string;
@@ -969,6 +971,10 @@ export interface LaunchOptions {
     apiKey: string;
     hardcore?: boolean;
   };
+  /** Intercepts EmulatorJS's built-in Save State menu action. */
+  onEjsSaveState?: (event: EJSSaveStateEvent) => void;
+  /** Intercepts EmulatorJS's built-in Load State menu action. */
+  onEjsLoadState?: () => void;
   /**
    * When true, skip the file-extension validation check in the emulator.
    *
@@ -978,6 +984,12 @@ export interface LaunchOptions {
    * accepted extensions, but the user's explicit choice should be respected.
    */
   skipExtensionCheck?: boolean;
+}
+
+export interface EJSSaveStateEvent {
+  state?: Uint8Array | ArrayBuffer | ArrayBufferView | number[] | null;
+  screenshot?: Blob | Uint8Array | ArrayBuffer | ArrayBufferView | null;
+  format?: string;
 }
 
 // ── PSPEmulator ───────────────────────────────────────────────────────────────
@@ -3246,6 +3258,10 @@ export class PSPEmulator {
       window.EJS_disableAutoUnload = true;
       window.EJS_askBeforeExit = true;
       window.EJS_fixedSaveInterval = 30_000;
+      if (opts.onEjsSaveState) window.EJS_onSaveState = opts.onEjsSaveState;
+      else delete window.EJS_onSaveState;
+      if (opts.onEjsLoadState) window.EJS_onLoadState = opts.onEjsLoadState;
+      else delete window.EJS_onLoadState;
       window.EJS_disableBatchBootup = false;
       const launchExt = gameFile.name.split(".").pop()?.toLowerCase() ?? "";
       if (opts.systemId === "psx" && ["chd", "iso", "pbp"].includes(launchExt)) {
@@ -4201,6 +4217,8 @@ export class PSPEmulator {
     delete ejsWindow.EJS_ready;
     delete ejsWindow.EJS_onGameStart;
     delete ejsWindow.EJS_onExit;
+    delete ejsWindow.EJS_onLoadState;
+    delete ejsWindow.EJS_onSaveState;
     delete ejsWindow.EJS_player;
     delete ejsWindow.EJS_core;
     delete ejsWindow.EJS_gameUrl;

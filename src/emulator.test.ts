@@ -807,6 +807,29 @@ describe('PSPEmulator', () => {
       expect(emulator.state).toBe('running');
     });
 
+    it('registers EmulatorJS menu save/load intercept callbacks during launch', async () => {
+      const onEjsSaveState = vi.fn();
+      const onEjsLoadState = vi.fn();
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      await emulator.launch({
+        file: pspFile,
+        volume: 0.7,
+        systemId: 'psp',
+        performanceMode: 'auto',
+        deviceCaps: pspCaps,
+        onEjsSaveState,
+        onEjsLoadState,
+      });
+
+      expect(window.EJS_onSaveState).toBe(onEjsSaveState);
+      expect(window.EJS_onLoadState).toBe(onEjsLoadState);
+    });
+
     it('continues PSP launch when PPSSPP misses the game-start callback', async () => {
       vi.useFakeTimers();
       try {

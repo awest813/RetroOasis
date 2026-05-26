@@ -127,6 +127,38 @@ describe("SaveGameService", () => {
     expect(saveState).toHaveBeenCalledTimes(1);
   });
 
+  it("persists raw EmulatorJS menu save-state bytes without calling quickSave", async () => {
+    const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
+    const getState = vi.fn().mockImplementation(async (_gameId: string, slot: number) => makeEntry(slot));
+    const saveLibrary = {
+      saveState,
+      getState,
+    } as unknown as SaveStateLibrary;
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => null),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => null),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "n64" }),
+    });
+
+    const result = await service.saveRawState(1, new Uint8Array([9, 8, 7]));
+
+    expect(result).not.toBeNull();
+    expect(emulator.quickSave).not.toHaveBeenCalled();
+    expect(emulator.readStateData).not.toHaveBeenCalled();
+    expect(saveState).toHaveBeenCalledTimes(1);
+    const saved = saveState.mock.calls[0]![0];
+    expect(new Uint8Array(await saved.stateData!.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
+  });
+
   it("does not try to read state bytes when the core rejects quick save", async () => {
     const events: Array<{ status: string; message?: string }> = [];
     const saveLibrary = {

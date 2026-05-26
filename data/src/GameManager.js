@@ -5,7 +5,9 @@ class EJS_GameManager {
         this.FS = this.Module.FS;
         this.functions = {
             restart: this.Module.cwrap("system_restart", "", []),
-            //saveStateInfo: this.Module.cwrap("save_state_info", "string", []),
+            saveStateInfo: (typeof this.Module._save_state_info === "function")
+                ? this.Module.cwrap("save_state_info", "string", [])
+                : null,
             loadState: this.Module.cwrap("load_state", "number", ["string", "number"]),
             screenshot: this.Module.cwrap("cmd_take_screenshot", "", []),
             simulateInput: this.Module.cwrap("simulate_input", "null", ["number", "number", "number"]),
@@ -195,7 +197,29 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
         this.functions.restart();
     }
     getState() {
-        return this.Module.EmulatorJSGetState();
+        if (typeof this.Module.EmulatorJSGetState === "function") {
+            return this.Module.EmulatorJSGetState();
+        }
+
+        if (typeof this.functions.saveStateInfo !== "function") {
+            throw new Error("Save state info is unavailable");
+        }
+        const info = this.functions.saveStateInfo();
+        if (typeof info !== "string") {
+            throw new Error("Save state info is unavailable");
+        }
+
+        const parts = info.split("|").map((part) => parseInt(part, 10));
+        const size = parts[0];
+        const ptr = parts[1];
+        if (!Number.isFinite(size) || !Number.isFinite(ptr) || size <= 0 || ptr < 0) {
+            throw new Error("Invalid save state info");
+        }
+        if (!this.Module.HEAPU8 || ptr + size > this.Module.HEAPU8.length) {
+            throw new Error("Save state memory is unavailable");
+        }
+
+        return this.Module.HEAPU8.slice(ptr, ptr + size);
     }
     loadState(state) {
         try {

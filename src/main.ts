@@ -21,7 +21,7 @@
 import "./style.css";
 import { diagInfo } from "./diagnosticLog.js";
 import { registerCOIServiceWorker } from "./coiBootstrap.js";
-import { PSPEmulator }   from "./emulator.js";
+import { PSPEmulator, type EJSSaveStateEvent }   from "./emulator.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
 import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
@@ -767,6 +767,40 @@ async function main(): Promise<void> {
       netplayManager: peekNetplayManager() ?? undefined,
       gameId,
       skipExtensionCheck:  !!gameId,
+      onEjsSaveState: (event: EJSSaveStateEvent) => {
+        const screenshotType = event.format?.startsWith("image/")
+          ? event.format
+          : `image/${event.format || "png"}`;
+        void saveService.saveRawState(1, event.state, {
+          screenshot: event.screenshot,
+          screenshotType,
+        }, currentGameId && currentSystemId ? {
+          gameId: currentGameId,
+          gameName,
+          systemId: currentSystemId,
+        } : undefined)
+          .then((entry) => {
+            if (entry) showInfoToast("Saved to Slot 1");
+            else showInfoToast("Save failed - wait for the core to finish starting.", "error");
+          })
+          .catch((error) => {
+            showInfoToast(`Save failed: ${error instanceof Error ? error.message : String(error)}`, "error");
+          });
+      },
+      onEjsLoadState: () => {
+        void saveService.loadSlot(1, currentGameId && currentSystemId ? {
+          gameId: currentGameId,
+          gameName,
+          systemId: currentSystemId,
+        } : undefined)
+          .then((ok) => {
+            if (ok) showInfoToast("Loaded Slot 1");
+            else showInfoToast("Nothing saved in Slot 1 yet, or the emulator is still starting.", "error");
+          })
+          .catch((error) => {
+            showInfoToast(`Load failed: ${error instanceof Error ? error.message : String(error)}`, "error");
+          });
+      },
       achievements: raCreds ? {
         username: raCreds.username,
         apiKey: raCreds.apiKey,
