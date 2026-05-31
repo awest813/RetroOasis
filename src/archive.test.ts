@@ -11,6 +11,7 @@ import {
   type ArchiveExtractProgress,
 } from "./archive.js";
 import { createStoredZip } from "./zip.js";
+import { deflateSync, gzipSync } from "fflate";
 
 // ── ZIP binary builder ────────────────────────────────────────────────────────
 
@@ -111,6 +112,68 @@ function buildZip(
 
   // suppress unused variable warning
   void dataOffset;
+
+  return buf;
+}
+
+function buildDeflatedZip(fileName: string, data: Uint8Array): ArrayBuffer {
+  const compressed = deflateSync(data);
+  const nameBytes = new TextEncoder().encode(fileName);
+  const nameLen = nameBytes.length;
+  const localHeaderSize = 30 + nameLen;
+  const centralEntrySize = 46 + nameLen;
+  const eocdSize = 22;
+  const totalSize = localHeaderSize + compressed.length + centralEntrySize + eocdSize;
+  const buf = new ArrayBuffer(totalSize);
+  const view = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  let pos = 0;
+
+  writeUint32LE(view, pos, 0x04034b50);
+  writeUint16LE(view, pos + 4, 20);
+  writeUint16LE(view, pos + 6, 0);
+  writeUint16LE(view, pos + 8, 8);
+  writeUint16LE(view, pos + 10, 0);
+  writeUint16LE(view, pos + 12, 0);
+  writeUint32LE(view, pos + 14, 0);
+  writeUint32LE(view, pos + 18, compressed.length);
+  writeUint32LE(view, pos + 22, data.length);
+  writeUint16LE(view, pos + 26, nameLen);
+  writeUint16LE(view, pos + 28, 0);
+  bytes.set(nameBytes, pos + 30);
+  pos += localHeaderSize;
+  bytes.set(compressed, pos);
+  pos += compressed.length;
+
+  const centralOffset = pos;
+  writeUint32LE(view, pos, 0x02014b50);
+  writeUint16LE(view, pos + 4, 20);
+  writeUint16LE(view, pos + 6, 20);
+  writeUint16LE(view, pos + 8, 0);
+  writeUint16LE(view, pos + 10, 8);
+  writeUint16LE(view, pos + 12, 0);
+  writeUint16LE(view, pos + 14, 0);
+  writeUint32LE(view, pos + 16, 0);
+  writeUint32LE(view, pos + 20, compressed.length);
+  writeUint32LE(view, pos + 24, data.length);
+  writeUint16LE(view, pos + 28, nameLen);
+  writeUint16LE(view, pos + 30, 0);
+  writeUint16LE(view, pos + 32, 0);
+  writeUint16LE(view, pos + 34, 0);
+  writeUint16LE(view, pos + 36, 0);
+  writeUint32LE(view, pos + 38, 0);
+  writeUint32LE(view, pos + 42, 0);
+  bytes.set(nameBytes, pos + 46);
+  pos += centralEntrySize;
+
+  writeUint32LE(view, pos, 0x06054b50);
+  writeUint16LE(view, pos + 4, 0);
+  writeUint16LE(view, pos + 6, 0);
+  writeUint16LE(view, pos + 8, 1);
+  writeUint16LE(view, pos + 10, 1);
+  writeUint32LE(view, pos + 12, centralEntrySize);
+  writeUint32LE(view, pos + 16, centralOffset);
+  writeUint16LE(view, pos + 20, 0);
 
   return buf;
 }
@@ -777,25 +840,26 @@ describe('extractFromZip', () => {
     expect(new Uint8Array(await result!.blob.arrayBuffer())).toEqual(data);
   });
 
-  it('throws when DecompressionStream is absent and the entry is deflate-compressed', async () => {
-    // Temporarily remove DecompressionStream from the global scope
+  it('extracts deflate-compressed ZIP entries when DecompressionStream is absent', async () => {
     const original = globalThis.DecompressionStream;
     // @ts-expect-error intentionally removing global for test
     delete globalThis.DecompressionStream;
 
-    const content = new Uint8Array([1, 2, 3]);
-    // Method 8 = deflate
-    const zipBuf  = buildZip('game.nes', content, 8);
+    const content = new Uint8Array([1, 2, 3, 4, 5, 6]);
+    const zipBuf  = buildDeflatedZip('game.nes', content);
     const blob    = new Blob([zipBuf]);
 
     try {
-      await expect(extractFromZip(blob)).rejects.toThrow('DecompressionStream');
+      const result = await extractFromZip(blob);
+      expect(result).not.toBeNull();
+      expect(result!.name).toBe('game.nes');
+      expect(new Uint8Array(await result!.blob.arrayBuffer())).toEqual(content);
     } finally {
       globalThis.DecompressionStream = original;
     }
   });
 
-  it('includes iOS update hint in DecompressionStream error on iPhone', async () => {
+  it('uses the fallback inflater for deflate-compressed ZIP entries on older iPhone Safari', async () => {
     const original = globalThis.DecompressionStream;
     const originalUA = navigator.userAgent;
 
@@ -806,12 +870,14 @@ describe('extractFromZip', () => {
       configurable: true,
     });
 
-    const content = new Uint8Array([1, 2, 3]);
-    const zipBuf  = buildZip('game.nes', content, 8);
+    const content = new Uint8Array([1, 2, 3, 4, 5, 6]);
+    const zipBuf  = buildDeflatedZip('game.nes', content);
     const blob    = new Blob([zipBuf]);
 
     try {
-      await expect(extractFromZip(blob)).rejects.toThrow(/iOS 16\.4/);
+      const result = await extractFromZip(blob);
+      expect(result).not.toBeNull();
+      expect(new Uint8Array(await result!.blob.arrayBuffer())).toEqual(content);
     } finally {
       globalThis.DecompressionStream = original;
       Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
@@ -990,6 +1056,24 @@ describe('extractFromGzip', () => {
     const result = await extractFromGzip(new Blob([compressed]), 'archive.tgz');
     expect(result).not.toBeNull();
     expect(result!.name).toBe('game.gba');
+  });
+
+  it('extracts GZIP payloads when DecompressionStream is absent', async () => {
+    const original = globalThis.DecompressionStream;
+    // @ts-expect-error intentionally removing global for test
+    delete globalThis.DecompressionStream;
+
+    const payload = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const compressed = gzipSync(payload);
+
+    try {
+      const result = await extractFromGzip(new Blob([compressed]), 'game.gba.gz');
+      expect(result).not.toBeNull();
+      expect(result!.name).toBe('game.gba');
+      expect(new Uint8Array(await result!.blob.arrayBuffer())).toEqual(payload);
+    } finally {
+      globalThis.DecompressionStream = original;
+    }
   });
 });
 

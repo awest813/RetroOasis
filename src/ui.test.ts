@@ -7,7 +7,7 @@ import * as archive from "./archive.js";
 import type { PSPEmulator } from "./emulator.js";
 import type { GameLibrary, GameMetadata } from "./library.js";
 import type { BiosLibrary } from "./bios.js";
-import type { SaveStateEntry, SaveStateLibrary } from "./saves.js";
+import { saveEvents, type SaveStateEntry, type SaveStateLibrary } from "./saves.js";
 import type { Settings } from "./main.js";
 import { UIDirtyFlags, UIDirtyTracker, type DeviceCapabilities } from "./performance.js";
 import { store } from "./store/index.js";
@@ -403,6 +403,7 @@ describe("resolveSystemAndAdd mobile archive handling", () => {
   });
 
   afterEach(() => {
+    saveEvents.clear();
     vi.restoreAllMocks();
   });
 
@@ -5545,7 +5546,11 @@ describe("buildCloudTab — Save Sync settings tab", () => {
 // ── Library tab — Organization toggle ────────────────────────────────────────
 
 describe("buildLibraryTab — Organization toggle", () => {
-  function openLibraryTab(settings: Settings = makeSettings(), onSettingsChange = vi.fn()) {
+  function openLibraryTab(
+    settings: Settings = makeSettings(),
+    onSettingsChange = vi.fn(),
+    saveLibrary: SaveStateLibrary = { count: vi.fn().mockResolvedValue(0) } as unknown as SaveStateLibrary,
+  ) {
     openSettingsPanel(
       settings,
       fullCapsForTests,
@@ -5554,7 +5559,7 @@ describe("buildLibraryTab — Organization toggle", () => {
       onSettingsChange,
       undefined,
       undefined,
-      { count: vi.fn().mockResolvedValue(0) } as unknown as SaveStateLibrary,
+      saveLibrary,
       undefined,
       "library",
     );
@@ -5636,6 +5641,26 @@ describe("buildLibraryTab — Organization toggle", () => {
     expect(panel.textContent).toContain("Quick Save in-game");
     expect(panel.textContent).not.toContain("No save states yet");
     expect(panel.textContent).not.toContain("Save State in-game");
+  });
+
+  it("refreshes Saved Progress stats when local saves change while Settings is open", async () => {
+    let saveCount = 0;
+    const saveLibrary = {
+      count: vi.fn(async () => saveCount),
+    } as unknown as SaveStateLibrary;
+
+    openLibraryTab(makeSettings(), vi.fn(), saveLibrary);
+    const panel = document.getElementById("tab-panel-library")!;
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain("No saved progress yet");
+    });
+
+    saveCount = 2;
+    saveEvents.emit({ type: "saved", gameId: "g", slot: 1, timestamp: Date.now() });
+
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain("2 save states stored in your browser");
+    });
   });
 });
 

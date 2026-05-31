@@ -4,7 +4,7 @@ import { showConfirmDialog, showGamePickerDialog } from "../modals.js";
 import type { Settings } from "../../types/settings.js";
 import { type GameMetadata, formatBytes } from "../../library.js";
 import { GameLibrary } from "../../library.js";
-import { SaveStateLibrary } from "../../saves.js";
+import { SaveStateLibrary, saveEvents } from "../../saves.js";
 import { SYSTEMS, getSystemFeatureSummary } from "../../systems.js";
 import type { PSPEmulator } from "../../emulator.js";
 import { sessionTracker, formatPlayTime } from "../../sessionTracker.js";
@@ -100,11 +100,26 @@ export function buildLibraryTab(
 
     const saveStatsEl = make("p", { class: "device-info" }, "Calculating\u2026");
     saveSection.appendChild(saveStatsEl);
-    saveLibrary.count().then((count) => {
+    const setSaveStatsText = (count: number) => {
       saveStatsEl.textContent = count === 0
         ? "No saved progress yet \u2014 use Quick Save in-game to snapshot your progress"
         : `${count} save state${count !== 1 ? "s" : ""} stored in your browser`;
-    }).catch(() => { saveStatsEl.textContent = "Could not load save stats."; });
+    };
+    const loadSaveStats = () => {
+      saveLibrary.count()
+        .then(setSaveStatsText)
+        .catch(() => { saveStatsEl.textContent = "Could not load save stats."; });
+    };
+    loadSaveStats();
+    let unsubscribeSaveStats: (() => void) | null = null;
+    unsubscribeSaveStats = saveEvents.on("*", () => {
+      if (!saveSection.isConnected) {
+        unsubscribeSaveStats?.();
+        unsubscribeSaveStats = null;
+        return;
+      }
+      loadSaveStats();
+    });
 
     saveSection.appendChild(buildToggleRow(
       "Auto-save when leaving",
@@ -132,6 +147,7 @@ export function buildLibraryTab(
 
       try {
         const count = await saveLibrary.migrateSaves(source.id, target.id, target.name);
+        loadSaveStats();
         showInfoToast(count > 0
           ? `Migrated ${count} save state${count !== 1 ? "s" : ""} from "${source.name}" to "${target.name}".`
           : `No saves found for "${source.name}".`
@@ -151,7 +167,7 @@ export function buildLibraryTab(
       );
       if (!confirmed) return;
       await saveLibrary.clearAll();
-      saveStatsEl.textContent = "0 save states stored locally";
+      setSaveStatsText(0);
     });
     saveSection.appendChild(btnClearSaves);
     container.appendChild(saveSection);

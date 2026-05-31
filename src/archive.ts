@@ -5,18 +5,19 @@
  * packages directly (mobile and desktop) and still launch games.
  *
  * Supported extraction paths:
- *   - ZIP   (native parser + DecompressionStream deflate; on mobile Safari / Android,
+ *   - ZIP   (native parser + DecompressionStream/fflate deflate; on mobile Safari / Android,
  *            random-access ZIP layout + per-entry slices to avoid loading the whole archive)
  *   - 7Z    (legacy worker — disabled on iPhone/iPad for stability; OK on Android/desktop)
  *   - RAR   (legacy libunrar worker — same as 7z)
  *   - TAR   (native parser; streaming walk on large archives on mobile browsers)
- *   - GZIP  (DecompressionStream gzip; auto-detects inner TAR)
+ *   - GZIP  (DecompressionStream/fflate gzip; auto-detects inner TAR)
  *
  * Formats detected but not currently extracted:
  *   - bzip2 / xz (manual extraction required)
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
+import { gunzipSync, inflateSync } from "fflate";
 import extract7zWorkerUrl from "../data/compression/extract7z.js?url";
 import libunrarScriptUrl from "../data/compression/libunrar.js?url";
 import libunrarWasmUrl from "../data/compression/libunrar.wasm?url";
@@ -663,15 +664,15 @@ async function decompressWithStream(
   streamOpts?: DecompressStreamOptions
 ): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") {
-    const hint = isIOSBrowser()
-      ? " On iPhone/iPad: update to iOS 16.4 or later in Settings → General → Software Update."
-      : isAndroidMobileBrowser()
-        ? " On Android: update Chrome or WebView, or extract the archive manually."
-        : " Please extract the archive manually or use a modern browser.";
-    throw new Error(
-      "Your browser does not support DecompressionStream — ZIP archive decompression is unavailable." +
-      hint
-    );
+    if (streamOpts?.yieldWhileReading) await yieldToMain();
+    const output = format === "gzip"
+      ? gunzipSync(bytes)
+      : inflateSync(bytes);
+    if (output.length > MAX_EXTRACTED_ENTRY_BYTES) {
+      throw new Error("Archive entry is too large to extract in-browser.");
+    }
+    if (streamOpts?.yieldWhileReading) await yieldToMain();
+    return output;
   }
 
   const ds = new DecompressionStream(format);
@@ -1446,4 +1447,5 @@ export const ARCHIVE_SUPPORT_NOTE =
   "7-Zip and RAR are not extracted on iPhone/iPad. " +
   "BZIP2 (.bz2), XZ (.xz), Zstandard (.zst), and Cabinet (.cab) files must be extracted " +
   "manually before importing. Inside ZIP archives, only Stored and Deflate compression are " +
-  "supported; Deflate64, BZip2, and LZMA methods require manual extraction.";
+  "supported, with a compatibility fallback for older mobile browsers; Deflate64, BZip2, " +
+  "and LZMA methods require manual extraction.";

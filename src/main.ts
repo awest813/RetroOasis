@@ -879,7 +879,7 @@ async function main(): Promise<void> {
       gameId: currentGameId,
       gameName: settings.lastGameName ?? "Unknown",
       systemId: currentSystemId,
-    }).catch(() => {});
+    }, { skipScreenshot: true }).catch(() => {});
   };
 
   // 5c-ii. Wire play-time tracking: begin recording when the game is actually running.

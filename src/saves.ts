@@ -110,9 +110,34 @@ function promisify<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
+function waitForTransaction(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB transaction failed."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB transaction was aborted."));
+  });
+}
+
 /** Composite key for a save state: "{gameId}:{slot}" */
 export function saveStateKey(gameId: string, slot: number): string {
   return `${gameId}:${slot}`;
+}
+
+export function assertValidSaveSlot(slot: number): void {
+  if (!Number.isInteger(slot) || slot < AUTO_SAVE_SLOT || slot > MAX_SAVE_SLOTS) {
+    throw new RangeError(`Save slot must be an integer from ${AUTO_SAVE_SLOT} to ${MAX_SAVE_SLOTS}.`);
+  }
+}
+
+function assertValidGameId(gameId: string): void {
+  if (typeof gameId !== "string" || gameId.trim().length === 0) {
+    throw new TypeError("Save state requires a non-empty game id.");
+  }
+}
+
+function assertValidSaveIdentity(gameId: string, slot: number): void {
+  assertValidGameId(gameId);
+  assertValidSaveSlot(slot);
 }
 
 /** Default slot label for a given slot number. */
@@ -219,6 +244,7 @@ export class SaveStateLibrary {
    * Automatically populates `version` and computes `checksum` from stateData.
    */
   async saveState(entry: SaveStateEntry): Promise<void> {
+    assertValidSaveIdentity(entry.gameId, entry.slot);
     const db = await openDB();
 
     let checksum = entry.checksum;
@@ -229,11 +255,15 @@ export class SaveStateLibrary {
 
     const normalized: SaveStateEntry = {
       ...entry,
+      id:       saveStateKey(entry.gameId, entry.slot),
       label:    entry.label || defaultSlotLabel(entry.slot),
+      isAutoSave: entry.slot === AUTO_SAVE_SLOT,
       version:  entry.version ?? SAVE_FORMAT_VERSION,
       checksum: checksum ?? "",
     };
-    await promisify(tx(db, "readwrite").put(normalized));
+    const store = tx(db, "readwrite");
+    store.put(normalized);
+    await waitForTransaction(store.transaction);
     saveEvents.emit({ type: "saved", gameId: entry.gameId, slot: entry.slot, timestamp: Date.now() });
   }
 
@@ -241,6 +271,7 @@ export class SaveStateLibrary {
    * Get a save state by game ID and slot.
    */
   async getState(gameId: string, slot: number): Promise<SaveStateEntry | null> {
+    assertValidSaveIdentity(gameId, slot);
     const db = await openDB();
     const id = saveStateKey(gameId, slot);
     const result = await promisify<SaveStateEntry | undefined>(tx(db, "readonly").get(id));
@@ -251,6 +282,7 @@ export class SaveStateLibrary {
    * Get all save states for a specific game (all slots), sorted by slot.
    */
   async getStatesForGame(gameId: string): Promise<SaveStateEntry[]> {
+    assertValidGameId(gameId);
     const db    = await openDB();
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
     const idx   = store.index("gameId");
@@ -262,6 +294,7 @@ export class SaveStateLibrary {
    * Get metadata-only list for a game (no thumbnail or stateData blobs).
    */
   async getMetadataForGame(gameId: string): Promise<SaveStateMetadata[]> {
+    assertValidGameId(gameId);
     const states = await this.getStatesForGame(gameId);
     return states.map(({ thumbnail: _t, stateData: _s, ...meta }) => meta);
   }
@@ -271,6 +304,7 @@ export class SaveStateLibrary {
    * Returns null if no manual saves exist.
    */
   async getLatestManualSave(gameId: string): Promise<SaveStateEntry | null> {
+    assertValidGameId(gameId);
     const states = await this.getStatesForGame(gameId);
     const manual = states.filter(s => s.slot !== AUTO_SAVE_SLOT);
     if (manual.length === 0) return null;
@@ -281,6 +315,7 @@ export class SaveStateLibrary {
    * Delete a save state by game ID and slot.
    */
   async deleteState(gameId: string, slot: number): Promise<void> {
+    assertValidSaveIdentity(gameId, slot);
     const db = await openDB();
     const id = saveStateKey(gameId, slot);
     await promisify(tx(db, "readwrite").delete(id));
@@ -291,16 +326,14 @@ export class SaveStateLibrary {
    * Delete all save states for a game.
    */
   async deleteAllForGame(gameId: string): Promise<void> {
+    assertValidGameId(gameId);
     const states = await this.getStatesForGame(gameId);
     const db = await openDB();
     const store = tx(db, "readwrite");
     for (const s of states) {
       store.delete(s.id);
     }
-    await new Promise<void>((resolve, reject) => {
-      store.transaction.oncomplete = () => resolve();
-      store.transaction.onerror    = () => reject(store.transaction.error);
-    });
+    await waitForTransaction(store.transaction);
     saveEvents.emit({ type: "deleted", gameId, timestamp: Date.now() });
   }
 
@@ -308,10 +341,13 @@ export class SaveStateLibrary {
    * Update the user-defined label for a save slot.
    */
   async updateStateLabel(gameId: string, slot: number, label: string): Promise<void> {
+    assertValidSaveIdentity(gameId, slot);
     const state = await this.getState(gameId, slot);
     if (!state) return;
     const db = await openDB();
-    await promisify(tx(db, "readwrite").put({ ...state, label: label.trim() || defaultSlotLabel(slot) }));
+    const store = tx(db, "readwrite");
+    store.put({ ...state, label: label.trim() || defaultSlotLabel(slot) });
+    await waitForTransaction(store.transaction);
     saveEvents.emit({ type: "saved", gameId, slot, timestamp: Date.now() });
   }
 
@@ -319,6 +355,7 @@ export class SaveStateLibrary {
    * Check if a crash-recovery auto-save exists for a game.
    */
   async hasAutoSave(gameId: string): Promise<boolean> {
+    assertValidGameId(gameId);
     const state = await this.getState(gameId, AUTO_SAVE_SLOT);
     return state !== null;
   }
@@ -328,6 +365,8 @@ export class SaveStateLibrary {
    * The old entries are deleted and new entries with the updated gameId are created.
    */
   async migrateSaves(oldGameId: string, newGameId: string, newGameName?: string): Promise<number> {
+    assertValidGameId(oldGameId);
+    assertValidGameId(newGameId);
     const states = await this.getStatesForGame(oldGameId);
     if (states.length === 0) return 0;
 
@@ -345,10 +384,7 @@ export class SaveStateLibrary {
       store.put(migrated);
     }
 
-    await new Promise<void>((resolve, reject) => {
-      store.transaction.oncomplete = () => resolve();
-      store.transaction.onerror    = () => reject(store.transaction.error);
-    });
+    await waitForTransaction(store.transaction);
 
     saveEvents.emit({ type: "migrated", gameId: newGameId, timestamp: Date.now() });
     return states.length;
@@ -359,6 +395,7 @@ export class SaveStateLibrary {
    * Returns null if no state data is stored for the slot.
    */
   async exportState(gameId: string, slot: number): Promise<{ blob: Blob; fileName: string } | null> {
+    assertValidSaveIdentity(gameId, slot);
     const state = await this.getState(gameId, slot);
     if (!state?.stateData) return null;
 
@@ -374,6 +411,7 @@ export class SaveStateLibrary {
    * Only returns slots that have stateData.
    */
   async exportAllForGame(gameId: string): Promise<Array<{ blob: Blob; fileName: string }>> {
+    assertValidGameId(gameId);
     const states = await this.getStatesForGame(gameId);
     const results: Array<{ blob: Blob; fileName: string }> = [];
     for (const state of states) {
@@ -398,6 +436,7 @@ export class SaveStateLibrary {
     stateBlob: Blob,
     label?: string
   ): Promise<void> {
+    assertValidSaveIdentity(gameId, slot);
     const bytes    = new Uint8Array(await stateBlob.arrayBuffer());
     const checksum = computeChecksum(bytes);
     const entry: SaveStateEntry = {

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import "fake-indexeddb/auto";
 import {
   SaveStateLibrary,
+  assertValidSaveSlot,
   saveStateKey,
   AUTO_SAVE_SLOT,
   MAX_SAVE_SLOTS,
@@ -38,6 +39,19 @@ describe('saveStateKey', () => {
     const k1 = saveStateKey('game-a', 1);
     const k2 = saveStateKey('game-b', 1);
     expect(k1).not.toBe(k2);
+  });
+});
+
+describe('assertValidSaveSlot', () => {
+  it('accepts auto-save and manual slots', () => {
+    expect(() => assertValidSaveSlot(AUTO_SAVE_SLOT)).not.toThrow();
+    expect(() => assertValidSaveSlot(MAX_SAVE_SLOTS)).not.toThrow();
+  });
+
+  it('rejects out-of-range and non-integer slots', () => {
+    expect(() => assertValidSaveSlot(-1)).toThrow(RangeError);
+    expect(() => assertValidSaveSlot(MAX_SAVE_SLOTS + 1)).toThrow(RangeError);
+    expect(() => assertValidSaveSlot(1.5)).toThrow(RangeError);
   });
 });
 
@@ -123,6 +137,31 @@ describe('SaveStateLibrary', () => {
     expect(retrieved!.gameId).toBe('test-game');
     expect(retrieved!.slot).toBe(1);
     expect(retrieved!.gameName).toBe('Test Game');
+  });
+
+  it('normalizes mismatched entry id and auto-save flag before persisting', async () => {
+    await lib.saveState({
+      ...makeEntry({
+      slot: AUTO_SAVE_SLOT,
+      isAutoSave: false,
+      }),
+      id: 'wrong-id',
+    });
+
+    const retrieved = await lib.getState('test-game', AUTO_SAVE_SLOT);
+    expect(retrieved).not.toBeNull();
+    expect(retrieved!.id).toBe(saveStateKey('test-game', AUTO_SAVE_SLOT));
+    expect(retrieved!.isAutoSave).toBe(true);
+  });
+
+  it('rejects saves with invalid slots before writing', async () => {
+    await expect(lib.saveState(makeEntry({ slot: MAX_SAVE_SLOTS + 1 }))).rejects.toThrow(RangeError);
+    expect(await lib.count()).toBe(0);
+  });
+
+  it('rejects saves with empty game ids before writing', async () => {
+    await expect(lib.saveState(makeEntry({ gameId: '' }))).rejects.toThrow(TypeError);
+    expect(await lib.count()).toBe(0);
   });
 
   it('overwrites an existing state in the same slot', async () => {

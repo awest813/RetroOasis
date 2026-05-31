@@ -597,6 +597,7 @@ body.is-playing #landing.hidden {
 }
 
 .drop-zone {
+  position: relative;
   width: min(var(--content-max-w), 100%);
   margin: clamp(24px, 4vw, 40px) auto 0;
   padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 32px);
@@ -1450,6 +1451,19 @@ html.touch-ui .library-search-wrap {
 html.touch-ui #library-search {
   min-height: var(--touch-min);
   font-size: 1rem; /* prevents iOS zoom on focus */
+}
+
+html.touch-ui #file-input {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 1;
+}
+
+html.touch-ui .drop-zone > :not(#file-input) {
+  pointer-events: none;
 }
 
 /* Larger game card spacing for touch scrolling */

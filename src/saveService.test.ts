@@ -95,6 +95,26 @@ describe("SaveGameService", () => {
     vi.useRealTimers();
   });
 
+  it("rejects invalid save slots before touching the emulator", async () => {
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([1, 2, 3])),
+      writeStateData: vi.fn(() => true),
+    };
+    const service = new SaveGameService({
+      saveLibrary: { saveState: vi.fn(), getState: vi.fn() } as unknown as SaveStateLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+
+    await expect(service.saveSlot(9)).rejects.toThrow(RangeError);
+    await expect(service.loadSlot(-1)).rejects.toThrow(RangeError);
+    expect(emulator.quickSave).not.toHaveBeenCalled();
+    expect(emulator.quickLoad).not.toHaveBeenCalled();
+  });
+
   it("does not block running cores on a stale save-state support flag", async () => {
     const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
     const saveLibrary = {
@@ -157,6 +177,63 @@ describe("SaveGameService", () => {
     expect(saveState).toHaveBeenCalledTimes(1);
     const saved = saveState.mock.calls[0]![0];
     expect(new Uint8Array(await saved.stateData!.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
+  });
+
+  it("skips screenshot capture for auto-save slots so refresh persistence is fast", async () => {
+    const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
+    const getState = vi.fn().mockImplementation(async (_gameId: string, slot: number) => makeEntry(slot));
+    const saveLibrary = {
+      saveState,
+      getState,
+    } as unknown as SaveStateLibrary;
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(() => true),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([7, 7, 7])),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => new Blob(["shot"], { type: "image/jpeg" })),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "gba" }),
+    });
+
+    const result = await service.saveSlot(0, undefined, { skipScreenshot: true });
+
+    expect(result).not.toBeNull();
+    expect(emulator.captureScreenshotAsync).not.toHaveBeenCalled();
+    expect(saveState).toHaveBeenCalledTimes(1);
+    expect(saveState.mock.calls[0]![0].thumbnail).toBeNull();
+  });
+
+  it("still captures screenshots for manual quick saves", async () => {
+    const saveState = vi.fn<(entry: SaveStateEntry) => Promise<void>>().mockResolvedValue(undefined);
+    const getState = vi.fn().mockImplementation(async (_gameId: string, slot: number) => makeEntry(slot));
+    const saveLibrary = {
+      saveState,
+      getState,
+    } as unknown as SaveStateLibrary;
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(() => true),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => new Uint8Array([8, 8, 8])),
+      writeStateData: vi.fn(() => true),
+      captureScreenshotAsync: vi.fn(async () => null),
+    };
+
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "gba" }),
+    });
+
+    await service.saveSlot(1);
+
+    expect(emulator.captureScreenshotAsync).toHaveBeenCalledTimes(1);
   });
 
   it("does not try to read state bytes when the core rejects quick save", async () => {

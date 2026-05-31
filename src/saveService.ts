@@ -3,6 +3,7 @@ import {
   AUTO_SAVE_SLOT,
   MAX_SAVE_SLOTS,
   SaveStateLibrary,
+  assertValidSaveSlot,
   captureScreenshot,
   createThumbnail,
   defaultSlotLabel,
@@ -45,6 +46,10 @@ export interface SaveRuntimeAdapter {
 export interface RawStateSaveOptions {
   screenshot?: Blob | Uint8Array | ArrayBuffer | ArrayBufferView | null;
   screenshotType?: string;
+}
+
+export interface SaveSlotOptions {
+  skipScreenshot?: boolean;
 }
 
 interface SaveGameContext {
@@ -188,13 +193,17 @@ export class SaveGameService {
     context: SaveGameContext,
     stateBytes: Uint8Array,
     screenshot: Blob | null,
+    opts: SaveSlotOptions = {},
   ): Promise<SaveStateEntry | null> {
     const stateData = stateBytesToBlob(stateBytes);
     if (!stateData) return null;
 
-    const capturedScreenshot = screenshot ?? (this.emulator.captureScreenshotAsync
-      ? await this.emulator.captureScreenshotAsync()
-      : (this.emulator.playerId ? await captureScreenshot(this.emulator.playerId) : null));
+    const shouldCaptureScreenshot = !opts.skipScreenshot && slot !== AUTO_SAVE_SLOT;
+    const capturedScreenshot = shouldCaptureScreenshot
+      ? screenshot ?? (this.emulator.captureScreenshotAsync
+        ? await this.emulator.captureScreenshotAsync()
+        : (this.emulator.playerId ? await captureScreenshot(this.emulator.playerId) : null))
+      : screenshot;
     const thumbnail = capturedScreenshot ? await createThumbnail(capturedScreenshot) : null;
 
     const existing = await this.saveLibrary.getState(context.gameId, slot);
@@ -240,7 +249,12 @@ export class SaveGameService {
     return this.getCurrentGameContext();
   }
 
-  async saveSlot(slot: number, override?: Partial<SaveGameContext>): Promise<SaveStateEntry | null> {
+  async saveSlot(
+    slot: number,
+    override?: Partial<SaveGameContext>,
+    opts: SaveSlotOptions = {},
+  ): Promise<SaveStateEntry | null> {
+    assertValidSaveSlot(slot);
     const context = this.resolveContext(override);
     if (!context) return null;
 
@@ -281,7 +295,7 @@ export class SaveGameService {
         });
         return null;
       }
-      const saved = await this.persistCapturedState(slot, context, stateBytes, null);
+      const saved = await this.persistCapturedState(slot, context, stateBytes, null, opts);
 
       this.emit({ status: "idle", gameId: context.gameId, slot });
       return saved;
@@ -300,6 +314,7 @@ export class SaveGameService {
     opts: RawStateSaveOptions = {},
     override?: Partial<SaveGameContext>,
   ): Promise<SaveStateEntry | null> {
+    assertValidSaveSlot(slot);
     const context = this.resolveContext(override);
     if (!context) return null;
 
@@ -352,6 +367,7 @@ export class SaveGameService {
   }
 
   async loadSlot(slot: number, override?: Partial<SaveGameContext>): Promise<boolean> {
+    assertValidSaveSlot(slot);
     const context = this.resolveContext(override);
     if (!context) return false;
 
@@ -400,6 +416,7 @@ export class SaveGameService {
   }
 
   async deleteSlot(slot: number, override?: Partial<SaveGameContext>): Promise<boolean> {
+    assertValidSaveSlot(slot);
     const context = this.resolveContext(override);
     if (!context) return false;
 
