@@ -40,12 +40,14 @@ describe("scheduleAutoRestoreOnGameStart", () => {
     vi.useFakeTimers();
     const writeStateData = vi.fn(() => false);
     const quickLoad = vi.fn();
+    const onError = vi.fn();
 
     scheduleAutoRestoreOnGameStart({
       emulator: { writeStateData, quickLoad },
       stateBytes: new Uint8Array([9, 9, 9]),
       slot: 1,
       delayMs: 100,
+      onError,
     });
 
     document.dispatchEvent(new CustomEvent("retro-oasis:gameStarted"));
@@ -53,6 +55,7 @@ describe("scheduleAutoRestoreOnGameStart", () => {
 
     expect(writeStateData).toHaveBeenCalledTimes(1);
     expect(quickLoad).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it("cancel() removes pending listener before game start", () => {

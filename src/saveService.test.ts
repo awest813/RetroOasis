@@ -265,6 +265,7 @@ describe("SaveGameService", () => {
     expect(emulator.readStateData).not.toHaveBeenCalled();
     expect(events.some((event) => event.status === "emulator-not-ready")).toBe(true);
     expect(events.some((event) => event.message?.includes("rejected this quick save"))).toBe(true);
+    expect(events[events.length - 1]?.status).toBe("idle");
   });
 
   it("loads valid local states through emulator write + quickLoad", async () => {
@@ -325,6 +326,32 @@ describe("SaveGameService", () => {
     expect(ok).toBe(false);
     expect(emulator.writeStateData).toHaveBeenCalled();
     expect(events).toContain("core refused load");
+  });
+
+  it("returns to idle when loading cannot write state bytes", async () => {
+    const entry = makeEntry(1);
+    const events: string[] = [];
+    const emulator = {
+      state: "running" as const,
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      readStateData: vi.fn(() => null),
+      writeStateData: vi.fn(() => false),
+    };
+    const saveLibrary = {
+      getState: vi.fn(async () => entry),
+    } as unknown as SaveStateLibrary;
+    const service = new SaveGameService({
+      saveLibrary,
+      emulator,
+      getCurrentGameContext: () => ({ gameId: "g", gameName: "Game", systemId: "psp" }),
+    });
+    service.onStatus((event) => events.push(event.status));
+
+    const ok = await service.loadSlot(1);
+
+    expect(ok).toBe(false);
+    expect(events[events.length - 1]).toBe("idle");
   });
 
   it("emits a friendly sync success message when save sync succeeds", async () => {

@@ -20,6 +20,8 @@
  *   checksum    string   — djb2 hex checksum of raw stateData bytes (optional, added in v3)
  */
 
+import { readBlobAsArrayBuffer } from "./blobUtils.js";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface SaveStateEntry {
@@ -181,7 +183,7 @@ export function computeChecksum(data: Uint8Array): string {
  */
 export async function verifySaveChecksum(entry: SaveStateEntry): Promise<boolean> {
   if (!entry.checksum || !entry.stateData) return true;
-  const bytes = new Uint8Array(await entry.stateData.arrayBuffer());
+  const bytes = new Uint8Array(await readBlobAsArrayBuffer(entry.stateData));
   return computeChecksum(bytes) === entry.checksum;
 }
 
@@ -249,7 +251,7 @@ export class SaveStateLibrary {
 
     let checksum = entry.checksum;
     if (!checksum && entry.stateData) {
-      const bytes = new Uint8Array(await entry.stateData.arrayBuffer());
+      const bytes = new Uint8Array(await readBlobAsArrayBuffer(entry.stateData));
       checksum = computeChecksum(bytes);
     }
 
@@ -437,7 +439,7 @@ export class SaveStateLibrary {
     label?: string
   ): Promise<void> {
     assertValidSaveIdentity(gameId, slot);
-    const bytes    = new Uint8Array(await stateBlob.arrayBuffer());
+    const bytes    = new Uint8Array(await readBlobAsArrayBuffer(stateBlob));
     const checksum = computeChecksum(bytes);
     const entry: SaveStateEntry = {
       id:         saveStateKey(gameId, slot),
@@ -515,6 +517,52 @@ export class SaveStateLibrary {
 /** Timeout (ms) after which a stalled `canvas.toBlob()` call is abandoned. */
 const SCREENSHOT_TIMEOUT_MS = 5_000;
 
+interface ThumbnailImageSource {
+  width: number;
+  height: number;
+  draw(ctx: CanvasRenderingContext2D, width: number, height: number): void;
+  close(): void;
+}
+
+async function loadThumbnailSource(screenshot: Blob): Promise<ThumbnailImageSource | null> {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(screenshot);
+    return {
+      width: bitmap.width,
+      height: bitmap.height,
+      draw: (ctx, width, height) => ctx.drawImage(bitmap, 0, 0, width, height),
+      close: () => bitmap.close(),
+    };
+  }
+
+  if (typeof Image === "undefined" || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    return null;
+  }
+
+  return new Promise<ThumbnailImageSource | null>((resolve) => {
+    const url = URL.createObjectURL(screenshot);
+    const img = new Image();
+    let settled = false;
+    const cleanup = () => URL.revokeObjectURL(url);
+    const done = (source: ThumbnailImageSource | null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(source);
+    };
+    img.onload = () => {
+      done({
+        width: img.naturalWidth || img.width,
+        height: img.naturalHeight || img.height,
+        draw: (ctx, width, height) => ctx.drawImage(img, 0, 0, width, height),
+        close: () => {},
+      });
+    };
+    img.onerror = () => done(null);
+    img.src = url;
+  });
+}
+
 /**
  * Capture a JPEG screenshot from the emulator canvas.
  * Returns null if the canvas is not found or capture fails.
@@ -559,24 +607,25 @@ export function captureScreenshot(playerId: string): Promise<Blob | null> {
  */
 export async function createThumbnail(screenshot: Blob): Promise<Blob | null> {
   try {
-    const bitmap = await createImageBitmap(screenshot);
+    const source = await loadThumbnailSource(screenshot);
+    if (!source || source.width === 0 || source.height === 0) return null;
     const MAX_W = 240;
     const MAX_H = 160;
-    const scale = Math.min(MAX_W / bitmap.width, MAX_H / bitmap.height, 1);
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
+    const scale = Math.min(MAX_W / source.width, MAX_H / source.height, 1);
+    const w = Math.round(source.width * scale);
+    const h = Math.round(source.height * scale);
 
     const canvas = document.createElement("canvas");
     canvas.width  = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      bitmap.close();
+      source.close();
       return null;
     }
 
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close();
+    source.draw(ctx, w, h);
+    source.close();
 
     return new Promise<Blob | null>((resolve) => {
       let settled = false;

@@ -59,10 +59,11 @@ export function scheduleAutoRestoreOnGameStart(opts: AutoRestoreOptions): AutoRe
       try {
         if (emulator.writeStateData(slot, stateBytes)) {
           emulator.quickLoad(slot);
+        } else {
+          onError?.(new Error("Could not write auto-save data into the emulator."));
         }
       } catch (err) {
         console.error("[RetroOasis] Auto-restore failed:", err);
-        onConsumed?.();
         onError?.(err);
       }
     }, delayMs);

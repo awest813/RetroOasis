@@ -15,7 +15,7 @@ import {
 
 describe("requestPersistentStorage", () => {
   beforeEach(() => { _resetStorageStateForTests(); });
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   it("returns true when persist() resolves to true", async () => {
     vi.stubGlobal("navigator", {
@@ -48,6 +48,32 @@ describe("requestPersistentStorage", () => {
     await requestPersistentStorage();
     await requestPersistentStorage();
     expect(persistMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("can force a new persistence request from Settings", async () => {
+    const persistMock = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("navigator", { storage: { persist: persistMock } });
+
+    await requestPersistentStorage();
+    await requestPersistentStorage(true);
+
+    expect(persistMock).toHaveBeenCalledTimes(2);
+    expect(isStoragePersistent()).toBe(true);
+  });
+
+  it("uses persisted() when the browser already protected storage", async () => {
+    const persistMock = vi.fn().mockResolvedValue(false);
+    vi.stubGlobal("navigator", {
+      storage: {
+        persisted: vi.fn().mockResolvedValue(true),
+        persist: persistMock,
+      },
+    });
+
+    const result = await requestPersistentStorage();
+
+    expect(result).toBe(true);
+    expect(persistMock).not.toHaveBeenCalled();
   });
 });
 

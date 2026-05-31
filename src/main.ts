@@ -21,14 +21,14 @@
 import "./style.css";
 import { diagInfo } from "./diagnosticLog.js";
 import { registerCOIServiceWorker } from "./coiBootstrap.js";
-import { PSPEmulator, type EJSSaveStateEvent }   from "./emulator.js";
+import { PSPEmulator, type AutoSaveTriggerEvent, type EJSSaveStateEvent }   from "./emulator.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
 import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
 import { BiosLibrary }   from "./bios.js";
-import { SaveStateLibrary, AUTO_SAVE_SLOT } from "./saves.js";
+import { SaveStateLibrary, AUTO_SAVE_SLOT, MAX_SAVE_SLOTS } from "./saves.js";
 import {
   detectCapabilitiesCached,
   formatDetailedSummary,
@@ -282,6 +282,16 @@ const PWA_SHARED_FILE_CACHES = [
 let _deferredInstallEvent: { prompt(): Promise<void>; userChoice?: Promise<{ outcome?: string }> } | null = null;
 let _pwaInstalled = false;
 
+const AUTO_SAVE_DEDUPE_MS = 1_500;
+const AUTO_SAVE_FAST_SHUTDOWN_REASONS = new Set<AutoSaveTriggerEvent["reason"]>(["beforeunload", "pagehide"]);
+
+function normalizeEjsSaveSlot(slot: unknown): number {
+  const numeric = typeof slot === "string" ? Number.parseInt(slot, 10) : slot;
+  return Number.isInteger(numeric) && typeof numeric === "number" && numeric >= 1 && numeric <= MAX_SAVE_SLOTS
+    ? numeric
+    : 1;
+}
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   _deferredInstallEvent = e as unknown as { prompt(): Promise<void>; userChoice?: Promise<{ outcome?: string }> };
@@ -394,6 +404,8 @@ async function main(): Promise<void> {
 
   // 5. Load settings
   const settings = loadSettings(deviceCaps);
+  let pendingAutoSave: Promise<unknown> | null = null;
+  let lastAutoSaveStartedAt = 0;
 
   // Hydrate the RetroOasisStore from the loaded settings in a single atomic
   // batch so any pre-wired subscribers see exactly one notification.  The
@@ -811,10 +823,11 @@ async function main(): Promise<void> {
       gameId,
       skipExtensionCheck:  !!gameId,
       onEjsSaveState: (event: EJSSaveStateEvent) => {
+        const slot = normalizeEjsSaveSlot(event.slot);
         const screenshotType = event.format?.startsWith("image/")
           ? event.format
           : `image/${event.format || "png"}`;
-        void saveService.saveRawState(1, event.state, {
+        void saveService.saveRawState(slot, event.state, {
           screenshot: event.screenshot,
           screenshotType,
         }, currentGameId && currentSystemId ? {
@@ -823,22 +836,23 @@ async function main(): Promise<void> {
           systemId: currentSystemId,
         } : undefined)
           .then((entry) => {
-            if (entry) showInfoToast("Saved to Slot 1");
+            if (entry) showInfoToast(`Saved to Slot ${slot}`);
             else showInfoToast("Save failed - wait for the core to finish starting.", "error");
           })
           .catch((error) => {
             showInfoToast(`Save failed: ${error instanceof Error ? error.message : String(error)}`, "error");
           });
       },
-      onEjsLoadState: () => {
-        void saveService.loadSlot(1, currentGameId && currentSystemId ? {
+      onEjsLoadState: (event?: EJSSaveStateEvent) => {
+        const slot = normalizeEjsSaveSlot(event?.slot);
+        void saveService.loadSlot(slot, currentGameId && currentSystemId ? {
           gameId: currentGameId,
           gameName,
           systemId: currentSystemId,
         } : undefined)
           .then((ok) => {
-            if (ok) showInfoToast("Loaded Slot 1");
-            else showInfoToast("Nothing saved in Slot 1 yet, or the emulator is still starting.", "error");
+            if (ok) showInfoToast(`Loaded Slot ${slot}`);
+            else showInfoToast(`Nothing saved in Slot ${slot} yet, or the emulator is still starting.`, "error");
           })
           .catch((error) => {
             showInfoToast(`Load failed: ${error instanceof Error ? error.message : String(error)}`, "error");
@@ -915,14 +929,29 @@ async function main(): Promise<void> {
   };
 
   // 5c. Wire auto-save persistence
-  emulator.onAutoSave = () => {
+  emulator.onAutoSave = (event: AutoSaveTriggerEvent) => {
     if (!settings.autoSaveEnabled || !currentGameId || !currentSystemId) return;
-    // Auto-save persistence is best-effort.
-    void saveService.saveSlot(AUTO_SAVE_SLOT, {
+    const now = Date.now();
+    if (pendingAutoSave && now - lastAutoSaveStartedAt < AUTO_SAVE_DEDUPE_MS) return;
+    lastAutoSaveStartedAt = now;
+    const context = {
       gameId: currentGameId,
       gameName: settings.lastGameName ?? "Unknown",
       systemId: currentSystemId,
-    }, { skipScreenshot: true }).catch(() => {});
+    };
+    const useFastRawState = AUTO_SAVE_FAST_SHUTDOWN_REASONS.has(event.reason) && event.stateData && event.stateData.byteLength > 0;
+    // Auto-save persistence is best-effort.
+    pendingAutoSave = (useFastRawState
+      ? saveService.saveRawState(AUTO_SAVE_SLOT, event.stateData, {}, context)
+      : saveService.saveSlot(AUTO_SAVE_SLOT, context, { skipScreenshot: true }))
+      .catch((error) => {
+        console.warn(`[${APP_NAME}] Auto-save failed during ${event.reason}.`, error);
+        return null;
+      })
+      .finally(() => {
+        pendingAutoSave = null;
+      });
+    void pendingAutoSave;
   };
 
   // 5c-ii. Wire play-time tracking: begin recording when the game is actually running.

@@ -90,7 +90,7 @@ declare global {
     EJS_ready?:        () => void;
     EJS_onGameStart?:  () => void;
     EJS_onExit?:       () => void;
-    EJS_onLoadState?:  () => void;
+    EJS_onLoadState?:  (event?: EJSSaveStateEvent) => void;
     EJS_onSaveState?:  (event: EJSSaveStateEvent) => void;
     EJS_emulator?:     EJSEmulatorInstance;
     /** Netplay signalling server WebSocket URL (set when netplay is active). */
@@ -975,7 +975,7 @@ export interface LaunchOptions {
   /** Intercepts EmulatorJS's built-in Save State menu action. */
   onEjsSaveState?: (event: EJSSaveStateEvent) => void;
   /** Intercepts EmulatorJS's built-in Load State menu action. */
-  onEjsLoadState?: () => void;
+  onEjsLoadState?: (event?: EJSSaveStateEvent) => void;
   /**
    * When true, skip the file-extension validation check in the emulator.
    *
@@ -988,9 +988,18 @@ export interface LaunchOptions {
 }
 
 export interface EJSSaveStateEvent {
+  slot?: number | string;
   state?: Uint8Array | ArrayBuffer | ArrayBufferView | number[] | null;
   screenshot?: Blob | Uint8Array | ArrayBuffer | ArrayBufferView | null;
   format?: string;
+}
+
+export type AutoSaveTriggerReason = "visibility-hidden" | "beforeunload" | "pagehide";
+
+export interface AutoSaveTriggerEvent {
+  reason: AutoSaveTriggerReason;
+  stateData: Uint8Array | null;
+  timestamp: number;
 }
 
 // ── PSPEmulator ───────────────────────────────────────────────────────────────
@@ -1113,7 +1122,7 @@ export class PSPEmulator {
    * Fired when auto-save is triggered (tab close / visibility hidden).
    * The handler should persist the save state asynchronously.
    */
-  onAutoSave?: () => void;
+  onAutoSave?: (event: AutoSaveTriggerEvent) => void;
   /**
    * Fired when dynamic resolution scaling changes the internal resolution.
    *
@@ -3543,7 +3552,7 @@ export class PSPEmulator {
   private _scanVfsStateFiles(slot: number, gameName: string, safeGameName: string): string[] {
     const fs = window.EJS_emulator?.Module?.FS;
     if (!fs) return [];
-    const slotName = String(slot || 1);
+    const slotName = String(Number.isInteger(slot) ? slot : 1);
     const nameNeedles = [gameName, safeGameName]
       .flatMap((name) => {
         const stripped = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
@@ -3601,7 +3610,7 @@ export class PSPEmulator {
     const gameName = window.EJS_gameName;
     if (!gameName) return null;
     const safeGameName = emulatorJsBaseFileName(gameName) || gameName;
-    const normalizedSlot = slot || 1;
+    const normalizedSlot = Number.isInteger(slot) ? slot : 1;
     const quickStatePath = `/${normalizedSlot}-quick.state`;
 
     // RetroArch-flavoured cores typically persist under /home/web_user/retroarch/states,
@@ -3657,7 +3666,7 @@ export class PSPEmulator {
     try {
       let writeSucceeded = false;
       try {
-        emu.Module.FS.writeFile(`/${slot || 1}-quick.state`, data);
+        emu.Module.FS.writeFile(`/${Number.isInteger(slot) ? slot : 1}-quick.state`, data);
         writeSucceeded = true;
       } catch {
         // Continue to compatibility paths below.
@@ -3673,7 +3682,7 @@ export class PSPEmulator {
             continue;
           }
         }
-        const normalizedSlot = slot || 1;
+        const normalizedSlot = Number.isInteger(slot) ? slot : 1;
         emu.Module.FS.writeFile(`${basePath}/${gameName}.state${normalizedSlot}`, data);
         if (safeGameName !== gameName) {
           emu.Module.FS.writeFile(`${basePath}/${safeGameName}.state${normalizedSlot}`, data);
@@ -3831,7 +3840,7 @@ export class PSPEmulator {
     this._visibilityHandler = () => {
       if (document.hidden && this._state === "running") {
         this._pausedByVisibility = true;
-        this._triggerAutoSave();
+        this._triggerAutoSave("visibility-hidden");
         window.EJS_emulator?.pause?.();
         this._fpsMonitor.stop();
         this._memoryMonitor.stop();
@@ -3855,7 +3864,7 @@ export class PSPEmulator {
 
     this._beforeUnloadHandler = () => {
       if (this._state === "running" || this._state === "paused") {
-        this._triggerAutoSave();
+        this._triggerAutoSave("beforeunload");
       }
     };
 
@@ -3863,7 +3872,7 @@ export class PSPEmulator {
     // `beforeunload` counterpart may skip the auto-save in some ChromeOS versions.
     this._pageHideHandler = () => {
       if (this._state === "running" || this._state === "paused") {
-        this._triggerAutoSave();
+        this._triggerAutoSave("pagehide");
       }
     };
 
@@ -3892,10 +3901,11 @@ export class PSPEmulator {
    * Trigger the auto-save callback. Called on tab close / visibility hidden.
    * The actual persistence is handled by the callback owner (main.ts).
    */
-  private _triggerAutoSave(): void {
+  private _triggerAutoSave(reason: AutoSaveTriggerReason): void {
     try {
-      this.quickSave(0);
-      this.onAutoSave?.();
+      const accepted = this.quickSave(0);
+      const stateData = accepted ? this.readStateData(0) : null;
+      this.onAutoSave?.({ reason, stateData, timestamp: Date.now() });
     } catch {
       // Auto-save is best-effort — must never interfere with teardown
     }

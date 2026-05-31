@@ -72,9 +72,18 @@ export function _resetStorageStateForTests(): void {
  *
  * @returns true if persistent storage was granted or was already active.
  */
-export async function requestPersistentStorage(): Promise<boolean> {
-  if (_persistRequested) return _isPersistent;
+export async function requestPersistentStorage(force = false): Promise<boolean> {
+  if (_persistRequested && !force) return _isPersistent;
   _persistRequested = true;
+
+  if (navigator.storage?.persisted) {
+    try {
+      _isPersistent = await navigator.storage.persisted();
+      if (_isPersistent && !force) return true;
+    } catch {
+      // Continue to persist() when available.
+    }
+  }
 
   if (!navigator.storage?.persist) {
     _isPersistent = false;

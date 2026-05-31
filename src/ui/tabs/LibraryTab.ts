@@ -5,6 +5,7 @@ import type { Settings } from "../../types/settings.js";
 import { type GameMetadata, formatBytes } from "../../library.js";
 import { GameLibrary } from "../../library.js";
 import { SaveStateLibrary, saveEvents } from "../../saves.js";
+import { checkStorageQuota, requestPersistentStorage } from "../../storage.js";
 import { SYSTEMS, getSystemFeatureSummary } from "../../systems.js";
 import type { PSPEmulator } from "../../emulator.js";
 import { sessionTracker, formatPlayTime } from "../../sessionTracker.js";
@@ -100,6 +101,43 @@ export function buildLibraryTab(
 
     const saveStatsEl = make("p", { class: "device-info" }, "Calculating\u2026");
     saveSection.appendChild(saveStatsEl);
+    const saveStorageEl = make("p", { class: "device-info" }, "Checking local save storage\u2026");
+    saveSection.appendChild(saveStorageEl);
+
+    const storageApiSupportsPersistence = (): boolean => Boolean(navigator.storage?.persist);
+    const renderSaveStorageStatus = async () => {
+      const quota = await checkStorageQuota();
+      const usage = quota.quotaBytes !== null
+        ? `${formatBytes(quota.usedBytes)} of ${formatBytes(quota.quotaBytes)} used`
+        : quota.usedBytes > 0
+          ? `${formatBytes(quota.usedBytes)} used`
+          : "Storage quota unavailable in this browser";
+      const protection = quota.isPersistent
+        ? "Local saves are protected from browser cleanup."
+        : storageApiSupportsPersistence()
+          ? "Local saves are stored in this browser, but protection is not enabled yet."
+          : "Local saves are stored in this browser. This browser does not expose storage protection.";
+      saveStorageEl.textContent = `${protection} ${usage}.`;
+    };
+    void renderSaveStorageStatus().catch(() => {
+      saveStorageEl.textContent = "Could not check local save storage status.";
+    });
+
+    if (storageApiSupportsPersistence()) {
+      const btnProtectSaves = make("button", { type: "button", class: "btn btn--sm" }, "Protect Local Saves") as HTMLButtonElement;
+      btnProtectSaves.addEventListener("click", async () => {
+        btnProtectSaves.disabled = true;
+        btnProtectSaves.setAttribute("aria-busy", "true");
+        const granted = await requestPersistentStorage(true);
+        btnProtectSaves.removeAttribute("aria-busy");
+        btnProtectSaves.disabled = false;
+        await renderSaveStorageStatus().catch(() => {});
+        if (granted) showInfoToast("Local saves are protected from browser cleanup.");
+        else showInfoToast("This browser did not grant local save protection. Save sync is recommended.", "warning");
+      });
+      saveSection.appendChild(btnProtectSaves);
+    }
+
     const setSaveStatsText = (count: number) => {
       saveStatsEl.textContent = count === 0
         ? "No saved progress yet \u2014 use Quick Save in-game to snapshot your progress"

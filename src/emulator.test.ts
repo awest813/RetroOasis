@@ -2884,6 +2884,32 @@ describe('PSPEmulator', () => {
       expect(readFileMock).toHaveBeenCalledWith('/1-quick.state');
     });
 
+    it('keeps auto-save slot 0 separate from manual Slot 1', () => {
+      const fakeData = new Uint8Array([0xA0, 0x70]);
+      const readFileMock = vi.fn().mockImplementation((path: string) => {
+        if (path === '/0-quick.state') return fakeData;
+        throw new Error('missing');
+      });
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Auto Save Game';
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: {
+          FS: {
+            readFile: readFileMock,
+            writeFile: vi.fn(),
+            stat: vi.fn(),
+            readdir: vi.fn(),
+            unlink: vi.fn(),
+            analyzePath: vi.fn().mockReturnValue({ exists: false }),
+          },
+        },
+      };
+
+      expect(emulator.readStateData(0)).toEqual(fakeData);
+      expect(readFileMock).toHaveBeenCalledWith('/0-quick.state');
+      expect(readFileMock).not.toHaveBeenCalledWith('/1-quick.state');
+    });
+
     it('falls back to EmulatorJS /data/states paths when RetroArch paths are absent', () => {
       const fakeData = new Uint8Array([0xBA, 0xAD, 0xF0, 0x0D]);
       const analyzePathMock = vi.fn().mockImplementation((path: string) => ({
@@ -3052,6 +3078,22 @@ describe('PSPEmulator', () => {
 
       expect(emulator.writeStateData(2, data)).toBe(true);
       expect(writeFileMock).toHaveBeenCalledWith('/2-quick.state', data);
+    });
+
+    it('writes auto-save slot 0 without overwriting Slot 1 quick state', () => {
+      const writeFileMock = vi.fn();
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Auto Save Game';
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        Module: { FS: { readFile: vi.fn(), writeFile: writeFileMock, mkdir: vi.fn(), stat: vi.fn(), readdir: vi.fn(), unlink: vi.fn(), analyzePath: vi.fn() } },
+      };
+      const data = new Uint8Array([0x00, 0x70]);
+
+      expect(emulator.writeStateData(0, data)).toBe(true);
+      expect(writeFileMock).toHaveBeenCalledWith('/0-quick.state', data);
+      expect(writeFileMock).toHaveBeenCalledWith('/home/web_user/retroarch/states/Auto Save Game.state0', data);
+      expect(writeFileMock).not.toHaveBeenCalledWith('/1-quick.state', data);
+      expect(writeFileMock).not.toHaveBeenCalledWith('/home/web_user/retroarch/states/Auto Save Game.state', data);
     });
 
     it('writes slot 1 states to unsuffixed compatibility paths for cores that load .state', () => {
@@ -4351,6 +4393,8 @@ describe('PSPEmulator', () => {
       _state: 'idle' | 'loading' | 'running' | 'paused' | 'error';
       _pausedByVisibility: boolean;
       _visibilityHandler: (() => void) | null;
+      _beforeUnloadHandler: (() => void) | null;
+      _pageHideHandler: (() => void) | null;
       _installVisibilityHandler(): void;
       _removeVisibilityHandler(): void;
     };
@@ -4399,6 +4443,48 @@ describe('PSPEmulator', () => {
 
       internal._removeVisibilityHandler();
       hiddenSpy.mockRestore();
+    });
+
+    it('emits a pagehide auto-save event with slot 0 state bytes', () => {
+      const internal = emulator as unknown as EmuVisibilityInternal;
+      const stateBytes = new Uint8Array([0x70, 0x00]);
+      const onAutoSave = vi.fn();
+      emulator.onAutoSave = onAutoSave;
+      (window as Window & { EJS_gameName?: string }).EJS_gameName = 'Auto Save Game';
+      (window as Window & { EJS_emulator?: unknown }).EJS_emulator = {
+        setVolume: vi.fn(),
+        gameManager: {
+          quickSave: vi.fn(() => true),
+          quickLoad: vi.fn(),
+          supportsStates: vi.fn(() => true),
+          restart: vi.fn(),
+        },
+        Module: {
+          FS: {
+            readFile: vi.fn().mockImplementation((path: string) => {
+              if (path === '/0-quick.state') return stateBytes;
+              throw new Error('missing');
+            }),
+            writeFile: vi.fn(),
+            stat: vi.fn(),
+            readdir: vi.fn(),
+            unlink: vi.fn(),
+            analyzePath: vi.fn().mockReturnValue({ exists: false }),
+          },
+        },
+      };
+
+      internal._state = 'running';
+      internal._installVisibilityHandler();
+      internal._pageHideHandler?.();
+
+      expect(onAutoSave).toHaveBeenCalledTimes(1);
+      expect(onAutoSave).toHaveBeenCalledWith(expect.objectContaining({
+        reason: 'pagehide',
+        stateData: stateBytes,
+      }));
+      internal._removeVisibilityHandler();
+      Reflect.deleteProperty(window, 'EJS_gameName');
     });
   });
 

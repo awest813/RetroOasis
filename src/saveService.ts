@@ -1,4 +1,5 @@
 import { CloudSaveManager } from "./cloudSave.js";
+import { readBlobAsArrayBuffer } from "./blobUtils.js";
 import {
   AUTO_SAVE_SLOT,
   MAX_SAVE_SLOTS,
@@ -268,7 +269,10 @@ export class SaveGameService {
       this.emit({ status: "saving-local", gameId: context.gameId, slot });
 
       const ready = await this.waitForEmulatorReady(context, slot);
-      if (!ready) return null;
+      if (!ready) {
+        this.emit({ status: "idle", gameId: context.gameId, slot });
+        return null;
+      }
 
       try {
         const accepted = this.emulator.quickSave(slot);
@@ -279,6 +283,7 @@ export class SaveGameService {
             slot,
             message: "The emulator rejected this quick save. Wait a moment, then try again.",
           });
+          this.emit({ status: "idle", gameId: context.gameId, slot });
           return null;
         }
       } catch {
@@ -390,12 +395,16 @@ export class SaveGameService {
       }
 
       const ready = await this.waitForEmulatorReady(context, slot);
-      if (!ready) return false;
+      if (!ready) {
+        this.emit({ status: "idle", gameId: context.gameId, slot });
+        return false;
+      }
 
-      const bytes = new Uint8Array(await entry.stateData.arrayBuffer());
+      const bytes = new Uint8Array(await readBlobAsArrayBuffer(entry.stateData));
       const written = this.emulator.writeStateData(slot, bytes);
       if (!written) {
         this.emit({ status: "emulator-not-ready", gameId: context.gameId, slot, message: "Could not write save data to emulator." });
+        this.emit({ status: "idle", gameId: context.gameId, slot });
         return false;
       }
 
@@ -408,6 +417,7 @@ export class SaveGameService {
           slot,
           message: error instanceof Error ? error.message : "Could not load save data into the emulator.",
         });
+        this.emit({ status: "idle", gameId: context.gameId, slot });
         return false;
       }
       this.emit({ status: "idle", gameId: context.gameId, slot });
