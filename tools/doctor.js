@@ -122,12 +122,19 @@ addCheck('Emulator core runtime wiring', () => {
 });
 
 addCheck('4.3-pre core routing', () => {
+  const coreCdnPath = 'src/coreCdn.ts';
   const wrapperPath = 'src/emulator.ts';
   const systemsPath = 'src/systems.ts';
+  if (!existsSync(coreCdnPath)) {
+    return {
+      status: FAIL,
+      message: `Missing ${coreCdnPath}; cannot verify nightly core channel overrides.`
+    };
+  }
   if (!existsSync(wrapperPath)) {
     return {
       status: FAIL,
-      message: `Missing ${wrapperPath}; cannot verify PSP core channel.`
+      message: `Missing ${wrapperPath}; cannot verify launch wiring.`
     };
   }
   if (!existsSync(systemsPath)) {
@@ -137,6 +144,7 @@ addCheck('4.3-pre core routing', () => {
     };
   }
 
+  const coreCdn = readFileSync(coreCdnPath, 'utf8');
   const wrapper = readFileSync(wrapperPath, 'utf8');
   const systems = readFileSync(systemsPath, 'utf8');
   const required = [
@@ -147,10 +155,16 @@ addCheck('4.3-pre core routing', () => {
     'dosbox_pure: EJS_NIGHTLY_CDN_BASE',
     'freeintv: EJS_NIGHTLY_CDN_BASE',
     'genesis_plus_gx_wide: EJS_NIGHTLY_CDN_BASE',
+    'buildEjsCorePaths',
     'EJS_disableAutoUnload = true',
     'EJS_askBeforeExit = true'
   ];
-  const missing = required.filter((needle) => !wrapper.includes(needle));
+  const missing = required.filter((needle) => {
+    if (needle.startsWith('EJS_') || needle.startsWith('buildEjs')) {
+      return !wrapper.includes(needle);
+    }
+    return !coreCdn.includes(needle);
+  });
   if (!systems.includes('ppsspp_rendering_mode: "OpenGL"')) {
     missing.push('PSP OpenGL hardware-rendering backend');
   }

@@ -38,6 +38,20 @@ import {
 } from "./performance.js";
 import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
 import { makeFileFromBlob, readBlobAsArrayBuffer } from "./blobUtils.js";
+import {
+  EJS_CDN_BASE,
+  buildEjsCorePaths,
+  cdnBaseForCore,
+  coreNameForSystem,
+  corePrefetchRelPath,
+} from "./coreCdn.js";
+export {
+  EJS_CDN_BASE,
+  EJS_NIGHTLY_CDN_BASE,
+  buildEjsCorePaths,
+  probeEmulatorCoreCdn,
+} from "./coreCdn.js";
+export type { CoreCdnProbeResult, EjsCorePathsResult } from "./coreCdn.js";
 import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
 import {
   WebGPUPostProcessor,
@@ -449,8 +463,6 @@ interface EJSEmulatorInstance {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const EJS_CDN_BASE = "https://cdn.emulatorjs.org/stable/data/";
-export const EJS_NIGHTLY_CDN_BASE = "https://cdn.emulatorjs.org/nightly/data/";
 export const EJS_DATA_BASE = new URL(/* @vite-ignore */ "../data/", import.meta.url).toString();
 
 /** Warn when a ROM file exceeds this size (500 MB). */
@@ -555,67 +567,6 @@ export function clearWebGL2SupportCache(): void {
  * non-legacy, non-threaded `<core>-wasm.data` file; threaded-only cores use
  * their `-thread-wasm.data` package.
  */
-const CORE_PREFETCH_MAP: Record<string, string> = {
-  psp:        "cores/ppsspp-thread-wasm.data",
-  n64:        "cores/parallel_n64-wasm.data",
-  psx:        "cores/pcsx_rearmed-wasm.data",
-  nds:        "cores/desmume2015-wasm.data",
-  gba:        "cores/mgba-wasm.data",
-  gb:         "cores/gambatte-wasm.data",
-  gbc:        "cores/gambatte-wasm.data",
-  nes:        "cores/fceumm-wasm.data",
-  snes:       "cores/snes9x-wasm.data",
-  snesBsnes:  "cores/bsnes-wasm.data",
-  segaMD:     "cores/genesis_plus_gx-wasm.data",
-  segaMDWide: "cores/genesis_plus_gx_wide-wasm.data",
-  segaCD:     "cores/genesis_plus_gx-wasm.data",
-  sega32x:    "cores/picodrive-wasm.data",
-  segaGG:     "cores/genesis_plus_gx-wasm.data",
-  segaMS:     "cores/genesis_plus_gx-wasm.data",
-  arcade:     "cores/fbneo-wasm.data",
-  segaSaturn: "cores/yabause-wasm.data",
-  mame2003:   "cores/mame2003_plus-wasm.data",
-  atari7800:  "cores/prosystem-wasm.data",
-  intv:       "cores/freeintv-wasm.data",
-  dos:        "cores/dosbox_pure-thread-wasm.data",
-  lynx:       "cores/handy-wasm.data",
-  ngp:        "cores/mednafen_ngp-wasm.data",
-  atari2600:  "cores/stella2014-wasm.data",
-  "3ds":      "cores/azahar-thread-wasm.data",
-};
-
-/**
- * Core-specific CDN channel overrides.
- *
- * RetroOasis currently ships the 4.3-pre-compatible source runtime, but keeps
- * most systems on stable core bundles. PPSSPP is the one deliberate exception:
- * upstream's 4.3-pre work materially improves PSP hardware rendering and
- * fast-forward behavior, and PPSSPP cores are not interchangeable across the
- * 4.2/4.3 boundary.
- */
-const CORE_CDN_BASE_OVERRIDES: Record<string, string> = {
-  ppsspp: EJS_NIGHTLY_CDN_BASE,
-  azahar: EJS_NIGHTLY_CDN_BASE,
-  bsnes: EJS_NIGHTLY_CDN_BASE,
-  dosbox_pure: EJS_NIGHTLY_CDN_BASE,
-  freeintv: EJS_NIGHTLY_CDN_BASE,
-  genesis_plus_gx_wide: EJS_NIGHTLY_CDN_BASE,
-};
-
-function coreNameForSystem(system: SystemInfo, ejsSettings: Record<string, string>): string {
-  if (ejsSettings.retroarch_core) return ejsSettings.retroarch_core;
-  const relPath = CORE_PREFETCH_MAP[system.id];
-  const fileName = relPath?.split("/").pop();
-  if (fileName) {
-    return fileName.replace(/(?:-thread)?(?:-legacy)?-wasm\.data$/, "");
-  }
-  return system.coreId ?? system.id;
-}
-
-function cdnBaseForCore(coreName: string): string {
-  return CORE_CDN_BASE_OVERRIDES[coreName] ?? EJS_CDN_BASE;
-}
-
 /**
  * CDN / RetroArch wasm package name after applying `retroarch_core` overrides.
  * Matches the basename EmulatorJS downloads (`<name>-wasm.data`).
@@ -1369,7 +1320,7 @@ export class PSPEmulator {
    */
   prefetchCore(systemId: string): void {
     if (this._prefetchedCores.has(systemId)) return;
-    const relPath = CORE_PREFETCH_MAP[systemId];
+    const relPath = corePrefetchRelPath(systemId);
     const system = getSystemById(systemId);
     // For systems not in the CDN map (e.g. Flycast/Dreamcast), fall back to the
     // system-level corePath which already contains the absolute bundle URL.
@@ -3236,33 +3187,13 @@ export class PSPEmulator {
       // and leaves the launch stuck at "Initialising EmulatorJS...".
       window.EJS_DEBUG_XX      = true;
 
-      // For cores not on the official CDN, point EJS at the external bundle URL.
-      if (system.corePath) {
-        window.EJS_corePath = system.corePath;
+      const corePaths = buildEjsCorePaths(system, ejsSettings);
+      if (corePaths.corePath) {
+        window.EJS_corePath = corePaths.corePath;
         delete window.EJS_paths;
       } else {
         delete window.EJS_corePath;
-        const selectedCore = coreNameForSystem(system, ejsSettings);
-        const runtimeCore = system.coreId ?? system.id;
-        const coreCdnBase = cdnBaseForCore(selectedCore);
-        const corePathAliases: Record<string, string> = runtimeCore === selectedCore ? {} : {
-          [`${runtimeCore}.json`]:                    `${coreCdnBase}cores/reports/${selectedCore}.json`,
-          [`${runtimeCore}-wasm.data`]:               `${coreCdnBase}cores/${selectedCore}-wasm.data`,
-          [`${runtimeCore}-legacy-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-legacy-wasm.data`,
-          [`${runtimeCore}-thread-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-thread-wasm.data`,
-          [`${runtimeCore}-thread-legacy-wasm.data`]: `${coreCdnBase}cores/${selectedCore}-thread-legacy-wasm.data`,
-        };
-        window.EJS_paths = {
-          ...corePathAliases,
-          [`${selectedCore}.json`]:                    `${coreCdnBase}cores/reports/${selectedCore}.json`,
-          [`${selectedCore}-wasm.data`]:               `${coreCdnBase}cores/${selectedCore}-wasm.data`,
-          [`${selectedCore}-legacy-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-legacy-wasm.data`,
-          [`${selectedCore}-thread-wasm.data`]:        `${coreCdnBase}cores/${selectedCore}-thread-wasm.data`,
-          [`${selectedCore}-thread-legacy-wasm.data`]: `${coreCdnBase}cores/${selectedCore}-thread-legacy-wasm.data`,
-          ...(selectedCore === "ppsspp"
-            ? { "ppsspp-assets.zip": `${coreCdnBase}cores/ppsspp-assets.zip` }
-            : {}),
-        };
+        window.EJS_paths = corePaths.paths;
       }
 
       window.EJS_disableAutoUnload = true;
