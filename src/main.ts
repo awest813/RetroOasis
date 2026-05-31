@@ -801,6 +801,14 @@ async function main(): Promise<void> {
       }
     }
 
+    if (systemId === "segaDC") {
+      if (biosAsset) {
+        coreSettingsOverride.flycast_hle_bios = "disabled";
+      } else {
+        coreSettingsOverride.flycast_hle_bios = "enabled";
+      }
+    }
+
     await syncNetplayManagerFromSettings(settings);
 
     const apiStore = getApiKeyStore();

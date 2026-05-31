@@ -1104,7 +1104,7 @@ const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> =
     flycast_cable_type:            "VGA",
     flycast_volume_modifier_enable:"enabled",
     flycast_boot_to_bios:          "disabled",
-    flycast_hle_bios:              "disabled",
+    flycast_hle_bios:              "enabled",
     flycast_threaded_rendering:    "disabled",
     flycast_synchronous_rendering: "disabled",
     flycast_internal_resolution:   "640x480",
@@ -1125,7 +1125,7 @@ const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> =
     flycast_cable_type:            "VGA",
     flycast_volume_modifier_enable:"enabled",
     flycast_boot_to_bios:          "disabled",
-    flycast_hle_bios:              "disabled",
+    flycast_hle_bios:              "enabled",
     flycast_threaded_rendering:    "enabled",
     flycast_synchronous_rendering: "disabled",
     flycast_internal_resolution:   "640x480",
@@ -1146,7 +1146,7 @@ const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> =
     flycast_cable_type:            "VGA",
     flycast_volume_modifier_enable:"enabled",
     flycast_boot_to_bios:          "disabled",
-    flycast_hle_bios:              "disabled",
+    flycast_hle_bios:              "enabled",
     flycast_threaded_rendering:    "enabled",
     flycast_synchronous_rendering: "disabled",
     flycast_internal_resolution:   "1280x960",
@@ -1167,7 +1167,7 @@ const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> =
     flycast_cable_type:            "VGA",
     flycast_volume_modifier_enable:"enabled",
     flycast_boot_to_bios:          "disabled",
-    flycast_hle_bios:              "disabled",
+    flycast_hle_bios:              "enabled",
     flycast_threaded_rendering:    "enabled",
     flycast_synchronous_rendering: "disabled",
     flycast_internal_resolution:   "1920x1440",
@@ -1528,7 +1528,7 @@ export const SYSTEMS: SystemInfo[] = [
     color: "#e07b20",
     needsThreads: false,
     needsWebGL2: true,
-    needsBios: true,
+    needsBios: false,
     is3D: true,
     qualitySettings: DREAMCAST_TIER_SETTINGS.high,
     perfSettings: DREAMCAST_TIER_SETTINGS.low,
@@ -1699,6 +1699,7 @@ export function getSystemFeatureSummary(
   if (system.is3D) features.push("3D core");
   else features.push("2D core");
   if (system.needsBios) features.push("BIOS");
+  else if (system.id === "segaDC") features.push("HLE BIOS");
   if (system.needsWebGL2) features.push("WebGL 2");
   if (system.needsThreads) features.push("Multi-threaded");
   if (system.touchControlMode === "builtin") features.push("Built-in touch");

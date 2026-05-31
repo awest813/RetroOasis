@@ -261,8 +261,11 @@ describe('systems performance profiles', () => {
     expect(dc?.corePath).toContain('flycast-wasm.data');
     expect(dc?.extensions).toContain('zip');
     expect(dc?.needsWebGL2).toBe(true);
+    expect(dc?.needsBios).toBe(false);
     expect(dc?.experimental).toBe(true);
     expect(dc?.stabilityNotice).toContain('stabil');
+    expect(dc?.tierSettings?.low?.flycast_hle_bios).toBe('enabled');
+    expect(dc?.tierSettings?.ultra?.flycast_hle_bios).toBe('enabled');
   });
 
   it('does not advertise PS2 until a launchable browser core is wired', () => {

@@ -4648,7 +4648,7 @@ describe("Dreamcast experimental messaging", () => {
     expect(pickerText).toContain("Dreamcast");
     expect(pickerText).toContain("Experimental");
     expect(pickerText).toContain("3D core");
-    expect(pickerText).toContain("BIOS");
+    expect(pickerText).toContain("HLE BIOS");
     expect(pickerText).toContain("WebGL 2");
 
     document.getElementById("system-picker-close")?.click();
@@ -4664,7 +4664,7 @@ describe("Dreamcast experimental messaging", () => {
     const cardText = document.querySelector(".game-card")?.textContent ?? "";
     expect(cardText).toContain("EXP");
     expect(cardText).toContain("3D core");
-    expect(cardText).toContain("BIOS");
+    expect(cardText).toContain("HLE BIOS");
     expect(cardText).toContain("WebGL 2");
   });
 });

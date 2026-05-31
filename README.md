@@ -163,7 +163,7 @@ For deeper context, read [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md),
 
 | Symptom | First checks |
 | --- | --- |
-| Game will not boot | Confirm the file extension, system choice, and required BIOS files |
+| Game will not boot | Confirm the file extension, system choice, and any required or optional compatibility startup files |
 | PSP fails immediately | Confirm `self.crossOriginIsolated === true` |
 | Slow 3D performance | Use Performance mode, lower per-game graphics settings, or disable heavy post-processing |
 | Import fails from archive | Try the extracted ROM directly; very large archives may exceed browser memory limits |

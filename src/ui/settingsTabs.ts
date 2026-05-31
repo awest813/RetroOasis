@@ -50,8 +50,8 @@ export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, o
       labelWrap.appendChild(document.createTextNode(req.displayName));
       labelWrap.appendChild(make("code", {
         class: "bios-filename",
-        title: `Required filename: ${req.fileName}`,
-        "aria-label": `Required filename: ${req.fileName}`,
+        title: `Expected filename: ${req.fileName}`,
+        "aria-label": `Expected filename: ${req.fileName}`,
       }, req.fileName));
       const desc = make("span", { class: "bios-desc" }, req.description);
       const requiredBadge = req.required

@@ -4,10 +4,10 @@
  * BIOS files are stored in a dedicated IndexedDB database separate from the
  * game library so BIOS updates never require a game-library schema migration.
  *
- * Systems that require BIOS files:
+ * Known system startup files:
  *   PlayStation 1  — SCPH-5500 (NTSC-J) / SCPH-1001 / SCPH-5501 / SCPH-5502 (optional but improves compatibility)
  *   Sega Saturn    — sega_101.bin or mpr-17933.bin  (required)
- *   Dreamcast      — (dc_boot.bin or dreamdash.bin) + dc_flash.bin (required)
+ *   Dreamcast      — HLE BIOS by default; boot/flash files are optional compatibility enhancers
  *   Atari Lynx     — lynxboot.img                   (optional)
  *
  * Schema
@@ -60,9 +60,8 @@ export interface BiosRequirement {
    * US/EU BIOS (mpr-17933.bin). Both entries carry the same group so the
    * check passes as soon as one of them is found.
    *
-   * Entries without a group are treated as standalone requirements —
-   * each must individually be present (e.g. Dreamcast bootloader and
-   * dc_flash.bin are two distinct files that are both needed).
+   * Entries without a group are treated as standalone requirements when
+   * `required` is true; optional entries never block launch.
    */
   group?: string;
   /**
@@ -153,23 +152,23 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
     {
       fileName: "dc_boot.bin",
       displayName: "Dreamcast BIOS (dc_boot.bin)",
-      required: true,
+      required: false,
       group: "dc-boot",
-      description: "Official/retail SEGA Dreamcast BIOS boot ROM — required for standard boot",
+      description: "Official/retail SEGA Dreamcast BIOS boot ROM. Optional: Flycast uses HLE BIOS by default, but a dumped boot ROM can improve compatibility.",
     },
     {
       fileName: "dreamdash.bin",
       displayName: "DreamDash Custom BIOS (dreamdash.bin)",
-      required: true,
+      required: false,
       group: "dc-boot",
-      description: "A modern, open-source replacement boot ROM for the Sega Dreamcast (https://github.com/darcagn/DreamDash)",
+      description: "A modern, open-source replacement boot ROM for the Sega Dreamcast (https://github.com/darcagn/DreamDash). Optional because Flycast can boot most games with HLE BIOS.",
       downloadUrl: "./assets/dreamdash.bin",
     },
     {
       fileName: "dc_flash.bin",
       displayName: "Dreamcast Flash ROM (dc_flash.bin)",
-      required: true,
-      description: "Dreamcast flash memory containing regional settings",
+      required: false,
+      description: "Dreamcast flash memory containing regional settings. Optional: upload a dump from your own console only when a game needs real flash data.",
     },
   ],
   lynx: [
@@ -320,9 +319,10 @@ export class BiosLibrary {
   /**
    * Return the best BIOS launch asset for a system.
    *
-   * Most systems use a single blob URL. Dreamcast needs both dc_boot.bin and
-   * dc_flash.bin, so we bundle them into an in-memory ZIP containing the
-   * expected /dc/ directory structure for Flycast/Reicast.
+   * Most systems use a single blob URL. When Dreamcast has both a boot file
+   * and dc_flash.bin, we bundle them into an in-memory ZIP containing the
+   * expected /dc/ directory structure for Flycast/Reicast; otherwise Flycast
+   * can run through HLE BIOS.
    */
   async getLaunchBiosAsset(systemId: string): Promise<LaunchBiosAsset | null> {
     if (systemId !== "segaDC") {

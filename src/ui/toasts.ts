@@ -53,7 +53,7 @@ function friendlyErrorMessage(msg: string): string {
     return "Couldn't load a required file. Check your internet connection and try again.";
   }
   if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("experimental") || m.includes("stabil"))) {
-    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nIf it fails, try another title, lower the load on your device, and make sure both Dreamcast BIOS files are installed.";
+    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nFlycast uses HLE BIOS by default, so dc_boot.bin and dc_flash.bin are optional compatibility files. If one title fails, try another title or lower the load on your device.";
   }
   if (m.includes("bios") || m.includes("startup file")) {
     return "This game needs a startup file (BIOS). Go to Settings → System Files to add one.";
