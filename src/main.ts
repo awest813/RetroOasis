@@ -21,7 +21,8 @@
 import "./style.css";
 import { diagInfo } from "./diagnosticLog.js";
 import { registerCOIServiceWorker } from "./coiBootstrap.js";
-import { PSPEmulator, type AutoSaveTriggerEvent, type EJSSaveStateEvent }   from "./emulator.js";
+import { PSPEmulator, type AutoSaveTriggerEvent, type EJSSaveStateEvent } from "./emulator.js";
+import { probeEmulatorCoreCdn } from "./coreCdn.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
 import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
@@ -574,6 +575,25 @@ async function main(): Promise<void> {
 
   // 4a. Preconnect to CDN early for faster game launches
   emulator.preconnect();
+
+  scheduleIdleTask(() => {
+    void Promise.all([
+      probeEmulatorCoreCdn("nes"),
+      probeEmulatorCoreCdn("psp"),
+    ]).then(([stable, nightly]) => {
+      if (stable.ok && nightly.ok) {
+        diagInfo(
+          settings.verboseLogging,
+          "[RetroOasis] Emulator core CDN reachable (stable fceumm + nightly ppsspp).",
+        );
+        return;
+      }
+      console.warn(
+        "[RetroOasis] Emulator core CDN probe failed — first game launch may stall while cores download.",
+        { stable, nightly },
+      );
+    });
+  });
 
   // Pre-warm IndexedDB connections to eliminate cold-open latency
   library.warmUp().catch(() => {});

@@ -7,6 +7,7 @@ import {
   clearWebGL2SupportCache,
   wasmCorePackageNameFor,
 } from "./emulator.js";
+import { buildEjsCorePaths, probeEmulatorCoreCdn } from "./coreCdn.js";
 import { NetplayManager } from "./multiplayer.js";
 import { SYSTEMS, getSystemById } from "./systems.js";
 
@@ -5134,5 +5135,69 @@ describe("wasmCorePackageNameFor", () => {
     expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["medium"] ?? {}), "psx medium").toBe("pcsx_rearmed");
     expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["high"] ?? {}), "psx high").toBe("pcsx_rearmed");
     expect(wasmCorePackageNameFor(psxSystem, psxSystem.tierSettings?.["ultra"] ?? {}), "psx ultra").toBe("pcsx_rearmed");
+  });
+});
+
+describe("buildEjsCorePaths", () => {
+  it("maps CDN cores to full EJS_paths URLs on the stable channel", () => {
+    const nes = getSystemById("nes")!;
+    const built = buildEjsCorePaths(nes, {});
+    expect(built.corePath).toBeUndefined();
+    expect(built.paths?.["fceumm.json"]).toBe(`${EJS_CDN_BASE}cores/reports/fceumm.json`);
+    expect(built.paths?.["fceumm-wasm.data"]).toBe(`${EJS_CDN_BASE}cores/fceumm-wasm.data`);
+  });
+
+  it("routes 4.3-pre cores through the nightly CDN", () => {
+    const psp = getSystemById("psp")!;
+    const built = buildEjsCorePaths(psp, psp.tierSettings?.high ?? {});
+    expect(built.paths?.["ppsspp.json"]).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/reports/ppsspp.json`);
+    expect(built.paths?.["ppsspp-thread-wasm.data"]).toBe(
+      `${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-thread-wasm.data`,
+    );
+    expect(built.paths?.["ppsspp-assets.zip"]).toBe(
+      `${EJS_NIGHTLY_CDN_BASE}cores/ppsspp-assets.zip`,
+    );
+  });
+
+  it("aliases runtime core ids when the wasm package name differs", () => {
+    const snesBsnes = getSystemById("snesBsnes")!;
+    const built = buildEjsCorePaths(snesBsnes, { retroarch_core: "bsnes" });
+    expect(built.paths?.["snes.json"]).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/reports/bsnes.json`);
+    expect(built.paths?.["bsnes-wasm.data"]).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/bsnes-wasm.data`);
+  });
+
+  it("uses EJS_corePath for external bundles", () => {
+    const dc = getSystemById("segaDC")!;
+    const built = buildEjsCorePaths(dc, {});
+    expect(built.corePath).toBe(dc.corePath);
+    expect(built.paths).toBeUndefined();
+  });
+});
+
+describe("probeEmulatorCoreCdn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reports success when the core report URL responds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200 }),
+    );
+
+    const result = await probeEmulatorCoreCdn("nes");
+    expect(result.ok).toBe(true);
+    expect(result.url).toBe(`${EJS_CDN_BASE}cores/reports/fceumm.json`);
+  });
+
+  it("reports failure when the CDN is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network down")),
+    );
+
+    const result = await probeEmulatorCoreCdn("nes");
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("network down");
   });
 });
