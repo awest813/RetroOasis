@@ -9,12 +9,13 @@ import type { PSPEmulator } from "../emulator.js";
 import { ALL_EXTENSIONS, type SystemInfo } from "../systems.js";
 import type { ArchiveExtractProgress, ArchiveFormat } from "../archive.js";
 import type { Settings } from "../types/settings.js";
+import { makeFileFromBlob } from "../blobUtils.js";
 
 const APP_NAME = "RetroOasis";
 
 export function toLaunchFile(blob: Blob, fileName: string): File {
   if (blob instanceof File && blob.name === fileName) return blob;
-  return new File([blob], fileName, { type: blob.type });
+  return makeFileFromBlob(blob, fileName, { type: blob.type });
 }
 
 export const PATCH_EXT_SET = new Set(["ips", "bps", "ups"]);
@@ -71,7 +72,7 @@ export function inferFileForSystem(original: File, system: SystemInfo): File {
 
   const baseName = original.name.replace(/\.[^.]+$/, "") || "game";
   const inferredExt = system.extensions[0] ?? "bin";
-  return new File([original], `${baseName}.${inferredExt}`, { type: original.type });
+  return makeFileFromBlob(original, `${baseName}.${inferredExt}`, { type: original.type });
 }
 
 export function formatArchiveProgressMessage(progress: ArchiveExtractProgress): string {

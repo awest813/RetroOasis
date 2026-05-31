@@ -75,6 +75,7 @@ import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { createProvider } from "./cloudLibrary.js";
 import { SaveGameService } from "./saveService.js";
 import { createStoredZip } from "./zip.js";
+import { makeFileFromBlob, readBlobAsArrayBuffer, readBlobAsText } from "./blobUtils.js";
 import { LEGACY_EVENTS } from "./legacy.js";
 import { queryRequired as el, createElement as make } from "./ui/dom.js";
 import {
@@ -701,11 +702,11 @@ async function createFolderZipFile(rootName: string, files: CollectedFile[]): Pr
   if (files.length === 0) return null;
   const entries = await Promise.all(files.map(async ({ file, path }) => ({
     path,
-    bytes: new Uint8Array(await file.arrayBuffer()),
+    bytes: new Uint8Array(await readBlobAsArrayBuffer(file)),
   })));
   const zipBytes = createStoredZip(entries);
   const safeRoot = (rootName.trim() || "folder").replace(/[\\/:*?"<>|]+/g, "-");
-  return new File([zipBytes.slice()], `${safeRoot}.zip`, { type: "application/zip" });
+  return makeFileFromBlob(new Blob([zipBytes.slice()], { type: "application/zip" }), `${safeRoot}.zip`, { type: "application/zip" });
 }
 
 async function fileFromDirectoryItems(items: DataTransferItemList): Promise<File | null> {
@@ -729,7 +730,7 @@ function fileBaseName(fileName: string): string {
 async function parseCueReferencedFileNames(cueFile: File): Promise<string[]> {
   let text = "";
   try {
-    text = await cueFile.text();
+    text = await readBlobAsText(cueFile);
   } catch {
     return [];
   }
@@ -1301,7 +1302,28 @@ export function initUI(opts: UIOptions): void {
   ]);
 
   // -- Landing header controls ---------------------------------------------
-  buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, undefined, saveLibrary, getNetplayManager, openPlayTogetherSettings);
+  const rebuildLandingControls = (resume?: () => void) => {
+    buildLandingControls(
+      settings,
+      deviceCaps,
+      library,
+      biosLibrary,
+      onSettingsChange,
+      emulator,
+      onLaunchGame,
+      resume,
+      saveLibrary,
+      getNetplayManager,
+      openPlayTogetherSettings,
+      opts.canInstallPWA,
+      opts.onInstallPWA,
+    );
+  };
+  rebuildLandingControls();
+  bindEvent(document, LEGACY_EVENTS.installPromptReady, () => {
+    if (emulator.state === "running" || emulator.state === "paused") return;
+    rebuildLandingControls();
+  });
 
   if (typeof ResizeObserver !== "undefined") {
     const headerActions = document.getElementById("header-actions");
@@ -2259,6 +2281,8 @@ export function buildLandingControls(
   saveLibrary?:     SaveStateLibrary,
   getNetplayManagerOrInstance?: (() => Promise<import("./multiplayer.js").NetplayManager>) | import("./multiplayer.js").NetplayManager,
   onOpenPlayTogetherSettings?: () => void,
+  canInstallPWA?:   () => boolean,
+  onInstallPWA?:    () => Promise<boolean>,
 ): void {
   // Accept either a factory function or a pre-existing instance (e.g. from tests).
   if (typeof getNetplayManagerOrInstance !== "function" && getNetplayManagerOrInstance != null) {
@@ -2284,6 +2308,29 @@ export function buildLandingControls(
     const label = deviceCaps.isChromOS ? "Chromebook" : "Low-spec";
     const tip   = deviceCaps.isChromOS ? "Chromebook detected — Performance mode recommended" : "Performance mode recommended for this device";
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
+  }
+
+  if (canInstallPWA?.() && onInstallPWA) {
+    const btnInstall = make("button", {
+      class: "btn btn--highlight pwa-install-btn",
+      type: "button",
+      title: `Install ${APP_NAME} for faster launch and offline access`,
+      "aria-label": `Install ${APP_NAME} app`,
+    }) as HTMLButtonElement;
+    btnInstall.innerHTML = `<span class="pwa-install__icon" aria-hidden="true">${ICON_GRID_ALL_SVG}</span><span>Install App</span>`;
+    btnInstall.addEventListener("click", async () => {
+      btnInstall.disabled = true;
+      btnInstall.setAttribute("aria-busy", "true");
+      const installed = await onInstallPWA().catch(() => false);
+      btnInstall.removeAttribute("aria-busy");
+      if (installed) {
+        btnInstall.textContent = "Installed";
+        showInfoToast(`${APP_NAME} installed.`, "success");
+      } else {
+        btnInstall.disabled = false;
+      }
+    });
+    container.appendChild(btnInstall);
   }
 
   const btnSettings = make("button", { class: "btn", title: "Settings (F9)", "aria-label": "Open settings" });

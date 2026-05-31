@@ -37,6 +37,7 @@ import {
   resolveCorePrefetchSystems,
 } from "./performance.js";
 import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
+import { makeFileFromBlob, readBlobAsArrayBuffer } from "./blobUtils.js";
 import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
 import {
   WebGPUPostProcessor,
@@ -2890,8 +2891,8 @@ export class PSPEmulator {
       let gameFile: File;
       if (isLikelyIOS()) {
         this._emit("onProgress", "Preparing game file for iOS…");
-        const romBuf = await opts.file.arrayBuffer();
-        gameFile = new File([romBuf], fileName, {
+        const romBuf = await readBlobAsArrayBuffer(opts.file);
+        gameFile = makeFileFromBlob(new Blob([romBuf], { type: opts.file.type || "application/octet-stream" }), fileName, {
           type: opts.file.type || "application/octet-stream",
         });
         if (this.verboseLogging) {
@@ -2902,7 +2903,7 @@ export class PSPEmulator {
       } else {
         gameFile = opts.file instanceof File
           ? opts.file
-          : new File([opts.file], fileName, { type: opts.file.type });
+          : makeFileFromBlob(opts.file, fileName, { type: opts.file.type });
       }
       this._launchGameFile = gameFile;
       const gameName = fileName.replace(/\.[^.]+$/, "");

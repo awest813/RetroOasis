@@ -165,6 +165,14 @@ function buildSettingsContent(
     });
     
     activeTabLabel.textContent = activeIndex >= 0 ? `Viewing: ${tabs[activeIndex]!.label}` : "";
+    const activeButton = tabBtns[activeIndex];
+    if (typeof activeButton?.scrollIntoView === "function") {
+      activeButton.scrollIntoView({
+        behavior: scroll ? "smooth" : "auto",
+        block: "nearest",
+        inline: "center",
+      });
+    }
     
     if (scroll && activeIndex >= 0) {
       const panel = panels[activeIndex]!;

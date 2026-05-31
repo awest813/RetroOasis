@@ -54,6 +54,7 @@ import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
 import { sessionTracker } from "./sessionTracker.js";
 import { store } from "./store/index.js";
 import type { NetplayIceServer } from "./store/index.js";
+import { makeFileFromBlob, readBlobAsArrayBuffer } from "./blobUtils.js";
 import {
   hydrateSettingsIntoStore,
   mirrorSettingsPatchToStore,
@@ -272,26 +273,43 @@ declare global {
   }
 }
 
-let _deferredInstallEvent: { prompt(): Promise<void> } | null = null;
+const PWA_SHARED_FILE_CACHES = [
+  "retro-oasis-shared-roms-v1",
+  "retro-oasis-user-v1",
+  "retro-oasis-shared-roms",
+];
+
+let _deferredInstallEvent: { prompt(): Promise<void>; userChoice?: Promise<{ outcome?: string }> } | null = null;
+let _pwaInstalled = false;
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
-  _deferredInstallEvent = e as unknown as { prompt(): Promise<void> };
+  _deferredInstallEvent = e as unknown as { prompt(): Promise<void>; userChoice?: Promise<{ outcome?: string }> };
   // Notify any already-rendered settings panel that the install button can appear
   document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.installPromptReady));
+});
+
+window.addEventListener("appinstalled", () => {
+  _pwaInstalled = true;
+  _deferredInstallEvent = null;
+  document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.installPromptReady));
+  showInfoToast(`${APP_NAME} installed. It will open like an app from your launcher.`, "success");
 });
 
 /** Call from the UI to show the browser's "Add to Home Screen" dialog. */
 export async function promptPWAInstall(): Promise<boolean> {
   if (!_deferredInstallEvent) return false;
+  const promptEvent = _deferredInstallEvent;
   await _deferredInstallEvent.prompt();
+  const choice = await promptEvent.userChoice?.catch(() => null);
   _deferredInstallEvent = null;
-  return true;
+  document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.installPromptReady));
+  return choice?.outcome ? choice.outcome === "accepted" : true;
 }
 
 /** True when the PWA install prompt is available. */
 export function canInstallPWA(): boolean {
-  return _deferredInstallEvent !== null;
+  return !_pwaInstalled && _deferredInstallEvent !== null;
 }
 
 function wirePwaFileLaunchQueue(onFileChosen: (file: File) => Promise<void>): void {
@@ -318,6 +336,31 @@ function wirePwaFileLaunchQueue(onFileChosen: (file: File) => Promise<void>): vo
     });
   } catch {
     /* Launch Queue unsupported */
+  }
+}
+
+async function consumePwaSharedFiles(onFileChosen: (file: File) => Promise<void>): Promise<void> {
+  if (!("caches" in window)) return;
+  const seen = new Set<string>();
+  for (const cacheName of PWA_SHARED_FILE_CACHES) {
+    try {
+      const shareCache = await caches.open(cacheName);
+      const sharedKeys = await shareCache.keys();
+      for (const req of sharedKeys) {
+        const resp = await shareCache.match(req);
+        await shareCache.delete(req);
+        if (!resp) continue;
+        const filename = resp.headers.get("X-Share-Filename") ?? req.url.split("/").pop() ?? "rom";
+        const decodedName = decodeURIComponent(filename);
+        if (seen.has(decodedName)) continue;
+        seen.add(decodedName);
+        const blob = await resp.blob();
+        const file = makeFileFromBlob(blob, decodedName, { type: blob.type });
+        void onFileChosen(file);
+      }
+    } catch {
+      // Non-fatal â€” caches API unavailable or an old cache is unreadable.
+    }
   }
 }
 
@@ -673,7 +716,7 @@ async function main(): Promise<void> {
         if (shouldRestore) {
           const autoState = await saveLibrary.getState(gameId, AUTO_SAVE_SLOT);
           if (autoState?.stateData) {
-            pendingAutoRestore = new Uint8Array(await autoState.stateData.arrayBuffer());
+            pendingAutoRestore = new Uint8Array(await readBlobAsArrayBuffer(autoState.stateData));
           }
         }
       } catch {
@@ -837,14 +880,14 @@ async function main(): Promise<void> {
     if (!entry) throw new Error("Game not found in library");
     if (!entry.blob) throw new Error("This game is from a remote library source. Please launch it once to download it before applying patches.");
 
-    const romBuffer   = await entry.blob.arrayBuffer();
-    const patchBuffer = await patchFile.arrayBuffer();
+    const romBuffer   = await readBlobAsArrayBuffer(entry.blob);
+    const patchBuffer = await readBlobAsArrayBuffer(patchFile);
 
     const { applyPatch } = await import("./patcher.js");
     const patched = applyPatch(romBuffer, patchBuffer);
 
     const patchedBlob = new Blob([patched], { type: entry.blob!.type });
-    const patchedFile = new File([patchedBlob], entry.fileName, { type: entry.blob!.type });
+    const patchedFile = makeFileFromBlob(patchedBlob, entry.fileName, { type: entry.blob!.type });
 
     // Update the stored blob in-place so game identity (save states, tier
     // profile, history) is preserved.
@@ -921,7 +964,7 @@ async function main(): Promise<void> {
       showLoadingOverlay();
       const file = currentGameFile instanceof File
         ? currentGameFile
-        : new File([currentGameFile], currentGameFileName ?? "game.bin");
+        : makeFileFromBlob(currentGameFile, currentGameFileName ?? "game.bin", { type: currentGameFile.type });
 
       // Persist the downgraded tier so subsequent launches use it automatically
       if (currentGameId) {
@@ -1074,7 +1117,7 @@ async function main(): Promise<void> {
     if (currentGameId && currentSystemId) {
       const entry = await library.getGame(currentGameId);
       if (entry && entry.blob) {
-        const file = new File([entry.blob], entry.fileName, { type: entry.blob.type });
+        const file = makeFileFromBlob(entry.blob, entry.fileName, { type: entry.blob.type });
         void onLaunchGame(file, currentSystemId, currentGameId);
       }
     }
@@ -1094,7 +1137,21 @@ async function main(): Promise<void> {
       document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.closeEasyNetplay));
       openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "multiplayer");
     };
-    buildLandingControls(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, onResumeGame, saveLibrary, getNetplayManager, openPlayTogetherSettings);
+    buildLandingControls(
+      settings,
+      deviceCaps,
+      library,
+      biosLibrary,
+      onSettingsChange,
+      emulator,
+      onLaunchGame,
+      onResumeGame,
+      saveLibrary,
+      getNetplayManager,
+      openPlayTogetherSettings,
+      canInstallPWA,
+      promptPWAInstall,
+    );
   });
 
   document.addEventListener(LEGACY_EVENTS.openSettings, () => {
@@ -1143,28 +1200,9 @@ async function main(): Promise<void> {
     // Malformed URLs / non-browser environments are non-fatal.
   }
 
-  // 8b. Web Share Target — pick up any ROM files deposited by the service
-  //     worker when this app was opened from the OS share sheet.
-  //     The service worker stores shared files under `/_shared/<filename>` in
-  //     the "retro-oasis-shared-roms" cache; we retrieve and process them here,
-  //     then delete the cached entries so they're not replayed on the next load.
-  try {
-    const shareCache = await caches.open("retro-oasis-shared-roms");
-    const sharedKeys = await shareCache.keys();
-    if (sharedKeys.length > 0) {
-      for (const req of sharedKeys) {
-        const resp = await shareCache.match(req);
-        if (!resp) continue;
-        const filename = resp.headers.get("X-Share-Filename") ?? req.url.split("/").pop() ?? "rom";
-        const blob = await resp.blob();
-        const file = new File([blob], decodeURIComponent(filename), { type: blob.type });
-        void onFileChosen(file);
-        await shareCache.delete(req);
-      }
-    }
-  } catch {
-    // Non-fatal — caches API unavailable in some environments.
-  }
+  // 8b. Web Share Target: pick up ROM files deposited by the service worker
+  // when this app was opened from the OS share sheet.
+  await consumePwaSharedFiles(onFileChosen);
 
   wirePwaFileLaunchQueue(onFileChosen);
 

@@ -10,8 +10,10 @@
  *   - Aggressive COI header injection for SharedArrayBuffer/WASM
  */
 
-const SHELL_CACHE = "retro-oasis-shell-v7";
-const USER_CACHE  = "retro-oasis-user-v1";
+const SHELL_CACHE = "retro-oasis-shell-v8";
+const SHARE_TARGET_CACHE = "retro-oasis-shared-roms-v1";
+const LEGACY_SHARE_TARGET_CACHES = ["retro-oasis-user-v1", "retro-oasis-shared-roms"];
+const PRESERVED_CACHES = new Set([SHELL_CACHE, SHARE_TARGET_CACHE, ...LEGACY_SHARE_TARGET_CACHES]);
 
 // ── Gaming-aware update deferral ─────────────────────────────────────────
 //
@@ -109,7 +111,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== SHELL_CACHE && key !== USER_CACHE)
+            .filter((key) => !PRESERVED_CACHES.has(key))
             .map((key) => caches.delete(key)),
         ),
       )
@@ -367,7 +369,7 @@ async function handleShareTarget(request) {
     const formData = await request.formData();
     const files = formData.getAll("rom").filter((f) => f instanceof File);
     if (files.length > 0) {
-      const cache = await caches.open(USER_CACHE);
+      const cache = await caches.open(SHARE_TARGET_CACHE);
       for (const file of files) {
         const key = new Request(`/_shared/${encodeURIComponent(file.name)}`);
         await cache.put(key, new Response(file, {

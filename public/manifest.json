@@ -75,6 +75,10 @@
         "application/zip": [".zip"],
         "application/x-zip-compressed": [".zip"],
         "application/x-7z-compressed": [".7z"],
+        "application/vnd.rar": [".rar"],
+        "application/x-rar-compressed": [".rar"],
+        "application/x-tar": [".tar"],
+        "application/gzip": [".gz", ".tgz"],
         "application/octet-stream": [
           ".nes", ".fds", ".unf", ".unif",
           ".smc", ".sfc", ".fig", ".swc",
@@ -84,7 +88,8 @@
           ".cue", ".bin", ".chd", ".img", ".mdf", ".ccd",
           ".md", ".smd", ".gen", ".gg", ".sms",
           ".a26", ".a78", ".lnx", ".ngp", ".ngc", ".ngpc",
-          ".gdi", ".cdi", ".elf"
+          ".gdi", ".cdi", ".elf",
+          ".rar", ".tar", ".gz", ".tgz"
         ]
       }
     }
@@ -100,6 +105,11 @@
           "accept": [
             "application/zip",
             "application/x-zip-compressed",
+            "application/x-7z-compressed",
+            "application/vnd.rar",
+            "application/x-rar-compressed",
+            "application/x-tar",
+            "application/gzip",
             ".zip",
             ".7z",
             ".nes",

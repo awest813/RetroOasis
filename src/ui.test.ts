@@ -2825,6 +2825,29 @@ describe("buildLandingControls multiplayer button", () => {
     const perfPanel = document.getElementById("tab-panel-performance");
     expect(perfPanel!.hidden).toBe(false);
   });
+
+  it("renders an install button when the PWA install prompt is available", async () => {
+    const settings = makeSettings();
+    const onInstallPWA = vi.fn().mockResolvedValue(true);
+    buildLandingControls(
+      settings, fullCapsForTests,
+      makeFullLibForTests(), makeBiosLibForTests(),
+      vi.fn(),
+      undefined, undefined, undefined, undefined, undefined, undefined,
+      () => true,
+      onInstallPWA,
+    );
+
+    const headerActions = document.getElementById("header-actions")!;
+    const btn = Array.from(headerActions.querySelectorAll<HTMLButtonElement>("button"))
+      .find(b => b.getAttribute("aria-label") === "Install RetroOasis app");
+    expect(btn).toBeTruthy();
+
+    btn!.click();
+    await flushUI();
+
+    expect(onInstallPWA).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ── buildMultiplayerTab — new UX sections ────────────────────────────────────

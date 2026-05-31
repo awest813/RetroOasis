@@ -7,6 +7,7 @@
 
 import type { ArchiveFormat } from "../../archive.js";
 import { ArchiveSelectionStore } from "../../archiveStore.js";
+import { makeFileFromBlob, readBlobAsText } from "../../blobUtils.js";
 import { LEGACY_EVENTS } from "../../legacy.js";
 import type { PSPEmulator } from "../../emulator.js";
 import {
@@ -265,7 +266,7 @@ export async function resolveSystemAndAddImpl(
             }
           }
 
-          resolvedFile = new File([finalBlob], picked.name, { type: finalBlob.type });
+          resolvedFile = makeFileFromBlob(finalBlob, picked.name, { type: finalBlob.type });
           showLoadingOverlay();
           setLoadingMessage("File selected — detecting game system…");
           setLoadingSubtitle("");
@@ -275,7 +276,7 @@ export async function resolveSystemAndAddImpl(
             `Archive entry selected: "${picked.name}" (${formatBytes(picked.size)})`,
           );
         } else {
-          resolvedFile = new File([extracted.blob!], extracted.name, { type: extracted.blob!.type });
+          resolvedFile = makeFileFromBlob(extracted.blob!, extracted.name, { type: extracted.blob!.type });
         }
         setLoadingMessage("Detecting game system…");
         setLoadingSubtitle("");
@@ -572,7 +573,7 @@ async function handleM3UFile(
   _onFetchFromCloud: (game: GameMetadata, settings: Settings, libraryForCache?: GameLibrary) => Promise<Blob>,
 ): Promise<void> {
   let m3uText: string;
-  try { m3uText = await m3uFile.text(); } catch { showError("Could not read the .m3u file."); return; }
+  try { m3uText = await readBlobAsText(m3uFile); } catch { showError("Could not read the .m3u file."); return; }
 
   const discFileNames = parseM3U(m3uText);
   if (discFileNames.length === 0) { showError("The .m3u file is empty or contains no disc entries."); return; }
@@ -620,7 +621,7 @@ async function handleM3UFile(
   }
 
   const syntheticM3U  = new Blob([syntheticLines.join("\n")], { type: "text/plain" });
-  const syntheticFile = new File([syntheticM3U], m3uFile.name, { type: "text/plain" });
+  const syntheticFile = makeFileFromBlob(syntheticM3U, m3uFile.name, { type: "text/plain" });
   const gameName = m3uFile.name.replace(/\.[^.]+$/, "");
   settings.lastGameName = gameName;
 

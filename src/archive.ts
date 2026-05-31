@@ -17,6 +17,7 @@
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
+import { readBlobAsArrayBuffer } from "./blobUtils.js";
 import { gunzipSync, inflateSync } from "fflate";
 import extract7zWorkerUrl from "../data/compression/extract7z.js?url";
 import libunrarScriptUrl from "../data/compression/libunrar.js?url";
@@ -250,7 +251,7 @@ async function resolveZipCentralDirectoryLayout(
   let tailBytes = Math.min(size, 70_000);
   for (let attempt = 0; attempt < 4; attempt++) {
     const tailStart = size - tailBytes;
-    const tailBuf = await zipBlob.slice(tailStart, size).arrayBuffer();
+    const tailBuf = await readBlobAsArrayBuffer(zipBlob.slice(tailStart, size));
     const view = new DataView(tailBuf);
     const bytes = new Uint8Array(tailBuf);
     const maxSearch = Math.max(0, bytes.length - 22 - 65535);
@@ -289,7 +290,7 @@ async function resolveZipCentralDirectoryLayout(
           (BigInt(readUint32LE(view, locRel + 12)) << 32n)
         );
         if (zip64EocdOffset + 56 <= size) {
-          const zip64Buf = await zipBlob.slice(zip64EocdOffset, zip64EocdOffset + 56).arrayBuffer();
+          const zip64Buf = await readBlobAsArrayBuffer(zipBlob.slice(zip64EocdOffset, zip64EocdOffset + 56));
           const zv = new DataView(zip64Buf);
           if (readUint32LE(zv, 0) === ZIP64_EOCD_MAGIC) {
             const readUint64LE = (o: number) =>
@@ -376,7 +377,7 @@ function parseZipCentralDirectoryEntries(
 }
 
 async function readZipLocalHeaderDataStart(zipBlob: Blob, lhBase: number): Promise<number | null> {
-  const head = await zipBlob.slice(lhBase, lhBase + 30).arrayBuffer();
+  const head = await readBlobAsArrayBuffer(zipBlob.slice(lhBase, lhBase + 30));
   if (head.byteLength < 30) return null;
   const view = new DataView(head);
   if (readUint32LE(view, 0) !== LOCAL_FILE_MAGIC) return null;
@@ -404,7 +405,7 @@ async function listTarFileRefsStreaming(tarBlob: Blob): Promise<TarFileRef[]> {
 
   while (offset + 512 <= tarBlob.size) {
     const header = new Uint8Array(
-      await tarBlob.slice(offset, offset + 512).arrayBuffer()
+      await readBlobAsArrayBuffer(tarBlob.slice(offset, offset + 512))
     );
     const isZeroBlock = header.every(b => b === 0);
     if (isZeroBlock) {
@@ -683,7 +684,7 @@ async function decompressWithStream(
   // On some WebKit versions, awaiting writer.close() before any reader.read()
   // can hang indefinitely once the transform's output buffer fills up.
   // Cast required because WritableStreamDefaultWriter<Uint8Array> is typed to
-  // accept ArrayBuffer-backed views; blob.arrayBuffer() always produces a plain
+  // accept ArrayBuffer-backed views; blob reads always produce a plain
   // ArrayBuffer so the runtime type is always correct.
   const writePromise = writer.write(bytes as unknown as Uint8Array<ArrayBuffer>).then(() => writer.close());
 
@@ -874,7 +875,7 @@ export type ArchiveFormat = "zip" | "7z" | "rar" | "gzip" | "bzip2" | "xz" | "ta
 export async function detectArchiveFormat(blob: Blob): Promise<ArchiveFormat> {
   if (blob.size < 4) return "unknown";
   try {
-    const header = await blob.slice(0, 600).arrayBuffer();
+    const header = await readBlobAsArrayBuffer(blob.slice(0, 600));
     const view   = new DataView(header);
     const bytes  = new Uint8Array(header);
     const sig32  = view.getUint32(0, true);
@@ -934,10 +935,10 @@ export async function extractFromZip(
   if (useStreamingZip) {
     const layout = await resolveZipCentralDirectoryLayout(blob);
     if (layout) {
-      const cdBuf = await blob.slice(
+      const cdBuf = await readBlobAsArrayBuffer(blob.slice(
         layout.centralDirOffset,
         layout.centralDirOffset + layout.centralDirSize
-      ).arrayBuffer();
+      ));
       const entries = parseZipCentralDirectoryEntries(
         cdBuf,
         0,
@@ -952,7 +953,7 @@ export async function extractFromZip(
     // Fall through: rare ZIP layouts (e.g. comment longer than tail window) use full read.
   }
 
-  const buffer = await blob.arrayBuffer();
+  const buffer = await readBlobAsArrayBuffer(blob);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
 
@@ -1090,7 +1091,7 @@ async function runZipExtractionAfterEntries(
       dataStart = resolved;
       const dataEnd = dataStart + entry.compressedSize;
       if (dataStart > zipBlob.size || dataEnd > zipBlob.size) return null;
-      const ab = await zipBlob.slice(dataStart, dataEnd).arrayBuffer();
+      const ab = await readBlobAsArrayBuffer(zipBlob.slice(dataStart, dataEnd));
       compressedSlice = new Uint8Array(ab);
     }
 
@@ -1192,10 +1193,10 @@ export async function extractFromTar(
     }
     if (!selectedRef) return null;
 
-    const payload = await blob.slice(
+    const payload = await readBlobAsArrayBuffer(blob.slice(
       selectedRef.dataOffset,
       selectedRef.dataOffset + selectedRef.size
-    ).arrayBuffer();
+    ));
     const selectedBytes = new Uint8Array(payload);
 
     let candidates: ArchiveExtractCandidate[] | undefined;
@@ -1218,7 +1219,7 @@ export async function extractFromTar(
     };
   }
 
-  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const bytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
   const entries: ArchiveEntry[] = [];
 
   let offset = 0;
@@ -1303,7 +1304,7 @@ export async function extractFromGzip(
 ): Promise<{ name: string; blob: Blob; candidates?: ArchiveExtractCandidate[] } | null> {
   assertArchiveSize(blob, "GZIP");
 
-  const compressed = new Uint8Array(await blob.arrayBuffer());
+  const compressed = new Uint8Array(await readBlobAsArrayBuffer(blob));
   const dsOpts: DecompressStreamOptions | undefined = useMobileArchiveMemoryOptimizations()
     ? { yieldWhileReading: true }
     : undefined;
@@ -1393,7 +1394,7 @@ export async function extractFromArchive(
       }
       // Android and desktop use the legacy worker path below.
       assertArchiveSize(blob, format.toUpperCase());
-      const archiveBytes = new Uint8Array(await blob.arrayBuffer());
+      const archiveBytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
       const entries = await extractWithLegacyWorker(format, archiveBytes, options);
       emitProgress(options, {
         format,
