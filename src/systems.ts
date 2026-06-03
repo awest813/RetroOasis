@@ -1694,9 +1694,9 @@ function isSnesRomHeader(bytes: Uint8Array): boolean {
       const mapModeIdx = base + candidate.mapModeOffset;
       const resetIdx = base + candidate.resetVectorOffset;
       if (mapModeIdx >= bytes.length || (resetIdx + 1) >= bytes.length) continue;
-      const mapMode = bytes[mapModeIdx] ?? 0;
+      const mapMode = bytes[mapModeIdx]!;
       if (!SNES_PLAUSIBLE_MAP_MODES.has(mapMode)) continue;
-      const resetVector = ((bytes[resetIdx + 1] ?? 0) << 8) | (bytes[resetIdx] ?? 0);
+      const resetVector = (bytes[resetIdx + 1]! << 8) | bytes[resetIdx]!;
       if (resetVector >= 0x8000 && resetVector <= 0xffef) return true;
     }
   }
