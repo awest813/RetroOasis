@@ -3054,6 +3054,7 @@ describe('getLaunchCounts / recordSystemLaunch / getTopLaunchedSystems', () => {
       'n64',
       'psx',
       'nds',
+      '3ds',
       'segaSaturn',
       'segaDC',
     ]);

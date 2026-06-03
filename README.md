@@ -125,7 +125,7 @@ Production output is written to `dist/`.
 
 ## Cross-Origin Isolation
 
-Threaded cores such as PPSSPP need `SharedArrayBuffer`, which requires cross-origin isolation.
+Threaded cores such as PPSSPP and Azahar need `SharedArrayBuffer`, which requires cross-origin isolation.
 
 RetroOasis handles this in two places:
 

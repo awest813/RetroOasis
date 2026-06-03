@@ -58,7 +58,7 @@ export function buildDebugTab(
   const hasWasm    = typeof WebAssembly !== "undefined";
 
   envSection.appendChild(make("p", { class: "device-info" },
-    `Cross-Origin Isolated: ${isIsolated ? "Yes (PSP supported)" : "No \u2014 PSP games will fail (reload after coi-serviceworker.js)"}`
+    `Cross-Origin Isolated: ${isIsolated ? "Yes (threaded cores supported)" : "No - PSP and 3DS games will fail (reload after coi-serviceworker.js)"}`
   ));
   envSection.appendChild(make("p", { class: "device-info" },
     `SharedArrayBuffer: ${hasSAB ? "Available" : "Not available"}`

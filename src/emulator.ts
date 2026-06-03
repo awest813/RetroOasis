@@ -4018,6 +4018,15 @@ export class PSPEmulator {
   }
 
   private _emitError(msg: string): void {
+    const threadedSystem = this._currentSystem;
+    if (threadedSystem?.needsThreads && threadedSystem.id !== "psp") {
+      msg = msg
+        .replace(/PSP emulation/g, `${threadedSystem.name} emulation`)
+        .replace(/PSP's/g, `${threadedSystem.shortName}'s`)
+        .replace(/For PSP:/g, `For ${threadedSystem.shortName}:`)
+        .replace(/supports PSP,/g, `supports ${threadedSystem.shortName},`)
+        .replace(/for PSP emulation/g, `for ${threadedSystem.shortName} emulation`);
+    }
     this._setState("error");
     this.onError?.(msg);
   }
@@ -4044,14 +4053,17 @@ export class PSPEmulator {
   private _checkSharedArrayBuffer(): boolean {
     if (typeof SharedArrayBuffer !== "undefined") return true;
 
+    const systemName = this._currentSystem?.name ?? "This system";
+    const systemShortName = this._currentSystem?.shortName ?? systemName;
+
     // iOS: all browsers on iOS/iPadOS use WebKit and lack the `credentialless`
     // COEP value needed for cross-origin isolation, so SharedArrayBuffer is
-    // unavailable for PSP on iOS regardless of server headers.
+    // unavailable for threaded cores on iOS regardless of server headers.
     if (isLikelyIOS()) {
       this._emitError(
-        "PSP emulation is not supported on iPhone/iPad.\n\n" +
+        `${systemName} emulation is not supported on iPhone/iPad.\n\n` +
         "iOS Safari and Chrome (both WebKit-based) do not yet support the " +
-        "cross-origin isolation required for PSP's multi-threading.\n\n" +
+        `cross-origin isolation required for ${systemShortName}'s multi-threading.\n\n` +
         "• Many other systems work great on iPhone/iPad: try NES, SNES, GBA, N64, and more.\n" +
         "• For PSP: use a desktop browser such as Chrome or Firefox on a Mac or PC."
       );
@@ -4086,7 +4098,7 @@ export class PSPEmulator {
 
     this._emitError(
       "SharedArrayBuffer is not available.\n\n" +
-      "This system requires worker threads, which need Cross-Origin Isolation " +
+      `${systemName} requires worker threads, which need Cross-Origin Isolation ` +
       "(COOP + COEP headers).\n\n" +
       "• In dev: make sure you are running `npm run dev`.\n" +
       "• In production: coi-serviceworker.js should activate automatically.\n" +

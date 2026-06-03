@@ -1130,7 +1130,7 @@ function benchmarkGPU(): number {
  * Brave / Opera; Gecko: Firefox; WebKit: Safari).
  *
  * Records a navigation-timing mark and warns when cross-origin isolation is
- * missing — SharedArrayBuffer (needed for threaded cores such as PSP) requires
+ * missing — SharedArrayBuffer (needed for threaded cores such as PSP and 3DS) requires
  * COOP/COEP in every browser, not only Chrome.
  */
 export function optimizeBrowserPerformance(): void {
@@ -1143,7 +1143,7 @@ export function optimizeBrowserPerformance(): void {
   }
 
   if (typeof window !== "undefined" && !window.crossOriginIsolated) {
-    console.warn("[RetroOasis] Not cross-origin isolated — threaded cores such as PSP may be unavailable (no SharedArrayBuffer).");
+    console.warn("[RetroOasis] Not cross-origin isolated — threaded cores such as PSP and 3DS may be unavailable (no SharedArrayBuffer).");
   }
 }
 
@@ -2886,6 +2886,7 @@ export const HEAVY_3D_CORE_PREFETCH_ORDER: readonly string[] = [
   "n64",
   "psx",
   "nds",
+  "3ds",
   "segaSaturn",
   "segaDC",
 ];

@@ -257,6 +257,15 @@ describe('systems performance profiles', () => {
       expect(getSystemByCoreHint('mupen64plus-next')).toBeUndefined();
     });
 
+    it('maps 3DS core hints to the experimental 3DS profile', () => {
+      expect(getSystemByCoreHint('azahar')?.id).toBe('3ds');
+      expect(getSystemByCoreHint('citra')?.id).toBe('3ds');
+    });
+
+    it('maps Flycast core hints to the experimental Dreamcast profile', () => {
+      expect(getSystemByCoreHint('flycast')?.id).toBe('segaDC');
+    });
+
     it('ignores autodetect because RetroOasis already auto-detects file imports', () => {
       expect(getSystemByCoreHint('autodetect')).toBeUndefined();
     });

@@ -6,12 +6,12 @@ This is the single source of truth for shipped work, active improvements, and fu
 
 ### Emulation And Systems
 
-- Multi-system EmulatorJS integration: PSP, N64, PS1, NDS, GBA, SNES, NES, Genesis, Saturn, Dreamcast, arcade, Atari 7800, Lynx, Neo Geo Pocket, and related configured cores.
+- Multi-system EmulatorJS integration: PSP, Nintendo 3DS, N64, PS1, NDS, GBA, SNES, NES, Genesis, Saturn, Dreamcast, arcade, Atari 7800, Lynx, Neo Geo Pocket, and related configured cores.
 - Hardware tier classification through WebGL benchmark, CPU/RAM heuristics, Chromebook handling, and battery-aware performance choices.
 - Per-system and per-tier RetroArch options, including tuned 3D systems and dynamic resolution support.
 - IndexedDB-backed ROM library, metadata cache, BIOS library, save states, thumbnails, and WASM/shader caches.
 - Archive handling for ZIP, 7z, RAR, TAR, and GZIP, plus IPS/BPS/UPS patching.
-- Multi-disc `.m3u` and CHD support for PS1, Saturn, and Dreamcast.
+- Multi-disc `.m3u` and CHD support for PS1, Saturn, and Dreamcast, plus 3DS `.3ds`/`.cci`/`.cxi`/`.app` import routing.
 - Cross-origin isolation support through `public/coi-serviceworker.js`.
 
 ### Rendering, Audio, And Performance
@@ -54,7 +54,7 @@ This is the single source of truth for shipped work, active improvements, and fu
 - Vitest unit coverage across core modules.
 - Playwright e2e coverage for import, launch, Save Sync, save/load hotkeys, and settings flows.
 - `npm run doctor`, `npm run lint`, `npm run build`, and focused test suites are the standard validation loop.
-- Recent full validation baseline: doctor, build, lint, 2477 Vitest tests, focused settings/save/cloud/emulator Vitest, and 15 Playwright e2e tests passing.
+- Recent validation baseline: doctor, build, lint, 2524 Vitest tests, and focused import Playwright e2e passing after the experimental 3DS/Flycast access pass.
 
 ## Active Improvement Plan
 
@@ -109,13 +109,15 @@ This is the single source of truth for shipped work, active improvements, and fu
 | Desync protection | Planned | Detect divergent state where core APIs allow it. |
 | Rollback netplay research | Research | Large scope; depends on state rewind and per-core determinism. |
 
-### Dreamcast And Core Reliability
+### Experimental Core Reliability
 
 | Work | Status | Notes |
 | --- | --- | --- |
-| Dreamcast import routing and experimental Flycast wiring | Done | Treated as experimental. |
-| Dreamcast stability tuning | Research | Track upstream core behavior, BIOS needs, threaded runtime, and browser support. |
-| Headless core smoke coverage | Planned | Add representative launch/save checks where legally distributable fixtures allow it. |
+| Nintendo 3DS import and Azahar routing | Done | `.3ds`, `.cci`, `.cxi`, and `.app` are detected/extracted; Azahar/citra hints map to 3DS; threaded nightly core paths are covered by unit and import e2e tests. |
+| Nintendo 3DS runtime compatibility pass | Research | Real-game boot depends on browser WebGL 2/thread support, cross-origin isolation, hardware, and upstream Azahar/EmulatorJS behavior. |
+| Dreamcast import routing and experimental Flycast wiring | Done | Flycast uses the external `flycast-wasm.data` bundle through `EJS_corePath`, keeps GDI packages together, and remains marked experimental. |
+| Dreamcast stability tuning | Research | Track upstream core behavior, optional BIOS/flash impact, WebGL 2 performance, and browser support. |
+| Headless core smoke coverage | Partial | The TOBUNES open-source NES fixture is checked in for legal launch-path testing; add representative 3DS/Dreamcast fixtures only when legally distributable samples are available. |
 | 4.3-pre core routing checks | Done | Covered by `npm run doctor`. |
 
 ### Performance And Bundle Weight

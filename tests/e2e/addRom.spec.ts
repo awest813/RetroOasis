@@ -11,7 +11,7 @@
  * IndexedDB is replaced by the in-memory shim from fixtures.ts.
  */
 
-import { test, expect, dropFakeRom } from "./fixtures.js";
+import { test, expect, dropFakeRom, dropFakeZipRom } from "./fixtures.js";
 
 test.describe("Add ROM journey", () => {
   test("dropping a .nes file creates a game card in the library", async ({ appPage: page }) => {
@@ -33,6 +33,29 @@ test.describe("Add ROM journey", () => {
     }
 
     await expect(card).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("dropping a ZIP archive containing a .3ds ROM creates a 3DS game card", async ({ appPage: page }) => {
+    await expect(page.locator("#drop-zone")).toBeVisible();
+
+    await dropFakeZipRom(page, {
+      archiveName: "project-x-zone.zip",
+      romName: "Project X Zone (USA) Decrypted.3ds",
+      content: "NCSD\x00\x01",
+    });
+
+    const card = page.locator(".game-card, .library-game-card, [data-game-id]").first();
+    await card.waitFor({ state: "attached", timeout: 10_000 });
+    const playing = await page.evaluate(() => document.body.classList.contains("is-playing"));
+    if (playing) {
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(() => !document.body.classList.contains("is-playing"), { timeout: 15_000 });
+      await expect(page.locator("#landing")).not.toHaveClass("hidden", { timeout: 10_000 });
+    }
+
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(card).toContainText("Project X Zone");
+    await expect(card).toContainText("3DS");
   });
 
   test("game card quick action buttons are clickable above the card info layer", async ({ appPage: page }) => {

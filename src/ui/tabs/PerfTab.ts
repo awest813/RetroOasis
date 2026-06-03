@@ -146,7 +146,7 @@ export function buildPerfTab(
     gpuDetails.appendChild(make("p", { class: "device-info" }, `Anisotropic filtering: ${deviceCaps.gpuCaps.maxAnisotropy}×`));
   }
   gpuDetails.appendChild(make("p", { class: "device-info" }, `WebGL 2: ${deviceCaps.gpuCaps.webgl2 ? "Yes" : "No"} · WebGPU: ${webgpuStatusText}`));
-  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "Yes (PSP supported)" : "No"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "Yes" : "No"}`));
+  gpuDetails.appendChild(make("p", { class: "device-info" }, `SharedArrayBuffer: ${typeof SharedArrayBuffer !== "undefined" ? "Yes (threaded cores supported)" : "No"} · AudioWorklet: ${typeof AudioWorkletNode !== "undefined" ? "Yes" : "No"}`));
   gpuDisclosure.appendChild(gpuDetails);
   deviceSection.appendChild(gpuDisclosure);
   container.append(perfSection, deviceSection);

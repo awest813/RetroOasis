@@ -587,7 +587,7 @@ function scoreArchiveEntry(entryName: string, sizeBytes: number): number {
   if (ext === "gdi") score += 500;
 
   // Prefer binary/game payloads over descriptor files when both exist.
-  if (["iso", "cso", "chd", "pbp", "elf", "nds", "z64", "n64", "v64", "64", "gba", "gbc", "gb", "nes", "sfc", "smc", "md", "gen", "32x", "68k", "gg", "sms", "a26", "a78", "lnx", "ngp", "ngpc", "ngc", "cdi", "gdi", "bin", "img", "mdf", "ccd"].includes(ext)) {
+  if (["iso", "cso", "chd", "pbp", "elf", "3ds", "cci", "cxi", "app", "nds", "z64", "n64", "v64", "64", "gba", "gbc", "gb", "nes", "sfc", "smc", "md", "gen", "32x", "68k", "gg", "sms", "a26", "a78", "lnx", "ngp", "ngpc", "ngc", "cdi", "gdi", "bin", "img", "mdf", "ccd"].includes(ext)) {
     score += 300;
   }
 

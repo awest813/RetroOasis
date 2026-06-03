@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { readFile } from "node:fs/promises";
 import {
   PSPEmulator,
   EJS_CDN_BASE,
@@ -534,6 +535,10 @@ describe('PSPEmulator', () => {
 
       expect(window.EJS_core).toBe('flycast');
       expect(window.EJS_corePath).toContain('flycast-wasm.data');
+      expect(window.EJS_paths).toBeUndefined();
+      expect(window.EJS_threads).toBe(false);
+      expect(window.EJS_Settings?.flycast_hle_bios).toBe('enabled');
+      expect(emulator.resolvedWasmCoreName).toBe('flycast');
       expect(emulator.state).toBe('running');
     });
 
@@ -775,6 +780,33 @@ describe('PSPEmulator', () => {
       expect(emulator.state).toBe('running');
     });
 
+    it('launches the bundled TOBUNES homebrew NES fixture through FCEUmm', async () => {
+      const romBytes = await readFile('tests/fixtures/roms/TOBUNES.NES');
+      expect(romBytes.byteLength).toBe(40_976);
+      expect([...romBytes.subarray(0, 4)]).toEqual([0x4e, 0x45, 0x53, 0x1a]);
+
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      await emulator.launch({
+        file:            new File([romBytes], 'TOBUNES.NES', { type: 'application/octet-stream' }),
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      nesCaps,
+      });
+
+      expect(window.EJS_core).toBe('nes');
+      expect(window.EJS_gameName).toBe('TOBUNES');
+      expect(window.EJS_paths?.['fceumm.json']).toBe(`${EJS_CDN_BASE}cores/reports/fceumm.json`);
+      expect(window.EJS_paths?.['fceumm-wasm.data']).toBe(`${EJS_CDN_BASE}cores/fceumm-wasm.data`);
+      expect(emulator.resolvedWasmCoreName).toBe('fceumm');
+      expect(emulator.state).toBe('running');
+    });
+
     it('routes PSP core bundles to the EmulatorJS nightly channel', async () => {
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({}) as never);
       (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
@@ -805,6 +837,32 @@ describe('PSPEmulator', () => {
       expect(window.EJS_askBeforeExit).toBe(true);
       expect(window.EJS_fixedSaveInterval).toBe(30000);
       expect(window.EJS_disableBatchBootup).toBe(false);
+      expect(emulator.state).toBe('running');
+    });
+
+    it('routes Nintendo 3DS launches to the threaded Azahar nightly core', async () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({}) as never);
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      await emulator.launch({
+        file:            new File(['rom'], 'Project X Zone (USA).3ds'),
+        volume:          0.7,
+        systemId:        '3ds',
+        performanceMode: 'auto',
+        deviceCaps:      pspCaps,
+      });
+
+      expect(window.EJS_core).toBe('3ds');
+      expect(window.EJS_threads).toBe(true);
+      expect(window.EJS_paths?.['azahar-thread-wasm.data']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/azahar-thread-wasm.data`);
+      expect(window.EJS_paths?.['azahar-wasm.data']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/azahar-wasm.data`);
+      expect(window.EJS_paths?.['azahar.json']).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/reports/azahar.json`);
+      expect(window.EJS_Settings?.retroarch_core).toBe('azahar');
+      expect(emulator.resolvedWasmCoreName).toBe('azahar');
       expect(emulator.state).toBe('running');
     });
 
@@ -1437,6 +1495,31 @@ describe('PSPEmulator', () => {
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0]).toContain('npm run dev');
+    });
+
+    it('names Nintendo 3DS in threaded-core errors instead of PSP', async () => {
+      const originalSAB = (globalThis as Record<string, unknown>).SharedArrayBuffer;
+      delete (globalThis as Record<string, unknown>).SharedArrayBuffer;
+
+      const errors: string[] = [];
+      const freshEmulator = new PSPEmulator('test-player');
+      freshEmulator.onError = (msg) => errors.push(msg);
+
+      try {
+        await freshEmulator.launch({
+          file: new File(['data'], 'game.3ds'),
+          volume: 0.7,
+          systemId: '3ds',
+          performanceMode: 'auto',
+          deviceCaps: fakeCaps,
+        });
+      } finally {
+        (globalThis as Record<string, unknown>).SharedArrayBuffer = originalSAB;
+      }
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('Nintendo 3DS');
+      expect(errors[0]).not.toContain('PSP');
     });
 
     it('emits a version-specific upgrade error for desktop Safari < 17', async () => {

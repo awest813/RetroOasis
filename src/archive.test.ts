@@ -1357,6 +1357,35 @@ describe('extractFromZip — ROM/ISO format coverage', () => {
 // ── All-system archive extraction coverage ────────────────────────────────────
 
 describe('extractFromZip — all system format coverage', () => {
+  // ── Nintendo 3DS ───────────────────────────────────────────────────────────
+  it('prefers a .3ds ROM over readme metadata in ZIP archives', async () => {
+    const readmeData = new TextEncoder().encode('Import notes');
+    const romData = new Uint8Array([0x4e, 0x43, 0x53, 0x44, 0x00, 0x01]);
+
+    const zipBuf = buildZipWithTwoEntries(
+      'readme.txt', readmeData,
+      'Project X Zone (USA) Decrypted.3ds', romData,
+    );
+    const result = await extractFromZip(new Blob([zipBuf]), { includeCandidates: true, maxCandidates: 10 });
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('Project X Zone (USA) Decrypted.3ds');
+    const names = (result!.candidates ?? []).map(c => c.name);
+    expect(names).toContain('Project X Zone (USA) Decrypted.3ds');
+    expect(names).not.toContain('readme.txt');
+  });
+
+  it('extracts alternate Nintendo 3DS container extensions', async () => {
+    for (const ext of ['cci', 'cxi', 'app']) {
+      const content = new Uint8Array([0x01, 0x02, 0x03]);
+      const zipBuf = buildZip(`game.${ext}`, content);
+      const result = await extractFromZip(new Blob([zipBuf]));
+
+      expect(result, ext).not.toBeNull();
+      expect(result!.name).toBe(`game.${ext}`);
+    }
+  });
+
   // ── Nintendo DS ─────────────────────────────────────────────────────────────
   it('extracts a .nds file (Nintendo DS ROM)', async () => {
     // NDS ROM header starts with an ARM9 entry point (4 bytes), then title (12 bytes).

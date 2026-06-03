@@ -1596,6 +1596,8 @@ const UNIQUE_EXT: Map<string, SystemInfo> = new Map();
 const AMBIGUOUS_EXT: Map<string, SystemInfo[]> = new Map();
 
 const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
+  azahar: "3ds",
+  citra: "3ds",
   desmume: "nds",
   desmume2015: "nds",
   fbneo: "arcade",
