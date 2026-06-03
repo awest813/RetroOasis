@@ -213,6 +213,7 @@ describe('systems performance profiles', () => {
 
   describe('system table completeness', () => {
     it('keeps non-empty ids, at least one extension, and a valid resolved corePath URL for every system', () => {
+      const defaultEjsSettings: Record<string, string> = {};
       for (const system of SYSTEMS) {
         expect(system.id.trim().length).toBeGreaterThan(0);
         expect(system.extensions.length).toBeGreaterThan(0);
@@ -222,7 +223,7 @@ describe('systems performance profiles', () => {
         }
 
         const resolvedCorePath = system.corePath ??
-          `${EJS_CDN_BASE}cores/${wasmCorePackageNameFor(system, {})}-wasm.data`;
+          `${EJS_CDN_BASE}cores/${wasmCorePackageNameFor(system, defaultEjsSettings)}-wasm.data`;
         const parsed = new URL(resolvedCorePath);
         expect(parsed.protocol === "https:" || parsed.protocol === "http:").toBe(true);
       }
