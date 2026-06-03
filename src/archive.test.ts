@@ -410,6 +410,12 @@ describe('detectArchiveFormat', () => {
     expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('xz');
   });
 
+  it('returns "chd" for a CHD header', async () => {
+    const chdBytes = new Uint8Array([0x4d, 0x43, 0x6f, 0x6d, 0x70, 0x72, 0x48, 0x44]);
+    const blob = new Blob([chdBytes]);
+    expect(await detectArchiveFormat(blob)).toBe<ArchiveFormat>('chd');
+  });
+
   it('returns "tar" for a TAR header with ustar magic', async () => {
     const tarBytes = new Uint8Array(512);
     tarBytes.set(new TextEncoder().encode('ustar'), 257);
@@ -1117,6 +1123,12 @@ describe('extractFromArchive', () => {
   it('returns null for unsupported formats (bzip2)', async () => {
     const bz = new Uint8Array([0x42, 0x5a, 0x68, 0x39]);
     const result = await extractFromArchive(new Blob([bz]));
+    expect(result).toBeNull();
+  });
+
+  it('returns null for CHD payloads (detected but not extracted as archives)', async () => {
+    const chd = new Uint8Array([0x4d, 0x43, 0x6f, 0x6d, 0x70, 0x72, 0x48, 0x44]);
+    const result = await extractFromArchive(new Blob([chd]));
     expect(result).toBeNull();
   });
 

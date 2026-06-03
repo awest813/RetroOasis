@@ -13,7 +13,7 @@
  *   - GZIP  (DecompressionStream/fflate gzip; auto-detects inner TAR)
  *
  * Formats detected but not currently extracted:
- *   - bzip2 / xz (manual extraction required)
+ *   - bzip2 / xz / chd (manual extraction required)
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
@@ -867,7 +867,7 @@ function getFormatFromFileName(fileName: string): ArchiveFormat {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /** Format of the archive. */
-export type ArchiveFormat = "zip" | "7z" | "rar" | "gzip" | "bzip2" | "xz" | "tar" | "unknown";
+export type ArchiveFormat = "zip" | "7z" | "rar" | "gzip" | "bzip2" | "xz" | "tar" | "chd" | "unknown";
 
 /**
  * Detect the archive format of a Blob by reading its magic header.
@@ -903,6 +903,13 @@ export async function detectArchiveFormat(blob: Blob): Promise<ArchiveFormat> {
         bytes[0] === 0xfd && bytes[1] === 0x37 && bytes[2] === 0x7a &&
         bytes[3] === 0x58 && bytes[4] === 0x5a && bytes[5] === 0x00) {
       return "xz";
+    }
+
+    // CHD signature: "MComprHD"
+    if (bytes.length >= 8 &&
+        bytes[0] === 0x4d && bytes[1] === 0x43 && bytes[2] === 0x6f && bytes[3] === 0x6d &&
+        bytes[4] === 0x70 && bytes[5] === 0x72 && bytes[6] === 0x48 && bytes[7] === 0x44) {
+      return "chd";
     }
 
     // TAR magic at offset 257: "ustar" + NUL/space
@@ -1343,7 +1350,7 @@ export async function extractFromArchive(
   const fallbackFromName = blob instanceof File ? getFormatFromFileName(blob.name) : "unknown";
   const format = detected !== "unknown" ? detected : fallbackFromName;
 
-  if (format === "unknown" || format === "bzip2" || format === "xz") return null;
+  if (format === "unknown" || format === "bzip2" || format === "xz" || format === "chd") return null;
 
   emitProgress(options, {
     format,

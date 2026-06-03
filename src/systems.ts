@@ -1648,6 +1648,71 @@ export const ALL_EXTENSIONS: string[] = [
   ...new Set(SYSTEMS.flatMap(s => s.extensions)),
 ];
 
+function toUint8Array(data: ArrayBuffer | ArrayBufferView): Uint8Array {
+  if (data instanceof Uint8Array) return data;
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  }
+  return new Uint8Array(data);
+}
+
+function isNesRomHeader(bytes: Uint8Array): boolean {
+  return bytes.length >= 4 &&
+    bytes[0] === 0x4e && // N
+    bytes[1] === 0x45 && // E
+    bytes[2] === 0x53 && // S
+    bytes[3] === 0x1a;
+}
+
+function isN64RomHeader(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false;
+  const b0 = bytes[0];
+  const b1 = bytes[1];
+  const b2 = bytes[2];
+  const b3 = bytes[3];
+  return (
+    // .z64 big-endian
+    (b0 === 0x80 && b1 === 0x37 && b2 === 0x12 && b3 === 0x40) ||
+    // .v64 byte-swapped
+    (b0 === 0x37 && b1 === 0x80 && b2 === 0x40 && b3 === 0x12) ||
+    // .n64 little-endian
+    (b0 === 0x40 && b1 === 0x12 && b2 === 0x37 && b3 === 0x80)
+  );
+}
+
+const SNES_PLAUSIBLE_MAP_MODES = new Set([0x20, 0x21, 0x22, 0x23, 0x25, 0x30, 0x31, 0x32, 0x35]);
+
+function isSnesRomHeader(bytes: Uint8Array): boolean {
+  const baseOffsets = [0, 512]; // account for optional copier header
+  const candidates = [
+    { mapModeOffset: 0x7fd5, resetVectorOffset: 0x7ffc }, // LoROM
+    { mapModeOffset: 0xffd5, resetVectorOffset: 0xfffc }, // HiROM
+  ];
+
+  for (const base of baseOffsets) {
+    for (const candidate of candidates) {
+      const mapModeIdx = base + candidate.mapModeOffset;
+      const resetIdx = base + candidate.resetVectorOffset;
+      if (mapModeIdx >= bytes.length || (resetIdx + 1) >= bytes.length) continue;
+      const mapMode = bytes[mapModeIdx] ?? 0;
+      if (!SNES_PLAUSIBLE_MAP_MODES.has(mapMode)) continue;
+      const resetVector = ((bytes[resetIdx + 1] ?? 0) << 8) | (bytes[resetIdx] ?? 0);
+      if (resetVector >= 0x8000 && resetVector <= 0xffef) return true;
+    }
+  }
+  return false;
+}
+
+export function detectSystemFromRomHeader(
+  header: ArrayBuffer | ArrayBufferView,
+): SystemInfo | null {
+  const bytes = toUint8Array(header);
+  if (isNesRomHeader(bytes)) return SYSTEM_BY_ID.get("nes") ?? null;
+  if (isN64RomHeader(bytes)) return SYSTEM_BY_ID.get("n64") ?? null;
+  if (isSnesRomHeader(bytes)) return SYSTEM_BY_ID.get("snes") ?? null;
+  return null;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -1656,20 +1721,24 @@ export const ALL_EXTENSIONS: string[] = [
  * - Returns a single SystemInfo when the extension is unambiguous.
  * - Returns an array of candidates when multiple systems share the extension.
  * - Returns null when the extension is unknown.
+ * - When extension detection fails, optional ROM header bytes can be used as
+ *   a lightweight fallback fingerprint for a subset of cartridge systems.
  */
 export function detectSystem(
-  fileName: string
+  fileName: string,
+  romHeader?: ArrayBuffer | ArrayBufferView,
 ): SystemInfo | SystemInfo[] | null {
   const dotIdx = fileName.lastIndexOf(".");
   const ext = (dotIdx > 0 && dotIdx < fileName.length - 1)
     ? fileName.substring(dotIdx + 1).toLowerCase()
     : "";
-  if (!ext) return null;
+  if (!ext) return romHeader ? detectSystemFromRomHeader(romHeader) : null;
   if (UNIQUE_EXT.has(ext))    return UNIQUE_EXT.get(ext)!;
   if (AMBIGUOUS_EXT.has(ext)) {
     const systems = AMBIGUOUS_EXT.get(ext)!;
     return preferredCandidateForSharedCore(systems) ?? systems;
   }
+  if (romHeader) return detectSystemFromRomHeader(romHeader);
   return null;
 }
 
@@ -1706,4 +1775,3 @@ export function getSystemFeatureSummary(
   if (system.hasAchievements) features.push("RetroAchievements");
   return features;
 }
-
