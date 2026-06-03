@@ -5,23 +5,21 @@
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-3178C6.svg)
 ![Node](https://img.shields.io/badge/node-18%2B-339933.svg)
 
-RetroOasis is a polished, self-hostable retro game library and emulator frontend for the browser. It is built with TypeScript, Vite, and [EmulatorJS](https://emulatorjs.org/), and it runs as a static web app: no backend server is required for local play.
+RetroOasis is a self-hostable retro game library and browser emulator frontend built with TypeScript, Vite, and vendored [EmulatorJS](https://emulatorjs.org/) runtime assets. It runs as a static web app, keeps user content local by default, and focuses on the things that make browser emulation pleasant to use every day: importing, organizing, launching, saving, syncing, and recovering games with as little ceremony as possible.
 
-Bring your own legally obtained ROMs and BIOS files. RetroOasis stores games, saves, cover art, optional connection credentials, and settings in your browser unless you explicitly connect a provider.
+Bring your own legally obtained ROMs, disc images, BIOS files, and account credentials. RetroOasis does not provide copyrighted games or proprietary BIOS files.
 
-## Why RetroOasis?
+## Highlights
 
-Raw browser emulator integrations can boot games, but a good daily-use library needs more than a loader. RetroOasis adds:
-
-- Drag-and-drop ROM import with system detection
-- ZIP, 7z, RAR, TAR, and GZIP archive handling
-- Local IndexedDB game library and save-state storage
-- BIOS management and per-system launch checks
-- Per-device performance tiers with per-system core options
-- Save slots, thumbnails, auto-restore, and optional cloud sync
-- Cover art discovery from free sources and optional bring-your-own provider credentials
-- PWA install support and cross-origin isolation for threaded cores
-- Experimental multiplayer, cloud libraries, and LANemu workflows
+- Drag-and-drop ROM import with archive extraction and system detection
+- Local IndexedDB library for games, cover art, saves, save states, BIOS files, and thumbnails
+- EmulatorJS core orchestration with per-system launch checks and compatibility settings
+- PSP, Dreamcast, Nintendo 64, Nintendo DS, Nintendo 3DS, PSX, DOS, arcade, Sega, Nintendo, Atari, and handheld profiles
+- Save slots, automatic crash recovery, save thumbnails, and optional cloud sync
+- Free cover-art discovery through Libretro thumbnails, GitHub-hosted collections, and Wikimedia fallbacks
+- Optional provider connections for RAWG, MobyGames, TheGamesDB, SteamGridDB, IGDB, ScreenScraper.fr, RetroAchievements, and cloud storage
+- PWA install support, share targets, file handling, and cross-origin isolation support for threaded cores
+- Experimental multiplayer and LANemu workflows
 
 ## Quick Start
 
@@ -34,82 +32,7 @@ npm run dev
 
 Open `http://localhost:5173`.
 
-## Supported Systems
-
-RetroOasis currently defines profiles for:
-
-- PlayStation Portable
-- PlayStation 1
-- Nintendo 64
-- Nintendo DS
-- Nintendo 3DS, experimental
-- NES, SNES, and SNES bsnes
-- Game Boy, Game Boy Color, and Game Boy Advance
-- Sega Genesis / Mega Drive, Genesis Wide, Sega CD / Mega-CD, Sega 32X, Game Gear, and Master System
-- Sega Saturn
-- Dreamcast, experimental Flycast
-- MS-DOS via DOSBox Pure
-- Arcade via FBNeo and MAME 2003+
-- Atari 2600, Atari 7800, and Atari Lynx
-- Intellivision
-- Neo Geo Pocket
-
-System definitions live in [src/systems.ts](./src/systems.ts). New system support should include extensions, core routing, tier settings, and tests.
-
-## Importing Games
-
-Use the on-screen drop zone, mobile add button, PWA file handling, or OS share target where supported. The import pipeline can:
-
-- Detect systems from file extensions
-- Ask the user when a file belongs to multiple systems
-- Extract supported archives and pick the best ROM candidate
-- Preserve native package archives when extraction would be wrong
-- Apply IPS, BPS, and UPS patches
-- Handle `.m3u` playlists for multi-disc games
-- Support Sega CD disc images (`.cue`, `.chd`, `.iso`, `.m3u`) and Sega 32X ROMs (`.32x`, `.68k`)
-- Route webretro-style links such as `?core=parallel_n64` as import hints
-
-For privacy and legal clarity, RetroOasis does not provide ROM downloads.
-
-## Saves, BIOS, and Cloud
-
-Local data is stored in browser storage:
-
-- ROM library: IndexedDB
-- Save states and thumbnails: IndexedDB
-- BIOS files: IndexedDB
-- Settings and optional connection credentials: localStorage
-
-Cloud features are optional. Save sync and cloud library indexing support WebDAV / Nextcloud, Google Drive, Dropbox, OneDrive, pCloud, Blomp, Box, and Mega depending on the flow and credentials configured in Settings.
-
-## Cover Art and Metadata
-
-Free cover sources run without an account:
-
-- [Libretro Thumbnails](https://thumbnails.libretro.com/)
-- [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
-- Wikimedia / Wikipedia metadata fallbacks
-
-Optional cover and metadata providers can be enabled in Settings > Connections:
-
-- RAWG
-- MobyGames
-- TheGamesDB
-- SteamGridDB
-- IGDB
-- ScreenScraper.fr
-
-Provider credentials are stored locally in the browser and sent directly from the browser to the provider.
-
-## Development
-
-### Requirements
-
-- Node.js 18+; Node 20+ recommended
-- npm 9+
-- A modern browser. Desktop Chromium-based browsers usually have the best PSP and WebGL/WebGPU compatibility.
-
-### Commands
+Useful commands:
 
 | Command | Description |
 | --- | --- |
@@ -121,20 +44,91 @@ Provider credentials are stored locally in the browser and sent directly from th
 | `npm run lint` | Run ESLint |
 | `npm run doctor` | Check common environment and hosting issues |
 
-Production output is written to `dist/`.
+## Supported Systems
+
+System definitions live in [src/systems.ts](./src/systems.ts). Current profiles include:
+
+- Sony: PlayStation 1, PlayStation Portable
+- Nintendo: NES, SNES, SNES bsnes, Game Boy, Game Boy Color, Game Boy Advance, Nintendo 64, Nintendo DS, Nintendo 3DS
+- Sega: Master System, Game Gear, Genesis / Mega Drive, Genesis Wide, Sega CD / Mega-CD, 32X, Saturn, Dreamcast
+- Arcade: FBNeo, MAME 2003+
+- Computers: MS-DOS via DOSBox Pure
+- Atari: 2600, 7800, Lynx
+- Other: Intellivision, Neo Geo Pocket
+
+New system work should include extension routing, core selection, BIOS expectations, performance defaults, UI copy, and tests.
+
+## Importing Games
+
+Games can be added through the drop zone, mobile add button, PWA file handling, share target, and compatible webretro-style URLs. The import pipeline can:
+
+- Detect systems from extensions and prompt when a file could belong to multiple systems
+- Extract ZIP, 7z, RAR, TAR, and GZIP archives
+- Preserve archive files for cores that need zipped ROM sets
+- Handle `.cue`, `.chd`, `.iso`, `.m3u`, `.gdi`, and multi-disc playlists where supported
+- Apply IPS, BPS, and UPS patches
+- Route launch hints such as `?core=parallel_n64`
+
+For PlayStation 1, prefer `.cue` plus `.bin` or `.chd` disc images over plain `.iso`. PSX images often depend on CD-ROM XA track layout that a standalone ISO cannot represent.
+
+## Saves, BIOS, and Cloud
+
+Local storage is browser-owned:
+
+| Data | Storage |
+| --- | --- |
+| Game library | IndexedDB |
+| ROM payloads and extracted files | IndexedDB |
+| Save states and thumbnails | IndexedDB |
+| BIOS files | IndexedDB |
+| Settings and optional credentials | localStorage |
+
+Cloud features are opt-in. Save sync and library indexing support WebDAV / Nextcloud plus provider flows for Google Drive, Dropbox, OneDrive, pCloud, Blomp, Box, and Mega where configured.
+
+## Cover Art and Metadata
+
+Free sources work without an account:
+
+- [Libretro Thumbnails](https://github.com/libretro-thumbnails)
+- [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- Wikimedia / Wikipedia fallbacks
+
+Optional provider credentials can be configured in Settings > Connections:
+
+- RAWG
+- MobyGames
+- TheGamesDB
+- SteamGridDB
+- IGDB
+- ScreenScraper.fr
+- RetroAchievements
+
+Credentials are stored locally and sent directly from the browser to the selected provider.
+
+## EmulatorJS Upstream Sync
+
+RetroOasis vendors EmulatorJS runtime files under [data](./data), then layers its own TypeScript app, import flow, library UI, cloud sync, and testing around them.
+
+When syncing upstream EmulatorJS work:
+
+- Prefer small, auditable patches over wholesale replacement of `data/`
+- Check whether RetroOasis already reimplemented the behavior in TypeScript
+- Keep changes compatible with the local cache, save, BIOS, and import flows
+- Run `node --check` on edited vendored JavaScript files
+- Run `npm test` and `npm run build` before merging
+
+Recent upstream-aligned fixes include CORS-safe Libretro cover downloads, preserved ZIP handling for arcade-style cores, large cache blob chunking, and `EJS_loadStateURL` restoration from cached file bytes.
 
 ## Cross-Origin Isolation
 
-Threaded cores such as PPSSPP and Azahar need `SharedArrayBuffer`, which requires cross-origin isolation.
-
-RetroOasis handles this in two places:
+Threaded cores such as PPSSPP, DOSBox Pure, and Azahar need `SharedArrayBuffer`, which requires cross-origin isolation.
 
 | Environment | Mechanism |
 | --- | --- |
 | Development | Vite injects COOP / COEP headers |
 | Static hosting | `public/coi-serviceworker.js` adds the required headers at runtime |
 
-If a threaded core fails, check DevTools:
+Check DevTools if a threaded core fails:
 
 ```js
 self.crossOriginIsolated
@@ -147,14 +141,15 @@ It should be `true`. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) and [guide.m
 | Area | Main files |
 | --- | --- |
 | App bootstrap | [src/main.ts](./src/main.ts) |
-| Emulator orchestration | [src/emulator.ts](./src/emulator.ts) |
-| System definitions and tier settings | [src/systems.ts](./src/systems.ts) |
-| Device capability detection | [src/performance.ts](./src/performance.ts) |
-| UI shell and extracted UI modules | [src/ui.ts](./src/ui.ts), [src/ui/](./src/ui/) |
-| Game library and imports | [src/library.ts](./src/library.ts), [src/archive.ts](./src/archive.ts), [src/ui/screens/gameImport.ts](./src/ui/screens/gameImport.ts) |
+| Emulator orchestration | [src/emulator.ts](./src/emulator.ts), [data/src/emulator.js](./data/src/emulator.js) |
+| System definitions | [src/systems.ts](./src/systems.ts) |
+| Device and performance policy | [src/performance.ts](./src/performance.ts), [src/webglContextPolicy.ts](./src/webglContextPolicy.ts) |
+| Import pipeline | [src/archive.ts](./src/archive.ts), [src/ui/screens/gameImport.ts](./src/ui/screens/gameImport.ts) |
+| Library and UI | [src/library.ts](./src/library.ts), [src/ui.ts](./src/ui.ts), [src/ui](./src/ui) |
 | Saves and BIOS | [src/saves.ts](./src/saves.ts), [src/saveService.ts](./src/saveService.ts), [src/bios.ts](./src/bios.ts) |
-| Cloud save and cloud library | [src/cloudSave.ts](./src/cloudSave.ts), [src/cloudLibrary.ts](./src/cloudLibrary.ts) |
-| Multiplayer | [src/multiplayer.ts](./src/multiplayer.ts), [src/netplay/](./src/netplay/), [src/multiplayer/](./src/multiplayer/) |
+| Cover art and metadata | [src/coverArt.ts](./src/coverArt.ts), [src/freeMetadata.ts](./src/freeMetadata.ts) |
+| Cloud | [src/cloudSave.ts](./src/cloudSave.ts), [src/cloudLibrary.ts](./src/cloudLibrary.ts) |
+| Multiplayer | [src/multiplayer.ts](./src/multiplayer.ts), [src/netplay](./src/netplay), [src/multiplayer](./src/multiplayer) |
 | Tests | [src](./src), [tests/e2e](./tests/e2e), [tests/multiplayer](./tests/multiplayer) |
 
 For deeper context, read [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md), [docs/PLAN.md](./docs/PLAN.md), and [docs/SUPPORT_RUNBOOK.md](./docs/SUPPORT_RUNBOOK.md).
@@ -163,19 +158,21 @@ For deeper context, read [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md),
 
 | Symptom | First checks |
 | --- | --- |
-| Game will not boot | Confirm the file extension, system choice, and any required or optional compatibility startup files |
-| PSP fails immediately | Confirm `self.crossOriginIsolated === true` |
-| Slow 3D performance | Use Performance mode, lower per-game graphics settings, or disable heavy post-processing |
+| Game will not boot | Confirm the system choice, extension, BIOS requirement, and whether the core expects zipped content |
+| PSP, DOS, or 3DS fails immediately | Confirm `self.crossOriginIsolated === true` |
+| PSX disc fails | Use `.cue` + `.bin` or `.chd`; verify the cue references existing files |
+| Arcade game fails after import | Make sure the ZIP set was preserved and not extracted |
+| Slow 3D performance | Use Performance mode, reduce internal resolution, or disable heavy post-processing |
 | Import fails from archive | Try the extracted ROM directly; very large archives may exceed browser memory limits |
-| Save states disappear | Check browser storage settings, private browsing mode, and quota warnings |
+| Save states disappear | Check storage quota, private browsing mode, and browser cleanup settings |
+| Cover art does not load | Check network access and provider credentials; free Libretro covers use GitHub-hosted image URLs |
 | Cloud sync fails | Reconnect the provider and verify OAuth tokens or WebDAV credentials |
-| First-time setup fails | Run `npm run doctor` |
 
 ## Documentation
 
 - [Deployment](./docs/DEPLOYMENT.md)
 - [Architecture map](./docs/ARCHITECTURE_MAP.md)
-- [Plan](./docs/PLAN.md)
+- [Project plan](./docs/PLAN.md)
 - [Netplay guide](./docs/NETPLAY.md)
 - [User testing checklist](./docs/USER_TESTING.md)
 - [Support runbook](./docs/SUPPORT_RUNBOOK.md)
@@ -189,8 +186,9 @@ Good pull requests usually include:
 
 - A focused explanation of what changed and why
 - Tests for behavior changes
-- Documentation updates when user-facing behavior changes
+- Documentation updates for user-facing behavior
 - Performance measurements for performance claims
+- Notes on upstream EmulatorJS patches when vendored files change
 
 Run at least:
 
@@ -201,7 +199,7 @@ npm run build
 
 ## Legal
 
-RetroOasis does not include copyrighted games or proprietary BIOS files. You are responsible for using legally obtained content. Emulator cores are loaded through EmulatorJS and related configured core sources at runtime.
+RetroOasis does not include copyrighted games or proprietary BIOS files. You are responsible for using legally obtained content. Emulator cores, third-party APIs, artwork repositories, and cloud providers are subject to their own licenses and terms.
 
 ## Credits
 
@@ -212,6 +210,7 @@ RetroOasis does not include copyrighted games or proprietary BIOS files. You are
 - [Vitest](https://vitest.dev/)
 - [Playwright](https://playwright.dev/)
 - [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- [libretro-thumbnails](https://github.com/libretro-thumbnails)
 
 ## License
 

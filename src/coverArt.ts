@@ -745,7 +745,8 @@ const LIBRETRO_SYSTEM_MAP: Readonly<Record<string, readonly string[]>> = Object.
   mame2003:   ["MAME"],
 });
 
-const LIBRETRO_BASE_URL = "https://thumbnails.libretro.com";
+const LIBRETRO_GITHUB_OWNER = "libretro-thumbnails";
+const LIBRETRO_GITHUB_REF = "master";
 type LibretroImageType = "Named_Boxarts" | "Named_Titles" | "Named_Snaps";
 const LIBRETRO_IMAGE_TYPES: readonly LibretroImageType[] = ["Named_Boxarts", "Named_Titles"];
 
@@ -817,6 +818,19 @@ export function libretroFilenameSafe(name: string): string {
   return name.replace(/[&*/:`<>?\\|"]/g, "_");
 }
 
+function libretroSystemToRepo(system: string): string {
+  return system.replace(/ - /g, "_-_").replace(/\s+/g, "_");
+}
+
+function libretroRawImageUrl(system: string, imageType: LibretroImageType, filename: string): string {
+  return rawGitHubContentUrl(
+    LIBRETRO_GITHUB_OWNER,
+    libretroSystemToRepo(system),
+    LIBRETRO_GITHUB_REF,
+    `${imageType}/${filename}.png`,
+  );
+}
+
 /** Tunable options for `LibretroCoverArtProvider`. Exposed mainly for tests. */
 export interface LibretroProviderOptions {
   /**
@@ -829,8 +843,11 @@ export interface LibretroProviderOptions {
 /**
  * Libretro-thumbnails-backed cover art provider.
  *
- * Constructs direct image URLs from the public Libretro thumbnails CDN at
- * https://thumbnails.libretro.com/. No credential or authentication is needed.
+ * Constructs direct image URLs from Libretro's public GitHub thumbnail mirror.
+ * No credential or authentication is needed.
+ *
+ * Note: thumbnails.libretro.com serves the same files but does not send CORS
+ * headers, so browser fetch() cannot download and validate those images.
  *
  * Two name variants are tried for each game:
  *   1. The No-Intro-style name (region tags preserved) — higher confidence.
@@ -885,9 +902,7 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
           if (candidates.length >= limit) break;
 
           const safeVariant = libretroFilenameSafe(variant);
-          const url =
-            `${LIBRETRO_BASE_URL}/${encodeURIComponent(system)}` +
-            `/${imageType}/${encodeURIComponent(safeVariant)}.png`;
+          const url = libretroRawImageUrl(system, imageType, safeVariant);
 
           if (seenUrls.has(url)) continue;
           seenUrls.add(url);

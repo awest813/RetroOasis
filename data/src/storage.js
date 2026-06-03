@@ -159,6 +159,9 @@ class EJS_DUMMYSTORAGE {
     getSizes() {
         return new Promise(resolve => resolve({}));
     }
+    getKeys() {
+        return new Promise(resolve => resolve([]));
+    }
 }
 
 window.EJS_STORAGE = EJS_STORAGE;

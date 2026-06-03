@@ -9,6 +9,8 @@
  * 4. If the Last-Modified date is newer than the cached version's added date, download the new version.
  * 5. If none of the above conditions are met, use the cached version.
  */
+const CACHE_BLOB_CHUNK_SIZE = 50 * 1024 * 1024;
+
 class EJS_Download {
     /**
      * Creates an instance of EJS_Download.
@@ -97,9 +99,10 @@ class EJS_Download {
      * @param {string} responseType - The response type (default is "arraybuffer").
      * @param {boolean} forceExtract - Whether to force extraction of compressed files regardless of extension (default is false).
      * @param {boolean} dontCache - If true, the downloaded file will not be cached (default is false).
+     * @param {boolean} dontExtract - If true, compressed downloads are cached as-is unless forceExtract is true.
      * @returns {Promise<EJS_CacheItem>} - The downloaded file as an EJS_CacheItem.
      */
-    downloadFile(url, type, method = "GET", headers = {}, body = null, onProgress = null, onComplete = null, timeout = 30000, responseType = "arraybuffer", forceExtract = false, dontCache = false) {
+    downloadFile(url, type, method = "GET", headers = {}, body = null, onProgress = null, onComplete = null, timeout = 30000, responseType = "arraybuffer", forceExtract = false, dontCache = false, dontExtract = false) {
         let cacheActiveText = " (cache usage requested)"
         if (dontCache) {
             cacheActiveText = "";
@@ -228,7 +231,7 @@ class EJS_Download {
                 let files = [];
                 const ext = filename.toLowerCase().split('.').pop();
                 if (responseType === "arraybuffer") {
-                    if (["zip", "7z", "rar"].includes(ext) || forceExtract) {
+                    if (forceExtract === true || (dontExtract === false && ["zip", "7z", "rar"].includes(ext))) {
                         if (onProgress) onProgress("decompressing", 0, 0, 0);
                         try {
                             const compression = new window.EJS_COMPRESSION(this.EJS);
@@ -379,6 +382,158 @@ class EJS_Cache {
         return compressionCacheKey;
     }
 
+    normalizeFileBytes(bytes) {
+        if (bytes instanceof Uint8Array) return bytes;
+        if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes);
+        if (ArrayBuffer.isView(bytes)) {
+            return new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        }
+        return new Uint8Array(0);
+    }
+
+    async getBlobObjectStore(mode = "readwrite") {
+        if (!this.blobStorage) return null;
+        return await this.blobStorage.getObjectStore(mode);
+    }
+
+    async putBlobEntry(key, value) {
+        const objectStore = await this.getBlobObjectStore();
+        if (!objectStore) return;
+        return await new Promise(resolve => {
+            const request = objectStore.put(value, key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => resolve();
+        });
+    }
+
+    async getBlobEntry(key) {
+        const objectStore = await this.getBlobObjectStore("readonly");
+        if (!objectStore) return null;
+        return await new Promise(resolve => {
+            const request = objectStore.get(key);
+            request.onsuccess = () => resolve(request.result ?? null);
+            request.onerror = () => resolve(null);
+        });
+    }
+
+    getBlobManifestKeys(key, manifest) {
+        const referencedKeys = new Set([key]);
+        if (!manifest?._ejsBlobManifest || !Array.isArray(manifest.files)) return referencedKeys;
+
+        for (const file of manifest.files) {
+            if (!file?.key) continue;
+            if (file.type === "chunked") {
+                for (let i = 0; i < file.chunkCount; i++) {
+                    referencedKeys.add(`${file.key}__chunk__${i}`);
+                }
+            } else {
+                referencedKeys.add(file.key);
+            }
+        }
+
+        return referencedKeys;
+    }
+
+    async removeBlobEntry(key) {
+        const objectStore = await this.getBlobObjectStore();
+        if (!objectStore) return;
+        return await new Promise(resolve => {
+            const request = objectStore.delete(key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => resolve();
+        });
+    }
+
+    async storeBlobFiles(key, files) {
+        const manifest = {
+            _ejsBlobManifest: true,
+            files: []
+        };
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileKey = `${key}__blob__${i}`;
+            const bytes = this.normalizeFileBytes(file?.bytes);
+
+            if (bytes.byteLength > CACHE_BLOB_CHUNK_SIZE) {
+                const totalChunks = Math.ceil(bytes.byteLength / CACHE_BLOB_CHUNK_SIZE);
+                for (let j = 0; j < totalChunks; j++) {
+                    const start = j * CACHE_BLOB_CHUNK_SIZE;
+                    const end = Math.min(start + CACHE_BLOB_CHUNK_SIZE, bytes.byteLength);
+                    await this.putBlobEntry(`${fileKey}__chunk__${j}`, bytes.slice(start, end));
+                }
+                manifest.files.push({
+                    filename: file?.filename,
+                    type: "chunked",
+                    key: fileKey,
+                    chunkCount: totalChunks
+                });
+            } else {
+                await this.putBlobEntry(fileKey, bytes);
+                manifest.files.push({
+                    filename: file?.filename,
+                    type: "single",
+                    key: fileKey
+                });
+            }
+        }
+
+        await this.blobStorage.put(key, manifest);
+    }
+
+    async getBlobFiles(key) {
+        const stored = await this.blobStorage.get(key);
+        if (!stored) return null;
+        if (Array.isArray(stored)) return stored;
+        if (!stored._ejsBlobManifest || !Array.isArray(stored.files)) return stored;
+
+        const files = [];
+        for (const file of stored.files) {
+            if (file.type === "chunked") {
+                const chunks = [];
+                let totalLength = 0;
+                for (let i = 0; i < file.chunkCount; i++) {
+                    const chunk = await this.getBlobEntry(`${file.key}__chunk__${i}`);
+                    if (chunk === null) return null;
+                    const chunkBytes = this.normalizeFileBytes(chunk);
+                    if (chunkBytes.byteLength === 0) return null;
+                    chunks.push(chunkBytes);
+                    totalLength += chunkBytes.byteLength;
+                }
+                const merged = new Uint8Array(totalLength);
+                let offset = 0;
+                for (const chunk of chunks) {
+                    merged.set(chunk, offset);
+                    offset += chunk.byteLength;
+                }
+                files.push(new EJS_FileItem(file.filename, merged));
+            } else {
+                const blobEntry = await this.getBlobEntry(file.key);
+                if (blobEntry === null) return null;
+                const bytes = this.normalizeFileBytes(blobEntry);
+                if (bytes.byteLength === 0) return null;
+                files.push(new EJS_FileItem(file.filename, bytes));
+            }
+        }
+        return files;
+    }
+
+    async removeBlobFiles(key) {
+        const stored = await this.blobStorage.get(key);
+        if (stored && stored._ejsBlobManifest && Array.isArray(stored.files)) {
+            for (const file of stored.files) {
+                if (file.type === "chunked") {
+                    for (let i = 0; i < file.chunkCount; i++) {
+                        await this.removeBlobEntry(`${file.key}__chunk__${i}`);
+                    }
+                } else {
+                    await this.removeBlobEntry(file.key);
+                }
+            }
+        }
+        await this.blobStorage.remove(key);
+    }
+
     /**
      * Retrieves an item from the cache.
      * @param {*} key - The unique key identifying the cached item.
@@ -406,7 +561,12 @@ class EJS_Cache {
 
             if (!metadataOnly) {
                 // get the blob from cache-blobs
-                item.files = await this.blobStorage.get(item.key);
+                item.files = await this.getBlobFiles(item.key);
+                if (!item.files) {
+                    await this.delete(item.key);
+                    await this.cleanup();
+                    return null;
+                }
             }
         }
 
@@ -481,7 +641,7 @@ class EJS_Cache {
         });
 
         // store the files in cache-blobs
-        await this.blobStorage.put(item.key, item.files);
+        await this.storeBlobFiles(item.key, item.files);
     }
 
     /**
@@ -495,7 +655,7 @@ class EJS_Cache {
         // fail silently if the key does not exist
         try {
             await this.storage.remove(key);
-            await this.blobStorage.remove(key);
+            await this.removeBlobFiles(key);
         } catch (e) {
             console.error("Failed to delete cache item:", e);
         }
@@ -558,9 +718,16 @@ class EJS_Cache {
 
         // remove orphaned blobs in blobStorage - here as a failsafe in case of previous incomplete deletions
         const blobKeys = await this.blobStorage.getKeys();
+        const referencedBlobKeys = new Set();
+        for (const item of allItems) {
+            referencedBlobKeys.add(item.key);
+            const blobEntry = await this.blobStorage.get(item.key);
+            for (const blobKey of this.getBlobManifestKeys(item.key, blobEntry)) {
+                referencedBlobKeys.add(blobKey);
+            }
+        }
         for (const blobKey of blobKeys) {
-            const existsInStorage = allItems.find(item => item.key === blobKey);
-            if (!existsInStorage) {
+            if (!referencedBlobKeys.has(blobKey)) {
                 await this.blobStorage.remove(blobKey);
             }
         }
@@ -590,11 +757,11 @@ class EJS_CacheItem {
      * @param {string} url - The URL from which the cached content was downloaded.
      * @param {number|null} cacheExpiry - Timestamp (in milliseconds) indicating when the cache item should expire.
      */
-    constructor(key, files, added, type = "unknown", responseType, filename, url, cacheExpiry) {
+    constructor(key, files, added, type = "unknown", responseType, filename, url, cacheExpiry, lastAccessed = added) {
         this.key = key;
         this.files = files;
         this.added = added;
-        this.lastAccessed = added;
+        this.lastAccessed = lastAccessed;
         this.type = type;
         this.responseType = responseType;
         this.filename = filename;

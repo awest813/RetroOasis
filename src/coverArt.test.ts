@@ -560,17 +560,17 @@ describe("LibretroCoverArtProvider", () => {
     expect(await p.search("[!][b1]", "snes")).toEqual([]);
   });
 
-  it("constructs valid Libretro CDN URLs", async () => {
+  it("constructs CORS-safe Libretro GitHub mirror URLs", async () => {
     const p = new LibretroCoverArtProvider({ imageTypes: ["Named_Boxarts"] });
     const results = await p.search("Super Mario World (USA).smc", "snes");
     const urls: string[] = [];
     for (const r of results) urls.push(r.imageUrl);
-    // Every URL must start with the Libretro base URL.
+    // Every URL must use raw.githubusercontent.com, which sends permissive CORS headers.
     for (const url of urls) {
-      expect(url).toMatch(/^https:\/\/thumbnails\.libretro\.com\//);
+      expect(url).toMatch(/^https:\/\/raw\.githubusercontent\.com\/libretro-thumbnails\//);
     }
-    // Must contain the correct system directory.
-    expect(urls.some((u) => u.includes("Nintendo%20-%20Super%20Nintendo%20Entertainment%20System"))).toBe(true);
+    // Must contain the correct Libretro repository slug.
+    expect(urls.some((u) => u.includes("Nintendo_-_Super_Nintendo_Entertainment_System"))).toBe(true);
     // Must end with .png.
     for (const url of urls) expect(url).toMatch(/\.png$/);
   });
