@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SYSTEMS,
   detectSystem,
+  detectSystemFromRomHeader,
   getSystemById,
   getSystemByCoreHint,
   getSystemFeatureSummary,
@@ -13,7 +14,7 @@ import {
   getGBCSettingsForTier,
   type SystemInfo,
 } from "./systems.js";
-import { wasmCorePackageNameFor } from "./emulator.js";
+import { EJS_CDN_BASE, wasmCorePackageNameFor } from "./emulator.js";
 
 describe('systems performance profiles', () => {
   describe('detectSystem', () => {
@@ -200,6 +201,53 @@ describe('systems performance profiles', () => {
       // detectSystem correctly returns null.
       const detected = detectSystem('.gitignore');
       expect(detected).toBeNull();
+    });
+
+    it('falls back to ROM header fingerprinting for extensionless files', () => {
+      const nesHeader = new Uint8Array([0x4e, 0x45, 0x53, 0x1a]);
+      const detected = detectSystem('mystery_dump', nesHeader);
+      expect(Array.isArray(detected)).toBe(false);
+      expect(detected && !Array.isArray(detected) ? detected.id : null).toBe('nes');
+    });
+  });
+
+  describe('system table completeness', () => {
+    it('keeps non-empty ids, at least one extension, and a valid resolved corePath URL for every system', () => {
+      const defaultEjsSettings: Record<string, string> = {};
+      for (const system of SYSTEMS) {
+        expect(system.id.trim().length).toBeGreaterThan(0);
+        expect(system.extensions.length).toBeGreaterThan(0);
+        for (const ext of system.extensions) {
+          expect(ext.trim().length).toBeGreaterThan(0);
+          expect(ext).toBe(ext.toLowerCase());
+        }
+
+        const resolvedCorePath = system.corePath ??
+          `${EJS_CDN_BASE}cores/${wasmCorePackageNameFor(system, defaultEjsSettings)}-wasm.data`;
+        const parsed = new URL(resolvedCorePath);
+        expect(parsed.protocol === "https:" || parsed.protocol === "http:").toBe(true);
+      }
+    });
+  });
+
+  describe('detectSystemFromRomHeader', () => {
+    it('recognises NES iNES magic bytes', () => {
+      const header = new Uint8Array([0x4e, 0x45, 0x53, 0x1a, 0x01, 0x00, 0x00, 0x00]);
+      expect(detectSystemFromRomHeader(header)?.id).toBe('nes');
+    });
+
+    it('recognises SNES LoROM-like headers by map mode and reset vector range', () => {
+      const header = new Uint8Array(0x10000);
+      header[0x7fd5] = 0x20; // LoROM map mode
+      header[0x7ffc] = 0x00;
+      header[0x7ffd] = 0x80; // reset vector = 0x8000
+      expect(detectSystemFromRomHeader(header)?.id).toBe('snes');
+    });
+
+    it('recognises N64 headers in z64, v64, and n64 byte orders', () => {
+      expect(detectSystemFromRomHeader(new Uint8Array([0x80, 0x37, 0x12, 0x40]))?.id).toBe('n64');
+      expect(detectSystemFromRomHeader(new Uint8Array([0x37, 0x80, 0x40, 0x12]))?.id).toBe('n64');
+      expect(detectSystemFromRomHeader(new Uint8Array([0x40, 0x12, 0x37, 0x80]))?.id).toBe('n64');
     });
   });
 
