@@ -224,8 +224,12 @@ describe('systems performance profiles', () => {
 
         const resolvedCorePath = system.corePath ??
           `${EJS_CDN_BASE}cores/${wasmCorePackageNameFor(system, defaultEjsSettings)}-wasm.data`;
-        const parsed = new URL(resolvedCorePath);
-        expect(parsed.protocol === "https:" || parsed.protocol === "http:").toBe(true);
+        if (resolvedCorePath.startsWith("./")) {
+          expect(resolvedCorePath).not.toContain("..");
+        } else {
+          const parsed = new URL(resolvedCorePath);
+          expect(parsed.protocol === "https:" || parsed.protocol === "http:").toBe(true);
+        }
       }
     });
   });
@@ -311,9 +315,11 @@ describe('systems performance profiles', () => {
     expect(saturn?.tierSettings?.low?.retroarch_core).toBe('yabause');
     expect(saturn?.tierSettings?.low?.yabause_frameskip).toBe('enabled');
     expect(saturn?.tierSettings?.ultra?.yabause_addon_cartridge).toBe('4M_ram');
-    // Dreamcast uses Flycast core options
+    // Dreamcast keeps app-facing Flycast keys and core-facing Reicast aliases.
     expect(dc?.tierSettings?.low?.flycast_frame_skipping).toBe('enabled');
+    expect(dc?.tierSettings?.low?.reicast_frame_skipping).toBe('enabled');
     expect(dc?.tierSettings?.ultra?.flycast_internal_resolution).toBe('1920x1440');
+    expect(dc?.tierSettings?.ultra?.reicast_internal_resolution).toBe('1920x1440');
     expect(dc?.coreId).toBe('flycast');
     expect(dc?.corePath).toContain('flycast-wasm.data');
     expect(dc?.extensions).toContain('zip');
@@ -322,7 +328,9 @@ describe('systems performance profiles', () => {
     expect(dc?.experimental).toBe(true);
     expect(dc?.stabilityNotice).toContain('stabil');
     expect(dc?.tierSettings?.low?.flycast_hle_bios).toBe('enabled');
+    expect(dc?.tierSettings?.low?.reicast_hle_bios).toBe('enabled');
     expect(dc?.tierSettings?.ultra?.flycast_hle_bios).toBe('enabled');
+    expect(dc?.tierSettings?.ultra?.reicast_hle_bios).toBe('enabled');
   });
 
   it('does not advertise PS2 until a launchable browser core is wired', () => {

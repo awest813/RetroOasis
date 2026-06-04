@@ -68,6 +68,12 @@ export function cdnBaseForCore(coreName: string): string {
   return CORE_CDN_BASE_OVERRIDES[coreName] ?? EJS_CDN_BASE;
 }
 
+function resolveCorePath(corePath: string): string {
+  if (/^(?:https?:|blob:|data:)/i.test(corePath)) return corePath;
+  if (typeof window === "undefined" || typeof URL !== "function") return corePath;
+  return new URL(corePath, window.location.href).toString();
+}
+
 /** Result of mapping a system to EmulatorJS `EJS_paths` / `EJS_corePath` globals. */
 export interface EjsCorePathsResult {
   corePath?: string;
@@ -80,7 +86,7 @@ export function buildEjsCorePaths(
   ejsSettings: Record<string, string>,
 ): EjsCorePathsResult {
   if (system.corePath) {
-    return { corePath: system.corePath };
+    return { corePath: resolveCorePath(system.corePath) };
   }
 
   const selectedCore = coreNameForSystem(system, ejsSettings);

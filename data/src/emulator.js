@@ -1139,12 +1139,13 @@ class EmulatorJS {
                         }
                     }
                 } else {
-                    const priority = ["cue", "ccd"]
-                    // Prefer cue or ccd files over toc or m3u
-                    if (!priority.includes(currentCueExt)) {
-                        if (cueFile === null || priority.includes(ext)) {
-                            cueFile = fileName;
-                        }
+                    const priority = coreName === "flycast"
+                        ? ["gdi", "cue", "ccd", "toc", "m3u"]
+                        : ["cue", "ccd", "toc", "m3u"];
+                    const currentPriority = currentCueExt === null ? Infinity : priority.indexOf(currentCueExt);
+                    const nextPriority = priority.indexOf(ext);
+                    if (nextPriority !== -1 && nextPriority < currentPriority) {
+                        cueFile = fileName;
                     }
                 }
             }

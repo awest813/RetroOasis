@@ -1099,6 +1099,18 @@ const N3DS_TIER_SETTINGS = fixedCoreTierSettings("azahar");
 
 const DOS_TIER_SETTINGS = fixedCoreTierSettings("dosbox_pure");
 
+function withDreamcastCoreAliases(settings: Record<string, string>): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  for (const [key, value] of Object.entries(settings)) {
+    if (key === "flycast_dsp") {
+      aliases.reicast_enable_dsp = value;
+    } else if (key.startsWith("flycast_")) {
+      aliases[`reicast_${key.slice("flycast_".length)}`] = value;
+    }
+  }
+  return { ...settings, ...aliases };
+}
+
 const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
     flycast_cable_type:            "VGA",
@@ -1185,6 +1197,10 @@ const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> =
     flycast_widescreen_hack:       "disabled",
   },
 };
+
+for (const tier of Object.keys(DREAMCAST_TIER_SETTINGS) as PerformanceTier[]) {
+  DREAMCAST_TIER_SETTINGS[tier] = withDreamcastCoreAliases(DREAMCAST_TIER_SETTINGS[tier]!);
+}
 
 // ── Supported systems ─────────────────────────────────────────────────────────
 
@@ -1519,7 +1535,7 @@ export const SYSTEMS: SystemInfo[] = [
   {
     id: "segaDC",
     coreId: "flycast",
-    corePath: "https://github.com/nasomers/flycast-wasm/releases/download/v1.0.0/flycast-wasm.data",
+    corePath: "./cores/flycast-wasm.data",
     name: "Dreamcast",
     shortName: "DC",
     experimental: true,

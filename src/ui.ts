@@ -74,7 +74,7 @@ import {
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { createProvider } from "./cloudLibrary.js";
 import { SaveGameService } from "./saveService.js";
-import { createStoredZip } from "./zip.js";
+import { createStoredZip, createStoredZipBlob } from "./zip.js";
 import { makeFileFromBlob, readBlobAsArrayBuffer, readBlobAsText } from "./blobUtils.js";
 import { LEGACY_EVENTS } from "./legacy.js";
 import { queryRequired as el, createElement as make } from "./ui/dom.js";
@@ -728,6 +728,41 @@ function fileBaseName(fileName: string): string {
   return fileName.split(/[/\\]/).pop()?.toLowerCase() ?? fileName.toLowerCase();
 }
 
+const DREAMCAST_GDI_TRACK_EXTENSIONS = new Set(["bin", "raw", "iso"]);
+
+function fileExtension(fileName: string): string {
+  const baseName = fileBaseName(fileName);
+  const dotIdx = baseName.lastIndexOf(".");
+  return dotIdx > 0 && dotIdx < baseName.length - 1
+    ? baseName.slice(dotIdx + 1)
+    : "";
+}
+
+function isDreamcastGdiSelection(files: readonly File[]): boolean {
+  return files.some(file => fileExtension(file.name) === "gdi") &&
+    files.some(file => DREAMCAST_GDI_TRACK_EXTENSIONS.has(fileExtension(file.name)));
+}
+
+async function packageDreamcastGdiSelection(files: readonly File[]): Promise<File | null> {
+  if (!isDreamcastGdiSelection(files)) return null;
+
+  const gdiFile = files.find(file => fileExtension(file.name) === "gdi")!;
+  const gdiPackageFiles = files.filter((file) => {
+    const ext = fileExtension(file.name);
+    return ext === "gdi" || DREAMCAST_GDI_TRACK_EXTENSIONS.has(ext);
+  });
+  const zipBlob = await createStoredZipBlob(gdiPackageFiles.map((file) => ({
+    path: file.name,
+    blob: file,
+  })));
+  const packageName = gdiFile.name.replace(/\.[^.]+$/, "") || "dreamcast-gdi";
+  return makeFileFromBlob(
+    zipBlob,
+    `${packageName}.zip`,
+    { type: "application/zip" },
+  );
+}
+
 async function parseCueReferencedFileNames(cueFile: File): Promise<string[]> {
   let text = "";
   try {
@@ -761,6 +796,9 @@ export async function selectImportFileFromSelection(
   }
   const selected = filesToArray(files);
   if (selected.length === 0) return null;
+
+  const dreamcastPackage = await packageDreamcastGdiSelection(selected);
+  if (dreamcastPackage) return dreamcastPackage;
 
   // Single non-CUE file — fast path, no special handling needed.
   if (selected.length === 1 && !selected[0]!.name.toLowerCase().endsWith(".cue")) {
@@ -806,6 +844,9 @@ export async function selectImportFilesFromSelection(
   }
   const selected = filesToArray(files);
   if (selected.length === 0) return [];
+
+  const dreamcastPackage = await packageDreamcastGdiSelection(selected);
+  if (dreamcastPackage) return [dreamcastPackage];
 
   if (selected.length === 1 && !selected[0]!.name.toLowerCase().endsWith(".cue")) {
     return [selected[0]!];
@@ -1200,6 +1241,7 @@ export function initUI(opts: UIOptions): void {
   emulator.onStateChange = (state) => {
     updateStatusDot(state);
     updateRotateHint();
+    if (state === "error") transitionToLibrary();
   };
   emulator.onProgress    = (msg)   => {
     setLoadingMessage(msg);
@@ -2920,7 +2962,9 @@ function transitionToGame(): void {
   stopLibraryGamepadNavigation();
   hideLanding();
   closeSettingsPanel();
-  requestAnimationFrame(() => showEjsContainer());
+  requestAnimationFrame(() => {
+    if (document.body.classList.contains("is-playing")) showEjsContainer();
+  });
 }
 
 export function transitionToLibrary(): void {

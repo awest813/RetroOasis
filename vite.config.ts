@@ -78,6 +78,10 @@ function pwaPrecacheManifestPlugin(): Plugin {
         const p = `./data/${rel}`;
         if (existsSync(resolve(distDir, p.slice(2)))) urls.add(p);
       };
+      const addCoreFile = (rel: string) => {
+        const p = `./cores/${rel}`;
+        if (existsSync(resolve(distDir, p.slice(2)))) urls.add(p);
+      };
       if (existsSync(dataDir)) {
         // Essential loader infrastructure — small files that must be available offline
         addDataFile("loader.js");
@@ -88,12 +92,17 @@ function pwaPrecacheManifestPlugin(): Plugin {
         // Compression WASM — needed for archive extraction during import
         addDataFile("compression/libunrar.wasm");
       }
+      addCoreFile("flycast-wasm.data");
 
       const list = [...urls]
         .filter((u) => {
           if (u === "./index.html" || u === "./manifest.json" || u === "./audio-processor.js") return true;
           if (u.startsWith("./data/")) {
             const tail = u.slice("./data/".length);
+            return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
+          }
+          if (u.startsWith("./cores/")) {
+            const tail = u.slice("./cores/".length);
             return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
           }
           if (!u.startsWith("./assets/")) return false;
@@ -114,7 +123,9 @@ function dev404Plugin(): Plugin {
       server.middlewares.use((req, res, next) => {
         const urlPath = req.url ? (req.url.split("?")[0] ?? "").split("#")[0] ?? "" : "";
         if (urlPath && (urlPath.startsWith("/data/") || urlPath.startsWith("/cores/"))) {
-          const filePath = resolve(urlPath.slice(1));
+          const filePath = urlPath.startsWith("/cores/")
+            ? resolve("public", urlPath.slice(1))
+            : resolve(urlPath.slice(1));
           if (!existsSync(filePath)) {
             res.statusCode = 404;
             res.end("Not Found");

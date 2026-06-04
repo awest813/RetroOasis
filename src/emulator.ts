@@ -508,6 +508,11 @@ const DRS_SYSTEM_THRESHOLDS: Record<string, { stepDownFps: number; stepUpFps: nu
   },
 };
 
+type ConsoleMethodName = "log" | "info" | "warn" | "error";
+type ConsoleMethod = (...data: unknown[]) => void;
+let activeCoreConsoleObserverRestore: (() => void) | null = null;
+let activeCoreConsoleObserverOwner: PSPEmulator | null = null;
+
 let cachedWebGL2Support: boolean | null = null;
 
 const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
@@ -1037,6 +1042,8 @@ export class PSPEmulator {
   private _fpsPredictionFired = false;
   /** Timer ID for the per-game shader warmup window — cleared on teardown. */
   private _shaderWarmupTimerId: ReturnType<typeof setTimeout> | null = null;
+  private _restoreCoreConsoleObserver: (() => void) | null = null;
+  private _coreFailureReported = false;
   /**
    * The `File` passed to `EJS_gameUrl` after any iOS WebKit materialisation.
    * Exposed so callers (e.g. tier-downgrade relaunch) reuse the same payload.
@@ -2560,6 +2567,7 @@ export class PSPEmulator {
       const previousRes = ejsSettings["flycast_internal_resolution"];
       const nextRes = clampLadderValue(previousRes, DREAMCAST_RESOLUTION_STEPS, maxDcResIdx);
       ejsSettings["flycast_internal_resolution"] = nextRes;
+      ejsSettings["reicast_internal_resolution"] = nextRes;
 
       if (weakWebGL) {
         Object.assign(ejsSettings, {
@@ -3384,6 +3392,7 @@ export class PSPEmulator {
         this.onGameStart?.();
       };
 
+      this._installCoreConsoleObserver();
       if (window._RETRO_OASIS_E2E_STUB) {
         window.EJS_emulator = {
           setVolume: () => {},
@@ -4018,6 +4027,7 @@ export class PSPEmulator {
   }
 
   private _emitError(msg: string): void {
+    this._uninstallCoreConsoleObserver();
     const threadedSystem = this._currentSystem;
     if (threadedSystem?.needsThreads && threadedSystem.id !== "psp") {
       msg = msg
@@ -4029,6 +4039,86 @@ export class PSPEmulator {
     }
     this._setState("error");
     this.onError?.(msg);
+  }
+
+  private _installCoreConsoleObserver(): void {
+    this._uninstallCoreConsoleObserver();
+    if (activeCoreConsoleObserverRestore) {
+      activeCoreConsoleObserverRestore();
+      if (activeCoreConsoleObserverOwner) {
+        activeCoreConsoleObserverOwner._restoreCoreConsoleObserver = null;
+      }
+    }
+    activeCoreConsoleObserverRestore = null;
+    activeCoreConsoleObserverOwner = null;
+    this._coreFailureReported = false;
+    const methods: ConsoleMethodName[] = ["log", "info", "warn", "error"];
+    const original = methods.reduce((acc, method) => {
+      acc[method] = console[method].bind(console) as ConsoleMethod;
+      return acc;
+    }, {} as Record<ConsoleMethodName, ConsoleMethod>);
+
+    for (const method of methods) {
+      console[method] = ((...data: unknown[]) => {
+        original[method](...data);
+        this._handleCoreConsoleMessage(data);
+      }) as typeof console[typeof method];
+    }
+
+    const restore = () => {
+      for (const method of methods) {
+        console[method] = original[method] as typeof console[typeof method];
+      }
+    };
+    this._restoreCoreConsoleObserver = restore;
+    activeCoreConsoleObserverRestore = restore;
+    activeCoreConsoleObserverOwner = this;
+  }
+
+  private _uninstallCoreConsoleObserver(): void {
+    if (!this._restoreCoreConsoleObserver) return;
+    if (activeCoreConsoleObserverOwner !== this) {
+      this._restoreCoreConsoleObserver = null;
+      return;
+    }
+    this._restoreCoreConsoleObserver();
+    if (activeCoreConsoleObserverRestore === this._restoreCoreConsoleObserver) {
+      activeCoreConsoleObserverRestore = null;
+      activeCoreConsoleObserverOwner = null;
+    }
+    this._restoreCoreConsoleObserver = null;
+  }
+
+  private _handleCoreConsoleMessage(data: unknown[]): void {
+    if (this._coreFailureReported) return;
+    const message = this._coreFailureMessage(data);
+    if (!message) return;
+    this._coreFailureReported = true;
+    this.logDiagnostic("system", message);
+    queueMicrotask(() => {
+      if (this._state === "loading" || this._state === "running" || this._state === "paused") {
+        this._emitError(message);
+      }
+    });
+  }
+
+  private _coreFailureMessage(data: unknown[]): string | null {
+    const text = data.map((item) => {
+      if (typeof item === "string") return item;
+      if (item instanceof Error) return item.message;
+      try { return JSON.stringify(item); }
+      catch { return String(item); }
+    }).join(" ");
+    const lower = text.toLowerCase();
+
+    if (
+      lower.includes("the game that you are trying to load must be decrypted before being used with azahar") ||
+      lower.includes("failed to determine system mode (error 8)")
+    ) {
+      return "This 3DS game did not boot because Azahar still sees it as encrypted or unsupported.\n\nUse a decrypted .3ds/.cci dump from a console you own, then add it again.";
+    }
+
+    return null;
   }
 
   private _validateFileExt(fileName: string, system: SystemInfo, skipCheck?: boolean): boolean {
@@ -4159,6 +4249,7 @@ export class PSPEmulator {
     this._detachPostProcessor();
     this._revokeBlobUrl();
     this._disconnectAudioWorklet();
+    this._uninstallCoreConsoleObserver();
     // Reset per-session audio counters so a new game starts from zero.
     this._audioUnderruns = 0;
     this._lastAudioUnderrunWarnTime = 0;
@@ -4341,12 +4432,15 @@ export class PSPEmulator {
   }
 
   private _revokeBlobUrl(): void {
-    if (this._blobUrl) {
-      URL.revokeObjectURL(this._blobUrl);
-      this._blobUrl = null;
+    const revokeObjectURL = typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function"
+      ? URL.revokeObjectURL.bind(URL)
+      : null;
+    if (this._blobUrl && revokeObjectURL) {
+      revokeObjectURL(this._blobUrl);
     }
-    if (typeof this._biosUrl === "string" && this._biosUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(this._biosUrl);
+    this._blobUrl = null;
+    if (typeof this._biosUrl === "string" && this._biosUrl.startsWith("blob:") && revokeObjectURL) {
+      revokeObjectURL(this._biosUrl);
     }
     this._biosUrl = null;
   }

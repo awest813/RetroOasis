@@ -39,5 +39,6 @@ describe("bundled EmulatorJS runtime patches", () => {
 
     expect(runtime).toContain('coreName === "flycast"');
     expect(runtime).toContain('["gdi", "cue", "ccd", "toc", "m3u"]');
+    expect(runtime).toContain('nextPriority < currentPriority');
   });
 });

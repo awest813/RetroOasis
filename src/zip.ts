@@ -3,6 +3,11 @@ export interface StoredZipEntry {
   bytes: Uint8Array;
 }
 
+export interface StoredZipBlobEntry {
+  path: string;
+  blob: Blob;
+}
+
 function encodeUtf8(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
@@ -23,6 +28,24 @@ function crc32(data: Uint8Array): number {
   let crc = 0xFFFFFFFF;
   for (let i = 0; i < data.length; i++) {
     crc = CRC32_TABLE[(crc ^ data[i]!) & 0xFF]! ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function crc32Update(crc: number, data: Uint8Array): number {
+  let next = crc;
+  for (let i = 0; i < data.length; i++) {
+    next = CRC32_TABLE[(next ^ data[i]!) & 0xFF]! ^ (next >>> 8);
+  }
+  return next >>> 0;
+}
+
+async function crc32Blob(blob: Blob): Promise<number> {
+  let crc = 0xFFFFFFFF;
+  const chunkSize = 8 * 1024 * 1024;
+  for (let offset = 0; offset < blob.size; offset += chunkSize) {
+    const chunk = new Uint8Array(await blob.slice(offset, offset + chunkSize).arrayBuffer());
+    crc = crc32Update(crc, chunk);
   }
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
@@ -115,4 +138,78 @@ export function createStoredZip(entries: StoredZipEntry[]): Uint8Array {
   }
   out.set(endRecord, cursor);
   return out;
+}
+
+export async function createStoredZipBlob(entries: StoredZipBlobEntry[]): Promise<Blob> {
+  const localParts: BlobPart[] = [];
+  const centralParts: BlobPart[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const normalizedPath = entry.path.replace(/\\/g, "/");
+    const nameBytes = encodeUtf8(normalizedPath);
+    const dataSize = entry.blob.size;
+    if (dataSize > 0xFFFFFFFF || localOffset > 0xFFFFFFFF) {
+      throw new Error("ZIP64 packages are not supported for browser-generated ROM sets.");
+    }
+    const checksum = await crc32Blob(entry.blob);
+
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(localHeader.buffer);
+    writeU32(localView, 0, 0x04034B50);
+    writeU16(localView, 4, 20);
+    writeU16(localView, 6, 0);
+    writeU16(localView, 8, 0);
+    writeU16(localView, 10, 0);
+    writeU16(localView, 12, 0);
+    writeU32(localView, 14, checksum);
+    writeU32(localView, 18, dataSize);
+    writeU32(localView, 22, dataSize);
+    writeU16(localView, 26, nameBytes.length);
+    writeU16(localView, 28, 0);
+    localHeader.set(nameBytes, 30);
+    localParts.push(localHeader as unknown as BlobPart, entry.blob);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    writeU32(centralView, 0, 0x02014B50);
+    writeU16(centralView, 4, 20);
+    writeU16(centralView, 6, 20);
+    writeU16(centralView, 8, 0);
+    writeU16(centralView, 10, 0);
+    writeU16(centralView, 12, 0);
+    writeU16(centralView, 14, 0);
+    writeU32(centralView, 16, checksum);
+    writeU32(centralView, 20, dataSize);
+    writeU32(centralView, 24, dataSize);
+    writeU16(centralView, 28, nameBytes.length);
+    writeU16(centralView, 30, 0);
+    writeU16(centralView, 32, 0);
+    writeU16(centralView, 34, 0);
+    writeU16(centralView, 36, 0);
+    writeU32(centralView, 38, 0);
+    writeU32(centralView, 42, localOffset);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader as unknown as BlobPart);
+
+    localOffset += localHeader.length + dataSize;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + (part as Uint8Array).length, 0);
+  if (centralSize > 0xFFFFFFFF || localOffset > 0xFFFFFFFF) {
+    throw new Error("ZIP64 packages are not supported for browser-generated ROM sets.");
+  }
+
+  const endRecord = new Uint8Array(22);
+  const endView = new DataView(endRecord.buffer);
+  writeU32(endView, 0, 0x06054B50);
+  writeU16(endView, 4, 0);
+  writeU16(endView, 6, 0);
+  writeU16(endView, 8, entries.length);
+  writeU16(endView, 10, entries.length);
+  writeU32(endView, 12, centralSize);
+  writeU32(endView, 16, localOffset);
+  writeU16(endView, 20, 0);
+
+  return new Blob([...localParts, ...centralParts, endRecord as unknown as BlobPart], { type: "application/zip" });
 }

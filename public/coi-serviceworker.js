@@ -142,7 +142,7 @@ function isLongLivedStaticAsset(url) {
  */
 function isEmulatorDataUrl(url) {
   const p = url.pathname;
-  return p.includes("/data/") && /\.(?:js|mjs|css|wasm|json)$/i.test(p);
+  return (p.includes("/data/") || p.includes("/cores/")) && /\.(?:js|mjs|css|wasm|json|data)$/i.test(p);
 }
 
 /**

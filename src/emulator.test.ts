@@ -26,6 +26,7 @@ describe('PSPEmulator', () => {
   });
 
   afterEach(() => {
+    emulator.dispose();
     vi.restoreAllMocks();
     document.getElementById('test-player')?.remove();
     // Remove any loader script left by tests that call emulator.launch().
@@ -538,6 +539,7 @@ describe('PSPEmulator', () => {
       expect(window.EJS_paths).toBeUndefined();
       expect(window.EJS_threads).toBe(false);
       expect(window.EJS_Settings?.flycast_hle_bios).toBe('enabled');
+      expect(window.EJS_Settings?.reicast_hle_bios).toBe('enabled');
       expect(emulator.resolvedWasmCoreName).toBe('flycast');
       expect(emulator.state).toBe('running');
     });
@@ -864,6 +866,31 @@ describe('PSPEmulator', () => {
       expect(window.EJS_Settings?.retroarch_core).toBe('azahar');
       expect(emulator.resolvedWasmCoreName).toBe('azahar');
       expect(emulator.state).toBe('running');
+    });
+
+    it('reports Azahar encrypted-ROM failures that happen after the emulator shell starts', async () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({}) as never);
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const errors: string[] = [];
+      emulator.onError = (msg) => errors.push(msg);
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+          console.log('[INFO] [Environ] SET_MESSAGE: The game that you are trying to load must be decrypted before being used with Azahar.');
+        };
+
+      await emulator.launch({
+        file:            new File(['rom'], 'Project X Zone (USA) Decrypted.3ds'),
+        volume:          0.7,
+        systemId:        '3ds',
+        performanceMode: 'auto',
+        deviceCaps:      pspCaps,
+      });
+      await Promise.resolve();
+
+      expect(emulator.state).toBe('error');
+      expect(errors[errors.length - 1]).toContain('Azahar still sees it as encrypted');
     });
 
     it('registers EmulatorJS menu save/load intercept callbacks during launch', async () => {
@@ -2509,6 +2536,7 @@ describe('PSPEmulator', () => {
 
       const settings = emulator.activeCoreSettings;
       expect(settings?.flycast_internal_resolution).toBe('640x480');
+      expect(settings?.reicast_internal_resolution).toBe('640x480');
       expect(settings?.flycast_mipmapping).toBe('disabled');
       expect(settings?.flycast_enable_rttb).toBe('disabled');
       expect(settings?.flycast_texupscale).toBe('disabled');
@@ -5252,7 +5280,7 @@ describe("buildEjsCorePaths", () => {
   it("uses EJS_corePath for external bundles", () => {
     const dc = getSystemById("segaDC")!;
     const built = buildEjsCorePaths(dc, {});
-    expect(built.corePath).toBe(dc.corePath);
+    expect(built.corePath).toContain("/cores/flycast-wasm.data");
     expect(built.paths).toBeUndefined();
   });
 });

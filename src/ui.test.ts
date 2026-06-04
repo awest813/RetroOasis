@@ -4557,6 +4557,36 @@ describe("selectImportFileFromSelection", () => {
     await expect(selectImportFilesFromSelection(files)).resolves.toEqual(files);
   });
 
+  it("packages loose Dreamcast GDI selections so track files stay with the descriptor", async () => {
+    const gdi = new File([
+      "3\n1 0 4 2048 Spider-Man (USA) (Track 1).bin 0\n2 450 0 2352 Spider-Man (USA) (Track 2).bin 0\n3 11700 4 2048 Spider-Man (USA) (Track 3).bin 0\n",
+    ], "Spider-Man (USA).gdi", { type: "text/plain" });
+    const cue = new File([
+      'FILE "Spider-Man (USA) (Track 1).bin" BINARY\n  TRACK 01 MODE1/2352\n',
+    ], "Spider-Man (USA).cue", { type: "text/plain" });
+    const track1 = new File([new Uint8Array([1, 2, 3])], "Spider-Man (USA) (Track 1).bin");
+    const track2 = new File([new Uint8Array([4, 5, 6])], "Spider-Man (USA) (Track 2).bin");
+
+    const selected = await selectImportFileFromSelection([gdi, cue, track1, track2]);
+    const selectedList = await selectImportFilesFromSelection([gdi, cue, track1, track2]);
+
+    expect(selected).not.toBeNull();
+    expect(selected!.name).toBe("Spider-Man (USA).zip");
+    expect(selected!.type).toBe("application/zip");
+    expect(selectedList).toHaveLength(1);
+    expect(selectedList[0]!.name).toBe("Spider-Man (USA).zip");
+
+    const extracted = await archive.extractFromArchive(selected!);
+    const candidateNames = extracted?.candidates?.map(candidate => candidate.name) ?? [];
+    expect(candidateNames).toEqual(expect.arrayContaining([
+      "Spider-Man (USA).gdi",
+      "Spider-Man (USA) (Track 1).bin",
+      "Spider-Man (USA) (Track 2).bin",
+    ]));
+    expect(candidateNames).not.toContain("Spider-Man (USA).cue");
+    expect(extracted?.name).toBe("Spider-Man (USA).gdi");
+  });
+
   it("uses the matching PS1 BIN payload when a CUE and BIN are selected together", async () => {
     const cue = new File([
       'FILE "Final Fantasy VII (USA) (Disc 1).bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n',
