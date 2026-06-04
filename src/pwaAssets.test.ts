@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 interface PwaManifest {
+  theme_color: string;
   file_handlers: Array<{
     accept: Record<string, string[]>;
   }>;
@@ -41,5 +42,19 @@ describe("PWA assets", () => {
       "application/x-tar",
       "application/gzip",
     ]));
+  });
+
+  it("keeps shell assets aligned across HTML, manifest, and service worker", () => {
+    const indexHtml = readFileSync("index.html", "utf8");
+    const manifest = JSON.parse(readFileSync("public/manifest.json", "utf8")) as PwaManifest;
+    const serviceWorkerSource = readFileSync("public/coi-serviceworker.js", "utf8");
+
+    expect(manifest.theme_color).toBe("#e60012");
+    expect(indexHtml).toContain('<meta name="theme-color" content="#e60012" />');
+    expect(indexHtml).toContain('<link rel="icon" type="image/x-icon" href="./favicon.ico" />');
+    expect(serviceWorkerSource).toContain('"./favicon.ico"');
+    expect(serviceWorkerSource).not.toContain('"./favicon-16x16.png"');
+    expect(serviceWorkerSource).not.toContain('"./favicon-32x32.png"');
+    expect(existsSync("public/favicon.ico")).toBe(true);
   });
 });
