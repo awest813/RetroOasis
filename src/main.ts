@@ -522,7 +522,7 @@ async function main(): Promise<void> {
     perGamePostEffect: PostProcessEffect | null | undefined,
   ): WebGpuGlCapturePolicyInput => ({
     useWebGPU: settings.useWebGPU,
-    webgpuAvailable: emulator.webgpuAvailable,
+    webgpuAvailable: deviceCaps.webgpuAvailable,
     settingsPostEffect: settings.postProcessEffect,
     perGamePostEffect,
     systemId: currentSystemId,
@@ -778,6 +778,8 @@ async function main(): Promise<void> {
 
     const gfxProfile = gameId ? getGameGraphicsProfile(gameId) : null;
     sessionGamePostEffectOverride = gfxProfile?.postEffect;
+    const launchTierForPostFx = resolvedTier ?? resolveTier(settings.performanceMode, deviceCaps);
+    syncEmulatorPostProcessFromSettings(gfxProfile?.postEffect, { tierHint: launchTierForPostFx });
     const coreSettingsOverride: Record<string, string> = { ...settings.coreOptions };
     if (gfxProfile) {
       if (gfxProfile.resolutionPreset) {
