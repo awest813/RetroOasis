@@ -335,7 +335,86 @@ export function buildAboutTab(container: HTMLElement, appName: string): void {
   dataButtons.append(exportBtn, importBtn, importInput, importStatus);
   dataSection.appendChild(dataButtons);
 
-  container.append(quickStartSection, shortcutsSection, mpSection, troubleSection, storageSection, dataSection, aboutSection);
+  // ── Save states backup / restore ─────────────────────────────────────────
+  const savesSection = make("div", { class: "settings-section" });
+  savesSection.appendChild(make("h4", { class: "settings-section__title" }, "Save States Backup"));
+  savesSection.appendChild(make("p", { class: "settings-help" },
+    "Back up every save state across your whole library to a single file, then restore it here or on another device. " +
+    "Importing keeps whichever save is more recent when a slot already exists."
+  ));
+
+  const savesButtons = make("div", { class: "help-links" });
+  const savesStatus = make("p", { class: "settings-import-status", "aria-live": "polite" });
+
+  const exportSavesBtn = make("button", { type: "button", class: "btn" }, "Export Save States") as HTMLButtonElement;
+  exportSavesBtn.addEventListener("click", async () => {
+    const origText = exportSavesBtn.textContent ?? "Export Save States";
+    exportSavesBtn.disabled = true;
+    exportSavesBtn.setAttribute("aria-busy", "true");
+    exportSavesBtn.textContent = "Exporting...";
+    savesStatus.textContent = "";
+    savesStatus.className = "settings-import-status";
+    try {
+      const { SaveStateLibrary, downloadBlob } = await import("../saves.js");
+      const result = await new SaveStateLibrary().exportLibraryBundle();
+      if (result.count === 0) {
+        savesStatus.textContent = "No save states to export yet.";
+        savesStatus.className = "settings-import-status settings-import-status--dim";
+        return;
+      }
+      downloadBlob(result.blob, result.fileName);
+      savesStatus.textContent = `Exported ${result.count} save ${result.count === 1 ? "state" : "states"}.`;
+      savesStatus.className = "settings-import-status settings-import-status--success";
+    } catch (err) {
+      console.error("Save export failed:", err);
+      savesStatus.textContent = "Failed to export save states: " + (err instanceof Error ? err.message : String(err));
+      savesStatus.className = "settings-import-status settings-import-status--error";
+    } finally {
+      exportSavesBtn.disabled = false;
+      exportSavesBtn.removeAttribute("aria-busy");
+      exportSavesBtn.textContent = origText;
+    }
+  });
+
+  const savesImportInput = make("input", {
+    type: "file",
+    accept: ".zip",
+    style: "display:none",
+    "aria-label": "Import save states bundle",
+  }) as HTMLInputElement;
+  const importSavesBtn = make("button", { type: "button", class: "btn" }, "Import Save States") as HTMLButtonElement;
+  importSavesBtn.addEventListener("click", () => savesImportInput.click());
+  savesImportInput.addEventListener("change", async () => {
+    const file = savesImportInput.files?.[0];
+    if (!file) return;
+    importSavesBtn.disabled = true;
+    importSavesBtn.classList.add("is-loading");
+    importSavesBtn.setAttribute("aria-busy", "true");
+    savesStatus.textContent = "Importing...";
+    savesStatus.className = "settings-import-status settings-import-status--dim";
+    try {
+      const { SaveStateLibrary } = await import("../saves.js");
+      const report = await new SaveStateLibrary().importLibraryBundle(file);
+      const parts = [`${report.imported} restored`];
+      if (report.skipped > 0) parts.push(`${report.skipped} kept (already newer)`);
+      if (report.failed > 0) parts.push(`${report.failed} skipped (unreadable)`);
+      savesStatus.textContent = `Save states imported · ${parts.join(" · ")}.`;
+      savesStatus.className = "settings-import-status settings-import-status--success";
+    } catch (err) {
+      savesStatus.textContent = "Failed to import save states: " + (err instanceof Error ? err.message : String(err));
+      savesStatus.className = "settings-import-status settings-import-status--error";
+    } finally {
+      savesImportInput.value = "";
+      importSavesBtn.disabled = false;
+      importSavesBtn.classList.remove("is-loading");
+      importSavesBtn.removeAttribute("aria-busy");
+    }
+  });
+
+  savesButtons.append(exportSavesBtn, importSavesBtn, savesImportInput, savesStatus);
+  savesSection.appendChild(savesButtons);
+
+  container.append(quickStartSection, shortcutsSection, mpSection, troubleSection, storageSection, dataSection, savesSection, aboutSection);
 }
 
 export function buildAchievementsTab(
