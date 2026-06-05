@@ -12,11 +12,16 @@ import {
   SaveEventBus,
   saveEvents,
   SAVE_FORMAT_VERSION,
+  SAVE_BUNDLE_FORMAT,
+  SAVE_BUNDLE_VERSION,
   captureScreenshot,
   createThumbnail,
   downloadBlob,
   type SaveStateEntry,
+  type SaveBundleManifest,
 } from "./saves.js";
+import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
+import { readBlobAsArrayBuffer } from "./blobUtils.js";
 
 // ── saveStateKey ──────────────────────────────────────────────────────────────
 
@@ -830,5 +835,199 @@ describe('downloadBlob', () => {
     expect(revokeSpy).toHaveBeenCalledWith(fakeUrl);
 
     vi.useRealTimers();
+  });
+});
+
+// ── Library backup bundle (export / import) ─────────────────────────────────────
+
+describe('SaveStateLibrary — library backup bundle', () => {
+  let lib: SaveStateLibrary;
+
+  function entry(overrides: Partial<SaveStateEntry> = {}): SaveStateEntry {
+    const gameId = overrides.gameId ?? 'game-a';
+    const slot   = overrides.slot ?? 1;
+    return {
+      id:         saveStateKey(gameId, slot),
+      gameId,
+      gameName:   overrides.gameName ?? 'Game A',
+      systemId:   overrides.systemId ?? 'nes',
+      slot,
+      label:      overrides.label ?? (slot === AUTO_SAVE_SLOT ? 'Auto-Save' : `Slot ${slot}`),
+      timestamp:  overrides.timestamp ?? 1000,
+      thumbnail:  'thumbnail' in overrides ? overrides.thumbnail! : null,
+      stateData:  'stateData' in overrides ? overrides.stateData! : new Blob([new Uint8Array([1, 2, 3, 4])]),
+      isAutoSave: overrides.isAutoSave ?? (slot === AUTO_SAVE_SLOT),
+    };
+  }
+
+  beforeEach(async () => {
+    lib = new SaveStateLibrary();
+    await lib.clearAll();
+  });
+
+  it('exports an empty library as a valid bundle with zero entries', async () => {
+    const result = await lib.exportLibraryBundle();
+    expect(result.count).toBe(0);
+    expect(result.fileName).toMatch(/^retro-oasis-saves-\d{4}-\d{2}-\d{2}\.zip$/);
+
+    const files = unzipSync(new Uint8Array(await readBlobAsArrayBuffer(result.blob)));
+    const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as SaveBundleManifest;
+    expect(manifest.format).toBe(SAVE_BUNDLE_FORMAT);
+    expect(manifest.bundleVersion).toBe(SAVE_BUNDLE_VERSION);
+    expect(manifest.entries).toEqual([]);
+  });
+
+  it('exports every game and slot into the bundle manifest', async () => {
+    await lib.saveState(entry({ gameId: 'game-a', slot: 1 }));
+    await lib.saveState(entry({ gameId: 'game-a', slot: AUTO_SAVE_SLOT, isAutoSave: true }));
+    await lib.saveState(entry({ gameId: 'game-b', slot: 2, gameName: 'Game B' }));
+
+    const result = await lib.exportLibraryBundle();
+    expect(result.count).toBe(3);
+
+    const files = unzipSync(new Uint8Array(await readBlobAsArrayBuffer(result.blob)));
+    const manifest = JSON.parse(strFromU8(files['manifest.json']!)) as SaveBundleManifest;
+    expect(manifest.entries).toHaveLength(3);
+    const ids = manifest.entries.map((e) => `${e.gameId}:${e.slot}`);
+    expect(ids).toEqual(['game-a:0', 'game-a:1', 'game-b:2']);
+    // Each entry with state data references a stored binary file.
+    for (const e of manifest.entries) {
+      expect(files[e.state!]).toBeInstanceOf(Uint8Array);
+    }
+  });
+
+  it('round-trips state data and metadata through export then import', async () => {
+    const stateData = new Blob([new Uint8Array([9, 8, 7, 6, 5])]);
+    await lib.saveState(entry({ gameId: 'rt', slot: 3, label: 'Boss Fight', timestamp: 4242, stateData }));
+
+    const bundle = await lib.exportLibraryBundle();
+    await lib.clearAll();
+    expect(await lib.count()).toBe(0);
+
+    const report = await lib.importLibraryBundle(bundle.blob);
+    expect(report).toMatchObject({ imported: 1, skipped: 0, failed: 0, total: 1 });
+
+    const restored = await lib.getState('rt', 3);
+    expect(restored).not.toBeNull();
+    expect(restored!.label).toBe('Boss Fight');
+    expect(restored!.timestamp).toBe(4242);
+    const bytes = new Uint8Array(await readBlobAsArrayBuffer(restored!.stateData!));
+    expect(Array.from(bytes)).toEqual([9, 8, 7, 6, 5]);
+  });
+
+  it('preserves thumbnails when present', async () => {
+    const thumbnail = new Blob([new Uint8Array([255, 216, 255])], { type: 'image/jpeg' });
+    await lib.saveState(entry({ gameId: 'thumb', slot: 1, thumbnail }));
+
+    const bundle = await lib.exportLibraryBundle();
+    await lib.clearAll();
+    await lib.importLibraryBundle(bundle.blob);
+
+    const restored = await lib.getState('thumb', 1);
+    expect(restored!.thumbnail).toBeInstanceOf(Blob);
+    const bytes = new Uint8Array(await readBlobAsArrayBuffer(restored!.thumbnail!));
+    expect(Array.from(bytes)).toEqual([255, 216, 255]);
+  });
+
+  it('default "newer" strategy keeps the more recent local save', async () => {
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Old', timestamp: 1000 }));
+    const bundle = await lib.exportLibraryBundle();
+
+    // Local save advances past the bundle's timestamp.
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'New', timestamp: 5000 }));
+
+    const report = await lib.importLibraryBundle(bundle.blob);
+    expect(report).toMatchObject({ imported: 0, skipped: 1 });
+    expect((await lib.getState('g', 1))!.label).toBe('New');
+  });
+
+  it('"newer" strategy restores when the bundle save is more recent', async () => {
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Fresh', timestamp: 9000 }));
+    const bundle = await lib.exportLibraryBundle();
+
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Stale', timestamp: 1000 }));
+
+    const report = await lib.importLibraryBundle(bundle.blob);
+    expect(report).toMatchObject({ imported: 1, skipped: 0 });
+    expect((await lib.getState('g', 1))!.label).toBe('Fresh');
+  });
+
+  it('"overwrite" strategy always replaces the local save', async () => {
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Bundle', timestamp: 100 }));
+    const bundle = await lib.exportLibraryBundle();
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Local', timestamp: 9999 }));
+
+    const report = await lib.importLibraryBundle(bundle.blob, { conflict: 'overwrite' });
+    expect(report).toMatchObject({ imported: 1, skipped: 0 });
+    expect((await lib.getState('g', 1))!.label).toBe('Bundle');
+  });
+
+  it('"skip" strategy never touches existing slots but still adds new ones', async () => {
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'A' }));
+    await lib.saveState(entry({ gameId: 'g', slot: 2, label: 'B' }));
+    const bundle = await lib.exportLibraryBundle();
+
+    await lib.clearAll();
+    await lib.saveState(entry({ gameId: 'g', slot: 1, label: 'Existing' }));
+
+    const report = await lib.importLibraryBundle(bundle.blob, { conflict: 'skip' });
+    expect(report).toMatchObject({ imported: 1, skipped: 1 });
+    expect((await lib.getState('g', 1))!.label).toBe('Existing');
+    expect((await lib.getState('g', 2))!.label).toBe('B');
+  });
+
+  it('recomputes a checksum for restored entries', async () => {
+    await lib.saveState(entry({ gameId: 'g', slot: 1 }));
+    const bundle = await lib.exportLibraryBundle();
+    await lib.clearAll();
+    await lib.importLibraryBundle(bundle.blob);
+
+    const restored = await lib.getState('g', 1);
+    expect(restored!.checksum).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('rejects a file that is not a zip bundle', async () => {
+    const garbage = new Blob([new Uint8Array([0, 1, 2, 3])]);
+    await expect(lib.importLibraryBundle(garbage)).rejects.toThrow(/not a valid/i);
+  });
+
+  it('rejects a zip that is missing its manifest', async () => {
+    const zipped = zipSync({ 'states/0.bin': new Uint8Array([1]) });
+    const blob = new Blob([zipped]);
+    await expect(lib.importLibraryBundle(blob)).rejects.toThrow(/manifest/i);
+  });
+
+  it('rejects an unrecognized bundle format', async () => {
+    const manifest = { format: 'something-else', bundleVersion: 1, exportedAt: 0, entries: [] };
+    const zipped = zipSync({ 'manifest.json': strToU8(JSON.stringify(manifest)) });
+    await expect(lib.importLibraryBundle(new Blob([zipped]))).rejects.toThrow(/format/i);
+  });
+
+  it('rejects a bundle from a newer version of RetroOasis', async () => {
+    const manifest = {
+      format: SAVE_BUNDLE_FORMAT,
+      bundleVersion: SAVE_BUNDLE_VERSION + 1,
+      exportedAt: 0,
+      entries: [],
+    };
+    const zipped = zipSync({ 'manifest.json': strToU8(JSON.stringify(manifest)) });
+    await expect(lib.importLibraryBundle(new Blob([zipped]))).rejects.toThrow(/newer version/i);
+  });
+
+  it('counts malformed entries as failed without aborting the import', async () => {
+    const manifest = {
+      format: SAVE_BUNDLE_FORMAT,
+      bundleVersion: SAVE_BUNDLE_VERSION,
+      exportedAt: 0,
+      entries: [
+        { gameId: '', slot: 1, gameName: 'x', systemId: 'nes', label: '', timestamp: 1, isAutoSave: false, version: 1, checksum: '' },
+        { gameId: 'ok', slot: 99, gameName: 'x', systemId: 'nes', label: '', timestamp: 1, isAutoSave: false, version: 1, checksum: '' },
+        { gameId: 'ok', slot: 2, gameName: 'Good', systemId: 'nes', label: 'Slot 2', timestamp: 1, isAutoSave: false, version: 1, checksum: '' },
+      ],
+    };
+    const zipped = zipSync({ 'manifest.json': strToU8(JSON.stringify(manifest)) });
+    const report = await lib.importLibraryBundle(new Blob([zipped]));
+    expect(report).toMatchObject({ imported: 1, failed: 2, total: 3 });
+    expect((await lib.getState('ok', 2))!.gameName).toBe('Good');
   });
 });

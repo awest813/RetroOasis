@@ -177,4 +177,80 @@ if (typeof Blob !== "undefined") {
       });
     };
   }
+
+  // jsdom does not implement Blob.stream(), which browser Blobs provide and
+  // which `new Response(blob)` (undici) relies on to read blob payloads. Back
+  // it with arrayBuffer() so code paths that stream blobs work under test.
+  if (!Blob.prototype.stream && typeof ReadableStream !== "undefined") {
+    Blob.prototype.stream = function (this: Blob): ReadableStream<Uint8Array> {
+      const blob = this;
+      return new ReadableStream<Uint8Array>({
+        async start(controller) {
+          try {
+            controller.enqueue(new Uint8Array(await blob.arrayBuffer()));
+            controller.close();
+          } catch (err) {
+            controller.error(err);
+          }
+        },
+      });
+    } as typeof Blob.prototype.stream;
+  }
+}
+
+// ── structuredClone: preserve jsdom Blobs (fake-indexeddb fidelity) ───────────
+//
+// Node's native structuredClone does not recognise jsdom's Blob implementation
+// and silently clones it into an empty plain object, so fake-indexeddb loses
+// Blob payloads on insertion. Tests that round-trip save-state blobs through
+// IndexedDB depend on the bytes surviving, so wrap structuredClone with a
+// Blob-aware deep clone that delegates every other value to the native impl.
+if (typeof Blob !== "undefined" && typeof globalThis.structuredClone === "function") {
+  const nativeStructuredClone = globalThis.structuredClone.bind(globalThis);
+
+  // jsdom stores Blob bytes on a non-enumerable `[Symbol(impl)]._buffer`
+  // (a Node Buffer). `instanceof Uint8Array` is unreliable across realms here,
+  // so detect the view with the realm-safe `ArrayBuffer.isView`.
+  const blobBytes = (blob: Blob): ArrayBufferView | null => {
+    for (const sym of Object.getOwnPropertySymbols(blob)) {
+      const impl = (blob as unknown as Record<symbol, { _buffer?: unknown }>)[sym];
+      if (impl && ArrayBuffer.isView(impl._buffer)) return impl._buffer;
+    }
+    return null;
+  };
+
+  const cloneWithBlobs = (value: unknown, seen: WeakMap<object, unknown>): unknown => {
+    if (value === null || typeof value !== "object") return value;
+    if (value instanceof Blob) {
+      const view = blobBytes(value);
+      if (!view) return nativeStructuredClone(value);
+      const copy = new Uint8Array(view.byteLength);
+      copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+      return new Blob([copy as unknown as Uint8Array<ArrayBuffer>], { type: value.type });
+    }
+    if (seen.has(value)) return seen.get(value);
+    if (Array.isArray(value)) {
+      const arr: unknown[] = [];
+      seen.set(value, arr);
+      for (const item of value) arr.push(cloneWithBlobs(item, seen));
+      return arr;
+    }
+    const proto: unknown = Object.getPrototypeOf(value);
+    if (proto === Object.prototype || proto === null) {
+      const obj: Record<string, unknown> = {};
+      seen.set(value, obj);
+      for (const key of Object.keys(value as Record<string, unknown>)) {
+        obj[key] = cloneWithBlobs((value as Record<string, unknown>)[key], seen);
+      }
+      return obj;
+    }
+    // Dates, ArrayBuffers, typed arrays, Maps, Sets, etc. (no nested Blobs in
+    // our IndexedDB records) clone correctly through the native implementation.
+    return nativeStructuredClone(value);
+  };
+
+  const blobAwareClone = ((value: unknown) =>
+    cloneWithBlobs(value, new WeakMap())) as typeof structuredClone;
+  (blobAwareClone as unknown as { __blobAware: boolean }).__blobAware = true;
+  globalThis.structuredClone = blobAwareClone;
 }

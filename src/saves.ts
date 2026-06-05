@@ -20,6 +20,7 @@
  *   checksum    string   — djb2 hex checksum of raw stateData bytes (optional, added in v3)
  */
 
+import { unzipSync, zipSync, strFromU8, strToU8, type Zippable } from "fflate";
 import { readBlobAsArrayBuffer } from "./blobUtils.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -46,6 +47,64 @@ export type SaveStateMetadata = Omit<SaveStateEntry, "thumbnail" | "stateData">;
 export const MAX_SAVE_SLOTS = 8;
 export const AUTO_SAVE_SLOT = 0;
 export const SAVE_FORMAT_VERSION = 1;
+
+// ── Library backup bundle ───────────────────────────────────────────────────────
+
+/** Magic string identifying a RetroOasis save bundle in its manifest. */
+export const SAVE_BUNDLE_FORMAT = "retro-oasis-save-bundle";
+/** Bundle container version. Bumped if the manifest layout changes incompatibly. */
+export const SAVE_BUNDLE_VERSION = 1;
+
+/** How to resolve a slot that already exists when importing a bundle. */
+export type ImportConflictStrategy = "newer" | "overwrite" | "skip";
+
+/** Per-entry record stored in a bundle's `manifest.json`. */
+export interface SaveBundleEntryManifest {
+  gameId: string;
+  gameName: string;
+  systemId: string;
+  slot: number;
+  label: string;
+  timestamp: number;
+  isAutoSave: boolean;
+  version: number;
+  checksum: string;
+  /** Path of the raw state file inside the archive, omitted when no state data. */
+  state?: string;
+  /** Path of the thumbnail file inside the archive, omitted when no thumbnail. */
+  thumbnail?: string;
+}
+
+/** Top-level `manifest.json` describing a save bundle. */
+export interface SaveBundleManifest {
+  format: string;
+  bundleVersion: number;
+  exportedAt: number;
+  entries: SaveBundleEntryManifest[];
+}
+
+export interface ExportBundleResult {
+  blob: Blob;
+  fileName: string;
+  /** Number of save states written to the bundle. */
+  count: number;
+}
+
+export interface ImportBundleOptions {
+  /** Conflict resolution when a game+slot already exists locally. Defaults to "newer". */
+  conflict?: ImportConflictStrategy;
+}
+
+export interface ImportBundleResult {
+  /** Entries written to the local library. */
+  imported: number;
+  /** Entries left untouched because of the conflict strategy. */
+  skipped: number;
+  /** Entries that could not be restored (invalid data). */
+  failed: number;
+  /** Total entries described by the bundle manifest. */
+  total: number;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -459,6 +518,156 @@ export class SaveStateLibrary {
   }
 
   /**
+   * Export the entire save library (every game, every slot) as a single ZIP
+   * bundle. The bundle embeds a `manifest.json` describing each entry plus the
+   * raw state and thumbnail blobs, so it can be re-imported on another device
+   * via {@link importLibraryBundle}.
+   *
+   * Returns the bundle blob, a suggested file name, and the entry count.
+   */
+  async exportLibraryBundle(): Promise<ExportBundleResult> {
+    const db  = await openDB();
+    const all = await promisify<SaveStateEntry[]>(tx(db, "readonly").getAll());
+    all.sort((a, b) => a.gameId.localeCompare(b.gameId) || a.slot - b.slot);
+
+    const files: Zippable = {};
+    const entries: SaveBundleEntryManifest[] = [];
+
+    for (let i = 0; i < all.length; i++) {
+      const s = all[i]!;
+      const manifestEntry: SaveBundleEntryManifest = {
+        gameId:     s.gameId,
+        gameName:   s.gameName,
+        systemId:   s.systemId,
+        slot:       s.slot,
+        label:      s.label,
+        timestamp:  s.timestamp,
+        isAutoSave: s.isAutoSave,
+        version:    s.version ?? SAVE_FORMAT_VERSION,
+        checksum:   s.checksum ?? "",
+      };
+
+      if (s.stateData) {
+        const path = `states/${i}.bin`;
+        files[path] = new Uint8Array(await readBlobAsArrayBuffer(s.stateData));
+        manifestEntry.state = path;
+      }
+      if (s.thumbnail) {
+        const path = `thumbs/${i}.jpg`;
+        files[path] = new Uint8Array(await readBlobAsArrayBuffer(s.thumbnail));
+        manifestEntry.thumbnail = path;
+      }
+      entries.push(manifestEntry);
+    }
+
+    const manifest: SaveBundleManifest = {
+      format:        SAVE_BUNDLE_FORMAT,
+      bundleVersion: SAVE_BUNDLE_VERSION,
+      exportedAt:    Date.now(),
+      entries,
+    };
+    files["manifest.json"] = strToU8(JSON.stringify(manifest));
+
+    const zipped = zipSync(files);
+    const blob = new Blob([zipped as unknown as Uint8Array<ArrayBuffer>], { type: "application/zip" });
+    return { blob, fileName: `retro-oasis-saves-${bundleDateStamp()}.zip`, count: all.length };
+  }
+
+  /**
+   * Restore save states from a bundle produced by {@link exportLibraryBundle}.
+   *
+   * The `conflict` option controls what happens when a game+slot already exists
+   * locally: "newer" (default) keeps whichever save has the later timestamp,
+   * "overwrite" always replaces the local entry, and "skip" never touches
+   * existing slots. Entries that cannot be parsed are counted as `failed`
+   * rather than aborting the whole import.
+   *
+   * @throws if the blob is not a valid bundle or the manifest is unreadable.
+   */
+  async importLibraryBundle(bundle: Blob, options: ImportBundleOptions = {}): Promise<ImportBundleResult> {
+    const conflict = options.conflict ?? "newer";
+    const bytes = new Uint8Array(await readBlobAsArrayBuffer(bundle));
+
+    let files: Record<string, Uint8Array>;
+    try {
+      files = unzipSync(bytes);
+    } catch {
+      throw new Error("This file is not a valid RetroOasis save bundle.");
+    }
+
+    const manifestBytes = files["manifest.json"];
+    if (!manifestBytes) {
+      throw new Error("Save bundle is missing its manifest.");
+    }
+
+    let manifest: SaveBundleManifest;
+    try {
+      manifest = JSON.parse(strFromU8(manifestBytes)) as SaveBundleManifest;
+    } catch {
+      throw new Error("Save bundle manifest is corrupted.");
+    }
+    if (manifest.format !== SAVE_BUNDLE_FORMAT || !Array.isArray(manifest.entries)) {
+      throw new Error("Unrecognized save bundle format.");
+    }
+    if (typeof manifest.bundleVersion === "number" && manifest.bundleVersion > SAVE_BUNDLE_VERSION) {
+      throw new Error("This save bundle was created by a newer version of RetroOasis.");
+    }
+
+    let imported = 0;
+    let skipped  = 0;
+    let failed   = 0;
+
+    for (const e of manifest.entries) {
+      try {
+        if (typeof e?.gameId !== "string" || e.gameId.trim().length === 0) {
+          failed++;
+          continue;
+        }
+        assertValidSaveSlot(e.slot);
+
+        if (conflict !== "overwrite") {
+          const existing = await this.getState(e.gameId, e.slot);
+          if (existing) {
+            if (conflict === "skip") { skipped++; continue; }
+            if (conflict === "newer" && existing.timestamp >= (e.timestamp ?? 0)) { skipped++; continue; }
+          }
+        }
+
+        const stateBytes = e.state ? files[e.state] : undefined;
+        const thumbBytes = e.thumbnail ? files[e.thumbnail] : undefined;
+        const stateData = stateBytesToBlob(stateBytes);
+        const thumbnail = thumbBytes && thumbBytes.byteLength > 0
+          ? new Blob([thumbBytes as unknown as Uint8Array<ArrayBuffer>], { type: "image/jpeg" })
+          : null;
+
+        const entry: SaveStateEntry = {
+          id:         saveStateKey(e.gameId, e.slot),
+          gameId:     e.gameId,
+          gameName:   typeof e.gameName === "string" ? e.gameName : "Unknown",
+          systemId:   typeof e.systemId === "string" ? e.systemId : "",
+          slot:       e.slot,
+          label:      typeof e.label === "string" && e.label.trim() ? e.label : defaultSlotLabel(e.slot),
+          timestamp:  typeof e.timestamp === "number" ? e.timestamp : Date.now(),
+          thumbnail,
+          stateData,
+          isAutoSave: e.slot === AUTO_SAVE_SLOT,
+          version:    typeof e.version === "number" ? e.version : SAVE_FORMAT_VERSION,
+          checksum:   typeof e.checksum === "string" && e.checksum ? e.checksum : undefined,
+        };
+
+        // saveState recomputes a missing checksum and persists in one place.
+        await this.saveState(entry);
+        imported++;
+      } catch {
+        failed++;
+      }
+    }
+
+    saveEvents.emit({ type: "migrated", timestamp: Date.now() });
+    return { imported, skipped, failed, total: manifest.entries.length };
+  }
+
+  /**
    * Get all unique gameIds that have at least one save state.
    *
    * Uses IDBIndex.openKeyCursor() with "nextunique" direction so each
@@ -648,6 +857,13 @@ export async function createThumbnail(screenshot: Blob): Promise<Blob | null> {
   } catch {
     return null;
   }
+}
+
+/** Local `YYYY-MM-DD` stamp used in exported bundle file names. */
+function bundleDateStamp(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 // ── File download helper ──────────────────────────────────────────────────────
