@@ -1535,7 +1535,7 @@ export class LibretroMatchingServerCoverArtProvider implements CoverArtProvider 
 
     const json = await res.json() as LibretroMatchingServerResponse;
     const matches = json.data?.matches ?? {};
-    const imageUrl = matches[name] ?? matches[queryName] ?? Object.values(matches)[0];
+    const imageUrl = matches[queryName] ?? matches[name] ?? Object.values(matches)[0];
     if (!imageUrl || typeof imageUrl !== "string") return [];
 
     return [{

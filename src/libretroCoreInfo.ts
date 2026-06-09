@@ -15,7 +15,6 @@ export const LIBRETRO_DB_NAME_TO_SYSTEM_ID: Readonly<Record<string, string>> = O
   "Nintendo - Nintendo DS": "nds",
   "Nintendo - Nintendo 3DS": "3ds",
   "Nintendo - Nintendo 64": "n64",
-  "Nintendo - Virtual Boy": "vb",
   "Sony - PlayStation": "psx",
   "Sony - PlayStation Portable": "psp",
   "Sega - Mega Drive - Genesis": "segaMD",
@@ -41,7 +40,6 @@ export const LIBRETRO_DB_NAME_TO_SYSTEM_ID: Readonly<Record<string, string>> = O
 export const LIBRETRO_CORE_EXTRA_EXTENSIONS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   "3ds": ["z3dsx", "zcci", "zcxi", "elf"],
   segaDC: ["dat", "lst"],
-  psp: ["chd"],
   psx: ["pbp"],
 });
 
@@ -86,9 +84,30 @@ export const LIBRETRO_MATCHING_CONSOLE_TO_SYSTEM_ID: Readonly<Record<string, str
   DOS: "dos",
 });
 
-/** RetroOasis systemId → libretro-image-matching-server console slug. */
-export const SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE: Readonly<Record<string, string>> = Object.freeze(
-  Object.fromEntries(
-    Object.entries(LIBRETRO_MATCHING_CONSOLE_TO_SYSTEM_ID).map(([console, systemId]) => [systemId, console]),
-  ),
-);
+/**
+ * RetroOasis systemId → libretro-image-matching-server console slug.
+ * Explicit map so shared targets (e.g. GBA + MGBA) resolve to the preferred slug.
+ */
+export const SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE: Readonly<Record<string, string>> = Object.freeze({
+  nes: "FC",
+  snes: "SFC",
+  gb: "GB",
+  gbc: "GBC",
+  gba: "GBA",
+  nds: "NDS",
+  n64: "N64",
+  psx: "PS",
+  psp: "PSP",
+  segaMD: "MD",
+  segaMS: "SMS",
+  segaGG: "GG",
+  segaSaturn: "SATURN",
+  segaDC: "DC",
+  sega32x: "THIRTYTWOX",
+  lynx: "LYNX",
+  ngp: "NGPC",
+  arcade: "FBN",
+  atari2600: "ATARI",
+  intv: "INTELLIVISION",
+  dos: "DOS",
+});

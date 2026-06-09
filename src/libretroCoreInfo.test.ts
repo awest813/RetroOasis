@@ -20,5 +20,10 @@ describe("libretroCoreInfo", () => {
   it("exposes matching-server console slugs for supported systems", () => {
     expect(SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE.nes).toBe("FC");
     expect(SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE.psp).toBe("PSP");
+    expect(SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE.gba).toBe("GBA");
+  });
+
+  it("does not map unsupported libretro db_name values", () => {
+    expect(libretroDbNameToSystemId("Nintendo - Virtual Boy")).toBeUndefined();
   });
 });

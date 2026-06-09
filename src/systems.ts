@@ -15,6 +15,7 @@
  */
 
 import type { PerformanceTier } from "./performance.js";
+import { mergeLibretroCoreExtensions } from "./libretroCoreInfo.js";
 
 // ── System definition ─────────────────────────────────────────────────────────
 
@@ -1727,7 +1728,8 @@ function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | nu
   const extToSystems = new Map<string, SystemInfo[]>();
   for (const sys of SYSTEMS) {
     SYSTEM_BY_ID.set(sys.id, sys);
-    for (const ext of sys.extensions) {
+    const extensions = mergeLibretroCoreExtensions(sys.id, sys.extensions);
+    for (const ext of extensions) {
       if (!extToSystems.has(ext)) extToSystems.set(ext, []);
       extToSystems.get(ext)!.push(sys);
     }
@@ -1740,7 +1742,7 @@ function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | nu
 
 /** All accepted extensions, for use in <input accept>. */
 export const ALL_EXTENSIONS: string[] = [
-  ...new Set(SYSTEMS.flatMap(s => s.extensions)),
+  ...new Set(SYSTEMS.flatMap(s => mergeLibretroCoreExtensions(s.id, s.extensions))),
 ];
 
 function toUint8Array(data: ArrayBuffer | ArrayBufferView): Uint8Array {

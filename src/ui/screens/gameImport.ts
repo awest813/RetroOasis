@@ -117,6 +117,20 @@ export async function resolveSystemAndAddImpl(
     return;
   }
 
+  if (ext === "lpl") {
+    await handleLibretroPlaylistFile(
+      file,
+      library,
+      settings,
+      onLaunchGame,
+      emulatorRef,
+      onRenderLibrary,
+      preferredSystemId,
+      opts,
+    );
+    return;
+  }
+
   let resolvedFile = file;
   let archiveFormat: ArchiveFormat = "unknown";
   let archiveModulePromise: Promise<typeof import("../../archive.js")> | null = null;
@@ -418,20 +432,6 @@ export async function resolveSystemAndAddImpl(
     return;
   }
 
-  if (resolvedFile.name.toLowerCase().endsWith(".lpl")) {
-    await handleLibretroPlaylistFile(
-      resolvedFile,
-      library,
-      settings,
-      onLaunchGame,
-      emulatorRef,
-      onRenderLibrary,
-      preferredSystemId,
-      opts,
-    );
-    return;
-  }
-
   try {
     const existing = await library.findByFileName(resolvedFile.name, system.id);
     if (existing) {
@@ -606,12 +606,14 @@ async function handleLibretroPlaylistFile(
   try {
     text = await readBlobAsText(lplFile);
   } catch {
+    hideLoadingOverlay();
     showError("Could not read the .lpl playlist file.");
     return;
   }
 
   const playlist = parseLibretroPlaylist(text);
   if (!playlist) {
+    hideLoadingOverlay();
     showError("The .lpl file is not a valid RetroArch playlist.");
     return;
   }

@@ -311,6 +311,8 @@ function buildSettingsContent(
         appName: APP_NAME,
         getTester: (id: string) => getApiKeyTester(id),
         onError: showError,
+        settings,
+        onSettingsChange,
       });
       _settingsContentCleanups.push(apiKeysCleanup);
       panels[9]!.textContent = "";

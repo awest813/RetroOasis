@@ -358,6 +358,33 @@ describe("buildAchievementsTab", () => {
   });
 });
 
+describe("buildApiKeysTab — libretro matcher", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+
+  it("renders matcher URL controls when settings hooks are provided", () => {
+    document.body.innerHTML = "";
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const store = new ApiKeyStore({ storage: makeStorage(), providers: cfgs });
+    const onSettingsChange = vi.fn();
+    buildApiKeysTab(container, store, {
+      appName: "RetroOasis",
+      getTester: () => null,
+      onError: vi.fn(),
+      settings: { libretroMatchingServerUrl: "https://matcher.example.com" } as never,
+      onSettingsChange,
+    });
+
+    const input = container.querySelector<HTMLInputElement>("#libretro-matcher-url");
+    expect(input).toBeTruthy();
+    expect(input!.value).toBe("https://matcher.example.com");
+
+    input!.value = "https://matcher.example.com";
+    input!.dispatchEvent(new Event("change"));
+    expect(onSettingsChange).toHaveBeenCalledWith({ libretroMatchingServerUrl: "https://matcher.example.com" });
+  });
+});
+
 describe("buildApiKeysTab — polish", () => {
   beforeEach(() => { document.body.innerHTML = ""; });
 

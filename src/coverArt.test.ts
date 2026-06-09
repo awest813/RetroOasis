@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   normalizeRomName,
   tokenizeName,
@@ -16,6 +16,7 @@ import {
   LIBRETRO_REGION_PREFERENCE,
   systemIdToLibretroSystems,
   LibretroCoverArtProvider,
+  LibretroMatchingServerCoverArtProvider,
   ChainedCoverArtProvider,
   RawgCoverArtProvider,
   MobyGamesCoverArtProvider,
@@ -592,6 +593,35 @@ describe("systemIdToLibretroSystems", () => {
     a.push("mutated");
     const b = systemIdToLibretroSystems("snes");
     expect(b).not.toContain("mutated");
+  });
+});
+
+// ── LibretroMatchingServerCoverArtProvider ────────────────────────────────────
+
+describe("LibretroMatchingServerCoverArtProvider", () => {
+  it("looks up matches by scrubbed queryName", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          matches: {
+            "Super Mario Bros (USA)": "https://example.com/query.png",
+            "Super Mario Bros (USA).nes": "https://example.com/raw.png",
+          },
+        },
+      }),
+    });
+    const p = new LibretroMatchingServerCoverArtProvider({
+      baseUrl: "https://matcher.test",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+    const results = await p.search("Super Mario Bros (USA).nes", "nes");
+    expect(results).toHaveLength(1);
+    expect(results[0]!.imageUrl).toBe("https://example.com/query.png");
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://matcher.test/matches/FC/boxart",
+      expect.objectContaining({ method: "POST", body: "Super Mario Bros (USA)\n" }),
+    );
   });
 });
 

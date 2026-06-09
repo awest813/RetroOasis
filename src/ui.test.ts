@@ -5196,6 +5196,37 @@ describe("UX polish shortcuts and feedback", () => {
   });
 });
 
+describe("resolveSystemAndAdd — .lpl playlists", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    buildDOM(document.body);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("handles .lpl before system detection", async () => {
+    const systems = await import("./systems.js");
+    const detectSpy = vi.spyOn(systems, "detectSystem");
+    const lpl = JSON.stringify({
+      items: [{
+        path: "/roms/game.nes",
+        label: "Game",
+        db_name: "Nintendo - Nintendo Entertainment System",
+      }],
+    });
+    const file = new File([lpl], "games.lpl", { type: "application/json" });
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    await resolveSystemAndAdd(file, library, makeSettings(), vi.fn());
+
+    expect(detectSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("resolveSystemAndAdd — retry on addGame failure", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
