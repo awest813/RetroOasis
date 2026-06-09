@@ -91,6 +91,7 @@ Free sources work without an account:
 
 - [Libretro Thumbnails](https://github.com/libretro-thumbnails)
 - [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- [xero/boxart](https://github.com/xero/boxart)
 - Wikimedia / Wikipedia fallbacks
 
 Optional provider credentials can be configured in Settings > Connections:
@@ -210,6 +211,7 @@ RetroOasis does not include copyrighted games or proprietary BIOS files. You are
 - [Vitest](https://vitest.dev/)
 - [Playwright](https://playwright.dev/)
 - [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- [xero/boxart](https://github.com/xero/boxart)
 - [libretro-thumbnails](https://github.com/libretro-thumbnails)
 
 ## License

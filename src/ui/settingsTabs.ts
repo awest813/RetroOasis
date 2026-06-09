@@ -727,7 +727,7 @@ export function buildApiKeysTab(
     "Credentials stay in this browser and are sent directly to the service they belong to."));
   intro.appendChild(make("div", { class: "connections-free-sources" },
     make("span", { class: "connections-free-sources__badge" }, "Always on"),
-    make("span", {}, "Libretro, cover-art-collection, and Wikimedia run without setup."),
+    make("span", {}, "Libretro, cover-art-collection, boxart, and Wikimedia run without setup."),
   ));
 
   const summary = make("div", { class: "api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLDivElement;
@@ -1186,7 +1186,7 @@ export function buildApiKeysTab(
   });
   footer.append(
     make("p", { class: "settings-help" },
-      "Providers run in the order shown above. Free sources (Libretro Thumbnails, cover-art-collection, Wikimedia) " +
+      "Providers run in the order shown above. Free sources (Libretro Thumbnails, cover-art-collection, boxart, Wikimedia) " +
       "always run first and are not affected by this list.",
     ),
     resetBtn,
