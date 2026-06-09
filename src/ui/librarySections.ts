@@ -42,13 +42,16 @@ export function buildLibraryHero(opts: {
   const bg = make("div", { class: "library-hero__bg" });
   bg.style.background = `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), radial-gradient(circle at 20% 30%, ${system?.color ?? "#8b5cf6"}22 0%, transparent 70%)`;
   
+  const applyHeroBackground = (imageUrl: string): void => {
+    bg.style.backgroundImage =
+      `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), url(${imageUrl})`;
+  };
   if (game.hasCoverArt) {
-    void library.getCoverArt(game.id).then(blob => {
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        bg.style.backgroundImage = `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), url(${url})`;
-      }
+    void library.getCoverArt(game.id).then((blob) => {
+      if (blob) applyHeroBackground(URL.createObjectURL(blob));
     });
+  } else if (game.thumbnailUrl) {
+    applyHeroBackground(game.thumbnailUrl);
   }
 
   const content = make("div", { class: "library-hero__content" });

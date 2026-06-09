@@ -333,6 +333,10 @@ export function buildGameCard(
     try {
       if (result.type === "remove") {
         const hadOnlyThumbnail = !game.hasCoverArt && !!game.thumbnailUrl;
+        if (coverArtObjectUrl) {
+          URL.revokeObjectURL(coverArtObjectUrl);
+          coverArtObjectUrl = null;
+        }
         await library.setCoverArt(game.id, null);
         if (hadOnlyThumbnail) {
           await library.setThumbnailUrl(game.id, undefined);
@@ -470,7 +474,7 @@ export function buildGameCard(
     const result = await showCoverArtPickerDialogImpl(
       game.name,
       !!(game.hasCoverArt || game.thumbnailUrl),
-      { onOpenApiKeysSettings: onOpenApiKeySettings ?? (() => {}) },
+      onOpenApiKeySettings ? { onOpenApiKeysSettings: onOpenApiKeySettings } : undefined,
     );
     await handleCoverArtResult(result, btnArt);
   });
@@ -575,8 +579,8 @@ export function buildGameCard(
       onEditArt:   () => {
         void showCoverArtPickerDialogImpl(
           game.name,
-          !!coverArtObjectUrl,
-          { onOpenApiKeysSettings: onOpenApiKeySettings ?? (() => {}) },
+          !!(game.hasCoverArt || game.thumbnailUrl || coverArtObjectUrl),
+          onOpenApiKeySettings ? { onOpenApiKeysSettings: onOpenApiKeySettings } : undefined,
         ).then(res => handleCoverArtResult(res, btnArt)).catch(err => {
           console.warn("Cover art dialog failed:", err);
         });

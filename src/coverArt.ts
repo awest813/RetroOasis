@@ -16,8 +16,7 @@
  * (https://gbatemp.net/threads/cover-collections-for-emulators-with-cover-support.324714/)
  * indexes many community-maintained boxart / titlescreen sets beyond the
  * sources wired up here (Libretro Thumbnails, cover-art-collection, boxart).
- * Any
- * additional collection with permissive CORS or a reachable static CDN can
+ * Any additional collection with permissive CORS or a reachable static CDN can
  * be added behind the `CoverArtProvider` interface and composed into the
  * chain without touching the UI layer.
  *

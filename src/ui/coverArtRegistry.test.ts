@@ -5,6 +5,8 @@ import {
   getKeyedProviders,
   getCoverArtProvider,
   rebuildCoverArtProvider,
+  ALWAYS_ON_COVER_ART_PROVIDER_COUNT,
+  ALWAYS_ON_COVER_ART_PROVIDER_LABELS,
   _resetCoverArtRegistryForTests,
 } from "./coverArtRegistry.js";
 
@@ -39,6 +41,12 @@ describe("coverArtRegistry", () => {
     const tester = getApiKeyTester("retroachievements");
     expect(tester).not.toBeNull();
     expect(typeof tester?.testConnection).toBe("function");
+  });
+
+  it("tracks four always-on free cover sources", () => {
+    expect(ALWAYS_ON_COVER_ART_PROVIDER_COUNT).toBe(4);
+    expect(ALWAYS_ON_COVER_ART_PROVIDER_LABELS).toContain("boxart");
+    expect(ALWAYS_ON_COVER_ART_PROVIDER_LABELS).toContain("Libretro Thumbnails");
   });
 
   it("builds a composed CoverArtProvider", () => {

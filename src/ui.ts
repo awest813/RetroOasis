@@ -1585,11 +1585,9 @@ async function _runBulkCoverArtFetch(
   const restoreFetchCoversButton = (): void => {
     if (!button) return;
     _setFetchCoversButtonLabel(button, "Fetch covers");
-    button.setAttribute("aria-label", "Fetch missing cover art from online");
-    button.title = "Match games against online cover databases (Settings → Connections)";
     button.removeAttribute("aria-busy");
     button.classList.remove("library-controls__fetch-covers--busy");
-    button.disabled = false;
+    _syncLibraryControlState();
   };
 
   // Toggle-cancel semantics: a second click aborts the in-flight batch.
@@ -1829,6 +1827,10 @@ export async function renderLibrary(
         getSystemName:      (id) => getSystemById(id)?.shortName ?? id.toUpperCase(),
         formatRelativeTime,
         formatPlayTime,
+        loadCoverArtUrl: async (gameId) => {
+          const blob = await library.getCoverArt(gameId);
+          return blob ? URL.createObjectURL(blob) : null;
+        },
         onPlayFavorite: (game) => { void (async () => {
           showLoadingOverlay();
           setLoadingMessage(`Starting ${game.name}…`);

@@ -485,6 +485,10 @@ export function showCoverArtPickerDialog(
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? `cover-art-url-clip-${crypto.randomUUID()}`
         : `cover-art-url-clip-${Date.now().toString(36)}`;
+    const urlHelp = createElement("p", {
+      id: urlHelpId,
+      class: "cover-art-panel__hint cover-art-url-help",
+    }, "Use a direct image link (.jpg, .png, .webp). The host must allow browser downloads (CORS).");
     const urlInput = createElement("input", {
       type: "url",
       placeholder: "https://…/cover.jpg — paste a direct image link",
@@ -552,6 +556,7 @@ export function showCoverArtPickerDialog(
     urlInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); btnUrl.click(); }
     }, { signal: ac.signal });
+    urlSection.append(urlHelp, urlRow, urlClipMsg, btnUrl);
     const openKeysHandler = options?.onOpenApiKeysSettings;
     const btnOpenKeys = openKeysHandler
       ? createElement("button", {
@@ -575,7 +580,7 @@ export function showCoverArtPickerDialog(
     ));
     const autoHint = createElement("p", {
       class: "cover-art-panel__hint",
-    }, "Searches your connected cover providers (Libretro, GitHub collection, Wikimedia, plus any optional sources you add). Use Configure Connections below if you use RAWG, MobyGames, TheGamesDB, or similar.");
+    }, "Searches Libretro, cover-art-collection, boxart, and Wikimedia automatically, plus any optional providers you enable in Connections (RAWG, IGDB, ScreenScraper, etc.).");
     const btnAuto = createElement(
       "button",
       {

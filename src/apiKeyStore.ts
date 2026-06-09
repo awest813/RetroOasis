@@ -354,7 +354,7 @@ export const DEFAULT_API_KEY_PROVIDERS: readonly ApiKeyProviderConfig[] = Object
   {
     id: "screenscraper",
     name: "ScreenScraper.fr",
-    description: "The ultimate source for retro gaming media. Requires an account on screenscraper.fr. Format: userid:password. (App provides default dev keys)",
+    description: "Retro gaming media database. Create a free account at screenscraper.fr and enter your credentials as userid:password.",
     signupUrl: "https://www.screenscraper.fr/",
     validate: (val: string) => {
       const parts = val.split(":");

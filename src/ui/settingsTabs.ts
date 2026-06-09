@@ -9,6 +9,7 @@ import {
   looksLikePlaceholderOrUrl,
   type ApiKeyProviderConfig,
 } from "../apiKeyStore.js";
+import { ALWAYS_ON_COVER_ART_PROVIDER_COUNT } from "./coverArtRegistry.js";
 import { getStorageEstimate, formatBytes } from "../library.js";
 
 type JsonObject = Record<string, unknown>;
@@ -772,7 +773,11 @@ export function buildApiKeysTab(
         : "Optional providers can be added anytime";
     summary.innerHTML = "";
     summary.append(
-      buildConnectionSummaryCard("Free covers", "3 active", "No setup needed"),
+      buildConnectionSummaryCard(
+        "Free covers",
+        `${ALWAYS_ON_COVER_ART_PROVIDER_COUNT} active`,
+        "No setup needed",
+      ),
       buildConnectionSummaryCard("Connected", `${activeConnected} of ${order.length}`, `${coverConnected} artwork / ${achievementConnected} achievements`),
       buildConnectionSummaryCard("Next step", nextStep, "Recommended providers improve match quality"),
     );

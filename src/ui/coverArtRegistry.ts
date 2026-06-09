@@ -38,6 +38,17 @@ import {
 import { ApiKeyStore, DEFAULT_API_KEY_PROVIDERS } from "../apiKeyStore.js";
 import { parseRAKey } from "../raCredentials.js";
 
+/** User-facing labels for cover sources that always run without credentials. */
+export const ALWAYS_ON_COVER_ART_PROVIDER_LABELS = [
+  "Libretro Thumbnails",
+  "cover-art-collection",
+  "boxart",
+  "Wikimedia",
+] as const;
+
+/** Count of always-on free cover sources — keep in sync with {@link rebuildCoverArtProvider}. */
+export const ALWAYS_ON_COVER_ART_PROVIDER_COUNT = ALWAYS_ON_COVER_ART_PROVIDER_LABELS.length;
+
 let _apiKeyStore:   ApiKeyStore | null = null;
 let _keyedProviders: Map<string, ApiKeyedProvider> | null = null;
 let _coverArtProvider: CoverArtProvider | null = null;

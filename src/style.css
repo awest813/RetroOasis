@@ -5193,6 +5193,26 @@ body.using-gamepad .game-card:focus {
   color: #ffe8cc;
 }
 
+.cover-art-candidate__score-badge span:last-child[data-source="boxart"] {
+  background: rgba(55, 45, 95, 0.9);
+  color: #ddd0ff;
+}
+
+.cover-art-candidate__score-badge span:last-child[data-source="Wikimedia"] {
+  background: rgba(30, 70, 120, 0.88);
+  color: #d0e8ff;
+}
+
+.cover-art-candidate__score-badge span:last-child[data-source="IGDB"] {
+  background: rgba(130, 35, 95, 0.88);
+  color: #ffd8f0;
+}
+
+.cover-art-candidate__score-badge span:last-child[data-source="SteamGridDB"] {
+  background: rgba(25, 95, 75, 0.88);
+  color: #c8f5e8;
+}
+
 /* ── Cover Art Picker: Better No-results State ── */
 
 .cover-art-no-results {
