@@ -9,6 +9,7 @@ import {
   looksLikePlaceholderOrUrl,
   type ApiKeyProviderConfig,
 } from "../apiKeyStore.js";
+import { ALWAYS_ON_COVER_ART_PROVIDER_COUNT } from "./coverArtRegistry.js";
 import { getStorageEstimate, formatBytes } from "../library.js";
 
 type JsonObject = Record<string, unknown>;
@@ -727,7 +728,7 @@ export function buildApiKeysTab(
     "Credentials stay in this browser and are sent directly to the service they belong to."));
   intro.appendChild(make("div", { class: "connections-free-sources" },
     make("span", { class: "connections-free-sources__badge" }, "Always on"),
-    make("span", {}, "Libretro, cover-art-collection, and Wikimedia run without setup."),
+    make("span", {}, "Libretro, cover-art-collection, boxart, and Wikimedia run without setup."),
   ));
 
   const summary = make("div", { class: "api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLDivElement;
@@ -772,7 +773,11 @@ export function buildApiKeysTab(
         : "Optional providers can be added anytime";
     summary.innerHTML = "";
     summary.append(
-      buildConnectionSummaryCard("Free covers", "3 active", "No setup needed"),
+      buildConnectionSummaryCard(
+        "Free covers",
+        `${ALWAYS_ON_COVER_ART_PROVIDER_COUNT} active`,
+        "No setup needed",
+      ),
       buildConnectionSummaryCard("Connected", `${activeConnected} of ${order.length}`, `${coverConnected} artwork / ${achievementConnected} achievements`),
       buildConnectionSummaryCard("Next step", nextStep, "Recommended providers improve match quality"),
     );
@@ -1186,7 +1191,7 @@ export function buildApiKeysTab(
   });
   footer.append(
     make("p", { class: "settings-help" },
-      "Providers run in the order shown above. Free sources (Libretro Thumbnails, cover-art-collection, Wikimedia) " +
+      "Providers run in the order shown above. Free sources (Libretro Thumbnails, cover-art-collection, boxart, Wikimedia) " +
       "always run first and are not affected by this list.",
     ),
     resetBtn,

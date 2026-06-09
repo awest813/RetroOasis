@@ -47,6 +47,11 @@ export interface HighlightsPanelOpts {
    */
   onPlayFavorite: (game: GameMetadata) => void;
   /**
+   * Resolve a display URL for a game's locally stored cover art blob.
+   * When omitted, only {@link GameMetadata.thumbnailUrl} is shown on favorite cards.
+   */
+  loadCoverArtUrl?: (gameId: string) => Promise<string | null>;
+  /**
    * Called when the user clicks a recent-session entry to replay the game.
    * The caller is responsible for fetching the blob and launching the emulator.
    * Called with `null` when the game is no longer in the library.
@@ -139,15 +144,22 @@ function _buildFavoriteCard(
     iconWrap.textContent = sysIcon;
   }
 
-  // Cover art (local blob URL passed as thumbnailUrl, or remote)
-  if (game.thumbnailUrl) {
+  // Cover art: remote thumbnail URL, or local blob via optional loader.
+  const applyCover = (src: string): void => {
     const cover = make("img", {
-      src: game.thumbnailUrl,
+      src,
       alt: "",
       class: "highlights-fav-card__cover",
       draggable: "false",
     });
     iconWrap.appendChild(cover);
+  };
+  if (game.thumbnailUrl) {
+    applyCover(game.thumbnailUrl);
+  } else if (game.hasCoverArt && opts.loadCoverArtUrl) {
+    void opts.loadCoverArtUrl(game.id).then((src) => {
+      if (src) applyCover(src);
+    });
   }
 
   const nameEl = make("div", { class: "highlights-fav-card__name" }, game.name);

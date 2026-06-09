@@ -446,6 +446,25 @@ describe("showCoverArtPickerDialog", () => {
     await promise;
   });
 
+  it("renders URL help text and the Use this URL control", async () => {
+    const promise = showCoverArtPickerDialog("My Game", false);
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(document.querySelector(".cover-art-url-help")?.textContent).toMatch(/CORS/i);
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Use image URL as cover art"]')?.textContent,
+    ).toBe("Use this URL");
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
+  });
+
+  it("hides Configure Connections when no settings handler is passed", async () => {
+    const promise = showCoverArtPickerDialog("My Game", false);
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(document.querySelector(".cover-art-open-apikeys")).toBeNull();
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
+    await promise;
+  });
+
   it("disables discover and shows offline hint when navigator reports offline", async () => {
     onLineSpy!.mockReturnValue(false);
     const promise = showCoverArtPickerDialog("My Game", false);

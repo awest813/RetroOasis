@@ -15,8 +15,8 @@
  * The GBATemp "Cover Collections for emulators with cover support" thread
  * (https://gbatemp.net/threads/cover-collections-for-emulators-with-cover-support.324714/)
  * indexes many community-maintained boxart / titlescreen sets beyond the
- * sources wired up here (Libretro Thumbnails, cover-art-collection). Any
- * additional collection with permissive CORS or a reachable static CDN can
+ * sources wired up here (Libretro Thumbnails, cover-art-collection, boxart).
+ * Any additional collection with permissive CORS or a reachable static CDN can
  * be added behind the `CoverArtProvider` interface and composed into the
  * chain without touching the UI layer.
  *
@@ -530,6 +530,355 @@ export class GitHubCoverArtProvider implements CoverArtProvider {
           : "file";
         const dl = typeof rec.download_url === "string" ? rec.download_url : null;
         if (name) files.push({ name, path, type, download_url: dl });
+      }
+      this.memCache.set(folder, { files, fetchedAt: Date.now() });
+      return files;
+    })();
+
+    this.inflight.set(folder, p);
+    try {
+      return await p;
+    } finally {
+      this.inflight.delete(folder);
+    }
+  }
+}
+
+// ── boxart (xero/boxart) provider ────────────────────────────────────────────
+
+/**
+ * Mapping from RetroOasis systemId → top-level folders in the
+ * {@link https://github.com/xero/boxart | xero/boxart} repository.
+ * Folder names follow GoodTools / Skraper conventions (NES, SNES, MD, …).
+ */
+const BOXART_FOLDER_MAP: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  nes:         ["NES"],
+  snes:        ["SNES", "SFC"],
+  snesBsnes:   ["SNES", "SFC"],
+  gb:          ["GB"],
+  gbc:         ["GBC"],
+  gba:         ["GBA"],
+  segaMD:      ["MD"],
+  segaMDWide:  ["MD"],
+  segaMS:      ["MS"],
+  segaGG:      ["GG"],
+  psx:         ["PSX"],
+  atari2600:   ["ATARI2600"],
+  arcade:      ["ARCADE"],
+  mame2003:    ["ARCADE"],
+});
+
+const BOXART_REPO_OWNER = "xero";
+const BOXART_REPO_NAME  = "boxart";
+const BOXART_REPO_REF   = "main";
+
+/** Long-form No-Intro / GoodTools region names → single-letter GoodTools codes. */
+const GOODTOOLS_REGION_CODES: Readonly<Record<string, string>> = Object.freeze({
+  usa: "U",
+  us: "U",
+  europe: "E",
+  euro: "E",
+  japan: "J",
+  world: "W",
+  australia: "A",
+  canada: "C",
+  germany: "G",
+  france: "F",
+  spain: "S",
+  sweden: "Sw",
+  italy: "I",
+  netherlands: "N",
+  china: "C",
+  korea: "K",
+  brazil: "B",
+  hongkong: "H",
+});
+
+/**
+ * Return candidate boxart folder names for a systemId in priority order.
+ * Unknown systems return an empty array.
+ */
+export function systemIdToBoxartFolders(systemId: string): string[] {
+  if (!systemId) return [];
+  const hit = BOXART_FOLDER_MAP[systemId];
+  return hit ? [...hit] : [];
+}
+
+/**
+ * Prepare a ROM filename for xero/boxart lookup.
+ *
+ * Like {@link cleanRomNameForLibretro}, parenthesised region / revision tags
+ * and bracketed dump tags are preserved — the boxart repo filenames follow
+ * GoodTools naming (e.g. `Super Mario World (U) [!].png`).
+ */
+export function cleanRomNameForBoxart(raw: string): string {
+  if (!raw) return "";
+  let s = String(raw);
+
+  const slash = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+  if (slash >= 0) s = s.substring(slash + 1);
+
+  const dot = s.lastIndexOf(".");
+  if (dot > 0 && s.length - dot <= 6) s = s.substring(0, dot);
+
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Move a leading article to the end in GoodTools style:
+ * `The Legend of Zelda` → `Legend of Zelda, The`.
+ */
+export function moveLeadingTheToBoxartEnd(name: string): string | null {
+  const trimmed = name.trim();
+  const dash = trimmed.indexOf(" - ");
+  const head = dash >= 0 ? trimmed.slice(0, dash) : trimmed;
+  const tail = dash >= 0 ? trimmed.slice(dash) : "";
+  const m = /^The\s+(.+)$/i.exec(head.trim());
+  if (!m?.[1]) return null;
+  return `${m[1]}, The${tail}`;
+}
+
+/**
+ * Convert a parenthesised region group from No-Intro long names to GoodTools
+ * short codes. Returns the original inner text when it does not look like a
+ * pure region tag (e.g. `(PRG 0)`, `(Beta)`).
+ */
+export function convertGoodToolsRegionGroup(inner: string): string {
+  const parts = inner.split(/[,/]/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return inner;
+
+  const codes: string[] = [];
+  for (const part of parts) {
+    const code = GOODTOOLS_REGION_CODES[part.toLowerCase()];
+    if (!code) return inner;
+    codes.push(code);
+  }
+  return codes.join("");
+}
+
+/** Replace recognised No-Intro region parentheticals with GoodTools codes. */
+export function convertBoxartRegionTags(name: string): string {
+  return name.replace(/\(([^)]*)\)/g, (full, inner: string) => {
+    const converted = convertGoodToolsRegionGroup(inner);
+    return converted === inner ? full : `(${converted})`;
+  });
+}
+
+/**
+ * Build filename variants to try against the boxart repo. Order is priority:
+ * region-converted GoodTools names first, then bracket / article variants.
+ */
+export function boxartFilenameVariants(raw: string): string[] {
+  const cleaned = cleanRomNameForBoxart(raw);
+  if (!cleaned) return [];
+
+  const regionConverted = convertBoxartRegionTags(cleaned);
+  const seeds = new Set<string>([regionConverted, cleaned]);
+
+  const theMoved = moveLeadingTheToBoxartEnd(cleaned);
+  if (theMoved) seeds.add(theMoved);
+  const theMovedRegion = moveLeadingTheToBoxartEnd(regionConverted);
+  if (theMovedRegion) seeds.add(theMovedRegion);
+  if (theMoved) seeds.add(convertBoxartRegionTags(theMoved));
+  if (theMovedRegion) seeds.add(convertBoxartRegionTags(theMovedRegion));
+
+  const variants: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string): void => {
+    const v = value.replace(/\s+/g, " ").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    variants.push(v);
+  };
+
+  for (const seed of seeds) {
+    push(seed);
+    const noBrackets = seed.replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
+    push(noBrackets);
+    if (!/\[[^\]]*\]/.test(seed)) {
+      push(`${seed} [!]`);
+      push(`${noBrackets} [!]`);
+    }
+  }
+
+  const normOnly = normalizeRomName(cleaned);
+  if (normOnly) push(normOnly);
+
+  return variants;
+}
+
+/** Tunable options for {@link BoxartCoverArtProvider}. */
+export interface BoxartProviderOptions {
+  owner?: string;
+  repo?: string;
+  ref?: string;
+  cacheTtlMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+/**
+ * xero/boxart-backed cover art provider.
+ *
+ * The collection hosts pre-rendered emulator box art (wheel + screenshot +
+ * 3D box mixes) organised by short platform folder names. Images are served
+ * from `raw.githubusercontent.com` with permissive CORS.
+ *
+ * Search strategy:
+ *   1. Construct direct image URLs from GoodTools-style filename variants
+ *      (region tags shortened, optional `[!]` suffix, leading *The* moved).
+ *   2. When variants are inconclusive, fall back to a cached GitHub directory
+ *      listing scored with the shared Dice coefficient. Note: GitHub's
+ *      contents API returns at most 1 000 entries per folder, so listing is
+ *      best-effort for very large sets (e.g. SNES); direct URLs cover the
+ *      common case.
+ */
+export class BoxartCoverArtProvider implements CoverArtProvider {
+  readonly id = "boxart";
+  readonly name = "boxart";
+
+  private readonly owner: string;
+  private readonly repo: string;
+  private readonly ref: string;
+  private readonly cacheTtlMs: number;
+  private readonly fetchImpl: typeof fetch;
+  private readonly memCache = new Map<string, FolderCacheEntry>();
+  private readonly inflight = new Map<string, Promise<GitHubContentEntry[]>>();
+
+  constructor(opts: BoxartProviderOptions = {}) {
+    this.owner      = opts.owner      ?? BOXART_REPO_OWNER;
+    this.repo       = opts.repo       ?? BOXART_REPO_NAME;
+    this.ref        = opts.ref        ?? BOXART_REPO_REF;
+    this.cacheTtlMs = opts.cacheTtlMs ?? 24 * 60 * 60 * 1000;
+    this.fetchImpl  = opts.fetchImpl  ?? fetch.bind(globalThis);
+  }
+
+  async search(
+    name: string,
+    systemId: string,
+    opts: { limit?: number; signal?: AbortSignal } = {},
+  ): Promise<CoverArtCandidate[]> {
+    if (opts.signal?.aborted) return [];
+    const folders = systemIdToBoxartFolders(systemId);
+    if (folders.length === 0) return [];
+
+    const normQuery = normalizeRomName(name);
+    if (!normQuery) return [];
+
+    const limit = Math.max(1, Math.min(20, opts.limit ?? 6));
+    const variants = boxartFilenameVariants(name);
+    const candidates: CoverArtCandidate[] = [];
+    const seenUrls = new Set<string>();
+
+    for (const folder of folders) {
+      if (opts.signal?.aborted) break;
+
+      for (let i = 0; i < variants.length; i++) {
+        if (candidates.length >= limit) break;
+        const variant = variants[i]!;
+        const url = rawGitHubContentUrl(this.owner, this.repo, this.ref, `${folder}/${variant}.png`);
+        if (seenUrls.has(url)) continue;
+        seenUrls.add(url);
+
+        const score = i === 0 ? 0.93
+          : variant.includes("[") ? 0.9
+          : i < 4 ? 0.88
+          : 0.82;
+        candidates.push({
+          title: variant,
+          systemId,
+          imageUrl: url,
+          sourceName: this.name,
+          score,
+        });
+      }
+    }
+
+    if (candidates.length >= limit) {
+      candidates.sort((a, b) => b.score - a.score);
+      return candidates.slice(0, limit);
+    }
+
+    for (const folder of folders) {
+      if (opts.signal?.aborted) break;
+      let entries: GitHubContentEntry[];
+      try {
+        entries = await this.listFolder(folder, opts.signal);
+      } catch {
+        continue;
+      }
+      if (entries.length === 0) continue;
+
+      const scored: CoverArtCandidate[] = [];
+      for (const e of entries) {
+        if (e.type !== "file") continue;
+        if (!IMAGE_EXT_RE.test(e.name)) continue;
+        if (!e.download_url) continue;
+        const normCandidate = normalizeRomName(e.name);
+        if (!normCandidate) continue;
+        const score = diceCoefficient(normQuery, normCandidate);
+        if (score <= 0) continue;
+        if (seenUrls.has(e.download_url)) continue;
+        scored.push({
+          title: e.name.replace(IMAGE_EXT_RE, ""),
+          systemId,
+          imageUrl: e.download_url,
+          sourceName: this.name,
+          score: Math.min(score, 0.87),
+        });
+      }
+      if (scored.length === 0) continue;
+      scored.sort((a, b) => b.score - a.score);
+      for (const hit of scored) {
+        if (seenUrls.has(hit.imageUrl)) continue;
+        seenUrls.add(hit.imageUrl);
+        candidates.push(hit);
+        if (candidates.length >= limit) break;
+      }
+      if (candidates.length >= limit) break;
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates.slice(0, limit);
+  }
+
+  private async listFolder(
+    folder: string,
+    signal?: AbortSignal,
+  ): Promise<GitHubContentEntry[]> {
+    const now = Date.now();
+    const cached = this.memCache.get(folder);
+    if (cached && now - cached.fetchedAt < this.cacheTtlMs) {
+      return cached.files;
+    }
+    const inflight = this.inflight.get(folder);
+    if (inflight) return inflight;
+
+    const url =
+      `https://api.github.com/repos/${encodeURIComponent(this.owner)}` +
+      `/${encodeURIComponent(this.repo)}/contents/${encodeURIComponent(folder)}` +
+      `?ref=${encodeURIComponent(this.ref)}`;
+
+    const p = (async (): Promise<GitHubContentEntry[]> => {
+      const resp = await this.fetchImpl(url, {
+        headers: { Accept: "application/vnd.github+json" },
+        signal,
+      });
+      if (!resp.ok) {
+        throw new Error(`GitHub contents API ${resp.status} for "${folder}"`);
+      }
+      const raw: unknown = await resp.json();
+      if (!Array.isArray(raw)) return [];
+      const files: GitHubContentEntry[] = [];
+      for (const item of raw) {
+        if (!item || typeof item !== "object") continue;
+        const rec = item as Record<string, unknown>;
+        const entryName = typeof rec.name === "string" ? rec.name : "";
+        const path = typeof rec.path === "string" ? rec.path : "";
+        const type = rec.type === "file" || rec.type === "dir" || rec.type === "symlink" || rec.type === "submodule"
+          ? rec.type
+          : "file";
+        const dl = typeof rec.download_url === "string" ? rec.download_url : null;
+        if (entryName) files.push({ name: entryName, path, type, download_url: dl });
       }
       this.memCache.set(folder, { files, fetchedAt: Date.now() });
       return files;

@@ -45,7 +45,7 @@ This is the single source of truth for shipped work, active improvements, and fu
 
 ### Cover Art And Metadata
 
-- Free providers: Libretro thumbnails, cover-art-collection, and Wikimedia/Wikipedia fallbacks.
+- Free providers: Libretro thumbnails, cover-art-collection, [xero/boxart](https://github.com/xero/boxart), and Wikimedia/Wikipedia fallbacks.
 - Optional Connections providers: RAWG, MobyGames, TheGamesDB, SteamGridDB, IGDB, and ScreenScraper.fr.
 - Local credential storage, provider ordering, connection testing, and caching.
 

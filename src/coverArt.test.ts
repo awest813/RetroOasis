@@ -20,6 +20,13 @@ import {
   SteamGridDBCoverArtProvider,
   IGDBCoverArtProvider,
   WikimediaCoverArtProvider,
+  BoxartCoverArtProvider,
+  systemIdToBoxartFolders,
+  cleanRomNameForBoxart,
+  convertBoxartRegionTags,
+  convertGoodToolsRegionGroup,
+  moveLeadingTheToBoxartEnd,
+  boxartFilenameVariants,
   systemIdToRawgPlatformId,
   systemIdToMobyPlatformId,
   systemIdToTgdbPlatformId,
@@ -1262,6 +1269,123 @@ describe("IGDBCoverArtProvider", () => {
   it("testConnection reports malformed credentials", async () => {
     await expect(new IGDBCoverArtProvider({ getApiKey: () => "not-a-pair" }).testConnection())
       .resolves.toMatch(/clientId:clientSecret/);
+  });
+});
+
+// ── boxart (xero/boxart) helpers ──────────────────────────────────────────────
+
+describe("systemIdToBoxartFolders", () => {
+  it("maps common systems to boxart folders", () => {
+    expect(systemIdToBoxartFolders("snes")).toEqual(["SNES", "SFC"]);
+    expect(systemIdToBoxartFolders("nes")).toEqual(["NES"]);
+    expect(systemIdToBoxartFolders("segaMD")).toEqual(["MD"]);
+    expect(systemIdToBoxartFolders("arcade")).toEqual(["ARCADE"]);
+  });
+
+  it("returns [] for unsupported systems", () => {
+    expect(systemIdToBoxartFolders("n64")).toEqual([]);
+    expect(systemIdToBoxartFolders("")).toEqual([]);
+  });
+});
+
+describe("cleanRomNameForBoxart", () => {
+  it("preserves GoodTools region and dump tags", () => {
+    expect(cleanRomNameForBoxart("Super Mario World (USA) [!].smc"))
+      .toBe("Super Mario World (USA) [!]");
+  });
+});
+
+describe("convertGoodToolsRegionGroup", () => {
+  it("maps long region names to GoodTools codes", () => {
+    expect(convertGoodToolsRegionGroup("USA")).toBe("U");
+    expect(convertGoodToolsRegionGroup("Japan, USA")).toBe("JU");
+  });
+
+  it("leaves non-region groups unchanged", () => {
+    expect(convertGoodToolsRegionGroup("PRG 0")).toBe("PRG 0");
+    expect(convertGoodToolsRegionGroup("Beta")).toBe("Beta");
+  });
+});
+
+describe("convertBoxartRegionTags", () => {
+  it("rewrites parenthetical region tags in a title", () => {
+    expect(convertBoxartRegionTags("Chrono Trigger (USA)"))
+      .toBe("Chrono Trigger (U)");
+    expect(convertBoxartRegionTags("Mario Bros (Japan, USA)"))
+      .toBe("Mario Bros (JU)");
+  });
+});
+
+describe("moveLeadingTheToBoxartEnd", () => {
+  it("moves a leading article to the end", () => {
+    expect(moveLeadingTheToBoxartEnd("The Legend of Zelda"))
+      .toBe("Legend of Zelda, The");
+  });
+});
+
+describe("boxartFilenameVariants", () => {
+  it("includes region-converted and article-moved variants", () => {
+    const variants = boxartFilenameVariants("The Legend of Zelda - A Link to the Past (USA).sfc");
+    expect(variants).toContain("Legend of Zelda, The - A Link to the Past (U)");
+    expect(variants).toContain("Legend of Zelda, The - A Link to the Past (U) [!]");
+  });
+
+  it("adds a [!] variant for common GoodTools dumps", () => {
+    const variants = boxartFilenameVariants("Super Mario World (USA).smc");
+    expect(variants).toContain("Super Mario World (U)");
+    expect(variants).toContain("Super Mario World (U) [!]");
+  });
+});
+
+describe("BoxartCoverArtProvider", () => {
+  it("returns [] for unknown systems without calling fetch", async () => {
+    let called = 0;
+    const fetchImpl = (async (): Promise<Response> => {
+      called++;
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+    const p = new BoxartCoverArtProvider({ fetchImpl });
+    expect(await p.search("Zelda", "n64")).toEqual([]);
+    expect(called).toBe(0);
+  });
+
+  it("constructs direct xero/boxart raw URLs from GoodTools variants", async () => {
+    const p = new BoxartCoverArtProvider();
+    const results = await p.search("Chrono Trigger (USA).sfc", "snes", { limit: 3 });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]!.sourceName).toBe("boxart");
+    expect(results[0]!.imageUrl).toContain("raw.githubusercontent.com/xero/boxart/main/SNES/");
+    expect(results[0]!.imageUrl).toContain("Chrono%20Trigger%20(U).png");
+    expect(results[0]!.score).toBeGreaterThanOrEqual(0.88);
+  });
+
+  it("falls back to directory listing and fuzzy matching", async () => {
+    const listing = [
+      { name: "Custom Game (U).png", path: "NES/Custom Game (U).png", type: "file", download_url: "https://raw.example/cg.png" },
+      { name: "readme.txt", path: "NES/readme.txt", type: "file", download_url: "https://raw.example/readme.txt" },
+    ];
+    const fetchImpl = (async (url: RequestInfo | URL): Promise<Response> => {
+      expect(String(url)).toContain("/repos/xero/boxart/contents/NES");
+      return jsonResponse(listing);
+    }) as unknown as typeof fetch;
+
+    const p = new BoxartCoverArtProvider({ fetchImpl });
+    const results = await p.search("Custom Game", "nes", { limit: 20 });
+    expect(results.some((r) => r.imageUrl === "https://raw.example/cg.png")).toBe(true);
+  });
+
+  it("caches folder listings across calls", async () => {
+    let calls = 0;
+    const fetchImpl = (async (): Promise<Response> => {
+      calls++;
+      return jsonResponse([
+        { name: "Zelda (U).png", path: "NES/Zelda (U).png", type: "file", download_url: "https://raw.example/z.png" },
+      ]);
+    }) as unknown as typeof fetch;
+    const p = new BoxartCoverArtProvider({ fetchImpl });
+    await p.search("Zelda", "nes");
+    await p.search("Zelda II", "nes");
+    expect(calls).toBe(1);
   });
 });
 

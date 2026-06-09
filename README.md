@@ -16,7 +16,7 @@ Bring your own legally obtained ROMs, disc images, BIOS files, and account crede
 - EmulatorJS core orchestration with per-system launch checks and compatibility settings
 - PSP, Dreamcast, Nintendo 64, Nintendo DS, Nintendo 3DS, PSX, DOS, arcade, Sega, Nintendo, Atari, and handheld profiles
 - Save slots, automatic crash recovery, save thumbnails, and optional cloud sync
-- Free cover-art discovery through Libretro thumbnails, GitHub-hosted collections, and Wikimedia fallbacks
+- Free cover-art discovery through Libretro thumbnails, GitHub-hosted collections, [xero/boxart](https://github.com/xero/boxart), and Wikimedia fallbacks
 - Optional provider connections for RAWG, MobyGames, TheGamesDB, SteamGridDB, IGDB, ScreenScraper.fr, RetroAchievements, and cloud storage
 - PWA install support, share targets, file handling, and cross-origin isolation support for threaded cores
 - Experimental multiplayer and LANemu workflows
@@ -91,6 +91,7 @@ Free sources work without an account:
 
 - [Libretro Thumbnails](https://github.com/libretro-thumbnails)
 - [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- [xero/boxart](https://github.com/xero/boxart)
 - Wikimedia / Wikipedia fallbacks
 
 Optional provider credentials can be configured in Settings > Connections:
@@ -210,6 +211,7 @@ RetroOasis does not include copyrighted games or proprietary BIOS files. You are
 - [Vitest](https://vitest.dev/)
 - [Playwright](https://playwright.dev/)
 - [ramiabraham/cover-art-collection](https://github.com/ramiabraham/cover-art-collection)
+- [xero/boxart](https://github.com/xero/boxart)
 - [libretro-thumbnails](https://github.com/libretro-thumbnails)
 
 ## License

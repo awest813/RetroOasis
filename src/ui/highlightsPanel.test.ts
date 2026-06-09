@@ -54,6 +54,7 @@ function makeOpts(overrides: Partial<HighlightsPanelOpts> = {}): HighlightsPanel
     formatPlayTime:     overrides.formatPlayTime     ?? (() => "10 min"),
     onPlayFavorite:     overrides.onPlayFavorite     ?? vi.fn(),
     onPlaySession:      overrides.onPlaySession      ?? vi.fn(),
+    loadCoverArtUrl:    overrides.loadCoverArtUrl,
   };
 }
 
@@ -167,6 +168,17 @@ describe("buildHighlightsPanel — favorites section", () => {
     card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(onPlayFavorite).toHaveBeenCalledOnce();
+  });
+
+  it("loads local cover art when hasCoverArt and loadCoverArtUrl is provided", async () => {
+    const loadCoverArtUrl = vi.fn(async () => "blob:cover-art");
+    const game = makeGame({ hasCoverArt: true });
+    const opts = makeOpts({ favorites: [game], loadCoverArtUrl });
+    const el = buildHighlightsPanel(opts)!;
+    await vi.waitFor(() => {
+      expect(loadCoverArtUrl).toHaveBeenCalledWith(game.id);
+      expect(el.querySelector(".highlights-fav-card__cover")).not.toBeNull();
+    });
   });
 
   it("uses thumbnail URL when the game has one", () => {

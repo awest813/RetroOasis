@@ -7,7 +7,8 @@
  *   - A shared {@link ApiKeyStore} seeded with {@link DEFAULT_API_KEY_PROVIDERS}.
  *   - A map of keyed cover-art providers (`rawg`, `mobygames`, `thegamesdb`).
  *   - The composed {@link ChainedCoverArtProvider} used by the UI, which
- *     always starts with the free Libretro + GitHub sources and appends the
+ *     always starts with the free Libretro, GitHub, boxart, and Wikimedia
+ *     sources and appends the
  *     user-ordered, enabled keyed providers.
  *
  * Centralising the registry keeps `ui.ts` free of bootstrap state and lets
@@ -20,6 +21,7 @@
  */
 
 import {
+  BoxartCoverArtProvider,
   ChainedCoverArtProvider,
   GitHubCoverArtProvider,
   IGDBCoverArtProvider,
@@ -35,6 +37,17 @@ import {
 } from "../coverArt.js";
 import { ApiKeyStore, DEFAULT_API_KEY_PROVIDERS } from "../apiKeyStore.js";
 import { parseRAKey } from "../raCredentials.js";
+
+/** User-facing labels for cover sources that always run without credentials. */
+export const ALWAYS_ON_COVER_ART_PROVIDER_LABELS = [
+  "Libretro Thumbnails",
+  "cover-art-collection",
+  "boxart",
+  "Wikimedia",
+] as const;
+
+/** Count of always-on free cover sources — keep in sync with {@link rebuildCoverArtProvider}. */
+export const ALWAYS_ON_COVER_ART_PROVIDER_COUNT = ALWAYS_ON_COVER_ART_PROVIDER_LABELS.length;
 
 let _apiKeyStore:   ApiKeyStore | null = null;
 let _keyedProviders: Map<string, ApiKeyedProvider> | null = null;
@@ -91,7 +104,7 @@ export function getApiKeyTester(providerId: string): ApiKeyTester | null {
 
 /**
  * Rebuild the chained cover-art provider from the current key-store state.
- * Free sources (Libretro, GitHub) always run first, then keyed providers in
+ * Free sources (Libretro, GitHub, boxart, Wikimedia) always run first, then keyed providers in
  * the order set by the user, skipping any that are disabled.
  */
 export function rebuildCoverArtProvider(): void {
@@ -107,6 +120,7 @@ export function rebuildCoverArtProvider(): void {
   _coverArtProvider = new ChainedCoverArtProvider([
     new LibretroCoverArtProvider(),
     new GitHubCoverArtProvider(),
+    new BoxartCoverArtProvider(),
     new WikimediaCoverArtProvider(),
     ...ordered,
   ]);
