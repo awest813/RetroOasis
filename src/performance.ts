@@ -74,6 +74,10 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
     key: "flycast_internal_resolution",
     values: ["640x480", "1280x960", "1920x1440", "2560x1920"],
   },
+  "3ds": {
+    key: "citra_resolution_factor",
+    values: ["1x (Native)", "2x", "3x", "4x"],
+  },
 };
 
 /**

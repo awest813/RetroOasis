@@ -1376,7 +1376,7 @@ describe('extractFromZip — all system format coverage', () => {
   });
 
   it('extracts alternate Nintendo 3DS container extensions', async () => {
-    for (const ext of ['cci', 'cxi', 'app']) {
+    for (const ext of ['cci', 'cxi', 'app', 'axf', '3dsx']) {
       const content = new Uint8Array([0x01, 0x02, 0x03]);
       const zipBuf = buildZip(`game.${ext}`, content);
       const result = await extractFromZip(new Blob([zipBuf]));

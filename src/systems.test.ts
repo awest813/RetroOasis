@@ -8,6 +8,7 @@ import {
   getSystemFeatureSummary,
   getPSPSettingsForTier,
   getNDSSettingsForTier,
+  getN3DSSettingsForTier,
   getGBASettingsForTier,
   getPSXSettingsForTier,
   getGBSettingsForTier,
@@ -253,6 +254,15 @@ describe('systems performance profiles', () => {
       expect(detectSystemFromRomHeader(new Uint8Array([0x37, 0x80, 0x40, 0x12]))?.id).toBe('n64');
       expect(detectSystemFromRomHeader(new Uint8Array([0x40, 0x12, 0x37, 0x80]))?.id).toBe('n64');
     });
+
+    it('recognises Nintendo 3DS NCSD and 3DSX headers', () => {
+      const ncsd = new Uint8Array(0x104);
+      ncsd[0x100] = 0x4e; ncsd[0x101] = 0x43; ncsd[0x102] = 0x53; ncsd[0x103] = 0x44;
+      expect(detectSystemFromRomHeader(ncsd)?.id).toBe('3ds');
+
+      const homebrew = new Uint8Array([0x33, 0x44, 0x53, 0x58, 0x00]);
+      expect(detectSystemFromRomHeader(homebrew)?.id).toBe('3ds');
+    });
   });
 
   describe('getSystemByCoreHint', () => {
@@ -307,6 +317,10 @@ describe('systems performance profiles', () => {
     expect(nds?.tierSettings?.low?.desmume_frameskip).toBe('2');
     expect(nds?.tierSettings?.ultra?.desmume_internal_resolution).toBe('1024x768');
     expect(getSystemById('3ds')?.tierSettings?.low?.retroarch_core).toBe('azahar');
+    expect(getSystemById('3ds')?.tierSettings?.low?.citra_resolution_factor).toBe('1x (Native)');
+    expect(getSystemById('3ds')?.tierSettings?.ultra?.citra_resolution_factor).toBe('3x');
+    expect(getSystemById('3ds')?.extensions).toEqual(expect.arrayContaining(['axf', '3dsx']));
+    expect(getSystemById('psp')?.extensions).toContain('prx');
     expect(getSystemById('dos')?.tierSettings?.low?.retroarch_core).toBe('dosbox_pure');
     expect(getSystemById('segaCD')?.tierSettings?.high?.retroarch_core).toBe('genesis_plus_gx');
     expect(getSystemById('segaCD')?.tierSettings?.high?.genesis_plus_gx_cartridge_slot).toBe('mcd');
@@ -640,6 +654,30 @@ describe('systems performance profiles', () => {
       // PCSX ReARMed has no beetle_psx_hw_ analog key.
       expect(psx?.tierSettings?.low?.beetle_psx_hw_analog_calibration).toBeUndefined();
       expect(psx?.tierSettings?.medium?.beetle_psx_hw_analog_calibration).toBeUndefined();
+    });
+  });
+
+  // ── getN3DSSettingsForTier ──────────────────────────────────────────────
+
+  describe('getN3DSSettingsForTier', () => {
+    it('returns tier settings for 3DS low tier', () => {
+      const settings = getN3DSSettingsForTier('low');
+      expect(settings.retroarch_core).toBe('azahar');
+      expect(settings.citra_resolution_factor).toBe('1x (Native)');
+      expect(settings.citra_use_cpu_jit).toBe('enabled');
+    });
+
+    it('returns tier settings for 3DS ultra tier', () => {
+      const settings = getN3DSSettingsForTier('ultra');
+      expect(settings.citra_resolution_factor).toBe('3x');
+      expect(settings.citra_use_acc_mul).toBe('enabled');
+    });
+
+    it('returns a deep copy (mutations do not affect the original)', () => {
+      const settings = getN3DSSettingsForTier('low');
+      settings.citra_resolution_factor = '10x';
+      const fresh = getN3DSSettingsForTier('low');
+      expect(fresh.citra_resolution_factor).toBe('1x (Native)');
     });
   });
 

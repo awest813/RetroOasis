@@ -493,6 +493,12 @@ const DRS_SYSTEM_THRESHOLDS: Record<string, { stepDownFps: number; stepUpFps: nu
     stepDownMs: 3_000,
     stepUpMs: 15_000,
   },
+  "3ds": {
+    stepDownFps: 20,
+    stepUpFps: 42,
+    stepDownMs: 3_000,
+    stepUpMs: 15_000,
+  },
   psp: {
     stepDownFps: 21,
     stepUpFps: 50,
@@ -517,6 +523,7 @@ let cachedWebGL2Support: boolean | null = null;
 
 const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
 const NDS_RESOLUTION_STEPS = ["256x192", "512x384", "768x576", "1024x768"];
+const N3DS_RESOLUTION_STEPS = ["1x (Native)", "2x", "3x", "4x"];
 
 const DREAMCAST_RESOLUTION_STEPS = ["640x480", "1280x960", "1920x1440", "2560x1920"];
 
@@ -2419,6 +2426,7 @@ export class PSPEmulator {
     if (
       systemId !== "psp" &&
       systemId !== "nds" &&
+      systemId !== "3ds" &&
       systemId !== "n64" &&
       systemId !== "psx" &&
       systemId !== "segaSaturn" &&
@@ -2478,6 +2486,37 @@ export class PSPEmulator {
         this.logDiagnostic(
           "performance",
           `PSP WebGL clamp: res ${previousRes ?? "?"}->${nextRes}, ` +
+          `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
+        );
+      }
+      return;
+    }
+
+    if (systemId === "3ds") {
+      let maxN3dsResIdx = tier === "ultra" ? 3 : tier === "high" ? 1 : 0;
+      if (gpu.maxTextureSize < 8192 || caps.estimatedVRAMMB < 512 || constrainedMemory) {
+        maxN3dsResIdx = Math.min(maxN3dsResIdx, 1);
+      }
+      if (weakWebGL || !gpu.webgl2) maxN3dsResIdx = 0;
+
+      const previousN3dsRes = ejsSettings["citra_resolution_factor"];
+      const nextN3dsRes = clampLadderValue(previousN3dsRes, N3DS_RESOLUTION_STEPS, maxN3dsResIdx);
+      ejsSettings["citra_resolution_factor"] = nextN3dsRes;
+
+      if (weakWebGL || constrainedMemory || caps.cpuCores <= 2) {
+        Object.assign(ejsSettings, {
+          citra_use_acc_geo_shaders: "disabled",
+          citra_use_acc_mul: "disabled",
+          citra_custom_textures: "disabled",
+          citra_texture_filter: "none",
+        });
+      }
+
+      if (previousN3dsRes !== nextN3dsRes || weakWebGL) {
+        this.logDiagnostic(
+          "performance",
+          `3DS WebGL clamp: res ${previousN3dsRes ?? "?"}->${nextN3dsRes}, ` +
+          `accGeo=${ejsSettings["citra_use_acc_geo_shaders"] ?? "?"}, ` +
           `webgl2=${gpu.webgl2}, maxTex=${gpu.maxTextureSize}, vram~${caps.estimatedVRAMMB}MB`
         );
       }
@@ -3179,6 +3218,20 @@ export class PSPEmulator {
         }
       }
 
+      // ── 3DS performance diagnostics ───────────────────────────────────────
+      if (opts.systemId === "3ds") {
+        const n3dsResolution = ejsSettings["citra_resolution_factor"] ?? "?";
+        const n3dsJit        = ejsSettings["citra_use_cpu_jit"] ?? "?";
+        const n3dsHwShaders  = ejsSettings["citra_use_hw_shaders"] ?? "?";
+        const n3dsAccGeo     = ejsSettings["citra_use_acc_geo_shaders"] ?? "?";
+        const n3dsAccMul     = ejsSettings["citra_use_acc_mul"] ?? "?";
+        this.logDiagnostic(
+          "performance",
+          `3DS tier=${tier}: res=${n3dsResolution} jit=${n3dsJit} ` +
+          `hwShaders=${n3dsHwShaders} accGeo=${n3dsAccGeo} accMul=${n3dsAccMul}`
+        );
+      }
+
       // ── Set EJS globals ───────────────────────────────────────────────────
       this._revokeBlobUrl();
       window.EJS_player        = `#${this._playerId}`;
@@ -3287,13 +3340,17 @@ export class PSPEmulator {
           performance.measure(LEGACY_PERF_MARKS.launchToReady, LEGACY_PERF_MARKS.launch, LEGACY_PERF_MARKS.coreReady);
         } catch { /* marks may be unavailable in some sandboxed contexts */ }
 
-        if (opts.systemId === "psp") {
+        if (opts.systemId === "psp" || opts.systemId === "3ds") {
+          const fallbackMs = opts.systemId === "3ds" ? 8_000 : 2_500;
           window.setTimeout(() => {
             if (this._state === "loading" && window.EJS_emulator) {
-              this.logDiagnostic("system", "PSP core ready; continuing after missing game-start callback");
+              this.logDiagnostic(
+                "system",
+                `${opts.systemId.toUpperCase()} core ready; continuing after missing game-start callback`,
+              );
               window.EJS_onGameStart?.();
             }
-          }, 2_500);
+          }, fallbackMs);
         }
       };
 
