@@ -203,7 +203,7 @@ export async function resolveSystemAndAddImpl(
           archiveFormat === "zip" &&
           extractedCandidates.some((candidate) => DOS_NATIVE_PACKAGE_EXTS.has(fileExt(candidate.name)));
         const shouldPreferDreamcastPackageRouting =
-          archiveFormat === "zip" &&
+          (archiveFormat === "zip" || archiveFormat === "7z" || archiveFormat === "rar") &&
           isDreamcastGdiPackage(extractedCandidates);
 
         if (shouldPreferNativePackageRouting || shouldPreferDosPackageRouting || shouldPreferDreamcastPackageRouting) {

@@ -2262,6 +2262,10 @@ describe('performance', () => {
       expect(getResolutionCoreOptions('segaSaturn', '2x')).toEqual({});
     });
 
+    it('returns correct 3DS 2× option', () => {
+      expect(getResolutionCoreOptions('3ds', '2x')).toEqual({ citra_resolution_factor: '2x' });
+    });
+
     it('returns correct Dreamcast 2× option', () => {
       expect(getResolutionCoreOptions('segaDC', '2x')).toEqual({ flycast_internal_resolution: '1280x960' });
     });
@@ -2371,11 +2375,18 @@ describe('performance', () => {
         expect(ladder!.key).toBe('flycast_internal_resolution');
         expect(ladder!.values).toEqual(['640x480', '1280x960', '1920x1440', '2560x1920']);
       });
+
+      it('returns the 3DS ladder', () => {
+        const ladder = getResolutionLadder('3ds');
+        expect(ladder).not.toBeNull();
+        expect(ladder!.key).toBe('citra_resolution_factor');
+        expect(ladder!.values).toEqual(['1x (Native)', '2x', '3x', '4x']);
+      });
     });
 
     describe('getGraphicsPresetCoreOptions', () => {
       it('provides graphics presets for every supported 3D console', () => {
-        for (const systemId of ['psp', 'nds', 'segaSaturn', 'segaDC', 'n64']) {
+        for (const systemId of ['psp', 'nds', '3ds', 'segaSaturn', 'segaDC', 'n64']) {
           expect(Object.keys(getGraphicsPresetCoreOptions(systemId, 'quality')).length).toBeGreaterThan(0);
         }
       });

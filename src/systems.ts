@@ -549,6 +549,13 @@ export function getNDSSettingsForTier(tier: PerformanceTier): Record<string, str
 }
 
 /**
+ * Get the appropriate Azahar (3DS) settings for a given performance tier.
+ */
+export function getN3DSSettingsForTier(tier: PerformanceTier): Record<string, string> {
+  return { ...N3DS_TIER_SETTINGS[tier] };
+}
+
+/**
  * Get the appropriate mGBA settings for a given performance tier.
  */
 export function getGBASettingsForTier(tier: PerformanceTier): Record<string, string> {
@@ -1095,7 +1102,69 @@ const SEGA_32X_TIER_SETTINGS = fixedCoreTierSettings("picodrive");
 
 const INTELLIVISION_TIER_SETTINGS = fixedCoreTierSettings("freeintv");
 
-const N3DS_TIER_SETTINGS = fixedCoreTierSettings("azahar");
+/**
+ * Azahar (3DS) tier settings — uses legacy citra_* libretro option names carried
+ * forward from the Citra core. JIT and hardware shaders stay enabled on web;
+ * tiers trade resolution, accuracy shaders, and texture filtering for FPS.
+ */
+const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
+  low: {
+    retroarch_core: "azahar",
+    citra_use_cpu_jit: "enabled",
+    citra_use_hw_renderer: "enabled",
+    citra_use_shader_jit: "enabled",
+    citra_use_hw_shaders: "enabled",
+    citra_use_hw_shader_cache: "enabled",
+    citra_use_acc_geo_shaders: "disabled",
+    citra_use_acc_mul: "disabled",
+    citra_resolution_factor: "1x (Native)",
+    citra_texture_filter: "none",
+    citra_custom_textures: "disabled",
+    citra_is_new_3ds: "New 3DS",
+  },
+  medium: {
+    retroarch_core: "azahar",
+    citra_use_cpu_jit: "enabled",
+    citra_use_hw_renderer: "enabled",
+    citra_use_shader_jit: "enabled",
+    citra_use_hw_shaders: "enabled",
+    citra_use_hw_shader_cache: "enabled",
+    citra_use_acc_geo_shaders: "disabled",
+    citra_use_acc_mul: "disabled",
+    citra_resolution_factor: "1x (Native)",
+    citra_texture_filter: "none",
+    citra_custom_textures: "disabled",
+    citra_is_new_3ds: "New 3DS",
+  },
+  high: {
+    retroarch_core: "azahar",
+    citra_use_cpu_jit: "enabled",
+    citra_use_hw_renderer: "enabled",
+    citra_use_shader_jit: "enabled",
+    citra_use_hw_shaders: "enabled",
+    citra_use_hw_shader_cache: "enabled",
+    citra_use_acc_geo_shaders: "enabled",
+    citra_use_acc_mul: "disabled",
+    citra_resolution_factor: "2x",
+    citra_texture_filter: "none",
+    citra_custom_textures: "disabled",
+    citra_is_new_3ds: "New 3DS",
+  },
+  ultra: {
+    retroarch_core: "azahar",
+    citra_use_cpu_jit: "enabled",
+    citra_use_hw_renderer: "enabled",
+    citra_use_shader_jit: "enabled",
+    citra_use_hw_shaders: "enabled",
+    citra_use_hw_shader_cache: "enabled",
+    citra_use_acc_geo_shaders: "enabled",
+    citra_use_acc_mul: "enabled",
+    citra_resolution_factor: "3x",
+    citra_texture_filter: "none",
+    citra_custom_textures: "disabled",
+    citra_is_new_3ds: "New 3DS",
+  },
+};
 
 const DOS_TIER_SETTINGS = fixedCoreTierSettings("dosbox_pure");
 
@@ -1209,7 +1278,7 @@ export const SYSTEMS: SystemInfo[] = [
     id: "psp",
     name: "PlayStation Portable",
     shortName: "PSP",
-    extensions: ["iso", "cso", "elf", "pbp"],
+    extensions: ["iso", "cso", "elf", "pbp", "prx"],
     color: "#0070cc",
     needsThreads: true,
     needsWebGL2: true,
@@ -1345,7 +1414,7 @@ export const SYSTEMS: SystemInfo[] = [
     shortName: "3DS",
     experimental: true,
     stabilityNotice: "Experimental: 3DS support uses the new EmulatorJS 4.3-pre Azahar core and requires threaded WebGL 2 support.",
-    extensions: ["3ds", "cci", "cxi", "app"],
+    extensions: ["3ds", "cci", "cxi", "app", "axf", "3dsx"],
     color: "#c62828",
     needsThreads: true,
     needsWebGL2: true,
@@ -1700,6 +1769,20 @@ function isN64RomHeader(bytes: Uint8Array): boolean {
 
 const SNES_PLAUSIBLE_MAP_MODES = new Set([0x20, 0x21, 0x22, 0x23, 0x25, 0x30, 0x31, 0x32, 0x35]);
 
+function isN3dsRomHeader(bytes: Uint8Array): boolean {
+  if (bytes.length >= 4) {
+    const head = String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!);
+    if (head === "3DSX") return true;
+  }
+  if (bytes.length >= 0x104) {
+    const container = String.fromCharCode(
+      bytes[0x100]!, bytes[0x101]!, bytes[0x102]!, bytes[0x103]!,
+    );
+    if (container === "NCSD" || container === "NCCH") return true;
+  }
+  return false;
+}
+
 function isSnesRomHeader(bytes: Uint8Array): boolean {
   const baseOffsets = [0, 512]; // account for optional copier header
   const candidates = [
@@ -1728,6 +1811,7 @@ export function detectSystemFromRomHeader(
   if (isNesRomHeader(bytes)) return SYSTEM_BY_ID.get("nes") ?? null;
   if (isN64RomHeader(bytes)) return SYSTEM_BY_ID.get("n64") ?? null;
   if (isSnesRomHeader(bytes)) return SYSTEM_BY_ID.get("snes") ?? null;
+  if (isN3dsRomHeader(bytes)) return SYSTEM_BY_ID.get("3ds") ?? null;
   return null;
 }
 

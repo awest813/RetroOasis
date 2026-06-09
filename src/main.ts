@@ -580,17 +580,19 @@ async function main(): Promise<void> {
     void Promise.all([
       probeEmulatorCoreCdn("nes"),
       probeEmulatorCoreCdn("psp"),
-    ]).then(([stable, nightly]) => {
-      if (stable.ok && nightly.ok) {
+      probeEmulatorCoreCdn("3ds"),
+      probeEmulatorCoreCdn("segaDC"),
+    ]).then(([stable, psp, n3ds, dreamcast]) => {
+      if (stable.ok && psp.ok && n3ds.ok && dreamcast.ok) {
         diagInfo(
           settings.verboseLogging,
-          "[RetroOasis] Emulator core CDN reachable (stable fceumm + nightly ppsspp).",
+          "[RetroOasis] Emulator core CDN reachable (stable fceumm + nightly ppsspp/azahar + Flycast bundle).",
         );
         return;
       }
       console.warn(
         "[RetroOasis] Emulator core CDN probe failed — first game launch may stall while cores download.",
-        { stable, nightly },
+        { stable, psp, n3ds, dreamcast },
       );
     });
   });
