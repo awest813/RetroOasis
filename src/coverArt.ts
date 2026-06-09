@@ -20,6 +20,10 @@
  * be added behind the `CoverArtProvider` interface and composed into the
  * chain without touching the UI layer.
  *
+ * Matching references: @sinedied/mini-scraper (region priority, image-type
+ * ordering) and josegonzalez/libretro-image-matching-server (fuzzy match).
+ * See docs/REFERENCES.md.
+ *
  * Credentialed metadata sources (RAWG, MobyGames) implement the same
  * interface but declare `requiresApiKey: true` and read their key from
  * {@link ./apiKeyStore.ts}.

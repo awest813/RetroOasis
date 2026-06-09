@@ -171,7 +171,7 @@ This is the single source of truth for shipped work, active improvements, and fu
 
 ## External References
 
-See [`docs/REFERENCES.md`](./REFERENCES.md) for upstream projects RetroOasis may borrow from (libretro-database, libretro-core-info, Nostalgist.js, webretro, filing) with license notes and RetroOasis touchpoints.
+See [`docs/REFERENCES.md`](./REFERENCES.md) for upstream projects RetroOasis may borrow from — emulation, archives, and cover-art matching — with license notes and RetroOasis touchpoints.
 
 | Project | License | Primary use |
 | --- | --- | --- |
@@ -180,6 +180,9 @@ See [`docs/REFERENCES.md`](./REFERENCES.md) for upstream projects RetroOasis may
 | Nostalgist.js | MIT | Launch lifecycle and core-prefetch patterns (light cores only) |
 | webretro | MIT | UI/deep-link ideas; partial core-URL compatibility already wired |
 | filing | MIT (wrapper) | Stronger browser 7z/RAR via libarchive WASM |
+| @sinedied/mini-scraper | MIT | Libretro scrape patterns — region priority, boxart → title → snap |
+| libretro-image-matching-server | MIT | Fuzzy ROM → thumbnail matching (server-side reference) |
+| rascraper / RetroScraper / scrappy / minui-artwork-scraper-pak | MIT | Exact match, LaunchBox pipeline, XML mixes, bulk scan→cache flow |
 
 ## Validation Policy
 
