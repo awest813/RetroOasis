@@ -1403,10 +1403,25 @@ export async function extractFromArchive(
           "Please extract the archive in the Files app or on a desktop, then import the ROM file."
         );
       }
-      // Android and desktop use the legacy worker path below.
       assertArchiveSize(blob, format.toUpperCase());
-      const archiveBytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
-      const entries = await extractWithLegacyWorker(format, archiveBytes, options);
+      let entries: ArchiveEntry[];
+      try {
+        emitProgress(options, {
+          format,
+          stage: "extract",
+          message: `Extracting ${format.toUpperCase()} archive (libarchive)…`,
+        });
+        const { extractArchiveWithFiling } = await import("./archiveFiling.js");
+        entries = await extractArchiveWithFiling(blob);
+      } catch {
+        emitProgress(options, {
+          format,
+          stage: "extract",
+          message: `Extracting ${format.toUpperCase()} archive (legacy worker)…`,
+        });
+        const archiveBytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
+        entries = await extractWithLegacyWorker(format, archiveBytes, options);
+      }
       emitProgress(options, {
         format,
         stage: "select",

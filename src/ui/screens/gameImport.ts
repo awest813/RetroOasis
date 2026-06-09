@@ -22,6 +22,12 @@ import {
   getSystemById,
   type SystemInfo,
 } from "../../systems.js";
+import {
+  isRemotePlaylistPath,
+  parseLibretroPlaylist,
+  resolveSystemIdFromPlaylist,
+  resolveSystemIdFromPlaylistItem,
+} from "../../libretroPlaylist.js";
 import type { Settings } from "../../types/settings.js";
 import {
   fileExt,
@@ -412,6 +418,20 @@ export async function resolveSystemAndAddImpl(
     return;
   }
 
+  if (resolvedFile.name.toLowerCase().endsWith(".lpl")) {
+    await handleLibretroPlaylistFile(
+      resolvedFile,
+      library,
+      settings,
+      onLaunchGame,
+      emulatorRef,
+      onRenderLibrary,
+      preferredSystemId,
+      opts,
+    );
+    return;
+  }
+
   try {
     const existing = await library.findByFileName(resolvedFile.name, system.id);
     if (existing) {
@@ -569,6 +589,89 @@ async function handlePatchFileDrop(
   } catch (err) {
     hideLoadingOverlay();
     showError(`Patch failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function handleLibretroPlaylistFile(
+  lplFile: File,
+  library: GameLibrary,
+  settings: Settings,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
+  emulatorRef: PSPEmulator | undefined,
+  onRenderLibrary: () => void,
+  preferredSystemId?: string,
+  opts: { launchAfterImport?: boolean; quiet?: boolean } = {},
+): Promise<void> {
+  let text: string;
+  try {
+    text = await readBlobAsText(lplFile);
+  } catch {
+    showError("Could not read the .lpl playlist file.");
+    return;
+  }
+
+  const playlist = parseLibretroPlaylist(text);
+  if (!playlist) {
+    showError("The .lpl file is not a valid RetroArch playlist.");
+    return;
+  }
+
+  const remoteItems = playlist.items.filter((item) => isRemotePlaylistPath(item.path));
+  if (remoteItems.length > 0) {
+    showLoadingOverlay();
+    let imported = 0;
+    for (const item of remoteItems) {
+      const systemId =
+        preferredSystemId ??
+        resolveSystemIdFromPlaylistItem(item) ??
+        resolveSystemIdFromPlaylist(playlist);
+      if (!systemId) continue;
+
+      setLoadingMessage(`Downloading ${item.label || item.path}…`);
+      try {
+        const res = await fetch(item.path);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const fileName = decodeURIComponent(item.path.split("/").pop()?.split("?")[0] ?? item.label);
+        const file = makeFileFromBlob(blob, fileName, { type: blob.type || "application/octet-stream" });
+        await resolveSystemAndAddImpl(
+          file,
+          library,
+          settings,
+          onLaunchGame,
+          emulatorRef,
+          undefined,
+          onRenderLibrary,
+          async () => blob,
+          systemId,
+          { launchAfterImport: false, quiet: true },
+        );
+        imported += 1;
+      } catch {
+        /* try next entry */
+      }
+    }
+    hideLoadingOverlay();
+    if (imported > 0) {
+      showInfoToast(`Imported ${imported} game${imported === 1 ? "" : "s"} from playlist URLs.`, "success");
+      onRenderLibrary();
+    } else if (!opts.quiet) {
+      showError("No playlist URLs could be downloaded. Check the links and try again.");
+    }
+    return;
+  }
+
+  const hintedSystemId =
+    preferredSystemId ??
+    resolveSystemIdFromPlaylist(playlist) ??
+    undefined;
+  if (!opts.quiet) {
+    showInfoToast(
+      hintedSystemId
+        ? `Playlist parsed (${playlist.items.length} entries). Import ROM files for system "${hintedSystemId}" directly — local playlist paths are not readable in the browser.`
+        : `Playlist parsed (${playlist.items.length} entries). Import ROM files directly — local playlist paths are not readable in the browser.`,
+      "info",
+    );
   }
 }
 

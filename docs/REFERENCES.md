@@ -24,13 +24,15 @@ Curated upstream projects RetroOasis may borrow from when improving system detec
 
 **Compliance:** CC-BY-SA-4.0 requires attribution and ShareAlike on adapted works. Do not merge datfile contents into the MIT-licensed app bundle without a separate attribution file and license notice. Prefer runtime fetch + cache, or a clearly labeled CC-BY-SA data artifact.
 
+**Borrowed in code:** `src/libretroPlaylist.ts` parses `.lpl` playlists; `src/libretroCoreInfo.ts` maps `db_name` → systemId for import hints and remote URL playlist entries.
+
 ## libretro-core-info
 
 - **Repository:** https://github.com/libretro/libretro-core-info (mirror; submit patches to [libretro-super `dist/info/`](https://github.com/libretro/libretro-super/tree/master/dist/info))
 - **License:** Mixed — each `*_libretro.info` file lists its core license (often GPLv2+).
 - **RetroOasis touchpoints:** [`src/systems.ts`](../src/systems.ts) `extensions` arrays, experimental core routing (3DS Azahar, Dreamcast Flycast, PSP PPSSPP).
 
-When adding or updating a system, cross-check the matching `*_libretro.info` `supported_extensions` field before changing RetroOasis import rules.
+When adding or updating a system, cross-check the matching `*_libretro.info` `supported_extensions` field before changing RetroOasis import rules. **Borrowed in code:** Azahar 3DS extensions (`z3dsx`, `zcci`, `zcxi`, `elf`) aligned with `azahar_libretro.info`.
 
 ## Nostalgist.js
 
@@ -41,6 +43,8 @@ When adding or updating a system, cross-check the matching `*_libretro.info` `su
 
 Borrow API shape and lifecycle hooks (`beforeLaunch`, `retroarchCoreConfig`, resolve helpers), not the core binaries — Nostalgist targets lightweight libretro Emscripten builds from the official buildbot, not EmulatorJS nightly threaded cores.
 
+**Borrowed in code:** `LaunchOptions.beforeLaunch` in `src/emulator.ts` — mutate `ejsSettings` after tier resolution, before `EJS_*` globals are assigned.
+
 ## webretro
 
 - **Repository:** https://github.com/BinBashBanana/webretro
@@ -50,13 +54,15 @@ Borrow API shape and lifecycle hooks (`beforeLaunch`, `retroarchCoreConfig`, res
 
 Useful reference for player-facing shell UX and `?core=` / `?rom=` style deep links. RetroOasis already exceeds webretro on heavy 3D systems via EmulatorJS nightly + cross-origin isolation.
 
+**Borrowed in code:** expanded `WEBRETRO_CORE_TO_SYSTEM_ID` in `src/systems.ts`; `main.ts` handles `?rom=` / `?game=` HTTP imports with optional `?core=` / `?system=` hints.
+
 ## filing
 
 - **Repository:** https://github.com/xlianghang/filing
 - **License:** MIT (JavaScript wrapper); underlying libarchive is BSD-like
 - **RetroOasis touchpoints:** [`src/archive.ts`](../src/archive.ts), [`data/compression/`](../data/compression/) (current libunrar-js + legacy 7z worker).
 
-Stronger unified 7z/RAR path than the vendored libunrar worker alone — especially multi-volume and solid 7z archives common in Dreamcast GDI packs. Evaluate worker offload, WASM size, and iOS memory limits before replacing the current extraction stack.
+Stronger unified 7z/RAR path than the vendored libunrar worker alone — especially multi-volume and solid 7z archives common in Dreamcast GDI packs. **Borrowed in code:** `src/archiveFiling.ts` (filing/libarchive WASM) is tried first for 7z/RAR on non-iOS; legacy workers remain as fallback. iOS still blocks 7z/RAR extraction.
 
 ## Cover art and ROM matching
 
@@ -82,7 +88,7 @@ Scrapes Libretro thumbnails with no API key. Supports region preferences (World,
 - **Stack:** Python / FastAPI
 - **RetroOasis touchpoints:** [`src/coverArt.ts`](../src/coverArt.ts) (`diceCoefficient`, filename variant expansion).
 
-Fuzzy-matches ROM filenames to Libretro thumbnail URLs. Used by [minui-artwork-scraper-pak](https://github.com/josegonzalez/minui-artwork-scraper-pak). Good reference for validating the in-browser Dice-coefficient approach, or for a future self-hosted matcher / bulk pre-index service behind Connections.
+Fuzzy-matches ROM filenames to Libretro thumbnail URLs. Used by [minui-artwork-scraper-pak](https://github.com/josegonzalez/minui-artwork-scraper-pak). **Borrowed in code:** stripped-name fallbacks in `libretroFilenameVariants()`; optional `LibretroMatchingServerCoverArtProvider` when `settings.libretroMatchingServerUrl` is set.
 
 ### Good reference scrapers (not TypeScript, but MIT logic)
 

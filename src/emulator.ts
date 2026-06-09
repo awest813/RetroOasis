@@ -948,6 +948,15 @@ export interface LaunchOptions {
    * accepted extensions, but the user's explicit choice should be respected.
    */
   skipExtensionCheck?: boolean;
+  /**
+   * Nostalgist-style hook after tier/core settings are resolved but before
+   * EmulatorJS globals are assigned. Mutate `ejsSettings` in place.
+   */
+  beforeLaunch?: (ctx: {
+    systemId: string;
+    fileName: string;
+    ejsSettings: Record<string, string>;
+  }) => void | Promise<void>;
 }
 
 export interface EJSSaveStateEvent {
@@ -3230,6 +3239,14 @@ export class PSPEmulator {
           `3DS tier=${tier}: res=${n3dsResolution} jit=${n3dsJit} ` +
           `hwShaders=${n3dsHwShaders} accGeo=${n3dsAccGeo} accMul=${n3dsAccMul}`
         );
+      }
+
+      if (opts.beforeLaunch) {
+        await opts.beforeLaunch({
+          systemId: opts.systemId,
+          fileName,
+          ejsSettings,
+        });
       }
 
       // ── Set EJS globals ───────────────────────────────────────────────────

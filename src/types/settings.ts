@@ -50,6 +50,11 @@ export interface Settings {
   /** Configured cloud library sources. */
   cloudLibraries:  CloudLibraryConnection[];
   /**
+   * Optional base URL for a self-hosted libretro-image-matching-server instance.
+   * When set, cover-art search also queries `/matches/{console}/boxart`.
+   */
+  libretroMatchingServerUrl: string;
+  /**
    * Audio enhancement filter type.
    * `"none"` disables filtering; `"lowpass"` reduces high-frequency crunch
    * common in PSP/N64 audio; `"highpass"` removes low-frequency rumble.

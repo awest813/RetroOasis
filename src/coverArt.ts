@@ -1478,6 +1478,76 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
   }
 }
 
+// ── libretro-image-matching-server provider ───────────────────────────────────
+
+interface LibretroMatchingServerResponse {
+  data?: {
+    matches?: Record<string, string>;
+  };
+}
+
+export interface LibretroMatchingServerProviderOptions {
+  baseUrl: string;
+  fetchImpl?: typeof fetch;
+  imageType?: "boxart" | "title" | "snap";
+}
+
+/**
+ * Optional self-hosted cover matcher (josegonzalez/libretro-image-matching-server).
+ * POSTs the ROM filename to `/matches/{console}/boxart` and returns the matched URL.
+ */
+export class LibretroMatchingServerCoverArtProvider implements CoverArtProvider {
+  readonly id = "libretro-matcher";
+  readonly name = "Libretro Matcher";
+
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly imageType: "boxart" | "title" | "snap";
+
+  constructor(opts: LibretroMatchingServerProviderOptions) {
+    this.baseUrl = opts.baseUrl.replace(/\/$/, "");
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.imageType = opts.imageType ?? "boxart";
+  }
+
+  async search(
+    name: string,
+    systemId: string,
+    opts: { limit?: number; signal?: AbortSignal } = {},
+  ): Promise<CoverArtCandidate[]> {
+    if (opts.signal?.aborted) return [];
+
+    const { SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE } = await import("./libretroCoreInfo.js");
+    const console = SYSTEM_ID_TO_LIBRETRO_MATCHING_CONSOLE[systemId];
+    if (!console) return [];
+
+    const queryName = cleanRomNameForLibretro(name) || normalizeRomName(name);
+    if (!queryName) return [];
+
+    const url = `${this.baseUrl}/matches/${encodeURIComponent(console)}/${this.imageType}`;
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: `${queryName}\n`,
+      signal: opts.signal,
+    });
+    if (!res.ok) return [];
+
+    const json = await res.json() as LibretroMatchingServerResponse;
+    const matches = json.data?.matches ?? {};
+    const imageUrl = matches[name] ?? matches[queryName] ?? Object.values(matches)[0];
+    if (!imageUrl || typeof imageUrl !== "string") return [];
+
+    return [{
+      title: queryName,
+      systemId,
+      imageUrl,
+      sourceName: this.name,
+      score: 0.88,
+    }];
+  }
+}
+
 // ── Wikimedia / Wikipedia provider ────────────────────────────────────────────
 
 interface WikimediaQueryResponse {

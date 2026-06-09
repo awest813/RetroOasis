@@ -50,6 +50,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     netplayIceServers: [],
     verboseLogging:  false,
     cloudLibraries:  [],
+    libretroMatchingServerUrl: "",
     audioFilterType: "none",
     audioFilterCutoff: 10_000,
     uiMode: "auto",

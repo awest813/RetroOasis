@@ -272,7 +272,8 @@ describe('systems performance profiles', () => {
   describe('getSystemByCoreHint', () => {
     it('maps webretro N64 core URLs to the RetroOasis N64 profile', () => {
       expect(getSystemByCoreHint('parallel_n64')?.id).toBe('n64');
-      expect(getSystemByCoreHint('mupen64plus-next')).toBeUndefined();
+      expect(getSystemByCoreHint('mupen64plus-next')?.id).toBe('n64');
+      expect(getSystemByCoreHint('mupen64plus_next')?.id).toBe('n64');
     });
 
     it('maps 3DS core hints to the experimental 3DS profile', () => {
