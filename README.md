@@ -16,7 +16,7 @@ Bring your own legally obtained ROMs, disc images, BIOS files, and account crede
 - EmulatorJS core orchestration with per-system launch checks and compatibility settings
 - PSP, Dreamcast, Nintendo 64, Nintendo DS, Nintendo 3DS, PSX, DOS, arcade, Sega, Nintendo, Atari, and handheld profiles
 - Save slots, automatic crash recovery, save thumbnails, and optional cloud sync
-- Free cover-art discovery through Libretro thumbnails, GitHub-hosted collections, and Wikimedia fallbacks
+- Free cover-art discovery through Libretro thumbnails, GitHub-hosted collections, [xero/boxart](https://github.com/xero/boxart), and Wikimedia fallbacks
 - Optional provider connections for RAWG, MobyGames, TheGamesDB, SteamGridDB, IGDB, ScreenScraper.fr, RetroAchievements, and cloud storage
 - PWA install support, share targets, file handling, and cross-origin isolation support for threaded cores
 - Experimental multiplayer and LANemu workflows
