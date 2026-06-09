@@ -173,6 +173,7 @@ For deeper context, read [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md),
 
 - [Deployment](./docs/DEPLOYMENT.md)
 - [Architecture map](./docs/ARCHITECTURE_MAP.md)
+- [External references](./docs/REFERENCES.md)
 - [Project plan](./docs/PLAN.md)
 - [Netplay guide](./docs/NETPLAY.md)
 - [User testing checklist](./docs/USER_TESTING.md)

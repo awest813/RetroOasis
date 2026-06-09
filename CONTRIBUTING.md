@@ -133,6 +133,7 @@ To add a new emulated system:
    - `id`, `name`, `extensions` array, `ejsSystem` (EmulatorJS system key)
    - `tierSettings` object with `low`, `medium`, `high`, and `ultra` entries
    - BIOS requirements if applicable
+   - Cross-check `extensions` against the matching `*_libretro.info` in [libretro-core-info](https://github.com/libretro/libretro-core-info) when available (see [`docs/REFERENCES.md`](docs/REFERENCES.md))
 2. **`src/systems.test.ts`** — add tests verifying the new system is returned by `getSystemById()` and that all four tiers are defined
 3. **`docs/PLAN.md`** — add the new system to the relevant current-state or planned-work section
 4. **`README.md`** — add the system to the features list if it is a notable addition

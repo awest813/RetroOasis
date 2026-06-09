@@ -8,6 +8,10 @@
  * Performance-heavy systems (PSP / NDS / N64 / Saturn / Dreamcast) use tier-aware settings;
  * low / medium / high / ultra map to progressively heavier core options so
  * low-end devices prioritize playability while high-end devices raise quality.
+ *
+ * ── Reference: extension lists ─────────────────────────────────────────────
+ * Keep `extensions` aligned with libretro-core-info `supported_extensions`
+ * (e.g. Azahar: 3dsx, axf, zcci). See docs/REFERENCES.md.
  */
 
 import type { PerformanceTier } from "./performance.js";

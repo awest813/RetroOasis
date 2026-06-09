@@ -14,6 +14,10 @@
  *
  * Formats detected but not currently extracted:
  *   - bzip2 / xz / chd (manual extraction required)
+ *
+ * ── Reference: stronger 7z/RAR extraction ─────────────────────────────────
+ * filing (libarchive WASM) is the best candidate for unified archive support,
+ * especially Dreamcast GDI sets in .7z. See docs/REFERENCES.md.
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
