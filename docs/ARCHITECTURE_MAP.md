@@ -108,7 +108,7 @@ GamepadEvent
 |---|---|
 | `src/library.ts` | Game library (IndexedDB), ROM blob management, metadata, duplicate detection |
 | `src/bios.ts` | BIOS file storage and validation per-system |
-| `src/archive.ts` | ZIP/7z extraction for compressed ROM files |
+| `src/archive.ts` | ZIP/7z extraction for compressed ROM files (see `docs/REFERENCES.md` for filing upgrade path) |
 | `src/cloudSave.ts` | Cloud save sync (WebDAV provider, conflict resolution) |
 
 ### Asset Loading Flow

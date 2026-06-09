@@ -91,6 +91,13 @@ function pwaPrecacheManifestPlugin(): Plugin {
 
         // Compression WASM — needed for archive extraction during import
         addDataFile("compression/libunrar.wasm");
+        const filingWasm = resolve("node_modules/filing/dist/esm/wasm/archive.wasm");
+        if (existsSync(filingWasm)) {
+          const targetDir = resolve(distDir, "assets");
+          const target = resolve(targetDir, "filing-archive.wasm");
+          cpSync(filingWasm, target);
+          urls.add("./assets/filing-archive.wasm");
+        }
       }
       addCoreFile("flycast-wasm.data");
 

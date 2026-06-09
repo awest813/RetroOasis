@@ -26,6 +26,7 @@ import {
   GitHubCoverArtProvider,
   IGDBCoverArtProvider,
   LibretroCoverArtProvider,
+  LibretroMatchingServerCoverArtProvider,
   MobyGamesCoverArtProvider,
   RawgCoverArtProvider,
   ScreenScraperCoverArtProvider,
@@ -53,6 +54,15 @@ let _apiKeyStore:   ApiKeyStore | null = null;
 let _keyedProviders: Map<string, ApiKeyedProvider> | null = null;
 let _coverArtProvider: CoverArtProvider | null = null;
 let _subscribed = false;
+let _libretroMatchingServerUrl: string | null = null;
+
+/** Configure optional libretro-image-matching-server cover-art backend. */
+export function setLibretroMatchingServerUrl(url: string | null | undefined): void {
+  const next = url?.trim() || null;
+  if (next === _libretroMatchingServerUrl) return;
+  _libretroMatchingServerUrl = next;
+  rebuildCoverArtProvider();
+}
 
 interface ApiKeyTester {
   testConnection(opts?: { signal?: AbortSignal }): Promise<true | string>;
@@ -117,13 +127,18 @@ export function rebuildCoverArtProvider(): void {
     if (!store.getState(id).enabled) continue;
     ordered.push(p);
   }
-  _coverArtProvider = new ChainedCoverArtProvider([
+  const alwaysOn: CoverArtProvider[] = [
     new LibretroCoverArtProvider(),
     new GitHubCoverArtProvider(),
     new BoxartCoverArtProvider(),
     new WikimediaCoverArtProvider(),
-    ...ordered,
-  ]);
+  ];
+  if (_libretroMatchingServerUrl) {
+    alwaysOn.splice(1, 0, new LibretroMatchingServerCoverArtProvider({
+      baseUrl: _libretroMatchingServerUrl,
+    }));
+  }
+  _coverArtProvider = new ChainedCoverArtProvider([...alwaysOn, ...ordered]);
 }
 
 /** Return the lazily-built composed cover-art provider. */
@@ -148,4 +163,5 @@ export function _resetCoverArtRegistryForTests(): void {
   _keyedProviders     = null;
   _coverArtProvider   = null;
   _subscribed         = false;
+  _libretroMatchingServerUrl = null;
 }

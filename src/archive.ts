@@ -14,6 +14,10 @@
  *
  * Formats detected but not currently extracted:
  *   - bzip2 / xz / chd (manual extraction required)
+ *
+ * ── Reference: stronger 7z/RAR extraction ─────────────────────────────────
+ * filing (libarchive WASM) is the best candidate for unified archive support,
+ * especially Dreamcast GDI sets in .7z. See docs/REFERENCES.md.
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
@@ -1399,10 +1403,28 @@ export async function extractFromArchive(
           "Please extract the archive in the Files app or on a desktop, then import the ROM file."
         );
       }
-      // Android and desktop use the legacy worker path below.
       assertArchiveSize(blob, format.toUpperCase());
-      const archiveBytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
-      const entries = await extractWithLegacyWorker(format, archiveBytes, options);
+      let entries: ArchiveEntry[];
+      try {
+        emitProgress(options, {
+          format,
+          stage: "extract",
+          message: `Extracting ${format.toUpperCase()} archive (libarchive)…`,
+        });
+        const { extractArchiveWithFiling } = await import("./archiveFiling.js");
+        entries = await extractArchiveWithFiling(blob);
+        if (entries.length === 0) {
+          throw new Error("libarchive extraction returned no entries");
+        }
+      } catch {
+        emitProgress(options, {
+          format,
+          stage: "extract",
+          message: `Extracting ${format.toUpperCase()} archive (legacy worker)…`,
+        });
+        const archiveBytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
+        entries = await extractWithLegacyWorker(format, archiveBytes, options);
+      }
       emitProgress(options, {
         format,
         stage: "select",
@@ -1451,6 +1473,7 @@ export function isArchiveExtension(ext: string): boolean {
  */
 export const ARCHIVE_SUPPORT_NOTE =
   "ZIP, 7-Zip (.7z), RAR, TAR, and GZIP archives are extracted automatically in-browser. " +
+  "7-Zip and RAR use libarchive (filing) when available, with a legacy worker fallback. " +
   "On phones and tablets, very large archives may be blocked early to avoid browser crashes; " +
   "7-Zip and RAR are not extracted on iPhone/iPad. " +
   "BZIP2 (.bz2), XZ (.xz), Zstandard (.zst), and Cabinet (.cab) files must be extracted " +

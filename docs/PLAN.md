@@ -169,10 +169,25 @@ This is the single source of truth for shipped work, active improvements, and fu
 | PS1 sustained FPS on high tier compatibility profile | About 50-55 fps | >=58 fps |
 | Diagnostic timeline overhead | Not measured | <=0.01 ms/event |
 
+## External References
+
+See [`docs/REFERENCES.md`](./REFERENCES.md) for upstream projects RetroOasis may borrow from — emulation, archives, and cover-art matching — with license notes and RetroOasis touchpoints.
+
+| Project | License | Primary use |
+| --- | --- | --- |
+| libretro-database | CC-BY-SA-4.0 | ROM fingerprints, playlists, system detection (attribution required) |
+| libretro-core-info | Mixed | Authoritative per-core `supported_extensions` for `systems.ts` |
+| Nostalgist.js | MIT | Launch lifecycle and core-prefetch patterns (light cores only) |
+| webretro | MIT | UI/deep-link ideas; partial core-URL compatibility already wired |
+| filing | MIT (wrapper) | Stronger browser 7z/RAR via libarchive WASM |
+| @sinedied/mini-scraper | MIT | Libretro scrape patterns — region priority, boxart → title → snap |
+| libretro-image-matching-server | MIT | Fuzzy ROM → thumbnail matching (server-side reference) |
+| rascraper / RetroScraper / scrappy / minui-artwork-scraper-pak | MIT | Exact match, LaunchBox pipeline, XML mixes, bulk scan→cache flow |
+
 ## Validation Policy
 
 - Performance work must include an empirical measurement or benchmark note.
-- New system support must include extensions, core routing, tier settings, and tests.
+- New system support must include extensions, core routing, tier settings, and tests. Cross-check extensions against [libretro-core-info](https://github.com/libretro/libretro-core-info) when practical.
 - Emulator correctness fixes need regression coverage when practical.
 - UX changes that affect import, save/load, settings, Save Sync, Play Together, or launch flows should run focused Vitest plus relevant Playwright e2e.
 - Documentation changes do not need tests, but must stay consistent with code and user-facing wording.

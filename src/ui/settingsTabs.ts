@@ -11,6 +11,7 @@ import {
 } from "../apiKeyStore.js";
 import { ALWAYS_ON_COVER_ART_PROVIDER_COUNT } from "./coverArtRegistry.js";
 import { getStorageEstimate, formatBytes } from "../library.js";
+import type { Settings } from "../types/settings.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -707,6 +708,21 @@ function timeAgo(at: number, now: number = Date.now()): string {
  * provider instances supplied by the caller (typically the chained
  * cover-art registry in `ui.ts`).
  */
+function validateLibretroMatcherBaseUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "Use an http:// or https:// base URL.";
+    }
+    if (!parsed.hostname) return "Enter a valid server hostname.";
+    return null;
+  } catch {
+    return "Enter a valid http:// or https:// URL.";
+  }
+}
+
 export function buildApiKeysTab(
   container: HTMLElement,
   store: ApiKeyStore,
@@ -714,9 +730,11 @@ export function buildApiKeysTab(
     appName: string;
     getTester(providerId: string): ApiKeyProviderTester | null;
     onError(message: string): void;
+    settings?: Settings;
+    onSettingsChange?: (patch: Partial<Settings>) => void;
   },
 ): () => void {
-  const { appName, getTester, onError } = opts;
+  const { appName, getTester, onError, settings, onSettingsChange } = opts;
 
   // Clear any prior content so the tab is safe to rebuild.
   container.innerHTML = "";
@@ -734,6 +752,129 @@ export function buildApiKeysTab(
   const summary = make("div", { class: "api-keys-summary", role: "status", "aria-live": "polite" }) as HTMLDivElement;
   intro.appendChild(summary);
   container.appendChild(intro);
+
+  if (settings && onSettingsChange) {
+    const matcherSection = make("div", { class: "settings-section api-key-row" });
+    const matcherHeadingId = "settings-libretro-matcher-heading";
+    const matcherHelpId = "settings-libretro-matcher-help";
+    matcherSection.append(
+      make("h4", { class: "settings-section__title", id: matcherHeadingId }, "Libretro cover matcher"),
+      make("p", {
+        class: "settings-help",
+        id: matcherHelpId,
+      },
+        "Optional self-hosted libretro-image-matching-server for fuzzy ROM-to-thumbnail matching. " +
+        "Runs after built-in Libretro sources when a URL is saved.",
+      ),
+    );
+
+    const urlRow = make("div", { class: "settings-input-row" });
+    const urlLabel = make("label", {
+      class: "settings-input-label",
+      for: "libretro-matcher-url",
+    }, "Server base URL");
+    const urlInput = make("input", {
+      type: "text",
+      id: "libretro-matcher-url",
+      name: "libretroMatchingServerUrl",
+      class: "settings-input",
+      placeholder: "https://matcher.example.com",
+      value: settings.libretroMatchingServerUrl,
+      autocomplete: "off",
+      autocorrect: "off",
+      autocapitalize: "none",
+      spellcheck: "false",
+      "aria-describedby": matcherHelpId,
+    }) as HTMLInputElement;
+
+    const matcherStatus = make("p", {
+      class: "api-key-row__test-msg",
+      "aria-live": "polite",
+    }) as HTMLParagraphElement;
+
+    const applyMatcherUrl = (url: string): boolean => {
+      const err = validateLibretroMatcherBaseUrl(url);
+      if (err) {
+        urlInput.setCustomValidity(err);
+        urlInput.reportValidity();
+        return false;
+      }
+      urlInput.setCustomValidity("");
+      onSettingsChange({ libretroMatchingServerUrl: url.trim() });
+      return true;
+    };
+
+    urlInput.addEventListener("input", () => urlInput.setCustomValidity(""));
+    urlInput.addEventListener("change", () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        urlInput.setCustomValidity("");
+        onSettingsChange({ libretroMatchingServerUrl: "" });
+        matcherStatus.textContent = "";
+        matcherStatus.className = "api-key-row__test-msg";
+        return;
+      }
+      if (applyMatcherUrl(url)) {
+        matcherStatus.textContent = "Matcher URL saved.";
+        matcherStatus.className = "api-key-row__test-msg api-key-row__test-msg--ok";
+      }
+    });
+
+    const matcherActions = make("div", { class: "api-key-row__actions" });
+    const testMatcherBtn = make("button", { type: "button", class: "btn" }, "Test matcher") as HTMLButtonElement;
+    testMatcherBtn.addEventListener("click", () => {
+      void (async () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          onError("Enter a matcher base URL before testing.");
+          return;
+        }
+        if (!applyMatcherUrl(url)) return;
+
+        testMatcherBtn.disabled = true;
+        testMatcherBtn.classList.add("is-loading");
+        testMatcherBtn.setAttribute("aria-busy", "true");
+        matcherStatus.textContent = "";
+        matcherStatus.className = "api-key-row__test-msg";
+        try {
+          const testUrl = `${url.replace(/\/$/, "")}/matches/FC/boxart`;
+          const res = await fetch(testUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: "Super Mario Bros\n",
+          });
+          if (!res.ok) {
+            throw new Error(`Server responded with HTTP ${res.status}`);
+          }
+          matcherStatus.className = "api-key-row__test-msg api-key-row__test-msg--ok";
+          matcherStatus.textContent = "Matcher connection OK.";
+        } catch (err) {
+          const message = `Matcher test failed: ${err instanceof Error ? err.message : String(err)}`;
+          matcherStatus.className = "api-key-row__test-msg api-key-row__test-msg--error";
+          matcherStatus.textContent = message;
+          onError(message);
+        } finally {
+          testMatcherBtn.disabled = false;
+          testMatcherBtn.classList.remove("is-loading");
+          testMatcherBtn.removeAttribute("aria-busy");
+        }
+      })();
+    });
+
+    const clearMatcherBtn = make("button", { type: "button", class: "btn btn--ghost" }, "Clear") as HTMLButtonElement;
+    clearMatcherBtn.addEventListener("click", () => {
+      urlInput.value = "";
+      urlInput.setCustomValidity("");
+      onSettingsChange({ libretroMatchingServerUrl: "" });
+      matcherStatus.textContent = "";
+      matcherStatus.className = "api-key-row__test-msg";
+    });
+
+    matcherActions.append(testMatcherBtn, clearMatcherBtn);
+    urlRow.append(urlLabel, urlInput);
+    matcherSection.append(urlRow, matcherStatus, matcherActions);
+    container.appendChild(matcherSection);
+  }
 
   const list = make("div", { class: "api-keys-list", role: "list" });
   container.appendChild(list);

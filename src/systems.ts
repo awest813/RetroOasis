@@ -8,9 +8,14 @@
  * Performance-heavy systems (PSP / NDS / N64 / Saturn / Dreamcast) use tier-aware settings;
  * low / medium / high / ultra map to progressively heavier core options so
  * low-end devices prioritize playability while high-end devices raise quality.
+ *
+ * ── Reference: extension lists ─────────────────────────────────────────────
+ * Keep `extensions` aligned with libretro-core-info `supported_extensions`
+ * (e.g. Azahar: 3dsx, axf, zcci). See docs/REFERENCES.md.
  */
 
 import type { PerformanceTier } from "./performance.js";
+import { mergeLibretroCoreExtensions } from "./libretroCoreInfo.js";
 
 // ── System definition ─────────────────────────────────────────────────────────
 
@@ -1414,7 +1419,7 @@ export const SYSTEMS: SystemInfo[] = [
     shortName: "3DS",
     experimental: true,
     stabilityNotice: "Experimental: 3DS support uses the new EmulatorJS 4.3-pre Azahar core and requires threaded WebGL 2 support.",
-    extensions: ["3ds", "cci", "cxi", "app", "axf", "3dsx"],
+    extensions: ["3ds", "3dsx", "z3dsx", "elf", "axf", "cci", "zcci", "cxi", "zcxi", "app"],
     color: "#c62828",
     needsThreads: true,
     needsWebGL2: true,
@@ -1609,7 +1614,7 @@ export const SYSTEMS: SystemInfo[] = [
     shortName: "DC",
     experimental: true,
     stabilityNotice: "Experimental: Dreamcast support is still being stabilized. Performance varies by hardware — use Performance mode on low-end devices. Some games may boot slowly, glitch, or crash.",
-    extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip"],
+    extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip", "dat", "lst"],
     color: "#e07b20",
     needsThreads: false,
     needsWebGL2: true,
@@ -1691,19 +1696,23 @@ const WEBRETRO_CORE_TO_SYSTEM_ID: Record<string, string> = {
   freeintv: "intv",
   gambatte: "gbc",
   genesis_plus_gx: "segaMD",
-  picodrive: "sega32x",
+  genesis_plus_gx_wide: "segaMDWide",
+  gpsp: "gba",
   handy: "lynx",
   mame2003_plus: "mame2003",
   mednafen_ngp: "ngp",
   melonds: "nds",
   mgba: "gba",
+  mupen64plus_next: "n64",
   nestopia: "nes",
   parallel_n64: "n64",
   pcsx_rearmed: "psx",
+  picodrive: "sega32x",
   ppsspp: "psp",
   prosystem: "atari7800",
   snes9x: "snes",
   stella2014: "atari2600",
+  vbam: "gba",
   yabause: "segaSaturn",
 };
 
@@ -1719,7 +1728,8 @@ function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | nu
   const extToSystems = new Map<string, SystemInfo[]>();
   for (const sys of SYSTEMS) {
     SYSTEM_BY_ID.set(sys.id, sys);
-    for (const ext of sys.extensions) {
+    const extensions = mergeLibretroCoreExtensions(sys.id, sys.extensions);
+    for (const ext of extensions) {
       if (!extToSystems.has(ext)) extToSystems.set(ext, []);
       extToSystems.get(ext)!.push(sys);
     }
@@ -1732,7 +1742,7 @@ function preferredCandidateForSharedCore(systems: SystemInfo[]): SystemInfo | nu
 
 /** All accepted extensions, for use in <input accept>. */
 export const ALL_EXTENSIONS: string[] = [
-  ...new Set(SYSTEMS.flatMap(s => s.extensions)),
+  ...new Set(SYSTEMS.flatMap(s => mergeLibretroCoreExtensions(s.id, s.extensions))),
 ];
 
 function toUint8Array(data: ArrayBuffer | ArrayBufferView): Uint8Array {

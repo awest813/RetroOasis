@@ -50,6 +50,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     netplayIceServers: [],
     verboseLogging:  false,
     cloudLibraries:  [],
+    libretroMatchingServerUrl: "",
     audioFilterType: "none",
     audioFilterCutoff: 10_000,
     uiMode: "auto",
@@ -5192,6 +5193,37 @@ describe("UX polish shortcuts and feedback", () => {
     expect(toast?.getAttribute("role")).toBe("alert");
     expect(toast?.getAttribute("aria-live")).toBe("assertive");
     expect(toast?.getAttribute("aria-atomic")).toBe("true");
+  });
+});
+
+describe("resolveSystemAndAdd — .lpl playlists", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    buildDOM(document.body);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("handles .lpl before system detection", async () => {
+    const systems = await import("./systems.js");
+    const detectSpy = vi.spyOn(systems, "detectSystem");
+    const lpl = JSON.stringify({
+      items: [{
+        path: "/roms/game.nes",
+        label: "Game",
+        db_name: "Nintendo - Nintendo Entertainment System",
+      }],
+    });
+    const file = new File([lpl], "games.lpl", { type: "application/json" });
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    await resolveSystemAndAdd(file, library, makeSettings(), vi.fn());
+
+    expect(detectSpy).not.toHaveBeenCalled();
   });
 });
 

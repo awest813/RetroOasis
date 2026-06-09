@@ -48,7 +48,7 @@ import { buildDOM, initUI,
           buildLandingControls, showTierDowngradePrompt,
           promptAutoSaveRestore,
           resolveSystemAndAdd,
-          showError, showInfoToast, showLoadingOverlay,
+          showError, showInfoToast, showLoadingOverlay, hideLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
           openEasyNetplayModal } from "./ui.js";
 import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
@@ -92,7 +92,7 @@ import {
   type PostProcessEffect,
   type WebGpuGlCapturePolicyInput,
 } from "./webgpuPostProcess.js";
-import { getApiKeyStore } from "./ui/coverArtRegistry.js";
+import { getApiKeyStore, setLibretroMatchingServerUrl } from "./ui/coverArtRegistry.js";
 import { parseRAKey } from "./raCredentials.js";
 import { installWebGlContextPolicy } from "./webglContextPolicy.js";
 import { getSystemByCoreHint, getSystemById } from "./systems.js";
@@ -122,6 +122,7 @@ const DEFAULT_SETTINGS: Settings = {
   netplayIceServers: [],
   verboseLogging:  false,
   cloudLibraries:  [],
+  libretroMatchingServerUrl: "",
   audioFilterType: "none" as "none" | "lowpass" | "highpass",
   audioFilterCutoff: 10_000,
   uiMode: "auto",
@@ -166,6 +167,9 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
         ? parsed.showAudioVis
         : DEFAULT_SETTINGS.showAudioVis,
       cloudLibraries: Array.isArray(parsed.cloudLibraries) ? parsed.cloudLibraries : DEFAULT_SETTINGS.cloudLibraries,
+      libretroMatchingServerUrl: typeof parsed.libretroMatchingServerUrl === "string"
+        ? parsed.libretroMatchingServerUrl.trim()
+        : DEFAULT_SETTINGS.libretroMatchingServerUrl,
       useWebGPU: typeof parsed.useWebGPU === "boolean"
         ? parsed.useWebGPU
         : DEFAULT_SETTINGS.useWebGPU,
@@ -958,6 +962,8 @@ async function main(): Promise<void> {
       return undefined;
     }
   })();
+  setLibretroMatchingServerUrl(settings.libretroMatchingServerUrl);
+
   const onFileChosen = async (file: File): Promise<void> => {
     await resolveSystemAndAdd(file, library, settings, onLaunchGame, emulator, onApplyPatch, urlImportSystem?.id);
   };
@@ -1168,6 +1174,9 @@ async function main(): Promise<void> {
     ) {
       void syncNetplayManagerFromSettings(settings).catch(() => {});
     }
+    if (patch.libretroMatchingServerUrl !== undefined) {
+      setLibretroMatchingServerUrl(settings.libretroMatchingServerUrl);
+    }
     // Mirror the patch into the RetroOasisStore so subscribers react to the
     // same change that `saveSettings` persists to localStorage.
     mirrorSettingsPatchToStore(patch, store);
@@ -1288,7 +1297,32 @@ async function main(): Promise<void> {
     // Malformed URLs / non-browser environments are non-fatal.
   }
 
-  // 8b. Web Share Target: pick up ROM files deposited by the service worker
+  // 8b. webretro-style deep links: ?rom=<url>&core=<hint>
+  try {
+    const pageUrl = new URL(window.location.href);
+    const romParam = pageUrl.searchParams.get("rom") ?? pageUrl.searchParams.get("game");
+    if (romParam && /^https?:\/\//i.test(romParam)) {
+      for (const key of ["rom", "game", "core", "system"]) pageUrl.searchParams.delete(key);
+      window.history.replaceState(null, "", pageUrl.toString());
+
+      showLoadingOverlay();
+      setLoadingMessage("Downloading game from URL…");
+      const res = await fetch(romParam);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const fileName = decodeURIComponent(romParam.split("/").pop()?.split("?")[0] ?? "game.bin");
+      hideLoadingOverlay();
+      await onFileChosen(makeFileFromBlob(blob, fileName, { type: blob.type || "application/octet-stream" }));
+    }
+  } catch (err) {
+    hideLoadingOverlay();
+    showInfoToast(
+      `Could not import ROM from URL: ${err instanceof Error ? err.message : String(err)}`,
+      "warning",
+    );
+  }
+
+  // 8c. Web Share Target: pick up ROM files deposited by the service worker
   // when this app was opened from the OS share sheet.
   await consumePwaSharedFiles(onFileChosen);
 
