@@ -1101,7 +1101,55 @@ const LIBRETRO_SYSTEM_MAP: Readonly<Record<string, readonly string[]>> = Object.
 const LIBRETRO_GITHUB_OWNER = "libretro-thumbnails";
 const LIBRETRO_GITHUB_REF = "master";
 type LibretroImageType = "Named_Boxarts" | "Named_Titles" | "Named_Snaps";
-const LIBRETRO_IMAGE_TYPES: readonly LibretroImageType[] = ["Named_Boxarts", "Named_Titles"];
+/** mini-scraper default: boxart → title → snap. */
+const LIBRETRO_IMAGE_TYPES: readonly LibretroImageType[] = [
+  "Named_Boxarts",
+  "Named_Titles",
+  "Named_Snaps",
+];
+
+/** Preferred No-Intro region labels when the ROM tag does not match (mini-scraper order). */
+export const LIBRETRO_REGION_PREFERENCE = Object.freeze([
+  "World",
+  "Europe",
+  "USA",
+  "Japan",
+] as const);
+
+const LIBRETRO_REGION_LABELS: ReadonlySet<string> = new Set([
+  "world",
+  "usa",
+  "us",
+  "u.s.a.",
+  "europe",
+  "euro",
+  "japan",
+  "jap",
+  "australia",
+  "canada",
+  "germany",
+  "france",
+  "spain",
+  "italy",
+  "brazil",
+  "korea",
+  "hong kong",
+  "hongkong",
+  "china",
+  "sweden",
+  "netherlands",
+]);
+
+/** libretro-image-matching-server common renames applied before fuzzy-style variants. */
+const LIBRETRO_COMMON_RENAMES: Readonly<Record<string, string>> = Object.freeze({
+  megaman: "Mega Man",
+});
+
+const LIBRETRO_IMAGE_TYPE_SCORE: Readonly<Record<LibretroImageType, number>> = Object.freeze({
+  Named_Boxarts: 0.03,
+  Named_Titles: 0.02,
+  Named_Snaps: 0.01,
+});
 
 /**
  * Return candidate Libretro system directory names for a given systemId in
@@ -1171,6 +1219,164 @@ export function libretroFilenameSafe(name: string): string {
   return name.replace(/[&*/:`<>?\\|"]/g, "_");
 }
 
+/**
+ * Move a leading article to the end in Libretro / No-Intro style:
+ * `The Legend of Zelda` → `Legend of Zelda, The`.
+ */
+export function moveLeadingTheToLibretroEnd(name: string): string | null {
+  const { base, regionGroup, otherGroups } = parseLibretroTitleParts(name);
+  if (!base) return null;
+
+  const dash = base.indexOf(" - ");
+  const head = dash >= 0 ? base.slice(0, dash) : base;
+  const tail = dash >= 0 ? base.slice(dash) : "";
+  const m = /^The\s+(.+)$/i.exec(head.trim());
+  if (!m?.[1]) return null;
+
+  return joinLibretroTitle(`${m[1]}, The${tail}`, regionGroup, otherGroups);
+}
+
+function applyLibretroCommonRenames(name: string): string | null {
+  let changed = false;
+  let out = name;
+  for (const [from, to] of Object.entries(LIBRETRO_COMMON_RENAMES)) {
+    const re = new RegExp(`\\b${from}\\b`, "gi");
+    if (re.test(out)) {
+      out = out.replace(re, to);
+      changed = true;
+    }
+  }
+  return changed ? out : null;
+}
+
+function isLibretroRegionGroup(inner: string): boolean {
+  const lower = inner.trim().toLowerCase();
+  if (!lower) return false;
+  if (/^(en|fr|de|es|it|ja|ko|zh)(,(en|fr|de|es|it|ja|ko|zh))*$/i.test(lower.replace(/\s/g, ""))) {
+    return false;
+  }
+  if (/^rev\b/i.test(lower) || /^v?\d/i.test(lower)) return false;
+  if (/sgb enhanced|gb compatible|np|prg|beta|proto|demo|sample/i.test(lower)) return false;
+
+  const parts = inner.split(/[,/]/).map((p) => p.trim().toLowerCase()).filter(Boolean);
+  return parts.length > 0 && parts.every((p) => LIBRETRO_REGION_LABELS.has(p));
+}
+
+function parseLibretroTitleParts(name: string): {
+  base: string;
+  regionGroup: string | null;
+  otherGroups: string[];
+} {
+  const otherGroups: string[] = [];
+  let regionGroup: string | null = null;
+  const base = name.replace(/\(([^)]*)\)/g, (_full, inner: string) => {
+    if (!regionGroup && isLibretroRegionGroup(inner)) {
+      regionGroup = inner;
+    } else {
+      otherGroups.push(inner);
+    }
+    return " ";
+  }).replace(/\s+/g, " ").trim();
+
+  return { base, regionGroup, otherGroups };
+}
+
+function joinLibretroTitle(base: string, regionGroup: string | null, otherGroups: readonly string[]): string {
+  const parts = [base.trim()];
+  if (regionGroup) parts.push(`(${regionGroup})`);
+  for (const g of otherGroups) parts.push(`(${g})`);
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function stripLibretroDecorations(name: string): string {
+  return name
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripLibretroSubtitle(name: string): string | null {
+  const colon = name.split(": ")[0]?.trim();
+  if (colon && colon !== name.trim()) return colon;
+  const dash = name.split(" - ")[0]?.trim();
+  if (dash && dash !== name.trim()) return dash;
+  return null;
+}
+
+/**
+ * Build Libretro thumbnail filename variants in priority order.
+ *
+ * Borrowed from @sinedied/mini-scraper and josegonzalez/libretro-image-matching-server:
+ * exact No-Intro name first, preferred region swaps, stripped-name fallbacks,
+ * article/subtitle tweaks, then fully normalised title.
+ */
+export function libretroFilenameVariants(
+  raw: string,
+  regionPreference: readonly string[] = LIBRETRO_REGION_PREFERENCE,
+): string[] {
+  const cleaned = cleanRomNameForLibretro(raw);
+  if (!cleaned) return [];
+
+  const { base, regionGroup, otherGroups } = parseLibretroTitleParts(cleaned);
+  const variants: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string | null | undefined): void => {
+    const v = value?.replace(/\s+/g, " ").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    variants.push(v);
+  };
+
+  push(cleaned);
+
+  if (base) {
+    push(joinLibretroTitle(base, regionGroup, otherGroups));
+    for (const region of regionPreference) {
+      push(joinLibretroTitle(base, region, otherGroups));
+    }
+    if (regionGroup) {
+      for (const part of regionGroup.split(/[,/]/).map((p) => p.trim()).filter(Boolean)) {
+        push(joinLibretroTitle(base, part, otherGroups));
+      }
+    }
+    push(base);
+  }
+
+  const stripped = stripLibretroDecorations(cleaned);
+  push(stripped);
+  push(stripLibretroSubtitle(stripped));
+  push(stripLibretroSubtitle(cleaned));
+
+  const theMoved = moveLeadingTheToLibretroEnd(cleaned);
+  push(theMoved);
+  if (theMoved) push(moveLeadingTheToLibretroEnd(stripped));
+
+  const renamed = applyLibretroCommonRenames(cleaned);
+  push(renamed);
+  if (renamed) push(applyLibretroCommonRenames(stripped));
+
+  const norm = normalizeRomName(cleaned);
+  if (norm) {
+    const titleCase = norm.replace(/\b\w/g, (c) => c.toUpperCase());
+    push(titleCase);
+  }
+
+  return variants;
+}
+
+function libretroCandidateScore(
+  variantIndex: number,
+  imageType: LibretroImageType,
+  isExactCleaned: boolean,
+): number {
+  const typeBonus = LIBRETRO_IMAGE_TYPE_SCORE[imageType];
+  const base = isExactCleaned
+    ? 0.92
+    : Math.max(0.78, 0.91 - variantIndex * 0.015);
+  return Math.min(0.98, base + typeBonus);
+}
+
 function libretroSystemToRepo(system: string): string {
   return system.replace(/ - /g, "_-_").replace(/\s+/g, "_");
 }
@@ -1188,7 +1394,7 @@ function libretroRawImageUrl(system: string, imageType: LibretroImageType, filen
 export interface LibretroProviderOptions {
   /**
    * Image categories to search, in priority order.
-   * Defaults to `["Named_Boxarts", "Named_Titles"]`.
+   * Defaults to `["Named_Boxarts", "Named_Titles", "Named_Snaps"]`.
    */
   imageTypes?: readonly LibretroImageType[];
 }
@@ -1202,9 +1408,10 @@ export interface LibretroProviderOptions {
  * Note: thumbnails.libretro.com serves the same files but does not send CORS
  * headers, so browser fetch() cannot download and validate those images.
  *
- * Two name variants are tried for each game:
- *   1. The No-Intro-style name (region tags preserved) — higher confidence.
- *   2. The fully-normalised name (all tags stripped) — lower confidence fallback.
+ * Filename variants follow mini-scraper / libretro-image-matching-server ordering:
+ * exact No-Intro name, preferred region swaps (World → Europe → USA → Japan),
+ * stripped-name and subtitle fallbacks, then normalised title. Image types are
+ * tried boxart → title → snap.
  *
  * Filename-unsafe characters are substituted per the Libretro thumbnails
  * naming convention (see {@link libretroFilenameSafe}).
@@ -1232,16 +1439,11 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
     const systems = systemIdToLibretroSystems(systemId);
     if (systems.length === 0) return [];
 
-    // Build name variants: No-Intro style first (highest quality match),
-    // then the aggressively-normalised form as a fallback.
     const noIntroName = cleanRomNameForLibretro(name);
-    const normName    = normalizeRomName(name);
-    if (!noIntroName && !normName) return [];
+    const variants = libretroFilenameVariants(name);
+    if (variants.length === 0) return [];
 
-    // Deduplicate variants while preserving priority order.
-    const variants = [...new Set([noIntroName, normName].filter(Boolean))];
-
-    const limit = Math.max(1, Math.min(20, opts.limit ?? 6));
+    const limit = Math.max(1, Math.min(24, opts.limit ?? 8));
     const candidates: CoverArtCandidate[] = [];
     const seenUrls = new Set<string>();
 
@@ -1251,18 +1453,21 @@ export class LibretroCoverArtProvider implements CoverArtProvider {
       for (const imageType of this.imageTypes) {
         if (opts.signal?.aborted) break;
 
-        for (const variant of variants) {
+        for (let variantIndex = 0; variantIndex < variants.length; variantIndex++) {
           if (candidates.length >= limit) break;
 
+          const variant = variants[variantIndex]!;
           const safeVariant = libretroFilenameSafe(variant);
           const url = libretroRawImageUrl(system, imageType, safeVariant);
 
           if (seenUrls.has(url)) continue;
           seenUrls.add(url);
 
-          // No-Intro name matches what the thumbnail repo actually uses;
-          // normalised name is a fallback that may work for simpler titles.
-          const score = variant === noIntroName ? 0.92 : 0.82;
+          const score = libretroCandidateScore(
+            variantIndex,
+            imageType,
+            variant === noIntroName,
+          );
           candidates.push({ title: variant, systemId, imageUrl: url, sourceName: this.name, score });
         }
       }

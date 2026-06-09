@@ -11,6 +11,9 @@ import {
   AUTO_APPLY_CONFIDENCE_THRESHOLD,
   cleanRomNameForLibretro,
   libretroFilenameSafe,
+  libretroFilenameVariants,
+  moveLeadingTheToLibretroEnd,
+  LIBRETRO_REGION_PREFERENCE,
   systemIdToLibretroSystems,
   LibretroCoverArtProvider,
   ChainedCoverArtProvider,
@@ -523,6 +526,45 @@ describe("cleanRomNameForLibretro", () => {
   });
 });
 
+// ── libretroFilenameVariants ──────────────────────────────────────────────────
+
+describe("libretroFilenameVariants", () => {
+  it("prefers the exact No-Intro cleaned name first", () => {
+    const variants = libretroFilenameVariants("Super Mario World (USA) [!].smc");
+    expect(variants[0]).toBe("Super Mario World (USA)");
+  });
+
+  it("includes preferred region swaps after the exact name", () => {
+    const variants = libretroFilenameVariants("Sonic the Hedgehog (Europe).bin");
+    expect(variants[0]).toBe("Sonic the Hedgehog (Europe)");
+    expect(variants).toContain("Sonic the Hedgehog (World)");
+    expect(variants).toContain("Sonic the Hedgehog (USA)");
+    expect(variants).toContain("Sonic the Hedgehog (Japan)");
+  });
+
+  it("uses the mini-scraper default region preference order", () => {
+    expect([...LIBRETRO_REGION_PREFERENCE]).toEqual(["World", "Europe", "USA", "Japan"]);
+  });
+
+  it("adds stripped-name and subtitle fallbacks", () => {
+    const variants = libretroFilenameVariants("Castlevania - Symphony of the Night (USA).bin");
+    expect(variants).toContain("Castlevania");
+    expect(variants.some((v) => v.startsWith("Castlevania - Symphony"))).toBe(true);
+  });
+
+  it("applies common renames like Megaman → Mega Man", () => {
+    const variants = libretroFilenameVariants("Megaman X (USA).sfc");
+    expect(variants.some((v) => v.includes("Mega Man"))).toBe(true);
+  });
+});
+
+describe("moveLeadingTheToLibretroEnd", () => {
+  it("moves a leading The to the end", () => {
+    expect(moveLeadingTheToLibretroEnd("The Legend of Zelda (USA)"))
+      .toBe("Legend of Zelda, The (USA)");
+  });
+});
+
 // ── systemIdToLibretroSystems ─────────────────────────────────────────────────
 
 describe("systemIdToLibretroSystems", () => {
@@ -620,6 +662,33 @@ describe("LibretroCoverArtProvider", () => {
     for (let i = 1; i < results.length; i++) {
       expect(results[i - 1]!.score).toBeGreaterThanOrEqual(results[i]!.score);
     }
+  });
+
+  it("includes boxart, title, and snap image types by default", async () => {
+    const p = new LibretroCoverArtProvider();
+    const results = await p.search("Super Mario World (USA).smc", "snes", { limit: 20 });
+    expect(results.some((r) => r.imageUrl.includes("/Named_Boxarts/"))).toBe(true);
+    expect(results.some((r) => r.imageUrl.includes("/Named_Titles/"))).toBe(true);
+    expect(results.some((r) => r.imageUrl.includes("/Named_Snaps/"))).toBe(true);
+  });
+
+  it("ranks boxart above title and snap for the same filename variant", async () => {
+    const p = new LibretroCoverArtProvider();
+    const results = await p.search("Super Mario World (USA).smc", "snes", { limit: 20 });
+    const box = results.find((r) =>
+      r.title === "Super Mario World (USA)" && r.imageUrl.includes("/Named_Boxarts/"),
+    );
+    const title = results.find((r) =>
+      r.title === "Super Mario World (USA)" && r.imageUrl.includes("/Named_Titles/"),
+    );
+    const snap = results.find((r) =>
+      r.title === "Super Mario World (USA)" && r.imageUrl.includes("/Named_Snaps/"),
+    );
+    expect(box).toBeDefined();
+    expect(title).toBeDefined();
+    expect(snap).toBeDefined();
+    expect(box!.score).toBeGreaterThan(title!.score);
+    expect(title!.score).toBeGreaterThan(snap!.score);
   });
 });
 

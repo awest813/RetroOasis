@@ -34,6 +34,10 @@ describe('systems performance profiles', () => {
       expect(Array.isArray(n3ds)).toBe(false);
       expect(n3ds && !Array.isArray(n3ds) ? n3ds.id : null).toBe('3ds');
 
+      const zcci = detectSystem('monster-hunter-4.zcci');
+      expect(Array.isArray(zcci)).toBe(false);
+      expect(zcci && !Array.isArray(zcci) ? zcci.id : null).toBe('3ds');
+
       const dos = detectSystem('duke3d.bat');
       expect(Array.isArray(dos)).toBe(false);
       expect(dos && !Array.isArray(dos) ? dos.id : null).toBe('dos');
@@ -319,7 +323,9 @@ describe('systems performance profiles', () => {
     expect(getSystemById('3ds')?.tierSettings?.low?.retroarch_core).toBe('azahar');
     expect(getSystemById('3ds')?.tierSettings?.low?.citra_resolution_factor).toBe('1x (Native)');
     expect(getSystemById('3ds')?.tierSettings?.ultra?.citra_resolution_factor).toBe('3x');
-    expect(getSystemById('3ds')?.extensions).toEqual(expect.arrayContaining(['axf', '3dsx']));
+    expect(getSystemById('3ds')?.extensions).toEqual(expect.arrayContaining([
+      'axf', '3dsx', 'z3dsx', 'elf', 'zcci', 'zcxi',
+    ]));
     expect(getSystemById('psp')?.extensions).toContain('prx');
     expect(getSystemById('dos')?.tierSettings?.low?.retroarch_core).toBe('dosbox_pure');
     expect(getSystemById('segaCD')?.tierSettings?.high?.retroarch_core).toBe('genesis_plus_gx');

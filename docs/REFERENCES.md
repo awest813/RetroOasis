@@ -71,7 +71,7 @@ RetroOasis already implements Libretro thumbnail lookup, filename normalization,
 - **Stack:** TypeScript CLI
 - **RetroOasis touchpoints:** [`src/coverArt.ts`](../src/coverArt.ts) (`LibretroCoverArtProvider`, `cleanRomNameForLibretro`, region variants).
 
-Scrapes Libretro thumbnails with no API key. Supports region preferences (World, Europe, USA, Japan) and optional Ollama fallback when filename match fails. Closest upstream to what RetroOasis already does — worth borrowing region-priority ordering and the **try boxart → title → snap** image-type sequence.
+Scrapes Libretro thumbnails with no API key. Supports region preferences (World, Europe, USA, Japan) and optional Ollama fallback when filename match fails. Closest upstream to what RetroOasis already does — **borrowed in code:** `libretroFilenameVariants()`, `LIBRETRO_REGION_PREFERENCE`, and boxart → title → snap ordering in `LibretroCoverArtProvider`.
 
 ### Best fit for fuzzy ROM → image matching (server-side reference)
 

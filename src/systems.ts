@@ -1418,7 +1418,7 @@ export const SYSTEMS: SystemInfo[] = [
     shortName: "3DS",
     experimental: true,
     stabilityNotice: "Experimental: 3DS support uses the new EmulatorJS 4.3-pre Azahar core and requires threaded WebGL 2 support.",
-    extensions: ["3ds", "cci", "cxi", "app", "axf", "3dsx"],
+    extensions: ["3ds", "3dsx", "z3dsx", "elf", "axf", "cci", "zcci", "cxi", "zcxi", "app"],
     color: "#c62828",
     needsThreads: true,
     needsWebGL2: true,
