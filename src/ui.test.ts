@@ -3255,6 +3255,7 @@ describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
   });
 
   it("shows portrait rotate hint when the game is paused (not only while running)", () => {
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 1, configurable: true });
     const mm = vi.fn().mockImplementation((q: string) => ({
       matches: q.includes("portrait"),
       media: q,
@@ -3293,6 +3294,48 @@ describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
     window.dispatchEvent(new Event("resize"));
     const hint = document.getElementById("rotate-hint");
     expect(hint?.classList.contains("rotate-hint--visible")).toBe(true);
+  });
+
+  it("hides portrait rotate hint on non-touch devices", () => {
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 0, configurable: true });
+    const mm = vi.fn().mockImplementation((q: string) => ({
+      matches: q.includes("portrait"),
+      media: q,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    vi.stubGlobal("matchMedia", mm);
+
+    const emulatorMock = {
+      state: "running",
+      activeTier: "medium",
+      currentSystem: { id: "psp", shortName: "PSP", name: "PlayStation Portable" },
+      setFPSMonitorEnabled: vi.fn(),
+      prefetchCore: vi.fn(),
+      quickSave: vi.fn(),
+      quickLoad: vi.fn(),
+      reset: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({
+      ...makeOpts(makeSettings()),
+      emulator: emulatorMock,
+      getCurrentGameName: () => "Test Game",
+      getCurrentSystemId: () => "psp",
+    });
+
+    window.dispatchEvent(new Event("resize"));
+    const hint = document.getElementById("rotate-hint");
+    expect(hint?.classList.contains("rotate-hint--visible")).toBe(false);
   });
 
   it("F1 opens the same reset confirmation as the toolbar (does not reset immediately)", async () => {
@@ -5517,6 +5560,32 @@ describe("buildDisplayTab — Display settings tab", () => {
     const panel = document.getElementById("tab-panel-display")!;
     const headings = Array.from(panel.querySelectorAll("h4")).map(h => h.textContent);
     expect(headings).toContain("In-Game Overlays");
+  });
+
+  it("Mobile section exposes orientation lock toggle", () => {
+    openDisplayTab(makeSettings({ orientationLock: true }));
+    const panel = document.getElementById("tab-panel-display")!;
+    const headings = Array.from(panel.querySelectorAll("h4")).map(h => h.textContent);
+    expect(headings).toContain("Mobile");
+    expect(panel.textContent).toContain("Lock to landscape while playing");
+
+    const toggles = Array.from(panel.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
+    const orientationToggle = toggles.find((el) =>
+      el.closest(".toggle-row")?.textContent?.includes("Lock to landscape"),
+    );
+    expect(orientationToggle?.checked).toBe(true);
+  });
+
+  it("toggling orientation lock calls onSettingsChange", () => {
+    const onSettingsChange = vi.fn();
+    openDisplayTabWithCallback(makeSettings({ orientationLock: true }), onSettingsChange);
+    const panel = document.getElementById("tab-panel-display")!;
+    const orientationToggle = Array.from(panel.querySelectorAll<HTMLInputElement>("input[type=checkbox]"))
+      .find((el) => el.closest(".toggle-row")?.textContent?.includes("Lock to landscape"));
+    expect(orientationToggle).toBeTruthy();
+    orientationToggle!.checked = false;
+    orientationToggle!.dispatchEvent(new Event("change"));
+    expect(onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ orientationLock: false }));
   });
 
   it("FPS counter toggle is unchecked when showFPS is false", () => {

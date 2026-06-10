@@ -363,6 +363,7 @@ body.is-playing .app-footer {
 
 body.is-playing .app-main {
   height: 100vh;
+  height: 100dvh;
   /* Keep style/layout recalculations from the library subtree from traversing into the game lane. */
   isolation: isolate;
   contain: layout;
@@ -1413,12 +1414,8 @@ html.touch-ui {
   --touch-min: 44px;
 }
 
-/* Show the FAB (hidden by default on pointer:fine devices) */
-html.touch-ui .fab {
-  display: flex;
-}
-
-html.touch-ui .fab--mobile {
+/* Show the mobile FAB (hidden by default on pointer:fine devices via @media below) */
+html.touch-ui .mobile-fab:not(.mobile-fab--hidden) {
   display: flex;
 }
 
@@ -1498,6 +1495,27 @@ html.touch-ui .in-game-controls {
 /* Smooth scroll behavior for touch panning */
 html.touch-ui #landing {
   -webkit-overflow-scrolling: touch;
+}
+
+html.touch-ui {
+  touch-action: manipulation;
+}
+
+html.touch-ui body.is-playing {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+body.is-playing #ejs-container.visible {
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 
@@ -1855,13 +1873,15 @@ body:has(#ejs-container.visible) .app-header {
   position: fixed;
   bottom: max(100px, calc(88px + env(safe-area-inset-bottom, 0px)));
   right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
   background: var(--c-accent);
   color: #fff;
   border: none;
   border-radius: 50%;
-  font-size: 2rem;
+  font-size: 1.65rem;
   box-shadow: 0 20px 40px var(--c-accent-glow);
   cursor: pointer;
   z-index: 1000;

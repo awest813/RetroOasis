@@ -93,6 +93,23 @@ export function buildDisplayTab(
 
   container.append(overlaySection, audioSection);
 
+  const mobileSection = make("div", { class: "settings-section" });
+  mobileSection.appendChild(make("h4", { class: "settings-section__title" }, "Mobile"));
+  mobileSection.appendChild(make("p", { class: "settings-help" },
+    deviceCaps.isMobile
+      ? "Tuned for phones and tablets. The on-screen gamepad appears automatically while you play."
+      : "Options for touch-first devices. The on-screen gamepad appears automatically on phones and tablets.",
+  ));
+
+  mobileSection.appendChild(buildToggleRow(
+    "Lock to landscape while playing",
+    "Keeps the screen horizontal during gameplay. Some browsers block orientation lock — turn this off if games stay stuck sideways.",
+    settings.orientationLock,
+    (v) => onSettingsChange({ orientationLock: v }),
+  ));
+
+  container.appendChild(mobileSection);
+
   // UI Scale section
   const uiScaleSection = make("div", { class: "settings-section" });
   uiScaleSection.appendChild(make("h4", { class: "settings-section__title" }, "UI Scale"));

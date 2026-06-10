@@ -135,6 +135,10 @@ import {
   setErrorBannerSettingsOpener,
 } from "./ui/toasts.js";
 import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
+import {
+  shouldApplyTouchUi,
+  shouldShowRotateHint,
+} from "./ui/mobile.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -160,37 +164,6 @@ let _virtualGrid: VirtualGrid<GameMetadata> | null = null;
 // the composed provider chain.
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
-
-/** True when the primary input is a touchscreen (not a mouse). */
-function isTouchDevice(): boolean {
-  if ("ontouchstart" in window || navigator.maxTouchPoints > 0) return true;
-  // Chromebooks in tablet mode expose a coarse pointer even though the
-  // screen supports both touch and stylus.
-  try {
-    return window.matchMedia("(pointer: coarse)").matches;
-  } catch {
-    return false;
-  }
-}
-
-/** True when the app is running in installed PWA mode (standalone or WCO). */
-function isPwaDisplayMode(): boolean {
-  try {
-    return window.matchMedia("(display-mode: standalone), (display-mode: window-controls-overlay)").matches;
-  } catch {
-    return false;
-  }
-}
-
-/** True when the viewport is currently in portrait orientation. */
-function isPortrait(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.matchMedia("(orientation: portrait)").matches;
-  } catch {
-    return window.innerHeight > window.innerWidth;
-  }
-}
 
 // ── Debug Console State & Logic ──────────────────────────────────────────────
 const _debugConsole = createDebugConsoleController({ onToggleDevOverlay: () => toggleDevOverlay() });
@@ -247,10 +220,8 @@ export function buildDOM(app: HTMLElement): void {
   // Build a concise format hint: first extension of the first 8 systems + archive note
   const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" · ");
   const formatHint = `${hintExts} + more · ZIP auto-extracted · 7Z/RAR/TAR/GZ supported`;
-  const touchUI = isTouchDevice();
-  const pwaMode = isPwaDisplayMode();
-
-  if (touchUI || pwaMode) {
+  const touchUI = shouldApplyTouchUi();
+  if (touchUI) {
     document.documentElement.classList.add("touch-ui");
   }
 
@@ -1208,12 +1179,28 @@ export function initUI(opts: UIOptions): void {
   const rotateHintEl = document.getElementById("rotate-hint");
   const updateRotateHint = () => {
     if (!rotateHintEl) return;
-    const inGame   = emulator.state === "running" || emulator.state === "paused";
-    const portrait = isPortrait();
-    rotateHintEl.classList.toggle("rotate-hint--visible", inGame && portrait);
+    const inGame = emulator.state === "running" || emulator.state === "paused";
+    rotateHintEl.classList.toggle("rotate-hint--visible", shouldShowRotateHint(inGame));
   };
   bindEvent(window, "orientationchange", updateRotateHint);
   bindEvent(window, "resize", updateRotateHint);
+
+  const getEmuJsContainerEl = (): HTMLElement | null =>
+    document.getElementById(EMULATOR_JS_CONTAINER_ID);
+
+  // Mobile browsers resize the visual viewport when the software keyboard opens.
+  const visualViewport = window.visualViewport;
+  if (visualViewport) {
+    const onVisualViewportChange = () => {
+      if (!document.body.classList.contains("is-playing")) return;
+      syncEmulatorViewportLayout(
+        getEmuJsContainerEl(),
+        getCurrentSystemId?.() ?? emulator.currentSystem?.id ?? null,
+      );
+    };
+    bindEvent(visualViewport, "resize", onVisualViewportChange);
+    bindEvent(visualViewport, "scroll", onVisualViewportChange);
+  }
 
   // ── FPS overlay wiring ────────────────────────────────────────────────────
   emulator.setFPSMonitorEnabled(settings.showFPS);
@@ -1228,9 +1215,6 @@ export function initUI(opts: UIOptions): void {
       updateDebugConsoleLog(emulator);
     }
   };
-
-  const getEmuJsContainerEl = (): HTMLElement | null =>
-    document.getElementById(EMULATOR_JS_CONTAINER_ID);
 
   /** Letterbox viewport for the current system. */
   const syncViewportForCurrentGame = (sid: string | null) => {
