@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, cpSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
+import { visualizer } from "rollup-plugin-visualizer";
 
 function copyEmulatorDataPlugin(): Plugin {
   return {
@@ -148,7 +149,21 @@ function dev404Plugin(): Plugin {
 export default defineConfig({
   // Serve from repo root; Vite will pick up index.html automatically.
   root: ".",
-  plugins: [dev404Plugin(), copyEmulatorDataPlugin(), pwaPrecacheManifestPlugin()],
+  plugins: [
+    dev404Plugin(),
+    copyEmulatorDataPlugin(),
+    pwaPrecacheManifestPlugin(),
+    ...(process.env.ANALYZE
+      ? [
+          visualizer({
+            filename: "dist/bundle-stats.html",
+            gzipSize: true,
+            brotliSize: true,
+            open: false,
+          }),
+        ]
+      : []),
+  ],
 
   // Base public path for GitHub Pages deployment (https://<user>.github.io/WebPPSSPP/).
   // Has no effect during local `vite dev` because the dev server serves from /.

@@ -121,6 +121,26 @@ addCheck('Emulator core runtime wiring', () => {
   return { status: PASS, message: 'Bundled runtime can pass and load external Flycast core bundles.' };
 });
 
+addCheck('Performance audit tooling', () => {
+  const required = [
+    'perf-budget.json',
+    'tools/perf-audit/check-budget.js',
+    'tools/perf-audit/collect-baseline.js',
+    'docs/PERF_AUDIT.md',
+  ];
+  const missing = required.filter((file) => !existsSync(file));
+  if (missing.length) {
+    return {
+      status: FAIL,
+      message: `Missing performance audit file(s): ${missing.join(', ')}.`,
+    };
+  }
+  return {
+    status: PASS,
+    message: 'perf-budget.json and perf-audit scripts are present (run `npm run perf:audit` after build).',
+  };
+});
+
 addCheck('4.3-pre core routing', () => {
   const coreCdnPath = 'src/coreCdn.ts';
   const wrapperPath = 'src/emulator.ts';

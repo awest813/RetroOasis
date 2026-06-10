@@ -311,7 +311,7 @@ html[data-network="offline"] .app-header::after {
 }
 
 .brand-long {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.35rem, 1.05rem + 1vw, 1.7rem);
   letter-spacing: 0;
@@ -491,7 +491,7 @@ body.is-playing #landing.hidden {
 }
 
 .library-title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.75rem, 1.35rem + 1.1vw, 2rem);
   margin: 0;
@@ -725,7 +725,7 @@ body.is-playing #landing.hidden {
 }
 
 .library-hero__title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(2.6rem, 6vw, 4.2rem);
   font-weight: 900;
   line-height: 1;
@@ -799,7 +799,7 @@ body.is-playing #landing.hidden {
   pointer-events: none;
 }
 .game-card:hover .game-card__info { transform: translateY(0); }
-.game-card__name { font-family: 'Exo 2', sans-serif; font-weight: 900; font-size: 1.3rem; color: #fff; }
+.game-card__name { font-family: var(--font-display); font-weight: 900; font-size: 1.3rem; color: #fff; }
 
 .game-card__patch,
 .game-card__art-btn,
@@ -1121,7 +1121,7 @@ body.is-playing #landing.hidden {
   gap: 8px 14px;
   min-width: 0;
 }
-.footer-center { justify-content: center; font-weight: 900; font-size: clamp(1.1rem, 0.9rem + 1vw, 1.4rem); font-family: 'Exo 2', sans-serif; }
+.footer-center { justify-content: center; font-weight: 900; font-size: clamp(1.1rem, 0.9rem + 1vw, 1.4rem); font-family: var(--font-display); }
 .footer-right { justify-content: flex-end; gap: clamp(16px, 2vw, 24px); font-weight: 700; font-size: 0.95rem; color: var(--c-text-dim); }
 .footer-battery {
   color: var(--c-status-running);
@@ -1680,7 +1680,7 @@ html.touch-ui #landing {
   animation: slide-in-right 0.4s var(--spring);
 }
 
-.fps-val { color: var(--c-accent); font-size: 1.1rem; font-family: 'Exo 2', sans-serif; }
+.fps-val { color: var(--c-accent); font-size: 1.1rem; font-family: var(--font-display); }
 .fps-label { font-size: 0.7rem; opacity: 0.6; text-transform: uppercase; margin-left: 2px; }
 
 .dev-overlay {
@@ -1695,7 +1695,7 @@ html.touch-ui #landing {
   border-radius: 20px;
   padding: 24px;
   z-index: 1000;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   box-shadow: var(--shadow-lg);
 }
 
@@ -1980,7 +1980,7 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 .game-card__fallback-name {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.2rem;
   line-height: 1.2;
@@ -2525,7 +2525,7 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 #loading-message {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.8rem;
   color: #fff;
@@ -2941,7 +2941,7 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 .welcome-hero__title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(2.2rem, 5vw, 3.5rem);
   color: #fff;
@@ -2973,7 +2973,7 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 .onboarding__card h3 {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 2rem;
   margin-bottom: 16px;
@@ -3506,7 +3506,7 @@ body:has(#ejs-container.visible) .app-header {
 
 /* Individual Setting Items */
 .settings-section-title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.8rem;
   margin-bottom: 32px;
@@ -3559,7 +3559,7 @@ body:has(#ejs-container.visible) .app-header {
 }
 
 .settings-section__title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
   color: #fff;
@@ -3848,7 +3848,7 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
 }
 
 .enp-title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
   color: #fff;
@@ -3962,7 +3962,7 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
 }
 
 .enp-invite-code-large {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 4rem;
   color: #fff;
@@ -4084,7 +4084,7 @@ body.using-gamepad .game-card:focus {
 }
 
 .dashboard-title {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 2.2rem;
   margin-bottom: 8px;
@@ -9020,7 +9020,7 @@ body {
 }
 
 .conflict-card__header {
-  font-family: 'Exo 2', sans-serif;
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: 1.15rem;
   color: #fff;

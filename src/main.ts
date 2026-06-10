@@ -64,7 +64,6 @@ import {
 // Initialize Chrome-specific performance optimizations early
 import { optimizeBrowserPerformance } from "./performance.js";
 optimizeBrowserPerformance();
-import { showConflictDialog } from "./ui/modals.js";
 import { requestPersistentStorage, installStoragePressureListener, startStorageMonitoring, checkStorageQuota, getStorageWarning } from "./storage.js";
 
 /**
@@ -469,6 +468,7 @@ async function main(): Promise<void> {
   const saveLibrary   = new SaveStateLibrary();
   const cloudSaveManager = getCloudSaveManager();
   cloudSaveManager.onConflict = async (conflict) => {
+    const { showConflictDialog } = await import("./ui/modals.js");
     return showConflictDialog(conflict);
   };
   const saveService   = new SaveGameService({

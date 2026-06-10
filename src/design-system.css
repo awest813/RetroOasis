@@ -135,9 +135,9 @@
   --glass-bg:     rgba(10, 10, 13, 0.75);
   --glass-border: rgba(255, 255, 255, 0.08);
 
-  /* ── Typography — Inter everywhere for a clean modern OS look ── */
-  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", "Trebuchet MS", sans-serif;
+  /* ── Typography — system UI stack (zero network font cost) ── */
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-sans:    system-ui, -apple-system, "Segoe UI", "Trebuchet MS", sans-serif;
   --font-mono:    "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
   font-family: var(--font-sans);
   font-size: calc(clamp(13.5px, 0.14vw + 12.8px, 14.5px) * var(--ui-scale));
