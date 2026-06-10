@@ -41,7 +41,7 @@ RetroOasis's own JavaScript code produces **near-zero per-frame heap allocations
 | EmulatorJS CDN scripts | First launch | Never (cached in browser) |
 | IndexedDB connection | App startup | App unload |
 | WebGPU device + buffers | First WebGPU init | `PSPEmulator.stop()` |
-| Touch control buttons | `TouchControlsOverlay` constructor | `overlay.destroy()` |
+| EmulatorJS virtual gamepad DOM | First touch play session | EmulatorJS teardown on `PSPEmulator.stop()` |
 
 ---
 

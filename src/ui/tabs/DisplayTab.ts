@@ -139,7 +139,7 @@ export function buildDisplayTab(
 
   container.appendChild(uiScaleSection);
 
-  // WebGPU section — appended last so Overlays and Mobile always appear first
+  // WebGPU section last when available — overlay and mobile settings stay near the top.
   if (deviceCaps.webgpuAvailable) {
     const gpuSection = make("div", { class: "settings-section" });
     gpuSection.appendChild(make("h4", {

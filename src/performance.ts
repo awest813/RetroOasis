@@ -2225,10 +2225,8 @@ export const UIDirtyFlags = {
   HEADER_STATUS:   0b00001000,
   /** Settings panel content. */
   SETTINGS:        0b00010000,
-  /** Touch controls overlay layout. */
-  TOUCH_CONTROLS:  0b00100000,
   /** All regions. */
-  ALL:             0b00111111,
+  ALL:             0b00011111,
 } as const;
 
 /**

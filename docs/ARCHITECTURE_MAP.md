@@ -42,7 +42,7 @@ The EmulatorJS render loop is opaque — it runs inside the CDN-loaded script. R
 | File | Role |
 |---|---|
 | `src/ui.ts` | DOM build, settings panels, library rendering, FPS overlay, **F3 dev overlay** |
-| `src/touchControls.ts` | Virtual gamepad overlay (drag-to-reposition, portrait/landscape layouts) |
+| `src/ui/mobile.ts` | Touch / PWA detection, portrait rotate-hint helpers |
 | `src/style.css` | Full stylesheet (CSS custom properties, responsive, dark theme) |
 
 ### UI Regions and Dirty Flags
@@ -56,7 +56,6 @@ The `UIDirtyTracker` in `performance.ts` tracks which regions need re-rendering:
 | `DEV_OVERLAY` | Developer debug overlay (top-right, F3 toggle) |
 | `HEADER_STATUS` | Status dot and tier badge in the app header |
 | `SETTINGS` | Settings panel content |
-| `TOUCH_CONTROLS` | Touch gamepad overlay layout |
 
 ### Known Architecture Notes
 
@@ -71,8 +70,7 @@ The `UIDirtyTracker` in `performance.ts` tracks which regions need re-rendering:
 | File / Location | Role |
 |---|---|
 | `src/ui.ts` — `initUI()` | Global keyboard shortcuts (F1/F3/F5/F7/F9/Esc) via capture-phase listener |
-| `src/touchControls.ts` | Touch event routing to the virtual gamepad |
-| EmulatorJS (CDN) | Game controller input (keyboard, gamepad API) |
+| EmulatorJS (CDN) | Game controller input (keyboard, gamepad API, built-in virtual gamepad on mobile) |
 
 ### Input Routing
 
@@ -82,7 +80,7 @@ KeyboardEvent
         └─► (if not consumed) EmulatorJS keydown handler — game controls
 
 TouchEvent
-  └─► TouchControlsOverlay — synthetic keyboard events to EmulatorJS
+  └─► EmulatorJS virtual gamepad (auto-enabled on touch devices)
 
 GamepadEvent
   └─► EmulatorJS (handled internally)
