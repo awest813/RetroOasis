@@ -143,16 +143,17 @@ Before running any tests:
 
 ---
 
-## 9. Touch Controls (Mobile / Responsive)
+## 9. Mobile / Touch
 
 | # | Step | Expected |
 |---|------|----------|
-| 9.1 | Resize browser to mobile width (375 px) or use DevTools device emulation | Touch controls toggle becomes available in Settings |
-| 9.2 | Enable Touch Controls in Settings | 12 virtual buttons render over the game canvas |
-| 9.3 | Drag a button to a new position | Button snaps to new position; layout persists after page reload |
-| 9.4 | Rotate device or switch DevTools orientation | Layout rebuilds for the new orientation; portrait and landscape use separate stored positions |
-| 9.5 | Tap and hold D-pad/face buttons during gameplay | Inputs register in-game with visible pressed-state feedback |
-| 9.6 | Disable Touch Controls in Settings | Overlay buttons disappear; game canvas returns to full screen |
+| 9.1 | Resize browser to mobile width (375 px) | Responsive layout stacks (toolbar, grid); header/footer adapt at ≤768px |
+| 9.1b | Enable DevTools touch emulation or use a real phone/tablet | `touch-ui` class applies; larger tap targets; FAB appears (hidden on `pointer: fine`) |
+| 9.2 | Launch a game on a touch device or emulated coarse pointer | EmulatorJS virtual gamepad appears; canvas letterboxes to the system aspect ratio |
+| 9.3 | Play in portrait on a touch device | Rotate hint appears; landscape play is recommended |
+| 9.4 | Settings → Display → Mobile → disable orientation lock | Game no longer forces landscape lock on launch (browser may still restrict lock) |
+| 9.5 | Tap the mobile FAB on the library screen | File picker opens for ROM import |
+| 9.6 | Return to library after playing | FAB reappears; header/footer restore |
 
 ---
 

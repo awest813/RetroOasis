@@ -90,7 +90,7 @@ Each section follows the pattern:
 **Fix**
 - Click directly on the game screen and try again.
 - For gamepads: press any button on the controller to activate it, then reload the game.
-- Touch controls: Settings → Controls → enable "Touch controls on touch devices".
+- Touch controls: on phones/tablets, EmulatorJS shows a built-in on-screen gamepad automatically. If inputs still fail, tap the game canvas to focus it, then reload. Orientation lock: Settings → Display → Mobile.
 
 ---
 

@@ -6,6 +6,7 @@ import { resolveTier } from "../../performance.js";
 import { POST_PROCESS_EFFECT_UI_ORDER, shouldDeferWebGpuPostFor3DSession } from "../../webgpuPostProcess.js";
 import type { PostProcessEffect } from "../../webgpuPostProcess.js";
 import { showFPSOverlay } from "../../modules/DevOverlay.js";
+import { shouldApplyTouchUi } from "../mobile.js";
 
 export function buildDisplayTab(
   container:        HTMLElement,
@@ -93,6 +94,24 @@ export function buildDisplayTab(
 
   container.append(overlaySection, audioSection);
 
+  const mobileSection = make("div", { class: "settings-section" });
+  mobileSection.appendChild(make("h4", { class: "settings-section__title" }, "Mobile"));
+  const touchFirst = shouldApplyTouchUi();
+  mobileSection.appendChild(make("p", { class: "settings-help" },
+    touchFirst
+      ? "Touch-friendly layout with an on-screen gamepad from the emulator while you play."
+      : "For phones, tablets, and touch laptops. The on-screen gamepad appears automatically on touch-first devices.",
+  ));
+
+  mobileSection.appendChild(buildToggleRow(
+    "Lock to landscape while playing",
+    "Keeps the screen horizontal during gameplay. Some browsers block orientation lock — turn this off if games stay stuck sideways.",
+    settings.orientationLock,
+    (v) => onSettingsChange({ orientationLock: v }),
+  ));
+
+  container.appendChild(mobileSection);
+
   // UI Scale section
   const uiScaleSection = make("div", { class: "settings-section" });
   uiScaleSection.appendChild(make("h4", { class: "settings-section__title" }, "UI Scale"));
@@ -122,7 +141,7 @@ export function buildDisplayTab(
 
   container.appendChild(uiScaleSection);
 
-  // WebGPU section — appended last so Overlays and Mobile always appear first
+  // WebGPU section last when available — overlay and mobile settings stay near the top.
   if (deviceCaps.webgpuAvailable) {
     const gpuSection = make("div", { class: "settings-section" });
     gpuSection.appendChild(make("h4", {

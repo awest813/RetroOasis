@@ -93,7 +93,7 @@ This is the single source of truth for shipped work, active improvements, and fu
 
 | Work | Status | Notes |
 | --- | --- | --- |
-| Touch controls split into preferences, input, layouts, builders, binders, and overlay orchestration | Done | Existing compatibility shims should remain until all call sites are stable. |
+| Custom RetroOasis touch overlay (repositionable buttons, layout persistence) | Planned | Playable touch input today uses EmulatorJS built-in virtual gamepad; `src/ui/mobile.ts` handles shell-level mobile UX. |
 | Visual/manual mobile pass | Planned | Verify edit mode, orientation changes, D-pad diagonals, analog stick release, haptics, and layout reset. |
 | Rumble support | Planned | Use `GamepadHapticActuator` where available. |
 | Analog calibration | Planned | Needed for inconsistent controllers and handheld browsers. |

@@ -43,6 +43,7 @@ import {
   resolveTier,
 } from "./performance.js";
 import { LEGACY_APP_GLOBALS, LEGACY_EVENTS, LEGACY_STORAGE_KEYS } from "./legacy.js";
+import { isPwaDisplayMode } from "./ui/mobile.js";
 import { buildDOM, initUI,
           transitionToLibrary, renderLibrary, openSettingsPanel,
           buildLandingControls, showTierDowngradePrompt,
@@ -449,14 +450,7 @@ async function main(): Promise<void> {
   updateUILite();
 
   /** Installed PWA / Chrome OS window-controls-overlay — hook for CSS if needed */
-  try {
-    const pwaChrome =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.matchMedia("(display-mode: window-controls-overlay)").matches;
-    document.documentElement.classList.toggle("pwa-standalone", pwaChrome);
-  } catch {
-    /* ignore */
-  }
+  document.documentElement.classList.toggle("pwa-standalone", isPwaDisplayMode());
 
   // 4. Instantiate services
   const emulator      = new PSPEmulator("ejs-player");
