@@ -2558,11 +2558,27 @@ body:has(#ejs-container.visible) .app-header {
 
 /* ── Info toasts (save/load, confirmations) ── */
 
-#info-toast.info-toast {
+.toast-stack {
   position: fixed;
   left: 50%;
   bottom: var(--toast-bottom);
   z-index: 2100;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  width: min(560px, calc(100vw - 28px));
+  transform: translateX(-50%);
+}
+
+#info-toast.info-toast,
+.toast-stack .info-toast {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -2581,7 +2597,7 @@ body:has(#ejs-container.visible) .app-header {
   line-height: 1.4;
   opacity: 0;
   visibility: hidden;
-  transform: translate(-50%, 14px);
+  transform: translateY(14px);
   pointer-events: none;
   transition:
     opacity 0.35s var(--ease-premium-out),
@@ -2589,11 +2605,27 @@ body:has(#ejs-container.visible) .app-header {
     visibility 0.35s;
 }
 
-#info-toast.info-toast.visible {
+#info-toast.info-toast.visible,
+.toast-stack .info-toast.visible {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
+}
+
+html.launch-in-progress .game-card,
+html.launch-in-progress .library-hero__actions .btn--hero,
+html.launch-in-progress .highlights-panel__play {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+html.launch-in-progress .game-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .info-toast__icon {

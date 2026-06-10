@@ -33,10 +33,21 @@ export function setLoadingMessage(msg: string): void {
   if (e) e.textContent = msg;
 }
 
-export function setLoadingSubtitle(msg: string): void {
+export function setLoadingSubtitle(msg: string, opts?: { append?: boolean }): void {
   const e = document.getElementById("loading-subtitle");
   if (!e) return;
-  e.textContent = msg;
-  if (msg.trim()) e.removeAttribute("hidden");
+  const trimmed = msg.trim();
+  if (opts?.append && trimmed) {
+    const existing = e.textContent?.trim() ?? "";
+    if (existing && !existing.includes(trimmed)) {
+      e.textContent = `${existing} · ${trimmed}`;
+    } else if (!existing) {
+      e.textContent = trimmed;
+    }
+  } else {
+    e.textContent = msg;
+  }
+  const visible = (e.textContent?.trim() ?? "").length > 0;
+  if (visible) e.removeAttribute("hidden");
   else e.setAttribute("hidden", "true");
 }

@@ -135,6 +135,7 @@ import {
   setErrorBannerSettingsOpener,
 } from "./ui/toasts.js";
 import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
+import { launchGameFromLibrary } from "./ui/launchGame.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -1248,7 +1249,7 @@ export function initUI(opts: UIOptions): void {
     const stabilityNotice = emulator.currentSystem?.experimental
       ? emulator.currentSystem.stabilityNotice ?? "Experimental support may be unstable."
       : "";
-    setLoadingSubtitle(stabilityNotice);
+    if (stabilityNotice) setLoadingSubtitle(stabilityNotice, { append: true });
   };
   emulator.onError       = (msg)   => { hideLoadingOverlay(); showError(msg); };
   emulator.onGameStart = () => {
@@ -1831,53 +1832,25 @@ export async function renderLibrary(
           const blob = await library.getCoverArt(gameId);
           return blob ? URL.createObjectURL(blob) : null;
         },
-        onPlayFavorite: (game) => { void (async () => {
-          showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
-          setLoadingSubtitle("Getting ready to play");
-          try {
-            let blob = await library.getGameBlob(game.id);
-            if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
-              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-              blob = await fetchFromCloud(game, settings, library);
-            }
-            if (!blob) {
-              hideLoadingOverlay();
-              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-              return;
-            }
-            await library.markPlayed(game.id);
-            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
-          } catch (err) {
-            hideLoadingOverlay();
-            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        })(); },
-        onPlaySession: (game, _session) => { void (async () => {
+        onPlayFavorite: (game) => {
+          void launchGameFromLibrary({
+            game,
+            library,
+            settings,
+            onFetchFromCloud: fetchFromCloud,
+            onLaunchGame,
+          });
+        },
+        onPlaySession: (game, _session) => {
           if (!game) return;
-          showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
-          setLoadingSubtitle("Getting ready to play");
-          try {
-            let blob = await library.getGameBlob(game.id);
-            if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
-              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-              blob = await fetchFromCloud(game, settings, library);
-            }
-            if (!blob) {
-              hideLoadingOverlay();
-              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-              return;
-            }
-            await library.markPlayed(game.id);
-            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
-          } catch (err) {
-            hideLoadingOverlay();
-            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        })(); },
+          void launchGameFromLibrary({
+            game,
+            library,
+            settings,
+            onFetchFromCloud: fetchFromCloud,
+            onLaunchGame,
+          });
+        },
       });
 
       highlightsEl.innerHTML = "";

@@ -23,6 +23,7 @@ import { diagInfo } from "./diagnosticLog.js";
 import { registerCOIServiceWorker } from "./coiBootstrap.js";
 import { PSPEmulator, type AutoSaveTriggerEvent, type EJSSaveStateEvent } from "./emulator.js";
 import { probeEmulatorCoreCdn } from "./coreCdn.js";
+import { isLaunchInProgress, setLaunchInProgress } from "./ui/launchState.js";
 import { scheduleAutoRestoreOnGameStart } from "./autoRestore.js";
 import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
@@ -665,18 +666,19 @@ async function main(): Promise<void> {
     }
   });
 
-  // 5. Wire launch handler with warmup trigger
-  let launchLock = false;
-
   const onLaunchGame = async (
     file: File,
     systemId: string,
     gameId?: string,
     tierOverride?: PerformanceTier
   ) => {
-    if (launchLock) return;
-    launchLock = true;
+    if (isLaunchInProgress()) {
+      showInfoToast("Already starting a game…", "info");
+      return;
+    }
+    setLaunchInProgress(true);
 
+    try {
     // Trigger warmups if they haven't run yet
     triggerWarmups();
 
@@ -719,11 +721,12 @@ async function main(): Promise<void> {
       gameCompatibilityDb.lookup(gameName);
 
     if (compatibilityEntry?.knownIssues?.length) {
-      showInfoToast(`Compatibility note: ${compatibilityEntry.knownIssues[0]}`);
+      showInfoToast(`Compatibility note: ${compatibilityEntry.knownIssues[0]}`, "warning", { queue: true });
     }
 
     if (gameId && cloudSaveManager.isConnected()) {
-      setLoadingSubtitle("Checking local and synced saved progress before launch…");
+      setLoadingMessage("Syncing saved progress…");
+      setLoadingSubtitle("Checking local and cloud copies before launch…");
       try {
         const result = await cloudSaveManager.syncGame(gameId, saveLibrary);
         if (result.errors > 0) {
@@ -731,12 +734,12 @@ async function main(): Promise<void> {
             `[${APP_NAME}] Save-state sync completed with slot errors before launch.`,
             result,
           );
-          showInfoToast(`Save sync had ${result.errors} error(s) — open Saved Progress to retry.`);
+          showInfoToast(`Save sync had ${result.errors} error(s) — open Saved Progress to retry.`, "warning", { queue: true });
         } else if (result.pulled > 0 || result.pushed > 0) {
           const parts: string[] = [];
           if (result.pulled > 0) parts.push(`${result.pulled} restored from sync`);
           if (result.pushed > 0) parts.push(`${result.pushed} mirrored to sync`);
-          showInfoToast(`Saved progress updated · ${parts.join(" · ")}`);
+          showInfoToast(`Saved progress updated · ${parts.join(" · ")}`, "success", { queue: true });
         }
       } catch (error) {
         console.warn(
@@ -744,6 +747,7 @@ async function main(): Promise<void> {
           error,
         );
       }
+      setLoadingMessage(`Starting ${gameName}…`);
       setLoadingSubtitle("Preparing the emulator and loading your game…");
     }
 
@@ -824,10 +828,13 @@ async function main(): Promise<void> {
       if (!biosAsset || isOpenBios) {
         coreSettingsOverride.retroarch_core = "pcsx_rearmed";
         if (!biosAsset) {
-          showInfoToast("No PS1 BIOS found — using compatibility core. Upload a BIOS in Settings → BIOS for better accuracy.");
+          showInfoToast("No PS1 BIOS found — using compatibility core. Upload a BIOS in Settings → BIOS for better accuracy.", "info", { queue: true });
         }
       }
     }
+
+    setLoadingMessage(`Loading ${gameName}…`);
+    setLoadingSubtitle("Downloading core and starting the emulator…");
 
     if (systemId === "segaDC") {
       if (biosAsset) {
@@ -921,8 +928,9 @@ async function main(): Promise<void> {
         orientation.unlock?.();
       } catch { /* orientation lock not supported */ }
     }
-
-    launchLock = false;
+    } finally {
+      setLaunchInProgress(false);
+    }
   };
 
 

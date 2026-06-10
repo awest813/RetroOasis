@@ -24,6 +24,7 @@ import {
   getApiKeyStore,
 } from "../coverArtRegistry.js";
 import { showInfoToast, showError } from "../toasts.js";
+import { launchGameFromLibrary } from "../launchGame.js";
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -41,7 +42,6 @@ import {
   type CoverArtPickResult,
 } from "../modals.js";
 import { createElement as make } from "../dom.js";
-import { toLaunchFile } from "../gameImportHelpers.js";
 import type { RAProgress } from "../../types/metadata.js";
 
 const _raProgressCache = new Map<string, { data: RAProgress; ts: number }>();
@@ -493,29 +493,14 @@ export function buildGameCard(
   card.addEventListener("mouseenter", triggerPreload);
   card.addEventListener("focusin",    triggerPreload);
 
-  const launch = async () => {
-    showLoadingOverlay();
-    setLoadingMessage(`Starting ${game.name}\u2026`);
-    setLoadingSubtitle("Getting ready to play");
-    try {
-      let blob = await library.getGameBlob(game.id);
-      if (!blob && game.cloudId) {
-        setLoadingMessage("Streaming from cloud\u2026");
-        setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-        blob = await onFetchFromCloud(game, settings, library);
-      }
-      if (!blob) {
-        hideLoadingOverlay();
-        showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-        return;
-      }
-      const file = toLaunchFile(blob, game.fileName);
-      await library.markPlayed(game.id);
-      await onLaunchGame(file, game.systemId, game.id);
-    } catch (err) {
-      hideLoadingOverlay();
-      showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-    }
+  const launch = () => {
+    void launchGameFromLibrary({
+      game,
+      library,
+      settings,
+      onFetchFromCloud,
+      onLaunchGame,
+    });
   };
 
   const updateSidebar = () => {
