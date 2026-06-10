@@ -12,9 +12,46 @@
 export interface PrepareLaunchFileOptions {
   /**
    * Eagerly read the blob into a fresh in-memory `File`.
-   * Required on iOS WebKit where deferred reads from picker/IDB handles can stall.
+   * Required on WebKit where deferred reads from picker/IDB handles can fail.
    */
   eagerRead?: boolean;
+}
+
+/** WebKit throws this when an IndexedDB-backed blob handle is stale. */
+function isStaleWebKitBlobError(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const name = "name" in err ? String((err as { name: unknown }).name) : "";
+    if (name === "NotFoundError") return true;
+    const message = "message" in err ? String((err as { message: unknown }).message) : "";
+    if (/object can not be found/i.test(message)) return true;
+  }
+  return false;
+}
+
+function readBlobViaFileReader(
+  blob: Blob,
+  read: (reader: FileReader) => void,
+): Promise<ArrayBuffer | string> {
+  if (typeof FileReader === "undefined") {
+    return Promise.reject(new Error("Could not read file."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read file."));
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer || typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Could not read file."));
+    };
+    try {
+      read(reader);
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error(String(err)));
+    }
+  });
 }
 
 export function makeFileFromBlob(
@@ -64,21 +101,19 @@ export async function prepareLaunchFile(
 
 export function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   if (typeof blob.arrayBuffer === "function") {
-    return blob.arrayBuffer();
+    return blob.arrayBuffer().catch((err: unknown) => {
+      if (!isStaleWebKitBlobError(err)) throw err;
+      return readBlobViaFileReader(blob, (reader) => reader.readAsArrayBuffer(blob)).then((result) => {
+        if (result instanceof ArrayBuffer) return result;
+        throw new Error("Could not read file as bytes.");
+      });
+    });
   }
 
   if (typeof FileReader !== "undefined") {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error ?? new Error("Could not read file."));
-      reader.onload = () => {
-        if (reader.result instanceof ArrayBuffer) {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error("Could not read file as bytes."));
-      };
-      reader.readAsArrayBuffer(blob);
+    return readBlobViaFileReader(blob, (reader) => reader.readAsArrayBuffer(blob)).then((result) => {
+      if (result instanceof ArrayBuffer) return result;
+      throw new Error("Could not read file as bytes.");
     });
   }
 
@@ -87,21 +122,19 @@ export function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 export function readBlobAsText(blob: Blob): Promise<string> {
   if (typeof blob.text === "function") {
-    return blob.text();
+    return blob.text().catch((err: unknown) => {
+      if (!isStaleWebKitBlobError(err)) throw err;
+      return readBlobViaFileReader(blob, (reader) => reader.readAsText(blob)).then((result) => {
+        if (typeof result === "string") return result;
+        throw new Error("Could not read file as text.");
+      });
+    });
   }
 
   if (typeof FileReader !== "undefined") {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error ?? new Error("Could not read file."));
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error("Could not read file as text."));
-      };
-      reader.readAsText(blob);
+    return readBlobViaFileReader(blob, (reader) => reader.readAsText(blob)).then((result) => {
+      if (typeof result === "string") return result;
+      throw new Error("Could not read file as text.");
     });
   }
 
