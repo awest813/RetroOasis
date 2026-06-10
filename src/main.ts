@@ -42,7 +42,6 @@ import {
   resolveTier,
 } from "./performance.js";
 import { LEGACY_APP_GLOBALS, LEGACY_EVENTS, LEGACY_STORAGE_KEYS } from "./legacy.js";
-import { gameCompatibilityDb } from "./compatibility.js";
 import { buildDOM, initUI,
           transitionToLibrary, renderLibrary, openSettingsPanel,
           buildLandingControls, showTierDowngradePrompt,
@@ -714,6 +713,7 @@ async function main(): Promise<void> {
       });
     });
 
+    const { gameCompatibilityDb } = await import("./compatibility.js");
     const compatibilityEntry =
       gameCompatibilityDb.lookup(gameId ?? "") ??
       gameCompatibilityDb.lookup(gameName);

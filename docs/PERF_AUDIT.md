@@ -26,8 +26,9 @@ Tracked checklist for making RetroOasis as lightweight as functional allows.
 - [x] Lazy-load `showConflictDialog` from `main.ts` (keeps `modals` chunk off cold path)
 - [x] Remove Google Fonts network dependency (system UI stack)
 - [x] Consolidate orphan `Exo 2` references to design tokens
-- [ ] Split `performance.ts` boot probe vs heavy GPU benchmark
-- [ ] Defer `compatibility.ts` until ambiguous launch
+- [x] Extract `performancePrimitives.ts` (test-only pools/batchers off main chunk)
+- [x] Lazy-load `compatibility.ts` on game launch (`compatibility` chunk)
+- [ ] Split `performance.ts` boot probe vs heavy GPU benchmark / monitors
 - [ ] Audit eager `main.ts` imports with import graph
 
 ## Phase 2 — Chunk Hygiene
@@ -56,8 +57,9 @@ Tracked checklist for making RetroOasis as lightweight as functional allows.
 
 ## Phase 6 — PWA & Network
 
-- [ ] Precache budget enforcement in CI
-- [ ] Lazy vs precache policy for compression WASM
+- [x] Precache budget enforcement in CI
+- [x] Shell-only precache (9 URLs, ~697 KB raw — down from 34 URLs / ~4.8 MB)
+- [x] Lazy vs precache policy for compression WASM and cores
 
 ## Phase 7 — Legacy `data/`
 

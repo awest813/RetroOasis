@@ -27,11 +27,6 @@ import {
   estimateVRAM,
   MemoryMonitor,
   scheduleIdleTask,
-  ObjectPool,
-  SpatialGrid,
-  FrameBudget,
-  DrawCallBatcher,
-  AssetLoader,
   DeviceCapabilities,
   GPUCapabilities,
   getResolutionCoreOptions,
@@ -50,6 +45,13 @@ import {
   HEAVY_3D_CORE_PREFETCH_ORDER,
   POPULAR_2D_CORE_PREFETCH_ORDER,
 } from "./performance.js";
+import {
+  ObjectPool,
+  SpatialGrid,
+  FrameBudget,
+  DrawCallBatcher,
+  AssetLoader,
+} from "./performancePrimitives.js";
 
 describe('performance', () => {
   afterEach(() => {

@@ -19,10 +19,10 @@ function copyEmulatorDataPlugin(): Plugin {
 }
 
 /**
- * Emit `dist/pwa-precache.json`: every hashed JS/CSS/WASM under ./assets plus
- * shell URLs and critical emulator data files.  The COI service worker loads
- * this at install time so the installed PWA precaches the full app shell and
- * can launch games offline.
+ * Emit `dist/pwa-precache.json`: app shell + EmulatorJS loader infrastructure.
+ *
+ * Lazy chunks (modals, saves, archive WASM, cores) are cached at runtime on
+ * first use — not at PWA install — to keep the install payload lightweight.
  */
 function pwaPrecacheManifestPlugin(): Plugin {
   return {
@@ -33,74 +33,41 @@ function pwaPrecacheManifestPlugin(): Plugin {
       if (!existsSync(indexPath)) return;
 
       const urls = new Set<string>();
-      const addRel = (rel: string) => {
-        if (!rel || !rel.startsWith("assets/")) return;
+      const addShellAsset = (rel: string) => {
+        if (!rel.startsWith("assets/index-")) return;
         urls.add(`./${rel}`);
       };
 
       const html = readFileSync(indexPath, "utf-8");
 
-      // Capture any ./assets/... references from scripts/styles
-      for (const m of html.matchAll(/\b(?:src|href)="(\.\/assets\/[^"]+)"/g)) {
-        addRel(m[1]!.replace(/^\.\//, ""));
+      for (const m of html.matchAll(/\b(?:src|href)="(\.\/assets\/index-[^"]+)"/g)) {
+        addShellAsset(m[1]!.replace(/^\.\//, ""));
       }
-
-      // Also capture absolute /assets/... (some templates emit these)
-      for (const m of html.matchAll(/\b(?:src|href)="\/(assets\/[^"]+)"/g)) {
-        addRel(m[1]!);
-      }
-
-      const viteManifestPath = resolve(distDir, ".vite", "manifest.json");
-      if (existsSync(viteManifestPath)) {
-        try {
-          const vm = JSON.parse(readFileSync(viteManifestPath, "utf-8")) as Record<
-            string,
-            { file?: string; css?: string[]; assets?: string[] }
-          >;
-          for (const chunk of Object.values(vm)) {
-            if (chunk.file) addRel(chunk.file);
-            for (const c of chunk.css ?? []) addRel(c);
-            for (const a of chunk.assets ?? []) addRel(a);
-          }
-        } catch {
-          // Non-fatal — HTML-derived list is enough for the critical path.
-        }
+      for (const m of html.matchAll(/\b(?:src|href)="\/(assets\/index-[^"]+)"/g)) {
+        addShellAsset(m[1]!);
       }
 
       urls.add("./index.html");
       urls.add("./manifest.json");
       urls.add("./audio-processor.js");
 
-      // ── Emulator data files (critical for offline game launch) ──────────
-      // These live outside the Vite build pipeline (copied from data/ to dist/data/)
-      // and are loaded by EmulatorJS at game launch time.
       const dataDir = resolve(distDir, "data");
       const addDataFile = (rel: string) => {
         const p = `./data/${rel}`;
         if (existsSync(resolve(distDir, p.slice(2)))) urls.add(p);
       };
-      const addCoreFile = (rel: string) => {
-        const p = `./cores/${rel}`;
-        if (existsSync(resolve(distDir, p.slice(2)))) urls.add(p);
-      };
       if (existsSync(dataDir)) {
-        // Essential loader infrastructure — small files that must be available offline
         addDataFile("loader.js");
         addDataFile("emulator.css");
         addDataFile("version.json");
         addDataFile("localization/en.json");
-
-        // Compression WASM — needed for archive extraction during import
-        addDataFile("compression/libunrar.wasm");
-        const filingWasm = resolve("node_modules/filing/dist/esm/wasm/archive.wasm");
-        if (existsSync(filingWasm)) {
-          const targetDir = resolve(distDir, "assets");
-          const target = resolve(targetDir, "filing-archive.wasm");
-          cpSync(filingWasm, target);
-          urls.add("./assets/filing-archive.wasm");
-        }
       }
-      addCoreFile("flycast-wasm.data");
+
+      // Filing archive WASM is copied for runtime import flows but not precached.
+      const filingWasm = resolve("node_modules/filing/dist/esm/wasm/archive.wasm");
+      if (existsSync(filingWasm)) {
+        cpSync(filingWasm, resolve(distDir, "assets", "filing-archive.wasm"));
+      }
 
       const list = [...urls]
         .filter((u) => {
@@ -109,17 +76,13 @@ function pwaPrecacheManifestPlugin(): Plugin {
             const tail = u.slice("./data/".length);
             return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
           }
-          if (u.startsWith("./cores/")) {
-            const tail = u.slice("./cores/".length);
-            return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
-          }
           if (!u.startsWith("./assets/")) return false;
           const tail = u.slice("./assets/".length);
-          return tail.length > 0 && !tail.includes("..") && !tail.startsWith("/");
+          return tail.startsWith("index-") && tail.length > 0 && !tail.includes("..");
         })
         .sort();
       writeFileSync(resolve(distDir, "pwa-precache.json"), `${JSON.stringify(list)}\n`, "utf-8");
-      console.info(`[pwa-precache-manifest] ${list.length} URLs for service worker precache`);
+      console.info(`[pwa-precache-manifest] ${list.length} shell URLs (lazy assets excluded)`);
     },
   };
 }
@@ -226,6 +189,12 @@ export default defineConfig({
           }
           if (id.includes("/src/ui/highlightsPanel.")) {
             return "highlights";
+          }
+          if (id.includes("/src/compatibility.")) {
+            return "compatibility";
+          }
+          if (id.includes("/src/performancePrimitives.")) {
+            return "perf-primitives";
           }
         },
       },

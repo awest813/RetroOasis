@@ -12,13 +12,13 @@
     "multiplayerGzipKb": 10
   },
   "precache": {
-    "maxTotalKb": 5000,
+    "maxTotalKb": 800,
     "maxShellKb": 700
   },
   "stretch": {
     "mainJsGzipKb": 120,
     "mainCssGzipKb": 20,
-    "precacheTotalKb": 2500,
-    "precacheShellKb": 200
+    "precacheTotalKb": 650,
+    "precacheShellKb": 600
   }
 }
