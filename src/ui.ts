@@ -138,6 +138,7 @@ import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from ".
 import {
   shouldApplyTouchUi,
   shouldShowRotateHint,
+  syncTouchUiClass,
 } from "./ui/mobile.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
@@ -220,10 +221,8 @@ export function buildDOM(app: HTMLElement): void {
   // Build a concise format hint: first extension of the first 8 systems + archive note
   const hintExts = SYSTEMS.slice(0, 8).map(s => `.${s.extensions[0]}`).join(" · ");
   const formatHint = `${hintExts} + more · ZIP auto-extracted · 7Z/RAR/TAR/GZ supported`;
+  syncTouchUiClass();
   const touchUI = shouldApplyTouchUi();
-  if (touchUI) {
-    document.documentElement.classList.add("touch-ui");
-  }
 
   app.innerHTML = `
     <!-- Skip navigation link for keyboard users -->
@@ -500,11 +499,11 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <!-- Mobile floating action button — touch devices only (CSS hides on pointer:fine) -->
-      <button class="mobile-fab mobile-fab--hidden" id="mobile-fab"
+      <button class="mobile-fab" id="mobile-fab"
               aria-label="Add a game" title="Add a game file">＋</button>
 
-      <!-- Portrait rotation hint — visible when playing in portrait orientation -->
-      <div class="rotate-hint" id="rotate-hint" aria-live="polite" aria-atomic="true">
+      <!-- Portrait rotation hint — touch devices in portrait while playing -->
+      <div class="rotate-hint" id="rotate-hint" role="status" hidden>
         <span class="rotate-hint__icon" aria-hidden="true">${ICON_ROTATE_PHONE_SVG}</span> Rotate for best experience
       </div>
 
@@ -973,7 +972,7 @@ export function initUI(opts: UIOptions): void {
   try {
     const coarseMq = window.matchMedia("(pointer: coarse)");
     const onCoarseChange = () => {
-      document.documentElement.classList.toggle("touch-ui", coarseMq.matches);
+      syncTouchUiClass();
     };
     coarseMq.addEventListener("change", onCoarseChange);
     cleanupFns.push(() => coarseMq.removeEventListener("change", onCoarseChange));
@@ -1170,6 +1169,9 @@ export function initUI(opts: UIOptions): void {
   // The FAB is visible on the library page; hidden during gameplay.
   // It is rendered in the DOM for all builds and hidden via CSS (pointer: fine).
   const mobileFab = document.getElementById("mobile-fab");
+  const syncMobileFabVisibility = (inGame: boolean) => {
+    mobileFab?.classList.toggle("mobile-fab--hidden", inGame);
+  };
   if (mobileFab) {
     bindEvent(mobileFab, "click", () => openFilePicker());
   }
@@ -1180,10 +1182,22 @@ export function initUI(opts: UIOptions): void {
   const updateRotateHint = () => {
     if (!rotateHintEl) return;
     const inGame = emulator.state === "running" || emulator.state === "paused";
-    rotateHintEl.classList.toggle("rotate-hint--visible", shouldShowRotateHint(inGame));
+    const show = shouldShowRotateHint(inGame);
+    rotateHintEl.classList.toggle("rotate-hint--visible", show);
+    rotateHintEl.hidden = !show;
   };
   bindEvent(window, "orientationchange", updateRotateHint);
   bindEvent(window, "resize", updateRotateHint);
+  try {
+    const portraitMq = window.matchMedia("(orientation: portrait)");
+    const onPortraitChange = () => updateRotateHint();
+    portraitMq.addEventListener("change", onPortraitChange);
+    cleanupFns.push(() => portraitMq.removeEventListener("change", onPortraitChange));
+  } catch {
+    // matchMedia not supported
+  }
+  syncMobileFabVisibility(emulator.state === "running" || emulator.state === "paused");
+  updateRotateHint();
 
   const getEmuJsContainerEl = (): HTMLElement | null =>
     document.getElementById(EMULATOR_JS_CONTAINER_ID);
@@ -1264,8 +1278,7 @@ export function initUI(opts: UIOptions): void {
           getEmuJsContainerEl(),
           getCurrentSystemId?.() ?? emulator.currentSystem?.id ?? null,
         );
-        // Hide FAB and show rotate-hint when appropriate
-        mobileFab?.classList.add("mobile-fab--hidden");
+        syncMobileFabVisibility(true);
         updateRotateHint();
         resetPerfSuggestion();
         document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.gameStarted));
@@ -1300,8 +1313,7 @@ export function initUI(opts: UIOptions): void {
           getEmuJsContainerEl(),
           getCurrentSystemId?.() ?? emulator.currentSystem?.id ?? null,
         );
-        // Hide FAB and show rotate-hint when appropriate
-        mobileFab?.classList.add("mobile-fab--hidden");
+        syncMobileFabVisibility(true);
         updateRotateHint();
       });
     });
@@ -1312,7 +1324,7 @@ export function initUI(opts: UIOptions): void {
   const onReturnToLibraryEvent = () => {
     showFPSOverlay(false);
     resetPerfSuggestion();
-    mobileFab?.classList.remove("mobile-fab--hidden");
+    syncMobileFabVisibility(false);
     updateRotateHint();
   };
   bindEvent(document, LEGACY_EVENTS.returnToLibrary, onReturnToLibraryEvent);

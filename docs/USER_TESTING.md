@@ -147,7 +147,8 @@ Before running any tests:
 
 | # | Step | Expected |
 |---|------|----------|
-| 9.1 | Resize browser to mobile width (375 px) or use DevTools device emulation | `touch-ui` layout applies; library toolbar stacks; FAB appears on coarse-pointer devices |
+| 9.1 | Resize browser to mobile width (375 px) | Responsive layout stacks (toolbar, grid); header/footer adapt at ≤768px |
+| 9.1b | Enable DevTools touch emulation or use a real phone/tablet | `touch-ui` class applies; larger tap targets; FAB appears (hidden on `pointer: fine`) |
 | 9.2 | Launch a game on a touch device or emulated coarse pointer | EmulatorJS virtual gamepad appears; canvas letterboxes to the system aspect ratio |
 | 9.3 | Play in portrait on a touch device | Rotate hint appears; landscape play is recommended |
 | 9.4 | Settings → Display → Mobile → disable orientation lock | Game no longer forces landscape lock on launch (browser may still restrict lock) |

@@ -29,6 +29,12 @@ export function shouldApplyTouchUi(): boolean {
   return isTouchDevice() || isPwaDisplayMode();
 }
 
+/** Sync the document `touch-ui` class with current device capabilities. */
+export function syncTouchUiClass(): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("touch-ui", shouldApplyTouchUi());
+}
+
 /** True when the viewport is currently in portrait orientation. */
 export function isPortrait(): boolean {
   if (typeof window === "undefined") return false;

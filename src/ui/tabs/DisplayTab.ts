@@ -6,6 +6,7 @@ import { resolveTier } from "../../performance.js";
 import { POST_PROCESS_EFFECT_UI_ORDER, shouldDeferWebGpuPostFor3DSession } from "../../webgpuPostProcess.js";
 import type { PostProcessEffect } from "../../webgpuPostProcess.js";
 import { showFPSOverlay } from "../../modules/DevOverlay.js";
+import { shouldApplyTouchUi } from "../mobile.js";
 
 export function buildDisplayTab(
   container:        HTMLElement,
@@ -95,10 +96,11 @@ export function buildDisplayTab(
 
   const mobileSection = make("div", { class: "settings-section" });
   mobileSection.appendChild(make("h4", { class: "settings-section__title" }, "Mobile"));
+  const touchFirst = shouldApplyTouchUi();
   mobileSection.appendChild(make("p", { class: "settings-help" },
-    deviceCaps.isMobile
-      ? "Tuned for phones and tablets. The on-screen gamepad appears automatically while you play."
-      : "Options for touch-first devices. The on-screen gamepad appears automatically on phones and tablets.",
+    touchFirst
+      ? "Touch-friendly layout with an on-screen gamepad from the emulator while you play."
+      : "For phones, tablets, and touch laptops. The on-screen gamepad appears automatically on touch-first devices.",
   ));
 
   mobileSection.appendChild(buildToggleRow(

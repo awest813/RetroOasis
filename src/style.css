@@ -1482,10 +1482,6 @@ html.touch-ui .game-card:hover {
   transform: none;
 }
 
-html.touch-ui .game-card:hover .game-card__overlay {
-  opacity: 0;
-}
-
 /* Smooth scroll behavior for touch panning */
 html.touch-ui #landing {
   -webkit-overflow-scrolling: touch;
@@ -1874,6 +1870,10 @@ body:has(#ejs-container.visible) .app-header {
 
 .rotate-hint--visible {
   display: inline-flex;
+}
+
+body.is-playing .rotate-hint {
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Status Items ── */

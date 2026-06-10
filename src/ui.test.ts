@@ -3238,6 +3238,46 @@ describe("dialog Escape handling when emulator is running", () => {
 
 // ── In-game UI polish: rotate hint, F1 reset, save gallery feedback ───────────
 
+describe("mobile FAB visibility", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 1, configurable: true });
+  });
+
+  it("shows the FAB on library load and hides it during gameplay", async () => {
+    const emulatorMock = {
+      state: "idle",
+      activeTier: "medium",
+      currentSystem: null,
+      setFPSMonitorEnabled: vi.fn(),
+      prefetchCore: vi.fn(),
+      onStateChange: null,
+      onProgress: null,
+      onError: null,
+      onGameStart: null,
+      onFPSUpdate: null,
+    } as unknown as PSPEmulator;
+
+    initUI({ ...makeOpts(makeSettings()), emulator: emulatorMock });
+
+    const fab = document.getElementById("mobile-fab");
+    expect(fab?.classList.contains("mobile-fab--hidden")).toBe(false);
+
+    (emulatorMock as unknown as { onGameStart: () => void }).onGameStart();
+    for (let i = 0; i < 4; i++) {
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+
+    expect(fab?.classList.contains("mobile-fab--hidden")).toBe(true);
+
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.returnToLibrary));
+    expect(fab?.classList.contains("mobile-fab--hidden")).toBe(false);
+  });
+});
+
 describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -3294,6 +3334,7 @@ describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
     window.dispatchEvent(new Event("resize"));
     const hint = document.getElementById("rotate-hint");
     expect(hint?.classList.contains("rotate-hint--visible")).toBe(true);
+    expect(hint?.hidden).toBe(false);
   });
 
   it("hides portrait rotate hint on non-touch devices", () => {
@@ -3336,6 +3377,7 @@ describe("in-game UI — rotate hint, keyboard reset, save gallery", () => {
     window.dispatchEvent(new Event("resize"));
     const hint = document.getElementById("rotate-hint");
     expect(hint?.classList.contains("rotate-hint--visible")).toBe(false);
+    expect(hint?.hidden).toBe(true);
   });
 
   it("F1 opens the same reset confirmation as the toolbar (does not reset immediately)", async () => {
