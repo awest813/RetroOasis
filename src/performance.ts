@@ -2601,10 +2601,11 @@ export class ThermalMonitor {
 /**
  * A named phase in the emulator launch pipeline.
  *
- * - "core_download" — Time spent fetching the JS glue + WASM files from CDN.
- * - "wasm_compile"  — Time spent compiling the WASM binary (streaming or sync).
- * - "bios_load"     — Time spent fetching + loading the system BIOS file.
- * - "first_frame"   — Time from EJS_ready until `EJS_onGameStart` fires.
+ * - "core_download" — Time from launch until the WASM core is initialized and the
+ *                     Emscripten VFS is mounted (`saveDatabaseLoaded`).
+ * - "wasm_compile"  — Reserved for WASM compile timing (not yet instrumented).
+ * - "bios_load"     — Reserved for BIOS fetch timing (not yet instrumented).
+ * - "first_frame"   — Time from core init until `EJS_onGameStart` (ROM load + boot).
  */
 export type LaunchPhase = "core_download" | "wasm_compile" | "bios_load" | "first_frame";
 
