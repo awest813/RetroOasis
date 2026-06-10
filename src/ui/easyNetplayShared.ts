@@ -3,10 +3,22 @@ import type { EasyNetplayRoom } from "../netplay/netplayTypes.js";
 import { createElement as make } from "./dom.js";
 
 let easyNetplayManager: EasyNetplayManager | null = null;
+let pagehideLeaveWired = false;
+
+function wirePagehideLeave(manager: EasyNetplayManager): void {
+  if (pagehideLeaveWired || typeof window === "undefined") return;
+  pagehideLeaveWired = true;
+  window.addEventListener("pagehide", () => {
+    if (manager.hasActiveSession()) {
+      void manager.leaveRoom().catch(() => {});
+    }
+  });
+}
 
 export function getEasyNetplayManager(serverUrl?: string): EasyNetplayManager {
   if (!easyNetplayManager) {
     easyNetplayManager = new EasyNetplayManager(serverUrl);
+    wirePagehideLeave(easyNetplayManager);
   } else if (serverUrl !== undefined) {
     easyNetplayManager.setServerUrl(serverUrl);
   }
@@ -47,6 +59,14 @@ export function renderRoomCard(
     const circle = make("div", { class: "enp-pulse-circle" });
     circle.innerHTML = `<svg viewBox="0 0 48 48" width="60" height="60" fill="none" aria-hidden="true"><path d="M8 28c4-8 9.5-12 16-12s12 4 16 12c-4 8-9.5 12-16 12S12 36 8 28Z" stroke="currentColor" stroke-width="2.6"/><path d="M15 27h8M19 23v8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="30.5" cy="27" r="2" fill="currentColor"/><circle cx="36" cy="27" r="2" fill="currentColor"/></svg>`;
     
+    if (room.isLocal) {
+      pulseWrap.appendChild(make(
+        "p",
+        { class: "enp-help enp-server-warn", role: "note" },
+        "Local-only room — set a Play Together server in Settings to invite friends online.",
+      ));
+    }
+
     const codeLabel = make("p", { class: "enp-help" }, "Share this code with your friend:");
     const codeLarge = make("div", { class: "enp-invite-code-large", title: "Click to copy" }, room.code);
     codeLarge.addEventListener("click", () => {

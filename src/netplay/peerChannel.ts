@@ -125,6 +125,12 @@ export class PeerDataChannel {
   private _reconnectAttempts: number = 0;
   private _maxReconnectAttempts: number;
   private _watchdogId: ReturnType<typeof setTimeout> | null = null;
+  private _pingWaiter: {
+    sentAt: number;
+    resolve: (ms: number) => void;
+    reject: (err: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null = null;
 
   // Callback hooks
   onOpen?:    () => void;
@@ -231,30 +237,23 @@ export class PeerDataChannel {
    * Times out after `timeoutMs` (default 5000 ms).
    */
   ping(timeoutMs = 5_000): Promise<number> {
+    if (this._pingWaiter) {
+      return Promise.reject(new Error("Ping already in progress"));
+    }
     return new Promise((resolve, reject) => {
       const sentAt = Date.now();
-      const prev = this.onMessage;
-      const restore = () => { this.onMessage = prev; };
       const timeoutId = setTimeout(() => {
-        restore();
+        if (this._pingWaiter?.sentAt === sentAt) this._pingWaiter = null;
         reject(new Error("Ping timed out"));
       }, timeoutMs);
 
-      this.onMessage = (msg) => {
-        if (msg.type === "pong" && msg.echoTimestamp === sentAt) {
-          clearTimeout(timeoutId);
-          restore();
-          resolve(Date.now() - sentAt);
-          return;
-        }
-        prev?.(msg);
-      };
+      this._pingWaiter = { sentAt, resolve, reject, timeoutId };
       try {
         this.sendMessage({ type: "ping", timestamp: sentAt });
       } catch (err) {
         clearTimeout(timeoutId);
-        restore();
-        reject(err);
+        this._pingWaiter = null;
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
     });
   }
@@ -264,6 +263,11 @@ export class PeerDataChannel {
   /** Close the peer connection and data channel. */
   close(): void {
     if (this._watchdogId) clearTimeout(this._watchdogId);
+    if (this._pingWaiter) {
+      clearTimeout(this._pingWaiter.timeoutId);
+      this._pingWaiter.reject(new Error("Channel closed"));
+      this._pingWaiter = null;
+    }
     if (this._state === "closed") return;
     this._setState("closed");
     this._dc?.close();
@@ -371,6 +375,13 @@ export class PeerDataChannel {
             try {
               this.sendMessage({ type: "pong", timestamp: Date.now(), echoTimestamp: msg.timestamp });
             } catch { /* ignore send failures during shutdown */ }
+            return;
+          }
+          if (msg.type === "pong" && this._pingWaiter && msg.echoTimestamp === this._pingWaiter.sentAt) {
+            const waiter = this._pingWaiter;
+            this._pingWaiter = null;
+            clearTimeout(waiter.timeoutId);
+            waiter.resolve(Date.now() - waiter.sentAt);
             return;
           }
           this.onMessage?.(msg);

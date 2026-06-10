@@ -375,6 +375,11 @@ export function openEasyNetplayModal(opts: {
       try { fn(); } catch { /* ignore cleanup errors */ }
     });
     easyMgr.cancelPendingOperations();
+    if (easyMgr.hasActiveSession()) {
+      void easyMgr.leaveRoom().catch(() => {
+        /* Server leave is best-effort — local state is always cleared. */
+      });
+    }
     store.set("netplay", { active: false, roomKey: null, peerCount: 0 });
     overlay.classList.remove("confirm-overlay--visible");
     setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
