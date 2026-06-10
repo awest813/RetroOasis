@@ -4,6 +4,8 @@ import {
   resolveLibraryHeadline,
   getContinuePlayingGame,
   getRecentlyAddedGames,
+  computeLibraryGridSignature,
+  buildEmptyDetailsGuide,
   buildPlatformsStrip,
 } from "./homepage.js";
 
@@ -44,6 +46,38 @@ describe("homepage helpers", () => {
     ];
     const recent = getRecentlyAddedGames(games);
     expect(recent.map((g) => g.id)).toEqual(["new"]);
+  });
+
+  it("builds a stable grid signature for unchanged filters", () => {
+    const games = [makeGame({ id: "a" }), makeGame({ id: "b", systemId: "snes" })];
+    const sigA = computeLibraryGridSignature({
+      allGames: games,
+      displayed: games,
+      settings: { libraryLayout: "grid", libraryGrouped: false } as never,
+      searchQuery: "",
+      systemFilter: "",
+      showFavorites: false,
+      sortMode: "lastPlayed",
+    });
+    const sigB = computeLibraryGridSignature({
+      allGames: games,
+      displayed: games,
+      settings: { libraryLayout: "grid", libraryGrouped: false } as never,
+      searchQuery: "",
+      systemFilter: "",
+      showFavorites: false,
+      sortMode: "lastPlayed",
+    });
+    expect(sigA).toBe(sigB);
+  });
+
+  it("builds an empty-state details guide", () => {
+    const guide = buildEmptyDetailsGuide({
+      onChooseRoms: () => {},
+      onOpenHelp: () => {},
+      onCloudSaves: () => {},
+    });
+    expect(guide.querySelector(".landing-details__guide-title")?.textContent).toContain("Getting started");
   });
 
   it("builds a featured platforms strip", () => {

@@ -8,6 +8,7 @@ import {
   showConflictDialog,
   isTopmostOverlay,
 } from "./modals.js";
+import { _resetOverlayStackForTests } from "./overlayStack.js";
 import type { SystemInfo } from "../systems.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -144,6 +145,7 @@ describe("showConflictDialog", () => {
 
 describe("isTopmostOverlay", () => {
   beforeEach(() => {
+    _resetOverlayStackForTests();
     document.body.innerHTML = "";
   });
 

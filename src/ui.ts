@@ -100,7 +100,9 @@ import {
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
 import {
+  buildEmptyDetailsGuide,
   buildPlatformsStrip,
+  computeLibraryGridSignature,
   getContinuePlayingGame,
   getRecentlyAddedGames,
   resolveLibraryHeadline,
@@ -144,6 +146,7 @@ import {
 } from "./ui/toasts.js";
 import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
+import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -239,6 +242,8 @@ export function buildDOM(app: HTMLElement): void {
   _librarySearchQuery   = "";
   _librarySortMode      = "lastPlayed";
   _librarySystemFilter  = "";
+  _lastLibraryGridSignature = "";
+  clearOverlayStack();
   stopLibraryGamepadNavigation();
   document.body.classList.remove("using-gamepad");
   // Reset DevOverlay cached DOM references (nodes will be recreated below)
@@ -1370,7 +1375,7 @@ export function initUI(opts: UIOptions): void {
       if (
         ((e.key === "/" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) &&
         !isEditableTarget(e.target) &&
-        !document.querySelector(".confirm-overlay, .easy-netplay-overlay, #settings-panel:not([hidden]), #system-picker:not([hidden])")
+        !hasActiveOverlay()
       ) {
         if (_focusLibrarySearch()) return true;
       }
@@ -1384,14 +1389,9 @@ export function initUI(opts: UIOptions): void {
     // netplay, in-game panel, or return to library
     (e) => {
       if (e.key !== "Escape") return false;
-      const t = e.target;
-      if (t instanceof HTMLElement && t.closest(".confirm-overlay--visible")) return false;
+      if (closeTopmostOverlay()) return true;
       const errorBanner = document.getElementById("error-banner");
       if (errorBanner?.classList.contains("visible")) { hideError(); return true; }
-      const settingsEl = document.getElementById("settings-panel");
-      if (settingsEl && !settingsEl.hidden) return false;
-      if (document.querySelector("#system-picker:not([hidden])")) return false;
-      if (document.querySelector(".easy-netplay-overlay")) return false;
       const inGamePanel = document.querySelector("#in-game-overlay .in-game-overlay__panel:not([hidden])");
       if (inGamePanel) {
         const closeBtn = inGamePanel.querySelector(".in-game-overlay__close") as HTMLElement | null;
@@ -1491,6 +1491,7 @@ let _librarySystemFilter = "";
 let _libraryShowFavorites = false;
 let _libraryLastLayout: Settings["libraryLayout"] = "grid";
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
+let _lastLibraryGridSignature = "";
 
 function _syncLibraryControlState(): void {
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
@@ -1552,6 +1553,7 @@ function _scheduleLibraryRender(
   };
 
   if (debounceMs > 0) {
+    document.getElementById("library-grid")?.classList.add("library-grid--busy");
     _librarySearchDebounce = setTimeout(doRender, debounceMs);
     return;
   }
@@ -1831,6 +1833,8 @@ export async function renderLibrary(
     }
   }
 
+  _renderEmptyDetailsGuide(allGames.length === 0);
+
   _renderLibraryOverview(allGames, displayed, {
     onFocusFavorites: () => {
       _libraryShowFavorites = true;
@@ -1854,17 +1858,6 @@ export async function renderLibrary(
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
     for (const sid of systemIds) { emulatorRef.prefetchCore(sid); }
-  }
-
-  const gridImgs = grid.querySelectorAll<HTMLImageElement>('img[src^="blob:"]');
-  for (const img of gridImgs) URL.revokeObjectURL(img.src);
-  grid.innerHTML = "";
-  invalidateLibraryGamepadCardCache();
-
-  // Destroy any previous virtual grid before we rebuild the DOM
-  if (_virtualGrid) {
-    _virtualGrid.destroy();
-    _virtualGrid = null;
   }
 
   // ── Highlights panel (favorites + recent sessions) ─────────────────────────
@@ -1931,6 +1924,38 @@ export async function renderLibrary(
   _syncLibraryControlState();
 
   grid.className = `library-grid library-grid--${layout}`;
+
+  const gridSignature = computeLibraryGridSignature({
+    allGames,
+    displayed,
+    settings,
+    searchQuery: _librarySearchQuery,
+    systemFilter: _librarySystemFilter,
+    showFavorites: _libraryShowFavorites,
+    sortMode: _librarySortMode,
+  });
+  const hasRenderedCards = grid.querySelector(".game-card:not(.game-card--skeleton)") !== null;
+  const canSkipGridRebuild =
+    gridSignature === _lastLibraryGridSignature &&
+    hasRenderedCards &&
+    !grid.querySelector(".library-empty");
+
+  if (canSkipGridRebuild) {
+    grid.classList.remove("library-grid--busy");
+    return;
+  }
+  _lastLibraryGridSignature = gridSignature;
+
+  const gridImgs = grid.querySelectorAll<HTMLImageElement>('img[src^="blob:"]');
+  for (const img of gridImgs) URL.revokeObjectURL(img.src);
+  grid.innerHTML = "";
+  grid.classList.remove("library-grid--busy");
+  invalidateLibraryGamepadCardCache();
+
+  if (_virtualGrid) {
+    _virtualGrid.destroy();
+    _virtualGrid = null;
+  }
 
   if (displayed.length === 0 && allGames.length > 0) {
     const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
@@ -2170,6 +2195,31 @@ interface LibraryOverviewActions {
   onFocusFavorites?: () => void;
   onFetchCovers?: () => void;
   onFocusRecent?: () => void;
+}
+
+function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {
+  const detailsRoot = document.getElementById("landing-details");
+  const empty = detailsRoot?.querySelector(".landing-details__empty") as HTMLElement | null;
+  const content = document.getElementById("landing-details-content");
+  if (!empty || !content) return;
+
+  if (!isEmptyLibrary) {
+    if (content.querySelector(".landing-details__guide")) {
+      empty.removeAttribute("hidden");
+      content.setAttribute("hidden", "true");
+      content.innerHTML = "";
+    }
+    return;
+  }
+
+  empty.setAttribute("hidden", "true");
+  content.removeAttribute("hidden");
+  content.innerHTML = "";
+  content.appendChild(buildEmptyDetailsGuide({
+    onChooseRoms: () => document.getElementById("file-input")?.click(),
+    onOpenHelp: () => _openSettingsFn?.("help"),
+    onCloudSaves: () => _openSettingsFn?.("cloud"),
+  }));
 }
 
 function _renderLibraryOverview(

@@ -9,6 +9,16 @@
 - **Overview cards:** Favorites, missing cover art, and recent-play stats are clickable shortcuts.
 - **Empty sidebar:** shows an import hint instead of disappearing entirely.
 
+## Overlays and focus
+
+- **`overlayStack.ts`** registers modals, settings, system picker, and Play Together so Escape dismisses the topmost surface in order.
+- Library search (`Ctrl+K` / `/`) is suppressed while any overlay is active.
+
+## Library rendering
+
+- Typing in search dims the grid (`library-grid--busy`) until the debounced re-render completes.
+- Identical filter/sort/layout signatures skip rebuilding the grid DOM (overview, hero, and highlights still refresh).
+
 ## Launch flow
 
 - **Single launch path:** `launchGameFromLibrary()` resolves library blobs (including cloud Pull & Play) before calling `onLaunchGame` in `main.ts`.
@@ -25,7 +35,6 @@
 
 ## Follow-ups
 
-- Unified overlay stack (Escape + focus for all modals)
 - Incremental library DOM updates (`UIDirtyTracker`)
 - Settings gamepad/couch navigation
 - High-contrast theme toggle

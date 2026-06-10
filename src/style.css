@@ -3037,6 +3037,46 @@ html.launch-in-progress .game-card::after {
   display: none;
 }
 
+.library-grid--busy {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.landing-details__guide-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: var(--c-text);
+}
+
+.landing-details__guide-copy {
+  margin: 0 0 14px;
+  color: var(--c-text-dim);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.landing-details__guide-list {
+  margin: 0 0 18px;
+  padding-left: 1.1rem;
+  color: var(--c-text-dim);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-grid--busy {
+    transition: none;
+  }
+
+  #info-toast.info-toast,
+  .toast-stack .info-toast {
+    transition: opacity 0.01ms linear;
+  }
+}
+
 #landing.landing-empty .landing-main {
   display: flex;
   flex-direction: column;
