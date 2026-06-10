@@ -1,5 +1,11 @@
 # RetroOasis — UI / UX notes
 
+## Homepage / library landing
+
+- **Empty library:** onboarding hero, supported-platforms strip, prominent drop zone, and cloud-saves quick action stay visible (browse chrome is hidden, not the whole `#library-section`).
+- **Returning users:** dynamic headline (`Welcome back` within 7 days of last play) and a **Continue playing** hero for the most recent title.
+- **Jump Back In row:** horizontal strip for additional recent games; skips the hero title to avoid duplication.
+
 ## Launch flow
 
 - **Single launch path:** `launchGameFromLibrary()` resolves library blobs (including cloud Pull & Play) before calling `onLaunchGame` in `main.ts`.

@@ -261,6 +261,25 @@ describe("buildDOM", () => {
     expect(onboarding?.getAttribute("aria-hidden")).toBe("true");
   });
 
+  it("shows onboarding on an empty library after renderLibrary", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    buildDOM(app);
+
+    const settings = makeSettings();
+    const library = {
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+    initUI({ ...makeOpts(settings), library });
+    await new Promise((r) => setTimeout(r, 0));
+
+    const librarySection = app.querySelector("#library-section");
+    const onboarding = app.querySelector("#onboarding");
+    expect(librarySection?.classList.contains("hidden-section")).toBe(false);
+    expect(onboarding?.classList.contains("hidden-section")).toBe(false);
+    expect(app.querySelector(".homepage-platforms")).toBeTruthy();
+  });
+
   it("includes expanded archive extensions in file input accept list", () => {
     const app = document.createElement("div");
     document.body.appendChild(app);

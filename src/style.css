@@ -2963,6 +2963,72 @@ html.launch-in-progress .game-card::after {
   margin-bottom: 40px;
 }
 
+.welcome-hero__logo {
+  width: clamp(64px, 12vw, 80px);
+  height: auto;
+  margin: 0 0 18px;
+  opacity: 0.94;
+  filter: drop-shadow(0 10px 28px rgba(218, 190, 130, 0.18));
+}
+
+.homepage-platforms {
+  margin: 8px 0 28px;
+  text-align: left;
+}
+
+.homepage-platforms__label {
+  margin: 0 0 12px;
+  color: var(--c-text-dim);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.homepage-platforms__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.homepage-platforms__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--c-border)) 36%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+    rgba(255,255,255,0.02);
+  color: var(--c-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.homepage-platforms__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--sys-color, var(--c-accent));
+}
+
+.homepage-platforms__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.library-continue-hero {
+  margin-bottom: clamp(18px, 2.5vw, 28px);
+}
+
+.library-continue-hero:empty {
+  display: none;
+}
+
 .welcome-hero__eyebrow {
   color: var(--c-accent);
   font-weight: 900;

@@ -1,5 +1,13 @@
 import { createElement as make } from "./dom.js";
 
+const LIBRARY_BROWSE_SELECTORS = [
+  ".library-toolbar",
+  ".library-overview",
+  "#library-highlights",
+  "#library-grid",
+  "#library-continue-hero",
+] as const;
+
 export function updateLibraryLandingState(opts: {
   totalGames: number;
   shownGames: number;
@@ -9,16 +17,20 @@ export function updateLibraryLandingState(opts: {
   onboardingEl: HTMLElement | null;
 }): void {
   const { totalGames, shownGames, countEl, librarySectionEl, dropZoneEl, onboardingEl } = opts;
+  const isEmpty = totalGames === 0;
 
   countEl.textContent = totalGames > 0
     ? `${totalGames} game${totalGames !== 1 ? "s" : ""}${shownGames !== totalGames ? ` · ${shownGames} shown` : ""}`
     : "";
 
-  librarySectionEl.classList.toggle("hidden-section", totalGames === 0);
-  dropZoneEl.classList.toggle("drop-zone--prominent", totalGames === 0);
-  dropZoneEl.classList.toggle("drop-zone--compact", totalGames > 0);
+  for (const selector of LIBRARY_BROWSE_SELECTORS) {
+    librarySectionEl.querySelector(selector)?.classList.toggle("hidden-section", isEmpty);
+  }
 
-  const showOnboarding = totalGames === 0;
+  dropZoneEl.classList.toggle("drop-zone--prominent", isEmpty);
+  dropZoneEl.classList.toggle("drop-zone--compact", !isEmpty);
+
+  const showOnboarding = isEmpty;
   if (onboardingEl) {
     onboardingEl.classList.toggle("hidden-section", !showOnboarding);
     onboardingEl.setAttribute("aria-hidden", String(!showOnboarding));

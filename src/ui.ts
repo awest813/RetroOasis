@@ -95,8 +95,14 @@ import {
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
 import {
+  buildLibraryHero,
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
+import {
+  buildPlatformsStrip,
+  getContinuePlayingGame,
+  resolveLibraryHeadline,
+} from "./ui/homepage.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
 import { sessionTracker, formatPlayTime } from "./sessionTracker.js";
 import {
@@ -108,7 +114,7 @@ import {
 import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
-import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
+import { systemIcon, isEditableTarget, escHtml } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
 import { resolveSystemAndAddImpl } from "./ui/screens/gameImport.js";
@@ -341,6 +347,9 @@ export function buildDOM(app: HTMLElement): void {
           <div class="library-overview" id="library-overview" aria-label="Library overview">
             <!-- Populated by renderLibrary() -->
           </div>
+          <div id="library-continue-hero" class="library-continue-hero hidden-section" aria-label="Continue playing">
+            <!-- Populated by renderLibrary() -->
+          </div>
           <div id="library-highlights" aria-label="Library highlights">
             <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
           </div>
@@ -374,10 +383,13 @@ export function buildDOM(app: HTMLElement): void {
         <!-- Onboarding — only visible when library is empty -->
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
+            <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="welcome-hero__logo" width="80" height="80" decoding="async" draggable="false" aria-hidden="true" />
             <p class="welcome-hero__eyebrow">First run</p>
             <h2 class="welcome-hero__title" id="onboarding-title">Your gaming escape.</h2>
             <p class="welcome-hero__tagline">${APP_NAME} keeps your retro library simple, calm, and ready to play.</p>
           </div>
+
+          <div id="homepage-platforms" class="homepage-platforms-host"></div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
@@ -393,6 +405,7 @@ export function buildDOM(app: HTMLElement): void {
 
           <div class="onboarding__quick-actions" aria-label="Quick start actions">
             <button class="btn btn--primary" id="btn-add-game-secondary" type="button">Choose ROMs</button>
+            <button class="btn btn--ghost" id="btn-cloud-onboarding" type="button">Connect Cloud Saves</button>
             <button class="btn btn--ghost" id="btn-open-help-onboarding" type="button">View Guide</button>
           </div>
 
@@ -572,6 +585,11 @@ export function buildDOM(app: HTMLElement): void {
       brandLogoImg.insertAdjacentHTML("afterend", _LOGO_FALLBACK_SVG);
       brandLogoImg.remove();
     };
+  }
+
+  const platformsHost = app.querySelector("#homepage-platforms");
+  if (platformsHost) {
+    platformsHost.replaceWith(buildPlatformsStrip(systemIcon));
   }
 }
 
@@ -1784,6 +1802,32 @@ export async function renderLibrary(
     dropZoneEl,
     onboardingEl,
   });
+
+  const titleEl = document.querySelector(".library-title");
+  if (titleEl) titleEl.textContent = resolveLibraryHeadline(allGames);
+
+  const inCleanBrowse =
+    !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+  const continueGame = inCleanBrowse ? getContinuePlayingGame(allGames) : null;
+  const continueEl = document.getElementById("library-continue-hero");
+  if (continueEl) {
+    continueEl.innerHTML = "";
+    if (continueGame && allGames.length > 0) {
+      continueEl.classList.remove("hidden-section");
+      continueEl.appendChild(buildLibraryHero({
+        game: continueGame,
+        library,
+        settings,
+        onLaunchGame,
+        systemIcon,
+        escapeHtml: escHtml,
+        onFetchFromCloud: fetchFromCloud,
+      }));
+    } else if (allGames.length > 0) {
+      continueEl.classList.add("hidden-section");
+    }
+  }
+
   _renderLibraryOverview(allGames, displayed);
 
   if (emulatorRef && allGames.length > 0) {
@@ -1891,19 +1935,23 @@ export async function renderLibrary(
     displayed.length >= 2;
 
   if (showJumpBackIn) {
-    const recent = displayed.slice(0, 6);
-    grid.appendChild(buildLibraryRowSection({
-      title: "Jump Back In",
-      systemId: null,
-      games: recent,
-      library,
-      settings,
-      onLaunchGame,
-      emulatorRef,
-      onApplyPatch,
-      systemIcon,
-      buildGameCard,
-    }));
+    const recent = displayed
+      .filter((g) => g.id !== continueGame?.id)
+      .slice(0, 6);
+    if (recent.length >= 2) {
+      grid.appendChild(buildLibraryRowSection({
+        title: "Jump Back In",
+        systemId: null,
+        games: recent,
+        library,
+        settings,
+        onLaunchGame,
+        emulatorRef,
+        onApplyPatch,
+        systemIcon,
+        buildGameCard,
+      }));
+    }
   }
   // ── End Jump Back In ───────────────────────────────────────────────────────
 
