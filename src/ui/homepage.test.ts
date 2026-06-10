@@ -3,6 +3,7 @@ import type { GameMetadata } from "../library.js";
 import {
   resolveLibraryHeadline,
   getContinuePlayingGame,
+  getRecentlyAddedGames,
   buildPlatformsStrip,
 } from "./homepage.js";
 
@@ -34,6 +35,15 @@ describe("homepage helpers", () => {
       makeGame({ id: "new", lastPlayedAt: Date.now() - 1_000 }),
     ];
     expect(getContinuePlayingGame(games)?.id).toBe("new");
+  });
+
+  it("returns recently added games within the window", () => {
+    const games = [
+      makeGame({ id: "old", addedAt: Date.now() - 30 * 24 * 60 * 60 * 1000 }),
+      makeGame({ id: "new", addedAt: Date.now() - 60_000 }),
+    ];
+    const recent = getRecentlyAddedGames(games);
+    expect(recent.map((g) => g.id)).toEqual(["new"]);
   });
 
   it("builds a featured platforms strip", () => {

@@ -408,8 +408,16 @@ body.is-playing #landing.hidden {
   overflow-y: auto;
 }
 
-.landing-sidebar--empty {
+.landing-sidebar--empty .system-filter {
   display: none;
+}
+
+.landing-sidebar__empty {
+  margin: 0;
+  padding: 12px 0 4px;
+  color: var(--c-text-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .landing-sidebar__header {
@@ -3027,6 +3035,24 @@ html.launch-in-progress .game-card::after {
 
 .library-continue-hero:empty {
   display: none;
+}
+
+#landing.landing-empty .landing-main {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#landing.landing-empty .onboarding {
+  width: 100%;
+  max-width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+#landing.landing-empty .drop-zone--prominent {
+  max-width: min(920px, 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .welcome-hero__eyebrow {
@@ -7729,6 +7755,22 @@ body.using-gamepad .game-card:focus {
 .library-overview__item--good { border-color: rgba(46, 204, 113, 0.28); }
 .library-overview__item--warn { border-color: rgba(245, 158, 11, 0.34); }
 .library-overview__item--favorite { border-color: rgba(244, 63, 94, 0.36); }
+
+.library-overview__item--action {
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition);
+}
+
+.library-overview__item--action:hover,
+.library-overview__item--action:focus-visible {
+  border-color: rgba(218, 190, 130, 0.42);
+  background: rgba(255, 255, 255, 0.075);
+  transform: translateY(-1px);
+  outline: none;
+}
 .library-overview__scope {
   background: rgba(255,255,255,0.075);
   border-color: rgba(255,255,255,0.18);

@@ -91,6 +91,7 @@ import {
   fetchFirstValidCoverArtCandidate,
 } from "./coverArt.js";
 import {
+  buildEmptySidebarMessage,
   buildFilteredLibraryEmptyState,
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
@@ -101,6 +102,7 @@ import {
 import {
   buildPlatformsStrip,
   getContinuePlayingGame,
+  getRecentlyAddedGames,
   resolveLibraryHeadline,
 } from "./ui/homepage.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
@@ -1801,6 +1803,7 @@ export async function renderLibrary(
     librarySectionEl: libSection,
     dropZoneEl,
     onboardingEl,
+    landingEl: document.getElementById("landing"),
   });
 
   const titleEl = document.querySelector(".library-title");
@@ -1828,7 +1831,25 @@ export async function renderLibrary(
     }
   }
 
-  _renderLibraryOverview(allGames, displayed);
+  _renderLibraryOverview(allGames, displayed, {
+    onFocusFavorites: () => {
+      _libraryShowFavorites = true;
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    },
+    onFetchCovers: () => {
+      document.getElementById("library-fetch-covers")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    },
+    onFocusRecent: () => {
+      _librarySortMode = "lastPlayed";
+      const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
+      if (sortEl) sortEl.value = "lastPlayed";
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    },
+  });
 
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
@@ -1934,9 +1955,12 @@ export async function renderLibrary(
     _librarySortMode === "lastPlayed" &&
     displayed.length >= 2;
 
+  const excludedShelfIds = new Set<string>();
+  if (continueGame) excludedShelfIds.add(continueGame.id);
+
   if (showJumpBackIn) {
     const recent = displayed
-      .filter((g) => g.id !== continueGame?.id)
+      .filter((g) => !excludedShelfIds.has(g.id))
       .slice(0, 6);
     if (recent.length >= 2) {
       grid.appendChild(buildLibraryRowSection({
@@ -1951,9 +1975,34 @@ export async function renderLibrary(
         systemIcon,
         buildGameCard,
       }));
+      for (const game of recent) excludedShelfIds.add(game.id);
     }
   }
   // ── End Jump Back In ───────────────────────────────────────────────────────
+
+  const showRecentlyAdded =
+    inCleanBrowse &&
+    _librarySortMode === "lastPlayed" &&
+    allGames.length > 0 &&
+    !settings.libraryGrouped;
+
+  if (showRecentlyAdded) {
+    const recentlyAdded = getRecentlyAddedGames(allGames, { excludeIds: excludedShelfIds });
+    if (recentlyAdded.length >= 2) {
+      grid.appendChild(buildLibraryRowSection({
+        title: "Recently Added",
+        systemId: null,
+        games: recentlyAdded,
+        library,
+        settings,
+        onLaunchGame,
+        emulatorRef,
+        onApplyPatch,
+        systemIcon,
+        buildGameCard,
+      }));
+    }
+  }
 
   // Favorites grouping if enabled
   const hasFavorites = displayed.some(g => g.isFavorite);
@@ -2117,7 +2166,17 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
   return result;
 }
 
-function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadata[]): void {
+interface LibraryOverviewActions {
+  onFocusFavorites?: () => void;
+  onFetchCovers?: () => void;
+  onFocusRecent?: () => void;
+}
+
+function _renderLibraryOverview(
+  allGames: GameMetadata[],
+  displayed: GameMetadata[],
+  actions: LibraryOverviewActions = {},
+): void {
   const overview = document.getElementById("library-overview");
   if (!overview) return;
 
@@ -2132,22 +2191,59 @@ function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadat
   const recentCount = allGames.filter(g => g.lastPlayedAt && Date.now() - g.lastPlayedAt < 14 * 24 * 60 * 60 * 1000).length;
   const hasActiveFilters = displayed.length !== allGames.length || _libraryShowFavorites || !!_librarySearchQuery || !!_librarySystemFilter;
 
-  const item = (label: string, value: string, hint: string, tone = "") => {
-    const node = make("div", { class: `library-overview__item${tone ? ` library-overview__item--${tone}` : ""}` });
+  const item = (
+    label: string,
+    value: string,
+    hint: string,
+    tone = "",
+    onActivate?: () => void,
+  ) => {
+    const node = make("div", {
+      class: `library-overview__item${tone ? ` library-overview__item--${tone}` : ""}${onActivate ? " library-overview__item--action" : ""}`,
+      ...(onActivate ? { role: "button", tabindex: "0" } : {}),
+    });
     node.append(
       make("span", { class: "library-overview__value" }, value),
       make("span", { class: "library-overview__label" }, label),
       make("span", { class: "library-overview__hint" }, hint),
     );
+    if (onActivate) {
+      const activate = () => onActivate();
+      node.addEventListener("click", activate);
+      node.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        }
+      });
+    }
     return node;
   };
 
   overview.innerHTML = "";
   overview.append(
     item("Systems", String(systemCount), systemCount === 1 ? "one console" : "platform spread"),
-    item("Favorites", String(favoriteCount), favoriteCount > 0 ? "quick shelf" : "mark go-to games", favoriteCount > 0 ? "favorite" : ""),
-    item("Cover Art", missingArtCount === 0 ? "Full" : `${missingArtCount} missing`, missingArtCount === 0 ? "all set" : "ready to fetch", missingArtCount > 0 ? "warn" : "good"),
-    item("Recent", String(recentCount), "played in 14 days"),
+    item(
+      "Favorites",
+      String(favoriteCount),
+      favoriteCount > 0 ? "show favorites" : "mark go-to games",
+      favoriteCount > 0 ? "favorite" : "",
+      favoriteCount > 0 ? actions.onFocusFavorites : undefined,
+    ),
+    item(
+      "Cover Art",
+      missingArtCount === 0 ? "Full" : `${missingArtCount} missing`,
+      missingArtCount === 0 ? "all set" : "fetch covers",
+      missingArtCount > 0 ? "warn" : "good",
+      missingArtCount > 0 ? actions.onFetchCovers : undefined,
+    ),
+    item(
+      "Recent",
+      String(recentCount),
+      recentCount > 0 ? "sort by last played" : "played in 14 days",
+      "",
+      recentCount > 0 ? actions.onFocusRecent : undefined,
+    ),
   );
 
   if (hasActiveFilters) {
@@ -2278,23 +2374,22 @@ function _renderSystemFilterChips(
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
 ): void {
   const filterEl = document.getElementById("system-filter");
-  if (!filterEl || games.length === 0) {
-    if (filterEl) {
-      filterEl.innerHTML = "";
-      filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
-    }
+  const sidebar = filterEl?.closest(".landing-sidebar");
+  if (!filterEl) return;
+
+  sidebar?.querySelector(".landing-sidebar__empty")?.remove();
+
+  if (games.length === 0) {
+    filterEl.innerHTML = "";
+    sidebar?.classList.add("landing-sidebar--empty");
+    sidebar?.appendChild(buildEmptySidebarMessage());
     return;
   }
 
   const systemIds = [...new Set(games.map(g => g.systemId))].sort();
-  if (systemIds.length < 2) {
-    filterEl.innerHTML = "";
-    filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
-    return;
-  }
 
   filterEl.innerHTML = "";
-  filterEl.closest(".landing-sidebar")?.classList.remove("landing-sidebar--empty");
+  sidebar?.classList.remove("landing-sidebar--empty");
   
   const createChip = (id: string, label: string, icon: string) => {
     const chipLabel =

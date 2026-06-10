@@ -4,6 +4,7 @@ import { updateLibraryLandingState } from "./libraryView.js";
 describe("updateLibraryLandingState", () => {
   beforeEach(() => {
     document.body.innerHTML = `
+      <section id="landing"></section>
       <div id="library-section">
         <div class="library-toolbar"></div>
         <div class="library-overview"></div>
@@ -30,12 +31,14 @@ describe("updateLibraryLandingState", () => {
       librarySectionEl: librarySection,
       dropZoneEl: dropZone,
       onboardingEl: onboarding,
+      landingEl: document.getElementById("landing"),
     });
 
     expect(librarySection.classList.contains("hidden-section")).toBe(false);
     expect(onboarding.classList.contains("hidden-section")).toBe(false);
     expect(document.querySelector(".library-toolbar")?.classList.contains("hidden-section")).toBe(true);
     expect(dropZone.classList.contains("drop-zone--prominent")).toBe(true);
+    expect(document.getElementById("landing")?.classList.contains("landing-empty")).toBe(true);
   });
 
   it("hides onboarding and shows browse chrome when games exist", () => {

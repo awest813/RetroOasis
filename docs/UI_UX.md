@@ -5,6 +5,9 @@
 - **Empty library:** onboarding hero, supported-platforms strip, prominent drop zone, and cloud-saves quick action stay visible (browse chrome is hidden, not the whole `#library-section`).
 - **Returning users:** dynamic headline (`Welcome back` within 7 days of last play) and a **Continue playing** hero for the most recent title.
 - **Jump Back In row:** horizontal strip for additional recent games; skips the hero title to avoid duplication.
+- **Recently Added row:** games imported in the last 14 days (when not using grouped layout).
+- **Overview cards:** Favorites, missing cover art, and recent-play stats are clickable shortcuts.
+- **Empty sidebar:** shows an import hint instead of disappearing entirely.
 
 ## Launch flow
 

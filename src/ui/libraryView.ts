@@ -8,6 +8,11 @@ const LIBRARY_BROWSE_SELECTORS = [
   "#library-continue-hero",
 ] as const;
 
+export function buildEmptySidebarMessage(): HTMLElement {
+  return make("p", { class: "landing-sidebar__empty" },
+    "Import a game to filter your library by platform.");
+}
+
 export function updateLibraryLandingState(opts: {
   totalGames: number;
   shownGames: number;
@@ -15,9 +20,12 @@ export function updateLibraryLandingState(opts: {
   librarySectionEl: HTMLElement;
   dropZoneEl: HTMLElement;
   onboardingEl: HTMLElement | null;
+  landingEl?: HTMLElement | null;
 }): void {
-  const { totalGames, shownGames, countEl, librarySectionEl, dropZoneEl, onboardingEl } = opts;
+  const { totalGames, shownGames, countEl, librarySectionEl, dropZoneEl, onboardingEl, landingEl } = opts;
   const isEmpty = totalGames === 0;
+
+  landingEl?.classList.toggle("landing-empty", isEmpty);
 
   countEl.textContent = totalGames > 0
     ? `${totalGames} game${totalGames !== 1 ? "s" : ""}${shownGames !== totalGames ? ` · ${shownGames} shown` : ""}`

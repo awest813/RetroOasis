@@ -17,6 +17,8 @@ export const HOMEPAGE_FEATURED_SYSTEM_IDS = [
 ] as const;
 
 const WELCOME_BACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+export const RECENTLY_ADDED_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+export const RECENTLY_ADDED_MAX = 8;
 
 export function resolveLibraryHeadline(allGames: GameMetadata[]): string {
   if (allGames.length === 0) return "My Library";
@@ -33,6 +35,20 @@ export function resolveLibraryHeadline(allGames: GameMetadata[]): string {
   }
 
   return "My Library";
+}
+
+export function getRecentlyAddedGames(
+  allGames: GameMetadata[],
+  opts?: { withinMs?: number; limit?: number; excludeIds?: ReadonlySet<string> },
+): GameMetadata[] {
+  const withinMs = opts?.withinMs ?? RECENTLY_ADDED_WINDOW_MS;
+  const limit = opts?.limit ?? RECENTLY_ADDED_MAX;
+  const cutoff = Date.now() - withinMs;
+
+  return [...allGames]
+    .filter((g) => g.addedAt >= cutoff && !opts?.excludeIds?.has(g.id))
+    .sort((a, b) => b.addedAt - a.addedAt)
+    .slice(0, limit);
 }
 
 export function getContinuePlayingGame(allGames: GameMetadata[]): GameMetadata | null {
