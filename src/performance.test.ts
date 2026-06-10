@@ -12,6 +12,7 @@ import {
   isLikelyAndroid,
   isLikelySafari,
   getSafariVersion,
+  needsLaunchFileEagerRead,
   isWebGPUAvailable,
   prefersReducedMotion,
   checkBatteryStatus,
@@ -579,6 +580,38 @@ describe('performance', () => {
         'Mozilla/5.0 (X11; CrOS x86_64 15236.80.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
       );
       expect(isLikelySafari()).toBe(false);
+    });
+  });
+
+  // ── needsLaunchFileEagerRead ───────────────────────────────────────────
+
+  describe('needsLaunchFileEagerRead', () => {
+    it('returns true for iPhone Safari', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(needsLaunchFileEagerRead()).toBe(true);
+    });
+
+    it('returns true for Chrome on iPhone (WebKit shell)', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1'
+      );
+      expect(needsLaunchFileEagerRead()).toBe(true);
+    });
+
+    it('returns true for desktop Safari', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+      );
+      expect(needsLaunchFileEagerRead()).toBe(true);
+    });
+
+    it('returns false for desktop Chrome', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+      expect(needsLaunchFileEagerRead()).toBe(false);
     });
   });
 

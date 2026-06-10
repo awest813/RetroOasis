@@ -27,7 +27,7 @@ import { LEGACY_PERF_MARKS } from "./legacy.js";
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
   resolveMode, resolveTier, detectAudioCapabilities,
-  isLikelyIOS, getSafariVersion,
+  isLikelyIOS, getSafariVersion, needsLaunchFileEagerRead,
   type PerformanceMode, type DeviceCapabilities, type PerformanceTier,
   getResolutionLadder,
   recordSystemLaunch,
@@ -2966,18 +2966,19 @@ export class PSPEmulator {
       // fetching blob: URLs from a SW-controlled page can silently fail,
       // causing games to stall in the loading screen forever).
       //
-      // On iPhone/iPad, ROMs from the file picker or from IndexedDB are often
-      // backed by opaque blob/file handles. Reading them asynchronously later
-      // (after system dialogs, archive work, or a second launch) can fail or
-      // stall. Eagerly copy into a fresh in-memory File once before EJS runs.
-      const eagerRead = isLikelyIOS();
+      // On WebKit (Safari, iPhone/iPad, Chrome-on-iOS), ROMs from the file
+      // picker or IndexedDB are often backed by opaque blob/file handles.
+      // Reading them asynchronously later (after dialogs, archive work, or a
+      // second launch) can reject with NotFoundError. Eagerly copy into a
+      // fresh in-memory File once before EJS runs.
+      const eagerRead = needsLaunchFileEagerRead();
       if (eagerRead) {
-        this._emit("onProgress", "Preparing game file for iOS…");
+        this._emit("onProgress", "Preparing game file for this browser…");
       }
       const gameFile = await prepareLaunchFile(opts.file, fileName, { eagerRead });
       if (eagerRead && this.verboseLogging) {
         console.info(
-          "[RetroOasis] iOS WebKit: materialised ROM into an in-memory File for stable reads."
+          "[RetroOasis] WebKit: materialised ROM into an in-memory File for stable reads."
         );
       }
       this._launchGameFile = gameFile;

@@ -12,6 +12,27 @@ describe("blobUtils mobile compatibility", () => {
     vi.unstubAllGlobals();
   });
 
+  it("falls back to FileReader when Blob.arrayBuffer rejects a stale WebKit blob", async () => {
+    const blob = new Blob([new Uint8Array([4, 5, 6])]);
+    const original = Blob.prototype.arrayBuffer;
+    Object.defineProperty(Blob.prototype, "arrayBuffer", {
+      value() {
+        return Promise.reject(new DOMException("The object can not be found here.", "NotFoundError"));
+      },
+      configurable: true,
+    });
+
+    try {
+      const bytes = new Uint8Array(await readBlobAsArrayBuffer(blob));
+      expect(bytes).toEqual(new Uint8Array([4, 5, 6]));
+    } finally {
+      Object.defineProperty(Blob.prototype, "arrayBuffer", {
+        value: original,
+        configurable: true,
+      });
+    }
+  });
+
   it("falls back to FileReader when Blob.arrayBuffer is unavailable", async () => {
     const blob = new Blob([new Uint8Array([1, 2, 3])]);
     const original = Blob.prototype.arrayBuffer;
@@ -25,6 +46,26 @@ describe("blobUtils mobile compatibility", () => {
       expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
     } finally {
       Object.defineProperty(Blob.prototype, "arrayBuffer", {
+        value: original,
+        configurable: true,
+      });
+    }
+  });
+
+  it("falls back to FileReader when Blob.text rejects a stale WebKit blob", async () => {
+    const blob = new Blob(["stale cue"]);
+    const original = Blob.prototype.text;
+    Object.defineProperty(Blob.prototype, "text", {
+      value() {
+        return Promise.reject(new DOMException("The object can not be found here.", "NotFoundError"));
+      },
+      configurable: true,
+    });
+
+    try {
+      await expect(readBlobAsText(blob)).resolves.toBe("stale cue");
+    } finally {
+      Object.defineProperty(Blob.prototype, "text", {
         value: original,
         configurable: true,
       });

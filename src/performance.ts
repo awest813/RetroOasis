@@ -718,6 +718,19 @@ export function getSafariVersion(): number | null {
   }
 }
 
+/**
+ * True when ROM blobs should be copied into a fresh in-memory `File` before
+ * EmulatorJS reads them.
+ *
+ * WebKit (Safari on macOS, Safari/Chrome/Firefox on iOS/iPadOS) can return
+ * IndexedDB-backed blobs whose `arrayBuffer()` rejects with NotFoundError
+ * ("The object can not be found here") unless the bytes are materialised
+ * eagerly while the handle is still valid.
+ */
+export function needsLaunchFileEagerRead(): boolean {
+  return isLikelyIOS() || isLikelySafari();
+}
+
 // ── Reduced motion preference ─────────────────────────────────────────────────
 
 export function prefersReducedMotion(): boolean {

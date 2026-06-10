@@ -707,6 +707,43 @@ describe('PSPEmulator', () => {
       expect(out).toEqual(payload);
       expect((window as unknown as Record<string, unknown>).EJS_gameUrl).toBe(materialised);
     });
+
+    it('copies the ROM into a fresh File on desktop Safari', async () => {
+      const originalUA = navigator.userAgent;
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        configurable: true,
+      });
+
+      vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() });
+
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          await Promise.resolve();
+          window.EJS_onGameStart?.();
+        };
+
+      const payload = new Uint8Array([0x4e, 0x45, 0x53, 0x1a, 0x01, 0x02]);
+      const picked = new File([payload], 'game.nes');
+
+      try {
+        await emulator.launch({
+          file:            picked,
+          volume:          0.7,
+          systemId:        'nes',
+          performanceMode: 'auto',
+          deviceCaps:      nesCaps,
+        });
+      } finally {
+        Object.defineProperty(navigator, 'userAgent', { value: originalUA, configurable: true });
+        vi.unstubAllGlobals();
+      }
+
+      expect(emulator.state).toBe('running');
+      const materialised = emulator.getLaunchGameFile();
+      expect(materialised).not.toBeNull();
+      expect(materialised).not.toBe(picked);
+    });
   });
 
   // ── Launch watchdog (freeze guard) ────────────────────────────────────────
