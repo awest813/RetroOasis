@@ -28,7 +28,8 @@ Tracked checklist for making RetroOasis as lightweight as functional allows.
 - [x] Consolidate orphan `Exo 2` references to design tokens
 - [x] Extract `performancePrimitives.ts` (test-only pools/batchers off main chunk)
 - [x] Lazy-load `compatibility.ts` on game launch (`compatibility` chunk)
-- [ ] Split `performance.ts` boot probe vs heavy GPU benchmark / monitors
+- [x] Split runtime monitors to `performanceMonitors.ts` (lazy-loaded on game launch)
+- [ ] Split `performance.ts` GPU benchmark from boot helpers
 - [ ] Audit eager `main.ts` imports with import graph
 
 ## Phase 2 — Chunk Hygiene
@@ -46,8 +47,9 @@ Tracked checklist for making RetroOasis as lightweight as functional allows.
 
 ## Phase 4 — DOM & Renders
 
-- [ ] Wire `UIDirtyTracker` through library + header paths
-- [ ] Incremental `renderLibrary()` for large libraries
+- [x] Wire `UIDirtyTracker` + render signature skip in `renderLibrary()`
+- [x] Export `invalidateLibraryRender()` for forced grid rebuilds
+- [ ] Incremental `renderLibrary()` DOM diff for large libraries
 - [ ] `IntersectionObserver` thumbnail decode gating
 
 ## Phase 5 — Runtime Memory

@@ -25,7 +25,6 @@ import {
   inferDynamicResolutionScalingDefault,
   estimateConnectionQuality,
   estimateVRAM,
-  MemoryMonitor,
   scheduleIdleTask,
   DeviceCapabilities,
   GPUCapabilities,
@@ -35,9 +34,6 @@ import {
   getTextureUpscalerCoreOptions,
   recommendedAssetConcurrency,
   recommendedFrameBudgetMs,
-  ThermalMonitor,
-  StartupProfiler,
-  FpsPrediction,
   getLaunchCounts,
   recordSystemLaunch,
   getTopLaunchedSystems,
@@ -52,6 +48,12 @@ import {
   DrawCallBatcher,
   AssetLoader,
 } from "./performancePrimitives.js";
+import {
+  MemoryMonitor,
+  ThermalMonitor,
+  StartupProfiler,
+  FpsPrediction,
+} from "./performanceMonitors.js";
 
 describe('performance', () => {
   afterEach(() => {

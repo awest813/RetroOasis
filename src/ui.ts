@@ -47,6 +47,8 @@ import {
   type DeviceCapabilities,
   type PerformanceTier,
   formatTierLabel,
+  UIDirtyFlags,
+  UIDirtyTracker,
 } from "./performance.js";
 import {
   BiosLibrary,
@@ -1470,6 +1472,37 @@ let _librarySystemFilter = "";
 let _libraryShowFavorites = false;
 let _libraryLastLayout: Settings["libraryLayout"] = "grid";
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
+/** Fingerprint of the last full library grid build — skips redundant DOM work. */
+let _libraryRenderSignature = "";
+const _uiDirty = new UIDirtyTracker();
+
+/** Force the next `renderLibrary()` call to rebuild the card grid. */
+export function invalidateLibraryRender(): void {
+  _libraryRenderSignature = "";
+  _uiDirty.mark(UIDirtyFlags.LIBRARY);
+}
+
+function _computeLibraryRenderSignature(
+  allGames: GameMetadata[],
+  displayed: GameMetadata[],
+  settings: Settings,
+): string {
+  const gameSig = displayed
+    .map((g) =>
+      `${g.id}:${g.lastPlayedAt ?? 0}:${g.isFavorite ? 1 : 0}:${g.hasCoverArt ? 1 : 0}:${g.thumbnailUrl ?? ""}`,
+    )
+    .join("|");
+  return [
+    allGames.length,
+    gameSig,
+    _librarySearchQuery,
+    _librarySystemFilter,
+    _libraryShowFavorites ? 1 : 0,
+    _librarySortMode,
+    settings.libraryLayout,
+    settings.libraryGrouped ? 1 : 0,
+  ].join(";");
+}
 
 function _syncLibraryControlState(): void {
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
@@ -1773,6 +1806,27 @@ export async function renderLibrary(
 
   // Apply filters and sort
   const displayed = _applyLibraryFilters(allGames);
+
+  const renderSig = _computeLibraryRenderSignature(allGames, displayed, settings);
+  const forceRender = _uiDirty.consume(UIDirtyFlags.LIBRARY);
+  const hasRenderedCards =
+    grid.querySelector(".game-card:not(.game-card--skeleton)") !== null;
+
+  if (!forceRender && renderSig === _libraryRenderSignature && hasRenderedCards) {
+    const onboardingEl = document.getElementById("onboarding");
+    updateLibraryLandingState({
+      totalGames: allGames.length,
+      shownGames: displayed.length,
+      countEl,
+      librarySectionEl: libSection,
+      dropZoneEl,
+      onboardingEl,
+    });
+    _renderLibraryOverview(allGames, displayed);
+    _renderSystemFilterChips(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    return;
+  }
+  _libraryRenderSignature = renderSig;
 
   const onboardingEl = document.getElementById("onboarding");
   updateLibraryLandingState({

@@ -15,8 +15,9 @@ import { SYSTEMS, getSystemById } from "./systems.js";
 describe('PSPEmulator', () => {
   let emulator: PSPEmulator;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     emulator = new PSPEmulator('test-player');
+    await emulator.ensureRuntimeMonitors();
     // Ensure the player element exists in jsdom
     if (!document.getElementById('test-player')) {
       const div = document.createElement('div');

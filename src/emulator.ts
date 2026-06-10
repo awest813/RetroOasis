@@ -29,14 +29,18 @@ import {
   resolveMode, resolveTier, detectAudioCapabilities,
   isLikelyIOS, getSafariVersion,
   type PerformanceMode, type DeviceCapabilities, type PerformanceTier,
-  MemoryMonitor,
   getResolutionLadder,
-  ThermalMonitor,
-  StartupProfiler,
-  FpsPrediction,
   recordSystemLaunch,
   resolveCorePrefetchSystems,
 } from "./performance.js";
+import type {
+  MemoryMonitor,
+  ThermalMonitor,
+  StartupProfiler,
+  FpsPrediction,
+  LaunchPhase,
+  LaunchPhaseRecord,
+} from "./performanceMonitors.js";
 import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
 import { prepareLaunchFile } from "./blobUtils.js";
 import {
@@ -976,6 +980,41 @@ export interface AutoSaveTriggerEvent {
   timestamp: number;
 }
 
+// ── Runtime monitor stubs (replaced when perf-monitors chunk loads) ─────────────
+
+class _MemoryMonitorStub {
+  onPressure?: (usedMB: number, limitMB: number) => void;
+  get usedHeapMB(): number | null { return null; }
+  get heapLimitMB(): number | null { return null; }
+  start(_intervalMs?: number): void { /* no-op until real monitor loads */ }
+  stop(): void { /* no-op */ }
+}
+
+class _ThermalMonitorStub {
+  onPressureChange?: (state: string, prev: string) => void;
+  get state(): string { return "unknown"; }
+  start(): Promise<void> { return Promise.resolve(); }
+  stop(): void { /* no-op */ }
+}
+
+class _StartupProfilerStub {
+  begin(_phase: LaunchPhase): void { /* no-op */ }
+  end(_phase: LaunchPhase): void { /* no-op */ }
+  records(): LaunchPhaseRecord[] { return []; }
+  summary(): { totalMs: number; slowest: LaunchPhaseRecord | null; records: LaunchPhaseRecord[] } {
+    return { totalMs: 0, slowest: null, records: [] };
+  }
+  reset(): void { /* no-op */ }
+}
+
+class _FpsPredictionStub {
+  reset(): void { /* no-op */ }
+  addSample(_fps: number, _nowMs?: number): void { /* no-op */ }
+  get isLocked(): boolean { return false; }
+  get sampleCount(): number { return 0; }
+  predict(): null { return null; }
+}
+
 // ── PSPEmulator ───────────────────────────────────────────────────────────────
 
 export class PSPEmulator {
@@ -1013,7 +1052,9 @@ export class PSPEmulator {
   private _audioLevel = 0;
   /** Timestamp (ms) of the last audio-underrun console.warn — rate-limits log spam. */
   private _lastAudioUnderrunWarnTime = 0;
-  private _memoryMonitor: MemoryMonitor = new MemoryMonitor();
+  private _memoryMonitor: MemoryMonitor = new _MemoryMonitorStub() as unknown as MemoryMonitor;
+  private _runtimeMonitorsLoaded = false;
+  private _runtimeMonitorsPromise: Promise<void> | null = null;
   /** Timestamp (ms) when sustained low FPS was first detected; 0 when FPS is healthy. */
   private _lowFPSStartTime = 0;
   private _bridge: CoreBridge | null = null;
@@ -1051,11 +1092,11 @@ export class PSPEmulator {
 
   // ── Phase 9: Thermal, startup profiler, FPS prediction ──────────────────────
   /** Thermal/compute pressure monitor — started once and kept alive. */
-  private readonly _thermalMonitor: ThermalMonitor = new ThermalMonitor();
+  private _thermalMonitor: ThermalMonitor = new _ThermalMonitorStub() as unknown as ThermalMonitor;
   /** Startup profiler for the current launch attempt. */
-  private _startupProfiler: StartupProfiler = new StartupProfiler();
+  private _startupProfiler: StartupProfiler = new _StartupProfilerStub() as unknown as StartupProfiler;
   /** FPS sustainability predictor for the first 5 s of gameplay. */
-  private _fpsPrediction: FpsPrediction = new FpsPrediction();
+  private _fpsPrediction: FpsPrediction = new _FpsPredictionStub() as unknown as FpsPrediction;
   /** Whether onFpsPredictionUnsustainable has already fired for this game launch. */
   private _fpsPredictionFired = false;
   /** Timer ID for the per-game shader warmup window — cleared on teardown. */
@@ -1143,28 +1184,49 @@ export class PSPEmulator {
   constructor(playerId: string) {
     this._playerId = playerId;
     this._fpsMonitor = new FPSMonitor(60);
-    this._memoryMonitor.onPressure = (usedMB, limitMB) => {
-      this.logDiagnostic(
-        "performance",
-        `Memory pressure: ${usedMB} MB used of ${limitMB} MB limit ` +
-        `(${Math.round((usedMB / limitMB) * 100)}%)`
-      );
-      console.warn(
-        `[RetroOasis] Memory pressure detected — JS heap at ${usedMB} MB ` +
-        `of ${limitMB} MB limit (${Math.round((usedMB / limitMB) * 100)}%). ` +
-        "Consider restarting the game or lowering quality settings."
-      );
-      this.onMemoryPressure?.(usedMB, limitMB);
-    };
-    this._thermalMonitor.onPressureChange = (state, prev) => {
-      this.logDiagnostic("performance", `Thermal pressure: ${prev} → ${state}`);
-      if (state === "serious" || state === "critical") {
-        console.warn(`[RetroOasis] Thermal pressure elevated: ${state}. Performance may be throttled.`);
-      }
-      this.onThermalPressureChange?.(state, prev);
-    };
-    // Start thermal monitoring — it's a no-op when the API is unavailable
-    this._thermalMonitor.start().catch(() => {});
+  }
+
+  /**
+   * Load the perf-monitors chunk and wire memory/thermal/profiler instances.
+   * Called automatically at game launch; exposed for tests that inspect monitors.
+   */
+  ensureRuntimeMonitors(): Promise<void> {
+    if (this._runtimeMonitorsLoaded) return Promise.resolve();
+    if (!this._runtimeMonitorsPromise) {
+      this._runtimeMonitorsPromise = import("./performanceMonitors.js").then((m) => {
+        const memory = new m.MemoryMonitor();
+        memory.onPressure = (usedMB, limitMB) => {
+          this.logDiagnostic(
+            "performance",
+            `Memory pressure: ${usedMB} MB used of ${limitMB} MB limit ` +
+            `(${Math.round((usedMB / limitMB) * 100)}%)`,
+          );
+          console.warn(
+            `[RetroOasis] Memory pressure detected — JS heap at ${usedMB} MB ` +
+            `of ${limitMB} MB limit (${Math.round((usedMB / limitMB) * 100)}%). ` +
+            "Consider restarting the game or lowering quality settings.",
+          );
+          this.onMemoryPressure?.(usedMB, limitMB);
+        };
+
+        const thermal = new m.ThermalMonitor();
+        thermal.onPressureChange = (state, prev) => {
+          this.logDiagnostic("performance", `Thermal pressure: ${prev} → ${state}`);
+          if (state === "serious" || state === "critical") {
+            console.warn(`[RetroOasis] Thermal pressure elevated: ${state}. Performance may be throttled.`);
+          }
+          this.onThermalPressureChange?.(state, prev);
+        };
+        void thermal.start().catch(() => {});
+
+        this._memoryMonitor = memory;
+        this._thermalMonitor = thermal;
+        this._startupProfiler = new m.StartupProfiler();
+        this._fpsPrediction = new m.FpsPrediction();
+        this._runtimeMonitorsLoaded = true;
+      });
+    }
+    return this._runtimeMonitorsPromise;
   }
 
   get state(): EmulatorState { return this._state; }
@@ -2834,6 +2896,8 @@ export class PSPEmulator {
     }
 
     this._currentSystem = system;
+
+    await this.ensureRuntimeMonitors();
 
     // ── Pre-flight checks (conditional per system) ──────────────────────────
     if (system.needsThreads  && !this._checkSharedArrayBuffer()) return;
