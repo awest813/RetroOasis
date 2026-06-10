@@ -93,12 +93,21 @@ import {
   fetchFirstValidCoverArtCandidate,
 } from "./coverArt.js";
 import {
+  buildEmptySidebarMessage,
   buildFilteredLibraryEmptyState,
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
 import {
+  buildLibraryHero,
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
+import {
+  buildEmptyDetailsGuide,
+  buildPlatformsStrip,
+  getContinuePlayingGame,
+  getRecentlyAddedGames,
+  resolveLibraryHeadline,
+} from "./ui/homepage.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
 import { sessionTracker, formatPlayTime } from "./sessionTracker.js";
 import {
@@ -111,7 +120,7 @@ import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
 import { getEasyNetplayManager } from "./ui/easyNetplayShared.js";
-import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
+import { systemIcon, isEditableTarget, escHtml } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
 import { resolveSystemAndAddImpl } from "./ui/screens/gameImport.js";
@@ -138,6 +147,8 @@ import {
   setErrorBannerSettingsOpener,
 } from "./ui/toasts.js";
 import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
+import { launchGameFromLibrary } from "./ui/launchGame.js";
+import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 // Re-export DevOverlay public API so external callers that imported from ui.ts
 // continue to work without changes (e.g. ui.test.ts).
 export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
@@ -233,6 +244,8 @@ export function buildDOM(app: HTMLElement): void {
   _librarySearchQuery   = "";
   _librarySortMode      = "lastPlayed";
   _librarySystemFilter  = "";
+  _libraryRenderSignature = "";
+  clearOverlayStack();
   stopLibraryGamepadNavigation();
   document.body.classList.remove("using-gamepad");
   // Reset DevOverlay cached DOM references (nodes will be recreated below)
@@ -343,6 +356,9 @@ export function buildDOM(app: HTMLElement): void {
           <div class="library-overview" id="library-overview" aria-label="Library overview">
             <!-- Populated by renderLibrary() -->
           </div>
+          <div id="library-continue-hero" class="library-continue-hero hidden-section" aria-label="Continue playing">
+            <!-- Populated by renderLibrary() -->
+          </div>
           <div id="library-highlights" aria-label="Library highlights">
             <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
           </div>
@@ -376,10 +392,13 @@ export function buildDOM(app: HTMLElement): void {
         <!-- Onboarding — only visible when library is empty -->
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
+            <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="welcome-hero__logo" width="80" height="80" decoding="async" draggable="false" aria-hidden="true" />
             <p class="welcome-hero__eyebrow">First run</p>
             <h2 class="welcome-hero__title" id="onboarding-title">Your gaming escape.</h2>
             <p class="welcome-hero__tagline">${APP_NAME} keeps your retro library simple, calm, and ready to play.</p>
           </div>
+
+          <div id="homepage-platforms" class="homepage-platforms-host"></div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
@@ -395,6 +414,7 @@ export function buildDOM(app: HTMLElement): void {
 
           <div class="onboarding__quick-actions" aria-label="Quick start actions">
             <button class="btn btn--primary" id="btn-add-game-secondary" type="button">Choose ROMs</button>
+            <button class="btn btn--ghost" id="btn-cloud-onboarding" type="button">Connect Cloud Saves</button>
             <button class="btn btn--ghost" id="btn-open-help-onboarding" type="button">View Guide</button>
           </div>
 
@@ -574,6 +594,11 @@ export function buildDOM(app: HTMLElement): void {
       brandLogoImg.insertAdjacentHTML("afterend", _LOGO_FALLBACK_SVG);
       brandLogoImg.remove();
     };
+  }
+
+  const platformsHost = app.querySelector("#homepage-platforms");
+  if (platformsHost) {
+    platformsHost.replaceWith(buildPlatformsStrip(systemIcon));
   }
 }
 
@@ -1251,7 +1276,7 @@ export function initUI(opts: UIOptions): void {
     const stabilityNotice = emulator.currentSystem?.experimental
       ? emulator.currentSystem.stabilityNotice ?? "Experimental support may be unstable."
       : "";
-    setLoadingSubtitle(stabilityNotice);
+    if (stabilityNotice) setLoadingSubtitle(stabilityNotice, { append: true });
   };
   emulator.onError       = (msg)   => { hideLoadingOverlay(); showError(msg); };
   emulator.onGameStart = () => {
@@ -1360,7 +1385,7 @@ export function initUI(opts: UIOptions): void {
       if (
         ((e.key === "/" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) &&
         !isEditableTarget(e.target) &&
-        !document.querySelector(".confirm-overlay, .easy-netplay-overlay, #settings-panel:not([hidden]), #system-picker:not([hidden])")
+        !hasActiveOverlay()
       ) {
         if (_focusLibrarySearch()) return true;
       }
@@ -1374,14 +1399,9 @@ export function initUI(opts: UIOptions): void {
     // netplay, in-game panel, or return to library
     (e) => {
       if (e.key !== "Escape") return false;
-      const t = e.target;
-      if (t instanceof HTMLElement && t.closest(".confirm-overlay--visible")) return false;
+      if (closeTopmostOverlay()) return true;
       const errorBanner = document.getElementById("error-banner");
       if (errorBanner?.classList.contains("visible")) { hideError(); return true; }
-      const settingsEl = document.getElementById("settings-panel");
-      if (settingsEl && !settingsEl.hidden) return false;
-      if (document.querySelector("#system-picker:not([hidden])")) return false;
-      if (document.querySelector(".easy-netplay-overlay")) return false;
       const inGamePanel = document.querySelector("#in-game-overlay .in-game-overlay__panel:not([hidden])");
       if (inGamePanel) {
         const closeBtn = inGamePanel.querySelector(".in-game-overlay__close") as HTMLElement | null;
@@ -1573,6 +1593,7 @@ function _scheduleLibraryRender(
   };
 
   if (debounceMs > 0) {
+    document.getElementById("library-grid")?.classList.add("library-grid--busy");
     _librarySearchDebounce = setTimeout(doRender, debounceMs);
     return;
   }
@@ -1816,27 +1837,6 @@ export async function renderLibrary(
   // Apply filters and sort
   const displayed = _applyLibraryFilters(allGames);
 
-  const renderSig = _computeLibraryRenderSignature(allGames, displayed, settings);
-  const forceRender = _uiDirty.consume(UIDirtyFlags.LIBRARY);
-  const hasRenderedCards =
-    grid.querySelector(".game-card:not(.game-card--skeleton)") !== null;
-
-  if (!forceRender && renderSig === _libraryRenderSignature && hasRenderedCards) {
-    const onboardingEl = document.getElementById("onboarding");
-    updateLibraryLandingState({
-      totalGames: allGames.length,
-      shownGames: displayed.length,
-      countEl,
-      librarySectionEl: libSection,
-      dropZoneEl,
-      onboardingEl,
-    });
-    _renderLibraryOverview(allGames, displayed);
-    _renderSystemFilterChips(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    return;
-  }
-  _libraryRenderSignature = renderSig;
-
   const onboardingEl = document.getElementById("onboarding");
   updateLibraryLandingState({
     totalGames: allGames.length,
@@ -1845,23 +1845,59 @@ export async function renderLibrary(
     librarySectionEl: libSection,
     dropZoneEl,
     onboardingEl,
+    landingEl: document.getElementById("landing"),
   });
-  _renderLibraryOverview(allGames, displayed);
+
+  const titleEl = document.querySelector(".library-title");
+  if (titleEl) titleEl.textContent = resolveLibraryHeadline(allGames);
+
+  const inCleanBrowse =
+    !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+  const continueGame = inCleanBrowse ? getContinuePlayingGame(allGames) : null;
+  const continueEl = document.getElementById("library-continue-hero");
+  if (continueEl) {
+    continueEl.innerHTML = "";
+    if (continueGame && allGames.length > 0) {
+      continueEl.classList.remove("hidden-section");
+      continueEl.appendChild(buildLibraryHero({
+        game: continueGame,
+        library,
+        settings,
+        onLaunchGame,
+        systemIcon,
+        escapeHtml: escHtml,
+        onFetchFromCloud: fetchFromCloud,
+      }));
+    } else if (allGames.length > 0) {
+      continueEl.classList.add("hidden-section");
+    }
+  }
+
+  _renderEmptyDetailsGuide(allGames.length === 0);
+
+  _renderLibraryOverview(allGames, displayed, {
+    onFocusFavorites: () => {
+      _libraryShowFavorites = true;
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    },
+    onFetchCovers: () => {
+      document.getElementById("library-fetch-covers")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    },
+    onFocusRecent: () => {
+      _librarySortMode = "lastPlayed";
+      const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
+      if (sortEl) sortEl.value = "lastPlayed";
+      _syncLibraryControlState();
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    },
+  });
 
   if (emulatorRef && allGames.length > 0) {
     const systemIds = new Set(allGames.map(g => g.systemId));
     for (const sid of systemIds) { emulatorRef.prefetchCore(sid); }
-  }
-
-  const gridImgs = grid.querySelectorAll<HTMLImageElement>('img[src^="blob:"]');
-  for (const img of gridImgs) URL.revokeObjectURL(img.src);
-  grid.innerHTML = "";
-  invalidateLibraryGamepadCardCache();
-
-  // Destroy any previous virtual grid before we rebuild the DOM
-  if (_virtualGrid) {
-    _virtualGrid.destroy();
-    _virtualGrid = null;
   }
 
   // ── Highlights panel (favorites + recent sessions) ─────────────────────────
@@ -1894,53 +1930,25 @@ export async function renderLibrary(
           const blob = await library.getCoverArt(gameId);
           return blob ? URL.createObjectURL(blob) : null;
         },
-        onPlayFavorite: (game) => { void (async () => {
-          showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
-          setLoadingSubtitle("Getting ready to play");
-          try {
-            let blob = await library.getGameBlob(game.id);
-            if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
-              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-              blob = await fetchFromCloud(game, settings, library);
-            }
-            if (!blob) {
-              hideLoadingOverlay();
-              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-              return;
-            }
-            await library.markPlayed(game.id);
-            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
-          } catch (err) {
-            hideLoadingOverlay();
-            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        })(); },
-        onPlaySession: (game, _session) => { void (async () => {
+        onPlayFavorite: (game) => {
+          void launchGameFromLibrary({
+            game,
+            library,
+            settings,
+            onFetchFromCloud: fetchFromCloud,
+            onLaunchGame,
+          });
+        },
+        onPlaySession: (game, _session) => {
           if (!game) return;
-          showLoadingOverlay();
-          setLoadingMessage(`Starting ${game.name}…`);
-          setLoadingSubtitle("Getting ready to play");
-          try {
-            let blob = await library.getGameBlob(game.id);
-            if (!blob && game.cloudId) {
-              setLoadingMessage("Streaming from cloud…");
-              setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-              blob = await fetchFromCloud(game, settings, library);
-            }
-            if (!blob) {
-              hideLoadingOverlay();
-              showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-              return;
-            }
-            await library.markPlayed(game.id);
-            await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
-          } catch (err) {
-            hideLoadingOverlay();
-            showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        })(); },
+          void launchGameFromLibrary({
+            game,
+            library,
+            settings,
+            onFetchFromCloud: fetchFromCloud,
+            onLaunchGame,
+          });
+        },
       });
 
       highlightsEl.innerHTML = "";
@@ -1956,6 +1964,32 @@ export async function renderLibrary(
   _syncLibraryControlState();
 
   grid.className = `library-grid library-grid--${layout}`;
+
+  const renderSig = _computeLibraryRenderSignature(allGames, displayed, settings);
+  const forceRender = _uiDirty.consume(UIDirtyFlags.LIBRARY);
+  const hasRenderedCards = grid.querySelector(".game-card:not(.game-card--skeleton)") !== null;
+  const canSkipGridRebuild =
+    !forceRender &&
+    renderSig === _libraryRenderSignature &&
+    hasRenderedCards &&
+    !grid.querySelector(".library-empty");
+
+  if (canSkipGridRebuild) {
+    grid.classList.remove("library-grid--busy");
+    return;
+  }
+  _libraryRenderSignature = renderSig;
+
+  const gridImgs = grid.querySelectorAll<HTMLImageElement>('img[src^="blob:"]');
+  for (const img of gridImgs) URL.revokeObjectURL(img.src);
+  grid.innerHTML = "";
+  grid.classList.remove("library-grid--busy");
+  invalidateLibraryGamepadCardCache();
+
+  if (_virtualGrid) {
+    _virtualGrid.destroy();
+    _virtualGrid = null;
+  }
 
   if (displayed.length === 0 && allGames.length > 0) {
     const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
@@ -1980,22 +2014,54 @@ export async function renderLibrary(
     _librarySortMode === "lastPlayed" &&
     displayed.length >= 2;
 
+  const excludedShelfIds = new Set<string>();
+  if (continueGame) excludedShelfIds.add(continueGame.id);
+
   if (showJumpBackIn) {
-    const recent = displayed.slice(0, 6);
-    grid.appendChild(buildLibraryRowSection({
-      title: "Jump Back In",
-      systemId: null,
-      games: recent,
-      library,
-      settings,
-      onLaunchGame,
-      emulatorRef,
-      onApplyPatch,
-      systemIcon,
-      buildGameCard,
-    }));
+    const recent = displayed
+      .filter((g) => !excludedShelfIds.has(g.id))
+      .slice(0, 6);
+    if (recent.length >= 2) {
+      grid.appendChild(buildLibraryRowSection({
+        title: "Jump Back In",
+        systemId: null,
+        games: recent,
+        library,
+        settings,
+        onLaunchGame,
+        emulatorRef,
+        onApplyPatch,
+        systemIcon,
+        buildGameCard,
+      }));
+      for (const game of recent) excludedShelfIds.add(game.id);
+    }
   }
   // ── End Jump Back In ───────────────────────────────────────────────────────
+
+  const showRecentlyAdded =
+    inCleanBrowse &&
+    _librarySortMode === "lastPlayed" &&
+    allGames.length > 0 &&
+    !settings.libraryGrouped;
+
+  if (showRecentlyAdded) {
+    const recentlyAdded = getRecentlyAddedGames(allGames, { excludeIds: excludedShelfIds });
+    if (recentlyAdded.length >= 2) {
+      grid.appendChild(buildLibraryRowSection({
+        title: "Recently Added",
+        systemId: null,
+        games: recentlyAdded,
+        library,
+        settings,
+        onLaunchGame,
+        emulatorRef,
+        onApplyPatch,
+        systemIcon,
+        buildGameCard,
+      }));
+    }
+  }
 
   // Favorites grouping if enabled
   const hasFavorites = displayed.some(g => g.isFavorite);
@@ -2159,7 +2225,42 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
   return result;
 }
 
-function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadata[]): void {
+interface LibraryOverviewActions {
+  onFocusFavorites?: () => void;
+  onFetchCovers?: () => void;
+  onFocusRecent?: () => void;
+}
+
+function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {
+  const detailsRoot = document.getElementById("landing-details");
+  const empty = detailsRoot?.querySelector(".landing-details__empty") as HTMLElement | null;
+  const content = document.getElementById("landing-details-content");
+  if (!empty || !content) return;
+
+  if (!isEmptyLibrary) {
+    if (content.querySelector(".landing-details__guide")) {
+      empty.removeAttribute("hidden");
+      content.setAttribute("hidden", "true");
+      content.innerHTML = "";
+    }
+    return;
+  }
+
+  empty.setAttribute("hidden", "true");
+  content.removeAttribute("hidden");
+  content.innerHTML = "";
+  content.appendChild(buildEmptyDetailsGuide({
+    onChooseRoms: () => document.getElementById("file-input")?.click(),
+    onOpenHelp: () => _openSettingsFn?.("help"),
+    onCloudSaves: () => _openSettingsFn?.("cloud"),
+  }));
+}
+
+function _renderLibraryOverview(
+  allGames: GameMetadata[],
+  displayed: GameMetadata[],
+  actions: LibraryOverviewActions = {},
+): void {
   const overview = document.getElementById("library-overview");
   if (!overview) return;
 
@@ -2174,22 +2275,59 @@ function _renderLibraryOverview(allGames: GameMetadata[], displayed: GameMetadat
   const recentCount = allGames.filter(g => g.lastPlayedAt && Date.now() - g.lastPlayedAt < 14 * 24 * 60 * 60 * 1000).length;
   const hasActiveFilters = displayed.length !== allGames.length || _libraryShowFavorites || !!_librarySearchQuery || !!_librarySystemFilter;
 
-  const item = (label: string, value: string, hint: string, tone = "") => {
-    const node = make("div", { class: `library-overview__item${tone ? ` library-overview__item--${tone}` : ""}` });
+  const item = (
+    label: string,
+    value: string,
+    hint: string,
+    tone = "",
+    onActivate?: () => void,
+  ) => {
+    const node = make("div", {
+      class: `library-overview__item${tone ? ` library-overview__item--${tone}` : ""}${onActivate ? " library-overview__item--action" : ""}`,
+      ...(onActivate ? { role: "button", tabindex: "0" } : {}),
+    });
     node.append(
       make("span", { class: "library-overview__value" }, value),
       make("span", { class: "library-overview__label" }, label),
       make("span", { class: "library-overview__hint" }, hint),
     );
+    if (onActivate) {
+      const activate = () => onActivate();
+      node.addEventListener("click", activate);
+      node.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        }
+      });
+    }
     return node;
   };
 
   overview.innerHTML = "";
   overview.append(
     item("Systems", String(systemCount), systemCount === 1 ? "one console" : "platform spread"),
-    item("Favorites", String(favoriteCount), favoriteCount > 0 ? "quick shelf" : "mark go-to games", favoriteCount > 0 ? "favorite" : ""),
-    item("Cover Art", missingArtCount === 0 ? "Full" : `${missingArtCount} missing`, missingArtCount === 0 ? "all set" : "ready to fetch", missingArtCount > 0 ? "warn" : "good"),
-    item("Recent", String(recentCount), "played in 14 days"),
+    item(
+      "Favorites",
+      String(favoriteCount),
+      favoriteCount > 0 ? "show favorites" : "mark go-to games",
+      favoriteCount > 0 ? "favorite" : "",
+      favoriteCount > 0 ? actions.onFocusFavorites : undefined,
+    ),
+    item(
+      "Cover Art",
+      missingArtCount === 0 ? "Full" : `${missingArtCount} missing`,
+      missingArtCount === 0 ? "all set" : "fetch covers",
+      missingArtCount > 0 ? "warn" : "good",
+      missingArtCount > 0 ? actions.onFetchCovers : undefined,
+    ),
+    item(
+      "Recent",
+      String(recentCount),
+      recentCount > 0 ? "sort by last played" : "played in 14 days",
+      "",
+      recentCount > 0 ? actions.onFocusRecent : undefined,
+    ),
   );
 
   if (hasActiveFilters) {
@@ -2320,23 +2458,22 @@ function _renderSystemFilterChips(
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
 ): void {
   const filterEl = document.getElementById("system-filter");
-  if (!filterEl || games.length === 0) {
-    if (filterEl) {
-      filterEl.innerHTML = "";
-      filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
-    }
+  const sidebar = filterEl?.closest(".landing-sidebar");
+  if (!filterEl) return;
+
+  sidebar?.querySelector(".landing-sidebar__empty")?.remove();
+
+  if (games.length === 0) {
+    filterEl.innerHTML = "";
+    sidebar?.classList.add("landing-sidebar--empty");
+    sidebar?.appendChild(buildEmptySidebarMessage());
     return;
   }
 
   const systemIds = [...new Set(games.map(g => g.systemId))].sort();
-  if (systemIds.length < 2) {
-    filterEl.innerHTML = "";
-    filterEl.closest(".landing-sidebar")?.classList.add("landing-sidebar--empty");
-    return;
-  }
 
   filterEl.innerHTML = "";
-  filterEl.closest(".landing-sidebar")?.classList.remove("landing-sidebar--empty");
+  sidebar?.classList.remove("landing-sidebar--empty");
   
   const createChip = (id: string, label: string, icon: string) => {
     const chipLabel =

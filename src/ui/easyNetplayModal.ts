@@ -22,6 +22,7 @@ import {
   renderRoomCard as sharedRenderRoomCard,
 } from "./easyNetplayShared.js";
 import { isTopmostOverlay } from "./modals.js";
+import { registerOverlay } from "./overlayStack.js";
 import { showInfoToast } from "./toasts.js";
 
 const APP_NAME = "RetroOasis";
@@ -366,9 +367,12 @@ export function openEasyNetplayModal(opts: {
   }
 
   let closed = false;
+  let detachFromStack: (() => void) | null = null;
   const close = () => {
     if (closed) return;
     closed = true;
+    detachFromStack?.();
+    detachFromStack = null;
     document.removeEventListener(LEGACY_EVENTS.closeEasyNetplay, onCloseNetplayEvent);
     document.removeEventListener("keydown", onKey, { capture: true });
     panelCleanups.forEach((fn) => {
@@ -395,6 +399,7 @@ export function openEasyNetplayModal(opts: {
 
   const onCloseNetplayEvent = () => { if (!closed) close(); };
   document.addEventListener(LEGACY_EVENTS.closeEasyNetplay, onCloseNetplayEvent);
+  detachFromStack = registerOverlay({ element: overlay, close });
 
   btnClose.addEventListener("click", close);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });

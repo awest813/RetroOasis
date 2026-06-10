@@ -8,6 +8,7 @@
 import { createElement as make } from "../dom.js";
 import { trapFocus, isEditableTarget, FOCUSABLE_SELECTOR, safeScrollIntoView } from "../viewHelpers.js";
 import { showError } from "../toasts.js";
+import { registerOverlay } from "../overlayStack.js";
 import { registerNetplayInstance } from "../../netplaySingleton.js";
 import { getApiKeyStore, getApiKeyTester } from "../coverArtRegistry.js";
 import type { Settings } from "../../types/settings.js";
@@ -26,6 +27,7 @@ import { buildDebugTab } from "../tabs/DebugTab.js";
 
 const APP_NAME = "RetroOasis";
 
+let _settingsOverlayDetach: (() => void) | null = null;
 let _settingsPanelEscHandler: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelFocusTrap: ((e: KeyboardEvent) => void) | null = null;
 let _settingsPanelSearchShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -392,6 +394,8 @@ function buildSettingsContent(
 }
 
 export function closeSettingsPanel(): void {
+  _settingsOverlayDetach?.();
+  _settingsOverlayDetach = null;
   const panel = document.getElementById("settings-panel");
   if (panel && !panel.hidden) {
     panel.hidden = true;
@@ -479,6 +483,9 @@ export function openSettingsPanel(
     previousFocus?.focus();
   };
 
+  _settingsOverlayDetach?.();
+  _settingsOverlayDetach = registerOverlay({ element: panel, close });
+
   if (_settingsPanelEscHandler) {
     document.removeEventListener("keydown", _settingsPanelEscHandler);
   }
@@ -488,11 +495,7 @@ export function openSettingsPanel(
   if (_settingsPanelSearchShortcutHandler) {
     document.removeEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
   }
-  _settingsPanelEscHandler = (e: KeyboardEvent) => {
-    if (e.key !== "Escape") return;
-    if (document.querySelector(".confirm-overlay--visible")) return;
-    close();
-  };
+  _settingsPanelEscHandler = null;
   _settingsPanelFocusTrap  = focusTrapFn;
   _settingsPanelSearchShortcutHandler = (e: KeyboardEvent) => {
     const isSearchShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
@@ -506,7 +509,9 @@ export function openSettingsPanel(
 
   document.getElementById("settings-close")!.onclick   = close;
   document.getElementById("settings-backdrop")!.onclick = close;
-  document.addEventListener("keydown", _settingsPanelEscHandler);
+  if (_settingsPanelEscHandler) {
+    document.addEventListener("keydown", _settingsPanelEscHandler);
+  }
   document.addEventListener("keydown", _settingsPanelFocusTrap);
   document.addEventListener("keydown", _settingsPanelSearchShortcutHandler, { capture: true });
 }

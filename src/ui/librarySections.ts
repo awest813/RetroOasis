@@ -4,6 +4,7 @@ import type { Settings } from "../types/settings.js";
 import type { PSPEmulator } from "../emulator.js";
 import { isSvgMarkup } from "../chromeIcons.js";
 import { createElement as make } from "./dom.js";
+import { launchGameFromLibrary } from "./launchGame.js";
 
 export function buildLibraryHero(opts: {
   game: GameMetadata;
@@ -12,13 +13,7 @@ export function buildLibraryHero(opts: {
   onLaunchGame(file: File, systemId: string, gameId?: string): Promise<void>;
   systemIcon(systemId: string): string;
   escapeHtml(value: string): string;
-  fetchFromCloud(game: GameMetadata, settings: Settings, libraryForCache?: GameLibrary): Promise<Blob | null>;
-  toLaunchFile(blob: Blob, fileName: string): File;
-  showLoadingOverlay(): void;
-  setLoadingMessage(message: string): void;
-  setLoadingSubtitle(message: string): void;
-  hideLoadingOverlay(): void;
-  showError(message: string): void;
+  onFetchFromCloud(game: GameMetadata, settings: Settings, libraryForCache?: GameLibrary): Promise<Blob>;
 }): HTMLElement {
   const {
     game,
@@ -27,13 +22,7 @@ export function buildLibraryHero(opts: {
     onLaunchGame,
     systemIcon,
     escapeHtml,
-    fetchFromCloud,
-    toLaunchFile,
-    showLoadingOverlay,
-    setLoadingMessage,
-    setLoadingSubtitle,
-    hideLoadingOverlay,
-    showError,
+    onFetchFromCloud,
   } = opts;
 
   const hero = make("div", { class: "library-hero" });
@@ -41,7 +30,7 @@ export function buildLibraryHero(opts: {
 
   const bg = make("div", { class: "library-hero__bg" });
   bg.style.background = `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), radial-gradient(circle at 20% 30%, ${system?.color ?? "#8b5cf6"}22 0%, transparent 70%)`;
-  
+
   const applyHeroBackground = (imageUrl: string): void => {
     bg.style.backgroundImage =
       `linear-gradient(90deg, #121212 0%, rgba(18,18,18,0.7) 40%, transparent 100%), url(${imageUrl})`;
@@ -71,28 +60,14 @@ export function buildLibraryHero(opts: {
   const actions = make("div", { class: "library-hero__actions" });
   const playBtn = make("button", { class: "btn--hero" });
   playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> START`;
-  playBtn.addEventListener("click", async () => {
-    showLoadingOverlay();
-    setLoadingMessage(`Starting ${game.name}…`);
-    setLoadingSubtitle("Getting ready to play");
-    try {
-      let blob = await library.getGameBlob(game.id);
-      if (!blob && game.cloudId) {
-        setLoadingMessage("Streaming from cloud…");
-        setLoadingSubtitle(`Downloading ${game.name} from ${game.cloudId} (Pull & Play)`);
-        blob = await fetchFromCloud(game, settings, library);
-      }
-      if (!blob) {
-        hideLoadingOverlay();
-        showError(`"${game.name}" could not be found in your library. Try adding it again.`);
-        return;
-      }
-      await library.markPlayed(game.id);
-      await onLaunchGame(toLaunchFile(blob, game.fileName), game.systemId, game.id);
-    } catch (err) {
-      hideLoadingOverlay();
-      showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
-    }
+  playBtn.addEventListener("click", () => {
+    void launchGameFromLibrary({
+      game,
+      library,
+      settings,
+      onFetchFromCloud,
+      onLaunchGame,
+    });
   });
 
   actions.appendChild(playBtn);

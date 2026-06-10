@@ -5,7 +5,13 @@ let _errorDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 const TOAST_DISMISS_TIMEOUT_MS = 5_000;
 const TOAST_REMOVE_DELAY_MS = 400;
+const TOAST_STACK_MAX = 3;
 let _toastDismissTimer: ReturnType<typeof setTimeout> | null = null;
+
+export interface InfoToastOptions {
+  /** When true, stack with existing toasts instead of replacing them. */
+  queue?: boolean;
+}
 
 let _openSettingsFn: ((tab?: string) => void) | null = null;
 
@@ -140,10 +146,45 @@ export function hideError(): void {
   banner.onkeydown = null;
 }
 
-export function showInfoToast(msg: string, type: "success" | "info" | "warning" | "error" = "success"): void {
-  const existing = document.getElementById("info-toast");
-  if (existing) existing.remove();
-  _clearToastDismissTimer();
+function ensureToastStack(): HTMLElement {
+  let stack = document.getElementById("toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toast-stack";
+    stack.className = "toast-stack";
+    stack.setAttribute("aria-live", "polite");
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function repositionToastStack(): void {
+  const stack = document.getElementById("toast-stack");
+  if (!stack) return;
+  const toasts = [...stack.querySelectorAll<HTMLElement>(".info-toast")];
+  toasts.forEach((toast, index) => {
+    toast.style.setProperty("--toast-stack-index", String(index));
+    if (index === toasts.length - 1) toast.id = "info-toast";
+    else toast.removeAttribute("id");
+  });
+}
+
+export function showInfoToast(
+  msg: string,
+  type: "success" | "info" | "warning" | "error" = "success",
+  opts?: InfoToastOptions,
+): void {
+  const stack = ensureToastStack();
+  if (!opts?.queue) {
+    stack.querySelectorAll(".info-toast").forEach((node) => node.remove());
+    _clearToastDismissTimer();
+  } else {
+    const queued = stack.querySelectorAll(".info-toast");
+    if (queued.length >= TOAST_STACK_MAX) {
+      queued[0]?.remove();
+    }
+    document.getElementById("info-toast")?.removeAttribute("id");
+  }
 
   const toast = document.createElement("div");
   toast.id = "info-toast";
@@ -172,14 +213,20 @@ export function showInfoToast(msg: string, type: "success" | "info" | "warning" 
   });
 
   toast.append(icon, text, closeBtn);
-  document.body.appendChild(toast);
+  stack.appendChild(toast);
+  repositionToastStack();
 
   requestAnimationFrame(() => toast.classList.add("visible"));
 
   const dismissToast = () => {
     if (toast.parentElement) {
       toast.classList.remove("visible");
-      setTimeout(() => toast.remove(), TOAST_REMOVE_DELAY_MS);
+      setTimeout(() => {
+        toast.remove();
+        repositionToastStack();
+        const remaining = document.querySelectorAll("#toast-stack .info-toast");
+        if (!remaining.length) document.getElementById("toast-stack")?.remove();
+      }, TOAST_REMOVE_DELAY_MS);
     }
     _clearToastDismissTimer();
   };
