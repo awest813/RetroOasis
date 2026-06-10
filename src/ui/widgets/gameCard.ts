@@ -29,7 +29,6 @@ import {
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingMessage,
-  setLoadingSubtitle,
 } from "../loadingOverlay.js";
 import { systemIcon } from "../viewHelpers.js";
 import { buildSystemFeatureRow } from "../systemFeatures.js";

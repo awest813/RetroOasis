@@ -29,7 +29,6 @@ function isStaleWebKitBlobError(err: unknown): boolean {
 }
 
 function readBlobViaFileReader(
-  blob: Blob,
   read: (reader: FileReader) => void,
 ): Promise<ArrayBuffer | string> {
   if (typeof FileReader === "undefined") {
@@ -103,7 +102,7 @@ export function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   if (typeof blob.arrayBuffer === "function") {
     return blob.arrayBuffer().catch((err: unknown) => {
       if (!isStaleWebKitBlobError(err)) throw err;
-      return readBlobViaFileReader(blob, (reader) => reader.readAsArrayBuffer(blob)).then((result) => {
+      return readBlobViaFileReader((reader) => reader.readAsArrayBuffer(blob)).then((result) => {
         if (result instanceof ArrayBuffer) return result;
         throw new Error("Could not read file as bytes.");
       });
@@ -111,7 +110,7 @@ export function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   }
 
   if (typeof FileReader !== "undefined") {
-    return readBlobViaFileReader(blob, (reader) => reader.readAsArrayBuffer(blob)).then((result) => {
+    return readBlobViaFileReader((reader) => reader.readAsArrayBuffer(blob)).then((result) => {
       if (result instanceof ArrayBuffer) return result;
       throw new Error("Could not read file as bytes.");
     });
@@ -124,7 +123,7 @@ export function readBlobAsText(blob: Blob): Promise<string> {
   if (typeof blob.text === "function") {
     return blob.text().catch((err: unknown) => {
       if (!isStaleWebKitBlobError(err)) throw err;
-      return readBlobViaFileReader(blob, (reader) => reader.readAsText(blob)).then((result) => {
+      return readBlobViaFileReader((reader) => reader.readAsText(blob)).then((result) => {
         if (typeof result === "string") return result;
         throw new Error("Could not read file as text.");
       });
@@ -132,7 +131,7 @@ export function readBlobAsText(blob: Blob): Promise<string> {
   }
 
   if (typeof FileReader !== "undefined") {
-    return readBlobViaFileReader(blob, (reader) => reader.readAsText(blob)).then((result) => {
+    return readBlobViaFileReader((reader) => reader.readAsText(blob)).then((result) => {
       if (typeof result === "string") return result;
       throw new Error("Could not read file as text.");
     });
