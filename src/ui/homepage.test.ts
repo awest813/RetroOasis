@@ -16,7 +16,8 @@ function makeGame(overrides: Partial<GameMetadata> = {}): GameMetadata {
     fileName: "test.nes",
     systemId: "nes",
     addedAt: Date.now(),
-    sizeBytes: 1024,
+    size: 1024,
+    lastPlayedAt: null,
     ...overrides,
   };
 }

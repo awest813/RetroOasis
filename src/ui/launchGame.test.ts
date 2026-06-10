@@ -11,7 +11,8 @@ function makeGame(overrides: Partial<GameMetadata> = {}): GameMetadata {
     fileName: "test.iso",
     systemId: "psp",
     addedAt: Date.now(),
-    sizeBytes: 1024,
+    size: 1024,
+    lastPlayedAt: null,
     ...overrides,
   };
 }
