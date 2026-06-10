@@ -13,7 +13,8 @@
     "doctor": "node tools/doctor.js",
     "build:analyze": "ANALYZE=1 npm run build",
     "perf:audit": "npm run build && node tools/perf-audit/check-budget.js",
-    "perf:baseline": "node tools/perf-audit/collect-baseline.js"
+    "perf:baseline": "node tools/perf-audit/collect-baseline.js",
+    "audit:cores": "node tools/audit-cores.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",
