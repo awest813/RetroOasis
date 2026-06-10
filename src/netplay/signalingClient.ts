@@ -243,9 +243,12 @@ export class HttpSignalingClient implements SignalingClient {
 
   async leaveRoom(roomId: string): Promise<void> {
     try {
-      await fetch(`${this._httpBase}/rooms/${encodeURIComponent(roomId)}/leave`, {
-        method: "POST",
-      });
+      await this._fetchWithTimeout(
+        `${this._httpBase}/rooms/${encodeURIComponent(roomId)}/leave`,
+        { method: "POST" },
+        undefined,
+        0,
+      );
     } catch {
       // Leave failures are non-fatal.
     }

@@ -503,6 +503,37 @@ describe("EasyNetplayManager", () => {
     vi.unstubAllGlobals();
   });
 
+  it("cancelPendingOperations does not clear an established hosting room", async () => {
+    await manager.hostRoom(hostOpts);
+    expect(manager.room).not.toBeNull();
+    manager.cancelPendingOperations();
+    expect(manager.state).toBe("hosting");
+    expect(manager.room?.code).toHaveLength(6);
+  });
+
+  it("hasActiveSession is true while hosting a room", async () => {
+    await manager.hostRoom(hostOpts);
+    expect(manager.hasActiveSession()).toBe(true);
+    await manager.leaveRoom();
+    expect(manager.hasActiveSession()).toBe(false);
+  });
+
+  it("hostRoom server failure emits server_unavailable instead of a stub room", async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new Error("Network down"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    manager.setServerUrl("wss://example.com");
+    const errors: string[] = [];
+    manager.onEvent(ev => { if (ev.type === "error") errors.push(ev.code); });
+    await manager.hostRoom(hostOpts);
+
+    expect(errors).toContain("server_unavailable");
+    expect(manager.state).toBe("failed");
+    expect(manager.room).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+
   it("cancelPendingOperations aborts an in-flight join and returns to idle", async () => {
     const fetchSpy = vi.fn((_url: string, init?: RequestInit) => (
       new Promise((_resolve, reject) => {

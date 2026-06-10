@@ -110,11 +110,23 @@ export class EasyNetplayManager {
    */
   cancelPendingOperations(): void {
     this._cancelPendingRequests();
+    // Established sessions must be torn down with leaveRoom() so the signaling
+    // server is notified — never drop an active room here.
+    if (this._room) return;
     if (this._state === "hosting" || this._state === "joining" || this._state === "spectating" || this._state === "reconnecting") {
-      this._room = null;
       this._spectatorSession = null;
       this._setState("idle");
     }
+  }
+
+  /** True when hosting, connected, in-game, or spectating with an active room. */
+  hasActiveSession(): boolean {
+    return this._room !== null && (
+      this._state === "hosting" ||
+      this._state === "connected" ||
+      this._state === "in_game" ||
+      this._state === "watching"
+    );
   }
 
   /**
@@ -186,16 +198,12 @@ export class EasyNetplayManager {
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       const msg = MSG.serverUnavailable;
-      this._diagnostics.warn(
+      this._diagnostics.error(
         msg,
-        err instanceof Error ? err.message : String(err)
+        err instanceof Error ? err.message : String(err),
       );
-      // Fall back to local-only stub room on server error.
-      const stubRoom = this._makeLocalStubRoom(options);
-      this._room = stubRoom;
-      this._diagnostics.info("Using local room (server unavailable). Share your code manually.");
-      this._emit({ type: "room_created", room: stubRoom });
-      this._diagnostics.info(MSG.waitingForPlayer);
+      this._emit({ type: "error", code: "server_unavailable", message: msg });
+      this._setState("failed");
     } finally {
       this._hostAbort = null;
     }

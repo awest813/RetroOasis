@@ -110,6 +110,7 @@ import {
 import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
+import { getEasyNetplayManager } from "./ui/easyNetplayShared.js";
 import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
@@ -1254,6 +1255,14 @@ export function initUI(opts: UIOptions): void {
   };
   emulator.onError       = (msg)   => { hideLoadingOverlay(); showError(msg); };
   emulator.onGameStart = () => {
+    try {
+      const easyMgr = getEasyNetplayManager();
+      if (easyMgr.state === "hosting" || easyMgr.state === "connected") {
+        easyMgr.markInGame();
+      }
+    } catch {
+      /* Netplay manager may be unavailable in tests. */
+    }
     transitionToGame();
     const sys  = emulator.currentSystem;
     const name = settings.lastGameName ?? "Unknown";
