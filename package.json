@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "doctor": "node tools/doctor.js"
+    "doctor": "node tools/doctor.js",
+    "audit:cores": "node tools/audit-cores.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",

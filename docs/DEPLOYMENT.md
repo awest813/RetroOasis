@@ -67,9 +67,9 @@ Recommended CDN cache settings:
 
 ## WASM / emulator core cache invalidation
 
-RetroOasis caches compiled WebAssembly modules in IndexedDB (`retro-oasis-wasm`), keyed by URL. The cache is validated on each page load via a conditional `HEAD` request (ETag / Last-Modified). As long as the CDN sets correct `ETag` or `Last-Modified` headers on `.wasm` files, stale cores are automatically evicted.
+Most EmulatorJS cores are downloaded from `cdn.emulatorjs.org` at launch (see `docs/CORE_AUDIT.md`). The browser HTTP cache holds `*-wasm.data` blobs after the first successful fetch. Dreamcast uses the bundled `cores/flycast-wasm.data`, which is content-addressed by deploy hash when copied into `dist/`.
 
-If a new deployment changes a core that is not cache-busted by URL (rare), you can force eviction by incrementing the WASM DB version in `src/wasmCache.ts` (`WASM_DB_VERSION`). Incrementing the version drops and rebuilds the database, causing all cached modules to be re-compiled on next load.
+If users report stale or broken cores after a CDN or bundle update, ask them to clear site data for the origin and reload. There is no separate WASM IndexedDB cache module in the current tree.
 
 ---
 

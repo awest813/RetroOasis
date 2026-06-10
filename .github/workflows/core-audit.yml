@@ -1,0 +1,25 @@
+name: Core audit
+
+on:
+  pull_request:
+    paths:
+      - 'src/coreCdn.ts'
+      - 'src/systems.ts'
+      - 'public/cores/**'
+      - 'tools/audit-cores.js'
+      - 'tools/doctor.js'
+      - '.github/workflows/core-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run doctor
+      - run: npm run audit:cores

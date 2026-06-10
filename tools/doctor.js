@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { versions } from 'node:process';
 
@@ -177,6 +177,93 @@ addCheck('4.3-pre core routing', () => {
   }
 
   return { status: PASS, message: '4.3-pre-only core bundles are routed to the EmulatorJS nightly channel.' };
+});
+
+addCheck('Flycast Dreamcast core bundle', () => {
+  const flycastPath = 'public/cores/flycast-wasm.data';
+  if (!existsSync(flycastPath)) {
+    return {
+      status: FAIL,
+      message: `Missing ${flycastPath}. Dreamcast launches require this bundled core.`
+    };
+  }
+  const bytes = statSync(flycastPath).size;
+  const minBytes = 1_000_000;
+  if (bytes < minBytes) {
+    return {
+      status: FAIL,
+      message: `${flycastPath} is only ${bytes} bytes (expected at least ${minBytes}).`
+    };
+  }
+  return {
+    status: PASS,
+    message: `${flycastPath} present (${(bytes / 1024 / 1024).toFixed(2)} MB).`
+  };
+});
+
+addCheck('Core prefetch map matches systems table', () => {
+  const coreCdnPath = 'src/coreCdn.ts';
+  const systemsPath = 'src/systems.ts';
+  if (!existsSync(coreCdnPath) || !existsSync(systemsPath)) {
+    return {
+      status: FAIL,
+      message: `Missing ${coreCdnPath} or ${systemsPath}.`
+    };
+  }
+
+  const coreCdn = readFileSync(coreCdnPath, 'utf8');
+  const systems = readFileSync(systemsPath, 'utf8');
+
+  const prefetchMatch = coreCdn.match(/const CORE_PREFETCH_MAP[^=]*=\s*\{([\s\S]*?)\n\};/);
+  if (!prefetchMatch) {
+    return { status: FAIL, message: 'Could not parse CORE_PREFETCH_MAP in src/coreCdn.ts.' };
+  }
+  const prefetchIds = [];
+  for (const line of prefetchMatch[1].split('\n')) {
+    const m = /^\s*(?:"([^"]+)"|([a-zA-Z0-9_]+)):/.exec(line);
+    if (m) prefetchIds.push(m[1] ?? m[2]);
+  }
+
+  const systemIds = [];
+  for (const m of systems.matchAll(/^\s+id:\s*"([^"]+)"/gm)) {
+    systemIds.push(m[1]);
+  }
+
+  const externalIds = [];
+  for (const block of systems.split(/\n  \{/)) {
+    const idMatch = /id:\s*"([^"]+)"/.exec(block);
+    const pathMatch = /corePath:\s*"([^"]+)"/.exec(block);
+    if (idMatch && pathMatch) externalIds.push(idMatch[1]);
+  }
+
+  const missing = systemIds.filter((id) => !externalIds.includes(id) && !prefetchIds.includes(id));
+  const orphan = prefetchIds.filter((id) => !systemIds.includes(id));
+  const externalInMap = externalIds.filter((id) => prefetchIds.includes(id));
+
+  if (missing.length || orphan.length || externalInMap.length) {
+    const parts = [];
+    if (missing.length) parts.push(`missing prefetch: ${missing.join(', ')}`);
+    if (orphan.length) parts.push(`orphan keys: ${orphan.join(', ')}`);
+    if (externalInMap.length) parts.push(`external systems in map: ${externalInMap.join(', ')}`);
+    return { status: FAIL, message: parts.join('; ') };
+  }
+
+  return {
+    status: PASS,
+    message: `${prefetchIds.length} CDN prefetch entries and ${externalIds.length} external bundle(s) cover all ${systemIds.length} systems.`
+  };
+});
+
+addCheck('Core audit tooling', () => {
+  const auditPath = 'tools/audit-cores.js';
+  if (!existsSync(auditPath)) {
+    return { status: WARN, message: `${auditPath} not found; run npm run audit:cores after adding it.` };
+  }
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+  if (!pkg.scripts?.['audit:cores']) {
+    return { status: WARN, message: 'package.json is missing an audit:cores script.' };
+  }
+  return { status: PASS, message: 'audit:cores script and tools/audit-cores.js are present.' };
 });
 
 console.log('RetroOasis environment doctor\n');
