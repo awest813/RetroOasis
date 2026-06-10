@@ -4,7 +4,18 @@
  * Modern browsers expose Blob.arrayBuffer(), Blob.text(), and File(...), but
  * older iOS WebViews and Chrome-on-iOS shells can be partial. Keep the ROM
  * loading path tolerant by falling back to APIs that have existed longer.
+ *
+ * `prepareLaunchFile()` is the canonical hand-off for EmulatorJS: it returns a
+ * `File` so the core uses its direct `arrayBuffer()` path instead of `fetch()`.
  */
+
+export interface PrepareLaunchFileOptions {
+  /**
+   * Eagerly read the blob into a fresh in-memory `File`.
+   * Required on iOS WebKit where deferred reads from picker/IDB handles can stall.
+   */
+  eagerRead?: boolean;
+}
 
 export function makeFileFromBlob(
   blob: Blob,
@@ -27,6 +38,28 @@ export function makeFileFromBlob(
     });
     return fallback;
   }
+}
+
+/**
+ * Normalize a ROM blob for EmulatorJS launch.
+ *
+ * When `eagerRead` is set, copies bytes into a new `File` so later async reads
+ * (after dialogs, archive work, or a second launch) cannot stall on WebKit.
+ */
+export async function prepareLaunchFile(
+  blob: Blob,
+  fileName: string,
+  options: PrepareLaunchFileOptions = {},
+): Promise<File> {
+  const mime = blob.type || "application/octet-stream";
+
+  if (options.eagerRead) {
+    const romBuf = await readBlobAsArrayBuffer(blob);
+    return makeFileFromBlob(new Blob([romBuf], { type: mime }), fileName, { type: mime });
+  }
+
+  if (blob instanceof File && blob.name === fileName) return blob;
+  return makeFileFromBlob(blob, fileName, { type: mime });
 }
 
 export function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {

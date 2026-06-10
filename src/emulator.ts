@@ -5,7 +5,8 @@
  * "data/loader.js". It exposes its runtime entirely through globals:
  *   - window.EJS_*            config knobs (set BEFORE injecting loader.js)
  *   - window.EJS_emulator     the live EmulatorJS instance (set BY loader.js)
- *   - window.EJS_ready        callback – fires once the emulator UI is built
+ *   - window.EJS_ready        callback – fires once the EmulatorJS UI shell is built
+ *                               (core WASM download begins immediately after)
  *   - window.EJS_onGameStart  callback – fires once the game is actually running
  *
  * Performance enhancements:
@@ -37,7 +38,7 @@ import {
   resolveCorePrefetchSystems,
 } from "./performance.js";
 import { shaderCache, GAME_WARMUP_WINDOW_MS } from "./shaderCache.js";
-import { makeFileFromBlob, readBlobAsArrayBuffer } from "./blobUtils.js";
+import { prepareLaunchFile } from "./blobUtils.js";
 import {
   EJS_CDN_BASE,
   buildEjsCorePaths,
@@ -153,17 +154,17 @@ export interface DiskInfo {
  * 
  * @example
  * ```typescript
- * const bridge = emulator.getBridge();
- * 
+ * const bridge = emulator.bridge;
+ *
  * // Volume control
- * bridge.setVolume(0.8);
- * 
+ * bridge?.setVolume(0.8);
+ *
  * // Screenshot capture
- * const screenshot = await bridge.captureScreenshot({ format: 'image/jpeg', quality: 0.9 });
- * 
- * // VFS operations
- * const saveData = await bridge.fs.readAsync('/data/saves/mygame.sav');
- * await bridge.fs.writeAsync('/data/saves/mygame.sav', saveData);
+ * const screenshot = await bridge?.captureScreenshot({ format: 'image/jpeg', quality: 0.9 });
+ *
+ * // VFS operations (available after the core finishes initializing)
+ * const saveData = await bridge?.readFileAsync('/data/saves/mygame.sav');
+ * if (saveData) await bridge?.writeFileAsync('/data/saves/mygame.sav', saveData);
  * ```
  */
 export class CoreBridge {
@@ -416,6 +417,7 @@ export class CoreBridge {
 }
 
 interface EJSEmulatorInstance {
+  on?(event: string, handler: (...args: unknown[]) => void): void;
   setVolume(volume: number): void;
   pause?(): void;
   resume?(): void;
@@ -2875,8 +2877,8 @@ export class PSPEmulator {
     this._startupProfiler.begin("core_download");
 
     // Mark the launch start time for DevTools Performance timeline profiling.
-    // Measures "retro-oasis:launch-to-ready" and "retro-oasis:ready-to-game-start"
-    // will be recorded when EJS_ready and EJS_onGameStart fire respectively.
+    // "retro-oasis:launch-to-ready" is recorded when the WASM core initializes;
+    // "retro-oasis:ready-to-game-start" is recorded when the game boots.
     try { performance.mark(LEGACY_PERF_MARKS.launch); } catch { /* best-effort */ }
 
     if (this.verboseLogging) {
@@ -2904,22 +2906,15 @@ export class PSPEmulator {
       // backed by opaque blob/file handles. Reading them asynchronously later
       // (after system dialogs, archive work, or a second launch) can fail or
       // stall. Eagerly copy into a fresh in-memory File once before EJS runs.
-      let gameFile: File;
-      if (isLikelyIOS()) {
+      const eagerRead = isLikelyIOS();
+      if (eagerRead) {
         this._emit("onProgress", "Preparing game file for iOS…");
-        const romBuf = await readBlobAsArrayBuffer(opts.file);
-        gameFile = makeFileFromBlob(new Blob([romBuf], { type: opts.file.type || "application/octet-stream" }), fileName, {
-          type: opts.file.type || "application/octet-stream",
-        });
-        if (this.verboseLogging) {
-          console.info(
-            "[RetroOasis] iOS WebKit: materialised ROM into an in-memory File for stable reads."
-          );
-        }
-      } else {
-        gameFile = opts.file instanceof File
-          ? opts.file
-          : makeFileFromBlob(opts.file, fileName, { type: opts.file.type });
+      }
+      const gameFile = await prepareLaunchFile(opts.file, fileName, { eagerRead });
+      if (eagerRead && this.verboseLogging) {
+        console.info(
+          "[RetroOasis] iOS WebKit: materialised ROM into an in-memory File for stable reads."
+        );
       }
       this._launchGameFile = gameFile;
       const gameName = fileName.replace(/\.[^.]+$/, "");
@@ -2972,9 +2967,6 @@ export class PSPEmulator {
           `Per-game core overrides: ${JSON.stringify(opts.coreSettingsOverride)}`
         );
       }
-      this._pinPrimaryCore(opts.systemId, ejsSettings);
-
-
       // Override the audio buffer size from tier defaults when the hardware
       // reports a different latency profile.  This prevents crackles on
       // Bluetooth/USB audio devices (high base latency) and allows the
@@ -3084,6 +3076,7 @@ export class PSPEmulator {
       // without having to dig through EJS_Settings manually.
       this._applyHeavyCoreGpuOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
       this._applyLightCorePerformanceOverrides(opts.systemId, tier, opts.deviceCaps, ejsSettings);
+      // Re-pin after tier/GPU overrides so retroarch_core cannot be clobbered.
       this._pinPrimaryCore(opts.systemId, ejsSettings);
       this._syncDRSInitialStep(opts.systemId, ejsSettings);
 
@@ -3341,21 +3334,35 @@ export class PSPEmulator {
       window.EJS_ready = () => {
         // Ignore stale callbacks from a torn-down/replaced core instance.
         if (this._state !== "loading") return;
-        if (window.EJS_emulator) {
-          this._bridge = new CoreBridge(window.EJS_emulator, this._playerId);
+        const emu = window.EJS_emulator;
+        if (emu) {
+          this._bridge = new CoreBridge(emu, this._playerId);
         }
-        this._emit("onProgress", "Booting game…");
-        // End core_download phase — the JS glue + WASM have loaded
-        this._startupProfiler.end("core_download");
-        this._startupProfiler.begin("first_frame");
+        this._emit("onProgress", "Downloading core…");
         if (this.verboseLogging) {
-          console.info("[RetroOasis] EJS_ready fired — core loaded, booting game.");
+          console.info("[RetroOasis] EJS_ready fired — EmulatorJS UI ready, fetching core.");
         }
-        // Mark the moment the core finished loading — useful in DevTools timeline.
-        try {
-          performance.mark(LEGACY_PERF_MARKS.coreReady);
-          performance.measure(LEGACY_PERF_MARKS.launchToReady, LEGACY_PERF_MARKS.launch, LEGACY_PERF_MARKS.coreReady);
-        } catch { /* marks may be unavailable in some sandboxed contexts */ }
+
+        const onCoreInitialized = () => {
+          if (this._state !== "loading") return;
+          // Core WASM is compiled and the Emscripten VFS is mounted — ROM load follows.
+          this._startupProfiler.end("core_download");
+          this._startupProfiler.begin("first_frame");
+          this._emit("onProgress", "Loading game…");
+          if (this.verboseLogging) {
+            console.info("[RetroOasis] Core initialized — loading ROM into emulator.");
+          }
+          try {
+            performance.mark(LEGACY_PERF_MARKS.coreReady);
+            performance.measure(LEGACY_PERF_MARKS.launchToReady, LEGACY_PERF_MARKS.launch, LEGACY_PERF_MARKS.coreReady);
+          } catch { /* marks may be unavailable in some sandboxed contexts */ }
+        };
+
+        if (emu?.on) {
+          emu.on("saveDatabaseLoaded", onCoreInitialized);
+        } else {
+          onCoreInitialized();
+        }
 
         if (opts.systemId === "psp" || opts.systemId === "3ds") {
           const fallbackMs = opts.systemId === "3ds" ? 8_000 : 2_500;

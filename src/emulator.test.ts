@@ -4985,6 +4985,83 @@ describe('PSPEmulator', () => {
     it('prefetchTopSystems(0) does not throw', () => {
       expect(() => emulator.prefetchTopSystems(0)).not.toThrow();
     });
+
+    it('ends core_download on saveDatabaseLoaded, not on EJS_ready', async () => {
+      const nesFile = new File(['data'], 'game.nes');
+      const nesCaps = {
+        deviceMemoryGB: 4,
+        cpuCores: 4,
+        gpuRenderer: 'unknown',
+        isSoftwareGPU: false,
+        isLowSpec: false,
+        isChromOS: false, isIOS: false, isAndroid: false, isMobile: false, isSafari: false, safariVersion: null,
+        recommendedMode: 'quality' as const,
+        tier: 'medium' as const,
+        gpuCaps: {
+          renderer: 'unknown', vendor: 'unknown', maxTextureSize: 2048,
+          maxVertexAttribs: 16, maxVaryingVectors: 8, maxRenderbufferSize: 2048,
+          anisotropicFiltering: false, maxAnisotropy: 0,
+          floatTextures: false, halfFloatTextures: false,
+          instancedArrays: false, webgl2: false,
+          vertexArrayObject: false, compressedTextures: false,
+          etc2Textures: false, astcTextures: false,
+          maxColorAttachments: 1, multiDraw: false,
+        },
+        gpuBenchmarkScore: 50,
+        prefersReducedMotion: false,
+        webgpuAvailable: false,
+        connectionQuality: 'unknown' as const,
+        jsHeapLimitMB: null, estimatedVRAMMB: 768,
+      };
+
+      const handlers = new Map<string, Array<(...args: unknown[]) => void>>();
+      window.EJS_emulator = {
+        on(event: string, handler: (...args: unknown[]) => void) {
+          const list = handlers.get(event) ?? [];
+          list.push(handler);
+          handlers.set(event, list);
+        },
+        setVolume: () => {},
+        gameManager: {
+          restart: () => {},
+          quickSave: () => true,
+          quickLoad: () => {},
+          supportsStates: () => true,
+        },
+      };
+
+      let resolveReady!: () => void;
+      const readyPromise = new Promise<void>((resolve) => { resolveReady = resolve; });
+
+      (emulator as unknown as { _loadScript: (src: string) => Promise<void> })._loadScript =
+        async () => {
+          window.EJS_ready?.();
+          resolveReady();
+        };
+
+      const launchPromise = emulator.launch({
+        file:            nesFile,
+        volume:          0.7,
+        systemId:        'nes',
+        performanceMode: 'auto',
+        deviceCaps:      nesCaps,
+      });
+
+      await readyPromise;
+      expect(emulator.startupProfiler.records()).toEqual([]);
+
+      for (const handler of handlers.get('saveDatabaseLoaded') ?? []) {
+        handler();
+      }
+
+      window.EJS_onGameStart?.();
+      await launchPromise;
+
+      const records = emulator.startupProfiler.records();
+      expect(records.map((r) => r.phase)).toEqual(['core_download', 'first_frame']);
+      expect(records[0]!.durationMs).toBeGreaterThanOrEqual(0);
+      expect(records[1]!.durationMs).toBeGreaterThanOrEqual(0);
+    });
   });
 });
 
