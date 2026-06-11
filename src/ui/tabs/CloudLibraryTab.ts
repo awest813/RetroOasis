@@ -1,4 +1,5 @@
 import { createElement as make } from "../dom.js";
+import { showConfirmDialog } from "../modals.js";
 import { showError, showInfoToast } from "../toasts.js";
 import type { Settings, CloudLibraryConnection } from "../../types/settings.js";
 import { GameLibrary, formatRelativeTime } from "../../library.js";
@@ -445,15 +446,23 @@ function buildProfileSection(
 
   const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export JSON") as HTMLButtonElement;
   exportBtn.addEventListener("click", () => {
-    const snapshot = pm.exportActiveSnapshot(deps);
-    const blob = new Blob([serializeProfileSnapshot(snapshot)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${snapshot.name.replace(/\s+/g, "-").toLowerCase() || "retrooasis-profile"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showInfoToast("Profile exported.", "success");
+    void (async () => {
+      const confirmed = await showConfirmDialog(
+        "This file contains API keys, cloud tokens, and OAuth app IDs. " +
+        "Anyone with the file can access your connected services. Store it securely and do not share it publicly.",
+        { title: "Export profile?", confirmLabel: "Export" },
+      );
+      if (!confirmed) return;
+      const snapshot = pm.exportActiveSnapshot(deps);
+      const blob = new Blob([serializeProfileSnapshot(snapshot)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${snapshot.name.replace(/\s+/g, "-").toLowerCase() || "retrooasis-profile"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showInfoToast("Profile exported.", "success");
+    })();
   });
 
   const importInput = make("input", {
@@ -462,9 +471,8 @@ function buildProfileSection(
     "aria-label": "Import profile JSON file",
     style: "display:none",
   }) as HTMLInputElement;
-  const importBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import JSON") as HTMLButtonElement;
-  importBtn.addEventListener("click", () => importInput.click());
-  importInput.addEventListener("change", () => {
+
+  const handleProfileImport = (mode: "new" | "merge") => {
     void (async () => {
       const file = importInput.files?.[0];
       importInput.value = "";
@@ -472,17 +480,43 @@ function buildProfileSection(
       const text = await file.text();
       const parsed = parseProfileSnapshot(text);
       if (typeof parsed === "string") { showError(parsed); return; }
-      const meta = pm.importSnapshotAsNewProfile(parsed, deps);
-      refreshProfileSelect();
-      renameInp.value = meta.name;
-      showInfoToast(`Imported profile "${meta.name}".`, "success");
+
+      if (mode === "merge") {
+        const mergeConfirmed = await showConfirmDialog(
+          `Replace the active profile "${pm.getActiveProfileName()}" with the imported cloud connections, API keys, and save-sync credentials? ` +
+          "Your current profile name will be kept.",
+          { title: "Merge into active profile?", confirmLabel: "Merge", isDanger: true },
+        );
+        if (!mergeConfirmed) return;
+        pm.importSnapshotIntoActive(parsed, deps);
+        renameInp.value = pm.getActiveProfileName();
+        showInfoToast(`Merged imported settings into "${pm.getActiveProfileName()}".`, "success");
+      } else {
+        const meta = pm.importSnapshotAsNewProfile(parsed, deps);
+        refreshProfileSelect();
+        renameInp.value = meta.name;
+        showInfoToast(`Imported profile "${meta.name}".`, "success");
+      }
       rebuildTab();
     })();
+  };
+
+  const importNewBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import as new") as HTMLButtonElement;
+  importNewBtn.addEventListener("click", () => {
+    importInput.onchange = () => handleProfileImport("new");
+    importInput.click();
+  });
+  const importMergeBtn = make("button", { class: "btn btn--sm", type: "button" }, "Merge into active") as HTMLButtonElement;
+  importMergeBtn.addEventListener("click", () => {
+    importInput.onchange = () => handleProfileImport("merge");
+    importInput.click();
   });
 
   const fileRow = make("div", { class: "settings-input-row profile-snapshot-actions" });
-  fileRow.append(exportBtn, importBtn, importInput);
+  fileRow.append(exportBtn, importNewBtn, importMergeBtn, importInput);
   section.appendChild(fileRow);
+  section.appendChild(make("p", { class: "settings-help" },
+    "Import as new creates a separate profile slot. Merge replaces cloud connections and credentials on the active profile."));
 
   void appName;
   return section;
@@ -629,16 +663,23 @@ export function buildCloudLibraryTab(
   const dbKeyLine = make("div", { class: "settings-input-paste-line" });
   dbKeyLine.append(dbKeyInp, dbKeyPaste);
 
+  const profileDeps = apiKeyStore ? { settings, apiKeyStore, onSettingsChange } : null;
+  const scheduleOAuthProfileSave = () => {
+    if (!profileDeps) return;
+    getProfileManager().scheduleAutoSave(profileDeps);
+  };
+
   const oauthSaveBtn = make("button", { class: "btn btn--sm", type: "button" }, "Save OAuth apps") as HTMLButtonElement;
-  oauthSaveBtn.addEventListener("click", () => {
+  const persistOAuthApps = () => {
     setGoogleClientId(gIdInp.value);
     setDropboxAppKey(dbKeyInp.value);
-    if (apiKeyStore) {
-      getProfileManager().saveActiveSnapshot({ settings, apiKeyStore, onSettingsChange });
-    }
+    scheduleOAuthProfileSave();
     oauthSaveBtn.textContent = "Saved";
     setTimeout(() => { oauthSaveBtn.textContent = "Save OAuth apps"; }, 1500);
-  });
+  };
+  oauthSaveBtn.addEventListener("click", persistOAuthApps);
+  gIdInp.addEventListener("blur", scheduleOAuthProfileSave);
+  dbKeyInp.addEventListener("blur", scheduleOAuthProfileSave);
 
   oauthSection.append(
     make("div", { class: "settings-input-row" }, make("label", { class: "settings-input-label", for: "oauth-google-client-id" }, "Google Client ID"), gIdLine),

@@ -23,8 +23,8 @@ unifies them into named, portable bundles.
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
 | Performance / display preferences | `Settings` | Planned v2 |
 
-The initial implementation ships **export / import** in Settings → Cloud Library → Profiles.
-Full multi-profile slots and active-profile switching are phase 2.
+The initial implementation ships **export / import** and **multi-profile switching** in
+Settings → Cloud Library → Profiles. Import supports **new profile** and **merge into active**.
 
 ## Architecture (planned)
 
@@ -43,11 +43,11 @@ Full multi-profile slots and active-profile switching are phase 2.
  Settings   ApiKeyStore  CloudSaveManager   oauthPopup
 ```
 
-### Storage layout (phase 2)
+### Storage layout (shipped)
 
-- `retro-oasis.profiles` — JSON index: `{ activeId, profiles: { [id]: ProfileMeta } }`
-- `retro-oasis.profile.{id}` — encrypted or plaintext snapshot per profile (user choice)
-- Active runtime state continues to mirror into existing stores on switch
+- `retro-oasis.profiles` — JSON index: `{ version, activeId, profiles: { [id]: { meta, snapshot } } }`
+- Snapshots are embedded in the index (plaintext); optional per-key split storage deferred
+- Active runtime state mirrors into existing stores on switch; auto-save debounces settings, API keys, and save-sync changes
 
 ### Switch flow
 
@@ -103,7 +103,8 @@ class ProfileManager {
   switchTo(id: string): Promise<void>;
   delete(id: string): void;
   export(id: string): ProfileSnapshotV1;
-  import(raw: string, mode: "merge" | "replace"): ProfileMeta;
+  importSnapshotAsNewProfile(snapshot): ProfileMeta;
+  importSnapshotIntoActive(snapshot): void;
 }
 ```
 

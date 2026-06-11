@@ -1455,7 +1455,15 @@ export function initUI(opts: UIOptions): void {
     rebuildLandingControls();
   });
   bindEvent(document, LEGACY_EVENTS.profileChanged, () => {
-    if (emulator.state === "running" || emulator.state === "paused") return;
+    if (emulator.state === "running" || emulator.state === "paused") {
+      const chip = document.getElementById("header-profile-chip");
+      if (chip) {
+        refreshProfileHeaderChip(() => {
+          openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+        });
+      }
+      return;
+    }
     rebuildLandingControls();
   });
 

@@ -252,6 +252,18 @@ export class ProfileManager {
     }
   }
 
+  /** Apply an imported snapshot to the active profile without creating a new slot. */
+  importSnapshotIntoActive(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): void {
+    this.switching = true;
+    try {
+      this.applySnapshot(snapshot, deps);
+      this.saveActiveSnapshot(deps);
+      this.emitChanged();
+    } finally {
+      this.switching = false;
+    }
+  }
+
   applySnapshot(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): void {
     const applied = applyProfileSnapshot(snapshot);
     deps.onSettingsChange(applied.settingsPatch);

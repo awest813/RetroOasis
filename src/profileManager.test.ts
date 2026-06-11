@@ -121,6 +121,58 @@ describe("ProfileManager", () => {
     expect(settings.netplayUsername).toBe("boot-user");
   });
 
+  it("renames the active profile", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    pm.renameActiveProfile("Family");
+    expect(pm.getActiveProfileName()).toBe("Family");
+    expect(storage.getItem(PROFILE_INDEX_STORAGE_KEY)).toContain("Family");
+  });
+
+  it("deletes a profile and switches to another when the active one is removed", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const keepId = pm.getActiveProfileId();
+    pm.createProfile("Temporary", deps);
+    const tempId = pm.getActiveProfileId();
+    expect(pm.listProfiles()).toHaveLength(2);
+
+    const ok = pm.deleteProfile(tempId, deps);
+    expect(ok).toBe(true);
+    expect(pm.listProfiles()).toHaveLength(1);
+    expect(pm.getActiveProfileId()).toBe(keepId);
+  });
+
+  it("refuses to delete the last profile", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    expect(pm.deleteProfile(pm.getActiveProfileId(), deps)).toBe(false);
+  });
+
+  it("merges an imported snapshot into the active profile", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    settings.netplayUsername = "before-merge";
+    pm.saveActiveSnapshot(deps);
+
+    const imported = pm.exportActiveSnapshot(deps);
+    imported.settingsSubset.netplayUsername = "after-merge";
+
+    pm.importSnapshotIntoActive(imported, deps);
+    expect(settings.netplayUsername).toBe("after-merge");
+    expect(pm.getActiveProfileName()).toBe("Default");
+
+    settings.netplayUsername = "stale";
+    resetProfileManagerForTests();
+    const pm2 = getProfileManager(storage);
+    pm2.ensureInitialized(deps);
+    expect(settings.netplayUsername).toBe("after-merge");
+  });
+
   it("removes API keys that are not in the switched profile", async () => {
     const providers = [
       { id: "rawg", name: "RAWG", description: "", signupUrl: "", validate: () => true as const },

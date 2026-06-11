@@ -1262,6 +1262,15 @@ async function main(): Promise<void> {
     });
   });
 
+  const profileDeps = {
+    settings,
+    apiKeyStore,
+    onSettingsChange,
+  };
+  getCloudSaveManager().addStatusListener(() => {
+    getProfileManager().scheduleAutoSave(profileDeps);
+  });
+
   initUI({
     emulator,
     library,

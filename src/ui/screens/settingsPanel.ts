@@ -18,6 +18,7 @@ import type { BiosLibrary } from "../../bios.js";
 import type { SaveStateLibrary } from "../../saves.js";
 import type { PSPEmulator } from "../../emulator.js";
 import type { NetplayManager } from "../../multiplayer.js";
+import { LEGACY_EVENTS } from "../../legacy.js";
 import { buildPerfTab } from "../tabs/PerfTab.js";
 import { buildDisplayTab } from "../tabs/DisplayTab.js";
 import { buildLibraryTab } from "../tabs/LibraryTab.js";
@@ -37,6 +38,62 @@ let _settingsPanelIo: IntersectionObserver | null = null;
 let _settingsContentCleanups: Array<() => void> = [];
 let _settingsContentToken = 0;
 let _settingsTabsModule: typeof import("../settingsTabs.js") | null = null;
+let _profileChangedHandler: (() => void) | null = null;
+
+interface SettingsPanelContext {
+  settings: Settings;
+  deviceCaps: DeviceCapabilities;
+  library: GameLibrary;
+  biosLibrary: BiosLibrary;
+  onSettingsChange: (patch: Partial<Settings>) => void;
+  emulatorRef?: PSPEmulator;
+  onLaunchGame?: (file: File, systemId: string, gameId?: string) => Promise<void>;
+  saveLibrary?: SaveStateLibrary;
+  getNetplayManager?: () => Promise<NetplayManager>;
+}
+
+let _settingsPanelContext: SettingsPanelContext | null = null;
+
+function getActiveSettingsTabId(): CanonicalSettingsTab | undefined {
+  const selected = document.querySelector<HTMLButtonElement>(
+    ".settings-sidebar__item[aria-selected='true']",
+  );
+  if (!selected?.id?.startsWith("tab-")) return undefined;
+  return selected.id.slice("tab-".length) as CanonicalSettingsTab;
+}
+
+/** Rebuild settings content when the active profile changes while the panel is open. */
+export function refreshSettingsPanelIfOpen(): void {
+  const panel = document.getElementById("settings-panel");
+  const content = document.getElementById("settings-content");
+  if (!panel || panel.hidden || !content || !_settingsPanelContext) return;
+
+  const activeTab = getActiveSettingsTabId();
+  const ctx = _settingsPanelContext;
+  try {
+    buildSettingsContent(
+      content,
+      ctx.settings,
+      ctx.deviceCaps,
+      ctx.library,
+      ctx.biosLibrary,
+      ctx.onSettingsChange,
+      ctx.emulatorRef,
+      ctx.onLaunchGame,
+      ctx.saveLibrary,
+      ctx.getNetplayManager,
+      activeTab,
+    );
+  } catch (error) {
+    console.error(`[${APP_NAME}] Failed to refresh settings panel after profile change`, error);
+  }
+}
+
+function ensureProfileChangedListener(): void {
+  if (_profileChangedHandler || typeof document === "undefined") return;
+  _profileChangedHandler = () => refreshSettingsPanelIfOpen();
+  document.addEventListener(LEGACY_EVENTS.profileChanged, _profileChangedHandler);
+}
 
 export type SettingsTab = "performance" | "display" | "library" | "cloud" | "cloudlibrary" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about" | "help";
 type CanonicalSettingsTab = Exclude<SettingsTab, "help">;
@@ -452,6 +509,19 @@ export function openSettingsPanel(
       : getNetplayManagerOrInstance != null
         ? () => Promise.resolve(getNetplayManagerOrInstance)
         : undefined;
+
+  _settingsPanelContext = {
+    settings,
+    deviceCaps,
+    library,
+    biosLibrary,
+    onSettingsChange,
+    emulatorRef,
+    onLaunchGame,
+    saveLibrary,
+    getNetplayManager,
+  };
+  ensureProfileChangedListener();
 
   try {
     buildSettingsContent(content, settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, initialTab);
