@@ -104,15 +104,16 @@ Before running any tests:
 
 ---
 
-## 6. BIOS Management
+## 6. System Files Management
 
 | # | Step | Expected |
 |---|------|----------|
-| 6.1 | Open Settings → BIOS | List of required BIOS files shown with red (missing) dots |
+| 6.1 | Open Settings > System Files | List of required startup files shown with red (missing) dots |
 | 6.2 | Upload a PS1 BIOS file (`scph1001.bin` or similar) | Status dot turns green; file name confirmed |
 | 6.3 | Launch a PS1 game after uploading BIOS | Game boots with the correct BIOS |
 | 6.4 | Upload a file with the wrong name | Warning shown; system lists expected filename(s) |
-| 6.5 | Refresh the page; re-open Settings → BIOS | Previously uploaded BIOS files still listed as green (persisted in IndexedDB) |
+| 6.5 | Import a ZIP containing known startup filenames | Matching files are stored under canonical names and status dots turn green |
+| 6.6 | Refresh the page; re-open Settings > System Files | Previously uploaded startup files still listed as green (persisted in IndexedDB) |
 
 ---
 

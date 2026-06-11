@@ -69,6 +69,8 @@ const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
 const DREAMCAST_GDI_TRACK_EXTS = new Set(["bin", "raw", "iso"]);
+const N3DS_PACKAGE_EXTS = new Set(["3ds", "3dsx", "z3dsx", "cci", "zcci", "cxi", "zcxi", "app", "elf", "axf"]);
+const LARGE_N3DS_ARCHIVE_ENTRY_BYTES = 512 * 1024 * 1024;
 
 function canRouteArchiveAsNativePackage(format: ArchiveFormat, fileName: string): boolean {
   if (format === "zip") return true;
@@ -96,6 +98,21 @@ function parseM3U(content: string): string[] {
 function isDreamcastGdiPackage(candidates: Array<{ name: string }>): boolean {
   return candidates.some((candidate) => fileExt(candidate.name) === "gdi") &&
     candidates.some((candidate) => DREAMCAST_GDI_TRACK_EXTS.has(fileExt(candidate.name)));
+}
+
+function findLargeN3dsPackageEntry(candidates: Array<{ name: string; size: number }>): { name: string; size: number } | null {
+  return candidates.find((candidate) =>
+    N3DS_PACKAGE_EXTS.has(fileExt(candidate.name)) &&
+    candidate.size >= LARGE_N3DS_ARCHIVE_ENTRY_BYTES
+  ) ?? null;
+}
+
+function showLargeN3dsArchiveError(format: ArchiveFormat, archiveName: string, entry: { name: string; size: number }): void {
+  showError(
+    `${format.toUpperCase()} archive "${archiveName}" contains a large 3DS image "${entry.name}" (${formatBytes(entry.size)}).\n\n` +
+    "3DS images this large cannot be safely extracted inside the browser, and Azahar cannot launch them while they remain zipped.\n\n" +
+    "Extract the archive on your device, then import the .3ds/.cci/.cxi/.app file directly."
+  );
 }
 
 export async function resolveSystemAndAddImpl(
@@ -191,6 +208,28 @@ export async function resolveSystemAndAddImpl(
 
   if (EXTRACTABLE_ARCHIVE_FORMATS.has(archiveFormat)) {
     const archiveModule = await getArchiveModule();
+    if (archiveFormat === "zip") {
+      try {
+        const largeN3dsEntry = findLargeN3dsPackageEntry(await archiveModule.listZipEntries(file));
+        if (largeN3dsEntry) {
+          hideLoadingOverlay();
+          showLargeN3dsArchiveError(archiveFormat, file.name, largeN3dsEntry);
+          logImport(
+            emulatorRef,
+            settings,
+            `ZIP contains large Nintendo 3DS image "${largeN3dsEntry.name}" (${formatBytes(largeN3dsEntry.size)}); manual extraction required`,
+          );
+          return;
+        }
+      } catch (err) {
+        logImportWarn(
+          emulatorRef,
+          settings,
+          `ZIP entry scan failed before extraction: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     showLoadingOverlay();
     setLoadingMessage(`Opening ${archiveFormat.toUpperCase()} archive…`);
     setLoadingSubtitle("Extracting game files — this may take a moment");

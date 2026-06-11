@@ -1121,6 +1121,46 @@ describe("resolveSystemAndAdd mobile/import fallbacks", () => {
     expect(library.addGame).toHaveBeenCalledWith(zip, "segaDC");
     expect(onLaunchGame).toHaveBeenCalledWith(zip, "segaDC", "dc-game");
   });
+
+  it("stops oversized 3DS ZIP packages before EmulatorJS tries to extract them", async () => {
+    vi.spyOn(archive, "detectArchiveFormat").mockResolvedValue("zip");
+    vi.spyOn(archive, "listZipEntries").mockResolvedValue([
+      {
+        name: "Fire Emblem Fates - Conquest (USA) Decrypted.3ds",
+        size: 2 * 1024 * 1024 * 1024,
+      },
+      { name: "readme.txt", size: 116 },
+    ]);
+    const extractSpy = vi.spyOn(archive, "extractFromArchive").mockResolvedValue(null);
+
+    const settings = makeSettings();
+    const onLaunchGame = vi.fn(async () => {});
+    const library = {
+      findByFileName: vi.fn().mockResolvedValue(null),
+      addGame: vi.fn(async (incoming: File, systemId: string) => ({
+        id: "3ds-game",
+        name: incoming.name.replace(/\.[^.]+$/, ""),
+        fileName: incoming.name,
+        systemId,
+        size: incoming.size,
+        addedAt: Date.now(),
+        lastPlayedAt: null,
+        blob: incoming,
+      })),
+      getAllGamesMetadata: vi.fn().mockResolvedValue([]),
+    } as unknown as GameLibrary;
+
+    const zip = new File([new Uint8Array([0x50, 0x4b])], "Fire Emblem Fates - Conquest (USA).zip", { type: "application/zip" });
+    await resolveSystemAndAdd(zip, library, settings, onLaunchGame);
+
+    expect(extractSpy).not.toHaveBeenCalled();
+    expect(document.getElementById("system-picker")?.hasAttribute("hidden")).toBe(true);
+    expect(library.addGame).not.toHaveBeenCalled();
+    expect(onLaunchGame).not.toHaveBeenCalled();
+    const errorText = document.getElementById("error-message")?.textContent ?? "";
+    expect(errorText).toContain("large 3DS image");
+    expect(errorText).toContain("Extract the archive");
+  });
 });
 
 describe("game card NEW badge", () => {
@@ -4532,6 +4572,32 @@ describe("showError — BIOS error shows System Files action button", () => {
     expect(actionBtn!.textContent).toContain("System Files");
   });
 
+  it("keeps Dreamcast BIOS errors specific to boot and flash files", () => {
+    const settings = makeSettings();
+    const opts = makeOpts(settings);
+    initUI(opts);
+
+    showError("Dreamcast needs startup files (BIOS) before launch.");
+
+    const errorText = document.getElementById("error-message")?.textContent ?? "";
+    expect(errorText).toContain("Dreamcast needs startup files");
+    expect(errorText).toContain("dc_boot.bin");
+    expect(errorText).toContain("dc_flash.bin");
+  });
+
+  it("keeps 3DS SharedArrayBuffer errors specific to 3DS", () => {
+    const settings = makeSettings();
+    const opts = makeOpts(settings);
+    initUI(opts);
+
+    showError("Nintendo 3DS requires worker threads, but SharedArrayBuffer is not available.");
+
+    const errorText = document.getElementById("error-message")?.textContent ?? "";
+    expect(errorText).toContain("3DS games need");
+    expect(errorText).toContain("SharedArrayBuffer");
+    expect(errorText).not.toContain("PSP games need");
+  });
+
   it("does not add an action button for non-BIOS errors", () => {
     const settings = makeSettings();
     const opts = makeOpts(settings);
@@ -4851,7 +4917,7 @@ describe("Dreamcast experimental messaging", () => {
     expect(pickerText).toContain("Dreamcast");
     expect(pickerText).toContain("Experimental");
     expect(pickerText).toContain("3D core");
-    expect(pickerText).toContain("HLE BIOS");
+    expect(pickerText).toContain("BIOS");
     expect(pickerText).toContain("WebGL 2");
 
     document.getElementById("system-picker-close")?.click();
@@ -4867,7 +4933,7 @@ describe("Dreamcast experimental messaging", () => {
     const cardText = document.querySelector(".game-card")?.textContent ?? "";
     expect(cardText).toContain("EXP");
     expect(cardText).toContain("3D core");
-    expect(cardText).toContain("HLE BIOS");
+    expect(cardText).toContain("BIOS");
     expect(cardText).toContain("WebGL 2");
   });
 });

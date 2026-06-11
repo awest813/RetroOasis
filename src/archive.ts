@@ -151,6 +151,19 @@ function emitProgress(
   options?.onProgress?.(progress);
 }
 
+export interface NamedZipExtractResult {
+  /** Canonical filename requested by the caller, e.g. "dc_flash.bin". */
+  fileName: string;
+  /** Full path of the matching entry inside the ZIP. */
+  entryName: string;
+  blob: Blob;
+}
+
+export interface ZipEntrySummary {
+  name: string;
+  size: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function readUint16LE(view: DataView, offset: number): number {
@@ -390,6 +403,131 @@ async function readZipLocalHeaderDataStart(zipBlob: Blob, lhBase: number): Promi
   const dataStart = lhBase + 30 + fileNameLen + extraLen;
   if (dataStart > zipBlob.size) return null;
   return dataStart;
+}
+
+async function extractZipEntryPayload(
+  zipBlob: Blob,
+  entry: CentralDirEntry,
+  streamOpts?: DecompressStreamOptions,
+): Promise<Uint8Array> {
+  if (entry.generalPurposeFlags & GP_FLAG_ENCRYPTED) {
+    throw new Error(`ZIP entry "${entry.name}" is password-protected.`);
+  }
+
+  if (entry.uncompressedSize > MAX_EXTRACTED_ENTRY_BYTES) {
+    throw new Error(
+      `ZIP entry "${entry.name}" is too large to extract in-browser ` +
+      `(${(entry.uncompressedSize / 1073741824).toFixed(2)} GB).`
+    );
+  }
+
+  if (entry.localHeaderOffset === 0xffffffff) {
+    throw new Error(`ZIP64 local-header offset could not be resolved for entry "${entry.name}".`);
+  }
+
+  const dataStart = await readZipLocalHeaderDataStart(zipBlob, entry.localHeaderOffset);
+  if (dataStart === null) throw new Error(`ZIP local header could not be read for entry "${entry.name}".`);
+
+  const dataEnd = dataStart + entry.compressedSize;
+  if (dataEnd > zipBlob.size) throw new Error(`ZIP entry "${entry.name}" extends past the archive boundary.`);
+  const compressedSlice = new Uint8Array(await readBlobAsArrayBuffer(zipBlob.slice(dataStart, dataEnd)));
+
+  if (entry.compressionMethod === COMPRESS_STORED) {
+    if (compressedSlice.length !== entry.uncompressedSize) {
+      throw new Error(
+        `ZIP entry size mismatch for "${entry.name}" (expected ${entry.uncompressedSize} bytes, ` +
+        `got ${compressedSlice.length}).`
+      );
+    }
+    return compressedSlice;
+  }
+
+  if (entry.compressionMethod === COMPRESS_DEFLATE) {
+    const output = await decompressWithStream("deflate-raw", compressedSlice, streamOpts);
+    if (output.length !== entry.uncompressedSize) {
+      throw new Error(
+        `ZIP inflate size mismatch for "${entry.name}" (expected ${entry.uncompressedSize} bytes, got ${output.length}).`
+      );
+    }
+    return output;
+  }
+
+  if (entry.compressionMethod === COMPRESS_DEFLATE64) {
+    throw new Error(`Entry "${entry.name}" uses unsupported Deflate64 compression.`);
+  }
+  if (entry.compressionMethod === COMPRESS_BZIP2) {
+    throw new Error(`Entry "${entry.name}" uses unsupported BZip2 compression.`);
+  }
+  if (entry.compressionMethod === COMPRESS_LZMA) {
+    throw new Error(`Entry "${entry.name}" uses unsupported LZMA compression.`);
+  }
+  throw new Error(`Entry "${entry.name}" uses unsupported ZIP compression method ${entry.compressionMethod}.`);
+}
+
+export async function extractNamedFilesFromZip(
+  zipBlob: Blob,
+  wantedFileNames: Iterable<string>,
+): Promise<NamedZipExtractResult[]> {
+  assertArchiveSize(zipBlob, "ZIP");
+  const wanted = new Map<string, string>();
+  for (const name of wantedFileNames) {
+    const normalized = shortNameFromPath(name).toLowerCase();
+    if (normalized) wanted.set(normalized, shortNameFromPath(name));
+  }
+  if (wanted.size === 0) return [];
+
+  const layout = await resolveZipCentralDirectoryLayout(zipBlob);
+  if (!layout) return [];
+
+  const centralDir = await readBlobAsArrayBuffer(
+    zipBlob.slice(layout.centralDirOffset, layout.centralDirOffset + layout.centralDirSize),
+  );
+  const entries = parseZipCentralDirectoryEntries(centralDir, 0, layout.centralDirSize)
+    .filter((entry) => !entry.name.endsWith("/"));
+
+  const streamOpts = useMobileArchiveMemoryOptimizations()
+    ? { yieldWhileReading: true }
+    : undefined;
+  const results: NamedZipExtractResult[] = [];
+  const matched = new Set<string>();
+  const orderedMatches = entries
+    .map((entry) => ({
+      entry,
+      wantedKey: shortNameFromPath(entry.name).toLowerCase(),
+      pathDepth: normalizeEntryName(entry.name).split("/").length,
+    }))
+    .filter((item) => wanted.has(item.wantedKey))
+    .sort((a, b) => a.pathDepth - b.pathDepth || a.entry.name.length - b.entry.name.length);
+
+  for (const { entry, wantedKey } of orderedMatches) {
+    if (matched.has(wantedKey)) continue;
+    const bytes = await extractZipEntryPayload(zipBlob, entry, streamOpts);
+    matched.add(wantedKey);
+    results.push({
+      fileName: wanted.get(wantedKey)!,
+      entryName: entry.name,
+      blob: new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" }),
+    });
+  }
+
+  return results;
+}
+
+export async function listZipEntries(zipBlob: Blob): Promise<ZipEntrySummary[]> {
+  assertArchiveSize(zipBlob, "ZIP");
+  const layout = await resolveZipCentralDirectoryLayout(zipBlob);
+  if (!layout) return [];
+
+  const centralDir = await readBlobAsArrayBuffer(
+    zipBlob.slice(layout.centralDirOffset, layout.centralDirOffset + layout.centralDirSize),
+  );
+
+  return parseZipCentralDirectoryEntries(centralDir, 0, layout.centralDirSize)
+    .filter((entry) => !entry.name.endsWith("/"))
+    .map((entry) => ({
+      name: shortNameFromPath(entry.name),
+      size: entry.uncompressedSize,
+    }));
 }
 
 /** File entry in a TAR stream (header offset + payload metadata only). */

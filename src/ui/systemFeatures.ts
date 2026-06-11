@@ -44,12 +44,6 @@ export function getSystemFeaturePills(
       title: `${system.name} needs system files for the best compatibility.`,
       tone: "neutral",
     });
-  } else if (system.id === "segaDC") {
-    pills.push({
-      label: "HLE BIOS",
-      title: "Flycast can boot most Dreamcast games with its built-in HLE BIOS. Dumped boot/flash files are optional compatibility boosters.",
-      tone: "neutral",
-    });
   }
   if (system.needsWebGL2) {
     pills.push({

@@ -43,6 +43,10 @@ function _clearToastDismissTimer(): void {
 
 function friendlyErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
+  if ((m.includes("3ds") || m.includes("azahar") || m.includes("nintendo 3ds")) &&
+      (m.includes("sharedarraybuffer") || m.includes("cross-origin isolated") || m.includes("cross-origin isolation"))) {
+    return "3DS games need a special browser feature (SharedArrayBuffer) that isn't available here.\n\nTry reloading once the service worker activates, or use a desktop browser with cross-origin isolation enabled.";
+  }
   if (m.includes("sharedarraybuffer") || m.includes("cross-origin isolated")) {
     return "PSP games need a special browser feature (SharedArrayBuffer) that isn't available here.\n\nTry opening the page from the correct URL, or use a browser that supports HTTPS.";
   }
@@ -59,7 +63,10 @@ function friendlyErrorMessage(msg: string): string {
     return "Couldn't load a required file. Check your internet connection and try again.";
   }
   if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("experimental") || m.includes("stabil"))) {
-    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nFlycast uses HLE BIOS by default, so dc_boot.bin and dc_flash.bin are optional compatibility files. If one title fails, try another title or lower the load on your device.";
+    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nThe bundled Flycast core requires dc_boot.bin (or a compatible Dreamcast boot ROM) plus dc_flash.bin in System Files.";
+  }
+  if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("bios") || m.includes("startup file"))) {
+    return "Dreamcast needs startup files before launch.\n\nAdd dc_boot.bin (or a compatible Dreamcast boot ROM) plus dc_flash.bin in Settings > System Files.";
   }
   if (m.includes("bios") || m.includes("startup file")) {
     return "This game needs a startup file (BIOS). Go to Settings → System Files to add one.";

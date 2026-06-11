@@ -7,7 +7,7 @@
  * Known system startup files:
  *   PlayStation 1  — SCPH-5500 (NTSC-J) / SCPH-1001 / SCPH-5501 / SCPH-5502 (optional but improves compatibility)
  *   Sega Saturn    — sega_101.bin or mpr-17933.bin  (required)
- *   Dreamcast      — HLE BIOS by default; boot/flash files are optional compatibility enhancers
+ *   Dreamcast      — dc_boot.bin / dreamdash.bin plus dc_flash.bin (required by bundled Flycast)
  *   Atari Lynx     — lynxboot.img                   (optional)
  *
  * Schema
@@ -152,23 +152,22 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
     {
       fileName: "dc_boot.bin",
       displayName: "Dreamcast BIOS (dc_boot.bin)",
-      required: false,
+      required: true,
       group: "dc-boot",
-      description: "Official/retail SEGA Dreamcast BIOS boot ROM. Optional: Flycast uses HLE BIOS by default, but a dumped boot ROM can improve compatibility.",
+      description: "Official/retail SEGA Dreamcast BIOS boot ROM. Required by the bundled Flycast core; dump this from your own console.",
     },
     {
       fileName: "dreamdash.bin",
       displayName: "DreamDash Custom BIOS (dreamdash.bin)",
-      required: false,
+      required: true,
       group: "dc-boot",
-      description: "A modern, open-source replacement boot ROM for the Sega Dreamcast (https://github.com/darcagn/DreamDash). Optional because Flycast can boot most games with HLE BIOS.",
-      downloadUrl: "./assets/dreamdash.bin",
+      description: "DreamDash replacement boot ROM. Advanced alternative to dc_boot.bin; pair it with dc_flash.bin for Flycast.",
     },
     {
       fileName: "dc_flash.bin",
       displayName: "Dreamcast Flash ROM (dc_flash.bin)",
-      required: false,
-      description: "Dreamcast flash memory containing regional settings. Optional: upload a dump from your own console only when a game needs real flash data.",
+      required: true,
+      description: "Dreamcast flash memory containing regional settings. Required alongside a boot ROM by the bundled Flycast core.",
     },
   ],
   lynx: [
@@ -321,8 +320,7 @@ export class BiosLibrary {
    *
    * Most systems use a single blob URL. When Dreamcast has both a boot file
    * and dc_flash.bin, we bundle them into an in-memory ZIP containing the
-   * expected /dc/ directory structure for Flycast/Reicast; otherwise Flycast
-   * can run through HLE BIOS.
+   * expected /dc/ directory structure for Flycast/Reicast.
    */
   async getLaunchBiosAsset(systemId: string): Promise<LaunchBiosAsset | null> {
     if (systemId !== "segaDC") {

@@ -2300,7 +2300,7 @@ describe('performance', () => {
     });
 
     it('returns correct 3DS 2× option', () => {
-      expect(getResolutionCoreOptions('3ds', '2x')).toEqual({ citra_resolution_factor: '2x' });
+      expect(getResolutionCoreOptions('3ds', '2x')).toEqual({ citra_resolution_factor: '2' });
     });
 
     it('returns correct Dreamcast 2× option', () => {
@@ -2417,7 +2417,7 @@ describe('performance', () => {
         const ladder = getResolutionLadder('3ds');
         expect(ladder).not.toBeNull();
         expect(ladder!.key).toBe('citra_resolution_factor');
-        expect(ladder!.values).toEqual(['1x (Native)', '2x', '3x', '4x']);
+        expect(ladder!.values).toEqual(['1', '2', '3', '4']);
       });
     });
 

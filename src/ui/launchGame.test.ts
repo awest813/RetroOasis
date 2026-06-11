@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GameMetadata, GameLibrary } from "../library.js";
 import type { Settings } from "../types/settings.js";
 import { launchGameFromLibrary } from "./launchGame.js";
-import { setLaunchInProgress } from "./launchState.js";
+import { isLaunchInProgress, setLaunchInProgress } from "./launchState.js";
 
 function makeGame(overrides: Partial<GameMetadata> = {}): GameMetadata {
   return {
@@ -52,6 +52,23 @@ describe("launchGameFromLibrary", () => {
 
     expect(onLaunchGame).toHaveBeenCalledOnce();
     expect(onFetchFromCloud).not.toHaveBeenCalled();
+  });
+
+  it("leaves the global launch flag for the launcher handoff", async () => {
+    const blob = new Blob(["rom"]);
+    const onLaunchGame = vi.fn(async () => {
+      expect(isLaunchInProgress()).toBe(false);
+    });
+
+    await launchGameFromLibrary({
+      game: makeGame(),
+      library: makeLibrary(blob),
+      settings: baseSettings,
+      onFetchFromCloud: vi.fn(),
+      onLaunchGame,
+    });
+
+    expect(onLaunchGame).toHaveBeenCalledOnce();
   });
 
   it("shows error when game blob is missing", async () => {

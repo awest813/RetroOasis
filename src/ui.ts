@@ -39,7 +39,6 @@ import {
 } from "./systems.js";
 import {
   GameLibrary,
-  formatRelativeTime,
   type GameMetadata,
 } from "./library.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
@@ -107,7 +106,6 @@ import {
   resolveLibraryHeadline,
 } from "./ui/homepage.js";
 import { createDebugConsoleController } from "./ui/debugConsole.js";
-import { sessionTracker, formatPlayTime } from "./sessionTracker.js";
 import {
   toggleDevOverlay,
   updateDevOverlay,
@@ -144,7 +142,7 @@ import {
   showInfoToast as showInfoToastImpl,
   setErrorBannerSettingsOpener,
 } from "./ui/toasts.js";
-import { buildHighlightsPanel, MAX_SESSIONS as HIGHLIGHTS_MAX_SESSIONS } from "./ui/highlightsPanel.js";
+import { buildHighlightsPanel } from "./ui/highlightsPanel.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {

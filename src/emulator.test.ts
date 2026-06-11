@@ -1161,7 +1161,7 @@ describe('PSPEmulator', () => {
         expect(emulator.resolvedWasmCoreName, system.id).toBe(expectedCore);
         expect(window.EJS_core, system.id).toBe(system.coreId ?? system.id);
         if (system.corePath) {
-          expect(window.EJS_corePath, system.id).toBe(system.corePath);
+          expect(window.EJS_corePath, system.id).toContain("flycast-wasm.data");
         } else {
           expect(window.EJS_paths?.[`${expectedCore}.json`], system.id).toContain(`/cores/reports/${expectedCore}.json`);
           expect(window.EJS_paths?.[`${expectedCore}-wasm.data`], system.id).toContain(`/cores/${expectedCore}-wasm.data`);

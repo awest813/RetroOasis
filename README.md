@@ -83,6 +83,8 @@ Local storage is browser-owned:
 | BIOS files | IndexedDB |
 | Settings and optional credentials | localStorage |
 
+Startup files are managed in Settings > System Files. Individual files can be uploaded directly, and ZIP packs can be scanned for known filenames such as Dreamcast `dc_boot.bin` / `dreamdash.bin` plus `dc_flash.bin`.
+
 Cloud features are opt-in. Save sync and library indexing support WebDAV / Nextcloud plus provider flows for Google Drive, Dropbox, OneDrive, pCloud, Blomp, Box, and Mega where configured.
 
 ## Cover Art and Metadata

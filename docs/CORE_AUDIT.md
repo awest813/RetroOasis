@@ -52,7 +52,7 @@ All systems are defined in `src/systems.ts`. Prefetch hints for CDN cores live i
 | snesBsnes | bsnes | nightly | — | — | — |
 | segaMDWide | genesis_plus_gx_wide | nightly | — | — | — |
 | intv | freeintv | nightly | — | — | — |
-| segaDC | flycast | **bundled** | — | ✓ | optional |
+| segaDC | flycast | **bundled** | — | ✓ | required |
 | nes | fceumm | stable | — | — | — |
 | snes | snes9x | stable | — | — | — |
 | gba / gb / gbc | gambatte / mgba | stable | — | — | gba optional |

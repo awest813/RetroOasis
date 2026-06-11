@@ -114,9 +114,9 @@ This is the single source of truth for shipped work, active improvements, and fu
 | Work | Status | Notes |
 | --- | --- | --- |
 | Nintendo 3DS import and Azahar routing | Done | `.3ds`, `.cci`, `.cxi`, and `.app` are detected/extracted; Azahar/citra hints map to 3DS; threaded nightly core paths are covered by unit and import e2e tests. |
-| Nintendo 3DS runtime compatibility pass | Research | Real-game boot depends on browser WebGL 2/thread support, cross-origin isolation, hardware, and upstream Azahar/EmulatorJS behavior. |
-| Dreamcast import routing and experimental Flycast wiring | Done | Flycast uses the external `flycast-wasm.data` bundle through `EJS_corePath`, keeps GDI packages together, and remains marked experimental. |
-| Dreamcast stability tuning | Research | Track upstream core behavior, optional BIOS/flash impact, WebGL 2 performance, and browser support. |
+| Nintendo 3DS runtime compatibility pass | Partial | Azahar nightly routing and direct `.3ds` launch path are browser-smoked with synthetic content; very large zipped 3DS images are blocked early with manual-extraction guidance because browser/EJS ZIP extraction cannot safely handle 2 GB entries. |
+| Dreamcast import routing and experimental Flycast wiring | Done | Flycast uses the external `flycast-wasm.data` bundle through `EJS_corePath`, keeps GDI packages together, and System Files can scan ZIP packs for Dreamcast startup files. |
+| Dreamcast stability tuning | Research | Track upstream core behavior, required boot/flash BIOS handling, WebGL 2 performance, and browser support. |
 | Headless core smoke coverage | Partial | The TOBUNES open-source NES fixture is checked in for legal launch-path testing; add representative 3DS/Dreamcast fixtures only when legally distributable samples are available. |
 | 4.3-pre core routing checks | Done | Covered by `npm run doctor`. |
 

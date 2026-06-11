@@ -22,16 +22,18 @@ export interface LaunchFromLibraryOpts {
   onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>;
 }
 
+let _libraryLaunchInProgress = false;
+
 /** Resolve a library entry to a launchable file and start the game. */
 export async function launchGameFromLibrary(opts: LaunchFromLibraryOpts): Promise<void> {
   const { game, library, settings, onFetchFromCloud, onLaunchGame } = opts;
 
-  if (isLaunchInProgress()) {
+  if (isLaunchInProgress() || _libraryLaunchInProgress) {
     showInfoToast("Already starting a game…", "info");
     return;
   }
 
-  setLaunchInProgress(true);
+  _libraryLaunchInProgress = true;
   let handedOffToLauncher = false;
 
   showLoadingOverlay();
@@ -57,6 +59,7 @@ export async function launchGameFromLibrary(opts: LaunchFromLibraryOpts): Promis
     hideLoadingOverlay();
     showError(`Failed to start game: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
+    _libraryLaunchInProgress = false;
     if (!handedOffToLauncher) setLaunchInProgress(false);
   }
 }

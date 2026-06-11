@@ -43,6 +43,61 @@ export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, o
     const sysBadge = make("span", { class: "sys-badge" }, sysInfo.shortName);
     sysBadge.style.background = sysInfo.color;
     sysHeader.append(sysBadge, document.createTextNode(` ${sysInfo.name}`));
+    const rowStates: Array<{
+      fileName: string;
+      statusDot: HTMLElement;
+      uploadBtn: HTMLButtonElement;
+      downloadBtn: HTMLButtonElement | null;
+    }> = [];
+
+    const importZipInput = make("input", {
+      type: "file",
+      accept: ".zip,application/zip",
+      "aria-label": `Import ${sysInfo.name} startup files from ZIP`,
+      style: "display:none",
+    }) as HTMLInputElement;
+    const importZipBtn = make("button", {
+      type: "button",
+      class: "btn bios-import-zip-btn",
+      title: `Scan a ZIP for known ${sysInfo.name} startup filenames`,
+    }, "Import ZIP") as HTMLButtonElement;
+    importZipBtn.addEventListener("click", () => importZipInput.click());
+    importZipInput.addEventListener("change", async () => {
+      const file = importZipInput.files?.[0];
+      if (!file) return;
+      importZipInput.value = "";
+      importZipBtn.disabled = true;
+      importZipBtn.setAttribute("aria-busy", "true");
+      const originalText = importZipBtn.textContent ?? "Import ZIP";
+      importZipBtn.textContent = "Scanning...";
+      try {
+        const { extractNamedFilesFromZip } = await import("../archive.js");
+        const matches = await extractNamedFilesFromZip(file, reqs.map(req => req.fileName));
+        if (matches.length === 0) {
+          onError(`No known ${sysInfo.name} startup files were found in "${file.name}".`);
+          return;
+        }
+
+        for (const match of matches) {
+          const canonical = new File([match.blob], match.fileName, { type: "application/octet-stream" });
+          await biosLibrary.addBios(canonical, sysId);
+          const state = rowStates.find(row => row.fileName === match.fileName);
+          if (state) {
+            state.statusDot.className = "bios-dot bios-dot--ok";
+            state.uploadBtn.textContent = "Replace";
+            if (state.downloadBtn) state.downloadBtn.textContent = "Re-download";
+          }
+        }
+        importZipBtn.textContent = `Imported ${matches.length}`;
+      } catch (err) {
+        onError(`ZIP import failed: ${err instanceof Error ? err.message : String(err)}`);
+        importZipBtn.textContent = originalText;
+      } finally {
+        importZipBtn.disabled = false;
+        importZipBtn.removeAttribute("aria-busy");
+      }
+    });
+    sysHeader.append(importZipInput, importZipBtn);
     sysBlock.appendChild(sysHeader);
 
     for (const req of reqs) {
@@ -132,6 +187,12 @@ export function buildBiosTab(container: HTMLElement, biosLibrary: BiosLibrary, o
       row.append(statusDot, uploadInput, labelWrap, requiredBadge, desc, uploadBtn);
       if (downloadBtn) row.appendChild(downloadBtn);
       sysBlock.appendChild(row);
+      rowStates.push({
+        fileName: req.fileName,
+        statusDot,
+        uploadBtn,
+        downloadBtn,
+      });
     }
 
     biosGrid.appendChild(sysBlock);

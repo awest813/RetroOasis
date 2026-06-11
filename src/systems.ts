@@ -29,10 +29,10 @@ export interface SystemInfo {
    */
   coreId?: string;
   /**
-   * Absolute URL to a custom core `.data` bundle.
-   * When set, EJS_corePath is passed to EmulatorJS so the loader fetches this
-   * URL directly instead of constructing a CDN-relative path.
-   * Required for cores not hosted on the official EmulatorJS CDN (e.g. Flycast).
+   * Absolute URL to a custom core `.data` bundle (must be an EJS-format
+   * compressed archive containing .js, .wasm, and core.json — NOT an Emscripten
+   * VFS data file). When set, EJS_corePath is passed to EmulatorJS so the loader
+   * fetches this URL directly instead of constructing a CDN-relative path.
    */
   corePath?: string;
   /** Full human-readable name. */
@@ -1122,7 +1122,7 @@ const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     citra_use_hw_shader_cache: "enabled",
     citra_use_acc_geo_shaders: "disabled",
     citra_use_acc_mul: "disabled",
-    citra_resolution_factor: "1x (Native)",
+    citra_resolution_factor: "1",
     citra_texture_filter: "none",
     citra_custom_textures: "disabled",
     citra_is_new_3ds: "New 3DS",
@@ -1136,7 +1136,7 @@ const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     citra_use_hw_shader_cache: "enabled",
     citra_use_acc_geo_shaders: "disabled",
     citra_use_acc_mul: "disabled",
-    citra_resolution_factor: "1x (Native)",
+    citra_resolution_factor: "1",
     citra_texture_filter: "none",
     citra_custom_textures: "disabled",
     citra_is_new_3ds: "New 3DS",
@@ -1150,7 +1150,7 @@ const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     citra_use_hw_shader_cache: "enabled",
     citra_use_acc_geo_shaders: "enabled",
     citra_use_acc_mul: "disabled",
-    citra_resolution_factor: "2x",
+    citra_resolution_factor: "2",
     citra_texture_filter: "none",
     citra_custom_textures: "disabled",
     citra_is_new_3ds: "New 3DS",
@@ -1164,7 +1164,7 @@ const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
     citra_use_hw_shader_cache: "enabled",
     citra_use_acc_geo_shaders: "enabled",
     citra_use_acc_mul: "enabled",
-    citra_resolution_factor: "3x",
+    citra_resolution_factor: "3",
     citra_texture_filter: "none",
     citra_custom_textures: "disabled",
     citra_is_new_3ds: "New 3DS",
@@ -1613,12 +1613,12 @@ export const SYSTEMS: SystemInfo[] = [
     name: "Dreamcast",
     shortName: "DC",
     experimental: true,
-    stabilityNotice: "Experimental: Dreamcast support is still being stabilized. Performance varies by hardware — use Performance mode on low-end devices. Some games may boot slowly, glitch, or crash.",
+    stabilityNotice: "Experimental: Dreamcast (Flycast) support uses a bundled flycast-wasm v1.0.0 core and requires WebGL 2 plus Dreamcast boot/flash BIOS files.",
     extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip", "dat", "lst"],
     color: "#e07b20",
     needsThreads: false,
     needsWebGL2: true,
-    needsBios: false,
+    needsBios: true,
     is3D: true,
     qualitySettings: DREAMCAST_TIER_SETTINGS.high,
     perfSettings: DREAMCAST_TIER_SETTINGS.low,
@@ -1880,7 +1880,6 @@ export function getSystemFeatureSummary(
   if (system.is3D) features.push("3D core");
   else features.push("2D core");
   if (system.needsBios) features.push("BIOS");
-  else if (system.id === "segaDC") features.push("HLE BIOS");
   if (system.needsWebGL2) features.push("WebGL 2");
   if (system.needsThreads) features.push("Multi-threaded");
   if (system.touchControlMode === "builtin") features.push("Built-in touch");

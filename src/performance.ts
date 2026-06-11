@@ -76,7 +76,7 @@ const RESOLUTION_LADDERS: Record<string, { key: string; values: string[] }> = {
   },
   "3ds": {
     key: "citra_resolution_factor",
-    values: ["1x (Native)", "2x", "3x", "4x"],
+    values: ["1", "2", "3", "4"],
   },
 };
 

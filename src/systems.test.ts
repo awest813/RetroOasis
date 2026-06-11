@@ -322,8 +322,8 @@ describe('systems performance profiles', () => {
     expect(nds?.tierSettings?.low?.desmume_frameskip).toBe('2');
     expect(nds?.tierSettings?.ultra?.desmume_internal_resolution).toBe('1024x768');
     expect(getSystemById('3ds')?.tierSettings?.low?.retroarch_core).toBe('azahar');
-    expect(getSystemById('3ds')?.tierSettings?.low?.citra_resolution_factor).toBe('1x (Native)');
-    expect(getSystemById('3ds')?.tierSettings?.ultra?.citra_resolution_factor).toBe('3x');
+    expect(getSystemById('3ds')?.tierSettings?.low?.citra_resolution_factor).toBe('1');
+    expect(getSystemById('3ds')?.tierSettings?.ultra?.citra_resolution_factor).toBe('3');
     expect(getSystemById('3ds')?.extensions).toEqual(expect.arrayContaining([
       'axf', '3dsx', 'z3dsx', 'elf', 'zcci', 'zcxi',
     ]));
@@ -342,12 +342,14 @@ describe('systems performance profiles', () => {
     expect(dc?.tierSettings?.ultra?.flycast_internal_resolution).toBe('1920x1440');
     expect(dc?.tierSettings?.ultra?.reicast_internal_resolution).toBe('1920x1440');
     expect(dc?.coreId).toBe('flycast');
-    expect(dc?.corePath).toContain('flycast-wasm.data');
+    expect(dc?.corePath).toBe('./cores/flycast-wasm.data');
     expect(dc?.extensions).toContain('zip');
     expect(dc?.needsWebGL2).toBe(true);
-    expect(dc?.needsBios).toBe(false);
+    expect(dc?.needsBios).toBe(true);
     expect(dc?.experimental).toBe(true);
-    expect(dc?.stabilityNotice).toContain('stabil');
+    expect(dc?.stabilityNotice).toContain('Flycast');
+    expect(dc?.stabilityNotice).toContain('bundled');
+    expect(dc?.stabilityNotice).toContain('BIOS');
     expect(dc?.tierSettings?.low?.flycast_hle_bios).toBe('enabled');
     expect(dc?.tierSettings?.low?.reicast_hle_bios).toBe('enabled');
     expect(dc?.tierSettings?.ultra?.flycast_hle_bios).toBe('enabled');
@@ -670,13 +672,13 @@ describe('systems performance profiles', () => {
     it('returns tier settings for 3DS low tier', () => {
       const settings = getN3DSSettingsForTier('low');
       expect(settings.retroarch_core).toBe('azahar');
-      expect(settings.citra_resolution_factor).toBe('1x (Native)');
+      expect(settings.citra_resolution_factor).toBe('1');
       expect(settings.citra_use_cpu_jit).toBe('enabled');
     });
 
     it('returns tier settings for 3DS ultra tier', () => {
       const settings = getN3DSSettingsForTier('ultra');
-      expect(settings.citra_resolution_factor).toBe('3x');
+      expect(settings.citra_resolution_factor).toBe('3');
       expect(settings.citra_use_acc_mul).toBe('enabled');
     });
 
@@ -684,7 +686,7 @@ describe('systems performance profiles', () => {
       const settings = getN3DSSettingsForTier('low');
       settings.citra_resolution_factor = '10x';
       const fresh = getN3DSSettingsForTier('low');
-      expect(fresh.citra_resolution_factor).toBe('1x (Native)');
+      expect(fresh.citra_resolution_factor).toBe('1');
     });
   });
 

@@ -18,13 +18,13 @@ Each section follows the pattern:
 **Root causes**
 1. Invalid or corrupted ROM file.
 2. Unsupported archive format (e.g. bzip2, xz, Deflate64 inside ZIP).
-3. BIOS missing for a system that requires it (PS1, PSP, NDS, GBA-BIOS-requiring games).
+3. Startup/BIOS files missing for a system that requires them (Sega CD, Saturn, Dreamcast, or specific BIOS-enhanced systems).
 4. WASM compilation failed or cached module is incompatible after an update.
 5. Browser lacks SharedArrayBuffer support (required for PSP and other threaded cores).
 
 **Fix**
 - Ask the user to open DevTools → Console and share any red errors.
-- BIOS missing: Settings → BIOS → upload the required file.
+- Startup files missing: Settings > System Files > upload the required file, or use Import ZIP to scan a BIOS pack for known filenames.
 - If the ROM is a ZIP, ask the user to try unzipping it manually and dropping the inner file.
 - WASM stale cache: user can clear site data in browser settings, then reload.
 - SharedArrayBuffer: confirm the page is served with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers (or the service worker is active — check DevTools → Application → Service Workers).

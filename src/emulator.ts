@@ -529,7 +529,7 @@ let cachedWebGL2Support: boolean | null = null;
 
 const PSP_RESOLUTION_STEPS = ["1", "2", "4", "8"];
 const NDS_RESOLUTION_STEPS = ["256x192", "512x384", "768x576", "1024x768"];
-const N3DS_RESOLUTION_STEPS = ["1x (Native)", "2x", "3x", "4x"];
+const N3DS_RESOLUTION_STEPS = ["1", "2", "3", "4"];
 
 const DREAMCAST_RESOLUTION_STEPS = ["640x480", "1280x960", "1920x1440", "2560x1920"];
 
@@ -4301,28 +4301,28 @@ export class PSPEmulator {
         "iOS Safari and Chrome (both WebKit-based) do not yet support the " +
         `cross-origin isolation required for ${systemShortName}'s multi-threading.\n\n` +
         "• Many other systems work great on iPhone/iPad: try NES, SNES, GBA, N64, and more.\n" +
-        "• For PSP: use a desktop browser such as Chrome or Firefox on a Mac or PC."
+        `• For ${systemShortName}: use a desktop browser such as Chrome or Firefox on a Mac or PC.`
       );
       return false;
     }
 
     // Desktop Safari: `credentialless` COEP was added in Safari 17. Earlier
     // versions cannot achieve cross-origin isolation and therefore cannot run
-    // PSP. Safari 17+ should work once the correct COOP/COEP headers are
+    // threaded cores. Safari 17+ should work once the correct COOP/COEP headers are
     // served — if it still fails, the service worker may not have activated yet.
     const safariVersion = getSafariVersion();
     if (safariVersion !== null) {
       if (safariVersion < 17) {
         this._emitError(
-          `PSP emulation requires Safari 17 or later (you appear to be on Safari ${safariVersion}).\n\n` +
+          `${systemName} emulation requires Safari 17 or later (you appear to be on Safari ${safariVersion}).\n\n` +
           "Safari added support for the required cross-origin isolation in version 17.\n\n" +
           "• Update Safari in System Settings → General → Software Update.\n" +
-          "• Or switch to Chrome or Firefox for PSP emulation."
+          `• Or switch to Chrome or Firefox for ${systemShortName} emulation.`
         );
       } else {
         this._emitError(
-          "PSP emulation is not available in this browser session.\n\n" +
-          "Safari 17+ supports PSP, but SharedArrayBuffer is not available — " +
+          `${systemName} emulation is not available in this browser session.\n\n` +
+          `Safari 17+ supports ${systemShortName}, but SharedArrayBuffer is not available — ` +
           "this usually means the Cross-Origin Isolation headers are missing.\n\n" +
           "• Try reloading the page — the service worker may still be activating.\n" +
           "• In production: ensure coi-serviceworker.js is installed and responding.\n" +

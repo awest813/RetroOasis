@@ -718,6 +718,31 @@ async function main(): Promise<void> {
       showInfoToast(`Compatibility note: ${compatibilityEntry.knownIssues[0]}`, "warning", { queue: true });
     }
 
+    const launchSystemForChecks = getSystemById(systemId);
+    if (launchSystemForChecks?.needsBios) {
+      let biosReady = false;
+      try {
+        biosReady = await biosLibrary.isBiosReady(systemId);
+      } catch {
+        biosReady = false;
+      }
+
+      if (!biosReady) {
+        hideLoadingOverlay();
+        store.set("session", {
+          gameId:   currentGameId,
+          gameName,
+          systemId: currentSystemId,
+          phase:    "idle",
+        });
+        showError(
+          `${launchSystemForChecks.name} needs startup files (BIOS) before launch. ` +
+          "Open System Files and add the required files, then try again.",
+        );
+        return;
+      }
+    }
+
     if (gameId && cloudSaveManager.isConnected()) {
       setLoadingMessage("Syncing saved progress…");
       setLoadingSubtitle("Checking local and cloud copies before launch…");

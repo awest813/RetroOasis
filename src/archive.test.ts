@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   detectArchiveFormat,
+  extractNamedFilesFromZip,
   extractFromArchive,
   extractFromGzip,
   extractFromTar,
   extractFromZip,
   isArchiveExtension,
+  listZipEntries,
   ARCHIVE_SUPPORT_NOTE,
   type ArchiveFormat,
   type ArchiveExtractProgress,
@@ -617,6 +619,63 @@ describe('extractFromZip', () => {
     const result = await extractFromZip(blob);
     expect(result).not.toBeNull();
     expect(result!.name).toBe('game.gba');
+  });
+
+  it('extracts requested filenames from nested ZIP paths without ROM filtering', async () => {
+    const boot = new Uint8Array([0xdc, 0xb0, 0x07]);
+    const flash = new Uint8Array([0xdc, 0xfa, 0x05]);
+    const zipBytes = createStoredZip([
+      { path: 'readme.txt', bytes: new TextEncoder().encode('ignore me') },
+      { path: 'BatoceraV39Bios/bios/dc/dc_boot.bin', bytes: boot },
+      { path: 'BatoceraV39Bios/bios/dc/dc_flash.bin', bytes: flash },
+    ]);
+
+    const zipBuffer = zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.byteLength) as ArrayBuffer;
+    const results = await extractNamedFilesFromZip(
+      new Blob([zipBuffer]),
+      ['dc_boot.bin', 'dc_flash.bin'],
+    );
+
+    expect(results.map(result => result.fileName).sort()).toEqual(['dc_boot.bin', 'dc_flash.bin']);
+    const byName = new Map(results.map(result => [result.fileName, result]));
+    expect(new Uint8Array(await byName.get('dc_boot.bin')!.blob.arrayBuffer())).toEqual(boot);
+    expect(new Uint8Array(await byName.get('dc_flash.bin')!.blob.arrayBuffer())).toEqual(flash);
+    expect(byName.get('dc_boot.bin')!.entryName).toContain('bios/dc/dc_boot.bin');
+  });
+
+  it('extracts requested filenames from deflated ZIP entries', async () => {
+    const content = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const zipBuf = buildDeflatedZip('dc_flash.bin', content);
+
+    const results = await extractNamedFilesFromZip(new Blob([zipBuf]), ['dc_flash.bin']);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.fileName).toBe('dc_flash.bin');
+    expect(new Uint8Array(await results[0]!.blob.arrayBuffer())).toEqual(content);
+  });
+
+  it('lists ZIP entries without extracting payloads', async () => {
+    const zipBytes = createStoredZip([
+      { path: 'roms/Fire Emblem Fates - Conquest (USA) Decrypted.3ds', bytes: new Uint8Array([1, 2, 3]) },
+      { path: 'readme.txt', bytes: new TextEncoder().encode('hello') },
+    ]);
+    const zipBuffer = zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.byteLength) as ArrayBuffer;
+
+    await expect(listZipEntries(new Blob([zipBuffer]))).resolves.toEqual([
+      { name: 'Fire Emblem Fates - Conquest (USA) Decrypted.3ds', size: 3 },
+      { name: 'readme.txt', size: 5 },
+    ]);
+  });
+
+  it('lists oversized ZIP entry metadata without allocating the entry', async () => {
+    const content = new Uint8Array([0xaa]);
+    const zipBuf = buildZip('huge.3ds', content);
+    const hugeSize = 2 * 1024 * 1024 * 1024;
+    const patched = patchSingleEntrySizes(zipBuf, 'huge.3ds', { uncompressedSize: hugeSize });
+
+    await expect(listZipEntries(new Blob([patched]))).resolves.toEqual([
+      { name: 'huge.3ds', size: hugeSize },
+    ]);
   });
 
   it('skips directory entries and returns null when only directories exist', async () => {

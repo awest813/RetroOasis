@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { buildAchievementsTab, buildApiKeysTab } from "./settingsTabs.js";
+import { buildAchievementsTab, buildApiKeysTab, buildBiosTab } from "./settingsTabs.js";
 import { ApiKeyStore, type ApiKeyProviderConfig } from "../apiKeyStore.js";
+import { createStoredZip } from "../zip.js";
 
 function makeStorage(): Storage {
   const m = new Map<string, string>();
@@ -50,6 +51,64 @@ function mount(): { container: HTMLElement; store: ApiKeyStore; errors: string[]
   });
   return { container, store, errors };
 }
+
+describe("buildBiosTab", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+
+  it("imports matching Dreamcast startup files from a ZIP", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const addBios = vi.fn(async (_file: File, _systemId: string) => {});
+    const errors: string[] = [];
+    const biosLibrary = {
+      addBios,
+      findBios: vi.fn(async () => null),
+    };
+
+    buildBiosTab(container, biosLibrary as any, {
+      appName: "RetroOasis",
+      onError: (message) => errors.push(message),
+    });
+
+    const dreamcastBlock = Array.from(container.querySelectorAll<HTMLElement>(".bios-system"))
+      .find((block) => block.textContent?.includes("Dreamcast"));
+    expect(dreamcastBlock).toBeTruthy();
+
+    const zipInput = dreamcastBlock!.querySelector<HTMLInputElement>(
+      'input[aria-label="Import Dreamcast startup files from ZIP"]',
+    );
+    expect(zipInput).toBeTruthy();
+    if (!zipInput) throw new Error("Dreamcast ZIP import input was not rendered");
+
+    const zipBytes = createStoredZip([
+      { path: "bios/dc/dreamdash.bin", bytes: new Uint8Array([1, 2, 3]) },
+      { path: "bios/dc/dc_flash.bin", bytes: new Uint8Array([4, 5, 6]) },
+      { path: "readme.txt", bytes: new TextEncoder().encode("ignore") },
+    ]);
+    const zipBuffer = zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.byteLength) as ArrayBuffer;
+    const zipFile = new File([zipBuffer], "dreamcast-bios.zip", { type: "application/zip" });
+    Object.defineProperty(zipInput, "files", {
+      value: [zipFile],
+      configurable: true,
+    });
+
+    zipInput.dispatchEvent(new Event("change"));
+
+    await vi.waitFor(() => {
+      expect(addBios).toHaveBeenCalledTimes(2);
+    });
+    expect(errors).toEqual([]);
+    const storedFiles = (addBios.mock.calls as Array<[File, string]>).map(([file, systemId]) => ({
+      fileName: file.name,
+      systemId,
+    }));
+    expect(storedFiles.sort((a, b) => a.fileName.localeCompare(b.fileName))).toEqual([
+      { fileName: "dc_flash.bin", systemId: "segaDC" },
+      { fileName: "dreamdash.bin", systemId: "segaDC" },
+    ]);
+    expect(dreamcastBlock!.querySelector(".bios-import-zip-btn")?.textContent).toContain("Imported 2");
+  });
+});
 
 describe("buildApiKeysTab", () => {
   beforeEach(() => { document.body.innerHTML = ""; });
