@@ -1,9 +1,16 @@
 /**
- * gameOfTheDay.ts — Deterministic daily game picker and corner widget.
+ * gameOfTheDay.ts — Daily game spotlight from the Wikipedia gaming catalog.
  */
 
 import type { GameMetadata } from "../library.js";
+import { normalizeRomName } from "../coverArt.js";
 import { getSystemById } from "../systems.js";
+import { WIKI_GAME_CATALOG, type WikiGameCatalogEntry } from "../wikiGameCatalog.js";
+import {
+  WikipediaMetadataClient,
+  wikipediaArticleUrl,
+  type WikipediaGamePage,
+} from "../freeMetadata.js";
 import { createElement as make } from "./dom.js";
 
 /** UTC date key used as the daily random seed (YYYY-MM-DD). */
@@ -14,50 +21,86 @@ export function dateSeedForGameOfTheDay(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * Pick one game deterministically for the given UTC calendar day.
- * The same library + date always yields the same pick.
- */
-export function pickGameOfTheDay(
-  games: GameMetadata[],
-  date: Date = new Date(),
-): GameMetadata | null {
-  if (games.length === 0) return null;
-
-  const playable = games.filter((g) => g.hasLocalBlob || g.cloudId);
-  const pool = playable.length > 0 ? playable : games;
-
-  const seed = dateSeedForGameOfTheDay(date);
+function hashSeed(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
   }
-  const index = Math.abs(hash) % pool.length;
-  return pool[index] ?? null;
+  return Math.abs(hash);
+}
+
+/**
+ * Pick one catalog game deterministically for the given UTC calendar day.
+ */
+export function pickWikiGameOfTheDay(
+  date: Date = new Date(),
+  catalog: readonly WikiGameCatalogEntry[] = WIKI_GAME_CATALOG,
+): WikiGameCatalogEntry {
+  const index = hashSeed(dateSeedForGameOfTheDay(date)) % catalog.length;
+  return catalog[index]!;
+}
+
+/** Find a library entry that likely matches the wiki spotlight title. */
+export function findWikiGameInLibrary(
+  entry: WikiGameCatalogEntry,
+  games: GameMetadata[],
+): GameMetadata | null {
+  const target = normalizeRomName(entry.name);
+  if (!target) return null;
+
+  const sameSystem = games.filter((g) => g.systemId === entry.systemId);
+  const pool = sameSystem.length > 0 ? sameSystem : games;
+
+  const exact = pool.find((g) => normalizeRomName(g.name) === target);
+  if (exact) return exact;
+
+  return pool.find((g) => {
+    const norm = normalizeRomName(g.name);
+    return norm.includes(target) || target.includes(norm);
+  }) ?? null;
+}
+
+let _wikiClient: WikipediaMetadataClient | null = null;
+
+function getWikiClient(): WikipediaMetadataClient {
+  if (!_wikiClient) _wikiClient = new WikipediaMetadataClient();
+  return _wikiClient;
+}
+
+/** Load Wikipedia summary and thumbnail for today's catalog entry. */
+export async function loadWikiGameOfTheDayDetails(
+  entry: WikiGameCatalogEntry,
+  opts: { signal?: AbortSignal } = {},
+): Promise<WikipediaGamePage | null> {
+  return getWikiClient().fetchGameByTitle(entry.wikiTitle, opts);
 }
 
 export interface GameOfTheDayWidgetOpts {
-  game: GameMetadata;
+  entry: WikiGameCatalogEntry;
+  wiki?: WikipediaGamePage | null;
+  libraryMatch?: GameMetadata | null;
   getSystemIcon: (systemId: string) => string;
-  onPlay: (game: GameMetadata) => void;
+  onOpenWiki: (url: string) => void;
+  onPlayLibraryMatch?: (game: GameMetadata) => void;
   onDismiss?: () => void;
 }
 
 /**
- * Floating corner widget showing today's suggested game.
+ * Floating corner widget showing today's Wikipedia gaming spotlight.
  */
 export function buildGameOfTheDayWidget(opts: GameOfTheDayWidgetOpts): HTMLElement {
-  const { game, onPlay } = opts;
-  const system = getSystemById(game.systemId);
+  const { entry, onOpenWiki } = opts;
+  const system = getSystemById(entry.systemId);
+  const wikiUrl = opts.wiki?.pageUrl ?? wikipediaArticleUrl(entry.wikiTitle);
 
   const widget = make("aside", {
     class: "game-of-the-day",
     role: "complementary",
-    "aria-label": "Game of the day",
+    "aria-label": "Game of the day from Wikipedia",
   });
 
   const header = make("div", { class: "game-of-the-day__header" });
-  header.appendChild(make("span", { class: "game-of-the-day__eyebrow" }, "Game of the day"));
+  header.appendChild(make("span", { class: "game-of-the-day__eyebrow" }, "Game of the day · Wikipedia"));
 
   if (opts.onDismiss) {
     const dismiss = make("button", {
@@ -76,27 +119,68 @@ export function buildGameOfTheDayWidget(opts: GameOfTheDayWidgetOpts): HTMLEleme
   const body = make("button", {
     class: "game-of-the-day__body",
     type: "button",
-    "aria-label": `Play ${game.name}, ${system?.shortName ?? game.systemId}`,
+    "aria-label": `Read about ${entry.name} on Wikipedia (${system?.shortName ?? entry.systemId})`,
   }) as HTMLButtonElement;
 
   const icon = make("span", { class: "game-of-the-day__icon", "aria-hidden": "true" });
-  const iconOutput = opts.getSystemIcon(game.systemId);
-  if (iconOutput.includes("<svg") || iconOutput.includes("<img")) {
-    icon.innerHTML = iconOutput;
+  if (opts.wiki?.thumbnailUrl) {
+    const img = make("img", {
+      src: opts.wiki.thumbnailUrl,
+      alt: "",
+      class: "game-of-the-day__thumb",
+      draggable: "false",
+      loading: "lazy",
+    });
+    icon.appendChild(img);
   } else {
-    icon.textContent = iconOutput;
+    const iconOutput = opts.getSystemIcon(entry.systemId);
+    if (iconOutput.includes("<svg") || iconOutput.includes("<img")) {
+      icon.innerHTML = iconOutput;
+    } else {
+      icon.textContent = iconOutput;
+    }
   }
 
   const info = make("div", { class: "game-of-the-day__info" });
   info.append(
-    make("span", { class: "game-of-the-day__name" }, game.name),
-    make("span", { class: "game-of-the-day__system" }, system?.shortName ?? game.systemId.toUpperCase()),
+    make("span", { class: "game-of-the-day__name" }, entry.name),
+    make("span", { class: "game-of-the-day__system" }, system?.shortName ?? entry.systemId.toUpperCase()),
   );
 
-  body.append(icon, info);
-  body.addEventListener("click", () => onPlay(game));
+  if (opts.wiki?.summary) {
+    const excerpt = opts.wiki.summary.length > 120
+      ? `${opts.wiki.summary.slice(0, 117).trimEnd()}…`
+      : opts.wiki.summary;
+    info.appendChild(make("span", { class: "game-of-the-day__excerpt" }, excerpt));
+  }
 
-  widget.append(header, body);
+  body.append(icon, info);
+  body.addEventListener("click", () => onOpenWiki(wikiUrl));
+
+  const actions = make("div", { class: "game-of-the-day__actions" });
+  const wikiBtn = make("button", {
+    class: "btn btn--ghost btn--sm",
+    type: "button",
+  }, "Read on Wikipedia") as HTMLButtonElement;
+  wikiBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onOpenWiki(wikiUrl);
+  });
+  actions.appendChild(wikiBtn);
+
+  if (opts.libraryMatch && opts.onPlayLibraryMatch) {
+    const playBtn = make("button", {
+      class: "btn btn--primary btn--sm",
+      type: "button",
+    }, "Play in library") as HTMLButtonElement;
+    playBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      opts.onPlayLibraryMatch?.(opts.libraryMatch!);
+    });
+    actions.appendChild(playBtn);
+  }
+
+  widget.append(header, body, actions);
   return widget;
 }
 

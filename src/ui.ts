@@ -144,7 +144,9 @@ import {
 } from "./ui/toasts.js";
 import { buildHighlightsPanel } from "./ui/highlightsPanel.js";
 import {
-  pickGameOfTheDay,
+  pickWikiGameOfTheDay,
+  loadWikiGameOfTheDayDetails,
+  findWikiGameInLibrary,
   buildGameOfTheDayWidget,
   isGameOfTheDayDismissed,
   dismissGameOfTheDayForToday,
@@ -2141,6 +2143,8 @@ interface LibraryOverviewActions {
   onFetchCovers?: () => void;
 }
 
+let _gotdRenderToken = 0;
+
 function _renderGameOfTheDay(
   allGames: GameMetadata[],
   library: GameLibrary,
@@ -2149,34 +2153,69 @@ function _renderGameOfTheDay(
 ): void {
   const host = document.getElementById("game-of-the-day-host");
   if (!host) return;
-  host.innerHTML = "";
 
   const inCleanBrowse =
     !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
 
-  if (!inCleanBrowse || allGames.length === 0 || isGameOfTheDayDismissed()) return;
+  if (!inCleanBrowse || isGameOfTheDayDismissed()) {
+    host.innerHTML = "";
+    return;
+  }
 
-  const pick = pickGameOfTheDay(allGames);
-  if (!pick) return;
+  const entry = pickWikiGameOfTheDay();
+  const libraryMatch = findWikiGameInLibrary(entry, allGames);
+  const token = ++_gotdRenderToken;
 
-  const widget = buildGameOfTheDayWidget({
-    game: pick,
+  host.innerHTML = "";
+  const placeholder = buildGameOfTheDayWidget({
+    entry,
+    libraryMatch,
     getSystemIcon: systemIcon,
-    onPlay: (game) => {
-      void launchGameFromLibrary({
-        game,
-        library,
-        settings,
-        onFetchFromCloud: fetchFromCloud,
-        onLaunchGame,
-      });
-    },
+    onOpenWiki: (url) => { window.open(url, "_blank", "noopener"); },
+    onPlayLibraryMatch: libraryMatch
+      ? (game) => {
+          void launchGameFromLibrary({
+            game,
+            library,
+            settings,
+            onFetchFromCloud: fetchFromCloud,
+            onLaunchGame,
+          });
+        }
+      : undefined,
     onDismiss: () => {
       dismissGameOfTheDayForToday();
       host.innerHTML = "";
     },
   });
-  host.appendChild(widget);
+  host.appendChild(placeholder);
+
+  void loadWikiGameOfTheDayDetails(entry).then((wiki) => {
+    if (token !== _gotdRenderToken || !host.isConnected) return;
+    host.innerHTML = "";
+    host.appendChild(buildGameOfTheDayWidget({
+      entry,
+      wiki,
+      libraryMatch,
+      getSystemIcon: systemIcon,
+      onOpenWiki: (url) => { window.open(url, "_blank", "noopener"); },
+      onPlayLibraryMatch: libraryMatch
+        ? (game) => {
+            void launchGameFromLibrary({
+              game,
+              library,
+              settings,
+              onFetchFromCloud: fetchFromCloud,
+              onLaunchGame,
+            });
+          }
+        : undefined,
+      onDismiss: () => {
+        dismissGameOfTheDayForToday();
+        host.innerHTML = "";
+      },
+    }));
+  });
 }
 
 function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {

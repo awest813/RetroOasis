@@ -6676,7 +6676,7 @@ body.using-gamepad .game-card:focus {
   bottom: 16px;
   z-index: 20;
   pointer-events: none;
-  max-width: min(280px, calc(100% - 32px));
+  max-width: min(320px, calc(100% - 32px));
 }
 
 .game-of-the-day {
@@ -6766,6 +6766,30 @@ body.using-gamepad .game-card:focus {
 .game-of-the-day__system {
   font-size: 0.75rem;
   color: var(--c-text-dim);
+}
+
+.game-of-the-day__excerpt {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--c-text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.game-of-the-day__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.game-of-the-day__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 10px;
 }
 
 .landing-layout {

@@ -27,4 +27,27 @@ describe("WikipediaMetadataClient", () => {
     const fetchImpl = (async () => { throw new Error("offline"); }) as unknown as typeof fetch;
     await expect(new WikipediaMetadataClient({ fetchImpl }).searchGame("Portal")).resolves.toBeNull();
   });
+
+  it("fetchGameByTitle loads summary and thumbnail for a known article", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      expect(url).toMatch(/titles=Super(\+|%20)Mario(\+|%20)Bros\./);
+      return new Response(JSON.stringify({
+        query: {
+          pages: {
+            "42": {
+              title: "Super Mario Bros.",
+              extract: "Super Mario Bros. is a platform game published by Nintendo.",
+              thumbnail: { source: "https://upload.wikimedia.org/thumb.jpg" },
+            },
+          },
+        },
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const page = await new WikipediaMetadataClient({ fetchImpl }).fetchGameByTitle("Super Mario Bros.");
+    expect(page?.summary).toContain("platform game");
+    expect(page?.thumbnailUrl).toContain("wikimedia.org");
+    expect(page?.pageUrl).toContain("Super_Mario_Bros.");
+  });
 });

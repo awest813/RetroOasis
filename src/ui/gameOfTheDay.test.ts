@@ -2,15 +2,17 @@ import { describe, it, expect } from "vitest";
 import type { GameMetadata } from "../library.js";
 import {
   dateSeedForGameOfTheDay,
-  pickGameOfTheDay,
+  pickWikiGameOfTheDay,
+  findWikiGameInLibrary,
 } from "./gameOfTheDay.js";
+import { WIKI_GAME_CATALOG } from "../wikiGameCatalog.js";
 
 function meta(id: string, overrides: Partial<GameMetadata> = {}): GameMetadata {
   return {
     id,
-    name: `Game ${id}`,
+    name: overrides.name ?? `Game ${id}`,
     fileName: `${id}.gba`,
-    systemId: "gba",
+    systemId: overrides.systemId ?? "gba",
     size: 1024,
     addedAt: 1,
     lastPlayedAt: null,
@@ -21,38 +23,46 @@ function meta(id: string, overrides: Partial<GameMetadata> = {}): GameMetadata {
   };
 }
 
-describe("pickGameOfTheDay", () => {
-  it("returns null for an empty library", () => {
-    expect(pickGameOfTheDay([])).toBeNull();
-  });
-
-  it("is stable for the same UTC date and library", () => {
-    const games = [meta("a"), meta("b"), meta("c"), meta("d")];
+describe("pickWikiGameOfTheDay", () => {
+  it("picks from the catalog deterministically per UTC day", () => {
     const day = new Date("2026-06-11T12:00:00Z");
-    const first = pickGameOfTheDay(games, day);
-    const second = pickGameOfTheDay(games, day);
-    expect(first?.id).toBe(second?.id);
+    const first = pickWikiGameOfTheDay(day);
+    const second = pickWikiGameOfTheDay(day);
+    expect(first.wikiTitle).toBe(second.wikiTitle);
+    expect(WIKI_GAME_CATALOG).toContainEqual(first);
   });
 
-  it("can change pick on a different UTC day", () => {
-    const games = [meta("a"), meta("b"), meta("c"), meta("d"), meta("e")];
-    const d1 = pickGameOfTheDay(games, new Date("2026-06-11T00:00:00Z"));
-    const d2 = pickGameOfTheDay(games, new Date("2026-06-12T00:00:00Z"));
-    expect(d1).not.toBeNull();
-    expect(d2).not.toBeNull();
-    // Not guaranteed different for tiny pools, but seed should differ
+  it("uses different seeds on different days", () => {
     expect(dateSeedForGameOfTheDay(new Date("2026-06-11T00:00:00Z"))).not.toBe(
       dateSeedForGameOfTheDay(new Date("2026-06-12T00:00:00Z")),
     );
   });
 
-  it("prefers playable games when available", () => {
+  it("catalog spans Atari through 3DS eras", () => {
+    const systems = new Set(WIKI_GAME_CATALOG.map((e) => e.systemId));
+    expect(systems.has("atari2600")).toBe(true);
+    expect(systems.has("nes")).toBe(true);
+    expect(systems.has("snes")).toBe(true);
+    expect(systems.has("gba")).toBe(true);
+    expect(systems.has("n64")).toBe(true);
+    expect(systems.has("psx")).toBe(true);
+    expect(systems.has("nds")).toBe(true);
+    expect(systems.has("3ds")).toBe(true);
+  });
+});
+
+describe("findWikiGameInLibrary", () => {
+  it("matches by normalized title on the same system", () => {
+    const entry = { name: "Super Mario World", wikiTitle: "Super Mario World", systemId: "snes" };
     const games = [
-      meta("local", { hasLocalBlob: true }),
-      meta("remote", { hasLocalBlob: false, cloudId: "cloud-1", remotePath: "/rom.gba" }),
-      meta("stub", { hasLocalBlob: false }),
+      meta("a", { name: "Super Mario World", systemId: "snes" }),
+      meta("b", { name: "Chrono Trigger", systemId: "snes" }),
     ];
-    const pick = pickGameOfTheDay(games, new Date("2026-06-11T00:00:00Z"));
-    expect(pick?.hasLocalBlob || pick?.cloudId).toBeTruthy();
+    expect(findWikiGameInLibrary(entry, games)?.id).toBe("a");
+  });
+
+  it("returns null when no plausible match exists", () => {
+    const entry = { name: "EarthBound", wikiTitle: "EarthBound", systemId: "snes" };
+    expect(findWikiGameInLibrary(entry, [])).toBeNull();
   });
 });
