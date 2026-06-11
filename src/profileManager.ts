@@ -13,6 +13,7 @@ import {
   buildProfileSnapshot,
   applyProfileSnapshot,
   restoreCloudSaveStorage,
+  syncApiKeyStoreFromSnapshot,
   type ProfileSnapshotV1,
 } from "./profileSnapshot.js";
 import { setGoogleClientId, setDropboxAppKey } from "./oauthPopup.js";
@@ -104,7 +105,9 @@ export class ProfileManager {
     if (this.initialized) return;
     this.initialized = true;
 
-    if (Object.keys(this.index.profiles).length === 0) {
+    const hadProfiles = Object.keys(this.index.profiles).length > 0;
+
+    if (!hadProfiles) {
       const id = createUuid();
       const now = Date.now();
       const snapshot = buildProfileSnapshot({ name: "Default", settings: deps.settings, apiKeyStore: deps.apiKeyStore });
@@ -114,10 +117,23 @@ export class ProfileManager {
       };
       this.index.activeId = id;
       this.persist();
-    } else if (!this.index.activeId || !this.index.profiles[this.index.activeId]) {
+      return;
+    }
+
+    if (!this.index.activeId || !this.index.profiles[this.index.activeId]) {
       const first = Object.keys(this.index.profiles)[0];
       if (first) this.index.activeId = first;
       this.persist();
+    }
+
+    const active = this.index.profiles[this.index.activeId];
+    if (active) {
+      this.switching = true;
+      try {
+        this.applySnapshot(active.snapshot, deps);
+      } finally {
+        this.switching = false;
+      }
     }
   }
 
@@ -187,7 +203,12 @@ export class ProfileManager {
     if (wasActive) {
       this.index.activeId = Object.keys(this.index.profiles)[0] ?? "";
       if (deps && this.index.activeId) {
-        this.applySnapshot(this.index.profiles[this.index.activeId]!.snapshot, deps);
+        this.switching = true;
+        try {
+          this.applySnapshot(this.index.profiles[this.index.activeId]!.snapshot, deps);
+        } finally {
+          this.switching = false;
+        }
       }
     }
     this.persist();
@@ -213,27 +234,31 @@ export class ProfileManager {
   }
 
   importSnapshotAsNewProfile(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): ProfileMeta {
-    const id = createUuid();
-    const now = Date.now();
-    const name = snapshot.name.trim() || "Imported profile";
-    const meta: ProfileMeta = { id, name, createdAt: now, updatedAt: now };
-    this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
-    this.index.activeId = id;
-    this.applySnapshot(snapshot, deps);
-    this.persist();
-    this.emitChanged();
-    return meta;
+    this.switching = true;
+    try {
+      this.saveActiveSnapshot(deps);
+      const id = createUuid();
+      const now = Date.now();
+      const name = snapshot.name.trim() || "Imported profile";
+      const meta: ProfileMeta = { id, name, createdAt: now, updatedAt: now };
+      this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
+      this.index.activeId = id;
+      this.applySnapshot(snapshot, deps);
+      this.persist();
+      this.emitChanged();
+      return meta;
+    } finally {
+      this.switching = false;
+    }
   }
 
   applySnapshot(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): void {
     const applied = applyProfileSnapshot(snapshot);
     deps.onSettingsChange(applied.settingsPatch);
-    for (const upd of applied.apiKeyUpdates) {
-      deps.apiKeyStore.setKey(upd.providerId, upd.key);
-      deps.apiKeyStore.setEnabled(upd.providerId, upd.enabled);
-    }
-    setGoogleClientId(applied.oauth.googleClientId);
-    setDropboxAppKey(applied.oauth.dropboxAppKey);
+    syncApiKeyStoreFromSnapshot(deps.apiKeyStore, snapshot);
+    setGoogleClientId(applied.oauth.googleClientId ?? "");
+    setDropboxAppKey(applied.oauth.dropboxAppKey ?? "");
+    getCloudSaveManager().disconnect();
     restoreCloudSaveStorage(snapshot.cloudSaveStorage);
     void getCloudSaveManager().tryAutoConnect().catch(() => {});
   }
@@ -247,9 +272,9 @@ export class ProfileManager {
   }
 
   private emitChanged(): void {
-    if (typeof document !== "undefined") {
-      document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.profileChanged));
-    }
+    if (typeof document === "undefined") return;
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.profileChanged));
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
   }
 }
 

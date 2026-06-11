@@ -2163,7 +2163,7 @@ function _renderGameOfTheDay(
   const inCleanBrowse =
     !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
 
-  if (!inCleanBrowse || isGameOfTheDayDismissed()) {
+  if (!inCleanBrowse || allGames.length === 0 || isGameOfTheDayDismissed()) {
     host.innerHTML = "";
     return;
   }

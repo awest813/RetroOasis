@@ -379,6 +379,21 @@ export class GameLibrary {
   }
 
   /**
+   * Remove virtual (cloud-indexed) games whose cloud source is no longer configured.
+   */
+  async pruneVirtualGamesExceptCloudIds(allowedIds: ReadonlySet<string>): Promise<number> {
+    const meta = await this.getAllGamesMetadata();
+    let removed = 0;
+    for (const game of meta) {
+      if (game.cloudId && !allowedIds.has(game.cloudId)) {
+        await this.removeGame(game.id);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
+  /**
    * Remove a game by id.
    */
   async removeGame(id: string): Promise<void> {

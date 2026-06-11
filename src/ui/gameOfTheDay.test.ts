@@ -66,6 +66,12 @@ describe("findWikiGameInLibrary", () => {
     const entry = { name: "EarthBound", wikiTitle: "EarthBound", systemId: "snes" };
     expect(findWikiGameInLibrary(entry, [])).toBeNull();
   });
+
+  it("does not fuzzy-match partial titles", () => {
+    const entry = { name: "Super Mario World", wikiTitle: "Super Mario World", systemId: "snes" };
+    const games = [meta("a", { name: "Super Mario", systemId: "snes" })];
+    expect(findWikiGameInLibrary(entry, games)).toBeNull();
+  });
 });
 
 describe("strategyWikiSearchUrl", () => {

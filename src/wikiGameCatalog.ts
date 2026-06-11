@@ -25,8 +25,8 @@ export const WIKI_GAME_CATALOG: readonly WikiGameCatalogEntry[] = [
   { name: "Yars' Revenge", wikiTitle: "Yars' Revenge", systemId: "atari2600" },
   { name: "River Raid", wikiTitle: "River Raid", systemId: "atari2600" },
   // Atari 7800
-  { name: "Asteroids", wikiTitle: "Asteroids (video game)", systemId: "atari7800" },
   { name: "Food Fight", wikiTitle: "Food Fight (video game)", systemId: "atari7800" },
+  { name: "Xevious", wikiTitle: "Xevious", systemId: "atari7800" },
   // NES
   { name: "Super Mario Bros.", wikiTitle: "Super Mario Bros.", systemId: "nes" },
   { name: "The Legend of Zelda", wikiTitle: "The Legend of Zelda (video game)", systemId: "nes" },

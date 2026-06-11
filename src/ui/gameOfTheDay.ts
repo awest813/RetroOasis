@@ -51,13 +51,7 @@ export function findWikiGameInLibrary(
   const sameSystem = games.filter((g) => g.systemId === entry.systemId);
   const pool = sameSystem.length > 0 ? sameSystem : games;
 
-  const exact = pool.find((g) => normalizeRomName(g.name) === target);
-  if (exact) return exact;
-
-  return pool.find((g) => {
-    const norm = normalizeRomName(g.name);
-    return norm.includes(target) || target.includes(norm);
-  }) ?? null;
+  return pool.find((g) => normalizeRomName(g.name) === target) ?? null;
 }
 
 let _wikiClient: WikipediaMetadataClient | null = null;

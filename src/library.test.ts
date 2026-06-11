@@ -659,6 +659,30 @@ describe('GameLibrary.setThumbnailUrl', () => {
   });
 });
 
+describe('GameLibrary.pruneVirtualGamesExceptCloudIds', () => {
+  let library: GameLibrary;
+
+  beforeEach(async () => {
+    library = new GameLibrary();
+    await library.clearAll();
+  });
+
+  it('removes virtual games whose cloud source is no longer allowed', async () => {
+    await library.addVirtualGame('Cloud A', 'a.nes', 'nes', 100, 'conn-a', '/a.nes');
+    await library.addVirtualGame('Cloud B', 'b.nes', 'nes', 100, 'conn-b', '/b.nes');
+    await library.addGame(new File(['local'], 'local.gba', { type: 'application/octet-stream' }), 'gba');
+
+    const removed = await library.pruneVirtualGamesExceptCloudIds(new Set(['conn-a']));
+    expect(removed).toBe(1);
+
+    const meta = await library.getAllGamesMetadata();
+    expect(meta.filter((g) => g.cloudId)).toHaveLength(1);
+    expect(meta.find((g) => g.cloudId === 'conn-a')).toBeDefined();
+    expect(meta.find((g) => g.cloudId === 'conn-b')).toBeUndefined();
+    expect(meta.find((g) => !g.cloudId)).toBeDefined();
+  });
+});
+
 describe('GameLibrary.upsertVirtualGame', () => {
   let library: GameLibrary;
 

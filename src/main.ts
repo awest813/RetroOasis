@@ -1209,6 +1209,14 @@ async function main(): Promise<void> {
     // same change that `saveSettings` persists to localStorage.
     mirrorSettingsPatchToStore(patch, store);
     saveSettings(settings);
+    if (patch.cloudLibraries !== undefined) {
+      const allowed = new Set(settings.cloudLibraries.map((c) => c.id));
+      void library.pruneVirtualGamesExceptCloudIds(allowed).then((removed) => {
+        if (removed > 0) {
+          document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
+        }
+      });
+    }
     getProfileManager().scheduleAutoSave({
       settings,
       apiKeyStore: getApiKeyStore(),
@@ -1216,10 +1224,18 @@ async function main(): Promise<void> {
     });
   };
 
+  const apiKeyStore = getApiKeyStore();
   getProfileManager().ensureInitialized({
     settings,
-    apiKeyStore: getApiKeyStore(),
+    apiKeyStore,
     onSettingsChange: (patch) => onSettingsChange(patch),
+  });
+  apiKeyStore.subscribe(() => {
+    getProfileManager().scheduleAutoSave({
+      settings,
+      apiKeyStore,
+      onSettingsChange,
+    });
   });
 
   initUI({

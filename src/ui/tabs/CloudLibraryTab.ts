@@ -370,11 +370,18 @@ function buildProfileSection(
   profileSel.addEventListener("change", () => {
     void (async () => {
       const id = profileSel.value;
-      if (!id || id === pm.getActiveProfileId()) return;
+      const previousId = pm.getActiveProfileId();
+      if (!id || id === previousId) return;
+      profileSel.disabled = true;
       const ok = await pm.switchProfile(id, deps);
+      profileSel.disabled = false;
       if (ok) {
+        renameInp.value = pm.getActiveProfileName();
         showInfoToast(`Switched to profile "${pm.getActiveProfileName()}".`, "success");
         rebuildTab();
+      } else {
+        profileSel.value = previousId;
+        showError("Could not switch profile. Try again.");
       }
     })();
   });
@@ -404,7 +411,7 @@ function buildProfileSection(
 
   const newBtn = make("button", { class: "btn btn--sm", type: "button" }, "New profile") as HTMLButtonElement;
   newBtn.addEventListener("click", () => {
-    const created = pm.createProfile(renameInp.value || `Profile ${pm.listProfiles().length + 1}`, deps);
+    const created = pm.createProfile(`Profile ${pm.listProfiles().length + 1}`, deps);
     refreshProfileSelect();
     renameInp.value = created.name;
     showInfoToast(`Created profile "${created.name}".`, "success");
@@ -626,6 +633,9 @@ export function buildCloudLibraryTab(
   oauthSaveBtn.addEventListener("click", () => {
     setGoogleClientId(gIdInp.value);
     setDropboxAppKey(dbKeyInp.value);
+    if (apiKeyStore) {
+      getProfileManager().saveActiveSnapshot({ settings, apiKeyStore, onSettingsChange });
+    }
     oauthSaveBtn.textContent = "Saved";
     setTimeout(() => { oauthSaveBtn.textContent = "Save OAuth apps"; }, 1500);
   });

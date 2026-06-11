@@ -37,7 +37,18 @@ function readCloudSaveStorage(): Record<string, string> {
   return out;
 }
 
+/** Remove all persisted CloudSaveManager credential keys. */
+export function clearCloudSaveStorage(): void {
+  if (typeof localStorage === "undefined") return;
+  for (const key of CLOUD_SAVE_STORAGE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch { /* ignore */ }
+  }
+}
+
 export function restoreCloudSaveStorage(storage: Record<string, string> | undefined): void {
+  clearCloudSaveStorage();
   if (!storage || typeof localStorage === "undefined") return;
   for (const key of CLOUD_SAVE_STORAGE_KEYS) {
     const value = storage[key];
@@ -45,6 +56,22 @@ export function restoreCloudSaveStorage(storage: Record<string, string> | undefi
     try {
       localStorage.setItem(key, value);
     } catch { /* ignore */ }
+  }
+}
+
+/** Replace API key store contents with snapshot keys; removes providers absent from the snapshot. */
+export function syncApiKeyStoreFromSnapshot(
+  apiKeyStore: ApiKeyStore,
+  snapshot: ProfileSnapshotV1,
+): void {
+  for (const provider of apiKeyStore.listProviders()) {
+    const entry = snapshot.apiKeys[provider.id];
+    if (entry?.key) {
+      apiKeyStore.setKey(provider.id, entry.key);
+      apiKeyStore.setEnabled(provider.id, entry.enabled !== false);
+    } else {
+      apiKeyStore.removeKey(provider.id);
+    }
   }
 }
 
@@ -129,6 +156,20 @@ export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
   }
   if (!Array.isArray(rec.cloudLibraries)) return "Profile is missing cloud library connections.";
   if (!rec.apiKeys || typeof rec.apiKeys !== "object") return "Profile is missing API key data.";
+  const oauth = rec.oauth;
+  if (!oauth || typeof oauth !== "object") return "Profile is missing OAuth app settings.";
+  const oauthRec = oauth as Record<string, unknown>;
+  if (typeof oauthRec.googleClientId !== "string" || typeof oauthRec.dropboxAppKey !== "string") {
+    return "Profile OAuth settings are incomplete.";
+  }
+  const subset = rec.settingsSubset;
+  if (!subset || typeof subset !== "object") return "Profile is missing settings subset.";
+  const subsetRec = subset as Record<string, unknown>;
+  if (typeof subsetRec.libretroMatchingServerUrl !== "string" || typeof subsetRec.netplayUsername !== "string") {
+    return "Profile settings subset is incomplete.";
+  }
+  const cloudSave = rec.cloudSave;
+  if (!cloudSave || typeof cloudSave !== "object") return "Profile is missing save-sync metadata.";
   return rec as ProfileSnapshotV1;
 }
 

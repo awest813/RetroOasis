@@ -52,7 +52,7 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
     let activeConn: CloudLibraryConnection =
       enabled.find((c) => c.id === opts.initialConnectionId) ?? enabled[0]!;
     let currentPath = "";
-    const pathStack: string[] = [];
+    const pathCrumbs: { name: string; path: string }[] = [];
     let listedFiles: CloudFile[] = [];
     const selected = new Set<string>();
 
@@ -98,7 +98,7 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
 
     const fileList = make("div", {
       class: "cloud-rom-importer__list",
-      role: "listbox",
+      role: "list",
       "aria-label": "Cloud files",
     });
 
@@ -127,22 +127,20 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
       }, "Root") as HTMLButtonElement;
       rootBtn.addEventListener("click", () => {
         currentPath = "";
-        pathStack.length = 0;
+        pathCrumbs.length = 0;
         void refreshListing();
       });
       breadcrumb.appendChild(rootBtn);
 
-      let built = "";
-      for (const segment of pathStack) {
-        built = built ? `${built}/${segment}` : segment;
-        const segPath = built;
+      for (const crumb of pathCrumbs) {
+        const segPath = crumb.path;
         const segBtn = make("button", {
           class: "cloud-rom-importer__crumb btn btn--ghost btn--sm",
           type: "button",
-        }, segment) as HTMLButtonElement;
+        }, crumb.name) as HTMLButtonElement;
         segBtn.addEventListener("click", () => {
-          const idx = pathStack.indexOf(segment);
-          if (idx >= 0) pathStack.splice(idx + 1);
+          const idx = pathCrumbs.findIndex((c) => c.path === segPath);
+          if (idx >= 0) pathCrumbs.splice(idx + 1);
           currentPath = segPath;
           void refreshListing();
         });
@@ -153,7 +151,6 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
 
     const renderListing = () => {
       fileList.innerHTML = "";
-      selected.clear();
       updateImportBtn();
 
       const dirs = listedFiles.filter((f) => f.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
@@ -175,7 +172,7 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
           make("span", { class: "cloud-rom-importer__name" }, dir.name),
         );
         row.addEventListener("click", () => {
-          pathStack.push(dir.name);
+          pathCrumbs.push({ name: dir.name, path: dir.path });
           currentPath = dir.path;
           void refreshListing();
         });
@@ -188,6 +185,7 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
           type: "checkbox",
           class: "cloud-rom-importer__check",
         }) as HTMLInputElement;
+        cb.checked = selected.has(rom.path);
         cb.addEventListener("change", () => {
           if (cb.checked) selected.add(rom.path);
           else selected.delete(rom.path);
@@ -237,7 +235,8 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
       if (!next) return;
       activeConn = next;
       currentPath = "";
-      pathStack.length = 0;
+      pathCrumbs.length = 0;
+      selected.clear();
       void refreshListing();
     });
 
@@ -251,6 +250,7 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
 
         let imported = 0;
         let skipped = 0;
+        let duplicates = 0;
         const toImport = listedFiles.filter((f) => selected.has(f.path));
 
         for (let i = 0; i < toImport.length; i++) {
@@ -259,6 +259,9 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
           if (!detected) { skipped++; continue; }
           const sys = Array.isArray(detected) ? detected[0] : detected;
           if (!sys) { skipped++; continue; }
+
+          const existing = await opts.library.findByFileName(file.name, sys.id);
+          if (existing) { duplicates++; continue; }
 
           setLoadingSubtitle(`Downloading ${file.name} (${i + 1}/${toImport.length})…`);
           try {
@@ -276,8 +279,11 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
 
         if (imported > 0) {
           document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
+          const dupNote = duplicates > 0
+            ? ` (${duplicates} already in library)`
+            : "";
           showInfoToast(
-            `Imported ${imported} game${imported === 1 ? "" : "s"} from ${activeConn.name}.`,
+            `Imported ${imported} game${imported === 1 ? "" : "s"} from ${activeConn.name}${dupNote}.`,
             "success",
           );
           opts.onComplete?.();
@@ -285,7 +291,9 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
         } else {
           importBtn.disabled = false;
           updateImportBtn();
-          if (skipped > 0) {
+          if (duplicates > 0 && skipped === 0) {
+            showError("Selected ROMs are already in your library.");
+          } else if (skipped > 0) {
             showError("No files could be imported. Check that selected files are supported ROM types.");
           }
         }

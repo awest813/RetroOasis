@@ -106,4 +106,43 @@ describe("ProfileManager", () => {
     expect(raw).toContain("Default");
     vi.useRealTimers();
   });
+
+  it("applies the active profile snapshot on boot when profiles already exist", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    settings.netplayUsername = "boot-user";
+    pm.saveActiveSnapshot(deps);
+
+    settings.netplayUsername = "stale-in-memory";
+    resetProfileManagerForTests();
+    const pm2 = getProfileManager(storage);
+    pm2.ensureInitialized(deps);
+    expect(settings.netplayUsername).toBe("boot-user");
+  });
+
+  it("removes API keys that are not in the switched profile", async () => {
+    const providers = [
+      { id: "rawg", name: "RAWG", description: "", signupUrl: "", validate: () => true as const },
+    ];
+    apiKeyStore = new ApiKeyStore({ storage: memoryStorage(), providers });
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    const pm = getProfileManager(storage);
+    pm.ensureInitialized(deps);
+
+    apiKeyStore.setKey("rawg", "work-key");
+    pm.saveActiveSnapshot(deps);
+    const workId = pm.getActiveProfileId();
+
+    pm.createProfile("No Keys", deps);
+    apiKeyStore.removeKey("rawg");
+    pm.saveActiveSnapshot(deps);
+    const noKeysId = pm.getActiveProfileId();
+
+    await pm.switchProfile(workId, deps);
+    expect(apiKeyStore.getState("rawg").key).toBe("work-key");
+
+    await pm.switchProfile(noKeysId, deps);
+    expect(apiKeyStore.getState("rawg").key).toBe("");
+  });
 });
