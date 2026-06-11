@@ -9,7 +9,6 @@ describe("updateLibraryLandingState", () => {
         <div class="library-toolbar"></div>
         <div class="library-overview"></div>
         <div id="library-highlights"></div>
-        <div id="library-continue-hero"></div>
         <div id="library-grid"></div>
         <div id="drop-zone"></div>
         <div id="onboarding"></div>

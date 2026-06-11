@@ -52,13 +52,6 @@ export function getRecentlyAddedGames(
     .slice(0, limit);
 }
 
-export function getContinuePlayingGame(allGames: GameMetadata[]): GameMetadata | null {
-  const sorted = [...allGames]
-    .filter((g) => typeof g.lastPlayedAt === "number")
-    .sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
-  return sorted[0] ?? null;
-}
-
 export interface LibraryGridSignatureInput {
   allGames: GameMetadata[];
   displayed: GameMetadata[];

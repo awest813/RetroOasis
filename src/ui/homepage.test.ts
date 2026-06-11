@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import type { GameMetadata } from "../library.js";
 import {
   resolveLibraryHeadline,
-  getContinuePlayingGame,
   getRecentlyAddedGames,
   computeLibraryGridSignature,
   buildEmptyDetailsGuide,
@@ -30,14 +29,6 @@ describe("homepage helpers", () => {
 
   it("returns My Library for an untouched collection", () => {
     expect(resolveLibraryHeadline([makeGame()])).toBe("My Library");
-  });
-
-  it("picks the most recently played game for continue hero", () => {
-    const games = [
-      makeGame({ id: "old", lastPlayedAt: Date.now() - 86_400_000 }),
-      makeGame({ id: "new", lastPlayedAt: Date.now() - 1_000 }),
-    ];
-    expect(getContinuePlayingGame(games)?.id).toBe("new");
   });
 
   it("returns recently added games within the window", () => {

@@ -5,7 +5,6 @@ const LIBRARY_BROWSE_SELECTORS = [
   ".library-overview",
   "#library-highlights",
   "#library-grid",
-  "#library-continue-hero",
 ] as const;
 
 export function buildEmptySidebarMessage(): HTMLElement {

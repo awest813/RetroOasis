@@ -98,13 +98,11 @@ import {
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
 import {
-  buildLibraryHero,
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
 import {
   buildEmptyDetailsGuide,
   buildPlatformsStrip,
-  getContinuePlayingGame,
   getRecentlyAddedGames,
   resolveLibraryHeadline,
 } from "./ui/homepage.js";
@@ -120,7 +118,7 @@ import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
 import { getEasyNetplayManager } from "./ui/easyNetplayShared.js";
-import { systemIcon, isEditableTarget, escHtml } from "./ui/viewHelpers.js";
+import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
 import { resolveSystemAndAddImpl } from "./ui/screens/gameImport.js";
@@ -326,11 +324,8 @@ export function buildDOM(app: HTMLElement): void {
           <div class="library-overview" id="library-overview" aria-label="Library overview">
             <!-- Populated by renderLibrary() -->
           </div>
-          <div id="library-continue-hero" class="library-continue-hero hidden-section" aria-label="Continue playing">
-            <!-- Populated by renderLibrary() -->
-          </div>
           <div id="library-highlights" aria-label="Library highlights">
-            <!-- Favorites + recent-sessions feed populated by renderLibrary() -->
+            <!-- Favorites feed populated by renderLibrary() -->
           </div>
           <div class="library-grid" id="library-grid">
             <!-- Cards populated by renderLibrary() -->
@@ -1480,15 +1475,6 @@ export function initUI(opts: UIOptions): void {
 
 // ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
 
-/**
- * Build the cinematic hero card for the most-recently played game.
- *
- * @param game         Metadata of the game to feature.
- * @param library      Game library instance for blob retrieval and play-tracking.
- * @param settings     App settings; needed for cloud-streaming fallback when the
- *                     local blob is unavailable (virtual / cloud-hosted games).
- * @param onLaunchGame Callback to start the emulator with the resolved file.
- */
 type SortMode = "lastPlayed" | "name" | "added" | "system";
 
 let _librarySearchQuery = "";
@@ -1849,25 +1835,6 @@ export async function renderLibrary(
 
   const inCleanBrowse =
     !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
-  const continueGame = inCleanBrowse ? getContinuePlayingGame(allGames) : null;
-  const continueEl = document.getElementById("library-continue-hero");
-  if (continueEl) {
-    continueEl.innerHTML = "";
-    if (continueGame && allGames.length > 0) {
-      continueEl.classList.remove("hidden-section");
-      continueEl.appendChild(buildLibraryHero({
-        game: continueGame,
-        library,
-        settings,
-        onLaunchGame,
-        systemIcon,
-        escapeHtml: escHtml,
-        onFetchFromCloud: fetchFromCloud,
-      }));
-    } else if (allGames.length > 0) {
-      continueEl.classList.add("hidden-section");
-    }
-  }
 
   _renderEmptyDetailsGuide(allGames.length === 0);
 
@@ -1882,13 +1849,6 @@ export async function renderLibrary(
         new MouseEvent("click", { bubbles: true }),
       );
     },
-    onFocusRecent: () => {
-      _librarySortMode = "lastPlayed";
-      const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
-      if (sortEl) sortEl.value = "lastPlayed";
-      _syncLibraryControlState();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    },
   });
 
   if (emulatorRef && allGames.length > 0) {
@@ -1896,7 +1856,7 @@ export async function renderLibrary(
     for (const sid of systemIds) { emulatorRef.prefetchCore(sid); }
   }
 
-  // ── Highlights panel (favorites + recent sessions) ─────────────────────────
+  // ── Highlights panel (favorites) ───────────────────────────────────────────
   // Only shown when the library is in its "clean" state (no active search,
   // system filter, or favorites-only filter) so it does not compete with the
   // user's focused browsing actions.
@@ -1907,36 +1867,16 @@ export async function renderLibrary(
 
     if (showHighlights && allGames.length > 0) {
       const favorites       = allGames.filter(g => g.isFavorite);
-      let recentSessions: import("./sessionTracker.js").PlaySession[] = [];
-      try {
-        recentSessions = await sessionTracker.getRecentSessions(HIGHLIGHTS_MAX_SESSIONS);
-      } catch {
-        // IDB may be unavailable in some test/SSR environments; degrade gracefully
-      }
 
       const panel = buildHighlightsPanel({
         favorites,
-        recentSessions,
-        allGames,
         getSystemIcon:      systemIcon,
         getSystemName:      (id) => getSystemById(id)?.shortName ?? id.toUpperCase(),
-        formatRelativeTime,
-        formatPlayTime,
         loadCoverArtUrl: async (gameId) => {
           const blob = await library.getCoverArt(gameId);
           return blob ? URL.createObjectURL(blob) : null;
         },
         onPlayFavorite: (game) => {
-          void launchGameFromLibrary({
-            game,
-            library,
-            settings,
-            onFetchFromCloud: fetchFromCloud,
-            onLaunchGame,
-          });
-        },
-        onPlaySession: (game, _session) => {
-          if (!game) return;
           void launchGameFromLibrary({
             game,
             library,
@@ -2000,40 +1940,7 @@ export async function renderLibrary(
     return;
   }
 
-  // ── Jump Back In (recently played strip) ──────────────────────────────────
-  // Only shown in the default "clean" browse state (no search / filter / sort
-  // overrides) so it doesn't interfere with focused browsing actions.
-  const showJumpBackIn =
-    !_librarySearchQuery &&
-    !_librarySystemFilter &&
-    !_libraryShowFavorites &&
-    _librarySortMode === "lastPlayed" &&
-    displayed.length >= 2;
-
   const excludedShelfIds = new Set<string>();
-  if (continueGame) excludedShelfIds.add(continueGame.id);
-
-  if (showJumpBackIn) {
-    const recent = displayed
-      .filter((g) => !excludedShelfIds.has(g.id))
-      .slice(0, 6);
-    if (recent.length >= 2) {
-      grid.appendChild(buildLibraryRowSection({
-        title: "Jump Back In",
-        systemId: null,
-        games: recent,
-        library,
-        settings,
-        onLaunchGame,
-        emulatorRef,
-        onApplyPatch,
-        systemIcon,
-        buildGameCard,
-      }));
-      for (const game of recent) excludedShelfIds.add(game.id);
-    }
-  }
-  // ── End Jump Back In ───────────────────────────────────────────────────────
 
   const showRecentlyAdded =
     inCleanBrowse &&
@@ -2224,7 +2131,6 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
 interface LibraryOverviewActions {
   onFocusFavorites?: () => void;
   onFetchCovers?: () => void;
-  onFocusRecent?: () => void;
 }
 
 function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {
@@ -2268,7 +2174,6 @@ function _renderLibraryOverview(
   const systemCount = new Set(allGames.map(g => g.systemId)).size;
   const favoriteCount = allGames.filter(g => g.isFavorite).length;
   const missingArtCount = allGames.filter(g => !g.hasCoverArt && !g.thumbnailUrl).length;
-  const recentCount = allGames.filter(g => g.lastPlayedAt && Date.now() - g.lastPlayedAt < 14 * 24 * 60 * 60 * 1000).length;
   const hasActiveFilters = displayed.length !== allGames.length || _libraryShowFavorites || !!_librarySearchQuery || !!_librarySystemFilter;
 
   const item = (
@@ -2316,13 +2221,6 @@ function _renderLibraryOverview(
       missingArtCount === 0 ? "all set" : "fetch covers",
       missingArtCount > 0 ? "warn" : "good",
       missingArtCount > 0 ? actions.onFetchCovers : undefined,
-    ),
-    item(
-      "Recent",
-      String(recentCount),
-      recentCount > 0 ? "sort by last played" : "played in 14 days",
-      "",
-      recentCount > 0 ? actions.onFocusRecent : undefined,
     ),
   );
 

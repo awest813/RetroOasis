@@ -102,6 +102,7 @@ function makeOpts(settings: Settings) {
   };
 }
 
+let _addedAtCounter = 10000000;
 function makeGame(id: string, name: string, systemId: string): GameMetadata {
   return {
     id,
@@ -109,7 +110,7 @@ function makeGame(id: string, name: string, systemId: string): GameMetadata {
     fileName: `${name}.bin`,
     systemId,
     size: 1024,
-    addedAt: Date.now(),
+    addedAt: _addedAtCounter--,
     lastPlayedAt: null,
   };
 }

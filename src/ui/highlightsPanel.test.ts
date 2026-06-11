@@ -1,16 +1,14 @@
 /**
- * highlightsPanel.test.ts — Unit tests for the unified Favorites + Sessions feed.
+ * highlightsPanel.test.ts — Unit tests for the unified Favorites feed.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import {
   buildHighlightsPanel,
   MAX_FAVORITES,
-  MAX_SESSIONS,
   type HighlightsPanelOpts,
 } from "./highlightsPanel.js";
 import type { GameMetadata } from "../library.js";
-import type { PlaySession } from "../sessionTracker.js";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -31,29 +29,12 @@ function makeGame(overrides: Partial<GameMetadata> = {}): GameMetadata {
   };
 }
 
-function makeSession(overrides: Partial<PlaySession> = {}): PlaySession {
-  return {
-    id:         overrides.id         ?? "sess-1",
-    gameId:     overrides.gameId     ?? "game-1",
-    gameName:   overrides.gameName   ?? "Test Game",
-    systemId:   overrides.systemId   ?? "nes",
-    startedAt:  overrides.startedAt  ?? 1_000_000,
-    endedAt:    overrides.endedAt    ?? 1_010_000,
-    durationMs: overrides.durationMs ?? 10_000,
-  };
-}
-
 function makeOpts(overrides: Partial<HighlightsPanelOpts> = {}): HighlightsPanelOpts {
   return {
     favorites:          overrides.favorites          ?? [],
-    recentSessions:     overrides.recentSessions     ?? [],
-    allGames:           overrides.allGames           ?? [],
     getSystemIcon:      overrides.getSystemIcon      ?? (() => "●"),
     getSystemName:      overrides.getSystemName      ?? ((id) => id.toUpperCase()),
-    formatRelativeTime: overrides.formatRelativeTime ?? (() => "3d ago"),
-    formatPlayTime:     overrides.formatPlayTime     ?? (() => "10 min"),
     onPlayFavorite:     overrides.onPlayFavorite     ?? vi.fn(),
-    onPlaySession:      overrides.onPlaySession      ?? vi.fn(),
     loadCoverArtUrl:    overrides.loadCoverArtUrl,
   };
 }
@@ -61,7 +42,7 @@ function makeOpts(overrides: Partial<HighlightsPanelOpts> = {}): HighlightsPanel
 // ── buildHighlightsPanel ──────────────────────────────────────────────────────
 
 describe("buildHighlightsPanel", () => {
-  it("returns null when both favorites and sessions are empty", () => {
+  it("returns null when favorites is empty", () => {
     const result = buildHighlightsPanel(makeOpts());
     expect(result).toBeNull();
   });
@@ -73,48 +54,10 @@ describe("buildHighlightsPanel", () => {
     expect(el).toBeInstanceOf(HTMLElement);
   });
 
-  it("returns an HTMLElement when there are sessions", () => {
-    const game    = makeGame();
-    const session = makeSession({ gameId: game.id });
-    const opts    = makeOpts({
-      recentSessions: [session],
-      allGames:       [game],
-    });
-    const el = buildHighlightsPanel(opts);
-    expect(el).not.toBeNull();
-    expect(el).toBeInstanceOf(HTMLElement);
-  });
-
-  it("renders both sections when both favorites and sessions are present", () => {
-    const game    = makeGame({ isFavorite: true });
-    const session = makeSession({ gameId: game.id });
-    const opts    = makeOpts({
-      favorites:      [game],
-      recentSessions: [session],
-      allGames:       [game],
-    });
-    const el = buildHighlightsPanel(opts)!;
-    expect(el.querySelector(".highlights-section--favorites")).not.toBeNull();
-    expect(el.querySelector(".highlights-section--sessions")).not.toBeNull();
-  });
-
-  it("renders only the favorites section when sessions are empty", () => {
+  it("renders only the favorites section", () => {
     const opts = makeOpts({ favorites: [makeGame()] });
     const el   = buildHighlightsPanel(opts)!;
     expect(el.querySelector(".highlights-section--favorites")).not.toBeNull();
-    expect(el.querySelector(".highlights-section--sessions")).toBeNull();
-  });
-
-  it("renders only the sessions section when favorites are empty", () => {
-    const game    = makeGame();
-    const session = makeSession({ gameId: game.id });
-    const opts    = makeOpts({
-      recentSessions: [session],
-      allGames:       [game],
-    });
-    const el = buildHighlightsPanel(opts)!;
-    expect(el.querySelector(".highlights-section--favorites")).toBeNull();
-    expect(el.querySelector(".highlights-section--sessions")).not.toBeNull();
   });
 });
 
@@ -191,109 +134,6 @@ describe("buildHighlightsPanel — favorites section", () => {
   });
 });
 
-// ── Sessions section ──────────────────────────────────────────────────────────
-
-describe("buildHighlightsPanel — sessions section", () => {
-  it("renders an entry for each session", () => {
-    const game     = makeGame();
-    const sessions = [
-      makeSession({ id: "s1", gameId: game.id }),
-      makeSession({ id: "s2", gameId: game.id }),
-    ];
-    const opts = makeOpts({ recentSessions: sessions, allGames: [game] });
-    const el   = buildHighlightsPanel(opts)!;
-    expect(el.querySelectorAll(".highlights-session-entry").length).toBe(2);
-  });
-
-  it("caps displayed sessions at MAX_SESSIONS", () => {
-    const game     = makeGame();
-    const sessions = Array.from({ length: MAX_SESSIONS + 3 }, (_, i) =>
-      makeSession({ id: `s${i}`, gameId: game.id }),
-    );
-    const opts = makeOpts({ recentSessions: sessions, allGames: [game] });
-    const el   = buildHighlightsPanel(opts)!;
-    expect(el.querySelectorAll(".highlights-session-entry").length).toBe(MAX_SESSIONS);
-  });
-
-  it("shows the game name in each session entry", () => {
-    const game    = makeGame({ name: "Mega Man X" });
-    const session = makeSession({ gameName: "Mega Man X", gameId: game.id });
-    const opts    = makeOpts({ recentSessions: [session], allGames: [game] });
-    const el      = buildHighlightsPanel(opts)!;
-    const entry   = el.querySelector(".highlights-session-entry")!;
-    expect(entry.textContent).toContain("Mega Man X");
-  });
-
-  it("marks entries as gone when game is not in allGames", () => {
-    const session = makeSession({ gameId: "missing-game", gameName: "Ghost Game" });
-    const opts    = makeOpts({ recentSessions: [session], allGames: [] });
-    const el      = buildHighlightsPanel(opts)!;
-    const entry   = el.querySelector(".highlights-session-entry")!;
-    expect(entry.classList.contains("highlights-session-entry--gone")).toBe(true);
-  });
-
-  it("calls onPlaySession with the game when entry is clicked", () => {
-    const game         = makeGame();
-    const session      = makeSession({ gameId: game.id });
-    const onPlaySession = vi.fn();
-    const opts         = makeOpts({
-      recentSessions: [session],
-      allGames:       [game],
-      onPlaySession,
-    });
-    const el    = buildHighlightsPanel(opts)!;
-    const entry = el.querySelector<HTMLElement>(".highlights-session-entry")!;
-
-    entry.click();
-
-    expect(onPlaySession).toHaveBeenCalledOnce();
-    expect(onPlaySession).toHaveBeenCalledWith(game, session);
-  });
-
-  it("calls onPlaySession with null when game is gone and entry is clicked", () => {
-    const session      = makeSession({ gameId: "gone-game" });
-    const onPlaySession = vi.fn();
-    const opts         = makeOpts({
-      recentSessions: [session],
-      allGames:       [],
-      onPlaySession,
-    });
-    const el    = buildHighlightsPanel(opts)!;
-    // Gone entries have tabindex="-1" and no click handler registered
-    const entry = el.querySelector<HTMLElement>(".highlights-session-entry--gone")!;
-    expect(entry).not.toBeNull();
-    // Clicking a gone entry should NOT invoke the callback
-    entry.click();
-    expect(onPlaySession).not.toHaveBeenCalled();
-  });
-
-  it("calls formatPlayTime with session durationMs", () => {
-    const game            = makeGame();
-    const session         = makeSession({ gameId: game.id, durationMs: 12_000 });
-    const formatPlayTime  = vi.fn(() => "custom-time");
-    const opts            = makeOpts({
-      recentSessions: [session],
-      allGames:       [game],
-      formatPlayTime,
-    });
-    buildHighlightsPanel(opts);
-    expect(formatPlayTime).toHaveBeenCalledWith(12_000);
-  });
-
-  it("calls formatRelativeTime with session endedAt", () => {
-    const game               = makeGame();
-    const session            = makeSession({ gameId: game.id, endedAt: 9_999_999 });
-    const formatRelativeTime = vi.fn(() => "just now");
-    const opts               = makeOpts({
-      recentSessions: [session],
-      allGames:       [game],
-      formatRelativeTime,
-    });
-    buildHighlightsPanel(opts);
-    expect(formatRelativeTime).toHaveBeenCalledWith(9_999_999);
-  });
-});
-
 // ── Accessibility: emoji in headings ──────────────────────────────────────────
 
 describe("buildHighlightsPanel — accessibility", () => {
@@ -306,26 +146,5 @@ describe("buildHighlightsPanel — accessibility", () => {
     expect(icon!.textContent).toBe("★");
     // The visible text should still include "Favorites"
     expect(h3.textContent).toContain("Favorites");
-  });
-
-  it("wraps the 🕒 emoji in the Recent Sessions heading with aria-hidden", () => {
-    const game    = makeGame();
-    const session = makeSession({ gameId: game.id });
-    const opts    = makeOpts({ recentSessions: [session], allGames: [game] });
-    const el      = buildHighlightsPanel(opts)!;
-    const h3      = el.querySelector(".highlights-section--sessions h3")!;
-    const icon    = h3.querySelector<HTMLElement>("[aria-hidden='true']");
-    expect(icon).not.toBeNull();
-    expect(icon!.textContent).toBe("🕒");
-    expect(h3.textContent).toContain("Recent Sessions");
-  });
-
-  it("gone session entries have tabindex=-1 and aria-label describing unavailability", () => {
-    const session = makeSession({ gameId: "missing", gameName: "Ghost Game" });
-    const opts    = makeOpts({ recentSessions: [session], allGames: [] });
-    const el      = buildHighlightsPanel(opts)!;
-    const entry   = el.querySelector<HTMLElement>(".highlights-session-entry--gone")!;
-    expect(entry.getAttribute("tabindex")).toBe("-1");
-    expect(entry.getAttribute("aria-label")).toMatch(/no longer in library/i);
   });
 });

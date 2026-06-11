@@ -2987,14 +2987,6 @@ html.launch-in-progress .game-card::after {
   height: 1rem;
 }
 
-.library-continue-hero {
-  margin-bottom: clamp(18px, 2.5vw, 28px);
-}
-
-.library-continue-hero:empty {
-  display: none;
-}
-
 .library-grid--busy {
   opacity: 0.55;
   pointer-events: none;
@@ -9453,4 +9445,246 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================================================
+   RetroOasis — Premium UI/UX Polish Overrides
+   ============================================================ */
+
+/* ── Typography Stack ── */
+.brand-long,
+.library-title,
+.modal-title,
+.settings-panel-header,
+.landing-sidebar__header,
+.landing-details__title,
+.welcome-hero__title,
+.highlights-section__title,
+.game-card__name,
+.library-row__title {
+  font-family: var(--font-display) !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.brand-long {
+  text-shadow: 0 0 15px var(--c-accent-glow), 0 0 30px rgba(205, 177, 114, 0.15) !important;
+}
+
+body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__meta {
+  font-family: var(--font-sans) !important;
+}
+
+/* ── Segmented Layout Switcher ── */
+.library-layout-toggle {
+  background: var(--c-surface2);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--c-border);
+  display: inline-flex;
+  gap: 2px;
+}
+
+.library-layout-toggle .layout-btn {
+  border: none !important;
+  background: transparent !important;
+  border-radius: var(--radius-pill) !important;
+  color: var(--c-text-dim) !important;
+  min-height: 28px !important;
+  width: 32px !important;
+  padding: 0 !important;
+  transition: all 0.25s var(--ease-premium-out) !important;
+}
+
+.library-layout-toggle .layout-btn:hover {
+  color: var(--c-white) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.library-layout-toggle .layout-btn[aria-checked="true"] {
+  background: var(--c-accent) !important;
+  color: var(--c-black) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ── Animated Mesh Background for Onboarding ── */
+#landing {
+  position: relative;
+  background: radial-gradient(circle at 10% 20%, rgba(12, 12, 15, 0.98) 0%, rgba(0, 0, 0, 1) 100%) !important;
+  overflow: hidden;
+}
+
+#landing::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(205, 177, 114, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(122, 152, 184, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 50% 40%, rgba(168, 140, 84, 0.03) 0%, transparent 50%);
+  z-index: 1;
+  pointer-events: none;
+  animation: mesh-glow-breathe 20s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-glow-breathe {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(2%, 3%) scale(1.05) rotate(3deg);
+  }
+  100% {
+    transform: translate(-1%, -2%) scale(0.98) rotate(-2deg);
+  }
+}
+
+/* ── Premium Onboarding Overhaul ── */
+.onboarding {
+  position: relative;
+  z-index: 2;
+}
+
+.welcome-hero__logo {
+  animation: loading-logo-breathe 4s var(--ease-premium-out) infinite alternate;
+}
+
+.onboarding__card {
+  background: rgba(10, 10, 12, 0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--c-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transition: transform 0.3s var(--ease-premium-out), border-color 0.3s var(--ease-premium-out) !important;
+}
+
+.onboarding__card:hover {
+  transform: translateY(-2px) !important;
+  border-color: var(--c-accent-glow) !important;
+  box-shadow: 0 10px 30px rgba(205, 177, 114, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.homepage-platforms__chip {
+  background: rgba(10, 10, 12, 0.5) !important;
+  border: 1px solid var(--c-border) !important;
+  transition: all 0.3s var(--ease-premium-out) !important;
+}
+
+.homepage-platforms__chip:hover {
+  transform: translateY(-2px) !important;
+  border-color: var(--sys-color, var(--c-accent)) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 12px var(--sys-color, var(--c-accent));
+}
+
+/* ── Premium Details Panel (Right Sidebar) ── */
+.landing-details {
+  background: rgba(8, 8, 10, 0.8) !important;
+  backdrop-filter: blur(30px) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5) !important;
+  z-index: 10;
+}
+
+.landing-details__cover {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8) !important;
+  transition: transform 0.4s var(--ease-premium-out), box-shadow 0.4s var(--ease-premium-out) !important;
+}
+
+.landing-details__cover:hover {
+  transform: scale(1.02) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.9), 0 0 16px var(--c-accent-glow) !important;
+}
+
+.landing-details__title {
+  font-size: 1.6rem !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  font-weight: 800 !important;
+  margin-top: 8px !important;
+}
+
+.landing-details__meta {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--c-border) !important;
+  padding: 16px !important;
+  border-radius: var(--radius-lg) !important;
+  font-size: 0.95rem !important;
+  line-height: 1.7 !important;
+  color: var(--c-text-dim) !important;
+}
+
+.landing-details__actions .btn--primary {
+  width: 100%;
+  background: var(--accent-metallic-gradient) !important;
+  color: var(--c-black) !important;
+  font-family: var(--font-display) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em;
+  border: none !important;
+  box-shadow: 0 12px 28px var(--c-accent-dim) !important;
+  transition: all 0.3s var(--ease-premium-out) !important;
+  min-height: 44px !important;
+  border-radius: var(--radius-lg) !important;
+  text-transform: uppercase;
+}
+
+.landing-details__actions .btn--primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 16px 36px var(--c-accent-glow) !important;
+  filter: brightness(1.08);
+}
+
+/* ── Micro-Animations & Glows ── */
+#footer-connectivity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+#footer-connectivity-dot.status--online::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--c-status-online);
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ── Highlights Panel Adjustment (Favorites-only) ── */
+.highlights-panel {
+  margin-bottom: 32px !important;
+  border: 1px solid var(--c-border) !important;
+  background: rgba(10, 10, 12, 0.4) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: 24px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.highlights-fav-card {
+  transition: all 0.3s var(--ease-premium-out) !important;
+  border: 1px solid var(--c-border) !important;
+  background: rgba(20, 20, 25, 0.6) !important;
+}
+
+.highlights-fav-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--c-accent-light) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 12px var(--c-accent-dim) !important;
+}
+
+.highlights-section__title {
+  font-size: 1.1rem !important;
+  letter-spacing: 0.08em !important;
+  font-weight: 800 !important;
+  color: var(--c-accent) !important;
 }
