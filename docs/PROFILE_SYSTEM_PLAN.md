@@ -59,8 +59,8 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 
 ## Security considerations
 
-- **Plaintext JSON export** is the v1 default; file should be treated like a password manager backup.
-- **Optional passphrase encryption** (Web Crypto AES-GCM) planned for v1.1 using a user-derived key.
+- **Plaintext JSON export** remains available; file should be treated like a password manager backup.
+- **Optional passphrase encryption** (PBKDF2 + AES-GCM, `.retroprofile` files) is available from Settings → Cloud Library → Profiles.
 - Never upload profiles to RetroOasis servers; export stays on the user's machine.
 - Import validates schema version and sanitizes provider IDs before apply.
 
@@ -77,7 +77,9 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 - [x] `ProfileManager` with named slots in localStorage
 - [x] Active profile indicator in header
 - [x] Auto-save on settings change (debounced)
-- [x] Include save-sync credential blobs in snapshot (plaintext; encryption option deferred)
+- [x] Include save-sync credential blobs in snapshot
+- [x] Optional encrypted export/import (`.retroprofile`)
+- [x] Profile accent colors in header chip and settings
 
 ### Phase 3
 

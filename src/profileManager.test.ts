@@ -152,6 +152,32 @@ describe("ProfileManager", () => {
     expect(pm.deleteProfile(pm.getActiveProfileId(), deps)).toBe(false);
   });
 
+  it("assigns and persists profile colors", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    expect(pm.getActiveProfileColor()).toMatch(/^#[0-9a-f]{6}$/i);
+    pm.setActiveProfileColor("#ff375f");
+    expect(pm.getActiveProfileColor()).toBe("#ff375f");
+    expect(storage.getItem(PROFILE_INDEX_STORAGE_KEY)).toContain("#ff375f");
+  });
+
+  it("exports a stored profile without switching", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    settings.netplayUsername = "home";
+    pm.saveActiveSnapshot(deps);
+    const homeId = pm.getActiveProfileId();
+
+    pm.createProfile("Work", deps);
+    settings.netplayUsername = "work";
+    pm.saveActiveSnapshot(deps);
+
+    const exported = pm.exportProfileSnapshot(homeId, deps);
+    expect(exported?.settingsSubset.netplayUsername).toBe("home");
+  });
+
   it("merges an imported snapshot into the active profile", () => {
     const pm = getProfileManager(storage);
     const deps = { settings, apiKeyStore, onSettingsChange };

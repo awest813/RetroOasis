@@ -17,6 +17,7 @@ import {
   type ProfileSnapshotV1,
 } from "./profileSnapshot.js";
 import { setGoogleClientId, setDropboxAppKey } from "./oauthPopup.js";
+import { isValidProfileColor, pickDefaultProfileColor } from "./profileColors.js";
 
 export const PROFILE_INDEX_STORAGE_KEY = "retro-oasis.profiles";
 const AUTO_SAVE_DEBOUNCE_MS = 1500;
@@ -26,6 +27,8 @@ export interface ProfileMeta {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** Accent color for chips and profile picker (hex). */
+  color?: string;
 }
 
 interface StoredProfile {
@@ -89,9 +92,23 @@ export class ProfileManager {
         activeId: typeof rec.activeId === "string" ? rec.activeId : "",
         profiles: rec.profiles,
       };
+      this.ensureProfileColors();
     } catch {
       this.index = emptyIndex();
     }
+  }
+
+  private ensureProfileColors(): void {
+    let changed = false;
+    let i = 0;
+    for (const stored of Object.values(this.index.profiles)) {
+      if (!stored.meta.color) {
+        stored.meta.color = pickDefaultProfileColor(i);
+        i += 1;
+        changed = true;
+      }
+    }
+    if (changed) this.persist();
   }
 
   private persist(): void {
@@ -112,7 +129,13 @@ export class ProfileManager {
       const now = Date.now();
       const snapshot = buildProfileSnapshot({ name: "Default", settings: deps.settings, apiKeyStore: deps.apiKeyStore });
       this.index.profiles[id] = {
-        meta: { id, name: "Default", createdAt: now, updatedAt: now },
+        meta: {
+          id,
+          name: "Default",
+          createdAt: now,
+          updatedAt: now,
+          color: pickDefaultProfileColor(0),
+        },
         snapshot,
       };
       this.index.activeId = id;
@@ -151,6 +174,30 @@ export class ProfileManager {
     return this.index.profiles[this.index.activeId]?.meta.name ?? "Profile";
   }
 
+  getProfileColor(id: string): string {
+    const stored = this.index.profiles[id];
+    if (stored?.meta.color) return stored.meta.color;
+    const index = Object.keys(this.index.profiles).indexOf(id);
+    return pickDefaultProfileColor(Math.max(0, index));
+  }
+
+  getActiveProfileColor(): string {
+    return this.getProfileColor(this.index.activeId);
+  }
+
+  setActiveProfileColor(color: string): void {
+    this.setProfileColor(this.index.activeId, color);
+  }
+
+  setProfileColor(id: string, color: string): void {
+    const stored = this.index.profiles[id];
+    if (!stored || !isValidProfileColor(color)) return;
+    stored.meta.color = color;
+    stored.meta.updatedAt = Date.now();
+    this.persist();
+    if (id === this.index.activeId) this.emitChanged();
+  }
+
   saveActiveSnapshot(deps: ProfileApplyDeps): void {
     const active = this.index.profiles[this.index.activeId];
     if (!active) return;
@@ -175,7 +222,13 @@ export class ProfileManager {
     const now = Date.now();
     const trimmed = name.trim() || `Profile ${Object.keys(this.index.profiles).length + 1}`;
     const snapshot = buildProfileSnapshot({ name: trimmed, settings: deps.settings, apiKeyStore: deps.apiKeyStore });
-    const meta: ProfileMeta = { id, name: trimmed, createdAt: now, updatedAt: now };
+    const meta: ProfileMeta = {
+      id,
+      name: trimmed,
+      createdAt: now,
+      updatedAt: now,
+      color: pickDefaultProfileColor(Object.keys(this.index.profiles).length),
+    };
     this.index.profiles[id] = { meta, snapshot };
     this.index.activeId = id;
     this.persist();
@@ -281,6 +334,16 @@ export class ProfileManager {
       settings: deps.settings,
       apiKeyStore: deps.apiKeyStore,
     });
+  }
+
+  /** Export a stored profile snapshot without switching (refreshes active slot from live state). */
+  exportProfileSnapshot(id: string, deps?: ProfileApplyDeps): ProfileSnapshotV1 | null {
+    if (id === this.index.activeId && deps) {
+      return this.exportActiveSnapshot(deps);
+    }
+    const stored = this.index.profiles[id];
+    if (!stored) return null;
+    return structuredClone(stored.snapshot);
   }
 
   private emitChanged(): void {

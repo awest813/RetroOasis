@@ -6869,15 +6869,48 @@ body.using-gamepad .game-card:focus {
 }
 
 .profile-chip {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-pill, 999px);
   color: var(--c-accent);
   font-weight: 600;
   font-size: 0.8rem;
+}
+
+.profile-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.profile-color-swatch--active {
+  border-color: var(--c-text);
+  box-shadow: 0 0 0 2px var(--c-bg);
 }
 
 /* ── Cloud Library ─────────────────────────────────────────── */

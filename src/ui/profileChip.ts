@@ -6,7 +6,9 @@ export function refreshProfileHeaderChip(openCloudLibrarySettings: () => void): 
   const actions = document.getElementById("header-actions");
   if (!actions) return;
 
-  const name = getProfileManager().getActiveProfileName();
+  const pm = getProfileManager();
+  const name = pm.getActiveProfileName();
+  const color = pm.getActiveProfileColor();
   let chip = document.getElementById("header-profile-chip") as HTMLButtonElement | null;
 
   if (!chip) {
@@ -18,9 +20,15 @@ export function refreshProfileHeaderChip(openCloudLibrarySettings: () => void): 
       "aria-label": `Active profile: ${name}. Open Cloud Library settings.`,
     }) as HTMLButtonElement;
     chip.addEventListener("click", openCloudLibrarySettings);
+    const dot = make("span", { class: "profile-chip__dot", "aria-hidden": "true" });
+    const label = make("span", { class: "profile-chip__label" });
+    chip.append(dot, label);
   }
 
-  chip.textContent = name;
+  const dotEl = chip.querySelector<HTMLElement>(".profile-chip__dot");
+  const labelEl = chip.querySelector<HTMLElement>(".profile-chip__label");
+  if (dotEl) dotEl.style.backgroundColor = color;
+  if (labelEl) labelEl.textContent = name;
   chip.title = `Profile: ${name} — click to manage`;
   chip.setAttribute("aria-label", `Active profile: ${name}. Open Cloud Library settings.`);
 

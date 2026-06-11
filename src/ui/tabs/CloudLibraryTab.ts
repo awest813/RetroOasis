@@ -22,9 +22,11 @@ import {
 import { showCloudRomImporterDialog } from "../cloudRomImporter.js";
 import {
   serializeProfileSnapshot,
-  parseProfileSnapshot,
 } from "../../profileSnapshot.js";
+import { encryptProfileExport, parseProfileImportFile } from "../../profileCrypto.js";
+import { PROFILE_COLOR_PRESETS } from "../../profileColors.js";
 import { getProfileManager } from "../../profileManager.js";
+import { showPassphraseDialog } from "../profileDialogs.js";
 import type { ApiKeyStore } from "../../apiKeyStore.js";
 import {
   CLOUD_LIBRARY_PROVIDERS,
@@ -365,6 +367,33 @@ function buildProfileSection(
     }
     profileSel.value = pm.getActiveProfileId();
     if (!profileSel.value && prev) profileSel.value = prev;
+    refreshColorSwatches();
+  };
+
+  const colorRow = make("div", { class: "settings-input-row profile-color-row" });
+  colorRow.append(make("span", { class: "settings-input-label" }, "Profile color"));
+  const swatchWrap = make("div", { class: "profile-color-swatches", role: "group", "aria-label": "Profile color" });
+  colorRow.appendChild(swatchWrap);
+
+  const refreshColorSwatches = () => {
+    swatchWrap.innerHTML = "";
+    const activeColor = pm.getProfileColor(profileSel.value || pm.getActiveProfileId());
+    for (const color of PROFILE_COLOR_PRESETS) {
+      const swatch = make("button", {
+        type: "button",
+        class: `profile-color-swatch${color === activeColor ? " profile-color-swatch--active" : ""}`,
+        title: `Use ${color}`,
+        "aria-label": `Profile color ${color}`,
+        "aria-pressed": color === activeColor ? "true" : "false",
+        style: `background-color:${color}`,
+      }) as HTMLButtonElement;
+      swatch.addEventListener("click", () => {
+        const targetId = profileSel.value || pm.getActiveProfileId();
+        pm.setProfileColor(targetId, color);
+        refreshColorSwatches();
+      });
+      swatchWrap.appendChild(swatch);
+    }
   };
   refreshProfileSelect();
 
@@ -372,16 +401,19 @@ function buildProfileSection(
     void (async () => {
       const id = profileSel.value;
       const previousId = pm.getActiveProfileId();
+      refreshColorSwatches();
       if (!id || id === previousId) return;
       profileSel.disabled = true;
       const ok = await pm.switchProfile(id, deps);
       profileSel.disabled = false;
       if (ok) {
         renameInp.value = pm.getActiveProfileName();
+        refreshColorSwatches();
         showInfoToast(`Switched to profile "${pm.getActiveProfileName()}".`, "success");
         rebuildTab();
       } else {
         profileSel.value = previousId;
+        refreshColorSwatches();
         showError("Could not switch profile. Try again.");
       }
     })();
@@ -443,32 +475,62 @@ function buildProfileSection(
     deleteBtn,
   );
   section.appendChild(manageRow);
+  section.appendChild(colorRow);
+
+  const downloadProfileFile = (contents: string, baseName: string, extension: string) => {
+    const blob = new Blob([contents], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${baseName.replace(/\s+/g, "-").toLowerCase() || "retrooasis-profile"}.${extension}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export JSON") as HTMLButtonElement;
   exportBtn.addEventListener("click", () => {
     void (async () => {
+      const profileId = profileSel.value || pm.getActiveProfileId();
       const confirmed = await showConfirmDialog(
         "This file contains API keys, cloud tokens, and OAuth app IDs. " +
         "Anyone with the file can access your connected services. Store it securely and do not share it publicly.",
         { title: "Export profile?", confirmLabel: "Export" },
       );
       if (!confirmed) return;
-      const snapshot = pm.exportActiveSnapshot(deps);
-      const blob = new Blob([serializeProfileSnapshot(snapshot)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${snapshot.name.replace(/\s+/g, "-").toLowerCase() || "retrooasis-profile"}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const snapshot = pm.exportProfileSnapshot(profileId, deps);
+      if (!snapshot) { showError("Could not export the selected profile."); return; }
+      downloadProfileFile(serializeProfileSnapshot(snapshot), snapshot.name, "json");
       showInfoToast("Profile exported.", "success");
+    })();
+  });
+
+  const exportEncryptedBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export encrypted") as HTMLButtonElement;
+  exportEncryptedBtn.addEventListener("click", () => {
+    void (async () => {
+      const profileId = profileSel.value || pm.getActiveProfileId();
+      const passphrase = await showPassphraseDialog({
+        title: "Encrypt profile export",
+        body: "Choose a passphrase. You will need it to import this file on another device.",
+        confirmLabel: "Encrypt & export",
+        requireConfirm: true,
+      });
+      if (!passphrase) return;
+      const snapshot = pm.exportProfileSnapshot(profileId, deps);
+      if (!snapshot) { showError("Could not export the selected profile."); return; }
+      try {
+        const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), passphrase);
+        downloadProfileFile(encrypted, snapshot.name, "retroprofile");
+        showInfoToast("Encrypted profile exported.", "success");
+      } catch (err) {
+        showError(err instanceof Error ? err.message : "Encryption failed.");
+      }
     })();
   });
 
   const importInput = make("input", {
     type: "file",
-    accept: "application/json,.json",
-    "aria-label": "Import profile JSON file",
+    accept: "application/json,.json,.retroprofile",
+    "aria-label": "Import profile file",
     style: "display:none",
   }) as HTMLInputElement;
 
@@ -478,7 +540,13 @@ function buildProfileSection(
       importInput.value = "";
       if (!file) return;
       const text = await file.text();
-      const parsed = parseProfileSnapshot(text);
+      const parsed = await parseProfileImportFile(text, () =>
+        showPassphraseDialog({
+          title: "Decrypt profile",
+          body: "This file is encrypted. Enter the passphrase used when it was exported.",
+          confirmLabel: "Decrypt",
+        }),
+      );
       if (typeof parsed === "string") { showError(parsed); return; }
 
       if (mode === "merge") {
@@ -513,10 +581,11 @@ function buildProfileSection(
   });
 
   const fileRow = make("div", { class: "settings-input-row profile-snapshot-actions" });
-  fileRow.append(exportBtn, importNewBtn, importMergeBtn, importInput);
+  fileRow.append(exportBtn, exportEncryptedBtn, importNewBtn, importMergeBtn, importInput);
   section.appendChild(fileRow);
   section.appendChild(make("p", { class: "settings-help" },
-    "Import as new creates a separate profile slot. Merge replaces cloud connections and credentials on the active profile."));
+    "Export uses the profile selected above. Encrypted exports (.retroprofile) require a passphrase on import. " +
+    "Import as new creates a separate slot; merge replaces credentials on the active profile."));
 
   void appName;
   return section;
