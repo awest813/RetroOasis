@@ -1,5 +1,7 @@
+import type { DeviceCapabilities } from "../performance.js";
 import { type SystemInfo } from "../systems.js";
 import { isNetplaySupportedSystemId } from "../multiplayerUtils.js";
+import { threadedCoreBlockedReason } from "../safariCompat.js";
 import { createElement as make } from "./dom.js";
 
 type SystemFeaturePill = {
@@ -10,7 +12,7 @@ type SystemFeaturePill = {
 
 export function getSystemFeaturePills(
   system: SystemInfo | undefined,
-  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number } = {},
+  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number; deviceCaps?: DeviceCapabilities } = {},
   appName = "RetroOasis",
 ): SystemFeaturePill[] {
   if (!system) return [];
@@ -55,10 +57,13 @@ export function getSystemFeaturePills(
     });
   }
   if (system.needsThreads) {
+    const iosBlocked = opts.deviceCaps?.isIOS === true;
     pills.push({
-      label: "Threaded core",
-      title: "Uses additional CPU threads and requires SharedArrayBuffer (cross-origin isolation).",
-      tone: "neutral",
+      label: iosBlocked ? "Not on iOS" : "Threaded core",
+      title: iosBlocked
+        ? (threadedCoreBlockedReason(system, opts.deviceCaps) ?? "Not supported on iPhone or iPad.")
+        : "Uses additional CPU threads and requires SharedArrayBuffer (cross-origin isolation).",
+      tone: iosBlocked ? "warn" : "neutral",
     });
   }
   if (system.touchControlMode === "builtin") {
@@ -88,7 +93,7 @@ export function getSystemFeaturePills(
 
 export function buildSystemFeatureRow(
   system: SystemInfo | undefined,
-  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number; className?: string } = {},
+  opts: { includeExperimental?: boolean; includeOnline?: boolean; max?: number; className?: string; deviceCaps?: DeviceCapabilities } = {},
   appName?: string,
 ): HTMLElement | null {
   const pills = getSystemFeaturePills(system, opts, appName);

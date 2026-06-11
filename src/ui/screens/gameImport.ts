@@ -65,6 +65,8 @@ import {
 } from "../modals.js";
 import { showError, showInfoToast } from "../toasts.js";
 import { isDreamcastGdiSelection } from "../../dreamcastCore.js";
+import { iosBlockedArchiveExtension, iosBlockedArchiveMessage } from "../../safariCompat.js";
+import { isLikelyIOS } from "../../performance.js";
 
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
@@ -128,6 +130,10 @@ export async function resolveSystemAndAddImpl(
 ): Promise<void> {
   const launchAfterImport = opts.launchAfterImport ?? true;
   const ext = fileExt(file.name);
+  if (isLikelyIOS() && iosBlockedArchiveExtension(ext)) {
+    showError(iosBlockedArchiveMessage(file.name));
+    return;
+  }
   if (PATCH_EXT_SET.has(ext)) {
     await handlePatchFileDrop(file, library, settings, onLaunchGame, emulatorRef, onApplyPatch, onRenderLibrary);
     return;

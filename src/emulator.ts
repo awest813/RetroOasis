@@ -4410,7 +4410,7 @@ export class PSPEmulator {
     this._emitError(
       "WebGL 2 is not available in your browser.\n\n" +
       "This system requires WebGL 2 for rendering. Please:\n" +
-      "• Use Chrome 58+ or Firefox 51+.\n" +
+      "• Use Chrome 58+, Firefox 51+, or Safari 15+ with hardware acceleration enabled.\n" +
       "• Enable hardware acceleration in browser settings.\n" +
       "• Update your GPU drivers." +
       experimentalNotice

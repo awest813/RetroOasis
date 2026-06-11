@@ -140,7 +140,8 @@ export default defineConfig({
     // coi-serviceworker.js injects them at the service-worker level.
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      // credentialless matches production coi-serviceworker behavior on Safari / iOS WebKit.
+      "Cross-Origin-Embedder-Policy": "credentialless",
     },
   },
 
@@ -148,7 +149,7 @@ export default defineConfig({
     port: 4173,
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Embedder-Policy": "credentialless",
     },
   },
 

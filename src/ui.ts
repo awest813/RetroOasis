@@ -66,6 +66,8 @@ import {
   syncEmulatorViewportLayout,
 } from "./emulatorDisplay.js";
 import { getNetplayManager, peekNetplayManager, registerNetplayInstance } from "./netplaySingleton.js";
+import { IOS_PWA_INSTALL_HINT } from "./safariCompat.js";
+import { isPwaDisplayMode } from "./ui/mobile.js";
 import {
   ICON_ALERT_TRIANGLE_SVG,
   ICON_BATTERY_SVG,
@@ -2605,7 +2607,19 @@ export function buildLandingControls(
     container.appendChild(make("span", { class: "perf-chip perf-chip--warn", title: tip }, label));
   }
 
-  if (canInstallPWA?.() && onInstallPWA) {
+  if (deviceCaps.isIOS && !isPwaDisplayMode() && !canInstallPWA?.()) {
+    const btnIosInstall = make("button", {
+      class: "btn btn--highlight pwa-install-btn",
+      type: "button",
+      title: "Add RetroOasis to your iPhone or iPad home screen",
+      "aria-label": "How to install on iPhone or iPad",
+    }) as HTMLButtonElement;
+    btnIosInstall.innerHTML = `<span class="pwa-install__icon" aria-hidden="true">${ICON_GRID_ALL_SVG}</span><span>Add to Home Screen</span>`;
+    btnIosInstall.addEventListener("click", () => {
+      showInfoToast(IOS_PWA_INSTALL_HINT, "info", { queue: true });
+    });
+    container.appendChild(btnIosInstall);
+  } else if (canInstallPWA?.() && onInstallPWA) {
     const btnInstall = make("button", {
       class: "btn btn--highlight pwa-install-btn",
       type: "button",
