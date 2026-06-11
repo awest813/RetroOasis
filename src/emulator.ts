@@ -24,7 +24,7 @@
 
 import { diagWarn } from "./diagnosticLog.js";
 import { LEGACY_PERF_MARKS } from "./legacy.js";
-import { syncDreamcastCoreAliases } from "./dreamcastCore.js";
+import { applyDreamcastVmuCoreOptions, syncDreamcastCoreAliases } from "./dreamcastCore.js";
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
   resolveMode, resolveTier, detectAudioCapabilities,
@@ -281,6 +281,20 @@ export class CoreBridge {
     this.instance.gameManager?.quickLoad(slot);
   }
 
+  /** Ask the core to flush in-game save files (VMU, SRAM, etc.) to the VFS. */
+  flushInGameSaves(): void {
+    try {
+      (this.instance.gameManager as { saveSaveFiles?: () => void } | undefined)?.saveSaveFiles?.();
+    } catch { /* best-effort */ }
+  }
+
+  /** Reload in-game save files from the VFS into the running core. */
+  reloadInGameSaves(): void {
+    try {
+      (this.instance.gameManager as { loadSaveFiles?: () => void } | undefined)?.loadSaveFiles?.();
+    } catch { /* best-effort */ }
+  }
+
   /**
    * Access the Emscripten Audio Context for advanced visualizations
    * or latency monitoring.
@@ -441,6 +455,8 @@ interface EJSEmulatorInstance {
     supportsStates(): boolean;
     getSaveFile?(): Uint8Array | null;
     loadSaveFile?(data: Uint8Array): void;
+    saveSaveFiles?(): void;
+    loadSaveFiles?(): void;
     simulateInput?(playerIndex: number, buttonIndex: number, value: number): void;
     getDiskCount?(): number;
     getCurrentDisk?(): number;
@@ -946,6 +962,10 @@ export interface LaunchOptions {
   onEjsSaveState?: (event: EJSSaveStateEvent) => void;
   /** Intercepts EmulatorJS's built-in Load State menu action. */
   onEjsLoadState?: (event?: EJSSaveStateEvent) => void;
+  /** After IDBFS is ready, restore Dreamcast VMU files into /data/saves. */
+  onDreamcastVmuRestore?: () => void | Promise<void>;
+  /** Called when Flycast flushes in-game saves (VMU) to the VFS. */
+  onDreamcastInGameSaveFlush?: () => void | Promise<void>;
   /**
    * When true, skip the file-extension validation check in the emulator.
    *
@@ -3301,6 +3321,10 @@ export class PSPEmulator {
         );
       }
 
+      if (opts.systemId === "segaDC") {
+        applyDreamcastVmuCoreOptions(ejsSettings);
+      }
+
       if (opts.beforeLaunch) {
         await opts.beforeLaunch({
           systemId: opts.systemId,
@@ -3427,6 +3451,16 @@ export class PSPEmulator {
 
         if (emu?.on) {
           emu.on("saveDatabaseLoaded", onCoreInitialized);
+          if (opts.systemId === "segaDC" && opts.onDreamcastVmuRestore) {
+            emu.on("saveDatabaseLoaded", () => {
+              void opts.onDreamcastVmuRestore?.();
+            });
+          }
+          if (opts.systemId === "segaDC" && opts.onDreamcastInGameSaveFlush) {
+            emu.on("saveSaveFiles", () => {
+              void opts.onDreamcastInGameSaveFlush?.();
+            });
+          }
         } else {
           onCoreInitialized();
         }
@@ -3610,6 +3644,18 @@ export class PSPEmulator {
     const gm = window.EJS_emulator?.gameManager;
     const quickLoad = gm?.quickLoad;
     if (typeof quickLoad === "function") quickLoad.call(gm, slot);
+  }
+
+  flushInGameSaves(): void {
+    try {
+      window.EJS_emulator?.gameManager?.saveSaveFiles?.();
+    } catch { /* best-effort */ }
+  }
+
+  reloadInGameSaves(): void {
+    try {
+      window.EJS_emulator?.gameManager?.loadSaveFiles?.();
+    } catch { /* best-effort */ }
   }
 
   /** True if the running core supports save states. */

@@ -31,6 +31,8 @@ import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT, MAX_SAVE_SLOTS } from "./saves.js";
+import { VmuSaveLibrary } from "./vmuSaves.js";
+import { VmuSaveService } from "./vmuSaveService.js";
 import {
   detectCapabilitiesCached,
   formatDetailedSummary,
@@ -474,6 +476,8 @@ async function main(): Promise<void> {
       ? { gameId: currentGameId, gameName: settings.lastGameName ?? "Unknown", systemId: currentSystemId }
       : null,
   });
+  const vmuSaveLibrary = new VmuSaveLibrary();
+  const vmuSaveService = new VmuSaveService({ vmuLibrary: vmuSaveLibrary, emulator });
   
   // NetplayManager is instantiated during `syncNetplayManagerFromSettings` at boot
   // and on demand elsewhere via `getNetplayManager()`.
@@ -928,6 +932,12 @@ async function main(): Promise<void> {
             showInfoToast(`Load failed: ${error instanceof Error ? error.message : String(error)}`, "error");
           });
       },
+      onDreamcastVmuRestore: systemId === "segaDC" && gameId
+        ? () => vmuSaveService.restoreForGame(gameId)
+        : undefined,
+      onDreamcastInGameSaveFlush: systemId === "segaDC" && gameId
+        ? () => vmuSaveService.captureForGame(gameId)
+        : undefined,
       achievements: raCreds ? {
         username: raCreds.username,
         apiKey: raCreds.apiKey,
@@ -1049,6 +1059,9 @@ async function main(): Promise<void> {
         pendingAutoSave = null;
       });
     void pendingAutoSave;
+    if (currentSystemId === "segaDC" && currentGameId) {
+      void vmuSaveService.captureForGame(currentGameId);
+    }
   };
 
   // 5c-ii. Wire play-time tracking: begin recording when the game is actually running.
@@ -1064,6 +1077,9 @@ async function main(): Promise<void> {
         settings.lastGameName ?? "Unknown",
         currentSystemId,
       );
+    }
+    if (currentSystemId === "segaDC" && currentGameId) {
+      void vmuSaveService.reloadInGameSaves();
     }
   };
 
@@ -1113,6 +1129,9 @@ async function main(): Promise<void> {
   // 6b. Wire "return to library" — pauses and hides the emulator, shows library
   const onReturnToLibrary = (): void => {
     if (emulator.state !== "running" && emulator.state !== "paused") return;
+    if (currentSystemId === "segaDC" && currentGameId) {
+      void vmuSaveService.captureForGame(currentGameId);
+    }
     if (emulator.state === "running") emulator.pause();
 
     // Tell the service worker it can now apply any pending updates.

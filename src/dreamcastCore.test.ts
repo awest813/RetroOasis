@@ -4,6 +4,8 @@ import {
   syncDreamcastCoreAliases,
   isDreamcastGdiSelection,
   isDreamcastGdiPackageMember,
+  isDreamcastVmuFileName,
+  applyDreamcastVmuCoreOptions,
 } from "./dreamcastCore.js";
 
 describe("withDreamcastCoreAliases", () => {
@@ -26,6 +28,21 @@ describe("syncDreamcastCoreAliases", () => {
     syncDreamcastCoreAliases(settings);
     expect(settings.reicast_mipmapping).toBe("disabled");
     expect(settings.reicast_enable_dsp).toBe("disabled");
+  });
+});
+
+describe("VMU helpers", () => {
+  it("detects Flycast VMU filenames", () => {
+    expect(isDreamcastVmuFileName("MK-51000.A1.bin")).toBe(true);
+    expect(isDreamcastVmuFileName("vmu_save_default.bin")).toBe(true);
+    expect(isDreamcastVmuFileName("dc_boot.bin")).toBe(false);
+  });
+
+  it("applies per-game VMU core options with reicast aliases", () => {
+    const settings: Record<string, string> = {};
+    applyDreamcastVmuCoreOptions(settings);
+    expect(settings.flycast_per_content_vmus).toBe("VMU A1");
+    expect(settings.reicast_per_content_vmus).toBe("VMU A1");
   });
 });
 

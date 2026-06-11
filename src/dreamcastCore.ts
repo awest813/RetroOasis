@@ -5,6 +5,29 @@
 /** Track file extensions bundled with a loose .gdi descriptor. */
 export const DREAMCAST_GDI_TRACK_EXTENSIONS = new Set(["bin", "raw", "iso"]);
 
+/** Default Flycast VMU options — per-game VMU in slot A1 for isolated saves. */
+export const DREAMCAST_VMU_CORE_OPTIONS = {
+  flycast_per_content_vmus: "VMU A1",
+  flycast_vmu1_screen_display: "disabled",
+  flycast_vmu2_screen_display: "disabled",
+  flycast_vmu3_screen_display: "disabled",
+  flycast_vmu4_screen_display: "disabled",
+} as const;
+
+const DREAMCAST_VMU_FILE_RE = /\.[a-d][12]\.bin$/i;
+const DREAMCAST_VMU_SHARED_RE = /^vmu_save_.+\.bin$/i;
+
+/** True when a basename looks like a Flycast VMU save file in /data/saves. */
+export function isDreamcastVmuFileName(fileName: string): boolean {
+  const base = fileName.split(/[/\\]/).pop() ?? fileName;
+  return DREAMCAST_VMU_FILE_RE.test(base) || DREAMCAST_VMU_SHARED_RE.test(base);
+}
+
+/** Merge VMU-related Flycast options (with reicast aliases) into launch settings. */
+export function applyDreamcastVmuCoreOptions(settings: Record<string, string>): void {
+  Object.assign(settings, withDreamcastCoreAliases({ ...DREAMCAST_VMU_CORE_OPTIONS }));
+}
+
 /** Mirror flycast_* libretro keys to legacy reicast_* aliases the core may read. */
 export function withDreamcastCoreAliases(settings: Record<string, string>): Record<string, string> {
   const aliases: Record<string, string> = {};
