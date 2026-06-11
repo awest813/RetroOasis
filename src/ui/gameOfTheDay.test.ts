@@ -4,6 +4,7 @@ import {
   dateSeedForGameOfTheDay,
   pickWikiGameOfTheDay,
   findWikiGameInLibrary,
+  strategyWikiSearchUrl,
 } from "./gameOfTheDay.js";
 import { WIKI_GAME_CATALOG } from "../wikiGameCatalog.js";
 
@@ -64,5 +65,13 @@ describe("findWikiGameInLibrary", () => {
   it("returns null when no plausible match exists", () => {
     const entry = { name: "EarthBound", wikiTitle: "EarthBound", systemId: "snes" };
     expect(findWikiGameInLibrary(entry, [])).toBeNull();
+  });
+});
+
+describe("strategyWikiSearchUrl", () => {
+  it("builds a StrategyWiki search URL for the game title", () => {
+    const url = strategyWikiSearchUrl("Chrono Trigger");
+    expect(url).toContain("strategywiki.org");
+    expect(url).toContain(encodeURIComponent("Chrono Trigger"));
   });
 });

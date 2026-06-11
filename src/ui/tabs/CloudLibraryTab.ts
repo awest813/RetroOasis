@@ -20,11 +20,10 @@ import {
 } from "../loadingOverlay.js";
 import { showCloudRomImporterDialog } from "../cloudRomImporter.js";
 import {
-  buildProfileSnapshot,
   serializeProfileSnapshot,
   parseProfileSnapshot,
-  applyProfileSnapshot,
 } from "../../profileSnapshot.js";
+import { getProfileManager } from "../../profileManager.js";
 import type { ApiKeyStore } from "../../apiKeyStore.js";
 import {
   CLOUD_LIBRARY_PROVIDERS,
@@ -324,6 +323,7 @@ function buildProfileSection(
   onSettingsChange: (patch: Partial<Settings>) => void,
   apiKeyStore: ApiKeyStore | undefined,
   appName: string,
+  rebuildTab: () => void,
 ): HTMLElement {
   const profileHeadingId = "settings-cloud-profile-heading";
   const section = make("div", {
@@ -333,25 +333,112 @@ function buildProfileSection(
   });
   section.appendChild(make("h5", { class: "cloud-library-section__title", id: profileHeadingId }, "Profiles"));
   section.appendChild(make("p", { class: "settings-help" },
-    `Save and restore your cloud sources, API keys, and OAuth app IDs in one bundle. ` +
-    `Full multi-profile switching is planned — see docs/PROFILE_SYSTEM_PLAN.md in the ${appName} repository.`));
+    `Switch between saved bundles of cloud sources, API keys, OAuth app IDs, and save-sync credentials. ` +
+    `Changes auto-save to the active profile every few seconds.`));
 
-  const nameInp = make("input", {
-    type: "text",
-    id: "profile-export-name",
+  if (!apiKeyStore) {
+    section.appendChild(make("p", { class: "settings-help", role: "status" }, "Profile storage is unavailable."));
+    return section;
+  }
+
+  const pm = getProfileManager();
+  const deps = { settings, apiKeyStore, onSettingsChange };
+  pm.ensureInitialized(deps);
+
+  const switchRow = make("div", { class: "settings-input-row profile-switch-row" });
+  const profileSel = make("select", {
+    id: "profile-active-select",
     class: "settings-input",
-    placeholder: "My Profile",
+    "aria-label": "Active profile",
+  }) as HTMLSelectElement;
+
+  const refreshProfileSelect = () => {
+    const prev = profileSel.value;
+    profileSel.innerHTML = "";
+    for (const meta of pm.listProfiles()) {
+      const opt = Object.assign(document.createElement("option"), {
+        value: meta.id,
+        textContent: meta.name,
+      });
+      profileSel.appendChild(opt);
+    }
+    profileSel.value = pm.getActiveProfileId();
+    if (!profileSel.value && prev) profileSel.value = prev;
+  };
+  refreshProfileSelect();
+
+  profileSel.addEventListener("change", () => {
+    void (async () => {
+      const id = profileSel.value;
+      if (!id || id === pm.getActiveProfileId()) return;
+      const ok = await pm.switchProfile(id, deps);
+      if (ok) {
+        showInfoToast(`Switched to profile "${pm.getActiveProfileName()}".`, "success");
+        rebuildTab();
+      }
+    })();
+  });
+
+  switchRow.append(
+    make("label", { class: "settings-input-label", for: "profile-active-select" }, "Active profile"),
+    profileSel,
+  );
+  section.appendChild(switchRow);
+
+  const renameInp = make("input", {
+    type: "text",
+    id: "profile-rename-input",
+    class: "settings-input",
+    value: pm.getActiveProfileName(),
     autocomplete: "off",
-    "aria-label": "Profile name for export",
+    "aria-label": "Rename active profile",
   }) as HTMLInputElement;
 
-  const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export profile") as HTMLButtonElement;
-  exportBtn.addEventListener("click", () => {
-    if (!apiKeyStore) {
-      showError("API key store is not available.");
+  const renameBtn = make("button", { class: "btn btn--sm", type: "button" }, "Rename") as HTMLButtonElement;
+  renameBtn.addEventListener("click", () => {
+    pm.renameActiveProfile(renameInp.value);
+    refreshProfileSelect();
+    renameInp.value = pm.getActiveProfileName();
+    showInfoToast("Profile renamed.", "success");
+  });
+
+  const newBtn = make("button", { class: "btn btn--sm", type: "button" }, "New profile") as HTMLButtonElement;
+  newBtn.addEventListener("click", () => {
+    const created = pm.createProfile(renameInp.value || `Profile ${pm.listProfiles().length + 1}`, deps);
+    refreshProfileSelect();
+    renameInp.value = created.name;
+    showInfoToast(`Created profile "${created.name}".`, "success");
+    rebuildTab();
+  });
+
+  const deleteBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Delete") as HTMLButtonElement;
+  deleteBtn.addEventListener("click", () => {
+    const id = pm.getActiveProfileId();
+    if (!pm.deleteProfile(id, deps)) {
+      showError("Keep at least one profile.");
       return;
     }
-    const snapshot = buildProfileSnapshot({ name: nameInp.value, settings, apiKeyStore });
+    refreshProfileSelect();
+    renameInp.value = pm.getActiveProfileName();
+    deleteBtn.disabled = pm.listProfiles().length <= 1;
+    showInfoToast("Profile deleted.", "success");
+    rebuildTab();
+  });
+  if (pm.listProfiles().length <= 1) deleteBtn.disabled = true;
+
+  const manageRow = make("div", { class: "settings-input-row profile-manage-row" });
+  manageRow.append(
+    make("label", { class: "settings-input-label", for: "profile-rename-input" }, "Profile name"),
+    renameInp,
+    renameBtn,
+    newBtn,
+    deleteBtn,
+  );
+  section.appendChild(manageRow);
+
+  const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export JSON") as HTMLButtonElement;
+  exportBtn.addEventListener("click", () => {
+    const snapshot = pm.exportActiveSnapshot(deps);
     const blob = new Blob([serializeProfileSnapshot(snapshot)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -368,40 +455,29 @@ function buildProfileSection(
     "aria-label": "Import profile JSON file",
     style: "display:none",
   }) as HTMLInputElement;
-  const importBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import profile") as HTMLButtonElement;
+  const importBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import JSON") as HTMLButtonElement;
   importBtn.addEventListener("click", () => importInput.click());
   importInput.addEventListener("change", () => {
     void (async () => {
       const file = importInput.files?.[0];
       importInput.value = "";
-      if (!file || !apiKeyStore) return;
+      if (!file) return;
       const text = await file.text();
       const parsed = parseProfileSnapshot(text);
       if (typeof parsed === "string") { showError(parsed); return; }
-      const applied = applyProfileSnapshot(parsed);
-      onSettingsChange(applied.settingsPatch);
-      for (const upd of applied.apiKeyUpdates) {
-        apiKeyStore.setKey(upd.providerId, upd.key);
-        apiKeyStore.setEnabled(upd.providerId, upd.enabled);
-      }
-      setGoogleClientId(applied.oauth.googleClientId);
-      setDropboxAppKey(applied.oauth.dropboxAppKey);
-      showInfoToast(
-        `Imported profile "${parsed.name}". Reconnect Save Sync manually if needed (${applied.cloudSaveHint.providerId || "none"}).`,
-        "success",
-      );
+      const meta = pm.importSnapshotAsNewProfile(parsed, deps);
+      refreshProfileSelect();
+      renameInp.value = meta.name;
+      showInfoToast(`Imported profile "${meta.name}".`, "success");
+      rebuildTab();
     })();
   });
 
-  const row = make("div", { class: "settings-input-row profile-snapshot-actions" });
-  row.append(
-    make("label", { class: "settings-input-label", for: "profile-export-name" }, "Profile name"),
-    nameInp,
-    exportBtn,
-    importBtn,
-    importInput,
-  );
-  section.appendChild(row);
+  const fileRow = make("div", { class: "settings-input-row profile-snapshot-actions" });
+  fileRow.append(exportBtn, importBtn, importInput);
+  section.appendChild(fileRow);
+
+  void appName;
   return section;
 }
 
@@ -560,6 +636,6 @@ export function buildCloudLibraryTab(
     oauthSaveBtn,
   );
   section.appendChild(oauthSection);
-  section.appendChild(buildProfileSection(settings, onSettingsChange, apiKeyStore, APP_NAME));
+  section.appendChild(buildProfileSection(settings, onSettingsChange, apiKeyStore, APP_NAME, rebuildTab));
   container.appendChild(section);
 }

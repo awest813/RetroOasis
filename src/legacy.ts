@@ -17,6 +17,7 @@ export const LEGACY_EVENTS = {
   restartRequired: "retro-oasis:restart-required",
   resumeGame: "retro-oasis:resumeGame",
   returnToLibrary: "retro-oasis:returnToLibrary",
+  profileChanged: "retro-oasis:profileChanged",
 } as const;
 
 export const LEGACY_PERF_MARKS = {

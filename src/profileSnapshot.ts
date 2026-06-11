@@ -11,6 +11,43 @@ import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
 
 export const PROFILE_SNAPSHOT_VERSION = 1 as const;
 
+/** localStorage keys used by CloudSaveManager credential persistence. */
+export const CLOUD_SAVE_STORAGE_KEYS = [
+  "retro-oasis-cloud",
+  "retro-oasis-cloud-webdav",
+  "retro-oasis-cloud-gdrive",
+  "retro-oasis-cloud-dropbox",
+  "retro-oasis-cloud-pcloud",
+  "retro-oasis-cloud-blomp",
+  "retro-oasis-cloud-box",
+  "retro-oasis-cloud-onedrive",
+  "retro-oasis-cloud-mega",
+  "retro-oasis-cloud-nextcloud",
+] as const;
+
+function readCloudSaveStorage(): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof localStorage === "undefined") return out;
+  for (const key of CLOUD_SAVE_STORAGE_KEYS) {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) out[key] = value;
+    } catch { /* ignore */ }
+  }
+  return out;
+}
+
+export function restoreCloudSaveStorage(storage: Record<string, string> | undefined): void {
+  if (!storage || typeof localStorage === "undefined") return;
+  for (const key of CLOUD_SAVE_STORAGE_KEYS) {
+    const value = storage[key];
+    if (typeof value !== "string") continue;
+    try {
+      localStorage.setItem(key, value);
+    } catch { /* ignore */ }
+  }
+}
+
 export interface ProfileSnapshotV1 {
   version: typeof PROFILE_SNAPSHOT_VERSION;
   name: string;
@@ -25,6 +62,8 @@ export interface ProfileSnapshotV1 {
     providerId: string;
     connected: boolean;
   };
+  /** Raw CloudSaveManager localStorage credential blobs (optional in older exports). */
+  cloudSaveStorage?: Record<string, string>;
   settingsSubset: {
     libretroMatchingServerUrl: string;
     netplayUsername: string;
@@ -64,6 +103,7 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
       providerId: cloudManager.providerId,
       connected: cloudManager.isConnected(),
     },
+    cloudSaveStorage: readCloudSaveStorage(),
     settingsSubset: {
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
       netplayUsername: settings.netplayUsername,
@@ -97,6 +137,7 @@ export interface ApplyProfileSnapshotResult {
   apiKeyUpdates: Array<{ providerId: string; key: string; enabled: boolean }>;
   oauth: ProfileSnapshotV1["oauth"];
   cloudSaveHint: ProfileSnapshotV1["cloudSave"];
+  cloudSaveStorage?: Record<string, string>;
 }
 
 /**
@@ -124,5 +165,6 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
     apiKeyUpdates,
     oauth: snapshot.oauth,
     cloudSaveHint: snapshot.cloudSave,
+    cloudSaveStorage: snapshot.cloudSaveStorage,
   };
 }

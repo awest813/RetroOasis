@@ -72,12 +72,12 @@ Full multi-profile slots and active-profile switching are phase 2.
 - [x] Export / import UI in Cloud Library settings
 - [x] Documentation (this file)
 
-### Phase 2
+### Phase 2 (shipped in this branch)
 
-- [ ] `ProfileManager` with named slots in localStorage
-- [ ] Active profile indicator in header
-- [ ] Auto-save on settings change (debounced)
-- [ ] Include save-sync credential blobs in snapshot (with encryption option)
+- [x] `ProfileManager` with named slots in localStorage
+- [x] Active profile indicator in header
+- [x] Auto-save on settings change (debounced)
+- [x] Include save-sync credential blobs in snapshot (plaintext; encryption option deferred)
 
 ### Phase 3
 

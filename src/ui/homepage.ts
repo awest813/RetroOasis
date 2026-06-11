@@ -81,6 +81,7 @@ export function buildEmptyDetailsGuide(opts: {
   onChooseRoms: () => void;
   onOpenHelp: () => void;
   onCloudSaves: () => void;
+  onCloudLibrary?: () => void;
 }): HTMLElement {
   const panel = make("div", { class: "landing-details__guide" });
   const title = make("h3", { class: "landing-details__guide-title" }, "Getting started");
@@ -103,7 +104,13 @@ export function buildEmptyDetailsGuide(opts: {
   cloudBtn.addEventListener("click", opts.onCloudSaves);
   const helpBtn = make("button", { class: "btn btn--ghost", type: "button" }, "View guide");
   helpBtn.addEventListener("click", opts.onOpenHelp);
-  actions.append(importBtn, cloudBtn, helpBtn);
+  if (opts.onCloudLibrary) {
+    const cloudLibBtn = make("button", { class: "btn btn--ghost", type: "button" }, "Cloud library");
+    cloudLibBtn.addEventListener("click", opts.onCloudLibrary);
+    actions.append(importBtn, cloudBtn, cloudLibBtn, helpBtn);
+  } else {
+    actions.append(importBtn, cloudBtn, helpBtn);
+  }
 
   panel.append(title, intro, list, actions);
   return panel;

@@ -75,12 +75,18 @@ export async function loadWikiGameOfTheDayDetails(
   return getWikiClient().fetchGameByTitle(entry.wikiTitle, opts);
 }
 
+/** StrategyWiki search URL for a game title. */
+export function strategyWikiSearchUrl(gameName: string): string {
+  return `https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(gameName)}`;
+}
+
 export interface GameOfTheDayWidgetOpts {
   entry: WikiGameCatalogEntry;
   wiki?: WikipediaGamePage | null;
   libraryMatch?: GameMetadata | null;
   getSystemIcon: (systemId: string) => string;
   onOpenWiki: (url: string) => void;
+  onOpenStrategyWiki?: (url: string) => void;
   onPlayLibraryMatch?: (game: GameMetadata) => void;
   onDismiss?: () => void;
 }
@@ -161,12 +167,24 @@ export function buildGameOfTheDayWidget(opts: GameOfTheDayWidgetOpts): HTMLEleme
   const wikiBtn = make("button", {
     class: "btn btn--ghost btn--sm",
     type: "button",
-  }, "Read on Wikipedia") as HTMLButtonElement;
+  }, "Wikipedia") as HTMLButtonElement;
   wikiBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     onOpenWiki(wikiUrl);
   });
   actions.appendChild(wikiBtn);
+
+  if (opts.onOpenStrategyWiki) {
+    const strategyBtn = make("button", {
+      class: "btn btn--ghost btn--sm",
+      type: "button",
+    }, "StrategyWiki") as HTMLButtonElement;
+    strategyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      opts.onOpenStrategyWiki?.(strategyWikiSearchUrl(entry.name));
+    });
+    actions.appendChild(strategyBtn);
+  }
 
   if (opts.libraryMatch && opts.onPlayLibraryMatch) {
     const playBtn = make("button", {

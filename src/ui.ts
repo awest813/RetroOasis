@@ -151,6 +151,7 @@ import {
   isGameOfTheDayDismissed,
   dismissGameOfTheDayForToday,
 } from "./ui/gameOfTheDay.js";
+import { refreshProfileHeaderChip } from "./ui/profileChip.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {
@@ -386,6 +387,7 @@ export function buildDOM(app: HTMLElement): void {
           <div class="onboarding__quick-actions" aria-label="Quick start actions">
             <button class="btn btn--primary" id="btn-add-game-secondary" type="button">Choose ROMs</button>
             <button class="btn btn--ghost" id="btn-cloud-onboarding" type="button">Connect Cloud Saves</button>
+            <button class="btn btn--ghost" id="btn-cloud-library-onboarding" type="button">Cloud Library</button>
             <button class="btn btn--ghost" id="btn-open-help-onboarding" type="button">View Guide</button>
           </div>
 
@@ -1459,6 +1461,10 @@ export function initUI(opts: UIOptions): void {
     if (emulator.state === "running" || emulator.state === "paused") return;
     rebuildLandingControls();
   });
+  bindEvent(document, LEGACY_EVENTS.profileChanged, () => {
+    if (emulator.state === "running" || emulator.state === "paused") return;
+    rebuildLandingControls();
+  });
 
   if (typeof ResizeObserver !== "undefined") {
     const headerActions = document.getElementById("header-actions");
@@ -2167,11 +2173,13 @@ function _renderGameOfTheDay(
   const token = ++_gotdRenderToken;
 
   host.innerHTML = "";
+  const openWiki = (url: string) => { window.open(url, "_blank", "noopener"); };
   const placeholder = buildGameOfTheDayWidget({
     entry,
     libraryMatch,
     getSystemIcon: systemIcon,
-    onOpenWiki: (url) => { window.open(url, "_blank", "noopener"); },
+    onOpenWiki: openWiki,
+    onOpenStrategyWiki: openWiki,
     onPlayLibraryMatch: libraryMatch
       ? (game) => {
           void launchGameFromLibrary({
@@ -2198,7 +2206,8 @@ function _renderGameOfTheDay(
       wiki,
       libraryMatch,
       getSystemIcon: systemIcon,
-      onOpenWiki: (url) => { window.open(url, "_blank", "noopener"); },
+      onOpenWiki: openWiki,
+      onOpenStrategyWiki: openWiki,
       onPlayLibraryMatch: libraryMatch
         ? (game) => {
             void launchGameFromLibrary({
@@ -2240,6 +2249,7 @@ function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {
     onChooseRoms: () => document.getElementById("file-input")?.click(),
     onOpenHelp: () => _openSettingsFn?.("help"),
     onCloudSaves: () => _openSettingsFn?.("cloud"),
+    onCloudLibrary: () => _openSettingsFn?.("cloudlibrary"),
   }));
 }
 
@@ -2337,6 +2347,12 @@ function _wireLibraryControls(
   if (cloudOnboardingBtn) {
     cloudOnboardingBtn.addEventListener("click", () => {
       _openSettingsFn?.("cloud");
+    });
+  }
+  const cloudLibraryOnboardingBtn = document.getElementById("btn-cloud-library-onboarding");
+  if (cloudLibraryOnboardingBtn) {
+    cloudLibraryOnboardingBtn.addEventListener("click", () => {
+      _openSettingsFn?.("cloudlibrary");
     });
   }
   const onboardingHelpBtn = document.getElementById("btn-open-help-onboarding");
@@ -2620,6 +2636,10 @@ export function buildLandingControls(
     });
     container.appendChild(btnInstall);
   }
+
+  refreshProfileHeaderChip(() => {
+    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+  });
 
   const btnSettings = make("button", { class: "btn", title: "Settings (F9)", "aria-label": "Open settings" });
   btnSettings.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"

@@ -93,6 +93,7 @@ import {
   type WebGpuGlCapturePolicyInput,
 } from "./webgpuPostProcess.js";
 import { getApiKeyStore, setLibretroMatchingServerUrl } from "./ui/coverArtRegistry.js";
+import { getProfileManager } from "./profileManager.js";
 import { parseRAKey } from "./raCredentials.js";
 import { installWebGlContextPolicy } from "./webglContextPolicy.js";
 import { getSystemByCoreHint, getSystemById } from "./systems.js";
@@ -1208,7 +1209,18 @@ async function main(): Promise<void> {
     // same change that `saveSettings` persists to localStorage.
     mirrorSettingsPatchToStore(patch, store);
     saveSettings(settings);
+    getProfileManager().scheduleAutoSave({
+      settings,
+      apiKeyStore: getApiKeyStore(),
+      onSettingsChange,
+    });
   };
+
+  getProfileManager().ensureInitialized({
+    settings,
+    apiKeyStore: getApiKeyStore(),
+    onSettingsChange: (patch) => onSettingsChange(patch),
+  });
 
   initUI({
     emulator,
