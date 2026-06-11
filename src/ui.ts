@@ -143,6 +143,12 @@ import {
   setErrorBannerSettingsOpener,
 } from "./ui/toasts.js";
 import { buildHighlightsPanel } from "./ui/highlightsPanel.js";
+import {
+  pickGameOfTheDay,
+  buildGameOfTheDayWidget,
+  isGameOfTheDayDismissed,
+  dismissGameOfTheDayForToday,
+} from "./ui/gameOfTheDay.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {
@@ -410,6 +416,8 @@ export function buildDOM(app: HTMLElement): void {
             <!-- Populated by showGameDetails() -->
           </div>
         </aside>
+
+        <div id="game-of-the-day-host" class="game-of-the-day-host" aria-live="polite"></div>
       </section>
 
       <!-- EmulatorJS mount point (hidden until a game launches) -->
@@ -1893,6 +1901,8 @@ export async function renderLibrary(
   }
   // ── End highlights panel ───────────────────────────────────────────────────
 
+  _renderGameOfTheDay(allGames, library, settings, onLaunchGame);
+
   const layout = settings.libraryLayout;
   _libraryLastLayout = layout;
   _syncLibraryControlState();
@@ -2129,6 +2139,44 @@ function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
 interface LibraryOverviewActions {
   onFocusFavorites?: () => void;
   onFetchCovers?: () => void;
+}
+
+function _renderGameOfTheDay(
+  allGames: GameMetadata[],
+  library: GameLibrary,
+  settings: Settings,
+  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
+): void {
+  const host = document.getElementById("game-of-the-day-host");
+  if (!host) return;
+  host.innerHTML = "";
+
+  const inCleanBrowse =
+    !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+
+  if (!inCleanBrowse || allGames.length === 0 || isGameOfTheDayDismissed()) return;
+
+  const pick = pickGameOfTheDay(allGames);
+  if (!pick) return;
+
+  const widget = buildGameOfTheDayWidget({
+    game: pick,
+    getSystemIcon: systemIcon,
+    onPlay: (game) => {
+      void launchGameFromLibrary({
+        game,
+        library,
+        settings,
+        onFetchFromCloud: fetchFromCloud,
+        onLaunchGame,
+      });
+    },
+    onDismiss: () => {
+      dismissGameOfTheDayForToday();
+      host.innerHTML = "";
+    },
+  });
+  host.appendChild(widget);
 }
 
 function _renderEmptyDetailsGuide(isEmptyLibrary: boolean): void {

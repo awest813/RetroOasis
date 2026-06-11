@@ -5827,6 +5827,21 @@ describe("buildCloudTab — Save Sync settings tab", () => {
     );
   }
 
+  function openCloudLibraryTab(settings: Settings = makeSettings()) {
+    openSettingsPanel(
+      settings,
+      fullCapsForTests,
+      makeFullLibForTests(),
+      makeBiosLibForTests(),
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "cloudlibrary",
+    );
+  }
+
   beforeEach(() => {
     document.body.innerHTML = "";
     const app = document.createElement("div");
@@ -5839,13 +5854,13 @@ describe("buildCloudTab — Save Sync settings tab", () => {
   });
 
   it("OAuth credential inputs reference shared help text via aria-describedby", () => {
-    openCloudTab();
-    const panel = document.getElementById("tab-panel-cloud")!;
+    openCloudLibraryTab();
+    const panel = document.getElementById("tab-panel-cloudlibrary")!;
     const google = document.getElementById("oauth-google-client-id") as HTMLInputElement | null;
     const dropbox = document.getElementById("oauth-dropbox-app-key") as HTMLInputElement | null;
     const help = document.getElementById("settings-cloud-oauth-keys-help");
-    expect(help?.textContent).toMatch(/Google or Dropbox OAuth/i);
-    expect(help?.textContent).toMatch(/Paste next to each field/i);
+    expect(help?.textContent).toMatch(/Google Client ID or Dropbox App Key/i);
+    expect(help?.textContent).toMatch(/one-click sign-in/i);
     expect(google?.getAttribute("aria-describedby")).toBe("settings-cloud-oauth-keys-help");
     expect(dropbox?.getAttribute("aria-describedby")).toBe("settings-cloud-oauth-keys-help");
     const pasteBtns = panel.querySelectorAll(".settings-input-paste-line button");
@@ -5880,7 +5895,7 @@ describe("buildCloudTab — Save Sync settings tab", () => {
   });
 
   it("Remote Library provider picker names providers as remote library sources", async () => {
-    openCloudTab();
+    openCloudLibraryTab();
     const addRemote = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "Add remote library");
     addRemote?.click();

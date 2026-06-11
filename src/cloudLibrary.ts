@@ -983,6 +983,40 @@ function gmul(a: number, b: number): number {
   return p;
 }
 
+// ── Download helper ───────────────────────────────────────────────────────────
+
+/** Download a remote file blob through a configured cloud library connection. */
+export async function downloadCloudFile(
+  connection: { provider: string; config: string },
+  remotePath: string,
+): Promise<Blob> {
+  const provider = createProvider(connection);
+  if (!provider) throw new Error("Remote library provider could not be initialized.");
+
+  const url = await provider.getDownloadUrl(remotePath);
+  const headers: Record<string, string> = {};
+
+  if (connection.provider === "gdrive") {
+    const config = parseCloudLibraryConnectionConfig(connection.config);
+    if (config?.accessToken) headers["Authorization"] = `Bearer ${config.accessToken}`;
+  } else if (connection.provider === "webdav" || connection.provider === "nextcloud") {
+    const config = parseCloudLibraryConnectionConfig(connection.config);
+    if (!config?.username || config.password === undefined) {
+      throw new Error("Remote library provider could not be initialized.");
+    }
+    headers["Authorization"] = buildBasicAuthHeader(config.username, config.password);
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Remote library authentication failed. Please reconnect your account.");
+    }
+    throw new Error(`Remote library download failed: ${response.statusText} (${response.status})`);
+  }
+  return response.blob();
+}
+
 // ── Factory / Manager ─────────────────────────────────────────────────────────
 
 export function createProvider(connection: { provider: string; config: string }): CloudProvider | null {

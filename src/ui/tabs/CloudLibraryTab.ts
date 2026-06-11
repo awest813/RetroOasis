@@ -1,0 +1,565 @@
+import { createElement as make } from "../dom.js";
+import { showError, showInfoToast } from "../toasts.js";
+import type { Settings, CloudLibraryConnection } from "../../types/settings.js";
+import { GameLibrary, formatRelativeTime } from "../../library.js";
+import {
+  getGoogleClientId,
+  getDropboxAppKey,
+  setGoogleClientId,
+  setDropboxAppKey,
+} from "../../oauthPopup.js";
+import { createProvider } from "../../cloudLibrary.js";
+import { createUuid } from "../../uuid.js";
+import { detectSystem } from "../../systems.js";
+import { LEGACY_EVENTS } from "../../legacy.js";
+import {
+  showLoadingOverlay,
+  hideLoadingOverlay,
+  setLoadingMessage,
+  setLoadingSubtitle,
+} from "../loadingOverlay.js";
+import { showCloudRomImporterDialog } from "../cloudRomImporter.js";
+import {
+  buildProfileSnapshot,
+  serializeProfileSnapshot,
+  parseProfileSnapshot,
+  applyProfileSnapshot,
+} from "../../profileSnapshot.js";
+import type { ApiKeyStore } from "../../apiKeyStore.js";
+import {
+  CLOUD_LIBRARY_PROVIDERS,
+  getCloudProviderLabel,
+  pasteIntoCloudWizardInput,
+  appendCloudWizardLabeledField,
+  cloudWizardHeadingId,
+  appendOAuthSignInButton,
+  cloudProviderPickerIconEl,
+  OVERLAY_FADE_DELAY_MS,
+} from "./cloudTabShared.js";
+
+function showAddCloudLibraryDialog(
+  settings:         Settings,
+  onSettingsChange: (patch: Partial<Settings>) => void,
+  rebuildTab:       () => void,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = make("div", { class: "confirm-overlay" });
+    const box = make("div", {
+      class: "confirm-box cloud-wizard-box",
+      role:  "dialog",
+      "aria-modal": "true",
+      "aria-label": "Add Remote Library Source",
+    });
+
+    const close = () => {
+      document.removeEventListener("keydown", onKeydown, { capture: true });
+      overlay.classList.remove("confirm-overlay--visible");
+      setTimeout(() => overlay.remove(), OVERLAY_FADE_DELAY_MS);
+      resolve();
+    };
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); close(); }
+    };
+    document.addEventListener("keydown", onKeydown, { capture: true });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+    const renderStep1 = () => {
+      box.innerHTML = "";
+      const titleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", titleId);
+      box.appendChild(make("h3", { id: titleId, class: "confirm-box__title" }, "Add Remote Library"));
+      box.appendChild(make("p", { class: "confirm-box__body" },
+        "Choose where RetroOasis should look for remote games. They will appear beside local games after indexing."
+      ));
+
+      const grid = make("div", { class: "cloud-provider-grid" });
+      for (const p of CLOUD_LIBRARY_PROVIDERS) {
+        const card = make("button", {
+          class: "cloud-provider-card",
+          type:  "button",
+          "aria-label": `${p.label} remote library source`,
+        }) as HTMLButtonElement;
+        card.appendChild(cloudProviderPickerIconEl(p.id));
+        card.appendChild(make("span", { class: "cloud-provider-card__label" }, p.label));
+        card.addEventListener("click", () => renderStep2(p.id));
+        grid.appendChild(card);
+      }
+      box.appendChild(grid);
+
+      const actions = make("div", { class: "confirm-box__actions" });
+      const cancelBtn = make("button", { class: "btn" }, "Cancel") as HTMLButtonElement;
+      cancelBtn.addEventListener("click", close);
+      actions.appendChild(cancelBtn);
+      box.appendChild(actions);
+    };
+
+    const renderStep2 = (providerId: string) => {
+      box.innerHTML = "";
+      const meta = CLOUD_LIBRARY_PROVIDERS.find(p => p.id === providerId);
+      if (!meta) { close(); return; }
+      const stepTitleId = cloudWizardHeadingId();
+      box.setAttribute("aria-labelledby", stepTitleId);
+      box.appendChild(make("h3", { id: stepTitleId, class: "confirm-box__title" }, `${meta.label} remote library`));
+
+      const form = make("div", { class: "cloud-wizard-form" });
+      const nameInp = make("input", {
+        type: "text",
+        id: "cld-name",
+        class: "settings-input",
+        placeholder: `My ${meta.label} Library`,
+        autocomplete: "off",
+      }) as HTMLInputElement;
+      appendCloudWizardLabeledField(form, "Display Name", nameInp, "display name");
+      form.appendChild(make("p", { class: "settings-help" }, "This name will appear in your library filters."));
+
+      type LibCredResult = { ok: false; error: string } | { ok: true; config: CloudLibraryConnection["config"] };
+      let getCredentials: () => LibCredResult = () => ({ ok: true, config: "{}" });
+
+      if (providerId === "webdav" || providerId === "nextcloud") {
+        const urlInp  = make("input", { type: "url", id: "cld-url", class: "settings-input", placeholder: providerId === "nextcloud" ? "https://nextcloud.example.com" : "https://dav.example.com/roms", autocomplete: "off" }) as HTMLInputElement;
+        const userInp = make("input", { type: "text", id: "cld-user", class: "settings-input", placeholder: "Username", autocomplete: "username" }) as HTMLInputElement;
+        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password (or App Password)", autocomplete: "current-password" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Server URL", urlInp, "server URL");
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
+        getCredentials = () => {
+          const url  = urlInp.value.trim();
+          const user = userInp.value.trim();
+          const pass = passInp.value;
+          if (!url)  return { ok: false, error: "Server URL is required." };
+          if (!user) return { ok: false, error: "Username is required." };
+          return { ok: true, config: JSON.stringify({ url, username: user, password: pass }) };
+        };
+      } else if (providerId === "pcloud") {
+        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: "pCloud access token", autocomplete: "off" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        const regionRow = make("div", { class: "settings-input-row" });
+        const regionSel = make("select", { id: "cld-region", class: "settings-input" }) as HTMLSelectElement;
+        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "us", textContent: "US" }));
+        regionSel.appendChild(Object.assign(document.createElement("option"), { value: "eu", textContent: "EU" }));
+        regionRow.append(make("label", { class: "settings-input-label", for: "cld-region" }, "Region"), regionSel);
+        form.append(regionRow);
+        getCredentials = () => {
+          const token = tokenInp.value.trim();
+          if (!token) return { ok: false, error: "Access token is required." };
+          return { ok: true, config: JSON.stringify({ accessToken: token, region: regionSel.value }) };
+        };
+      } else if (providerId === "blomp") {
+        const userInp = make("input", { type: "text", id: "cld-user", class: "settings-input", placeholder: "Blomp username", autocomplete: "username" }) as HTMLInputElement;
+        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
+        const containerInp = make("input", { type: "text", id: "cld-container", class: "settings-input", placeholder: "retrooasis", autocomplete: "off" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Username", userInp, "username");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
+        appendCloudWizardLabeledField(form, "Container (optional)", containerInp, "container name");
+        getCredentials = () => {
+          const user = userInp.value.trim();
+          if (!user) return { ok: false, error: "Username is required." };
+          return { ok: true, config: JSON.stringify({ username: user, password: passInp.value, container: containerInp.value.trim() || "retrooasis" }) };
+        };
+      } else if (providerId === "onedrive") {
+        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: "OneDrive access token", autocomplete: "off" }) as HTMLInputElement;
+        const rootInp = make("input", { type: "text", id: "cld-rootid", class: "settings-input", placeholder: "root (optional)", autocomplete: "off" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", rootInp, "root folder ID");
+        getCredentials = () => {
+          const token = tokenInp.value.trim();
+          if (!token) return { ok: false, error: "Access token is required." };
+          return { ok: true, config: JSON.stringify({ accessToken: token, rootId: rootInp.value.trim() || undefined }) };
+        };
+      } else if (providerId === "box") {
+        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: "Box OAuth access token", autocomplete: "off" }) as HTMLInputElement;
+        const folderInp = make("input", { type: "text", id: "cld-folder", class: "settings-input", placeholder: "0 (root)", autocomplete: "off" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        appendCloudWizardLabeledField(form, "Root Folder ID (optional)", folderInp, "folder ID");
+        getCredentials = () => {
+          const token = tokenInp.value.trim();
+          if (!token) return { ok: false, error: "Access token is required." };
+          return { ok: true, config: JSON.stringify({ accessToken: token, rootFolderId: folderInp.value.trim() || "0" }) };
+        };
+      } else if (providerId === "mega") {
+        const emailInp = make("input", { type: "email", id: "cld-email", class: "settings-input", placeholder: "MEGA email address", autocomplete: "email" }) as HTMLInputElement;
+        const passInp = make("input", { type: "password", id: "cld-pass", class: "settings-input", placeholder: "Password", autocomplete: "current-password" }) as HTMLInputElement;
+        appendCloudWizardLabeledField(form, "Email", emailInp, "email");
+        appendCloudWizardLabeledField(form, "Password", passInp, "password");
+        getCredentials = () => {
+          const email = emailInp.value.trim();
+          const pass  = passInp.value;
+          if (!email) return { ok: false, error: "Email is required." };
+          if (!pass)  return { ok: false, error: "Password is required." };
+          return { ok: true, config: JSON.stringify({ megaEmail: email, megaPassword: pass }) };
+        };
+      } else {
+        const tokenInp = make("input", { type: "text", id: "cld-token", class: "settings-input", placeholder: `${meta.label} access token`, autocomplete: "off" }) as HTMLInputElement;
+        appendOAuthSignInButton({ providerId, providerLabel: meta.label, container: form, tokenInput: tokenInp, getErrorEl: () => errorMsg });
+        appendCloudWizardLabeledField(form, "Access Token", tokenInp, "access token");
+        getCredentials = () => {
+          const token = tokenInp.value.trim();
+          if (!token) return { ok: false, error: "Access token is required." };
+          return { ok: true, config: JSON.stringify({ accessToken: token }) };
+        };
+      }
+
+      box.appendChild(form);
+      const errorMsg = make("p", { class: "cloud-wizard-error", "aria-live": "assertive" });
+      errorMsg.hidden = true;
+      box.appendChild(errorMsg);
+
+      const actions = make("div", { class: "confirm-box__actions" });
+      const backBtn = make("button", { class: "btn" }, "← Back") as HTMLButtonElement;
+      const saveBtn = make("button", { class: "btn btn--primary" }, "Add Source") as HTMLButtonElement;
+      actions.append(backBtn, saveBtn);
+      box.appendChild(actions);
+
+      backBtn.addEventListener("click", () => renderStep1());
+      saveBtn.addEventListener("click", () => {
+        void (async () => {
+          const creds = getCredentials();
+          if (!creds.ok) { errorMsg.textContent = creds.error; errorMsg.hidden = false; return; }
+          errorMsg.hidden = true;
+          const probe = createProvider({ provider: providerId as CloudLibraryConnection["provider"], config: creds.config });
+          if (!probe) { errorMsg.textContent = "Those details could not be assembled into a valid connection."; errorMsg.hidden = false; return; }
+
+          saveBtn.disabled = true;
+          saveBtn.textContent = "Verifying…";
+          try {
+            if (!(await probe.isAvailable())) {
+              errorMsg.textContent = "Cannot reach this provider right now. Check the URL or token.";
+              errorMsg.hidden = false;
+              return;
+            }
+            const newConn: CloudLibraryConnection = {
+              id: createUuid(),
+              provider: providerId as CloudLibraryConnection["provider"],
+              name: nameInp.value.trim() || meta.label,
+              enabled: true,
+              config: creds.config,
+            };
+            onSettingsChange({ cloudLibraries: [...settings.cloudLibraries, newConn] });
+            rebuildTab();
+            close();
+          } catch (e) {
+            errorMsg.textContent = e instanceof Error ? e.message : "Could not verify this connection.";
+            errorMsg.hidden = false;
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Add Source";
+          }
+        })();
+      });
+    };
+
+    renderStep1();
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
+  });
+}
+
+const _cloudLibrarySyncConnIds = new Set<string>();
+
+async function syncCloudLibrary(
+  conn: CloudLibraryConnection,
+  library: GameLibrary,
+  syncTrigger?: HTMLButtonElement,
+): Promise<void> {
+  if (_cloudLibrarySyncConnIds.has(conn.id)) return;
+  _cloudLibrarySyncConnIds.add(conn.id);
+
+  const provider = createProvider(conn);
+  if (!provider) {
+    _cloudLibrarySyncConnIds.delete(conn.id);
+    showError("This connection is missing required fields. Edit or remove it and add the source again.");
+    return;
+  }
+
+  if (syncTrigger) {
+    syncTrigger.disabled = true;
+    syncTrigger.setAttribute("aria-busy", "true");
+    syncTrigger.classList.add("is-loading");
+    syncTrigger.textContent = "Syncing...";
+  }
+
+  showLoadingOverlay();
+  setLoadingMessage(`Syncing ${conn.name}…`);
+  try {
+    if (!(await provider.isAvailable())) {
+      throw new Error("Could not reach this provider. Check the network, token expiry, or reconnect the source in Settings → Cloud Library.");
+    }
+    setLoadingSubtitle("Scanning root folder for playable files…");
+    const files = await provider.listFiles();
+    const romFiles = files.filter((f) => !f.isDirectory && detectSystem(f.name));
+    setLoadingSubtitle(`Found ${romFiles.length} matching file(s). Updating library…`);
+
+    for (const f of romFiles) {
+      const res = detectSystem(f.name);
+      if (res) {
+        const sys = Array.isArray(res) ? res[0] : res;
+        if (!sys) continue;
+        await library.upsertVirtualGame(f.name.replace(/\.[^.]+$/, ""), f.name, sys.id, f.size, conn.id, f.path, f.thumbnailUrl);
+      }
+    }
+
+    if (romFiles.length === 0) {
+      showInfoToast(`Connected to ${conn.name}, but no supported ROM extensions were found in the root folder.`, "info");
+    } else {
+      showInfoToast(`Synced ${romFiles.length} game file(s) from ${conn.name}.`, "success");
+    }
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
+  } catch (error: unknown) {
+    showError(error instanceof Error ? error.message : "Remote library sync failed.");
+  } finally {
+    _cloudLibrarySyncConnIds.delete(conn.id);
+    hideLoadingOverlay();
+    if (syncTrigger) {
+      syncTrigger.disabled = false;
+      syncTrigger.removeAttribute("aria-busy");
+      syncTrigger.classList.remove("is-loading");
+      syncTrigger.textContent = "Sync";
+    }
+  }
+}
+
+function buildProfileSection(
+  settings: Settings,
+  onSettingsChange: (patch: Partial<Settings>) => void,
+  apiKeyStore: ApiKeyStore | undefined,
+  appName: string,
+): HTMLElement {
+  const profileHeadingId = "settings-cloud-profile-heading";
+  const section = make("div", {
+    class: "cloud-library-section",
+    role: "region",
+    "aria-labelledby": profileHeadingId,
+  });
+  section.appendChild(make("h5", { class: "cloud-library-section__title", id: profileHeadingId }, "Profiles"));
+  section.appendChild(make("p", { class: "settings-help" },
+    `Save and restore your cloud sources, API keys, and OAuth app IDs in one bundle. ` +
+    `Full multi-profile switching is planned — see docs/PROFILE_SYSTEM_PLAN.md in the ${appName} repository.`));
+
+  const nameInp = make("input", {
+    type: "text",
+    id: "profile-export-name",
+    class: "settings-input",
+    placeholder: "My Profile",
+    autocomplete: "off",
+    "aria-label": "Profile name for export",
+  }) as HTMLInputElement;
+
+  const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export profile") as HTMLButtonElement;
+  exportBtn.addEventListener("click", () => {
+    if (!apiKeyStore) {
+      showError("API key store is not available.");
+      return;
+    }
+    const snapshot = buildProfileSnapshot({ name: nameInp.value, settings, apiKeyStore });
+    const blob = new Blob([serializeProfileSnapshot(snapshot)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${snapshot.name.replace(/\s+/g, "-").toLowerCase() || "retrooasis-profile"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showInfoToast("Profile exported.", "success");
+  });
+
+  const importInput = make("input", {
+    type: "file",
+    accept: "application/json,.json",
+    "aria-label": "Import profile JSON file",
+    style: "display:none",
+  }) as HTMLInputElement;
+  const importBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import profile") as HTMLButtonElement;
+  importBtn.addEventListener("click", () => importInput.click());
+  importInput.addEventListener("change", () => {
+    void (async () => {
+      const file = importInput.files?.[0];
+      importInput.value = "";
+      if (!file || !apiKeyStore) return;
+      const text = await file.text();
+      const parsed = parseProfileSnapshot(text);
+      if (typeof parsed === "string") { showError(parsed); return; }
+      const applied = applyProfileSnapshot(parsed);
+      onSettingsChange(applied.settingsPatch);
+      for (const upd of applied.apiKeyUpdates) {
+        apiKeyStore.setKey(upd.providerId, upd.key);
+        apiKeyStore.setEnabled(upd.providerId, upd.enabled);
+      }
+      setGoogleClientId(applied.oauth.googleClientId);
+      setDropboxAppKey(applied.oauth.dropboxAppKey);
+      showInfoToast(
+        `Imported profile "${parsed.name}". Reconnect Save Sync manually if needed (${applied.cloudSaveHint.providerId || "none"}).`,
+        "success",
+      );
+    })();
+  });
+
+  const row = make("div", { class: "settings-input-row profile-snapshot-actions" });
+  row.append(
+    make("label", { class: "settings-input-label", for: "profile-export-name" }, "Profile name"),
+    nameInp,
+    exportBtn,
+    importBtn,
+    importInput,
+  );
+  section.appendChild(row);
+  return section;
+}
+
+export function buildCloudLibraryTab(
+  container:        HTMLElement,
+  settings:         Settings,
+  library:          GameLibrary,
+  onSettingsChange: (patch: Partial<Settings>) => void,
+  appName?: string,
+  apiKeyStore?: ApiKeyStore,
+): void {
+  const APP_NAME = appName ?? "RetroOasis";
+  container.innerHTML = "";
+  const netOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  const headingId = "settings-cloud-library-heading";
+  const sourcesHeadingId = "settings-cloud-library-sources-heading";
+  const oauthHeadingId = "settings-cloud-oauth-keys-heading";
+  const oauthHelpId = "settings-cloud-oauth-keys-help";
+
+  const section = make("div", {
+    class: "settings-section",
+    role: "region",
+    "aria-labelledby": headingId,
+  });
+  section.appendChild(make("h4", { class: "settings-section__title", id: headingId }, "Cloud Library"));
+  section.appendChild(make("p", { class: "settings-section__desc" },
+    `Index remote ROM folders, import games into your local library, and manage cloud connections.`));
+
+  const summary = make("p", { class: "cloud-storage-summary", role: "status", "aria-live": "polite" }, "Checking library status...");
+  void library.getAllGamesMetadata().then((games) => {
+    const remoteIndexed = games.filter(g => g.cloudId).length;
+    const sourceCount = settings.cloudLibraries.length;
+    summary.textContent =
+      `${sourceCount} remote source${sourceCount === 1 ? "" : "s"} connected · ` +
+      `${remoteIndexed} remote-indexed game${remoteIndexed === 1 ? "" : "s"}.`;
+  }).catch(() => { summary.textContent = "Remote library status could not be read."; });
+  section.appendChild(summary);
+
+  const rebuildTab = () => buildCloudLibraryTab(container, settings, library, onSettingsChange, appName, apiKeyStore);
+
+  const importerSection = make("div", { class: "cloud-library-section", role: "region", "aria-labelledby": "settings-cloud-import-heading" });
+  importerSection.appendChild(make("h5", { class: "cloud-library-section__title", id: "settings-cloud-import-heading" }, "Import ROMs"));
+  importerSection.appendChild(make("p", { class: "settings-help" },
+    "Browse connected cloud folders and copy ROM files into your local IndexedDB library."));
+  const importBtn = make("button", {
+    class: "btn btn--primary",
+    type: "button",
+    "aria-label": "Open cloud ROM importer",
+  }, "Import from cloud storage") as HTMLButtonElement;
+  importBtn.addEventListener("click", () => {
+    void showCloudRomImporterDialog({ settings, library, onComplete: () => rebuildTab() });
+  });
+  if (netOffline || settings.cloudLibraries.length === 0) {
+    importBtn.disabled = true;
+    importBtn.title = settings.cloudLibraries.length === 0
+      ? "Add a remote library source first"
+      : "Requires an internet connection";
+  }
+  importerSection.appendChild(importBtn);
+  section.appendChild(importerSection);
+
+  const list = make("div", { class: "cloud-connection-list" });
+  const librarySection = make("div", { class: "cloud-library-section", role: "region", "aria-labelledby": sourcesHeadingId });
+  librarySection.appendChild(make("h5", { class: "cloud-library-section__title", id: sourcesHeadingId }, "Remote Library Sources"));
+  librarySection.appendChild(make("p", { class: "settings-help" },
+    "Add a remote source to show supported games beside local ROMs. Sync indexes the root folder; use Import to browse subfolders."));
+
+  if (settings.cloudLibraries.length === 0) {
+    const empty = make("div", { class: "cloud-connection-empty" });
+    empty.innerHTML = `<p>No remote library sources connected yet.</p><p>Add a source, then sync or import ROMs from cloud storage.</p>`;
+    list.appendChild(empty);
+  } else {
+    settings.cloudLibraries.forEach((conn) => {
+      const item = make("div", { class: "cloud-connection-item" });
+      const info = make("div", { class: "cloud-connection-item__info" });
+      info.appendChild(make("strong", {}, conn.name));
+      const sourceMeta = make("span", {}, `${getCloudProviderLabel(conn.provider)} source`);
+      info.appendChild(sourceMeta);
+      void library.getAllGamesMetadata().then((games) => {
+        const indexed = games.filter(g => g.cloudId === conn.id);
+        const cached = indexed.filter(g => g.hasLocalBlob).length;
+        sourceMeta.textContent = `${getCloudProviderLabel(conn.provider)} · ${indexed.length} indexed · ${cached} cached`;
+      }).catch(() => { /* ignore */ });
+
+      const statusDot = make("span", { class: "cloud-connection-item__status" }, "Checking...");
+      info.appendChild(statusDot);
+      const provider = createProvider(conn);
+      if (provider) {
+        provider.isAvailable().then(ok => {
+          statusDot.textContent = ok ? "Ready" : "Unavailable";
+          statusDot.className = `cloud-connection-item__status ${ok ? "status--online" : "status--offline"}`;
+        }).catch(() => {
+          statusDot.textContent = "Unavailable";
+          statusDot.className = "cloud-connection-item__status status--offline";
+        });
+      } else {
+        statusDot.textContent = "Config error";
+        statusDot.className = "cloud-connection-item__status status--offline";
+      }
+
+      const actions = make("div", { class: "cloud-connection-item__actions" });
+      const browseBtn = make("button", { class: "btn btn--sm", type: "button", "aria-label": `Import ROMs from ${conn.name}` }, "Import");
+      browseBtn.addEventListener("click", () => {
+        void showCloudRomImporterDialog({ settings, library, initialConnectionId: conn.id, onComplete: () => rebuildTab() });
+      });
+      const syncBtn = make("button", { class: "btn btn--sm", type: "button", "aria-label": `Sync remote games from ${conn.name}` }, "Sync");
+      syncBtn.addEventListener("click", () => { void syncCloudLibrary(conn, library, syncBtn); });
+      const removeBtn = make("button", { class: "btn btn--sm btn--danger", type: "button", "aria-label": `Remove ${conn.name}` }, "Remove");
+      removeBtn.addEventListener("click", () => {
+        onSettingsChange({ cloudLibraries: settings.cloudLibraries.filter(c => c.id !== conn.id) });
+        rebuildTab();
+      });
+      if (netOffline) { browseBtn.disabled = true; syncBtn.disabled = true; }
+      actions.append(browseBtn, syncBtn, removeBtn);
+      item.append(info, actions);
+      list.appendChild(item);
+    });
+  }
+
+  const addBtn = make("button", { class: "btn btn--primary cloud-connection-add", type: "button", "aria-label": "Add remote library source" }, "Add remote library");
+  addBtn.addEventListener("click", () => { void showAddCloudLibraryDialog(settings, onSettingsChange, rebuildTab); });
+  if (netOffline) addBtn.disabled = true;
+  librarySection.append(list, addBtn);
+  section.appendChild(librarySection);
+
+  const oauthSection = make("div", { class: "cloud-library-section", role: "region", "aria-labelledby": oauthHeadingId });
+  oauthSection.appendChild(make("h5", { class: "cloud-library-section__title", id: oauthHeadingId }, "OAuth Apps (optional)"));
+  oauthSection.appendChild(make("p", { class: "settings-help", id: oauthHelpId },
+    "Paste your Google Client ID or Dropbox App Key to enable one-click sign-in when adding cloud sources."));
+
+  const gIdInp = make("input", { type: "text", id: "oauth-google-client-id", class: "settings-input", placeholder: "Google OAuth Client ID", autocomplete: "off", "aria-describedby": oauthHelpId }) as HTMLInputElement;
+  gIdInp.value = getGoogleClientId();
+  const gIdPaste = make("button", { type: "button", class: "btn btn--ghost btn--sm", "aria-label": "Paste Google OAuth Client ID" }, "Paste") as HTMLButtonElement;
+  gIdPaste.addEventListener("click", () => pasteIntoCloudWizardInput(gIdInp, "Google Client ID"));
+  const gIdLine = make("div", { class: "settings-input-paste-line" });
+  gIdLine.append(gIdInp, gIdPaste);
+
+  const dbKeyInp = make("input", { type: "text", id: "oauth-dropbox-app-key", class: "settings-input", placeholder: "Dropbox App Key", autocomplete: "off", "aria-describedby": oauthHelpId }) as HTMLInputElement;
+  dbKeyInp.value = getDropboxAppKey();
+  const dbKeyPaste = make("button", { type: "button", class: "btn btn--ghost btn--sm", "aria-label": "Paste Dropbox App Key" }, "Paste") as HTMLButtonElement;
+  dbKeyPaste.addEventListener("click", () => pasteIntoCloudWizardInput(dbKeyInp, "Dropbox App Key"));
+  const dbKeyLine = make("div", { class: "settings-input-paste-line" });
+  dbKeyLine.append(dbKeyInp, dbKeyPaste);
+
+  const oauthSaveBtn = make("button", { class: "btn btn--sm", type: "button" }, "Save OAuth apps") as HTMLButtonElement;
+  oauthSaveBtn.addEventListener("click", () => {
+    setGoogleClientId(gIdInp.value);
+    setDropboxAppKey(dbKeyInp.value);
+    oauthSaveBtn.textContent = "Saved";
+    setTimeout(() => { oauthSaveBtn.textContent = "Save OAuth apps"; }, 1500);
+  });
+
+  oauthSection.append(
+    make("div", { class: "settings-input-row" }, make("label", { class: "settings-input-label", for: "oauth-google-client-id" }, "Google Client ID"), gIdLine),
+    make("div", { class: "settings-input-row" }, make("label", { class: "settings-input-label", for: "oauth-dropbox-app-key" }, "Dropbox App Key"), dbKeyLine),
+    oauthSaveBtn,
+  );
+  section.appendChild(oauthSection);
+  section.appendChild(buildProfileSection(settings, onSettingsChange, apiKeyStore, APP_NAME));
+  container.appendChild(section);
+}

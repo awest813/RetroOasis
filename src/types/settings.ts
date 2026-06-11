@@ -2,7 +2,7 @@ import type { PerformanceMode } from "../performance.js";
 import type { PostProcessEffect } from "../webgpuPostProcess.js";
 import type { NetplayIceServer } from "../store/index.js";
 
-export type CloudProviderId = "gdrive" | "dropbox" | "onedrive" | "pcloud" | "webdav" | "blomp" | "box";
+export type CloudProviderId = "gdrive" | "dropbox" | "onedrive" | "pcloud" | "webdav" | "blomp" | "box" | "nextcloud" | "mega";
 
 export interface CloudLibraryConnection {
   id: string;

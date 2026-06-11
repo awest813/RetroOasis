@@ -22,6 +22,7 @@ import { buildPerfTab } from "../tabs/PerfTab.js";
 import { buildDisplayTab } from "../tabs/DisplayTab.js";
 import { buildLibraryTab } from "../tabs/LibraryTab.js";
 import { buildCloudTab } from "../tabs/CloudTab.js";
+import { buildCloudLibraryTab } from "../tabs/CloudLibraryTab.js";
 import { buildMultiplayerTab } from "../tabs/MultiplayerTab.js";
 import { buildDebugTab } from "../tabs/DebugTab.js";
 
@@ -37,7 +38,7 @@ let _settingsContentCleanups: Array<() => void> = [];
 let _settingsContentToken = 0;
 let _settingsTabsModule: typeof import("../settingsTabs.js") | null = null;
 
-export type SettingsTab = "performance" | "display" | "library" | "cloud" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about" | "help";
+export type SettingsTab = "performance" | "display" | "library" | "cloud" | "cloudlibrary" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about" | "help";
 type CanonicalSettingsTab = Exclude<SettingsTab, "help">;
 
 function canonicalSettingsTab(tab: SettingsTab | undefined): CanonicalSettingsTab | undefined {
@@ -49,6 +50,7 @@ const SETTINGS_SIDEBAR_ICON_SVG: Record<CanonicalSettingsTab, string> = {
   display: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>`,
   library: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
   cloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
+  cloudlibrary: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>`,
   bios: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
   multiplayer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
   achievements: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
@@ -120,6 +122,7 @@ function buildSettingsContent(
     { id: "display",      label: "Display",        ariaLabel: "Display" },
     { id: "library",      label: "My Games",       ariaLabel: "My Games" },
     { id: "cloud",        label: "Save Sync",      ariaLabel: "Save Sync" },
+    { id: "cloudlibrary", label: "Cloud Library",  ariaLabel: "Cloud Library" },
     { id: "bios",         label: "System Files",   ariaLabel: "System Files" },
     { id: "multiplayer",  label: "Play Together",  ariaLabel: "Play Together" },
     { id: "achievements", label: "Achievements",   ariaLabel: "Achievements" },
@@ -296,20 +299,21 @@ function buildSettingsContent(
   buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
   buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef, APP_NAME);
   buildCloudTab(panels[3]!, settings, library, onSettingsChange, APP_NAME);
-  buildMultiplayerTab(panels[5]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id, APP_NAME);
-  buildDebugTab(panels[8]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
-  panels[9]!.appendChild(make("p", { class: "settings-help", role: "status" }, "Loading help..."));
+  buildCloudLibraryTab(panels[4]!, settings, library, onSettingsChange, APP_NAME, getApiKeyStore());
+  buildMultiplayerTab(panels[6]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id, APP_NAME);
+  buildDebugTab(panels[9]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
+  panels[10]!.appendChild(make("p", { class: "settings-help", role: "status" }, "Loading help..."));
 
   try {
     void _loadSettingsTabs().then((st) => {
       if (!st) return;
       if (settingsContentToken !== _settingsContentToken) return;
-      st.buildBiosTab(panels[4]!, biosLibrary, { appName: APP_NAME, onError: showError });
-      st.buildAchievementsTab(panels[6]!, getApiKeyStore(), {
+      st.buildBiosTab(panels[5]!, biosLibrary, { appName: APP_NAME, onError: showError });
+      st.buildAchievementsTab(panels[7]!, getApiKeyStore(), {
         appName: APP_NAME,
         onError: showError,
       });
-      const apiKeysCleanup = st.buildApiKeysTab(panels[7]!, getApiKeyStore(), {
+      const apiKeysCleanup = st.buildApiKeysTab(panels[8]!, getApiKeyStore(), {
         appName: APP_NAME,
         getTester: (id: string) => getApiKeyTester(id),
         onError: showError,
@@ -317,8 +321,8 @@ function buildSettingsContent(
         onSettingsChange,
       });
       _settingsContentCleanups.push(apiKeysCleanup);
-      panels[9]!.textContent = "";
-      st.buildAboutTab(panels[9]!, APP_NAME);
+      panels[10]!.textContent = "";
+      st.buildAboutTab(panels[10]!, APP_NAME);
       if (requestedTab === "about") {
         switchTab("about");
       }

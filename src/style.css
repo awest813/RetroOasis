@@ -6668,6 +6668,180 @@ body.using-gamepad .game-card:focus {
   background: color-mix(in srgb, var(--c-success) 8%, var(--c-surface2));
 }
 
+/* ── Game of the Day (library corner) ──────────────────────── */
+
+.game-of-the-day-host {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  pointer-events: none;
+  max-width: min(280px, calc(100% - 32px));
+}
+
+.game-of-the-day {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--c-surface) 92%, transparent);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  animation: gotd-enter 0.35s ease-out;
+}
+
+@keyframes gotd-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.game-of-the-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 0;
+}
+
+.game-of-the-day__eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-accent);
+}
+
+.game-of-the-day__dismiss {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.game-of-the-day__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.game-of-the-day__body:hover {
+  background: color-mix(in srgb, var(--c-accent) 8%, transparent);
+}
+
+.game-of-the-day__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--c-surface2);
+  font-size: 1.2rem;
+}
+
+.game-of-the-day__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-of-the-day__name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-of-the-day__system {
+  font-size: 0.75rem;
+  color: var(--c-text-dim);
+}
+
+.landing-layout {
+  position: relative;
+}
+
+@media (max-width: 900px) {
+  .game-of-the-day-host {
+    right: 12px;
+    bottom: 12px;
+    max-width: min(240px, calc(100% - 24px));
+  }
+}
+
+/* ── Cloud ROM importer dialog ─────────────────────────────── */
+
+.cloud-rom-importer .cloud-rom-importer__list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  margin: 12px 0;
+  background: var(--c-surface2);
+}
+
+.cloud-rom-importer__breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+
+.cloud-rom-importer__sep {
+  color: var(--c-text-dim);
+}
+
+.cloud-rom-importer__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--c-border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.cloud-rom-importer__row--folder:hover {
+  background: var(--c-surface3);
+}
+
+.cloud-rom-importer__row--rom {
+  cursor: default;
+}
+
+.cloud-rom-importer__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-snapshot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Cloud Library ─────────────────────────────────────────── */
 
 .cloud-library-section {
