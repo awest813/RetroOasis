@@ -63,10 +63,10 @@ function friendlyErrorMessage(msg: string): string {
     return "Couldn't load a required file. Check your internet connection and try again.";
   }
   if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("experimental") || m.includes("stabil"))) {
-    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nThe bundled Flycast core requires dc_boot.bin (or a compatible Dreamcast boot ROM) plus dc_flash.bin in System Files.";
+    return "Dreamcast support is experimental right now. Some games may boot slowly, show glitches, or crash.\n\nFlycast can boot without BIOS via HLE. For better compatibility, add dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in Settings → System Files.";
   }
   if ((m.includes("dreamcast") || m.includes("flycast")) && (m.includes("bios") || m.includes("startup file"))) {
-    return "Dreamcast needs startup files before launch.\n\nAdd dc_boot.bin (or a compatible Dreamcast boot ROM) plus dc_flash.bin in Settings > System Files.";
+    return "Dreamcast works without BIOS using Flycast HLE, but some titles need real boot/flash files.\n\nAdd dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in Settings → System Files for best results.";
   }
   if (m.includes("bios") || m.includes("startup file")) {
     return "This game needs a startup file (BIOS). Go to Settings → System Files to add one.";

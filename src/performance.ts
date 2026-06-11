@@ -21,6 +21,7 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+import { withDreamcastCoreAliases } from "./dreamcastCore.js";
 import { LEGACY_STORAGE_KEYS } from "./legacy.js";
 
 export type PerformanceMode = "auto" | "performance" | "quality";
@@ -277,6 +278,9 @@ export function getGraphicsPresetCoreOptions(
       break;
   }
 
+  if (systemId === "segaDC") {
+    return withDreamcastCoreAliases(out);
+  }
   return out;
 }
 
@@ -303,11 +307,11 @@ export function getTextureUpscalerCoreOptions(
     case "nds":
       return { desmume_filtering: upscaler === "off" || upscaler === "sharp" ? "none" : "bilinear" };
     case "segaDC":
-      return {
+      return withDreamcastCoreAliases({
         flycast_texupscale: upscaler === "off" ? "disabled" : upscaler === "xbrz" ? "4x" : "2x",
         flycast_mipmapping: upscaler === "off" ? "disabled" : "enabled",
         flycast_dsp: upscaler === "off" ? "disabled" : "enabled",
-      };
+      });
     default:
       return {};
   }

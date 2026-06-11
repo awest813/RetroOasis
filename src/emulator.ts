@@ -24,6 +24,7 @@
 
 import { diagWarn } from "./diagnosticLog.js";
 import { LEGACY_PERF_MARKS } from "./legacy.js";
+import { syncDreamcastCoreAliases } from "./dreamcastCore.js";
 import { getSystemById, type SystemInfo } from "./systems.js";
 import {
   resolveMode, resolveTier, detectAudioCapabilities,
@@ -2679,7 +2680,6 @@ export class PSPEmulator {
       const previousRes = ejsSettings["flycast_internal_resolution"];
       const nextRes = clampLadderValue(previousRes, DREAMCAST_RESOLUTION_STEPS, maxDcResIdx);
       ejsSettings["flycast_internal_resolution"] = nextRes;
-      ejsSettings["reicast_internal_resolution"] = nextRes;
 
       if (weakWebGL) {
         Object.assign(ejsSettings, {
@@ -2707,6 +2707,7 @@ export class PSPEmulator {
           ejsSettings["flycast_enable_rttb"] = "disabled";
         }
       }
+      syncDreamcastCoreAliases(ejsSettings);
 
       if (previousRes !== nextRes || weakWebGL) {
         this.logDiagnostic(
@@ -3120,6 +3121,7 @@ export class PSPEmulator {
       if (audioCaps && opts.systemId === "segaDC" && audioCaps.suggestedBufferTier === "high") {
         if (ejsSettings["flycast_dsp"] === "enabled") {
           ejsSettings["flycast_dsp"] = "disabled";
+          syncDreamcastCoreAliases(ejsSettings);
           this.logDiagnostic(
             "audio",
             `DC DSP disabled for high-latency audio hardware (${audioCaps.baseLatencyMs?.toFixed(1)} ms)`

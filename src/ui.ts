@@ -43,6 +43,11 @@ import {
 } from "./library.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import {
+  dreamcastGdiFileExtension,
+  isDreamcastGdiPackageMember,
+  isDreamcastGdiSelection,
+} from "./dreamcastCore.js";
+import {
   type DeviceCapabilities,
   type PerformanceTier,
   formatTierLabel,
@@ -731,29 +736,15 @@ function fileBaseName(fileName: string): string {
   return fileName.split(/[/\\]/).pop()?.toLowerCase() ?? fileName.toLowerCase();
 }
 
-const DREAMCAST_GDI_TRACK_EXTENSIONS = new Set(["bin", "raw", "iso"]);
-
 function fileExtension(fileName: string): string {
-  const baseName = fileBaseName(fileName);
-  const dotIdx = baseName.lastIndexOf(".");
-  return dotIdx > 0 && dotIdx < baseName.length - 1
-    ? baseName.slice(dotIdx + 1)
-    : "";
-}
-
-function isDreamcastGdiSelection(files: readonly File[]): boolean {
-  return files.some(file => fileExtension(file.name) === "gdi") &&
-    files.some(file => DREAMCAST_GDI_TRACK_EXTENSIONS.has(fileExtension(file.name)));
+  return dreamcastGdiFileExtension(fileName);
 }
 
 async function packageDreamcastGdiSelection(files: readonly File[]): Promise<File | null> {
   if (!isDreamcastGdiSelection(files)) return null;
 
-  const gdiFile = files.find(file => fileExtension(file.name) === "gdi")!;
-  const gdiPackageFiles = files.filter((file) => {
-    const ext = fileExtension(file.name);
-    return ext === "gdi" || DREAMCAST_GDI_TRACK_EXTENSIONS.has(ext);
-  });
+  const gdiFile = files.find(file => dreamcastGdiFileExtension(file.name) === "gdi")!;
+  const gdiPackageFiles = files.filter(isDreamcastGdiPackageMember);
   const zipBlob = await createStoredZipBlob(gdiPackageFiles.map((file) => ({
     path: file.name,
     blob: file,

@@ -2495,10 +2495,12 @@ describe('performance', () => {
       });
 
       it('maps Dreamcast xBRZ-style choice to max texture upscale', () => {
-        expect(getTextureUpscalerCoreOptions('segaDC', 'xbrz')).toEqual({
+        expect(getTextureUpscalerCoreOptions('segaDC', 'xbrz')).toMatchObject({
           flycast_texupscale: '4x',
           flycast_mipmapping: 'enabled',
           flycast_dsp: 'enabled',
+          reicast_texupscale: '4x',
+          reicast_enable_dsp: 'enabled',
         });
       });
 

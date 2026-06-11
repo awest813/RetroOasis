@@ -87,10 +87,10 @@ describe('BIOS_REQUIREMENTS', () => {
     expect(fileNames).toContain('scph5502.bin');
   });
 
-  it('Dreamcast requires a boot BIOS alternative plus flash ROM', () => {
+  it('Dreamcast lists recommended boot and flash ROM files', () => {
     const dcReqs = BIOS_REQUIREMENTS['segaDC'];
     expect(dcReqs).toBeDefined();
-    expect(dcReqs!.every((r: BiosRequirement) => r.required)).toBe(true);
+    expect(dcReqs!.every((r: BiosRequirement) => !r.required)).toBe(true);
     const fileNames = dcReqs!.map((r: BiosRequirement) => r.fileName);
     expect(fileNames).toContain('dc_boot.bin');
     expect(fileNames).toContain('dreamdash.bin');
@@ -555,27 +555,15 @@ describe('BiosLibrary.isBiosReady', () => {
     expect(ready).toBe(true);
   });
 
-  it('returns false for Dreamcast when neither BIOS file is stored', async () => {
+  it('returns true for Dreamcast without BIOS because files are optional', async () => {
     const ready = await lib.isBiosReady('segaDC');
-    expect(ready).toBe(false);
+    expect(ready).toBe(true);
   });
 
-  it('returns false for Dreamcast when only dc_boot.bin is stored', async () => {
+  it('returns true for Dreamcast when only dc_boot.bin is stored', async () => {
     await lib.addBios(makeBiosFile('dc_boot.bin'), 'segaDC');
     const ready = await lib.isBiosReady('segaDC');
-    expect(ready).toBe(false);
-  });
-
-  it('returns false for Dreamcast when only dreamdash.bin is stored', async () => {
-    await lib.addBios(makeBiosFile('dreamdash.bin'), 'segaDC');
-    const ready = await lib.isBiosReady('segaDC');
-    expect(ready).toBe(false);
-  });
-
-  it('returns false for Dreamcast when only dc_flash.bin is stored', async () => {
-    await lib.addBios(makeBiosFile('dc_flash.bin'), 'segaDC');
-    const ready = await lib.isBiosReady('segaDC');
-    expect(ready).toBe(false);
+    expect(ready).toBe(true);
   });
 
   it('returns true for Dreamcast when BOTH dc_boot.bin and dc_flash.bin are stored', async () => {

@@ -863,6 +863,11 @@ async function main(): Promise<void> {
       } else {
         coreSettingsOverride.flycast_hle_bios = "enabled";
         coreSettingsOverride.reicast_hle_bios = "enabled";
+        showInfoToast(
+          "No Dreamcast BIOS found — using Flycast HLE boot. Add dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in Settings → System Files for better compatibility.",
+          "info",
+          { queue: true },
+        );
       }
     }
 

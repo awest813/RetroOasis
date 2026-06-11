@@ -2576,9 +2576,12 @@ describe('PSPEmulator', () => {
       expect(settings?.flycast_internal_resolution).toBe('640x480');
       expect(settings?.reicast_internal_resolution).toBe('640x480');
       expect(settings?.flycast_mipmapping).toBe('disabled');
+      expect(settings?.reicast_mipmapping).toBe('disabled');
       expect(settings?.flycast_enable_rttb).toBe('disabled');
+      expect(settings?.reicast_enable_rttb).toBe('disabled');
       expect(settings?.flycast_texupscale).toBe('disabled');
       expect(settings?.flycast_frame_skipping).toBe('enabled');
+      expect(settings?.reicast_frame_skipping).toBe('enabled');
       expect(emulator.diagnosticLog.some(e =>
         e.category === 'performance' && e.message.startsWith('DC WebGL clamp:')
       )).toBe(true);

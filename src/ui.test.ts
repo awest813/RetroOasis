@@ -4580,7 +4580,8 @@ describe("showError — BIOS error shows System Files action button", () => {
     showError("Dreamcast needs startup files (BIOS) before launch.");
 
     const errorText = document.getElementById("error-message")?.textContent ?? "";
-    expect(errorText).toContain("Dreamcast needs startup files");
+    expect(errorText).toContain("Dreamcast");
+    expect(errorText).toContain("HLE");
     expect(errorText).toContain("dc_boot.bin");
     expect(errorText).toContain("dc_flash.bin");
   });

@@ -15,6 +15,7 @@
  */
 
 import type { PerformanceTier } from "./performance.js";
+import { withDreamcastCoreAliases } from "./dreamcastCore.js";
 import { mergeLibretroCoreExtensions } from "./libretroCoreInfo.js";
 
 // ── System definition ─────────────────────────────────────────────────────────
@@ -1173,18 +1174,6 @@ const N3DS_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
 
 const DOS_TIER_SETTINGS = fixedCoreTierSettings("dosbox_pure");
 
-function withDreamcastCoreAliases(settings: Record<string, string>): Record<string, string> {
-  const aliases: Record<string, string> = {};
-  for (const [key, value] of Object.entries(settings)) {
-    if (key === "flycast_dsp") {
-      aliases.reicast_enable_dsp = value;
-    } else if (key.startsWith("flycast_")) {
-      aliases[`reicast_${key.slice("flycast_".length)}`] = value;
-    }
-  }
-  return { ...settings, ...aliases };
-}
-
 const DREAMCAST_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   low: {
     flycast_cable_type:            "VGA",
@@ -1613,12 +1602,12 @@ export const SYSTEMS: SystemInfo[] = [
     name: "Dreamcast",
     shortName: "DC",
     experimental: true,
-    stabilityNotice: "Experimental: Dreamcast (Flycast) support uses a bundled flycast-wasm v1.0.0 core and requires WebGL 2 plus Dreamcast boot/flash BIOS files.",
+    stabilityNotice: "Experimental: Dreamcast (Flycast) uses a bundled flycast-wasm v1.0.0 core and WebGL 2. Boot without BIOS via HLE, or add dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in System Files for better compatibility.",
     extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip", "dat", "lst"],
     color: "#e07b20",
     needsThreads: false,
     needsWebGL2: true,
-    needsBios: true,
+    needsBios: false,
     is3D: true,
     qualitySettings: DREAMCAST_TIER_SETTINGS.high,
     perfSettings: DREAMCAST_TIER_SETTINGS.low,

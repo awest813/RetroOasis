@@ -64,11 +64,11 @@ import {
   showMultiDiscPicker as showMultiDiscPickerImpl,
 } from "../modals.js";
 import { showError, showInfoToast } from "../toasts.js";
+import { isDreamcastGdiSelection } from "../../dreamcastCore.js";
 
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
-const DREAMCAST_GDI_TRACK_EXTS = new Set(["bin", "raw", "iso"]);
 const N3DS_PACKAGE_EXTS = new Set(["3ds", "3dsx", "z3dsx", "cci", "zcci", "cxi", "zcxi", "app", "elf", "axf"]);
 const LARGE_N3DS_ARCHIVE_ENTRY_BYTES = 512 * 1024 * 1024;
 
@@ -96,8 +96,7 @@ function parseM3U(content: string): string[] {
 }
 
 function isDreamcastGdiPackage(candidates: Array<{ name: string }>): boolean {
-  return candidates.some((candidate) => fileExt(candidate.name) === "gdi") &&
-    candidates.some((candidate) => DREAMCAST_GDI_TRACK_EXTS.has(fileExt(candidate.name)));
+  return isDreamcastGdiSelection(candidates);
 }
 
 function findLargeN3dsPackageEntry(candidates: Array<{ name: string; size: number }>): { name: string; size: number } | null {

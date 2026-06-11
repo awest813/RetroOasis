@@ -38,10 +38,12 @@ export function getSystemFeaturePills(
       tone: "neutral",
     });
   }
-  if (system.needsBios) {
+  if (system.needsBios || system.id === "segaDC") {
     pills.push({
       label: "BIOS",
-      title: `${system.name} needs system files for the best compatibility.`,
+      title: system.id === "segaDC"
+        ? "Dreamcast can boot without BIOS via HLE. Add boot and flash files in System Files for best compatibility."
+        : `${system.name} needs system files for the best compatibility.`,
       tone: "neutral",
     });
   }

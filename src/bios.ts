@@ -7,7 +7,7 @@
  * Known system startup files:
  *   PlayStation 1  — SCPH-5500 (NTSC-J) / SCPH-1001 / SCPH-5501 / SCPH-5502 (optional but improves compatibility)
  *   Sega Saturn    — sega_101.bin or mpr-17933.bin  (required)
- *   Dreamcast      — dc_boot.bin / dreamdash.bin plus dc_flash.bin (required by bundled Flycast)
+ *   Dreamcast      — dc_boot.bin / dreamdash.bin plus dc_flash.bin (recommended; HLE boot when absent)
  *   Atari Lynx     — lynxboot.img                   (optional)
  *
  * Schema
@@ -152,22 +152,22 @@ export const BIOS_REQUIREMENTS: Record<string, BiosRequirement[]> = {
     {
       fileName: "dc_boot.bin",
       displayName: "Dreamcast BIOS (dc_boot.bin)",
-      required: true,
+      required: false,
       group: "dc-boot",
-      description: "Official/retail SEGA Dreamcast BIOS boot ROM. Required by the bundled Flycast core; dump this from your own console.",
+      description: "Official/retail SEGA Dreamcast BIOS boot ROM. Recommended for best compatibility; dump this from your own console. Flycast can boot without it using HLE.",
     },
     {
       fileName: "dreamdash.bin",
       displayName: "DreamDash Custom BIOS (dreamdash.bin)",
-      required: true,
+      required: false,
       group: "dc-boot",
-      description: "DreamDash replacement boot ROM. Advanced alternative to dc_boot.bin; pair it with dc_flash.bin for Flycast.",
+      description: "DreamDash replacement boot ROM. Alternative to dc_boot.bin; pair it with dc_flash.bin for hardware-accurate Flycast boot.",
     },
     {
       fileName: "dc_flash.bin",
       displayName: "Dreamcast Flash ROM (dc_flash.bin)",
-      required: true,
-      description: "Dreamcast flash memory containing regional settings. Required alongside a boot ROM by the bundled Flycast core.",
+      required: false,
+      description: "Dreamcast flash memory containing regional settings. Recommended alongside a boot ROM; some titles need it for saves and region data.",
     },
   ],
   lynx: [
