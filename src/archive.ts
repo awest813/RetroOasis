@@ -21,6 +21,7 @@
  */
 
 import { ALL_EXTENSIONS } from "./systems.js";
+import { isLikelyIOS } from "./performance.js";
 import { readBlobAsArrayBuffer } from "./blobUtils.js";
 import { gunzipSync, inflateSync } from "fflate";
 import extract7zWorkerUrl from "../data/compression/extract7z.js?url";
@@ -217,22 +218,6 @@ function toUint8Array(value: unknown): Uint8Array | null {
 }
 
 /**
- * Returns true when running inside Mobile Safari, Chrome-on-iOS, or any
- * browser on iPadOS (all of which use WebKit and share the same constraints).
- *
- * Handles both classic iOS user-agents (`iP(hone|ad|od)`) and the iPadOS 13+
- * case where the browser reports itself as "Macintosh" but exposes touch
- * points — matching the same logic used by `isLikelyIOS()` in performance.ts.
- */
-function isIOSBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  if (/iP(hone|ad|od)/.test(navigator.userAgent)) return true;
-  // iPadOS 13+ reports as "Macintosh" but has touch hardware.
-  if (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints >= 1) return true;
-  return false;
-}
-
-/**
  * Android phone/tablet browsers — same tight RAM profile as iOS for large archives.
  */
 function isAndroidMobileBrowser(): boolean {
@@ -244,7 +229,7 @@ function isAndroidMobileBrowser(): boolean {
  * Use streaming ZIP/TAR walks and incremental decompress yields (not desktop-class RAM).
  */
 function useMobileArchiveMemoryOptimizations(): boolean {
-  return isIOSBrowser() || isAndroidMobileBrowser();
+  return isLikelyIOS() || isAndroidMobileBrowser();
 }
 
 function yieldToMain(): Promise<void> {
@@ -1534,7 +1519,7 @@ export async function extractFromArchive(
 
     case "7z":
     case "rar": {
-      if (isIOSBrowser()) {
+      if (isLikelyIOS()) {
         throw new Error(
           `${format.toUpperCase()} archives are not extracted on iPhone/iPad in this browser ` +
           "(memory limits and worker overhead make in-tab extraction unreliable). " +

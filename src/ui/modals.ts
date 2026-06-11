@@ -1,7 +1,10 @@
 import { formatBytes, type GameMetadata } from "../library.js";
 import type { ArchiveFormat } from "../archive.js";
+import type { DeviceCapabilities } from "../performance.js";
+import { detectCapabilitiesCached } from "../performance.js";
 import type { SystemInfo } from "../systems.js";
 import { getSystemById, getSystemFeatureSummary } from "../systems.js";
+import { threadedCoreBlockedReason } from "../safariCompat.js";
 import { createElement, trapFocus } from "./dom.js";
 import { isTopmostOverlay as isTopmostInStack, registerOverlay } from "./overlayStack.js";
 import type { RAProgress, SGDBAssets, IGDBMetadata, IGDBGenre, RAAchievement } from "../types/metadata.js";
@@ -142,6 +145,7 @@ export function pickSystem(
   fileName: string,
   candidates: SystemInfo[],
   subtitleText?: string,
+  deviceCaps?: DeviceCapabilities,
 ): Promise<SystemInfo | null> {
   return new Promise((resolve) => {
     const panel = document.getElementById("system-picker")!;
@@ -149,15 +153,28 @@ export function pickSystem(
     const subtitle = document.getElementById("system-picker-subtitle")!;
     const closeBtn = document.getElementById("system-picker-close")!;
     const backdrop = document.getElementById("system-picker-backdrop")!;
+    const caps = deviceCaps ?? detectCapabilitiesCached();
 
     subtitle.textContent = subtitleText ?? `The file "${fileName}" could belong to several systems. Choose one:`;
     list.innerHTML = "";
     const fragment = document.createDocumentFragment();
     const sorted = [...candidates].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
     for (const system of sorted) {
-      const btn = createElement("button", { class: "system-pick-btn", type: "button" });
-      wireSystemPickerRow(btn, system, { headline: system.name });
-      btn.addEventListener("click", () => close(system));
+      const blocked = system.needsThreads && caps.isIOS
+        ? threadedCoreBlockedReason(system, caps)
+        : null;
+      const btn = createElement("button", {
+        class: blocked ? "system-pick-btn system-pick-btn--blocked" : "system-pick-btn",
+        type: "button",
+        ...(blocked ? { disabled: "true", title: blocked } : {}),
+      }) as HTMLButtonElement;
+      wireSystemPickerRow(btn, system, {
+        headline: system.name,
+        metaLine: blocked
+          ? `${getSystemFeatureSummary(system).join(" • ")} • Not available on this device`
+          : undefined,
+      });
+      if (!blocked) btn.addEventListener("click", () => close(system));
       fragment.appendChild(btn);
     }
     list.appendChild(fragment);

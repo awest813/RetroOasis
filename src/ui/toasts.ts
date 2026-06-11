@@ -1,4 +1,5 @@
 import { ICON_CLOSE_X_SVG, INFO_TOAST_ICON_HTML } from "../chromeIcons.js";
+import { isLikelyIOS } from "../performance.js";
 
 const ERROR_DISMISS_TIMEOUT_MS = 12_000;
 let _errorDismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -43,12 +44,16 @@ function _clearToastDismissTimer(): void {
 
 function friendlyErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
+  if (isLikelyIOS() &&
+      (m.includes("sharedarraybuffer") || m.includes("cross-origin isolated") || m.includes("cross-origin isolation") || m.includes("worker threads"))) {
+    return "PSP, 3DS, and DOS games need multi-threaded emulation, which iPhone and iPad browsers do not support.\n\nUse a Mac or PC with Safari 17+ or Chrome, or choose a different system.";
+  }
   if ((m.includes("3ds") || m.includes("azahar") || m.includes("nintendo 3ds")) &&
       (m.includes("sharedarraybuffer") || m.includes("cross-origin isolated") || m.includes("cross-origin isolation"))) {
     return "3DS games need a special browser feature (SharedArrayBuffer) that isn't available here.\n\nTry reloading once the service worker activates, or use a desktop browser with cross-origin isolation enabled.";
   }
   if (m.includes("sharedarraybuffer") || m.includes("cross-origin isolated")) {
-    return "PSP games need a special browser feature (SharedArrayBuffer) that isn't available here.\n\nTry opening the page from the correct URL, or use a browser that supports HTTPS.";
+    return "PSP games need a special browser feature (SharedArrayBuffer) that isn't available here.\n\nTry reloading once the service worker activates, or use Safari 17+ / Chrome on desktop over HTTPS.";
   }
   if (m.includes("webassembly") || m.includes("wasm")) {
     return "Your browser doesn't support WebAssembly, which is required to run games.\n\nTry Chrome 90+, Firefox 90+, or Safari 15+.";
