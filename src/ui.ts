@@ -159,6 +159,8 @@ import {
   dismissGameOfTheDayForToday,
 } from "./ui/gameOfTheDay.js";
 import { refreshProfileHeaderChip } from "./ui/profileChip.js";
+import { getProfileManager } from "./profileManager.js";
+import { isGameVisibleForProfile } from "./profileGameTags.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {
@@ -1832,7 +1834,7 @@ export async function renderLibrary(
   _renderSystemFilterChips(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 
   // Apply filters and sort
-  const displayed = _applyLibraryFilters(allGames);
+  const displayed = _applyLibraryFilters(allGames, settings);
 
   const onboardingEl = document.getElementById("onboarding");
   updateLibraryLandingState({
@@ -2110,8 +2112,15 @@ export async function renderLibrary(
   }
 }
 
-function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
+function _applyLibraryFilters(games: GameMetadata[], settings: Settings): GameMetadata[] {
   let result = games;
+
+  if (settings.profileLibraryFilter) {
+    const profileId = getProfileManager().getActiveProfileId();
+    if (profileId) {
+      result = result.filter((g) => isGameVisibleForProfile(g.id, profileId, true));
+    }
+  }
 
   if (_librarySystemFilter) {
     result = result.filter(g => g.systemId === _librarySystemFilter);

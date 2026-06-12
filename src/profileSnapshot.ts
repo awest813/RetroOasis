@@ -94,6 +94,7 @@ export interface ProfileSnapshotV1 {
   settingsSubset: {
     libretroMatchingServerUrl: string;
     netplayUsername: string;
+    profileLibraryFilter: boolean;
   };
 }
 
@@ -134,6 +135,7 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
     settingsSubset: {
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
       netplayUsername: settings.netplayUsername,
+      profileLibraryFilter: settings.profileLibraryFilter,
     },
   };
 }
@@ -167,6 +169,9 @@ export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
   const subsetRec = subset as Record<string, unknown>;
   if (typeof subsetRec.libretroMatchingServerUrl !== "string" || typeof subsetRec.netplayUsername !== "string") {
     return "Profile settings subset is incomplete.";
+  }
+  if (typeof subsetRec.profileLibraryFilter !== "boolean") {
+    (subsetRec as { profileLibraryFilter?: boolean }).profileLibraryFilter = false;
   }
   const cloudSave = rec.cloudSave;
   if (!cloudSave || typeof cloudSave !== "object") return "Profile is missing save-sync metadata.";
@@ -202,6 +207,7 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
       cloudLibraries: structuredClone(snapshot.cloudLibraries),
       libretroMatchingServerUrl: snapshot.settingsSubset.libretroMatchingServerUrl ?? "",
       netplayUsername: snapshot.settingsSubset.netplayUsername ?? "",
+      profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,
     },
     apiKeyUpdates,
     oauth: snapshot.oauth,

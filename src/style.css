@@ -6913,6 +6913,22 @@ body.using-gamepad .game-card:focus {
   box-shadow: 0 0 0 2px var(--c-bg);
 }
 
+.profile-share-code {
+  width: 100%;
+  min-height: 120px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.profile-cloud-sync-row,
+.profile-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Cloud Library ─────────────────────────────────────────── */
 
 .cloud-library-section {

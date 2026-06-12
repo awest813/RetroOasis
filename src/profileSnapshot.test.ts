@@ -46,6 +46,7 @@ function makeSettings(): Settings {
     recordPlayHistory: true,
     dynamicResolutionScaling: true,
     uiScale: 1,
+    profileLibraryFilter: false,
   };
 }
 

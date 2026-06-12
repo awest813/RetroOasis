@@ -83,9 +83,10 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 
 ### Phase 3
 
-- [ ] QR / share link for profile transfer (encrypted payload only)
-- [ ] Sync profiles via user's own cloud save folder (opt-in)
-- [ ] Per-profile library filter (show only games tagged to profile)
+- [x] Encrypted share codes (`ro-profile:v1:` gzip + base64url) for copy/paste transfer
+- [x] Sync profiles via user's own cloud save folder (WebDAV/Nextcloud save sync; opt-in)
+- [x] Per-profile library filter (games tagged on import; untagged games remain shared)
+- [ ] QR rendering for small share codes (deferred — copy/paste is primary)
 
 ## API sketch (phase 2)
 

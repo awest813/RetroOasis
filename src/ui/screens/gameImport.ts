@@ -67,6 +67,8 @@ import { showError, showInfoToast } from "../toasts.js";
 import { isDreamcastGdiSelection } from "../../dreamcastCore.js";
 import { iosBlockedArchiveExtension, iosBlockedArchiveMessage } from "../../safariCompat.js";
 import { isLikelyIOS } from "../../performance.js";
+import { tagGameForProfile } from "../../profileGameTags.js";
+import { getProfileManager } from "../../profileManager.js";
 
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
@@ -560,6 +562,7 @@ export async function resolveSystemAndAddImpl(
       settings,
       `Game added to library: "${entry.name}" (id: ${entry.id}, system: ${entry.systemId})`,
     );
+    tagGameForProfile(entry.id, getProfileManager().getActiveProfileId());
     onRenderLibrary();
     if (!launchAfterImport) {
       hideLoadingOverlay();

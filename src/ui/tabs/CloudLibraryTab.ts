@@ -23,10 +23,20 @@ import { showCloudRomImporterDialog } from "../cloudRomImporter.js";
 import {
   serializeProfileSnapshot,
 } from "../../profileSnapshot.js";
-import { encryptProfileExport, parseProfileImportFile } from "../../profileCrypto.js";
+import { encryptProfileExport } from "../../profileCrypto.js";
+import { encodeProfileSharePayload, parseProfileImportPayload } from "../../profileShare.js";
+import {
+  canSyncProfilesViaCloudSave,
+  pushProfileIndexToCloud,
+  pullProfileIndexFromCloud,
+} from "../../profileCloudSync.js";
 import { PROFILE_COLOR_PRESETS } from "../../profileColors.js";
 import { getProfileManager } from "../../profileManager.js";
-import { showPassphraseDialog } from "../profileDialogs.js";
+import {
+  showPassphraseDialog,
+  showProfileShareDialog,
+  showProfileShareImportDialog,
+} from "../profileDialogs.js";
 import type { ApiKeyStore } from "../../apiKeyStore.js";
 import {
   CLOUD_LIBRARY_PROVIDERS,
@@ -477,6 +487,24 @@ function buildProfileSection(
   section.appendChild(manageRow);
   section.appendChild(colorRow);
 
+  const filterRow = make("div", { class: "settings-input-row profile-filter-row" });
+  const filterToggle = make("input", {
+    type: "checkbox",
+    id: "profile-library-filter",
+    class: "settings-toggle",
+    ...(settings.profileLibraryFilter ? { checked: "" } : {}),
+  }) as HTMLInputElement;
+  filterToggle.addEventListener("change", () => {
+    onSettingsChange({ profileLibraryFilter: filterToggle.checked });
+    document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
+  });
+  filterRow.append(
+    filterToggle,
+    make("label", { class: "settings-input-label", for: "profile-library-filter" },
+      "Filter library to active profile (plus shared untagged games)"),
+  );
+  section.appendChild(filterRow);
+
   const downloadProfileFile = (contents: string, baseName: string, extension: string) => {
     const blob = new Blob([contents], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -534,40 +562,81 @@ function buildProfileSection(
     style: "display:none",
   }) as HTMLInputElement;
 
+  const requestDecryptPassphrase = () =>
+    showPassphraseDialog({
+      title: "Decrypt profile",
+      body: "This file is encrypted. Enter the passphrase used when it was exported.",
+      confirmLabel: "Decrypt",
+    });
+
+  const applyImportedProfile = async (
+    parsed: import("../../profileSnapshot.js").ProfileSnapshotV1,
+    mode: "new" | "merge",
+  ) => {
+    if (mode === "merge") {
+      const mergeConfirmed = await showConfirmDialog(
+        `Replace the active profile "${pm.getActiveProfileName()}" with the imported cloud connections, API keys, and save-sync credentials? ` +
+        "Your current profile name will be kept.",
+        { title: "Merge into active profile?", confirmLabel: "Merge", isDanger: true },
+      );
+      if (!mergeConfirmed) return;
+      pm.importSnapshotIntoActive(parsed, deps);
+      renameInp.value = pm.getActiveProfileName();
+      showInfoToast(`Merged imported settings into "${pm.getActiveProfileName()}".`, "success");
+    } else {
+      const meta = pm.importSnapshotAsNewProfile(parsed, deps);
+      refreshProfileSelect();
+      renameInp.value = meta.name;
+      showInfoToast(`Imported profile "${meta.name}".`, "success");
+    }
+    rebuildTab();
+  };
+
   const handleProfileImport = (mode: "new" | "merge") => {
     void (async () => {
       const file = importInput.files?.[0];
       importInput.value = "";
       if (!file) return;
       const text = await file.text();
-      const parsed = await parseProfileImportFile(text, () =>
-        showPassphraseDialog({
-          title: "Decrypt profile",
-          body: "This file is encrypted. Enter the passphrase used when it was exported.",
-          confirmLabel: "Decrypt",
-        }),
-      );
+      const parsed = await parseProfileImportPayload(text, requestDecryptPassphrase);
       if (typeof parsed === "string") { showError(parsed); return; }
-
-      if (mode === "merge") {
-        const mergeConfirmed = await showConfirmDialog(
-          `Replace the active profile "${pm.getActiveProfileName()}" with the imported cloud connections, API keys, and save-sync credentials? ` +
-          "Your current profile name will be kept.",
-          { title: "Merge into active profile?", confirmLabel: "Merge", isDanger: true },
-        );
-        if (!mergeConfirmed) return;
-        pm.importSnapshotIntoActive(parsed, deps);
-        renameInp.value = pm.getActiveProfileName();
-        showInfoToast(`Merged imported settings into "${pm.getActiveProfileName()}".`, "success");
-      } else {
-        const meta = pm.importSnapshotAsNewProfile(parsed, deps);
-        refreshProfileSelect();
-        renameInp.value = meta.name;
-        showInfoToast(`Imported profile "${meta.name}".`, "success");
-      }
-      rebuildTab();
+      await applyImportedProfile(parsed, mode);
     })();
   };
+
+  const shareCodeBtn = make("button", { class: "btn btn--sm", type: "button" }, "Create share code") as HTMLButtonElement;
+  shareCodeBtn.addEventListener("click", () => {
+    void (async () => {
+      const profileId = profileSel.value || pm.getActiveProfileId();
+      const passphrase = await showPassphraseDialog({
+        title: "Encrypt share code",
+        body: "Choose a passphrase. The other device will need it to import this share code.",
+        confirmLabel: "Create code",
+        requireConfirm: true,
+      });
+      if (!passphrase) return;
+      const snapshot = pm.exportProfileSnapshot(profileId, deps);
+      if (!snapshot) { showError("Could not export the selected profile."); return; }
+      try {
+        const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), passphrase);
+        const shareCode = encodeProfileSharePayload(encrypted);
+        await showProfileShareDialog(shareCode);
+      } catch (err) {
+        showError(err instanceof Error ? err.message : "Could not create share code.");
+      }
+    })();
+  });
+
+  const importShareBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import share code") as HTMLButtonElement;
+  importShareBtn.addEventListener("click", () => {
+    void (async () => {
+      const code = await showProfileShareImportDialog();
+      if (!code) return;
+      const parsed = await parseProfileImportPayload(code, requestDecryptPassphrase);
+      if (typeof parsed === "string") { showError(parsed); return; }
+      await applyImportedProfile(parsed, "new");
+    })();
+  });
 
   const importNewBtn = make("button", { class: "btn btn--sm", type: "button" }, "Import as new") as HTMLButtonElement;
   importNewBtn.addEventListener("click", () => {
@@ -581,11 +650,67 @@ function buildProfileSection(
   });
 
   const fileRow = make("div", { class: "settings-input-row profile-snapshot-actions" });
-  fileRow.append(exportBtn, exportEncryptedBtn, importNewBtn, importMergeBtn, importInput);
+  fileRow.append(exportBtn, exportEncryptedBtn, shareCodeBtn, importNewBtn, importMergeBtn, importShareBtn, importInput);
   section.appendChild(fileRow);
   section.appendChild(make("p", { class: "settings-help" },
-    "Export uses the profile selected above. Encrypted exports (.retroprofile) require a passphrase on import. " +
+    "Export uses the profile selected above. Share codes are encrypted for copy/paste transfer between devices. " +
     "Import as new creates a separate slot; merge replaces credentials on the active profile."));
+
+  const cloudSyncRow = make("div", { class: "settings-input-row profile-cloud-sync-row" });
+  const pushCloudBtn = make("button", { class: "btn btn--sm", type: "button" }, "Upload to save sync") as HTMLButtonElement;
+  const mergeCloudBtn = make("button", { class: "btn btn--sm", type: "button" }, "Merge from save sync") as HTMLButtonElement;
+  const replaceCloudBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Replace from save sync") as HTMLButtonElement;
+  const cloudSyncHelp = make("p", { class: "settings-help" },
+    canSyncProfilesViaCloudSave()
+      ? "Back up all profile slots to your save-sync folder (WebDAV/Nextcloud)."
+      : "Connect save sync via WebDAV or Nextcloud to back up profile slots to the cloud.");
+
+  if (!canSyncProfilesViaCloudSave()) {
+    pushCloudBtn.disabled = true;
+    mergeCloudBtn.disabled = true;
+    replaceCloudBtn.disabled = true;
+  }
+
+  pushCloudBtn.addEventListener("click", () => {
+    void (async () => {
+      pushCloudBtn.disabled = true;
+      const err = await pushProfileIndexToCloud(pm.exportProfileIndexRaw());
+      pushCloudBtn.disabled = false;
+      if (err) showError(err);
+      else showInfoToast("Profiles uploaded to save sync.", "success");
+    })();
+  });
+
+  const downloadProfilesFromCloud = (mode: "merge" | "replace") => {
+    void (async () => {
+      if (mode === "replace") {
+        const confirmed = await showConfirmDialog(
+          "Replace all local profiles with the cloud copy?",
+          { title: "Replace local profiles?", confirmLabel: "Replace", isDanger: true },
+        );
+        if (!confirmed) return;
+      }
+      mergeCloudBtn.disabled = true;
+      replaceCloudBtn.disabled = true;
+      const remote = await pullProfileIndexFromCloud();
+      mergeCloudBtn.disabled = !canSyncProfilesViaCloudSave();
+      replaceCloudBtn.disabled = !canSyncProfilesViaCloudSave();
+      if (!remote) { showError("No profile backup found in save sync."); return; }
+      const err = pm.importProfileIndexRaw(remote, mode, deps);
+      if (err) showError(err);
+      else {
+        showInfoToast(mode === "merge" ? "Merged profiles from save sync." : "Replaced local profiles from save sync.", "success");
+        rebuildTab();
+      }
+    })();
+  };
+
+  mergeCloudBtn.addEventListener("click", () => downloadProfilesFromCloud("merge"));
+  replaceCloudBtn.addEventListener("click", () => downloadProfilesFromCloud("replace"));
+
+  cloudSyncRow.append(pushCloudBtn, mergeCloudBtn, replaceCloudBtn);
+  section.appendChild(cloudSyncRow);
+  section.appendChild(cloudSyncHelp);
 
   void appName;
   return section;

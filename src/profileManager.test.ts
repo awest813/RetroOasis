@@ -30,6 +30,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     recordPlayHistory: true,
     dynamicResolutionScaling: true,
     uiScale: 1,
+    profileLibraryFilter: false,
     ...overrides,
   };
 }
@@ -160,6 +161,22 @@ describe("ProfileManager", () => {
     pm.setActiveProfileColor("#ff375f");
     expect(pm.getActiveProfileColor()).toBe("#ff375f");
     expect(storage.getItem(PROFILE_INDEX_STORAGE_KEY)).toContain("#ff375f");
+  });
+
+  it("merges a remote profile index", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const localRaw = pm.exportProfileIndexRaw();
+
+    const remote = JSON.parse(localRaw) as { version: number; activeId: string; profiles: Record<string, unknown> };
+    remote.profiles["remote-id"] = {
+      meta: { id: "remote-id", name: "Remote", createdAt: 1, updatedAt: 1, color: "#5b8def" },
+      snapshot: pm.exportActiveSnapshot(deps),
+    };
+    const err = pm.importProfileIndexRaw(JSON.stringify(remote), "merge");
+    expect(err).toBeNull();
+    expect(pm.listProfiles().some((p) => p.id === "remote-id")).toBe(true);
   });
 
   it("exports a stored profile without switching", () => {

@@ -346,6 +346,64 @@ export class ProfileManager {
     return structuredClone(stored.snapshot);
   }
 
+  exportProfileIndexRaw(): string {
+    return JSON.stringify(this.index);
+  }
+
+  /**
+   * Replace or merge a remote profile index into local storage.
+   * Merge keeps existing slots and adds profiles whose ids are not present locally.
+   */
+  importProfileIndexRaw(raw: string, mode: "replace" | "merge", deps?: ProfileApplyDeps): string | null {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return "Remote profile index is not valid JSON.";
+    }
+    if (!parsed || typeof parsed !== "object") return "Remote profile index is empty.";
+    const rec = parsed as ProfileIndexV1;
+    if (rec.version !== 1 || !rec.profiles || typeof rec.profiles !== "object") {
+      return "Unsupported remote profile index version.";
+    }
+
+    if (mode === "replace") {
+      this.index = {
+        version: 1,
+        activeId: typeof rec.activeId === "string" ? rec.activeId : "",
+        profiles: rec.profiles,
+      };
+    } else {
+      for (const [id, stored] of Object.entries(rec.profiles)) {
+        if (!this.index.profiles[id]) {
+          this.index.profiles[id] = stored;
+        }
+      }
+      if (!this.index.activeId && typeof rec.activeId === "string" && this.index.profiles[rec.activeId]) {
+        this.index.activeId = rec.activeId;
+      }
+    }
+
+    this.ensureProfileColors();
+    if (!this.index.activeId || !this.index.profiles[this.index.activeId]) {
+      this.index.activeId = Object.keys(this.index.profiles)[0] ?? "";
+    }
+    this.persist();
+    if (deps) {
+      const active = this.index.profiles[this.index.activeId];
+      if (active) {
+        this.switching = true;
+        try {
+          this.applySnapshot(active.snapshot, deps);
+        } finally {
+          this.switching = false;
+        }
+      }
+    }
+    this.emitChanged();
+    return null;
+  }
+
   private emitChanged(): void {
     if (typeof document === "undefined") return;
     document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.profileChanged));

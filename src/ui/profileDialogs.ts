@@ -102,3 +102,109 @@ export function showPassphraseDialog(opts: PassphraseDialogOpts): Promise<string
     passInp.focus();
   });
 }
+
+/** Show a copyable profile share code (encrypted payload). */
+export function showProfileShareDialog(shareCode: string): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = make("div", { class: "confirm-overlay" });
+    const box = make("div", {
+      class: "confirm-box",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Profile share code",
+    });
+    box.appendChild(make("h3", { class: "confirm-title" }, "Profile share code"));
+    box.appendChild(make("p", { class: "confirm-body" },
+      "Copy this code and paste it on another device using Import share code. " +
+      "It contains encrypted credentials — share only with people you trust."));
+
+    const codeArea = make("textarea", {
+      class: "settings-input profile-share-code",
+      readonly: "true",
+      rows: "6",
+      "aria-label": "Profile share code",
+    }) as HTMLTextAreaElement;
+    codeArea.value = shareCode;
+    box.appendChild(codeArea);
+
+    const footer = make("div", { class: "confirm-footer" });
+    const btnCopy = make("button", { class: "btn btn--primary", type: "button" }, "Copy code") as HTMLButtonElement;
+    const btnClose = make("button", { class: "btn", type: "button" }, "Close") as HTMLButtonElement;
+    footer.append(btnCopy, btnClose);
+    box.appendChild(footer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    let detachFromStack: (() => void) | null = null;
+    const close = () => {
+      detachFromStack?.();
+      detachFromStack = null;
+      overlay.classList.remove("confirm-overlay--visible");
+      setTimeout(() => overlay.remove(), 200);
+      resolve();
+    };
+
+    detachFromStack = registerOverlay({ element: overlay, close });
+    btnClose.addEventListener("click", close);
+    btnCopy.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(shareCode).then(() => {
+        btnCopy.textContent = "Copied";
+        setTimeout(() => { btnCopy.textContent = "Copy code"; }, 1500);
+      }).catch(() => {
+        codeArea.focus();
+        codeArea.select();
+      });
+    });
+    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
+    codeArea.focus();
+  });
+}
+
+/** Paste a profile share code for import. */
+export function showProfileShareImportDialog(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const overlay = make("div", { class: "confirm-overlay" });
+    const box = make("div", {
+      class: "confirm-box",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Import profile share code",
+    });
+    box.appendChild(make("h3", { class: "confirm-title" }, "Import share code"));
+    box.appendChild(make("p", { class: "confirm-body" }, "Paste a ro-profile share code from another device."));
+
+    const codeArea = make("textarea", {
+      class: "settings-input profile-share-code",
+      rows: "6",
+      placeholder: "ro-profile:v1:…",
+      "aria-label": "Paste profile share code",
+    }) as HTMLTextAreaElement;
+
+    const footer = make("div", { class: "confirm-footer" });
+    const btnCancel = make("button", { class: "btn", type: "button" }, "Cancel") as HTMLButtonElement;
+    const btnImport = make("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
+    footer.append(btnCancel, btnImport);
+    box.append(codeArea, footer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    let detachFromStack: (() => void) | null = null;
+    const close = (value: string | null) => {
+      detachFromStack?.();
+      detachFromStack = null;
+      overlay.classList.remove("confirm-overlay--visible");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(value);
+    };
+
+    detachFromStack = registerOverlay({ element: overlay, close: () => close(null) });
+    btnCancel.addEventListener("click", () => close(null));
+    btnImport.addEventListener("click", () => {
+      const value = codeArea.value.trim();
+      if (!value) return;
+      close(value);
+    });
+    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
+    codeArea.focus();
+  });
+}
