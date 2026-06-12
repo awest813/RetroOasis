@@ -4,14 +4,15 @@
  * This is the first step toward a full profile system. See docs/PROFILE_SYSTEM_PLAN.md.
  */
 
-import type { Settings, CloudLibraryConnection } from "./types/settings.js";
+import type { Settings, CloudLibraryConnection, CloudProviderId } from "./types/settings.js";
 import type { ApiKeyStore } from "./apiKeyStore.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
+import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import {
   pickDisplayPrefs,
   displayPrefsToSettingsPatch,
-  parseDisplayPrefs,
+  resolveDisplayPrefs,
   type ProfileDisplayPrefs,
 } from "./profileDisplayPrefs.js";
 
@@ -153,20 +154,63 @@ export function serializeProfileSnapshot(snapshot: ProfileSnapshotV1): string {
   return JSON.stringify(snapshot, null, 2);
 }
 
-export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return "Profile file is not valid JSON.";
+const VALID_CLOUD_PROVIDERS = new Set<CloudProviderId>([
+  "gdrive", "dropbox", "onedrive", "pcloud", "webdav", "blomp", "box", "nextcloud", "mega",
+]);
+
+export function sanitizeCloudLibraries(raw: unknown): CloudLibraryConnection[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CloudLibraryConnection[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    if (typeof rec.id !== "string" || !rec.id.trim()) continue;
+    if (typeof rec.provider !== "string" || !VALID_CLOUD_PROVIDERS.has(rec.provider as CloudProviderId)) continue;
+    if (typeof rec.name !== "string" || typeof rec.config !== "string") continue;
+    if (parseCloudLibraryConnectionConfig(rec.config) === null) continue;
+    out.push({
+      id: rec.id.trim().slice(0, 128),
+      provider: rec.provider as CloudProviderId,
+      name: rec.name.trim().slice(0, 200) || rec.provider,
+      enabled: rec.enabled !== false,
+      config: rec.config,
+    });
   }
-  if (!parsed || typeof parsed !== "object") return "Profile file is empty or malformed.";
-  const rec = parsed as Record<string, unknown>;
+  return out;
+}
+
+export function sanitizeApiKeys(raw: unknown): ProfileSnapshotV1["apiKeys"] {
+  if (!raw || typeof raw !== "object") return {};
+  const out: ProfileSnapshotV1["apiKeys"] = {};
+  for (const [providerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^[a-z0-9_-]{1,64}$/i.test(providerId)) continue;
+    if (!value || typeof value !== "object") continue;
+    const rec = value as Record<string, unknown>;
+    if (typeof rec.key !== "string" || !rec.key) continue;
+    out[providerId] = {
+      key: rec.key.slice(0, 4096),
+      enabled: rec.enabled !== false,
+    };
+  }
+  return out;
+}
+
+export function sanitizeCloudSaveStorage(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const key of CLOUD_SAVE_STORAGE_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== "string" || !value) continue;
+    out[key] = value.slice(0, 65_536);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Normalize an already-parsed snapshot object (import / cloud index validation). */
+export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileSnapshotV1 | string {
   if (rec.version !== PROFILE_SNAPSHOT_VERSION) {
     return `Unsupported profile version: ${String(rec.version)}`;
   }
-  if (!Array.isArray(rec.cloudLibraries)) return "Profile is missing cloud library connections.";
-  if (!rec.apiKeys || typeof rec.apiKeys !== "object") return "Profile is missing API key data.";
   const oauth = rec.oauth;
   if (!oauth || typeof oauth !== "object") return "Profile is missing OAuth app settings.";
   const oauthRec = oauth as Record<string, unknown>;
@@ -179,12 +223,45 @@ export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
   if (typeof subsetRec.libretroMatchingServerUrl !== "string" || typeof subsetRec.netplayUsername !== "string") {
     return "Profile settings subset is incomplete.";
   }
-  if (typeof subsetRec.profileLibraryFilter !== "boolean") {
-    (subsetRec as { profileLibraryFilter?: boolean }).profileLibraryFilter = false;
-  }
   const cloudSave = rec.cloudSave;
   if (!cloudSave || typeof cloudSave !== "object") return "Profile is missing save-sync metadata.";
-  return rec as ProfileSnapshotV1;
+  const cloudSaveRec = cloudSave as Record<string, unknown>;
+  const providerId = typeof cloudSaveRec.providerId === "string" ? cloudSaveRec.providerId.slice(0, 64) : "";
+  const connected = cloudSaveRec.connected === true;
+
+  const name = typeof rec.name === "string" ? rec.name.trim().slice(0, 120) || "Imported profile" : "Imported profile";
+  const exportedAt = typeof rec.exportedAt === "number" && Number.isFinite(rec.exportedAt) ? rec.exportedAt : Date.now();
+
+  return {
+    version: PROFILE_SNAPSHOT_VERSION,
+    name,
+    exportedAt,
+    cloudLibraries: sanitizeCloudLibraries(rec.cloudLibraries),
+    apiKeys: sanitizeApiKeys(rec.apiKeys),
+    oauth: {
+      googleClientId: oauthRec.googleClientId.slice(0, 512),
+      dropboxAppKey: oauthRec.dropboxAppKey.slice(0, 512),
+    },
+    cloudSave: { providerId, connected },
+    cloudSaveStorage: sanitizeCloudSaveStorage(rec.cloudSaveStorage),
+    settingsSubset: {
+      libretroMatchingServerUrl: subsetRec.libretroMatchingServerUrl.slice(0, 2048),
+      netplayUsername: subsetRec.netplayUsername.slice(0, 64),
+      profileLibraryFilter: subsetRec.profileLibraryFilter === true,
+      displayPrefs: resolveDisplayPrefs(subsetRec.displayPrefs),
+    },
+  };
+}
+
+export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "Profile file is not valid JSON.";
+  }
+  if (!parsed || typeof parsed !== "object") return "Profile file is empty or malformed.";
+  return normalizeProfileSnapshot(parsed as Record<string, unknown>);
 }
 
 export interface ApplyProfileSnapshotResult {
@@ -211,13 +288,15 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
     });
   }
 
+  const displayPrefs = resolveDisplayPrefs(snapshot.settingsSubset.displayPrefs);
+
   return {
     settingsPatch: {
       cloudLibraries: structuredClone(snapshot.cloudLibraries),
       libretroMatchingServerUrl: snapshot.settingsSubset.libretroMatchingServerUrl ?? "",
       netplayUsername: snapshot.settingsSubset.netplayUsername ?? "",
       profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,
-      ...displayPrefsToSettingsPatch(parseDisplayPrefs(snapshot.settingsSubset.displayPrefs)),
+      ...displayPrefsToSettingsPatch(displayPrefs),
     },
     apiKeyUpdates,
     oauth: snapshot.oauth,

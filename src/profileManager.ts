@@ -14,8 +14,10 @@ import {
   applyProfileSnapshot,
   restoreCloudSaveStorage,
   syncApiKeyStoreFromSnapshot,
+  normalizeProfileSnapshot,
   type ProfileSnapshotV1,
 } from "./profileSnapshot.js";
+import { pruneProfileGameTags } from "./profileGameTags.js";
 import { setGoogleClientId, setDropboxAppKey } from "./oauthPopup.js";
 import { isValidProfileColor, pickDefaultProfileColor } from "./profileColors.js";
 
@@ -111,10 +113,13 @@ export class ProfileManager {
     if (changed) this.persist();
   }
 
-  private persist(): void {
+  private persist(): string | null {
     try {
       this.storage.setItem(PROFILE_INDEX_STORAGE_KEY, JSON.stringify(this.index));
-    } catch { /* quota */ }
+      return null;
+    } catch {
+      return "Could not save profiles — browser storage may be full.";
+    }
   }
 
   /** Create a default profile from the current browser state on first run. */
@@ -198,13 +203,13 @@ export class ProfileManager {
     if (id === this.index.activeId) this.emitChanged();
   }
 
-  saveActiveSnapshot(deps: ProfileApplyDeps): void {
+  saveActiveSnapshot(deps: ProfileApplyDeps): string | null {
     const active = this.index.profiles[this.index.activeId];
-    if (!active) return;
+    if (!active) return null;
     const name = active.meta.name;
     active.snapshot = buildProfileSnapshot({ name, settings: deps.settings, apiKeyStore: deps.apiKeyStore });
     active.meta.updatedAt = Date.now();
-    this.persist();
+    return this.persist();
   }
 
   scheduleAutoSave(deps: ProfileApplyDeps): void {
@@ -214,6 +219,17 @@ export class ProfileManager {
       this.autoSaveTimer = null;
       this.saveActiveSnapshot(deps);
     }, AUTO_SAVE_DEBOUNCE_MS);
+  }
+
+  /** Cancel any pending debounced save and persist the active profile immediately. */
+  flushAutoSave(deps: ProfileApplyDeps): string | null {
+    if (this.autoSaveTimer !== null) {
+      globalThis.clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    if (this.switching || !this.index.activeId) return null;
+    this.saveActiveSnapshot(deps);
+    return null;
   }
 
   createProfile(name: string, deps: ProfileApplyDeps): ProfileMeta {
@@ -253,6 +269,7 @@ export class ProfileManager {
     if (!this.index.profiles[id]) return false;
     const wasActive = this.index.activeId === id;
     delete this.index.profiles[id];
+    pruneProfileGameTags(id);
     if (wasActive) {
       this.index.activeId = Object.keys(this.index.profiles)[0] ?? "";
       if (deps && this.index.activeId) {
@@ -293,7 +310,13 @@ export class ProfileManager {
       const id = createUuid();
       const now = Date.now();
       const name = snapshot.name.trim() || "Imported profile";
-      const meta: ProfileMeta = { id, name, createdAt: now, updatedAt: now };
+      const meta: ProfileMeta = {
+        id,
+        name,
+        createdAt: now,
+        updatedAt: now,
+        color: pickDefaultProfileColor(Object.keys(this.index.profiles).length),
+      };
       this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
       this.index.activeId = id;
       this.applySnapshot(snapshot, deps);
@@ -354,6 +377,39 @@ export class ProfileManager {
    * Replace or merge a remote profile index into local storage.
    * Merge keeps existing slots and adds profiles whose ids are not present locally.
    */
+  private normalizeStoredProfile(stored: unknown): StoredProfile | null {
+    if (!stored || typeof stored !== "object") return null;
+    const rec = stored as Record<string, unknown>;
+    const meta = rec.meta;
+    if (!meta || typeof meta !== "object") return null;
+    const metaRec = meta as Record<string, unknown>;
+    if (typeof metaRec.id !== "string" || !metaRec.id.trim()) return null;
+    if (typeof metaRec.name !== "string" || !metaRec.name.trim()) return null;
+    const createdAt = typeof metaRec.createdAt === "number" && Number.isFinite(metaRec.createdAt)
+      ? metaRec.createdAt
+      : Date.now();
+    const updatedAt = typeof metaRec.updatedAt === "number" && Number.isFinite(metaRec.updatedAt)
+      ? metaRec.updatedAt
+      : createdAt;
+    const snapshotRaw = rec.snapshot;
+    if (!snapshotRaw || typeof snapshotRaw !== "object") return null;
+    const normalized = normalizeProfileSnapshot(snapshotRaw as Record<string, unknown>);
+    if (typeof normalized === "string") return null;
+    const profileMeta: ProfileMeta = {
+      id: metaRec.id.trim().slice(0, 128),
+      name: metaRec.name.trim().slice(0, 120),
+      createdAt,
+      updatedAt,
+    };
+    if (typeof metaRec.color === "string" && isValidProfileColor(metaRec.color)) {
+      profileMeta.color = metaRec.color;
+    }
+    return {
+      meta: profileMeta,
+      snapshot: { ...normalized, name: profileMeta.name },
+    };
+  }
+
   importProfileIndexRaw(raw: string, mode: "replace" | "merge", deps?: ProfileApplyDeps): string | null {
     let parsed: unknown;
     try {
@@ -367,14 +423,27 @@ export class ProfileManager {
       return "Unsupported remote profile index version.";
     }
 
+    const normalizedProfiles: Record<string, StoredProfile> = {};
+    for (const [id, stored] of Object.entries(rec.profiles)) {
+      const normalized = this.normalizeStoredProfile(stored);
+      if (!normalized) continue;
+      normalizedProfiles[id] = normalized;
+    }
+    if (Object.keys(normalizedProfiles).length === 0) {
+      return "Remote profile index contains no valid profiles.";
+    }
+
     if (mode === "replace") {
+      const activeId = typeof rec.activeId === "string" && normalizedProfiles[rec.activeId]
+        ? rec.activeId
+        : Object.keys(normalizedProfiles)[0] ?? "";
       this.index = {
         version: 1,
-        activeId: typeof rec.activeId === "string" ? rec.activeId : "",
-        profiles: rec.profiles,
+        activeId,
+        profiles: normalizedProfiles,
       };
     } else {
-      for (const [id, stored] of Object.entries(rec.profiles)) {
+      for (const [id, stored] of Object.entries(normalizedProfiles)) {
         if (!this.index.profiles[id]) {
           this.index.profiles[id] = stored;
         }
@@ -388,7 +457,8 @@ export class ProfileManager {
     if (!this.index.activeId || !this.index.profiles[this.index.activeId]) {
       this.index.activeId = Object.keys(this.index.profiles)[0] ?? "";
     }
-    this.persist();
+    const persistErr = this.persist();
+    if (persistErr) return persistErr;
     if (deps) {
       const active = this.index.profiles[this.index.activeId];
       if (active) {

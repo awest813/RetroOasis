@@ -5,6 +5,7 @@ import {
   isGameTaggedToAnyProfile,
   isGameVisibleForProfile,
   readProfileGameTags,
+  pruneProfileGameTags,
   PROFILE_GAME_TAGS_KEY,
 } from "./profileGameTags.js";
 
@@ -46,5 +47,11 @@ describe("profileGameTags", () => {
 
   it("reads empty index when storage is missing", () => {
     expect(readProfileGameTags(null)).toEqual({});
+  });
+
+  it("prunes tags for a deleted profile", () => {
+    tagGameForProfile("game-1", "gone", storage);
+    pruneProfileGameTags("gone", storage);
+    expect(getTaggedGameIds("gone", storage).size).toBe(0);
   });
 });

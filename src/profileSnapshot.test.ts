@@ -10,6 +10,7 @@ import {
   CLOUD_SAVE_STORAGE_KEYS,
   PROFILE_SNAPSHOT_VERSION,
 } from "./profileSnapshot.js";
+import { DEFAULT_DISPLAY_PREFS } from "./profileDisplayPrefs.js";
 import { ApiKeyStore } from "./apiKeyStore.js";
 import type { Settings } from "./types/settings.js";
 
@@ -109,6 +110,40 @@ describe("profileSnapshot", () => {
     expect(ls.getItem(CLOUD_SAVE_STORAGE_KEYS[0]!)).toBe("restored");
     expect(ls.getItem(CLOUD_SAVE_STORAGE_KEYS[1]!)).toBeNull();
     vi.unstubAllGlobals();
+  });
+
+  it("sanitizes malformed cloud libraries and api keys on import", () => {
+    const store = new ApiKeyStore({ providers: [] });
+    const snapshot = buildProfileSnapshot({ settings: makeSettings(), apiKeyStore: store });
+    const raw = JSON.parse(serializeProfileSnapshot(snapshot)) as Record<string, unknown>;
+    raw.cloudLibraries = [
+      { id: "ok", provider: "gdrive", name: "Good", enabled: true, config: '{"accessToken":"tok"}' },
+      { id: "bad-provider", provider: "not-real", name: "Bad", enabled: true, config: "{}" },
+      { id: "bad-config", provider: "gdrive", name: "Bad", enabled: true, config: "not-json" },
+    ];
+    raw.apiKeys = {
+      rawg: { key: "secret", enabled: true },
+      "bad id!": { key: "drop", enabled: true },
+      empty: { key: "", enabled: true },
+    };
+    const parsed = parseProfileSnapshot(JSON.stringify(raw));
+    expect(typeof parsed).not.toBe("string");
+    if (typeof parsed === "string") return;
+    expect(parsed.cloudLibraries).toHaveLength(1);
+    expect(parsed.cloudLibraries[0]?.id).toBe("ok");
+    expect(parsed.apiKeys).toEqual({ rawg: { key: "secret", enabled: true } });
+  });
+
+  it("resets display prefs to defaults when snapshot omits displayPrefs", () => {
+    const store = new ApiKeyStore({ providers: [] });
+    const snapshot = buildProfileSnapshot({
+      settings: { ...makeSettings(), uiScale: 1.5, showFPS: true },
+      apiKeyStore: store,
+    });
+    delete snapshot.settingsSubset.displayPrefs;
+    const applied = applyProfileSnapshot(snapshot);
+    expect(applied.settingsPatch.uiScale).toBe(DEFAULT_DISPLAY_PREFS.uiScale);
+    expect(applied.settingsPatch.showFPS).toBe(DEFAULT_DISPLAY_PREFS.showFPS);
   });
 
   it("syncApiKeyStoreFromSnapshot removes keys absent from the snapshot", () => {

@@ -18,7 +18,7 @@ unifies them into named, portable bundles.
 | Cloud library connections | `Settings.cloudLibraries` | Yes |
 | Cover-art / metadata API keys | `retro-oasis.apiKeys` localStorage | Yes |
 | Google / Dropbox OAuth app IDs | `cloudAuth` localStorage keys | Yes |
-| Save sync provider choice | `CloudSaveManager` + per-provider keys | Metadata only (reconnect required) |
+| Save sync provider choice | `CloudSaveManager` + per-provider keys | Metadata + credential blobs (`cloudSaveStorage`); auto-connect on switch |
 | Netplay username, libretro matching URL | `Settings` | Subset yes |
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
 | Performance / display preferences | `Settings` | Yes (`settingsSubset.displayPrefs`) |
@@ -54,15 +54,18 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 1. User selects profile B in Settings.
 2. `ProfileManager` serializes current profile A (optional auto-save).
 3. Applies profile B snapshot to Settings, ApiKeyStore, OAuth IDs.
-4. Dispatches `profile-changed` event; UI rebuilds cloud tabs and Connections.
-5. Save sync shows "Reconnect" if provider metadata differs from live connection.
+4. Dispatches `profile-changed` event; UI rebuilds cloud tabs, library filter toggle, and header chip.
+5. Restores save-sync credential blobs and attempts auto-connect; manual reconnect may still be needed for some providers.
+6. Applies `displayPrefs` from the snapshot, or baseline defaults when absent (prevents volume/UI bleed between profiles).
 
 ## Security considerations
 
 - **Plaintext JSON export** remains available; file should be treated like a password manager backup.
 - **Optional passphrase encryption** (PBKDF2 + AES-GCM, `.retroprofile` files) is available from Settings → Cloud Library → Profiles.
 - Never upload profiles to RetroOasis servers; export stays on the user's machine.
-- Import validates schema version and sanitizes provider IDs before apply.
+- Import validates schema version; cloud libraries, API keys, and display prefs are sanitized before apply.
+- Encrypted imports cap PBKDF2 iterations to prevent DoS from untrusted files.
+- Profile index cloud sync flushes debounced auto-save before upload.
 
 ## Implementation phases
 
@@ -85,7 +88,7 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 
 - [x] Encrypted share codes (`ro-profile:v1:` gzip + base64url) for copy/paste transfer
 - [x] Sync profiles via user's own cloud save folder (WebDAV/Nextcloud save sync; opt-in)
-- [x] Per-profile library filter (games tagged on import; untagged games remain shared)
+- [x] Per-profile library filter (games tagged on local/cloud import; untagged games remain shared; tags pruned on profile delete)
 - [x] QR rendering for compact share codes + optional camera scan on import
 - [x] Save-sync profile backup for Google Drive and Dropbox (in addition to WebDAV/Nextcloud)
 
@@ -118,8 +121,14 @@ class ProfileManager {
 - UI tests: export button produces downloadable JSON; import applies `cloudLibraries` count.
 - Manual: import on second browser profile, verify Connections tab and Cloud Library sources.
 
+## Library filter semantics
+
+- Game tags live in `retro-oasis.profile.gameTags` (global, not embedded in snapshots).
+- When **Filter library to active profile** is enabled, the library shows games tagged to the active profile plus any untagged games (shared household library).
+- Games imported locally or from cloud ROM import are tagged to the active profile at import time.
+
 ## Open questions
 
-1. Should switching profiles clear the visible game library or only cloud-indexed entries?
-2. Should kids' profiles hide Connections / Cloud Library settings?
-3. Default encryption off vs on for exports?
+1. Should kids' profiles hide Connections / Cloud Library settings?
+2. Default encryption off vs on for exports?
+3. Should game tags be included in profile export/import?

@@ -4,6 +4,8 @@ import {
   pickDisplayPrefs,
   displayPrefsToSettingsPatch,
   parseDisplayPrefs,
+  resolveDisplayPrefs,
+  DEFAULT_DISPLAY_PREFS,
 } from "./profileDisplayPrefs.js";
 import { buildProfileSnapshot, applyProfileSnapshot } from "./profileSnapshot.js";
 import { ApiKeyStore } from "./apiKeyStore.js";
@@ -60,5 +62,20 @@ describe("profileDisplayPrefs", () => {
     const prefs = parseDisplayPrefs(pickDisplayPrefs(makeSettings()));
     expect(prefs?.libraryLayout).toBe("list");
     expect(displayPrefsToSettingsPatch(prefs).uiMode).toBe("lite");
+  });
+
+  it("resolveDisplayPrefs falls back to defaults when missing", () => {
+    expect(resolveDisplayPrefs(undefined)).toEqual(DEFAULT_DISPLAY_PREFS);
+    expect(resolveDisplayPrefs({ volume: "bad" })).toEqual(DEFAULT_DISPLAY_PREFS);
+  });
+
+  it("parseDisplayPrefs clamps volume and uiScale", () => {
+    const prefs = parseDisplayPrefs({
+      ...pickDisplayPrefs(makeSettings()),
+      volume: 2,
+      uiScale: 3,
+    });
+    expect(prefs?.volume).toBe(1);
+    expect(prefs?.uiScale).toBe(2);
   });
 });

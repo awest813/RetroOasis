@@ -10,6 +10,8 @@ import { parseProfileSnapshot } from "./profileSnapshot.js";
 export const ENCRYPTED_PROFILE_FORMAT = "retro-oasis-profile-encrypted" as const;
 export const ENCRYPTED_PROFILE_VERSION = 1 as const;
 export const PROFILE_KDF_ITERATIONS = 250_000;
+/** Reject untrusted envelopes above this iteration count (PBKDF2 DoS guard). */
+export const PROFILE_KDF_ITERATIONS_MAX = 600_000;
 
 export interface EncryptedProfileEnvelopeV1 {
   format: typeof ENCRYPTED_PROFILE_FORMAT;
@@ -118,9 +120,16 @@ export async function decryptProfileExport(envelopeJson: string, passphrase: str
     return "Encrypted profile file is not valid JSON.";
   }
   if (!isEncryptedEnvelope(parsed)) return "File is not a recognized encrypted profile.";
+  if (
+    !Number.isFinite(parsed.iterations) ||
+    parsed.iterations < 1 ||
+    parsed.iterations > PROFILE_KDF_ITERATIONS_MAX
+  ) {
+    return "Encrypted profile uses unsupported KDF parameters.";
+  }
   const subtle = getSubtle();
   try {
-    const key = await deriveAesKey(passphrase, base64ToBytes(parsed.salt), parsed.iterations);
+    const key = await deriveAesKey(passphrase, base64ToBytes(parsed.salt), Math.floor(parsed.iterations));
     const plaintext = await subtle.decrypt(
       { name: "AES-GCM", iv: base64ToBytes(parsed.iv) },
       key,

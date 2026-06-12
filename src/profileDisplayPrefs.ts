@@ -23,6 +23,33 @@ export interface ProfileDisplayPrefs {
   audioFilterCutoff: number;
 }
 
+/** Baseline display prefs applied when a snapshot omits displayPrefs (prevents bleed across profiles). */
+export const DEFAULT_DISPLAY_PREFS: ProfileDisplayPrefs = {
+  volume: 0.7,
+  performanceMode: "auto",
+  showFPS: false,
+  showAudioVis: false,
+  useWebGPU: false,
+  postProcessEffect: "none",
+  orientationLock: true,
+  uiMode: "auto",
+  libraryLayout: "grid",
+  libraryGrouped: true,
+  uiScale: 1.0,
+  dynamicResolutionScaling: false,
+  audioFilterType: "none",
+  audioFilterCutoff: 10_000,
+};
+
+function clampDisplayPrefs(prefs: ProfileDisplayPrefs): ProfileDisplayPrefs {
+  return {
+    ...prefs,
+    volume: Math.min(1, Math.max(0, prefs.volume)),
+    uiScale: Math.min(2, Math.max(0.5, Math.round(prefs.uiScale * 100) / 100)),
+    audioFilterCutoff: Math.min(20_000, Math.max(100, Math.round(prefs.audioFilterCutoff))),
+  };
+}
+
 export function pickDisplayPrefs(settings: Settings): ProfileDisplayPrefs {
   return {
     volume: settings.volume,
@@ -81,7 +108,7 @@ export function parseDisplayPrefs(raw: unknown): ProfileDisplayPrefs | undefined
   if (typeof rec.audioFilterCutoff !== "number") return undefined;
   const effect = parsePostProcessEffect(rec.postProcessEffect);
   if (!effect) return undefined;
-  return {
+  return clampDisplayPrefs({
     volume: rec.volume,
     performanceMode: rec.performanceMode as PerformanceMode,
     showFPS: rec.showFPS,
@@ -96,5 +123,10 @@ export function parseDisplayPrefs(raw: unknown): ProfileDisplayPrefs | undefined
     dynamicResolutionScaling: rec.dynamicResolutionScaling,
     audioFilterType: rec.audioFilterType as Settings["audioFilterType"],
     audioFilterCutoff: rec.audioFilterCutoff,
-  };
+  });
+}
+
+/** Resolve display prefs from snapshot data, falling back to defaults when absent or malformed. */
+export function resolveDisplayPrefs(raw: unknown): ProfileDisplayPrefs {
+  return parseDisplayPrefs(raw) ?? { ...DEFAULT_DISPLAY_PREFS };
 }

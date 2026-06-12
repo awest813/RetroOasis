@@ -78,3 +78,13 @@ export function isGameVisibleForProfile(
   if (!isGameTaggedToAnyProfile(gameId, store)) return true;
   return getTaggedGameIds(profileId, store).has(gameId);
 }
+
+/** Remove all game tags for a deleted profile slot. */
+export function pruneProfileGameTags(profileId: string, storage?: Storage | null): void {
+  if (!profileId) return;
+  const store = storage === undefined ? getStorage() : storage;
+  const index = readProfileGameTags(store);
+  if (!(profileId in index)) return;
+  delete index[profileId];
+  persistProfileGameTags(index, store);
+}

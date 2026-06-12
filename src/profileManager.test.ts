@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { Settings } from "./types/settings.js";
 import { ApiKeyStore } from "./apiKeyStore.js";
 import { getProfileManager, resetProfileManagerForTests, PROFILE_INDEX_STORAGE_KEY } from "./profileManager.js";
+import { tagGameForProfile, getTaggedGameIds, PROFILE_GAME_TAGS_KEY } from "./profileGameTags.js";
 
 function makeSettings(overrides: Partial<Settings> = {}): Settings {
   return {
@@ -214,6 +215,55 @@ describe("ProfileManager", () => {
     const pm2 = getProfileManager(storage);
     pm2.ensureInitialized(deps);
     expect(settings.netplayUsername).toBe("after-merge");
+  });
+
+  it("flushAutoSave persists pending debounced changes before export", () => {
+    vi.useFakeTimers();
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    settings.netplayUsername = "pending-save";
+    pm.scheduleAutoSave(deps);
+    pm.flushAutoSave(deps);
+    expect(storage.getItem(PROFILE_INDEX_STORAGE_KEY)).toContain("pending-save");
+    vi.useRealTimers();
+  });
+
+  it("rejects remote index with no valid embedded snapshots", () => {
+    const pm = getProfileManager(storage);
+    const err = pm.importProfileIndexRaw(JSON.stringify({
+      version: 1,
+      activeId: "x",
+      profiles: { x: { meta: { id: "x", name: "Bad" }, snapshot: { version: 99 } } },
+    }), "replace");
+    expect(err).toContain("no valid profiles");
+  });
+
+  it("assigns a color when importing a snapshot as a new profile", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const imported = pm.exportActiveSnapshot(deps);
+    const meta = pm.importSnapshotAsNewProfile(imported, deps);
+    expect(pm.getProfileColor(meta.id)).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("prunes game tags when a profile is deleted", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const keepId = pm.getActiveProfileId();
+    pm.createProfile("Tagged", deps);
+    const tempId = pm.getActiveProfileId();
+    tagGameForProfile("game-abc", tempId);
+    expect(getTaggedGameIds(tempId).has("game-abc")).toBe(true);
+
+    pm.deleteProfile(tempId, deps);
+    expect(getTaggedGameIds(tempId).size).toBe(0);
+    expect(storage.getItem(PROFILE_GAME_TAGS_KEY)).not.toContain(tempId);
+    expect(pm.getActiveProfileId()).toBe(keepId);
+    vi.unstubAllGlobals();
   });
 
   it("removes API keys that are not in the switched profile", async () => {

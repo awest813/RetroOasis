@@ -96,6 +96,7 @@ import {
 } from "./webgpuPostProcess.js";
 import { getApiKeyStore, setLibretroMatchingServerUrl } from "./ui/coverArtRegistry.js";
 import { getProfileManager } from "./profileManager.js";
+import { showFPSOverlay } from "./modules/DevOverlay.js";
 import { parseRAKey } from "./raCredentials.js";
 import { installWebGlContextPolicy } from "./webglContextPolicy.js";
 import { getSystemByCoreHint, getSystemById } from "./systems.js";
@@ -1232,6 +1233,18 @@ async function main(): Promise<void> {
     }
     if (patch.libretroMatchingServerUrl !== undefined) {
       setLibretroMatchingServerUrl(settings.libretroMatchingServerUrl);
+    }
+    if (patch.uiScale !== undefined) {
+      document.documentElement.style.setProperty("--ui-scale", String(settings.uiScale));
+    }
+    if (patch.volume !== undefined && playingOrPaused) {
+      emulator.setVolume(settings.volume);
+    }
+    if (patch.showFPS !== undefined || patch.showAudioVis !== undefined) {
+      emulator.setFPSMonitorEnabled(settings.showFPS);
+      if (playingOrPaused) {
+        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+      }
     }
     // Mirror the patch into the RetroOasisStore so subscribers react to the
     // same change that `saveSettings` persists to localStorage.

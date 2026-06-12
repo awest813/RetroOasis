@@ -12,6 +12,7 @@ import {
   isEncryptedProfileJson,
   parseProfileImportFile,
   ENCRYPTED_PROFILE_FORMAT,
+  PROFILE_KDF_ITERATIONS_MAX,
 } from "./profileCrypto.js";
 
 function makeSettings(): Settings {
@@ -70,6 +71,18 @@ describe("profileCrypto", () => {
     const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), "correct");
     const result = await decryptProfileExport(encrypted, "wrong");
     expect(result).toContain("Could not decrypt");
+  });
+
+  it("rejects envelopes with excessive PBKDF2 iterations", async () => {
+    const snapshot = buildProfileSnapshot({
+      settings: makeSettings(),
+      apiKeyStore: new ApiKeyStore({ providers: [] }),
+    });
+    const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), "pw");
+    const envelope = JSON.parse(encrypted) as Record<string, unknown>;
+    envelope.iterations = PROFILE_KDF_ITERATIONS_MAX + 1;
+    const result = await decryptProfileExport(JSON.stringify(envelope), "pw");
+    expect(result).toContain("unsupported KDF");
   });
 
   it("parseProfileImportFile decrypts encrypted files", async () => {

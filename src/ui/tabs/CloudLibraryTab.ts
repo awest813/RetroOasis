@@ -389,14 +389,16 @@ function buildProfileSection(
 
   const refreshColorSwatches = () => {
     swatchWrap.innerHTML = "";
-    const activeColor = pm.getProfileColor(profileSel.value || pm.getActiveProfileId());
+    const selectedId = profileSel.value || pm.getActiveProfileId();
+    const selectedColor = pm.getProfileColor(selectedId);
+    const isActiveProfile = selectedId === pm.getActiveProfileId();
     for (const color of PROFILE_COLOR_PRESETS) {
       const swatch = make("button", {
         type: "button",
-        class: `profile-color-swatch${color === activeColor ? " profile-color-swatch--active" : ""}`,
-        title: `Use ${color}`,
+        class: `profile-color-swatch${color === selectedColor ? " profile-color-swatch--active" : ""}`,
+        title: `Set color for ${isActiveProfile ? "active" : "selected"} profile`,
         "aria-label": `Profile color ${color}`,
-        "aria-pressed": color === activeColor ? "true" : "false",
+        "aria-pressed": color === selectedColor ? "true" : "false",
         style: `background-color:${color}`,
       }) as HTMLButtonElement;
       swatch.addEventListener("click", () => {
@@ -456,11 +458,19 @@ function buildProfileSection(
 
   const newBtn = make("button", { class: "btn btn--sm", type: "button" }, "New profile") as HTMLButtonElement;
   newBtn.addEventListener("click", () => {
-    const created = pm.createProfile(`Profile ${pm.listProfiles().length + 1}`, deps);
-    refreshProfileSelect();
-    renameInp.value = created.name;
-    showInfoToast(`Created profile "${created.name}".`, "success");
-    rebuildTab();
+    void (async () => {
+      const confirmed = await showConfirmDialog(
+        "Creates a new profile from your current cloud connections, API keys, and settings. " +
+        "Existing profiles are not changed.",
+        { title: "Create new profile?", confirmLabel: "Create" },
+      );
+      if (!confirmed) return;
+      const created = pm.createProfile(`Profile ${pm.listProfiles().length + 1}`, deps);
+      refreshProfileSelect();
+      renameInp.value = created.name;
+      showInfoToast(`Created profile "${created.name}".`, "success");
+      rebuildTab();
+    })();
   });
 
   const deleteBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Delete") as HTMLButtonElement;
@@ -488,6 +498,8 @@ function buildProfileSection(
   );
   section.appendChild(manageRow);
   section.appendChild(colorRow);
+  section.appendChild(make("p", { class: "settings-help" },
+    "Color swatches apply to the profile selected above (active or not yet switched)."));
 
   const filterRow = make("div", { class: "settings-input-row profile-filter-row" });
   const filterToggle = make("input", {
@@ -636,7 +648,19 @@ function buildProfileSection(
       if (!code) return;
       const parsed = await parseProfileImportPayload(code, requestDecryptPassphrase);
       if (typeof parsed === "string") { showError(parsed); return; }
-      await applyImportedProfile(parsed, "new");
+      const asNew = await showConfirmDialog(
+        "Import this share code as a new profile slot?",
+        { title: "Import share code", confirmLabel: "New profile" },
+      );
+      if (asNew) {
+        await applyImportedProfile(parsed, "new");
+        return;
+      }
+      const mergeShare = await showConfirmDialog(
+        `Merge into the active profile "${pm.getActiveProfileName()}" instead?`,
+        { title: "Merge into active profile?", confirmLabel: "Merge", isDanger: true },
+      );
+      if (mergeShare) await applyImportedProfile(parsed, "merge");
     })();
   });
 
@@ -656,7 +680,24 @@ function buildProfileSection(
   section.appendChild(fileRow);
   section.appendChild(make("p", { class: "settings-help" },
     "Export uses the profile selected above. Share codes are encrypted for copy/paste transfer between devices. " +
-    "Import as new creates a separate slot; merge replaces credentials on the active profile."));
+    "Import as new creates a separate slot; merge replaces credentials on the active profile. " +
+    "Share-code import offers new profile or merge into the active slot."));
+
+  const syncFilterToggle = () => {
+    filterToggle.checked = settings.profileLibraryFilter;
+  };
+  const filterSyncAc = new AbortController();
+  document.addEventListener(LEGACY_EVENTS.profileChanged, syncFilterToggle, { signal: filterSyncAc.signal });
+  const filterSyncParent = section.parentElement;
+  if (filterSyncParent) {
+    const filterSyncObserver = new MutationObserver(() => {
+      if (!section.isConnected) {
+        filterSyncAc.abort();
+        filterSyncObserver.disconnect();
+      }
+    });
+    filterSyncObserver.observe(filterSyncParent, { childList: true });
+  }
 
   const cloudSyncRow = make("div", { class: "settings-input-row profile-cloud-sync-row" });
   const pushCloudBtn = make("button", { class: "btn btn--sm", type: "button" }, "Upload to save sync") as HTMLButtonElement;
@@ -677,6 +718,12 @@ function buildProfileSection(
   pushCloudBtn.addEventListener("click", () => {
     void (async () => {
       pushCloudBtn.disabled = true;
+      const persistErr = pm.flushAutoSave(deps);
+      if (persistErr) {
+        pushCloudBtn.disabled = false;
+        showError(persistErr);
+        return;
+      }
       const err = await pushProfileIndexToCloud(pm.exportProfileIndexRaw());
       pushCloudBtn.disabled = false;
       if (err) showError(err);

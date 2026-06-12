@@ -200,12 +200,15 @@ export function showProfileShareImportDialog(): Promise<string | null> {
       "aria-label": "Paste profile share code",
     }) as HTMLTextAreaElement;
 
+    const scanStatus = make("p", { class: "settings-help", "aria-live": "polite" });
+    scanStatus.hidden = true;
+
     const footer = make("div", { class: "confirm-footer" });
     const btnCancel = make("button", { class: "btn", type: "button" }, "Cancel") as HTMLButtonElement;
     const btnScan = make("button", { class: "btn", type: "button" }, "Scan QR") as HTMLButtonElement;
     const btnImport = make("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
     footer.append(btnCancel, btnScan, btnImport);
-    box.append(codeArea, footer);
+    box.append(codeArea, scanStatus, footer);
 
     const scanSupported = typeof window !== "undefined"
       && "BarcodeDetector" in window
@@ -215,32 +218,48 @@ export function showProfileShareImportDialog(): Promise<string | null> {
     btnScan.addEventListener("click", () => {
       void (async () => {
         btnScan.disabled = true;
+        scanStatus.hidden = false;
+        scanStatus.textContent = "Starting camera…";
+        let stream: MediaStream | null = null;
+        let video: HTMLVideoElement | null = null;
+        const stopCamera = () => {
+          stream?.getTracks().forEach((t) => t.stop());
+          stream = null;
+          video?.remove();
+          video = null;
+        };
         try {
           const Detector = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => {
             detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
           } }).BarcodeDetector;
           const detector = new Detector({ formats: ["qr_code"] });
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-          const video = make("video", { autoplay: "true", playsinline: "true", class: "profile-share-qr-video" }) as HTMLVideoElement;
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          video = make("video", { autoplay: "true", playsinline: "true", class: "profile-share-qr-video" }) as HTMLVideoElement;
           video.srcObject = stream;
           box.insertBefore(video, footer);
-          await new Promise<void>((res) => { video.onloadedmetadata = () => res(); });
+          await new Promise<void>((res) => { video!.onloadedmetadata = () => res(); });
           await video.play();
+          scanStatus.textContent = "Point the camera at a profile QR code…";
           const deadline = Date.now() + 20_000;
+          let found = false;
           while (Date.now() < deadline) {
             const codes = await detector.detect(video);
             const hit = codes.find((c) => c.rawValue?.startsWith("ro-profile:"));
             if (hit?.rawValue) {
               codeArea.value = hit.rawValue;
+              scanStatus.textContent = "QR code captured.";
+              found = true;
               break;
             }
             await new Promise((r) => setTimeout(r, 250));
           }
-          stream.getTracks().forEach((t) => t.stop());
-          video.remove();
+          if (!found) {
+            scanStatus.textContent = "No profile QR detected. Paste the code manually or try again.";
+          }
         } catch {
-          /* camera unavailable */
+          scanStatus.textContent = "Camera unavailable. Paste the share code manually.";
         } finally {
+          stopCamera();
           btnScan.disabled = false;
         }
       })();
