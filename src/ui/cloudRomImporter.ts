@@ -20,6 +20,8 @@ import {
   OVERLAY_FADE_DELAY_MS,
   getCloudProviderLabel,
 } from "./tabs/cloudTabShared.js";
+import { getProfileManager } from "../profileManager.js";
+import { tagGameForProfile } from "../profileGameTags.js";
 
 export interface CloudRomImporterOpts {
   settings: Settings;
@@ -267,7 +269,9 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
           try {
             const blob = await downloadCloudFile(activeConn, file.path);
             const romFile = makeFileFromBlob(blob, file.name);
-            await opts.library.addGame(romFile, sys.id);
+            const entry = await opts.library.addGame(romFile, sys.id);
+            const profileId = getProfileManager().getActiveProfileId();
+            if (profileId) tagGameForProfile(entry.id, profileId);
             imported++;
           } catch (e) {
             showError(e instanceof Error ? e.message : `Failed to import ${file.name}`);

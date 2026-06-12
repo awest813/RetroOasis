@@ -6869,15 +6869,146 @@ body.using-gamepad .game-card:focus {
 }
 
 .profile-chip {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-pill, 999px);
   color: var(--c-accent);
   font-weight: 600;
   font-size: 0.8rem;
+}
+
+.profile-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-chip__caret {
+  font-size: 0.65rem;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+.profile-chip-menu {
+  min-width: 180px;
+  max-width: 260px;
+  padding: 6px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-elevated, var(--c-surface));
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.25));
+}
+
+.profile-chip-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-chip-menu__item:hover,
+.profile-chip-menu__item--active {
+  background: var(--c-surface-hover, rgba(255, 255, 255, 0.06));
+}
+
+.profile-chip-menu__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-chip-menu__manage {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: none;
+  border-top: 1px solid var(--c-border);
+  border-radius: 0 0 var(--radius-sm, 6px) var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--c-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.profile-color-swatch--active {
+  border-color: var(--c-text);
+  box-shadow: 0 0 0 2px var(--c-bg);
+}
+
+.profile-share-code {
+  width: 100%;
+  min-height: 120px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.profile-cloud-sync-row,
+.profile-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-share-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.profile-share-qr {
+  width: 220px;
+  height: 220px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.profile-share-qr-video {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  margin-top: 8px;
+  object-fit: cover;
 }
 
 /* ── Cloud Library ─────────────────────────────────────────── */

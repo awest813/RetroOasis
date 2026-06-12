@@ -96,6 +96,7 @@ import {
 } from "./webgpuPostProcess.js";
 import { getApiKeyStore, setLibretroMatchingServerUrl } from "./ui/coverArtRegistry.js";
 import { getProfileManager } from "./profileManager.js";
+import { showFPSOverlay } from "./modules/DevOverlay.js";
 import { parseRAKey } from "./raCredentials.js";
 import { installWebGlContextPolicy } from "./webglContextPolicy.js";
 import { getSystemByCoreHint, getSystemById } from "./systems.js";
@@ -134,6 +135,7 @@ const DEFAULT_SETTINGS: Settings = {
   recordPlayHistory: true,
   dynamicResolutionScaling: false,
   uiScale: 1.0,
+  profileLibraryFilter: false,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -232,6 +234,9 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
       uiScale: typeof parsed.uiScale === "number" && parsed.uiScale >= 0.5 && parsed.uiScale <= 2.0
         ? Math.round(parsed.uiScale * 100) / 100
         : DEFAULT_SETTINGS.uiScale,
+      profileLibraryFilter: typeof parsed.profileLibraryFilter === "boolean"
+        ? parsed.profileLibraryFilter
+        : DEFAULT_SETTINGS.profileLibraryFilter,
     };
   } catch {
     const s = { ...DEFAULT_SETTINGS };
@@ -1229,6 +1234,18 @@ async function main(): Promise<void> {
     if (patch.libretroMatchingServerUrl !== undefined) {
       setLibretroMatchingServerUrl(settings.libretroMatchingServerUrl);
     }
+    if (patch.uiScale !== undefined) {
+      document.documentElement.style.setProperty("--ui-scale", String(settings.uiScale));
+    }
+    if (patch.volume !== undefined && playingOrPaused) {
+      emulator.setVolume(settings.volume);
+    }
+    if (patch.showFPS !== undefined || patch.showAudioVis !== undefined) {
+      emulator.setFPSMonitorEnabled(settings.showFPS);
+      if (playingOrPaused) {
+        showFPSOverlay(settings.showFPS, emulator, settings.showAudioVis);
+      }
+    }
     // Mirror the patch into the RetroOasisStore so subscribers react to the
     // same change that `saveSettings` persists to localStorage.
     mirrorSettingsPatchToStore(patch, store);
@@ -1260,6 +1277,15 @@ async function main(): Promise<void> {
       apiKeyStore,
       onSettingsChange,
     });
+  });
+
+  const profileDeps = {
+    settings,
+    apiKeyStore,
+    onSettingsChange,
+  };
+  getCloudSaveManager().addStatusListener(() => {
+    getProfileManager().scheduleAutoSave(profileDeps);
   });
 
   initUI({
@@ -1304,7 +1330,13 @@ async function main(): Promise<void> {
   // The IDB write is best-effort — modern browsers give async tasks a short
   // window to complete on unload, so most sessions will be persisted correctly.
   window.addEventListener("beforeunload", () => {
+    getProfileManager().flushAutoSave(profileDeps);
     void sessionTracker.endSession().catch(() => {});
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      getProfileManager().flushAutoSave(profileDeps);
+    }
   });
 
   // 8. If user returns to landing, rebuild landing header controls with a Resume button

@@ -159,6 +159,8 @@ import {
   dismissGameOfTheDayForToday,
 } from "./ui/gameOfTheDay.js";
 import { refreshProfileHeaderChip } from "./ui/profileChip.js";
+import { getProfileManager } from "./profileManager.js";
+import { isGameVisibleForProfile } from "./profileGameTags.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {
@@ -921,6 +923,13 @@ export function initUI(opts: UIOptions): void {
           getCurrentGameId, getCurrentGameName, getCurrentSystemId,
           getCurrentCoreOptions, onUpdateCoreOption } = opts;
 
+  const profileChipOpts = {
+    openCloudLibrarySettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    },
+    deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
+  };
+
   const saveService = opts.saveService ?? new SaveGameService({
     saveLibrary,
     cloudManager: getCloudSaveManager(),
@@ -1451,8 +1460,10 @@ export function initUI(opts: UIOptions): void {
     rebuildLandingControls();
   });
   bindEvent(document, LEGACY_EVENTS.profileChanged, () => {
-    if (emulator.state === "running" || emulator.state === "paused") return;
-    rebuildLandingControls();
+    refreshProfileHeaderChip(profileChipOpts);
+    if (emulator.state !== "running" && emulator.state !== "paused") {
+      rebuildLandingControls();
+    }
   });
 
   if (typeof ResizeObserver !== "undefined") {
@@ -1820,7 +1831,7 @@ export async function renderLibrary(
   _renderSystemFilterChips(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 
   // Apply filters and sort
-  const displayed = _applyLibraryFilters(allGames);
+  const displayed = _applyLibraryFilters(allGames, settings);
 
   const onboardingEl = document.getElementById("onboarding");
   updateLibraryLandingState({
@@ -2098,8 +2109,15 @@ export async function renderLibrary(
   }
 }
 
-function _applyLibraryFilters(games: GameMetadata[]): GameMetadata[] {
+function _applyLibraryFilters(games: GameMetadata[], settings: Settings): GameMetadata[] {
   let result = games;
+
+  if (settings.profileLibraryFilter) {
+    const profileId = getProfileManager().getActiveProfileId();
+    if (profileId) {
+      result = result.filter((g) => isGameVisibleForProfile(g.id, profileId, true));
+    }
+  }
 
   if (_librarySystemFilter) {
     result = result.filter(g => g.systemId === _librarySystemFilter);
@@ -2638,8 +2656,11 @@ export function buildLandingControls(
     container.appendChild(btnInstall);
   }
 
-  refreshProfileHeaderChip(() => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+  refreshProfileHeaderChip({
+    openCloudLibrarySettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    },
+    deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
   });
 
   const btnSettings = make("button", { class: "btn", title: "Settings (F9)", "aria-label": "Open settings" });

@@ -92,4 +92,9 @@ export interface Settings {
    * to the root element so all layout tokens scale proportionally.
    */
   uiScale: number;
+  /**
+   * When true, the library shows games tagged to the active profile plus
+   * untagged legacy games. New imports are tagged to the active profile.
+   */
+  profileLibraryFilter: boolean;
 }
