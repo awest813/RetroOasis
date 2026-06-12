@@ -889,6 +889,82 @@ body.is-playing #landing.hidden {
 .game-card__patch { right: 182px; }
 .game-card__fav.active { color: #ffd34d; }
 
+.game-card__details,
+.game-card__more {
+  position: absolute;
+  z-index: 6;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 8, 10, 0.72);
+  color: rgba(246, 231, 187, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition), transform var(--transition), background var(--transition);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.game-card__details {
+  left: 14px;
+  bottom: 14px;
+}
+
+.game-card__details::before {
+  content: "i";
+  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+}
+
+.game-card__more {
+  display: none;
+}
+
+.game-card__menu {
+  position: absolute;
+  top: 122px;
+  right: 14px;
+  z-index: 8;
+  min-width: 148px;
+  padding: 6px;
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border-lt);
+  background: rgba(12, 12, 16, 0.96);
+  box-shadow: var(--shadow-lg);
+}
+
+.game-card__menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.game-card__menu-item:hover,
+.game-card__menu-item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.game-card:hover .game-card__details,
+.game-card:focus-within .game-card__details,
+.game-card:hover .game-card__more,
+.game-card:focus-within .game-card__more {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .game-card__play-overlay {
   position: absolute;
   inset: 0;
@@ -3490,6 +3566,10 @@ html.launch-in-progress .game-card::after {
     display: none;
   }
 
+  .settings-sidebar.overflows {
+    box-shadow: inset -18px 0 14px -14px rgba(0, 0, 0, 0.45);
+  }
+
   .settings-sidebar__item {
     flex: 0 0 auto;
     min-height: 44px;
@@ -5646,6 +5726,58 @@ body.using-gamepad .game-card:focus {
   gap: 24px;
 }
 
+.highlights-section__header {
+  margin-bottom: 4px;
+}
+
+.highlights-section__scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.highlights-section__scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.highlights-section__scroll::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 2px;
+}
+
+.highlights-section__scroll .highlights-fav-card {
+  flex: 0 0 clamp(132px, 14vw, 168px);
+  scroll-snap-align: start;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px;
+  position: relative;
+  min-height: 168px;
+  gap: 8px;
+}
+
+.highlights-fav-card__icon {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--c-surface3);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.highlights-fav-card__sys-img {
+  width: 40%;
+  height: 40%;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
 .highlights-section__title {
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -5674,17 +5806,49 @@ body.using-gamepad .game-card:focus {
 }
 
 .highlights-fav-card__cover {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-sm);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  flex-shrink: 0;
+  border-radius: 0;
 }
 
 .highlights-fav-card__name {
   font-weight: 600;
   color: var(--c-text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.highlights-fav-card__badge {
+  font-size: 0.68rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.highlights-fav-card__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.5));
+  opacity: 0;
+  transition: opacity var(--transition);
+  pointer-events: none;
+  border-radius: inherit;
+  font-size: 1.1rem;
+  color: rgba(246, 231, 187, 0.92);
+}
+
+.highlights-fav-card:hover .highlights-fav-card__play,
+.highlights-fav-card:focus-visible .highlights-fav-card__play {
+  opacity: 1;
 }
 
 .highlights-fav-card__sys {
@@ -7281,6 +7445,11 @@ body.using-gamepad .game-card:focus {
   width: 14px;
   height: 14px;
   display: block;
+}
+
+.footer-coi-warning__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
 }
 
 .hero-sys-icon {
@@ -8918,6 +9087,18 @@ body {
   .game-card__patch,
   .game-card__art-btn,
   .game-card__change-sys {
+    display: none;
+  }
+
+  .game-card__more {
+    display: inline-flex;
+    top: 86px;
+    right: 14px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .game-card__details {
     display: none;
   }
 

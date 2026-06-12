@@ -336,6 +336,34 @@ export function wireLibraryControls(host: LibraryControlsHost): void {
       }
     });
   });
+
+  const layoutContainer = document.getElementById("library-layouts");
+  layoutContainer?.addEventListener("keydown", (event: KeyboardEvent) => {
+    const buttons = Array.from(layoutContainer.querySelectorAll<HTMLButtonElement>(".layout-btn"));
+    if (buttons.length === 0) return;
+    const current = buttons.findIndex((btn) => btn.getAttribute("aria-checked") === "true");
+    let next = current;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      next = (current + 1) % buttons.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      next = (current - 1 + buttons.length) % buttons.length;
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      next = 0;
+    } else if (event.key === "End") {
+      event.preventDefault();
+      next = buttons.length - 1;
+    } else {
+      return;
+    }
+    const layout = buttons[next]!.getAttribute("data-layout") as Settings["libraryLayout"];
+    if (!layout) return;
+    host.onSettingsChange?.({ libraryLayout: layout });
+    host.scheduleRender();
+    buttons[next]!.focus();
+  });
 }
 
 /** Test helper — reset module state between unit tests. */

@@ -478,20 +478,6 @@ export function buildGameCard(
     await handleCoverArtResult(result, btnArt);
   });
 
-  card.append(icon, scanline, info);
-  if (patchInput && btnPatch) card.append(patchInput, btnPatch);
-  card.append(btnArt, btnChangeSystem, btnFav, btnRemove, playOverlay);
-
-  let preloadTriggered = false;
-  const triggerPreload = () => {
-    if (preloadTriggered) return;
-    preloadTriggered = true;
-    library.preloadGame(game.id);
-    if (emulatorRef) emulatorRef.prefetchCore(game.systemId);
-  };
-  card.addEventListener("mouseenter", triggerPreload);
-  card.addEventListener("focusin",    triggerPreload);
-
   const launch = () => {
     void launchGameFromLibrary({
       game,
@@ -502,57 +488,7 @@ export function buildGameCard(
     });
   };
 
-  const updateSidebar = () => {
-    const empty = document.querySelector(".landing-details__empty");
-    const content = document.getElementById("landing-details-content");
-    if (!empty || !content) return;
-    empty.setAttribute("hidden", "true");
-    content.removeAttribute("hidden");
-    
-    const coverSrc = coverArtObjectUrl || game.thumbnailUrl || "";
-    
-    content.innerHTML = "";
-    
-    if (coverSrc) {
-      const img = document.createElement("img");
-      img.src = coverSrc;
-      img.className = "landing-details__cover";
-      img.alt = "";
-      content.appendChild(img);
-    }
-    
-    const title = document.createElement("div");
-    title.className = "landing-details__title";
-    title.textContent = game.name;
-    content.appendChild(title);
-    
-    const meta = document.createElement("div");
-    meta.className = "landing-details__meta";
-    meta.innerHTML = `
-      <strong>Platform:</strong> ${system?.name ?? game.systemId}<br>
-      <strong>Added:</strong> ${formatRelativeTime(game.addedAt)}<br>
-      <strong>Last Played:</strong> ${game.lastPlayedAt ? formatRelativeTime(game.lastPlayedAt) : 'Never'}
-    `;
-    content.appendChild(meta);
-    
-    const actions = document.createElement("div");
-    actions.className = "landing-details__actions";
-    
-    const btnPlay = document.createElement("button");
-    btnPlay.className = "btn btn--primary";
-    btnPlay.textContent = "Play";
-    btnPlay.onclick = launch;
-    
-    actions.appendChild(btnPlay);
-    content.appendChild(actions);
-  };
-
-  card.addEventListener("mouseenter", updateSidebar);
-  card.addEventListener("focusin", updateSidebar);
-
-
-
-  card.addEventListener("click", () => {
+  const openGameDetails = () => {
     void showGameDetails(game, {
       system: system ?? null,
       formatBytes,
@@ -642,12 +578,154 @@ export function buildGameCard(
         return new WikipediaMetadataClient().searchGame(game.name);
       }
     });
+  };
+
+  const btnDetails = make("button", {
+    class: "game-card__details",
+    title: "Game details",
+    "aria-label": `Details for ${game.name}`,
+    type: "button",
+  });
+  btnDetails.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openGameDetails();
+  });
+
+  const btnMore = make("button", {
+    class: "game-card__more",
+    title: "More actions",
+    "aria-label": `More actions for ${game.name}`,
+    "aria-haspopup": "menu",
+    "aria-expanded": "false",
+    type: "button",
+  }, "⋯");
+
+  const overflowMenu = make("div", {
+    class: "game-card__menu",
+    role: "menu",
+    hidden: "true",
+  });
+
+  const closeOverflowMenu = (): void => {
+    overflowMenu.hidden = true;
+    btnMore.setAttribute("aria-expanded", "false");
+  };
+
+  const addOverflowItem = (label: string, action: () => void): void => {
+    const item = make("button", {
+      class: "game-card__menu-item",
+      role: "menuitem",
+      type: "button",
+    }, label);
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeOverflowMenu();
+      action();
+    });
+    overflowMenu.appendChild(item);
+  };
+
+  addOverflowItem("Details", openGameDetails);
+  addOverflowItem("Cover art", () => { btnArt.click(); });
+  addOverflowItem("Change system", () => { btnChangeSystem.click(); });
+  if (btnPatch) addOverflowItem("Apply patch", () => { btnPatch.click(); });
+
+  btnMore.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = overflowMenu.hidden;
+    document.querySelectorAll(".game-card__menu").forEach((menu) => {
+      if (menu !== overflowMenu) menu.setAttribute("hidden", "true");
+    });
+    document.querySelectorAll(".game-card__more").forEach((btn) => {
+      if (btn !== btnMore) btn.setAttribute("aria-expanded", "false");
+    });
+    overflowMenu.hidden = !willOpen;
+    btnMore.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) {
+      requestAnimationFrame(() => {
+        overflowMenu.querySelector<HTMLButtonElement>(".game-card__menu-item")?.focus();
+        document.addEventListener("click", (ev) => {
+          if (!card.contains(ev.target as Node)) closeOverflowMenu();
+        }, { once: true, capture: true });
+        document.addEventListener("keydown", (ev) => {
+          if (ev.key === "Escape") closeOverflowMenu();
+        }, { once: true, capture: true });
+      });
+    }
+  });
+
+  card.append(icon, scanline, info);
+  if (patchInput && btnPatch) card.append(patchInput, btnPatch);
+  card.append(btnArt, btnChangeSystem, btnDetails, btnMore, overflowMenu, btnFav, btnRemove, playOverlay);
+
+  let preloadTriggered = false;
+  const triggerPreload = () => {
+    if (preloadTriggered) return;
+    preloadTriggered = true;
+    library.preloadGame(game.id);
+    if (emulatorRef) emulatorRef.prefetchCore(game.systemId);
+  };
+  card.addEventListener("mouseenter", triggerPreload);
+  card.addEventListener("focusin",    triggerPreload);
+
+  const updateSidebar = () => {
+    const empty = document.querySelector(".landing-details__empty");
+    const content = document.getElementById("landing-details-content");
+    if (!empty || !content) return;
+    empty.setAttribute("hidden", "true");
+    content.removeAttribute("hidden");
+    
+    const coverSrc = coverArtObjectUrl || game.thumbnailUrl || "";
+    
+    content.innerHTML = "";
+    
+    if (coverSrc) {
+      const img = document.createElement("img");
+      img.src = coverSrc;
+      img.className = "landing-details__cover";
+      img.alt = "";
+      content.appendChild(img);
+    }
+    
+    const title = document.createElement("div");
+    title.className = "landing-details__title";
+    title.textContent = game.name;
+    content.appendChild(title);
+    
+    const meta = document.createElement("div");
+    meta.className = "landing-details__meta";
+    meta.innerHTML = `
+      <strong>Platform:</strong> ${system?.name ?? game.systemId}<br>
+      <strong>Added:</strong> ${formatRelativeTime(game.addedAt)}<br>
+      <strong>Last Played:</strong> ${game.lastPlayedAt ? formatRelativeTime(game.lastPlayedAt) : 'Never'}
+    `;
+    content.appendChild(meta);
+    
+    const actions = document.createElement("div");
+    actions.className = "landing-details__actions";
+    
+    const btnPlay = document.createElement("button");
+    btnPlay.className = "btn btn--primary";
+    btnPlay.textContent = "Play";
+    btnPlay.onclick = launch;
+    
+    actions.appendChild(btnPlay);
+    content.appendChild(actions);
+  };
+
+  card.addEventListener("mouseenter", updateSidebar);
+  card.addEventListener("focusin", updateSidebar);
+
+
+
+  card.addEventListener("click", () => {
+    launch();
   });
 
   card.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      card.click();
+      launch();
     }
   });
 

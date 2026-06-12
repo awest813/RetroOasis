@@ -154,6 +154,7 @@ export function pickSystem(
     const closeBtn = document.getElementById("system-picker-close")!;
     const backdrop = document.getElementById("system-picker-backdrop")!;
     const caps = deviceCaps ?? detectCapabilitiesCached();
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     subtitle.textContent = subtitleText ?? `The file "${fileName}" could belong to several systems. Choose one:`;
     list.innerHTML = "";
@@ -192,6 +193,7 @@ export function pickSystem(
       detachFromStack = null;
       ac.abort();
       panel.hidden = true;
+      previouslyFocused?.focus();
       resolve(result);
     };
     detachFromStack = armOverlayStack(panel, () => close(null));
@@ -204,6 +206,7 @@ export function pickSystem(
         close(null);
       }
     }, { signal: ac.signal, capture: true });
+    trapFocus(panel, ac.signal);
   });
 }
 

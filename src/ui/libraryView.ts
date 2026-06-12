@@ -95,7 +95,7 @@ export function buildFilteredLibraryEmptyState(opts: {
     message.textContent = "No games match your current filters. Try a broader search, choose another system, or clear filters to see every game again.";
   }
 
-  const icon = make("div", { class: "library-empty__icon" }, profileFilterActive && !hasSearch && !activeSystemLabel ? "👤" : "🔍");
+  const icon = make("div", { class: "library-empty__icon", "aria-hidden": "true" }, profileFilterActive && !hasSearch && !activeSystemLabel ? "👤" : "🔍");
   const actions = make("div", { class: "library-empty__actions" });
   if (profileFilterActive && onOpenProfileSettings) {
     const profileBtn = make("button", { class: "btn library-empty__profile", type: "button" }, "Profile settings");

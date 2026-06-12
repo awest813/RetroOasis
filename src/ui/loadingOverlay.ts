@@ -4,9 +4,15 @@ export function setLoadingProgress(percent: number | null): void {
   if (!container || !bar) return;
   if (percent === null) {
     container.hidden = true;
+    container.removeAttribute("aria-valuenow");
   } else {
+    const clamped = Math.min(100, Math.max(0, percent));
     container.hidden = false;
-    bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    container.setAttribute("role", "progressbar");
+    container.setAttribute("aria-valuemin", "0");
+    container.setAttribute("aria-valuemax", "100");
+    container.setAttribute("aria-valuenow", String(Math.round(clamped)));
+    bar.style.width = `${clamped}%`;
   }
 }
 

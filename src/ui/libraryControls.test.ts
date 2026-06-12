@@ -44,8 +44,10 @@ function wireTestControls(): void {
     <button id="library-search-clear"></button>
     <button id="library-fav-filter"></button>
     <button id="library-controls-reset"></button>
-    <div id="library-layouts">
-      <button class="layout-btn" data-layout="grid"></button>
+    <div id="library-layouts" role="radiogroup">
+      <button class="layout-btn" data-layout="grid" role="radio" aria-checked="true"></button>
+      <button class="layout-btn" data-layout="list" role="radio" aria-checked="false"></button>
+      <button class="layout-btn" data-layout="compact" role="radio" aria-checked="false"></button>
     </div>
   `;
   wireLibraryControls({
@@ -117,6 +119,23 @@ describe("libraryControls", () => {
     });
     document.querySelector<HTMLButtonElement>('.layout-btn[data-layout="grid"]')?.click();
     expect(onSettingsChange).toHaveBeenCalledWith({ libraryLayout: "grid" });
+  });
+
+  it("changes layout with arrow keys on the radiogroup", () => {
+    const onSettingsChange = vi.fn();
+    wireTestControls();
+    resetLibraryControlsForTests();
+    wireLibraryControls({
+      focusFirstCard: () => {},
+      scheduleRender: () => {},
+      resetFiltersAndRender: () => {},
+      runBulkCoverFetch: () => {},
+      onSettingsChange,
+      isBulkCoverBusy: () => false,
+    });
+    const layoutContainer = document.getElementById("library-layouts")!;
+    layoutContainer.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(onSettingsChange).toHaveBeenCalledWith({ libraryLayout: "list" });
   });
 
   it("builds a stable render signature for unchanged state", () => {
