@@ -38,6 +38,11 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/** Copy into a Uint8Array backed by ArrayBuffer (satisfies Web Crypto BufferSource typing). */
+function toCryptoBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes);
+}
+
 function base64ToBytes(value: string): Uint8Array | null {
   if (value.length > PROFILE_CRYPTO_MAX_FIELD_B64_LENGTH) return null;
   try {
@@ -91,7 +96,7 @@ async function deriveAesKey(passphrase: string, salt: Uint8Array, iterations: nu
     ["deriveKey"],
   );
   return subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: toCryptoBytes(salt), iterations, hash: "SHA-256" },
     passKey,
     { name: "AES-GCM", length: 256 },
     false,
@@ -148,7 +153,11 @@ export async function decryptProfileExport(envelopeJson: string, passphrase: str
   const subtle = getSubtle();
   try {
     const key = await deriveAesKey(passphrase, salt, Math.floor(parsed.iterations));
-    const plaintext = await subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    const plaintext = await subtle.decrypt(
+      { name: "AES-GCM", iv: toCryptoBytes(iv) },
+      key,
+      toCryptoBytes(ciphertext),
+    );
     return new TextDecoder().decode(plaintext);
   } catch {
     return "Could not decrypt profile. Check the passphrase and try again.";

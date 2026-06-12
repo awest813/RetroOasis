@@ -81,6 +81,7 @@ describe("ProfileManager", () => {
     pm.ensureInitialized(deps);
 
     const work = pm.createProfile("Work", deps);
+    if (typeof work === "string") throw new Error(work);
     settings.netplayUsername = "work-user";
     pm.saveActiveSnapshot(deps);
 

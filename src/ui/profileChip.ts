@@ -26,9 +26,11 @@ function isProfileChipMenuOpen(): boolean {
 }
 
 function focusMenuItem(items: HTMLButtonElement[], index: number): void {
-  const next = items[Math.max(0, Math.min(index, items.length - 1))];
-  items.forEach((item, i) => { item.tabIndex = i === items.indexOf(next) ? 0 : -1; });
-  next?.focus();
+  if (items.length === 0) return;
+  const nextIndex = Math.max(0, Math.min(index, items.length - 1));
+  const next = items[nextIndex]!;
+  items.forEach((item, i) => { item.tabIndex = i === nextIndex ? 0 : -1; });
+  next.focus();
 }
 
 function openProfileChipMenu(chip: HTMLButtonElement): void {
