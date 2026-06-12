@@ -122,4 +122,4 @@ Cloud upload calls `exportProfileIndexForCloud` so every slot's embedded `librar
 
 1. Should kids' profiles hide Connections / Cloud Library settings?
 2. Default encryption off vs on for exports?
-3. Should cloud index backup optionally encrypt the uploaded index?
+3. ~~Should cloud index backup optionally encrypt the uploaded index?~~ **Shipped:** optional passphrase encryption toggle in Profiles → Cloud backup.

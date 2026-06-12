@@ -214,14 +214,21 @@ export async function dropFakeRom(
 /** Create a minimal stored ZIP archive containing one fake ROM and drop it on the app. */
 export async function dropFakeZipRom(
   page: Page,
-  opts: { archiveName?: string; romName?: string; content?: string } = {},
+  opts: {
+    archiveName?: string;
+    romName?: string;
+    content?: string;
+    /** Central-directory uncompressed size (for large-entry guard tests). */
+    declaredUncompressedSize?: number;
+  } = {},
 ): Promise<void> {
   const archiveName = opts.archiveName ?? "archive.zip";
   const romName = opts.romName ?? "sonic.nes";
   const content = opts.content ?? "NES\x1a";
+  const declaredUncompressedSize = opts.declaredUncompressedSize;
 
   await page.evaluate(
-    ({ archiveName, romName, content }) => {
+    ({ archiveName, romName, content, declaredUncompressedSize }) => {
       const enc = new TextEncoder();
       const nameBytes = enc.encode(romName);
       const data = enc.encode(content);
@@ -243,7 +250,8 @@ export async function dropFakeZipRom(
       u16(pos + 10, 0);
       u16(pos + 12, 0);
       u32(pos + 14, 0);
-      u32(pos + 18, data.length);
+      const declaredSize = declaredUncompressedSize ?? data.length;
+      u32(pos + 18, declaredSize);
       u32(pos + 22, data.length);
       u16(pos + 26, nameBytes.length);
       u16(pos + 28, 0);
@@ -261,7 +269,7 @@ export async function dropFakeZipRom(
       u16(pos + 12, 0);
       u16(pos + 14, 0);
       u32(pos + 16, 0);
-      u32(pos + 20, data.length);
+      u32(pos + 20, declaredSize);
       u32(pos + 24, data.length);
       u16(pos + 28, nameBytes.length);
       u16(pos + 30, 0);
@@ -291,7 +299,7 @@ export async function dropFakeZipRom(
       dropZone.dispatchEvent(new DragEvent("dragover", { bubbles: true, dataTransfer: dt }));
       dropZone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: dt }));
     },
-    { archiveName, romName, content },
+    { archiveName, romName, content, declaredUncompressedSize },
   );
 }
 

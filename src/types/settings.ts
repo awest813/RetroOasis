@@ -97,4 +97,6 @@ export interface Settings {
    * untagged legacy games. New imports are tagged to the active profile.
    */
   profileLibraryFilter: boolean;
+  /** When true, profile index cloud backups are passphrase-encrypted before upload. */
+  profileCloudBackupEncrypted: boolean;
 }

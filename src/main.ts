@@ -136,6 +136,7 @@ const DEFAULT_SETTINGS: Settings = {
   dynamicResolutionScaling: false,
   uiScale: 1.0,
   profileLibraryFilter: false,
+  profileCloudBackupEncrypted: false,
 };
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -237,6 +238,9 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
       profileLibraryFilter: typeof parsed.profileLibraryFilter === "boolean"
         ? parsed.profileLibraryFilter
         : DEFAULT_SETTINGS.profileLibraryFilter,
+      profileCloudBackupEncrypted: typeof parsed.profileCloudBackupEncrypted === "boolean"
+        ? parsed.profileCloudBackupEncrypted
+        : DEFAULT_SETTINGS.profileCloudBackupEncrypted,
     };
   } catch {
     const s = { ...DEFAULT_SETTINGS };

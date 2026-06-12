@@ -44,6 +44,7 @@ function makeSettings(): Settings {
     dynamicResolutionScaling: true,
     uiScale: 1,
     profileLibraryFilter: false,
+    profileCloudBackupEncrypted: false,
   };
 }
 

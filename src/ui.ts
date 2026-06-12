@@ -104,6 +104,29 @@ import {
   updateLibraryLandingState,
 } from "./ui/libraryView.js";
 import {
+  applyLibraryFilters,
+  computeLibraryRenderSignature,
+  focusLibraryFavorites,
+  getLibraryFilterStateForCards,
+  getLibraryRenderSignature,
+  getLibrarySearchQuery,
+  getLibrarySortMode,
+  getLibrarySystemFilter,
+  isLibrarySystemFilterActive,
+  libraryHasActiveOverviewFilters,
+  libraryInCleanBrowse,
+  pruneStaleSystemFilter,
+  resetLibraryControlsForDomRebuild,
+  resetToolbarFilters,
+  setLibraryControlSettings,
+  setLibraryLastLayout,
+  setLibraryRenderSignature,
+  syncLibraryControlState,
+  syncLibraryProfileFilterChip,
+  toggleLibrarySystemFilter,
+  wireLibraryControls,
+} from "./ui/libraryControls.js";
+import {
   buildLibraryRow as buildLibraryRowSection,
 } from "./ui/librarySections.js";
 import {
@@ -160,7 +183,6 @@ import {
 } from "./ui/gameOfTheDay.js";
 import { refreshProfileHeaderChip } from "./ui/profileChip.js";
 import { getProfileManager } from "./profileManager.js";
-import { isGameVisibleForProfile } from "./profileGameTags.js";
 import { launchGameFromLibrary } from "./ui/launchGame.js";
 import { clearOverlayStack, closeTopmostOverlay, hasActiveOverlay } from "./ui/overlayStack.js";
 import {
@@ -182,6 +204,11 @@ const resolveAssetUrl = (path: string): string => {
 
 // ── Settings opener callback (set once from initUI, used by showError action buttons) ──
 let _openSettingsFn: ((tab?: string) => void) | null = null;
+let _onSettingsChange: ((patch: Partial<Settings>) => void) | null = null;
+
+function _libraryBulkBusyHost(): { isBulkCoverBusy: () => boolean } {
+  return { isBulkCoverBusy: () => _bulkCoverArtController !== null };
+}
 
 let _initUICleanup: (() => void) | null = null;
 
@@ -223,16 +250,7 @@ export function buildDOM(app: HTMLElement): void {
     preloader.addEventListener("transitionend", () => preloader.remove(), { once: true });
   }
 
-  // Reset module-level state that is tied to DOM nodes created below
-  if (_librarySearchDebounce !== null) {
-    clearTimeout(_librarySearchDebounce);
-    _librarySearchDebounce = null;
-  }
-  _libraryControlsWired = false;
-  _librarySearchQuery   = "";
-  _librarySortMode      = "lastPlayed";
-  _librarySystemFilter  = "";
-  _libraryRenderSignature = "";
+  resetLibraryControlsForDomRebuild();
   clearOverlayStack();
   stopLibraryGamepadNavigation();
   document.body.classList.remove("using-gamepad");
@@ -1031,7 +1049,7 @@ export function initUI(opts: UIOptions): void {
         ? "Network connection available"
         : "No network — online-only features are unavailable";
     }
-    _syncLibraryControlState();
+    syncLibraryControlState(_libraryBulkBusyHost());
   };
   cleanupFns.push(subscribeToNetworkChanges(applyConnectivityFooter));
 
@@ -1051,6 +1069,7 @@ export function initUI(opts: UIOptions): void {
 
   _openSettingsFn = (tab?: string) =>
     openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, tab as SettingsTab | undefined);
+  _onSettingsChange = onSettingsChange;
   setErrorBannerSettingsOpener(_openSettingsFn);
 
   /** Close the Multiplayer modal (if open) and jump to Play Together settings. */
@@ -1493,118 +1512,14 @@ export function initUI(opts: UIOptions): void {
 
 // ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
 
-type SortMode = "lastPlayed" | "name" | "added" | "system";
-
-let _librarySearchQuery = "";
-let _librarySortMode: SortMode = "lastPlayed";
-let _librarySystemFilter = "";
-let _libraryShowFavorites = false;
-let _libraryLastLayout: Settings["libraryLayout"] = "grid";
-let _libraryControlSettings: Settings | null = null;
-let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
-/** Fingerprint of the last full library grid build — skips redundant DOM work. */
-let _libraryRenderSignature = "";
-const _uiDirty = new UIDirtyTracker();
-
 /** Force the next `renderLibrary()` call to rebuild the card grid. */
 export function invalidateLibraryRender(): void {
-  _libraryRenderSignature = "";
+  setLibraryRenderSignature("");
   _uiDirty.mark(UIDirtyFlags.LIBRARY);
 }
 
-function _computeLibraryRenderSignature(
-  allGames: GameMetadata[],
-  displayed: GameMetadata[],
-  settings: Settings,
-): string {
-  const gameSig = displayed
-    .map((g) =>
-      `${g.id}:${g.lastPlayedAt ?? 0}:${g.isFavorite ? 1 : 0}:${g.hasCoverArt ? 1 : 0}:${g.thumbnailUrl ?? ""}`,
-    )
-    .join("|");
-  return [
-    allGames.length,
-    gameSig,
-    _librarySearchQuery,
-    _librarySystemFilter,
-    _libraryShowFavorites ? 1 : 0,
-    _librarySortMode,
-    settings.libraryLayout,
-    settings.libraryGrouped ? 1 : 0,
-  ].join(";");
-}
-
-function _syncLibraryProfileFilterChip(settings: Settings): void {
-  const chip = document.getElementById("library-profile-filter");
-  if (!chip) return;
-  if (!settings.profileLibraryFilter) {
-    chip.hidden = true;
-    chip.textContent = "";
-    return;
-  }
-  const pm = getProfileManager();
-  const name = pm.getActiveProfileName();
-  const color = pm.getActiveProfileColor();
-  chip.hidden = false;
-  chip.innerHTML = "";
-  const dot = make("span", { class: "library-profile-filter__dot", "aria-hidden": "true" });
-  dot.style.backgroundColor = color;
-  chip.append(
-    dot,
-    document.createTextNode(`Profile: ${name}`),
-  );
-  chip.title = "Library filtered to games tagged for this profile (plus untagged shared games). Open Settings → Cloud Library → Profiles to change.";
-}
-
-function _syncLibraryControlState(): void {
-  const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
-  const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
-  const clearBtn = document.getElementById("library-search-clear") as HTMLButtonElement | null;
-
-  if (searchEl) searchEl.value = _librarySearchQuery;
-  if (sortEl) sortEl.value = _librarySortMode;
-  if (clearBtn) clearBtn.hidden = _librarySearchQuery.length === 0;
-
-  const favBtn = document.getElementById("library-fav-filter") as HTMLButtonElement | null;
-  if (favBtn) {
-    favBtn.classList.toggle("active", _libraryShowFavorites);
-    favBtn.setAttribute("aria-pressed", String(_libraryShowFavorites));
-  }
-
-  const layoutContainer = document.getElementById("library-layouts");
-  if (layoutContainer) {
-    const currentLayout = _libraryLastLayout;
-    layoutContainer.querySelectorAll(".layout-btn").forEach(btn => {
-      const layout = btn.getAttribute("data-layout");
-      btn.setAttribute("aria-checked", String(layout === currentLayout));
-      btn.classList.toggle("active", layout === currentLayout);
-    });
-  }
-
-  const resetBtn = document.getElementById("library-controls-reset") as HTMLButtonElement | null;
-  if (resetBtn) {
-    const hasToolbarFilters =
-      !!_librarySearchQuery ||
-      !!_librarySystemFilter ||
-      _libraryShowFavorites;
-    resetBtn.hidden = !hasToolbarFilters;
-  }
-
-  const fetchCoversBtn = document.getElementById("library-fetch-covers") as HTMLButtonElement | null;
-  if (fetchCoversBtn && !_bulkCoverArtController) {
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    fetchCoversBtn.disabled = offline;
-    fetchCoversBtn.title = offline
-      ? "Requires an internet connection"
-      : "Match games against online cover databases (Settings → Connections)";
-    fetchCoversBtn.setAttribute(
-      "aria-label",
-      offline
-        ? "Fetch missing cover art — unavailable while offline"
-        : "Fetch missing cover art from online",
-    );
-  }
-}
+let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
+const _uiDirty = new UIDirtyTracker();
 
 function _scheduleLibraryRender(
   library: GameLibrary,
@@ -1640,11 +1555,7 @@ function _resetLibraryFilters(
   emulatorRef?: PSPEmulator,
   onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>
 ): void {
-  _librarySearchQuery = "";
-  _librarySystemFilter = "";
-  _librarySortMode = "lastPlayed";
-  _libraryShowFavorites = false;
-  _syncLibraryControlState();
+  resetToolbarFilters();
   _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 }
 
@@ -1682,7 +1593,7 @@ async function _runBulkCoverArtFetch(
     _setFetchCoversButtonLabel(button, "Fetch covers");
     button.removeAttribute("aria-busy");
     button.classList.remove("library-controls__fetch-covers--busy");
-    _syncLibraryControlState();
+    syncLibraryControlState(_libraryBulkBusyHost());
   };
 
   // Toggle-cancel semantics: a second click aborts the in-flight batch.
@@ -1847,21 +1758,26 @@ export async function renderLibrary(
     allGames = [];
   }
 
-  // If the previously selected system no longer exists in the current
-  // dataset (for example after deleting or reassigning games), clear the
-  // stale filter so the library never gets stuck in an empty dead-end state.
-  if (_librarySystemFilter) {
-    const presentSystemIds = new Set(allGames.map(g => g.systemId));
-    if (!presentSystemIds.has(_librarySystemFilter)) {
-      _librarySystemFilter = "";
-    }
-  }
+  pruneStaleSystemFilter(allGames);
 
-  _libraryControlSettings = settings;
-  _syncLibraryProfileFilterChip(settings);
+  setLibraryControlSettings(settings);
+  syncLibraryProfileFilterChip(settings);
 
-  // Wire up search + sort + filter controls (idempotent)
-  _wireLibraryControls(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+  wireLibraryControls({
+    openSettings: (tab) => { _openSettingsFn?.(tab); },
+    focusFirstCard: () => { void focusFirstLibraryCard(); },
+    scheduleRender: (debounceMs) => {
+      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch, debounceMs ?? 0);
+    },
+    resetFiltersAndRender: () => {
+      _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+    },
+    runBulkCoverFetch: (button) => {
+      void _runBulkCoverArtFetch(library, settings, onLaunchGame, emulatorRef, onApplyPatch, button);
+    },
+    onSettingsChange: (patch) => { _onSettingsChange?.(patch); },
+    isBulkCoverBusy: () => _bulkCoverArtController !== null,
+  });
 
   // Wire up keyboard + gamepad navigation (idempotent)
   startLibraryGamepadNavigation();
@@ -1870,7 +1786,7 @@ export async function renderLibrary(
   _renderSystemFilterChips(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 
   // Apply filters and sort
-  const displayed = _applyLibraryFilters(allGames, settings);
+  const displayed = applyLibraryFilters(allGames, settings);
 
   const onboardingEl = document.getElementById("onboarding");
   updateLibraryLandingState({
@@ -1886,15 +1802,14 @@ export async function renderLibrary(
   const titleEl = document.querySelector(".library-title");
   if (titleEl) titleEl.textContent = resolveLibraryHeadline(allGames);
 
-  const inCleanBrowse =
-    !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+  const inCleanBrowse = libraryInCleanBrowse();
 
   _renderEmptyDetailsGuide(allGames.length === 0);
 
   _renderLibraryOverview(allGames, displayed, {
     onFocusFavorites: () => {
-      _libraryShowFavorites = true;
-      _syncLibraryControlState();
+      focusLibraryFavorites();
+      syncLibraryControlState(_libraryBulkBusyHost());
       _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     },
     onFetchCovers: () => {
@@ -1915,8 +1830,7 @@ export async function renderLibrary(
   // user's focused browsing actions.
   const highlightsEl = document.getElementById("library-highlights");
   if (highlightsEl) {
-    const showHighlights =
-      !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+    const showHighlights = libraryInCleanBrowse();
 
     if (showHighlights && allGames.length > 0) {
       const favorites       = allGames.filter(g => g.isFavorite);
@@ -1951,17 +1865,17 @@ export async function renderLibrary(
   _renderGameOfTheDay(allGames, library, settings, onLaunchGame);
 
   const layout = settings.libraryLayout;
-  _libraryLastLayout = layout;
-  _syncLibraryControlState();
+  setLibraryLastLayout(layout);
+  syncLibraryControlState(_libraryBulkBusyHost());
 
   grid.className = `library-grid library-grid--${layout}`;
 
-  const renderSig = _computeLibraryRenderSignature(allGames, displayed, settings);
+  const renderSig = computeLibraryRenderSignature(allGames, displayed, settings);
   const forceRender = _uiDirty.consume(UIDirtyFlags.LIBRARY);
   const hasRenderedCards = grid.querySelector(".game-card:not(.game-card--skeleton)") !== null;
   const canSkipGridRebuild =
     !forceRender &&
-    renderSig === _libraryRenderSignature &&
+    renderSig === getLibraryRenderSignature() &&
     hasRenderedCards &&
     !grid.querySelector(".library-empty");
 
@@ -1969,7 +1883,7 @@ export async function renderLibrary(
     grid.classList.remove("library-grid--busy");
     return;
   }
-  _libraryRenderSignature = renderSig;
+  setLibraryRenderSignature(renderSig);
 
   const gridImgs = grid.querySelectorAll<HTMLImageElement>('img[src^="blob:"]');
   for (const img of gridImgs) URL.revokeObjectURL(img.src);
@@ -1983,9 +1897,10 @@ export async function renderLibrary(
   }
 
   if (displayed.length === 0 && allGames.length > 0) {
-    const activeSystem = _librarySystemFilter ? getSystemById(_librarySystemFilter)?.shortName ?? _librarySystemFilter.toUpperCase() : "";
+    const systemFilter = getLibrarySystemFilter();
+    const activeSystem = systemFilter ? getSystemById(systemFilter)?.shortName ?? systemFilter.toUpperCase() : "";
     const empty = buildFilteredLibraryEmptyState({
-      searchQuery: _librarySearchQuery,
+      searchQuery: getLibrarySearchQuery(),
       activeSystemLabel: activeSystem,
       profileFilterActive: settings.profileLibraryFilter,
       profileName: getProfileManager().getActiveProfileName(),
@@ -2004,7 +1919,7 @@ export async function renderLibrary(
 
   const showRecentlyAdded =
     inCleanBrowse &&
-    _librarySortMode === "lastPlayed" &&
+    getLibrarySortMode() === "lastPlayed" &&
     allGames.length > 0 &&
     !settings.libraryGrouped;
 
@@ -2153,48 +2068,6 @@ export async function renderLibrary(
   }
 }
 
-function _applyLibraryFilters(games: GameMetadata[], settings: Settings): GameMetadata[] {
-  let result = games;
-
-  if (settings.profileLibraryFilter) {
-    const profileId = getProfileManager().getActiveProfileId();
-    if (profileId) {
-      result = result.filter((g) => isGameVisibleForProfile(g.id, profileId, true));
-    }
-  }
-
-  if (_librarySystemFilter) {
-    result = result.filter(g => g.systemId === _librarySystemFilter);
-  }
-
-  if (_librarySearchQuery) {
-    const q = _librarySearchQuery.toLowerCase();
-    result = result.filter(g => g.name.toLowerCase().includes(q) || (getSystemById(g.systemId)?.name ?? "").toLowerCase().includes(q) || g.systemId.toLowerCase().includes(q));
-  }
-
-  if (_libraryShowFavorites) {
-    result = result.filter(g => g.isFavorite);
-  }
-
-  switch (_librarySortMode) {
-    case "name":
-      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
-      break;
-    case "added":
-      result = [...result].sort((a, b) => b.addedAt - a.addedAt);
-      break;
-    case "system":
-      result = [...result].sort((a, b) => a.systemId.localeCompare(b.systemId) || a.name.localeCompare(b.name));
-      break;
-    case "lastPlayed":
-    default:
-      result = [...result].sort((a, b) => (b.lastPlayedAt ?? b.addedAt) - (a.lastPlayedAt ?? a.addedAt));
-      break;
-  }
-
-  return result;
-}
-
 interface LibraryOverviewActions {
   onFocusFavorites?: () => void;
   onFetchCovers?: () => void;
@@ -2211,8 +2084,7 @@ function _renderGameOfTheDay(
   const host = document.getElementById("game-of-the-day-host");
   if (!host) return;
 
-  const inCleanBrowse =
-    !_librarySearchQuery && !_librarySystemFilter && !_libraryShowFavorites;
+  const inCleanBrowse = libraryInCleanBrowse();
 
   if (!inCleanBrowse || allGames.length === 0 || isGameOfTheDayDismissed()) {
     host.innerHTML = "";
@@ -2320,12 +2192,7 @@ function _renderLibraryOverview(
   const systemCount = new Set(allGames.map(g => g.systemId)).size;
   const favoriteCount = allGames.filter(g => g.isFavorite).length;
   const missingArtCount = allGames.filter(g => !g.hasCoverArt && !g.thumbnailUrl).length;
-  const hasActiveFilters =
-    displayed.length !== allGames.length ||
-    _libraryShowFavorites ||
-    !!_librarySearchQuery ||
-    !!_librarySystemFilter ||
-    _libraryControlSettings?.profileLibraryFilter === true;
+  const hasActiveFilters = libraryHasActiveOverviewFilters(allGames, displayed);
 
   const item = (
     label: string,
@@ -2385,121 +2252,6 @@ function _renderLibraryOverview(
   }
 }
 
-let _libraryControlsWired = false;
-
-// Persists the last non-zero volume across buildInGameControls rebuilds (e.g.
-// game resume) so mute/unmute restores the correct level after a re-render.
-function _wireLibraryControls(
-  _allGames: GameMetadata[],
-  library: GameLibrary,
-  settings: Settings,
-  onLaunchGame: (file: File, systemId: string, gameId?: string) => Promise<void>,
-  emulatorRef?: PSPEmulator,
-  onApplyPatch?: (gameId: string, patchFile: File) => Promise<void>,
-  onSettingsChange?: (patch: Partial<Settings>) => void
-): void {
-  if (_libraryControlsWired) return;
-  const cloudOnboardingBtn = document.getElementById("btn-cloud-onboarding");
-  if (cloudOnboardingBtn) {
-    cloudOnboardingBtn.addEventListener("click", () => {
-      _openSettingsFn?.("cloud");
-    });
-  }
-  const cloudLibraryOnboardingBtn = document.getElementById("btn-cloud-library-onboarding");
-  if (cloudLibraryOnboardingBtn) {
-    cloudLibraryOnboardingBtn.addEventListener("click", () => {
-      _openSettingsFn?.("cloudlibrary");
-    });
-  }
-  const onboardingHelpBtn = document.getElementById("btn-open-help-onboarding");
-  if (onboardingHelpBtn) {
-    onboardingHelpBtn.addEventListener("click", () => {
-      _openSettingsFn?.("help");
-    });
-  }
-
-  _libraryControlsWired = true;
-
-  const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
-  const sortEl   = document.getElementById("library-sort") as HTMLSelectElement | null;
-  const clearBtn = document.getElementById("library-search-clear") as HTMLButtonElement | null;
-  const resetBtn = document.getElementById("library-controls-reset") as HTMLButtonElement | null;
-
-  _syncLibraryControlState();
-
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    });
-  }
-
-  const fetchCoversBtn = document.getElementById("library-fetch-covers") as HTMLButtonElement | null;
-  if (fetchCoversBtn) {
-    fetchCoversBtn.addEventListener("click", () => {
-      void _runBulkCoverArtFetch(library, settings, onLaunchGame, emulatorRef, onApplyPatch, fetchCoversBtn);
-    });
-  }
-
-  if (searchEl) {
-    searchEl.addEventListener("input", () => {
-      _librarySearchQuery = searchEl.value;
-      _syncLibraryControlState();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch, 120);
-    });
-    searchEl.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        void focusFirstLibraryCard();
-        return;
-      }
-      if (event.key !== "Escape" || _librarySearchQuery.length === 0) return;
-      event.preventDefault();
-      searchEl.value = "";
-      _librarySearchQuery = "";
-      _syncLibraryControlState();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    });
-  }
-
-  if (sortEl) {
-    sortEl.addEventListener("change", () => {
-      _librarySortMode = sortEl.value as SortMode;
-      _syncLibraryControlState();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    });
-  }
-
-  if (clearBtn && searchEl) {
-    clearBtn.addEventListener("click", () => {
-      searchEl.value = "";
-      _librarySearchQuery = "";
-      _syncLibraryControlState();
-      searchEl.focus();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    });
-  }
-
-  const favFilterBtn = document.getElementById("library-fav-filter");
-  if (favFilterBtn) {
-    favFilterBtn.addEventListener("click", () => {
-      _libraryShowFavorites = !_libraryShowFavorites;
-      _syncLibraryControlState();
-      _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-    });
-  }
-
-  const layoutBtns = document.querySelectorAll(".layout-btn");
-  layoutBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const layout = btn.getAttribute("data-layout") as Settings["libraryLayout"];
-      if (layout) {
-        onSettingsChange?.({ libraryLayout: layout });
-        _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
-      }
-    });
-  });
-}
-
 function _renderSystemFilterChips(
   games: GameMetadata[],
   library: GameLibrary,
@@ -2532,8 +2284,8 @@ function _renderSystemFilterChips(
         ? "Show all systems"
         : `Filter by ${label}`;
     const chip = make("button", {
-      class: `sys-filter-chip${_librarySystemFilter === id ? " active" : ""}`,
-      "aria-pressed": _librarySystemFilter === id ? "true" : "false",
+      class: `sys-filter-chip${isLibrarySystemFilterActive(id) ? " active" : ""}`,
+      "aria-pressed": isLibrarySystemFilterActive(id) ? "true" : "false",
       "aria-label": chipLabel,
     });
     
@@ -2550,7 +2302,8 @@ function _renderSystemFilterChips(
     chip.append(iconEl, labelEl);
     
     chip.addEventListener("click", () => {
-      _librarySystemFilter = _librarySystemFilter === id ? "" : id;
+      toggleLibrarySystemFilter(id);
+      syncLibraryControlState(_libraryBulkBusyHost());
       _scheduleLibraryRender(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
     });
     return chip;
@@ -2578,7 +2331,7 @@ function buildGameCard(
     onOpenApiKeySettings: () => { _openSettingsFn?.("apikeys"); },
     emulatorRef,
     onApplyPatch,
-    libraryShowFavorites: _libraryShowFavorites,
+    ...getLibraryFilterStateForCards(),
   });
 }
 
