@@ -19,7 +19,9 @@ import {
 } from "./profileSnapshot.js";
 import {
   pruneProfileGameTags,
-  mergeLibraryTagsForProfile,
+  syncLibraryTagsForProfile,
+  pruneOrphanProfileTags,
+  syncAllLibraryTagsFromSnapshots,
   sanitizeLibraryGameIds,
   getTaggedGameIds,
 } from "./profileGameTags.js";
@@ -54,6 +56,10 @@ export interface ProfileApplyDeps {
   apiKeyStore: ApiKeyStore;
   onSettingsChange: (patch: Partial<Settings>) => void;
 }
+
+export type ProfileIndexCloudExport =
+  | { ok: true; raw: string }
+  | { ok: false; error: string };
 
 function emptyIndex(): ProfileIndexV1 {
   return { version: 1, activeId: "", profiles: {} };
@@ -320,7 +326,7 @@ export class ProfileManager {
     return true;
   }
 
-  async switchProfile(id: string, deps: ProfileApplyDeps): Promise<boolean> {
+  async switchProfile(id: string, deps: ProfileApplyDeps): Promise<boolean | string> {
     const target = this.index.profiles[id];
     if (!target || id === this.index.activeId) return false;
 
@@ -331,10 +337,12 @@ export class ProfileManager {
 
     this.switching = true;
     try {
-      this.saveActiveSnapshot(deps);
+      const saveErr = this.saveActiveSnapshot(deps);
+      if (saveErr) return saveErr;
       this.applySnapshot(target.snapshot, deps);
       this.index.activeId = id;
-      this.persist();
+      const persistErr = this.persist();
+      if (persistErr) return persistErr;
       this.emitChanged();
       return true;
     } finally {
@@ -358,7 +366,7 @@ export class ProfileManager {
       };
       this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
       this.index.activeId = id;
-      mergeLibraryTagsForProfile(id, snapshot.libraryGameIds);
+      syncLibraryTagsForProfile(id, snapshot.libraryGameIds);
       this.applySnapshot(snapshot, deps);
       const err = this.persist();
       if (err) return err;
@@ -374,7 +382,7 @@ export class ProfileManager {
     this.switching = true;
     try {
       this.applySnapshot(snapshot, deps);
-      mergeLibraryTagsForProfile(this.index.activeId, snapshot.libraryGameIds);
+      syncLibraryTagsForProfile(this.index.activeId, snapshot.libraryGameIds);
       const err = this.saveActiveSnapshot(deps);
       if (!err) this.emitChanged();
       return err;
@@ -417,6 +425,23 @@ export class ProfileManager {
     return snapshot;
   }
 
+  /** Refresh embedded libraryGameIds from live tag storage for every profile slot. */
+  private refreshEmbeddedLibraryGameIds(): void {
+    for (const [id, stored] of Object.entries(this.index.profiles)) {
+      const liveTags = sanitizeLibraryGameIds([...getTaggedGameIds(id)]);
+      if (liveTags) stored.snapshot.libraryGameIds = liveTags;
+      else delete stored.snapshot.libraryGameIds;
+    }
+  }
+
+  /** Flush active profile and export index with up-to-date library game tags for cloud backup. */
+  exportProfileIndexForCloud(deps: ProfileApplyDeps): ProfileIndexCloudExport {
+    const flushErr = this.flushAutoSave(deps);
+    if (flushErr) return { ok: false, error: flushErr };
+    this.refreshEmbeddedLibraryGameIds();
+    return { ok: true, raw: this.exportProfileIndexRaw() };
+  }
+
   exportProfileIndexRaw(): string {
     return JSON.stringify(this.index);
   }
@@ -448,6 +473,8 @@ export class ProfileManager {
       return "Remote profile index contains no valid profiles.";
     }
 
+    const updatedIds = new Set<string>();
+
     if (mode === "replace") {
       const activeId = typeof rec.activeId === "string" && normalizedProfiles[rec.activeId]
         ? rec.activeId
@@ -457,16 +484,30 @@ export class ProfileManager {
         activeId,
         profiles: normalizedProfiles,
       };
+      for (const id of Object.keys(normalizedProfiles)) updatedIds.add(id);
     } else {
       for (const [id, stored] of Object.entries(normalizedProfiles)) {
         const existing = this.index.profiles[id];
         if (!existing || stored.meta.updatedAt > existing.meta.updatedAt) {
           this.index.profiles[id] = stored;
-          mergeLibraryTagsForProfile(id, stored.snapshot.libraryGameIds);
+          updatedIds.add(id);
         }
       }
       if (!this.index.activeId && typeof rec.activeId === "string" && this.index.profiles[rec.activeId]) {
         this.index.activeId = rec.activeId;
+      }
+    }
+
+    pruneOrphanProfileTags(Object.keys(this.index.profiles));
+    if (mode === "replace") {
+      syncAllLibraryTagsFromSnapshots(
+        Object.fromEntries(
+          Object.entries(this.index.profiles).map(([id, p]) => [id, p.snapshot]),
+        ),
+      );
+    } else {
+      for (const id of updatedIds) {
+        syncLibraryTagsForProfile(id, this.index.profiles[id]?.snapshot.libraryGameIds);
       }
     }
 

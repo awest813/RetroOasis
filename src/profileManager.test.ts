@@ -335,6 +335,65 @@ describe("ProfileManager", () => {
     vi.unstubAllGlobals();
   });
 
+  it("returns persist error when switch cannot save", async () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const keep = pm.createProfile("Keep", deps);
+    if (typeof keep === "string") throw new Error(keep);
+    pm.createProfile("Active", deps);
+
+    vi.spyOn(storage, "setItem").mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+    const result = await pm.switchProfile(keep.id, deps);
+    expect(typeof result).toBe("string");
+    if (typeof result === "string") expect(result).toContain("Could not save profiles");
+  });
+
+  it("replaces library tags on cloud replace import", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const activeId = pm.getActiveProfileId();
+    tagGameForProfile("local-only", activeId);
+    pm.saveActiveSnapshot(deps);
+
+    const remote = JSON.parse(pm.exportProfileIndexRaw()) as {
+      version: number;
+      activeId: string;
+      profiles: Record<string, { snapshot: { libraryGameIds?: string[] } }>;
+    };
+    remote.profiles[activeId]!.snapshot.libraryGameIds = ["remote-only"];
+
+    const err = pm.importProfileIndexRaw(JSON.stringify(remote), "replace", deps);
+    expect(err).toBeNull();
+    expect(getTaggedGameIds(activeId, storage).has("remote-only")).toBe(true);
+    expect(getTaggedGameIds(activeId, storage).has("local-only")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("exportProfileIndexForCloud embeds live library tags for every slot", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    pm.createProfile("Tagged", deps);
+    const taggedId = pm.getActiveProfileId();
+    tagGameForProfile("live-tag", taggedId);
+
+    const exported = pm.exportProfileIndexForCloud(deps);
+    expect(exported.ok).toBe(true);
+    if (exported.ok) {
+      const parsed = JSON.parse(exported.raw) as {
+        profiles: Record<string, { snapshot: { libraryGameIds?: string[] } }>;
+      };
+      expect(parsed.profiles[taggedId]?.snapshot.libraryGameIds).toContain("live-tag");
+    }
+    vi.unstubAllGlobals();
+  });
+
   it("removes API keys that are not in the switched profile", async () => {
     const providers = [
       { id: "rawg", name: "RAWG", description: "", signupUrl: "", validate: () => true as const },

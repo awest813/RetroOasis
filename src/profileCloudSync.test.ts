@@ -66,7 +66,21 @@ describe("profileCloudSync", () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(new Response(indexJson, { status: 200 }));
     const remote = await pullProfileIndexFromCloud();
-    expect(remote).toBe(indexJson);
+    expect(remote.ok).toBe(true);
+    if (remote.ok) expect(remote.raw).toBe(indexJson);
+  });
+
+  it("reports missing backup separately from auth failures", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response("", { status: 404 }));
+    const missing = await pullProfileIndexFromCloud();
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.error).toContain("No profile backup");
+
+    fetchMock.mockResolvedValue(new Response("", { status: 401 }));
+    const auth = await pullProfileIndexFromCloud();
+    expect(auth.ok).toBe(false);
+    if (!auth.ok) expect(auth.error).toContain("authentication failed");
   });
 
   it("uploads profile index to Google Drive appDataFolder", async () => {

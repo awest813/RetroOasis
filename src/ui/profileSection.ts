@@ -168,16 +168,16 @@ export function buildProfileSection(
       refreshColorSwatches();
       if (!id || id === previousId) return;
       profileSel.disabled = true;
-      const ok = await pm.switchProfile(id, deps);
+      const result = await pm.switchProfile(id, deps);
       profileSel.disabled = false;
-      if (ok) {
+      if (result === true) {
         renameInp.value = pm.getActiveProfileName();
         showInfoToast(`Switched to profile "${pm.getActiveProfileName()}".`, "success");
         rebuildTab();
-      } else {
+      } else if (result !== false) {
         profileSel.value = previousId;
         refreshColorSwatches();
-        showError("Could not switch profile. Try again.");
+        showError(result);
       }
     })();
   });
@@ -394,13 +394,13 @@ export function buildProfileSection(
   pushCloudBtn.addEventListener("click", () => {
     void (async () => {
       pushCloudBtn.disabled = true;
-      const persistErr = pm.flushAutoSave(deps);
-      if (persistErr) {
+      const exported = pm.exportProfileIndexForCloud(deps);
+      if (!exported.ok) {
         pushCloudBtn.disabled = false;
-        showError(persistErr);
+        showError(exported.error);
         return;
       }
-      const err = await pushProfileIndexToCloud(pm.exportProfileIndexRaw());
+      const err = await pushProfileIndexToCloud(exported.raw);
       pushCloudBtn.disabled = false;
       if (err) showError(err);
       else showInfoToast("Profiles uploaded to save sync.", "success");
@@ -416,11 +416,11 @@ export function buildProfileSection(
 
       mergeCloudBtn.disabled = true;
       replaceCloudBtn.disabled = true;
-      const remote = await pullProfileIndexFromCloud();
+      const pulled = await pullProfileIndexFromCloud();
       mergeCloudBtn.disabled = !cloudSyncEnabled;
       replaceCloudBtn.disabled = !cloudSyncEnabled;
-      if (!remote) { showError("No profile backup found in save sync."); return; }
-      const err = pm.importProfileIndexRaw(remote, mode, deps);
+      if (!pulled.ok) { showError(pulled.error); return; }
+      const err = pm.importProfileIndexRaw(pulled.raw, mode, deps);
       if (err) showError(err);
       else {
         showInfoToast(

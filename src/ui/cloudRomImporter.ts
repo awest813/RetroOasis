@@ -270,7 +270,8 @@ export function showCloudRomImporterDialog(opts: CloudRomImporterOpts): Promise<
             const blob = await downloadCloudFile(activeConn, file.path);
             const romFile = makeFileFromBlob(blob, file.name);
             const entry = await opts.library.addGame(romFile, sys.id);
-            tagGameForProfile(entry.id, getProfileManager().getActiveProfileId());
+            const profileId = getProfileManager().getActiveProfileId();
+            if (profileId) tagGameForProfile(entry.id, profileId);
             imported++;
           } catch (e) {
             showError(e instanceof Error ? e.message : `Failed to import ${file.name}`);

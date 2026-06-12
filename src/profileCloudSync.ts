@@ -69,11 +69,30 @@ async function pushWebDav(config: Extract<ProfileCloudSyncConfig, { provider: "w
   return null;
 }
 
-async function pullWebDav(config: Extract<ProfileCloudSyncConfig, { provider: "webdav" | "nextcloud" }>): Promise<string | null> {
-  const auth = buildBasicAuthHeader(config.username, config.password);
-  const res = await timedFetch(profileCloudUrl(config), { headers: { Authorization: auth } });
-  if (!res.ok) return null;
-  return res.text();
+export type ProfileCloudPullResult =
+  | { ok: true; raw: string }
+  | { ok: false; error: string };
+
+function pullHttpError(status: number): ProfileCloudPullResult {
+  if (status === 404) return { ok: false, error: "No profile backup found in save sync." };
+  if (status === 401 || status === 403) {
+    return { ok: false, error: `Save sync authentication failed (${status}). Check your credentials.` };
+  }
+  return { ok: false, error: `Could not download profile backup (${status}).` };
+}
+
+async function pullWebDav(config: Extract<ProfileCloudSyncConfig, { provider: "webdav" | "nextcloud" }>): Promise<ProfileCloudPullResult> {
+  try {
+    const auth = buildBasicAuthHeader(config.username, config.password);
+    const res = await timedFetch(profileCloudUrl(config), { headers: { Authorization: auth } });
+    if (!res.ok) return pullHttpError(res.status);
+    return { ok: true, raw: await res.text() };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, error: "Profile backup download timed out." };
+    }
+    return { ok: false, error: "Could not reach save sync storage." };
+  }
 }
 
 async function findGDriveFileId(accessToken: string): Promise<string | null> {
@@ -118,14 +137,21 @@ async function pushGDrive(config: Extract<ProfileCloudSyncConfig, { provider: "g
   return null;
 }
 
-async function pullGDrive(config: Extract<ProfileCloudSyncConfig, { provider: "gdrive" }>): Promise<string | null> {
-  const fileId = await findGDriveFileId(config.accessToken);
-  if (!fileId) return null;
-  const res = await timedFetch(`${GDRIVE_API}/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${config.accessToken}` },
-  });
-  if (!res.ok) return null;
-  return res.text();
+async function pullGDrive(config: Extract<ProfileCloudSyncConfig, { provider: "gdrive" }>): Promise<ProfileCloudPullResult> {
+  try {
+    const fileId = await findGDriveFileId(config.accessToken);
+    if (!fileId) return { ok: false, error: "No profile backup found in save sync." };
+    const res = await timedFetch(`${GDRIVE_API}/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${config.accessToken}` },
+    });
+    if (!res.ok) return pullHttpError(res.status);
+    return { ok: true, raw: await res.text() };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, error: "Profile backup download timed out." };
+    }
+    return { ok: false, error: "Could not reach save sync storage." };
+  }
 }
 
 async function pushDropbox(config: Extract<ProfileCloudSyncConfig, { provider: "dropbox" }>, payload: string): Promise<string | null> {
@@ -147,16 +173,23 @@ async function pushDropbox(config: Extract<ProfileCloudSyncConfig, { provider: "
   return null;
 }
 
-async function pullDropbox(config: Extract<ProfileCloudSyncConfig, { provider: "dropbox" }>): Promise<string | null> {
-  const res = await timedFetch(`${DROPBOX_CONTENT_API}/files/download`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.accessToken}`,
-      "Dropbox-API-Arg": JSON.stringify({ path: PROFILE_DROPBOX_PATH }),
-    },
-  });
-  if (!res.ok) return null;
-  return res.text();
+async function pullDropbox(config: Extract<ProfileCloudSyncConfig, { provider: "dropbox" }>): Promise<ProfileCloudPullResult> {
+  try {
+    const res = await timedFetch(`${DROPBOX_CONTENT_API}/files/download`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.accessToken}`,
+        "Dropbox-API-Arg": JSON.stringify({ path: PROFILE_DROPBOX_PATH }),
+      },
+    });
+    if (!res.ok) return pullHttpError(res.status);
+    return { ok: true, raw: await res.text() };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, error: "Profile backup download timed out." };
+    }
+    return { ok: false, error: "Could not reach save sync storage." };
+  }
 }
 
 /** Returns active save-sync config when profile backup is supported. */
@@ -226,9 +259,9 @@ export async function pushProfileIndexToCloud(rawIndex?: string | null): Promise
 }
 
 /** Download the remote profile index JSON from save-sync storage. */
-export async function pullProfileIndexFromCloud(): Promise<string | null> {
+export async function pullProfileIndexFromCloud(): Promise<ProfileCloudPullResult> {
   const config = getProfileCloudSyncConfig();
-  if (!config) return null;
+  if (!config) return { ok: false, error: "Save sync must be connected to download profiles." };
   switch (config.provider) {
     case "webdav":
     case "nextcloud":
@@ -238,6 +271,6 @@ export async function pullProfileIndexFromCloud(): Promise<string | null> {
     case "dropbox":
       return pullDropbox(config);
     default:
-      return null;
+      return { ok: false, error: "Save sync provider does not support profile backup." };
   }
 }

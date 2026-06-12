@@ -87,7 +87,23 @@ export function sanitizeLibraryGameIds(raw: unknown): string[] | undefined {
   return [...new Set(ids)].slice(0, 10_000);
 }
 
-/** Merge snapshot library game ids into a profile tag list (e.g. after import). */
+/** Replace a profile's tag list with snapshot library game ids (exact sync). */
+export function syncLibraryTagsForProfile(
+  profileId: string,
+  gameIds: string[] | undefined,
+  storage?: Storage | null,
+): void {
+  const trimmedId = profileId.trim();
+  if (!trimmedId) return;
+  const store = storage === undefined ? getStorage() : storage;
+  const index = readProfileGameTags(store);
+  const sanitized = sanitizeLibraryGameIds(gameIds);
+  if (!sanitized) delete index[trimmedId];
+  else index[trimmedId] = sanitized;
+  persistProfileGameTags(index, store);
+}
+
+/** @deprecated Use syncLibraryTagsForProfile — kept as alias for incremental adds. */
 export function mergeLibraryTagsForProfile(
   profileId: string,
   gameIds: string[] | undefined,
@@ -99,6 +115,35 @@ export function mergeLibraryTagsForProfile(
   for (const gameId of gameIds) {
     tagGameForProfile(gameId, trimmedId, storage);
   }
+}
+
+/** Drop tag lists for profile ids no longer in the index. */
+export function pruneOrphanProfileTags(validProfileIds: Iterable<string>, storage?: Storage | null): void {
+  const valid = new Set(validProfileIds);
+  const store = storage === undefined ? getStorage() : storage;
+  const index = readProfileGameTags(store);
+  let changed = false;
+  for (const id of Object.keys(index)) {
+    if (!valid.has(id)) {
+      delete index[id];
+      changed = true;
+    }
+  }
+  if (changed) persistProfileGameTags(index, store);
+}
+
+/** Sync all profile tag lists from embedded snapshot libraryGameIds (after full index replace). */
+export function syncAllLibraryTagsFromSnapshots(
+  profiles: Record<string, { libraryGameIds?: string[] }>,
+  storage?: Storage | null,
+): void {
+  const store = storage === undefined ? getStorage() : storage;
+  const index: ProfileGameTagIndex = {};
+  for (const [id, snapshot] of Object.entries(profiles)) {
+    const sanitized = sanitizeLibraryGameIds(snapshot.libraryGameIds);
+    if (sanitized) index[id] = sanitized;
+  }
+  persistProfileGameTags(index, store);
 }
 
 /** Remove all game tags for a deleted profile slot. */

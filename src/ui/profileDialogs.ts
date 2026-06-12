@@ -202,13 +202,15 @@ export function showProfileShareImportDialog(): Promise<string | null> {
 
     const scanStatus = make("p", { class: "settings-help", "aria-live": "polite" });
     scanStatus.hidden = true;
+    const importError = make("p", { class: "cloud-wizard-error", "aria-live": "assertive" });
+    importError.hidden = true;
 
     const footer = make("div", { class: "confirm-footer" });
     const btnCancel = make("button", { class: "btn", type: "button" }, "Cancel") as HTMLButtonElement;
     const btnScan = make("button", { class: "btn", type: "button" }, "Scan QR") as HTMLButtonElement;
     const btnImport = make("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
     footer.append(btnCancel, btnScan, btnImport);
-    box.append(codeArea, scanStatus, footer);
+    box.append(codeArea, scanStatus, importError, footer);
 
     const scanSupported = typeof window !== "undefined"
       && "BarcodeDetector" in window
@@ -291,7 +293,12 @@ export function showProfileShareImportDialog(): Promise<string | null> {
     btnCancel.addEventListener("click", () => close(null));
     btnImport.addEventListener("click", () => {
       const value = codeArea.value.trim();
-      if (!value) return;
+      if (!value) {
+        importError.textContent = "Paste a share code to import.";
+        importError.hidden = false;
+        codeArea.focus();
+        return;
+      }
       close(value);
     });
     requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));

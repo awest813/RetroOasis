@@ -52,9 +52,9 @@ function openProfileChipMenu(chip: HTMLButtonElement): void {
       void (async () => {
         closeProfileChipMenu();
         if (meta.id === activeId) return;
-        const ok = await pm.switchProfile(meta.id, chipDeps!);
-        if (ok) showInfoToast(`Switched to profile "${meta.name}".`, "success");
-        else showError("Could not switch profile. Try again.");
+        const result = await pm.switchProfile(meta.id, chipDeps!);
+        if (result === true) showInfoToast(`Switched to profile "${meta.name}".`, "success");
+        else if (result !== false) showError(result);
       })();
     });
     menu.appendChild(item);

@@ -1330,7 +1330,13 @@ async function main(): Promise<void> {
   // The IDB write is best-effort — modern browsers give async tasks a short
   // window to complete on unload, so most sessions will be persisted correctly.
   window.addEventListener("beforeunload", () => {
+    getProfileManager().flushAutoSave(profileDeps);
     void sessionTracker.endSession().catch(() => {});
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      getProfileManager().flushAutoSave(profileDeps);
+    }
   });
 
   // 8. If user returns to landing, rebuild landing header controls with a Resume button

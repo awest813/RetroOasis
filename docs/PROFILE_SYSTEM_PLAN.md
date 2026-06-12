@@ -89,20 +89,23 @@ interface ProfileMeta {
 // ProfileManager highlights
 getActiveProfileId(): string;
 listProfiles(): ProfileMeta[];
-createProfile(name, deps): ProfileMeta;
-switchProfile(id, deps): Promise<boolean>;
-deleteProfile(id, deps?): boolean;
+createProfile(name, deps): ProfileMeta | string;
+switchProfile(id, deps): Promise<true | false | string>; // string = persist error message
+deleteProfile(id, deps?): boolean | string;
 exportProfileSnapshot(id, deps?): ProfileSnapshotV1 | null;
-importSnapshotAsNewProfile(snapshot, deps): ProfileMeta;
-importSnapshotIntoActive(snapshot, deps): void;
+exportProfileIndexForCloud(deps): { ok: true; raw } | { ok: false; error };
+importSnapshotAsNewProfile(snapshot, deps): ProfileMeta | string;
+importSnapshotIntoActive(snapshot, deps): string | null;
 importProfileIndexRaw(raw, "replace" | "merge", deps?): string | null;
-flushAutoSave(deps): string | null;
+flushAutoSave(deps): string | null; // null = success, string = error
 ```
 
 ### Cloud index merge semantics
 
-**Merge** adds remote slots with new IDs and replaces existing slots when the remote copy has a newer `updatedAt`. Library game tags embedded in snapshots are merged on import.
-**Replace** overwrites the entire local index with the remote copy.
+**Merge** adds remote slots with new IDs and replaces existing slots when the remote copy has a newer `updatedAt`. Library game tags for updated slots are synced exactly from embedded `libraryGameIds`; orphan tag lists are pruned.
+**Replace** overwrites the entire local index with the remote copy and replaces all library tag lists from embedded snapshots.
+
+Cloud upload calls `exportProfileIndexForCloud` so every slot's embedded `libraryGameIds` reflects live tag storage before upload.
 
 ## Library filter semantics
 
