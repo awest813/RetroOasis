@@ -35,6 +35,18 @@ test.describe("Add ROM journey", () => {
     await expect(card).toBeVisible({ timeout: 15_000 });
   });
 
+  test("rejects ZIP archives advertising an oversized 3DS image", async ({ appPage: page }) => {
+    await dropFakeZipRom(page, {
+      archiveName: "huge-3ds.zip",
+      romName: "Monster Hunter 4 Ultimate (USA).3ds",
+      content: "NCSD",
+      declaredUncompressedSize: 600 * 1024 * 1024,
+    });
+
+    await expect(page.getByText(/large 3DS image/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".game-card, .library-game-card, [data-game-id]")).toHaveCount(0);
+  });
+
   test("dropping a ZIP archive containing a .3ds ROM creates a 3DS game card", async ({ appPage: page }) => {
     await expect(page.locator("#drop-zone")).toBeVisible();
 

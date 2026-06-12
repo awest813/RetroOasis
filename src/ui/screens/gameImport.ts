@@ -69,6 +69,10 @@ import { iosBlockedArchiveExtension, iosBlockedArchiveMessage } from "../../safa
 import { isLikelyIOS } from "../../performance.js";
 import { tagGameForProfile } from "../../profileGameTags.js";
 import { getProfileManager } from "../../profileManager.js";
+import {
+  findLargeN3dsPackageEntry,
+  largeN3dsArchiveErrorMessage,
+} from "../../n3dsImportGuards.js";
 
 function tagImportedGameForActiveProfile(gameId: string): void {
   const profileId = getProfileManager().getActiveProfileId();
@@ -78,8 +82,6 @@ function tagImportedGameForActiveProfile(gameId: string): void {
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
-const N3DS_PACKAGE_EXTS = new Set(["3ds", "3dsx", "z3dsx", "cci", "zcci", "cxi", "zcxi", "app", "elf", "axf"]);
-const LARGE_N3DS_ARCHIVE_ENTRY_BYTES = 512 * 1024 * 1024;
 
 function canRouteArchiveAsNativePackage(format: ArchiveFormat, fileName: string): boolean {
   if (format === "zip") return true;
@@ -108,19 +110,8 @@ function isDreamcastGdiPackage(candidates: Array<{ name: string }>): boolean {
   return isDreamcastGdiSelection(candidates);
 }
 
-function findLargeN3dsPackageEntry(candidates: Array<{ name: string; size: number }>): { name: string; size: number } | null {
-  return candidates.find((candidate) =>
-    N3DS_PACKAGE_EXTS.has(fileExt(candidate.name)) &&
-    candidate.size >= LARGE_N3DS_ARCHIVE_ENTRY_BYTES
-  ) ?? null;
-}
-
 function showLargeN3dsArchiveError(format: ArchiveFormat, archiveName: string, entry: { name: string; size: number }): void {
-  showError(
-    `${format.toUpperCase()} archive "${archiveName}" contains a large 3DS image "${entry.name}" (${formatBytes(entry.size)}).\n\n` +
-    "3DS images this large cannot be safely extracted inside the browser, and Azahar cannot launch them while they remain zipped.\n\n" +
-    "Extract the archive on your device, then import the .3ds/.cci/.cxi/.app file directly."
-  );
+  showError(largeN3dsArchiveErrorMessage(format, archiveName, entry));
 }
 
 export async function resolveSystemAndAddImpl(

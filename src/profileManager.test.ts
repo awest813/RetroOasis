@@ -32,6 +32,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     dynamicResolutionScaling: true,
     uiScale: 1,
     profileLibraryFilter: false,
+    profileCloudBackupEncrypted: false,
     ...overrides,
   };
 }

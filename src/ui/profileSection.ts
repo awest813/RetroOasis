@@ -24,6 +24,10 @@ import {
   showProfileShareDialog,
   showProfileShareImportDialog,
 } from "./profileDialogs.js";
+import {
+  prepareProfileIndexForCloudUpload,
+  parseProfileIndexFromCloudDownload,
+} from "../profileCloudPayload.js";
 import type { ApiKeyStore } from "../apiKeyStore.js";
 
 function selectedProfileId(sel: HTMLSelectElement, pm: ProfileManager): string {
@@ -278,6 +282,23 @@ export function buildProfileSection(
   );
   section.appendChild(filterRow);
 
+  const encryptCloudToggle = make("input", {
+    type: "checkbox",
+    id: "profile-cloud-encrypt",
+    class: "settings-toggle",
+    ...(settings.profileCloudBackupEncrypted ? { checked: "" } : {}),
+  }) as HTMLInputElement;
+  encryptCloudToggle.addEventListener("change", () => {
+    onSettingsChange({ profileCloudBackupEncrypted: encryptCloudToggle.checked });
+  });
+  const encryptCloudRow = make("div", { class: "settings-input-row profile-filter-row" });
+  encryptCloudRow.append(
+    encryptCloudToggle,
+    make("label", { class: "settings-input-label", for: "profile-cloud-encrypt" },
+      "Encrypt profile cloud backup (passphrase required on upload and download)"),
+  );
+  section.appendChild(encryptCloudRow);
+
   const exportBtn = make("button", { class: "btn btn--sm", type: "button" }, "Export JSON") as HTMLButtonElement;
   exportBtn.addEventListener("click", () => {
     void (async () => {
@@ -416,10 +437,32 @@ export function buildProfileSection(
         showError(exported.error);
         return;
       }
-      const err = await pushProfileIndexToCloud(exported.raw);
+      const prepared = await prepareProfileIndexForCloudUpload(
+        exported.raw,
+        settings.profileCloudBackupEncrypted,
+        settings.profileCloudBackupEncrypted
+          ? () => showPassphraseDialog({
+              title: "Encrypt cloud backup",
+              body: "Choose a passphrase. You will need it on other devices to download this backup.",
+              confirmLabel: "Encrypt & upload",
+              requireConfirm: true,
+            })
+          : undefined,
+      );
+      if (!prepared.ok) {
+        pushCloudBtn.disabled = false;
+        showError(prepared.error);
+        return;
+      }
+      const err = await pushProfileIndexToCloud(prepared.raw);
       pushCloudBtn.disabled = false;
       if (err) showError(err);
-      else showInfoToast("Profiles uploaded to save sync.", "success");
+      else showInfoToast(
+        settings.profileCloudBackupEncrypted
+          ? "Encrypted profiles uploaded to save sync."
+          : "Profiles uploaded to save sync.",
+        "success",
+      );
     })();
   });
 
@@ -436,7 +479,16 @@ export function buildProfileSection(
       mergeCloudBtn.disabled = !cloudSyncEnabled;
       replaceCloudBtn.disabled = !cloudSyncEnabled;
       if (!pulled.ok) { showError(pulled.error); return; }
-      const err = pm.importProfileIndexRaw(pulled.raw, mode, deps);
+      const parsed = await parseProfileIndexFromCloudDownload(
+        pulled.raw,
+        () => showPassphraseDialog({
+          title: "Decrypt cloud backup",
+          body: "This backup is encrypted. Enter the passphrase used when it was uploaded.",
+          confirmLabel: "Decrypt",
+        }),
+      );
+      if (!parsed.ok) { showError(parsed.error); return; }
+      const err = pm.importProfileIndexRaw(parsed.raw, mode, deps);
       if (err) showError(err);
       else {
         showInfoToast(
@@ -459,7 +511,9 @@ export function buildProfileSection(
   section.appendChild(make("p", { class: "settings-help" },
     cloudSyncEnabled
       ? `Back up all profile slots to your ${syncLabel} save-sync folder. ` +
-        "The upload includes API keys and save-sync credentials in plaintext — use only on storage you trust."
+        (settings.profileCloudBackupEncrypted
+          ? "Encrypted backups use your passphrase — RetroOasis does not store it."
+          : "Plaintext uploads include API keys and save-sync credentials — use only on storage you trust.")
       : "Connect save sync (WebDAV, Nextcloud, Google Drive, or Dropbox) to back up profile slots."));
 
   return section;
