@@ -933,10 +933,10 @@ async function main(): Promise<void> {
           });
       },
       onDreamcastVmuRestore: systemId === "segaDC" && gameId
-        ? () => vmuSaveService.restoreForGame(gameId)
+        ? async () => { await vmuSaveService.restoreForGame(gameId); }
         : undefined,
       onDreamcastInGameSaveFlush: systemId === "segaDC" && gameId
-        ? () => vmuSaveService.captureForGame(gameId)
+        ? async () => { await vmuSaveService.captureForGame(gameId); }
         : undefined,
       achievements: raCreds ? {
         username: raCreds.username,
