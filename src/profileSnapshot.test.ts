@@ -134,6 +134,15 @@ describe("profileSnapshot", () => {
     expect(parsed.apiKeys).toEqual({ rawg: { key: "secret", enabled: true } });
   });
 
+  it("applyProfileSnapshot tolerates malformed cloudLibraries", () => {
+    const store = new ApiKeyStore({ providers: [] });
+    const snapshot = buildProfileSnapshot({ settings: makeSettings(), apiKeyStore: store });
+    (snapshot as { cloudLibraries: unknown }).cloudLibraries = "not-an-array";
+    const applied = applyProfileSnapshot(snapshot);
+    expect(Array.isArray(applied.settingsPatch.cloudLibraries)).toBe(true);
+    expect(applied.settingsPatch.cloudLibraries).toHaveLength(0);
+  });
+
   it("resets display prefs to defaults when snapshot omits displayPrefs", () => {
     const store = new ApiKeyStore({ providers: [] });
     const snapshot = buildProfileSnapshot({

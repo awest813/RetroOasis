@@ -89,11 +89,21 @@ export class ProfileManager {
       if (!parsed || typeof parsed !== "object") return;
       const rec = parsed as ProfileIndexV1;
       if (rec.version !== 1 || !rec.profiles || typeof rec.profiles !== "object") return;
-      this.index = {
-        version: 1,
-        activeId: typeof rec.activeId === "string" ? rec.activeId : "",
-        profiles: rec.profiles,
-      };
+      const normalizedProfiles: Record<string, StoredProfile> = {};
+      for (const [id, stored] of Object.entries(rec.profiles)) {
+        const entry = normalizeStoredProfileEntry(stored);
+        if (!entry) continue;
+        normalizedProfiles[id] = { meta: entry.meta, snapshot: entry.snapshot };
+      }
+      if (Object.keys(normalizedProfiles).length === 0) {
+        this.index = emptyIndex();
+        return;
+      }
+      let activeId = typeof rec.activeId === "string" ? rec.activeId : "";
+      if (!activeId || !normalizedProfiles[activeId]) {
+        activeId = Object.keys(normalizedProfiles)[0] ?? "";
+      }
+      this.index = { version: 1, activeId, profiles: normalizedProfiles };
       this.ensureProfileColors();
     } catch {
       this.index = emptyIndex();
@@ -288,6 +298,11 @@ export class ProfileManager {
   async switchProfile(id: string, deps: ProfileApplyDeps): Promise<boolean> {
     const target = this.index.profiles[id];
     if (!target || id === this.index.activeId) return false;
+
+    if (this.autoSaveTimer !== null) {
+      globalThis.clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
 
     this.switching = true;
     try {

@@ -215,34 +215,42 @@ export function showProfileShareImportDialog(): Promise<string | null> {
       && typeof navigator.mediaDevices?.getUserMedia === "function";
     if (!scanSupported) btnScan.hidden = true;
 
+    let stopActiveScan: (() => void) | null = null;
+
     btnScan.addEventListener("click", () => {
       void (async () => {
+        stopActiveScan?.();
         btnScan.disabled = true;
         scanStatus.hidden = false;
         scanStatus.textContent = "Starting camera…";
         let stream: MediaStream | null = null;
         let video: HTMLVideoElement | null = null;
+        let aborted = false;
         const stopCamera = () => {
+          aborted = true;
           stream?.getTracks().forEach((t) => t.stop());
           stream = null;
           video?.remove();
           video = null;
         };
+        stopActiveScan = stopCamera;
         try {
           const Detector = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => {
             detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
           } }).BarcodeDetector;
           const detector = new Detector({ formats: ["qr_code"] });
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          if (aborted) return;
           video = make("video", { autoplay: "true", playsinline: "true", class: "profile-share-qr-video" }) as HTMLVideoElement;
           video.srcObject = stream;
           box.insertBefore(video, footer);
           await new Promise<void>((res) => { video!.onloadedmetadata = () => res(); });
+          if (aborted) return;
           await video.play();
           scanStatus.textContent = "Point the camera at a profile QR code…";
           const deadline = Date.now() + 20_000;
           let found = false;
-          while (Date.now() < deadline) {
+          while (!aborted && Date.now() < deadline) {
             const codes = await detector.detect(video);
             const hit = codes.find((c) => c.rawValue?.startsWith("ro-profile:"));
             if (hit?.rawValue) {
@@ -253,12 +261,13 @@ export function showProfileShareImportDialog(): Promise<string | null> {
             }
             await new Promise((r) => setTimeout(r, 250));
           }
-          if (!found) {
+          if (!aborted && !found) {
             scanStatus.textContent = "No profile QR detected. Paste the code manually or try again.";
           }
         } catch {
-          scanStatus.textContent = "Camera unavailable. Paste the share code manually.";
+          if (!aborted) scanStatus.textContent = "Camera unavailable. Paste the share code manually.";
         } finally {
+          if (stopActiveScan === stopCamera) stopActiveScan = null;
           stopCamera();
           btnScan.disabled = false;
         }
@@ -269,6 +278,8 @@ export function showProfileShareImportDialog(): Promise<string | null> {
 
     let detachFromStack: (() => void) | null = null;
     const close = (value: string | null) => {
+      stopActiveScan?.();
+      stopActiveScan = null;
       detachFromStack?.();
       detachFromStack = null;
       overlay.classList.remove("confirm-overlay--visible");

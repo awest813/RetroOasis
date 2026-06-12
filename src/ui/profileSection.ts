@@ -432,7 +432,8 @@ export function buildProfileSection(
   section.appendChild(cloudSyncRow);
   section.appendChild(make("p", { class: "settings-help" },
     cloudSyncEnabled
-      ? `Back up all profile slots to your ${syncLabel} save-sync folder.`
+      ? `Back up all profile slots to your ${syncLabel} save-sync folder. ` +
+        "The upload includes API keys and save-sync credentials in plaintext — use only on storage you trust."
       : "Connect save sync (WebDAV, Nextcloud, Google Drive, or Dropbox) to back up profile slots."));
 
   return section;

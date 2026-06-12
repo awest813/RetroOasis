@@ -70,6 +70,11 @@ import { isLikelyIOS } from "../../performance.js";
 import { tagGameForProfile } from "../../profileGameTags.js";
 import { getProfileManager } from "../../profileManager.js";
 
+function tagImportedGameForActiveProfile(gameId: string): void {
+  const profileId = getProfileManager().getActiveProfileId();
+  if (profileId) tagGameForProfile(gameId, profileId);
+}
+
 const FILE_SIZE_DECIMALS = 1;
 const IMMEDIATE_LAUNCH_IMPORT_BYTES = 256 * 1024 * 1024;
 const DOS_NATIVE_PACKAGE_EXTS = new Set(["exe", "com", "bat", "conf"]);
@@ -562,7 +567,7 @@ export async function resolveSystemAndAddImpl(
       settings,
       `Game added to library: "${entry.name}" (id: ${entry.id}, system: ${entry.systemId})`,
     );
-    tagGameForProfile(entry.id, getProfileManager().getActiveProfileId());
+    tagImportedGameForActiveProfile(entry.id);
     onRenderLibrary();
     if (!launchAfterImport) {
       hideLoadingOverlay();
@@ -762,6 +767,7 @@ async function handleM3UFile(
     for (const [fn, f] of userPicked) {
       try {
         const entry = await library.addGame(f, system.id);
+        tagImportedGameForActiveProfile(entry.id);
         storedDiscs.set(fn, { id: entry.id, blob: f });
       } catch { /* ignore */ }
     }
@@ -793,6 +799,7 @@ async function handleM3UFile(
     const existing = await library.findByFileName(m3uFile.name, system.id);
     if (!existing) {
       const added = await library.addGame(m3uFile, system.id);
+      tagImportedGameForActiveProfile(added.id);
       launchGameId = added.id;
       onRenderLibrary();
     } else {

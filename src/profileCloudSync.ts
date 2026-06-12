@@ -14,7 +14,6 @@ const GDRIVE_API = "https://www.googleapis.com/drive/v3";
 const GDRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const GDRIVE_SPACE = "appDataFolder";
 const DROPBOX_CONTENT_API = "https://content.dropboxapi.com/2";
-const DROPBOX_API = "https://api.dropboxapi.com/2";
 
 export type ProfileCloudSyncProvider = "webdav" | "nextcloud" | "gdrive" | "dropbox";
 

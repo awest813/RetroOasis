@@ -319,9 +319,13 @@ export interface ApplyProfileSnapshotResult {
 export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileSnapshotResult {
   const displayPrefs = resolveDisplayPrefs(snapshot.settingsSubset.displayPrefs);
 
+  const cloudLibraries = Array.isArray(snapshot.cloudLibraries)
+    ? snapshot.cloudLibraries
+    : sanitizeCloudLibraries(snapshot.cloudLibraries);
+
   return {
     settingsPatch: {
-      cloudLibraries: structuredClone(snapshot.cloudLibraries),
+      cloudLibraries: structuredClone(cloudLibraries),
       libretroMatchingServerUrl: snapshot.settingsSubset.libretroMatchingServerUrl ?? "",
       netplayUsername: snapshot.settingsSubset.netplayUsername ?? "",
       profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,

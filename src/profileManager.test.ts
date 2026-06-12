@@ -229,6 +229,35 @@ describe("ProfileManager", () => {
     vi.useRealTimers();
   });
 
+  it("normalizes corrupt snapshots when loading from storage", () => {
+    const corrupt = {
+      version: 1,
+      activeId: "p1",
+      profiles: {
+        p1: {
+          meta: { id: "p1", name: "Good", createdAt: 1, updatedAt: 1 },
+          snapshot: {
+            version: 1,
+            name: "Good",
+            exportedAt: 1,
+            cloudLibraries: [{ id: "x", provider: "gdrive", name: "D", enabled: true, config: '{"accessToken":"t"}' }],
+            apiKeys: {},
+            oauth: { googleClientId: "", dropboxAppKey: "" },
+            cloudSave: { providerId: "", connected: false },
+            settingsSubset: { libretroMatchingServerUrl: "", netplayUsername: "", profileLibraryFilter: false },
+          },
+        },
+        bad: { meta: { id: "bad", name: "Bad" }, snapshot: { version: 99 } },
+      },
+    };
+    storage.setItem(PROFILE_INDEX_STORAGE_KEY, JSON.stringify(corrupt));
+    resetProfileManagerForTests();
+    const pm = getProfileManager(storage);
+    pm.ensureInitialized({ settings, apiKeyStore, onSettingsChange });
+    expect(pm.listProfiles()).toHaveLength(1);
+    expect(pm.getActiveProfileName()).toBe("Good");
+  });
+
   it("rejects remote index with no valid embedded snapshots", () => {
     const pm = getProfileManager(storage);
     const err = pm.importProfileIndexRaw(JSON.stringify({

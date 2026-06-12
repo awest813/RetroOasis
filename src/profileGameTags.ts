@@ -41,12 +41,13 @@ function persistProfileGameTags(index: ProfileGameTagIndex, storage: Storage | n
 
 /** Associate a library game with a profile (e.g. when imported under that profile). */
 export function tagGameForProfile(gameId: string, profileId: string, storage?: Storage | null): void {
-  if (!gameId || !profileId) return;
+  const trimmedId = profileId.trim();
+  if (!gameId || !trimmedId) return;
   const store = storage === undefined ? getStorage() : storage;
   const index = readProfileGameTags(store);
-  const list = new Set(index[profileId] ?? []);
+  const list = new Set(index[trimmedId] ?? []);
   list.add(gameId);
-  index[profileId] = [...list];
+  index[trimmedId] = [...list];
   persistProfileGameTags(index, store);
 }
 

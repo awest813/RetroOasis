@@ -12,6 +12,10 @@ import type { ProfileSnapshotV1 } from "./profileSnapshot.js";
 export const PROFILE_SHARE_PREFIX = "ro-profile:v1:" as const;
 /** Practical upper bound for QR encoding; share codes may be longer (copy/paste). */
 export const PROFILE_SHARE_QR_MAX_CHARS = 2048;
+/** Max share-code string length accepted on import (DoS guard). */
+export const PROFILE_SHARE_MAX_CHARS = 65_536;
+/** Max decompressed payload bytes after gzip (DoS guard). */
+export const PROFILE_SHARE_MAX_DECOMPRESSED_BYTES = 256_000;
 
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -40,15 +44,25 @@ export function encodeProfileSharePayload(payload: string): string {
   return `${PROFILE_SHARE_PREFIX}${bytesToBase64Url(compressed)}`;
 }
 
+export function isProfileShareDecodeError(message: string): boolean {
+  return message.startsWith("Not a RetroOasis")
+    || message.startsWith("Share code");
+}
+
 export function decodeProfileSharePayload(code: string): string {
   const trimmed = code.trim();
+  if (trimmed.length > PROFILE_SHARE_MAX_CHARS) return "Share code is too large.";
   if (!trimmed.startsWith(PROFILE_SHARE_PREFIX)) return "Not a RetroOasis profile share code.";
   const encoded = trimmed.slice(PROFILE_SHARE_PREFIX.length);
   if (!encoded) return "Share code is empty.";
   const bytes = base64UrlToBytes(encoded);
   if (typeof bytes === "string") return bytes;
   try {
-    return strFromU8(gunzipSync(bytes));
+    const decompressed = gunzipSync(bytes);
+    if (decompressed.length > PROFILE_SHARE_MAX_DECOMPRESSED_BYTES) {
+      return "Share code is too large.";
+    }
+    return strFromU8(decompressed);
   } catch {
     return "Share code could not be decompressed.";
   }
@@ -69,12 +83,7 @@ export async function parseProfileImportPayload(
   const trimmed = raw.trim();
   if (isProfileShareCode(trimmed)) {
     const decoded = decodeProfileSharePayload(trimmed);
-    if (
-      decoded.startsWith("Not a RetroOasis") ||
-      decoded.startsWith("Share code")
-    ) {
-      return decoded;
-    }
+    if (isProfileShareDecodeError(decoded)) return decoded;
     return parseProfileImportFile(decoded, requestPassphrase);
   }
   return parseProfileImportFile(trimmed, requestPassphrase);

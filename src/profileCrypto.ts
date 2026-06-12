@@ -12,6 +12,8 @@ export const ENCRYPTED_PROFILE_VERSION = 1 as const;
 export const PROFILE_KDF_ITERATIONS = 250_000;
 /** Reject untrusted envelopes above this iteration count (PBKDF2 DoS guard). */
 export const PROFILE_KDF_ITERATIONS_MAX = 600_000;
+/** Max base64-encoded field length in encrypted envelopes (DoS guard). */
+export const PROFILE_CRYPTO_MAX_FIELD_B64_LENGTH = 88_000;
 
 export interface EncryptedProfileEnvelopeV1 {
   format: typeof ENCRYPTED_PROFILE_FORMAT;
@@ -36,11 +38,23 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBytes(value: string): Uint8Array {
-  const binary = atob(value);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
+function base64ToBytes(value: string): Uint8Array | null {
+  if (value.length > PROFILE_CRYPTO_MAX_FIELD_B64_LENGTH) return null;
+  try {
+    const binary = atob(value);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+export function isProfileDecryptError(message: string): boolean {
+  return message.startsWith("Could not decrypt")
+    || message.startsWith("Encrypted profile")
+    || message.startsWith("File is not")
+    || message.startsWith("Passphrase is required");
 }
 
 function isEncryptedEnvelope(parsed: unknown): parsed is EncryptedProfileEnvelopeV1 {
@@ -127,14 +141,14 @@ export async function decryptProfileExport(envelopeJson: string, passphrase: str
   ) {
     return "Encrypted profile uses unsupported KDF parameters.";
   }
+  const salt = base64ToBytes(parsed.salt);
+  const iv = base64ToBytes(parsed.iv);
+  const ciphertext = base64ToBytes(parsed.ciphertext);
+  if (!salt || !iv || !ciphertext) return "Encrypted profile field is too large.";
   const subtle = getSubtle();
   try {
-    const key = await deriveAesKey(passphrase, base64ToBytes(parsed.salt), Math.floor(parsed.iterations));
-    const plaintext = await subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToBytes(parsed.iv) },
-      key,
-      base64ToBytes(parsed.ciphertext),
-    );
+    const key = await deriveAesKey(passphrase, salt, Math.floor(parsed.iterations));
+    const plaintext = await subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
     return new TextDecoder().decode(plaintext);
   } catch {
     return "Could not decrypt profile. Check the passphrase and try again.";
@@ -154,10 +168,7 @@ export async function parseProfileImportFile(
     const passphrase = await requestPassphrase();
     if (!passphrase) return "Import cancelled.";
     const decrypted = await decryptProfileExport(raw, passphrase);
-    if (decrypted.startsWith("Could not") || decrypted.startsWith("Encrypted profile")
-      || decrypted.startsWith("File is not") || decrypted.startsWith("Passphrase is required")) {
-      return decrypted;
-    }
+    if (isProfileDecryptError(decrypted)) return decrypted;
     return parseProfileSnapshot(decrypted);
   }
   return parseProfileSnapshot(raw);

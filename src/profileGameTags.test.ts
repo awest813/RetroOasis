@@ -28,6 +28,12 @@ describe("profileGameTags", () => {
     storage = memoryStorage();
   });
 
+  it("ignores empty profile ids", () => {
+    tagGameForProfile("game-1", "", storage);
+    tagGameForProfile("game-1", "   ", storage);
+    expect(readProfileGameTags(storage)).toEqual({});
+  });
+
   it("tags games per profile", () => {
     tagGameForProfile("game-1", "profile-a", storage);
     expect(getTaggedGameIds("profile-a", storage).has("game-1")).toBe(true);

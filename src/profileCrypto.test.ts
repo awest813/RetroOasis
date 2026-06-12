@@ -10,9 +10,11 @@ import {
   encryptProfileExport,
   decryptProfileExport,
   isEncryptedProfileJson,
+  isProfileDecryptError,
   parseProfileImportFile,
   ENCRYPTED_PROFILE_FORMAT,
   PROFILE_KDF_ITERATIONS_MAX,
+  PROFILE_CRYPTO_MAX_FIELD_B64_LENGTH,
 } from "./profileCrypto.js";
 
 function makeSettings(): Settings {
@@ -71,6 +73,19 @@ describe("profileCrypto", () => {
     const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), "correct");
     const result = await decryptProfileExport(encrypted, "wrong");
     expect(result).toContain("Could not decrypt");
+  });
+
+  it("rejects envelopes with oversized base64 fields", async () => {
+    const snapshot = buildProfileSnapshot({
+      settings: makeSettings(),
+      apiKeyStore: new ApiKeyStore({ providers: [] }),
+    });
+    const encrypted = await encryptProfileExport(serializeProfileSnapshot(snapshot), "pw");
+    const envelope = JSON.parse(encrypted) as Record<string, unknown>;
+    envelope.ciphertext = "A".repeat(PROFILE_CRYPTO_MAX_FIELD_B64_LENGTH + 1);
+    const result = await decryptProfileExport(JSON.stringify(envelope), "pw");
+    expect(isProfileDecryptError(result)).toBe(true);
+    expect(result).toContain("too large");
   });
 
   it("rejects envelopes with excessive PBKDF2 iterations", async () => {

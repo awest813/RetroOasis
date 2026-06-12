@@ -1,8 +1,7 @@
-# Profile System Plan
+# Profile System
 
-RetroOasis currently stores credentials and cloud configuration in several separate
-browser locations. This document describes the planned **profile system** that
-unifies them into named, portable bundles.
+RetroOasis stores credentials and cloud configuration in several separate browser
+locations. The **profile system** unifies them into named, portable bundles.
 
 ## Goals
 
@@ -23,10 +22,9 @@ unifies them into named, portable bundles.
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
 | Performance / display preferences | `Settings` | Yes (`settingsSubset.displayPrefs`) |
 
-The initial implementation ships **export / import** and **multi-profile switching** in
-Settings → Cloud Library → Profiles. Import supports **new profile** and **merge into active**.
+Shipped in **Settings → Cloud Library → Profiles**. Import supports **new profile** and **merge into active**.
 
-## Architecture (planned)
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -34,8 +32,8 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 │  - activeProfileId                                       │
 │  - listProfiles(): ProfileMeta[]                         │
 │  - switchProfile(id): apply patches + reconnect hooks    │
-│  - exportProfile(id): ProfileSnapshotV1                  │
-│  - importProfile(blob): validate + merge/replace         │
+│  - exportProfileSnapshot(id): ProfileSnapshotV1          │
+│  - importProfileIndexRaw / importSnapshot*               │
 └───────────────┬─────────────────────────────────────────┘
                 │
     ┌───────────┼───────────┬──────────────────┐
@@ -43,56 +41,39 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
  Settings   ApiKeyStore  CloudSaveManager   oauthPopup
 ```
 
-### Storage layout (shipped)
+### Storage layout
 
 - `retro-oasis.profiles` — JSON index: `{ version, activeId, profiles: { [id]: { meta, snapshot } } }`
-- Snapshots are embedded in the index (plaintext); optional per-key split storage deferred
+- Snapshots are embedded in the index (plaintext); entries are normalized on load and cloud import
 - Active runtime state mirrors into existing stores on switch; auto-save debounces settings, API keys, and save-sync changes
 
 ### Switch flow
 
 1. User selects profile B in Settings.
-2. `ProfileManager` serializes current profile A (optional auto-save).
+2. `ProfileManager` saves current profile A (flush debounced auto-save on cloud upload).
 3. Applies profile B snapshot to Settings, ApiKeyStore, OAuth IDs.
 4. Dispatches `profile-changed` event; UI rebuilds cloud tabs, library filter toggle, and header chip.
-5. Restores save-sync credential blobs and attempts auto-connect; manual reconnect may still be needed for some providers.
-6. Applies `displayPrefs` from the snapshot, or baseline defaults when absent (prevents volume/UI bleed between profiles).
+5. Restores save-sync credential blobs and attempts auto-connect.
+6. Applies `displayPrefs` from the snapshot, or baseline defaults when absent (prevents volume/UI bleed).
 
 ## Security considerations
 
-- **Plaintext JSON export** remains available; file should be treated like a password manager backup.
-- **Optional passphrase encryption** (PBKDF2 + AES-GCM, `.retroprofile` files) is available from Settings → Cloud Library → Profiles.
-- Never upload profiles to RetroOasis servers; export stays on the user's machine.
+- **Plaintext JSON export** — treat like a password manager backup.
+- **Optional passphrase encryption** (PBKDF2 + AES-GCM, `.retroprofile` files).
+- **Never upload to RetroOasis servers** — export stays on the user's machine.
+- **Save-sync profile backup** uploads the full local index (API keys, OAuth IDs, credential blobs) to the user's own WebDAV/GDrive/Dropbox folder **in plaintext**. Only use on storage you trust.
 - Import validates schema version; cloud libraries, API keys, and display prefs are sanitized before apply.
-- Encrypted imports cap PBKDF2 iterations to prevent DoS from untrusted files.
-- Profile index cloud sync flushes debounced auto-save before upload.
+- Encrypted imports cap PBKDF2 iterations and base64 field sizes; share codes cap decompressed size.
 
-## Implementation phases
+## Shipped features
 
-### Phase 1 (shipped in this branch)
+- Multi-profile slots, header chip, accent colors, debounced auto-save
+- Export JSON / encrypted `.retroprofile`, merge or new-slot import
+- Encrypted share codes (`ro-profile:v1:`) + QR render/scan
+- Cloud index backup via save sync (WebDAV, Nextcloud, Google Drive, Dropbox)
+- Per-profile library filter with game tags on local, cloud, and multi-disc import
 
-- [x] `ProfileSnapshotV1` schema in `src/profileSnapshot.ts`
-- [x] Export / import UI in Cloud Library settings
-- [x] Documentation (this file)
-
-### Phase 2 (shipped in this branch)
-
-- [x] `ProfileManager` with named slots in localStorage
-- [x] Active profile indicator in header
-- [x] Auto-save on settings change (debounced)
-- [x] Include save-sync credential blobs in snapshot
-- [x] Optional encrypted export/import (`.retroprofile`)
-- [x] Profile accent colors in header chip and settings
-
-### Phase 3
-
-- [x] Encrypted share codes (`ro-profile:v1:` gzip + base64url) for copy/paste transfer
-- [x] Sync profiles via user's own cloud save folder (WebDAV/Nextcloud save sync; opt-in)
-- [x] Per-profile library filter (games tagged on local/cloud import; untagged games remain shared; tags pruned on profile delete)
-- [x] QR rendering for compact share codes + optional camera scan on import
-- [x] Save-sync profile backup for Google Drive and Dropbox (in addition to WebDAV/Nextcloud)
-
-## API sketch (phase 2)
+## API (current)
 
 ```typescript
 interface ProfileMeta {
@@ -103,32 +84,38 @@ interface ProfileMeta {
   color?: string;
 }
 
-class ProfileManager {
-  getActive(): ProfileMeta | null;
-  list(): ProfileMeta[];
-  create(name: string): ProfileMeta;
-  switchTo(id: string): Promise<void>;
-  delete(id: string): void;
-  export(id: string): ProfileSnapshotV1;
-  importSnapshotAsNewProfile(snapshot): ProfileMeta;
-  importSnapshotIntoActive(snapshot): void;
-}
+// ProfileManager highlights
+getActiveProfileId(): string;
+listProfiles(): ProfileMeta[];
+createProfile(name, deps): ProfileMeta;
+switchProfile(id, deps): Promise<boolean>;
+deleteProfile(id, deps?): boolean;
+exportProfileSnapshot(id, deps?): ProfileSnapshotV1 | null;
+importSnapshotAsNewProfile(snapshot, deps): ProfileMeta;
+importSnapshotIntoActive(snapshot, deps): void;
+importProfileIndexRaw(raw, "replace" | "merge", deps?): string | null;
+flushAutoSave(deps): string | null;
 ```
 
-## Testing strategy
+### Cloud index merge semantics
 
-- Unit tests for `parseProfileSnapshot`, `applyProfileSnapshot`, round-trip export.
-- UI tests: export button produces downloadable JSON; import applies `cloudLibraries` count.
-- Manual: import on second browser profile, verify Connections tab and Cloud Library sources.
+**Merge** adds remote profile slots whose IDs are not present locally; existing slots are unchanged.
+**Replace** overwrites the entire local index with the remote copy.
 
 ## Library filter semantics
 
 - Game tags live in `retro-oasis.profile.gameTags` (global, not embedded in snapshots).
 - When **Filter library to active profile** is enabled, the library shows games tagged to the active profile plus any untagged games (shared household library).
-- Games imported locally or from cloud ROM import are tagged to the active profile at import time.
+- Games are tagged on import: local file import, cloud ROM import, and multi-disc/M3U flows.
+
+## Testing strategy
+
+- Unit tests: `profileSnapshot`, `profileManager`, `profileCrypto`, `profileShare`, `profileGameTags`, `profileCloudSync`, `profileDisplayPrefs`, `profileQr`
+- Manual: switch profiles during gameplay; upload/download cloud index; share-code transfer between devices
 
 ## Open questions
 
 1. Should kids' profiles hide Connections / Cloud Library settings?
 2. Default encryption off vs on for exports?
 3. Should game tags be included in profile export/import?
+4. Should cloud index backup optionally encrypt the uploaded index?

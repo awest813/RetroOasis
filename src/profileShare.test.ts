@@ -7,8 +7,10 @@ import {
   encodeProfileSharePayload,
   decodeProfileSharePayload,
   isProfileShareCode,
+  isProfileShareDecodeError,
   parseProfileImportPayload,
   PROFILE_SHARE_PREFIX,
+  PROFILE_SHARE_MAX_CHARS,
 } from "./profileShare.js";
 
 function makeSettings(): Settings {
@@ -55,6 +57,13 @@ describe("profileShare", () => {
     expect(code.startsWith(PROFILE_SHARE_PREFIX)).toBe(true);
     const decoded = decodeProfileSharePayload(code);
     expect(decoded).toContain(encrypted.slice(0, 40));
+  });
+
+  it("rejects oversized share codes", () => {
+    const huge = `${PROFILE_SHARE_PREFIX}${"A".repeat(PROFILE_SHARE_MAX_CHARS)}`;
+    const decoded = decodeProfileSharePayload(huge);
+    expect(isProfileShareDecodeError(decoded)).toBe(true);
+    expect(decoded).toContain("too large");
   });
 
   it("parseProfileImportPayload accepts share codes", async () => {
