@@ -72,7 +72,14 @@ export function buildProfileSection(
     "aria-label": "Active profile",
   }) as HTMLSelectElement;
 
-  let renameInp!: HTMLInputElement;
+  const renameInp = make("input", {
+    type: "text",
+    id: "profile-rename-input",
+    class: "settings-input",
+    value: pm.getActiveProfileName(),
+    autocomplete: "off",
+    "aria-label": "Rename active profile",
+  }) as HTMLInputElement;
   const filterToggle = make("input", {
     type: "checkbox",
     id: "profile-library-filter",
@@ -179,15 +186,6 @@ export function buildProfileSection(
     profileSel,
   );
   section.appendChild(switchRow);
-
-  renameInp = make("input", {
-    type: "text",
-    id: "profile-rename-input",
-    class: "settings-input",
-    value: pm.getActiveProfileName(),
-    autocomplete: "off",
-    "aria-label": "Rename active profile",
-  }) as HTMLInputElement;
 
   const renameBtn = make("button", { class: "btn btn--sm", type: "button" }, "Rename") as HTMLButtonElement;
   renameBtn.addEventListener("click", () => {
