@@ -47,14 +47,33 @@ export function updateLibraryLandingState(opts: {
 export function buildFilteredLibraryEmptyState(opts: {
   searchQuery: string;
   activeSystemLabel: string;
+  profileFilterActive?: boolean;
+  profileName?: string;
   onReset(): void;
+  onOpenProfileSettings?(): void;
 }): HTMLElement {
-  const { searchQuery, activeSystemLabel, onReset } = opts;
+  const {
+    searchQuery,
+    activeSystemLabel,
+    profileFilterActive = false,
+    profileName = "",
+    onReset,
+    onOpenProfileSettings,
+  } = opts;
   const empty = make("div", { class: "library-empty", role: "status", "aria-live": "polite" });
   const message = make("p");
   const hasSearch = searchQuery.trim().length > 0;
 
-  if (hasSearch && activeSystemLabel) {
+  if (profileFilterActive && !hasSearch && !activeSystemLabel) {
+    const label = profileName.trim() || "this profile";
+    message.append(
+      document.createTextNode(`No games tagged to `),
+      make("em", {}, label),
+      document.createTextNode(
+        ". Import games while this profile is active, or turn off “Filter library to active profile” in Settings → Cloud Library → Profiles. Untagged games stay visible as shared library.",
+      ),
+    );
+  } else if (hasSearch && activeSystemLabel) {
     message.append(
       document.createTextNode(`No ${activeSystemLabel} games match "`),
       make("em", {}, searchQuery),
@@ -76,9 +95,16 @@ export function buildFilteredLibraryEmptyState(opts: {
     message.textContent = "No games match your current filters. Try a broader search, choose another system, or clear filters to see every game again.";
   }
 
-  const icon = make("div", { class: "library-empty__icon" }, "🔍");
+  const icon = make("div", { class: "library-empty__icon" }, profileFilterActive && !hasSearch && !activeSystemLabel ? "👤" : "🔍");
+  const actions = make("div", { class: "library-empty__actions" });
+  if (profileFilterActive && onOpenProfileSettings) {
+    const profileBtn = make("button", { class: "btn library-empty__profile", type: "button" }, "Profile settings");
+    profileBtn.addEventListener("click", onOpenProfileSettings);
+    actions.appendChild(profileBtn);
+  }
   const resetBtn = make("button", { class: "btn library-empty__reset", type: "button" }, "Reset filters");
   resetBtn.addEventListener("click", onReset);
-  empty.append(icon, message, resetBtn);
+  actions.appendChild(resetBtn);
+  empty.append(icon, message, actions);
   return empty;
 }

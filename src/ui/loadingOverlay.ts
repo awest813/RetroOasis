@@ -14,12 +14,16 @@ export function showLoadingOverlay(): void {
   const overlay = document.getElementById("loading-overlay");
   overlay?.classList.add("visible");
   overlay?.setAttribute("aria-hidden", "false");
+  document.getElementById("landing")?.setAttribute("aria-busy", "true");
+  document.getElementById("library-section")?.setAttribute("aria-busy", "true");
 }
 
 export function hideLoadingOverlay(): void {
   const overlay = document.getElementById("loading-overlay");
   overlay?.classList.remove("visible");
   overlay?.setAttribute("aria-hidden", "true");
+  document.getElementById("landing")?.removeAttribute("aria-busy");
+  document.getElementById("library-section")?.removeAttribute("aria-busy");
   setLoadingProgress(null);
   const sub = document.getElementById("loading-subtitle");
   if (sub) {

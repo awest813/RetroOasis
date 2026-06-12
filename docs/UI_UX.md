@@ -18,6 +18,9 @@
 
 - Typing in search dims the grid (`library-grid--busy`) until the debounced re-render completes.
 - Identical filter/sort/layout signatures skip rebuilding the grid DOM (overview, hero, and highlights still refresh).
+- Toolbar **Reset** appears when search, system, or favorites filters are active.
+- **Grid / list / compact** layout toggles in the toolbar (persisted per profile via display prefs).
+- When **profile library filter** is on, a chip beside the game count shows the active profile; empty filtered views explain how to import or disable the filter.
 
 ## Launch flow
 

@@ -1,6 +1,7 @@
-import { createElement as make } from "./dom.js";
+import { createElement as make, trapFocus } from "./dom.js";
 import { isTopmostOverlay, registerOverlay } from "./overlayStack.js";
 import { canRenderProfileShareQr, renderProfileShareQrDataUrl } from "../profileQr.js";
+import { showInfoToast } from "./toasts.js";
 
 export interface PassphraseDialogOpts {
   title: string;
@@ -9,17 +10,59 @@ export interface PassphraseDialogOpts {
   requireConfirm?: boolean;
 }
 
+interface ProfileDialogShell {
+  overlay: HTMLDivElement;
+  box: HTMLDivElement;
+  ac: AbortController;
+  close: () => void;
+}
+
+function armProfileDialog(
+  overlay: HTMLDivElement,
+  box: HTMLDivElement,
+  onDismiss: () => void,
+  focusEl?: HTMLElement,
+): ProfileDialogShell {
+  const ac = new AbortController();
+  let detachFromStack: (() => void) | null = null;
+  const close = () => {
+    detachFromStack?.();
+    detachFromStack = null;
+    ac.abort();
+    overlay.classList.remove("confirm-overlay--visible");
+    setTimeout(() => overlay.remove(), 200);
+    onDismiss();
+  };
+  detachFromStack = registerOverlay({ element: overlay, close });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  }, { signal: ac.signal });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isTopmostOverlay(overlay)) {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    }
+  }, { signal: ac.signal, capture: true });
+  trapFocus(box, ac.signal);
+  requestAnimationFrame(() => {
+    overlay.classList.add("confirm-overlay--visible");
+    (focusEl ?? box.querySelector<HTMLElement>("button, input, textarea"))?.focus();
+  });
+  return { overlay, box, ac, close };
+}
+
 /** Modal passphrase entry for encrypted profile export/import. */
 export function showPassphraseDialog(opts: PassphraseDialogOpts): Promise<string | null> {
   const { title, body, confirmLabel = "Continue", requireConfirm = false } = opts;
   return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
+    const overlay = make("div", { class: "confirm-overlay" }) as HTMLDivElement;
     const box = make("div", {
       class: "confirm-box",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": title,
-    });
+    }) as HTMLDivElement;
     box.appendChild(make("h3", { class: "confirm-title" }, title));
     if (body) box.appendChild(make("p", { class: "confirm-body" }, body));
 
@@ -66,55 +109,47 @@ export function showPassphraseDialog(opts: PassphraseDialogOpts): Promise<string
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    let detachFromStack: (() => void) | null = null;
-    const close = (value: string | null) => {
-      detachFromStack?.();
-      detachFromStack = null;
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
+    let settled = false;
+    const finish = (value: string | null) => {
+      if (settled) return;
+      settled = true;
       resolve(value);
     };
-
-    detachFromStack = registerOverlay({ element: overlay, close: () => close(null) });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && isTopmostOverlay(overlay)) {
-        e.preventDefault();
-        close(null);
-      }
-    }, { once: true });
-    btnCancel.addEventListener("click", () => close(null));
+    const { close } = armProfileDialog(overlay, box, () => finish(null), btnConfirm);
+    btnCancel.addEventListener("click", () => close());
     btnConfirm.addEventListener("click", () => {
       const pass = passInp.value;
       if (!pass) {
         errorMsg.textContent = "Enter a passphrase.";
         errorMsg.hidden = false;
+        passInp.focus();
         return;
       }
       if (requireConfirm && confirmInp && pass !== confirmInp.value) {
         errorMsg.textContent = "Passphrases do not match.";
         errorMsg.hidden = false;
+        confirmInp.focus();
         return;
       }
-      close(pass);
+      finish(pass);
+      close();
     });
     passInp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") btnConfirm.click();
     });
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-    passInp.focus();
   });
 }
 
 /** Show a copyable profile share code (encrypted payload). */
 export function showProfileShareDialog(shareCode: string): Promise<void> {
   return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
+    const overlay = make("div", { class: "confirm-overlay" }) as HTMLDivElement;
     const box = make("div", {
       class: "confirm-box",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Profile share code",
-    });
+    }) as HTMLDivElement;
     box.appendChild(make("h3", { class: "confirm-title" }, "Profile share code"));
     box.appendChild(make("p", { class: "confirm-body" },
       "Copy this code and paste it on another device using Import share code. " +
@@ -155,41 +190,31 @@ export function showProfileShareDialog(shareCode: string): Promise<void> {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    let detachFromStack: (() => void) | null = null;
-    const close = () => {
-      detachFromStack?.();
-      detachFromStack = null;
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
-      resolve();
-    };
-
-    detachFromStack = registerOverlay({ element: overlay, close });
+    const { close } = armProfileDialog(overlay, box, () => resolve(), btnCopy);
     btnClose.addEventListener("click", close);
     btnCopy.addEventListener("click", () => {
       void navigator.clipboard?.writeText(shareCode).then(() => {
         btnCopy.textContent = "Copied";
+        showInfoToast("Share code copied.", "success");
         setTimeout(() => { btnCopy.textContent = "Copy code"; }, 1500);
       }).catch(() => {
         codeArea.focus();
         codeArea.select();
       });
     });
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-    codeArea.focus();
   });
 }
 
 /** Paste a profile share code for import. */
 export function showProfileShareImportDialog(): Promise<string | null> {
   return new Promise((resolve) => {
-    const overlay = make("div", { class: "confirm-overlay" });
+    const overlay = make("div", { class: "confirm-overlay" }) as HTMLDivElement;
     const box = make("div", {
       class: "confirm-box",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Import profile share code",
-    });
+    }) as HTMLDivElement;
     box.appendChild(make("h3", { class: "confirm-title" }, "Import share code"));
     box.appendChild(make("p", { class: "confirm-body" }, "Paste a ro-profile share code from another device."));
 
@@ -208,8 +233,10 @@ export function showProfileShareImportDialog(): Promise<string | null> {
     const footer = make("div", { class: "confirm-footer" });
     const btnCancel = make("button", { class: "btn", type: "button" }, "Cancel") as HTMLButtonElement;
     const btnScan = make("button", { class: "btn", type: "button" }, "Scan QR") as HTMLButtonElement;
+    const btnStopScan = make("button", { class: "btn", type: "button" }, "Stop scan") as HTMLButtonElement;
+    btnStopScan.hidden = true;
     const btnImport = make("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
-    footer.append(btnCancel, btnScan, btnImport);
+    footer.append(btnCancel, btnScan, btnStopScan, btnImport);
     box.append(codeArea, scanStatus, importError, footer);
 
     const scanSupported = typeof window !== "undefined"
@@ -223,6 +250,7 @@ export function showProfileShareImportDialog(): Promise<string | null> {
       void (async () => {
         stopActiveScan?.();
         btnScan.disabled = true;
+        btnStopScan.hidden = false;
         scanStatus.hidden = false;
         scanStatus.textContent = "Starting camera…";
         let stream: MediaStream | null = null;
@@ -234,6 +262,8 @@ export function showProfileShareImportDialog(): Promise<string | null> {
           stream = null;
           video?.remove();
           video = null;
+          btnStopScan.hidden = true;
+          btnScan.disabled = false;
         };
         stopActiveScan = stopCamera;
         try {
@@ -271,26 +301,30 @@ export function showProfileShareImportDialog(): Promise<string | null> {
         } finally {
           if (stopActiveScan === stopCamera) stopActiveScan = null;
           stopCamera();
-          btnScan.disabled = false;
         }
       })();
     });
+
+    btnStopScan.addEventListener("click", () => {
+      stopActiveScan?.();
+      stopActiveScan = null;
+      scanStatus.textContent = "Scan cancelled.";
+    });
+
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    let detachFromStack: (() => void) | null = null;
-    const close = (value: string | null) => {
+    let settled = false;
+    const finish = (value: string | null) => {
+      if (settled) return;
+      settled = true;
       stopActiveScan?.();
       stopActiveScan = null;
-      detachFromStack?.();
-      detachFromStack = null;
-      overlay.classList.remove("confirm-overlay--visible");
-      setTimeout(() => overlay.remove(), 200);
       resolve(value);
     };
 
-    detachFromStack = registerOverlay({ element: overlay, close: () => close(null) });
-    btnCancel.addEventListener("click", () => close(null));
+    const { close } = armProfileDialog(overlay, box, () => finish(null), btnImport);
+    btnCancel.addEventListener("click", () => close());
     btnImport.addEventListener("click", () => {
       const value = codeArea.value.trim();
       if (!value) {
@@ -299,9 +333,11 @@ export function showProfileShareImportDialog(): Promise<string | null> {
         codeArea.focus();
         return;
       }
-      close(value);
+      finish(value);
+      close();
     });
-    requestAnimationFrame(() => overlay.classList.add("confirm-overlay--visible"));
-    codeArea.focus();
+    codeArea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) btnImport.click();
+    });
   });
 }

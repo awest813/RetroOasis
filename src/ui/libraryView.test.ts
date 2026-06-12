@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { updateLibraryLandingState } from "./libraryView.js";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { buildFilteredLibraryEmptyState, updateLibraryLandingState } from "./libraryView.js";
 
 describe("updateLibraryLandingState", () => {
   beforeEach(() => {
@@ -59,5 +59,20 @@ describe("updateLibraryLandingState", () => {
     expect(document.querySelector(".library-toolbar")?.classList.contains("hidden-section")).toBe(false);
     expect(dropZone.classList.contains("drop-zone--compact")).toBe(true);
     expect(countEl.textContent).toBe("3 games");
+  });
+
+  it("explains profile filter when library is empty under profile scoping", () => {
+    const onOpenProfileSettings = vi.fn();
+    const empty = buildFilteredLibraryEmptyState({
+      searchQuery: "",
+      activeSystemLabel: "",
+      profileFilterActive: true,
+      profileName: "Kids",
+      onReset: vi.fn(),
+      onOpenProfileSettings,
+    });
+    expect(empty.textContent).toContain("Kids");
+    empty.querySelector<HTMLButtonElement>(".library-empty__profile")?.click();
+    expect(onOpenProfileSettings).toHaveBeenCalled();
   });
 });

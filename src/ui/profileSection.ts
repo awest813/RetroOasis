@@ -190,12 +190,19 @@ export function buildProfileSection(
   section.appendChild(switchRow);
 
   const renameBtn = make("button", { class: "btn btn--sm", type: "button" }, "Rename") as HTMLButtonElement;
-  renameBtn.addEventListener("click", () => {
+  const doRename = () => {
     const err = pm.renameActiveProfile(renameInp.value);
     if (err) { showError(err); return; }
     refreshProfileSelect();
     renameInp.value = pm.getActiveProfileName();
     showInfoToast("Profile renamed.", "success");
+  };
+  renameBtn.addEventListener("click", doRename);
+  renameInp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      doRename();
+    }
   });
 
   const newBtn = make("button", { class: "btn btn--sm", type: "button" }, "New profile") as HTMLButtonElement;
@@ -219,20 +226,28 @@ export function buildProfileSection(
   const deleteBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Delete") as HTMLButtonElement;
   deleteBtn.disabled = pm.listProfiles().length <= 1;
   deleteBtn.addEventListener("click", () => {
-    const deleted = pm.deleteProfile(pm.getActiveProfileId(), deps);
-    if (deleted === false) {
-      showError("Keep at least one profile.");
-      return;
-    }
-    if (typeof deleted === "string") {
-      showError(deleted);
-      return;
-    }
-    refreshProfileSelect();
-    renameInp.value = pm.getActiveProfileName();
-    deleteBtn.disabled = pm.listProfiles().length <= 1;
-    showInfoToast("Profile deleted.", "success");
-    rebuildTab();
+    void (async () => {
+      const name = pm.getActiveProfileName();
+      const confirmed = await showConfirmDialog(
+        `Delete profile "${name}"? Cloud connections, API keys, and library tags in this slot will be removed.`,
+        { title: "Delete profile?", confirmLabel: "Delete", isDanger: true },
+      );
+      if (!confirmed) return;
+      const deleted = pm.deleteProfile(pm.getActiveProfileId(), deps);
+      if (deleted === false) {
+        showError("Keep at least one profile.");
+        return;
+      }
+      if (typeof deleted === "string") {
+        showError(deleted);
+        return;
+      }
+      refreshProfileSelect();
+      renameInp.value = pm.getActiveProfileName();
+      deleteBtn.disabled = pm.listProfiles().length <= 1;
+      showInfoToast("Profile deleted.", "success");
+      rebuildTab();
+    })();
   });
 
   const manageRow = make("div", { class: "settings-input-row profile-manage-row" });
@@ -374,6 +389,7 @@ export function buildProfileSection(
     importInput.click();
   });
 
+  section.appendChild(make("h6", { class: "cloud-library-section__subtitle" }, "Backup & transfer"));
   const fileRow = make("div", { class: "settings-input-row profile-snapshot-actions" });
   fileRow.append(exportBtn, exportEncryptedBtn, shareCodeBtn, importNewBtn, importMergeBtn, importShareBtn, importInput);
   section.appendChild(fileRow);
@@ -436,6 +452,7 @@ export function buildProfileSection(
   replaceCloudBtn.addEventListener("click", () => downloadProfilesFromCloud("replace"));
 
   const syncLabel = profileCloudSyncProviderLabel(getProfileCloudSyncConfig());
+  section.appendChild(make("h6", { class: "cloud-library-section__subtitle" }, "Cloud backup"));
   const cloudSyncRow = make("div", { class: "settings-input-row profile-cloud-sync-row" });
   cloudSyncRow.append(pushCloudBtn, mergeCloudBtn, replaceCloudBtn);
   section.appendChild(cloudSyncRow);

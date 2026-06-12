@@ -290,6 +290,7 @@ export function buildDOM(app: HTMLElement): void {
             <div class="library-title-row">
               <h2 class="library-title">My Library</h2>
               <span class="library-count" id="library-count" aria-live="polite" aria-atomic="true"></span>
+              <span class="library-profile-filter" id="library-profile-filter" hidden role="status"></span>
             </div>
             <div class="library-controls" role="group" aria-label="Library controls">
               <div class="library-search-wrap">
@@ -310,6 +311,9 @@ export function buildDOM(app: HTMLElement): void {
                 </button>
                 <button type="button" class="btn btn--ghost btn--icon layout-btn" data-layout="list" title="List view" role="radio" aria-checked="false">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button type="button" class="btn btn--ghost btn--icon layout-btn" data-layout="compact" title="Compact grid" role="radio" aria-checked="false">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="5"/><rect x="10" y="3" width="5" height="5"/><rect x="17" y="3" width="4" height="5"/><rect x="3" y="10" width="5" height="5"/><rect x="10" y="10" width="5" height="5"/><rect x="17" y="10" width="4" height="5"/><rect x="3" y="17" width="5" height="4"/><rect x="10" y="17" width="5" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
                 </button>
               </div>
               <button class="btn btn--ghost btn--icon library-fav-filter" id="library-fav-filter" aria-label="Show favorites only" title="Show favorites only" aria-pressed="false">
@@ -1496,6 +1500,7 @@ let _librarySortMode: SortMode = "lastPlayed";
 let _librarySystemFilter = "";
 let _libraryShowFavorites = false;
 let _libraryLastLayout: Settings["libraryLayout"] = "grid";
+let _libraryControlSettings: Settings | null = null;
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
 /** Fingerprint of the last full library grid build — skips redundant DOM work. */
 let _libraryRenderSignature = "";
@@ -1529,6 +1534,28 @@ function _computeLibraryRenderSignature(
   ].join(";");
 }
 
+function _syncLibraryProfileFilterChip(settings: Settings): void {
+  const chip = document.getElementById("library-profile-filter");
+  if (!chip) return;
+  if (!settings.profileLibraryFilter) {
+    chip.hidden = true;
+    chip.textContent = "";
+    return;
+  }
+  const pm = getProfileManager();
+  const name = pm.getActiveProfileName();
+  const color = pm.getActiveProfileColor();
+  chip.hidden = false;
+  chip.innerHTML = "";
+  const dot = make("span", { class: "library-profile-filter__dot", "aria-hidden": "true" });
+  dot.style.backgroundColor = color;
+  chip.append(
+    dot,
+    document.createTextNode(`Profile: ${name}`),
+  );
+  chip.title = "Library filtered to games tagged for this profile (plus untagged shared games). Open Settings → Cloud Library → Profiles to change.";
+}
+
 function _syncLibraryControlState(): void {
   const searchEl = document.getElementById("library-search") as HTMLInputElement | null;
   const sortEl = document.getElementById("library-sort") as HTMLSelectElement | null;
@@ -1552,6 +1579,15 @@ function _syncLibraryControlState(): void {
       btn.setAttribute("aria-checked", String(layout === currentLayout));
       btn.classList.toggle("active", layout === currentLayout);
     });
+  }
+
+  const resetBtn = document.getElementById("library-controls-reset") as HTMLButtonElement | null;
+  if (resetBtn) {
+    const hasToolbarFilters =
+      !!_librarySearchQuery ||
+      !!_librarySystemFilter ||
+      _libraryShowFavorites;
+    resetBtn.hidden = !hasToolbarFilters;
   }
 
   const fetchCoversBtn = document.getElementById("library-fetch-covers") as HTMLButtonElement | null;
@@ -1821,6 +1857,9 @@ export async function renderLibrary(
     }
   }
 
+  _libraryControlSettings = settings;
+  _syncLibraryProfileFilterChip(settings);
+
   // Wire up search + sort + filter controls (idempotent)
   _wireLibraryControls(allGames, library, settings, onLaunchGame, emulatorRef, onApplyPatch);
 
@@ -1948,8 +1987,13 @@ export async function renderLibrary(
     const empty = buildFilteredLibraryEmptyState({
       searchQuery: _librarySearchQuery,
       activeSystemLabel: activeSystem,
+      profileFilterActive: settings.profileLibraryFilter,
+      profileName: getProfileManager().getActiveProfileName(),
       onReset: () => {
         _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);
+      },
+      onOpenProfileSettings: () => {
+        _openSettingsFn?.("cloudlibrary");
       },
     });
     grid.appendChild(empty);
@@ -2276,7 +2320,12 @@ function _renderLibraryOverview(
   const systemCount = new Set(allGames.map(g => g.systemId)).size;
   const favoriteCount = allGames.filter(g => g.isFavorite).length;
   const missingArtCount = allGames.filter(g => !g.hasCoverArt && !g.thumbnailUrl).length;
-  const hasActiveFilters = displayed.length !== allGames.length || _libraryShowFavorites || !!_librarySearchQuery || !!_librarySystemFilter;
+  const hasActiveFilters =
+    displayed.length !== allGames.length ||
+    _libraryShowFavorites ||
+    !!_librarySearchQuery ||
+    !!_librarySystemFilter ||
+    _libraryControlSettings?.profileLibraryFilter === true;
 
   const item = (
     label: string,

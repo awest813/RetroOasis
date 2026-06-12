@@ -12,18 +12,27 @@ const MENU_ID = "header-profile-chip-menu";
 let chipOpenSettings: (() => void) | null = null;
 let chipDeps: ProfileApplyDeps | undefined;
 let chipListenersInstalled = false;
+let chipSwitching = false;
 
-function closeProfileChipMenu(): void {
+function closeProfileChipMenu(returnFocus = false): void {
+  const chip = document.getElementById("header-profile-chip") as HTMLButtonElement | null;
   document.getElementById(MENU_ID)?.remove();
-  document.getElementById("header-profile-chip")?.setAttribute("aria-expanded", "false");
+  chip?.setAttribute("aria-expanded", "false");
+  if (returnFocus) chip?.focus();
 }
 
 function isProfileChipMenuOpen(): boolean {
   return document.getElementById(MENU_ID) !== null;
 }
 
+function focusMenuItem(items: HTMLButtonElement[], index: number): void {
+  const next = items[Math.max(0, Math.min(index, items.length - 1))];
+  items.forEach((item, i) => { item.tabIndex = i === items.indexOf(next) ? 0 : -1; });
+  next?.focus();
+}
+
 function openProfileChipMenu(chip: HTMLButtonElement): void {
-  if (!chipDeps || !chipOpenSettings) return;
+  if (!chipDeps || !chipOpenSettings || chipSwitching) return;
   closeProfileChipMenu();
   const pm = getProfileManager();
   const activeId = pm.getActiveProfileId();
@@ -35,12 +44,15 @@ function openProfileChipMenu(chip: HTMLButtonElement): void {
     "aria-label": "Switch profile",
   });
 
+  const menuItems: HTMLButtonElement[] = [];
+
   for (const meta of pm.listProfiles()) {
     const item = make("button", {
       type: "button",
       class: `profile-chip-menu__item${meta.id === activeId ? " profile-chip-menu__item--active" : ""}`,
       role: "menuitemradio",
       "aria-checked": meta.id === activeId ? "true" : "false",
+      tabindex: meta.id === activeId ? "0" : "-1",
     }) as HTMLButtonElement;
     const dot = make("span", {
       class: "profile-chip-menu__dot",
@@ -51,25 +63,59 @@ function openProfileChipMenu(chip: HTMLButtonElement): void {
     item.addEventListener("click", () => {
       void (async () => {
         closeProfileChipMenu();
-        if (meta.id === activeId) return;
+        if (meta.id === activeId || chipSwitching) return;
+        chipSwitching = true;
+        chip.setAttribute("aria-busy", "true");
         const result = await pm.switchProfile(meta.id, chipDeps!);
-        if (result === true) showInfoToast(`Switched to profile "${meta.name}".`, "success");
-        else if (result !== false) showError(result);
+        chipSwitching = false;
+        chip.removeAttribute("aria-busy");
+        if (result === true) {
+          showInfoToast(`Switched to profile "${meta.name}".`, "success");
+          refreshProfileHeaderChip({
+            openCloudLibrarySettings: chipOpenSettings!,
+            deps: chipDeps,
+          });
+        } else if (result !== false) {
+          showError(result);
+        }
       })();
     });
     menu.appendChild(item);
+    menuItems.push(item);
   }
 
   const manage = make("button", {
     type: "button",
     class: "profile-chip-menu__manage",
     role: "menuitem",
+    tabindex: "-1",
   }, "Manage profiles…") as HTMLButtonElement;
   manage.addEventListener("click", () => {
     closeProfileChipMenu();
     chipOpenSettings?.();
   });
   menu.appendChild(manage);
+  menuItems.push(manage);
+
+  menu.addEventListener("keydown", (e) => {
+    const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      focusMenuItem(menuItems, currentIndex < 0 ? 0 : currentIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      focusMenuItem(menuItems, currentIndex < 0 ? menuItems.length - 1 : currentIndex - 1);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeProfileChipMenu(true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusMenuItem(menuItems, 0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusMenuItem(menuItems, menuItems.length - 1);
+    }
+  });
 
   const rect = chip.getBoundingClientRect();
   menu.style.position = "fixed";
@@ -78,6 +124,8 @@ function openProfileChipMenu(chip: HTMLButtonElement): void {
   menu.style.zIndex = "10000";
   document.body.appendChild(menu);
   chip.setAttribute("aria-expanded", "true");
+  const activeIndex = Math.max(0, menuItems.findIndex((item) => item.getAttribute("aria-checked") === "true"));
+  focusMenuItem(menuItems, activeIndex);
 }
 
 function ensureChipDismissListeners(): void {
@@ -90,7 +138,9 @@ function ensureChipDismissListeners(): void {
     closeProfileChipMenu();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeProfileChipMenu();
+    if (e.key === "Escape" && isProfileChipMenuOpen()) {
+      closeProfileChipMenu(true);
+    }
   });
 }
 
@@ -126,7 +176,7 @@ export function refreshProfileHeaderChip(
         return;
       }
       if (isProfileChipMenuOpen()) {
-        closeProfileChipMenu();
+        closeProfileChipMenu(true);
         return;
       }
       openProfileChipMenu(chip!);
@@ -165,5 +215,6 @@ export function resetProfileChipForTests(): void {
   chipOpenSettings = null;
   chipDeps = undefined;
   chipListenersInstalled = false;
+  chipSwitching = false;
   document.getElementById("header-profile-chip")?.remove();
 }
