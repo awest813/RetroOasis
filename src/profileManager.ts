@@ -14,7 +14,7 @@ import {
   applyProfileSnapshot,
   restoreCloudSaveStorage,
   syncApiKeyStoreFromSnapshot,
-  normalizeProfileSnapshot,
+  normalizeStoredProfileEntry,
   type ProfileSnapshotV1,
 } from "./profileSnapshot.js";
 import { pruneProfileGameTags } from "./profileGameTags.js";
@@ -228,8 +228,7 @@ export class ProfileManager {
       this.autoSaveTimer = null;
     }
     if (this.switching || !this.index.activeId) return null;
-    this.saveActiveSnapshot(deps);
-    return null;
+    return this.saveActiveSnapshot(deps);
   }
 
   createProfile(name: string, deps: ProfileApplyDeps): ProfileMeta {
@@ -377,39 +376,6 @@ export class ProfileManager {
    * Replace or merge a remote profile index into local storage.
    * Merge keeps existing slots and adds profiles whose ids are not present locally.
    */
-  private normalizeStoredProfile(stored: unknown): StoredProfile | null {
-    if (!stored || typeof stored !== "object") return null;
-    const rec = stored as Record<string, unknown>;
-    const meta = rec.meta;
-    if (!meta || typeof meta !== "object") return null;
-    const metaRec = meta as Record<string, unknown>;
-    if (typeof metaRec.id !== "string" || !metaRec.id.trim()) return null;
-    if (typeof metaRec.name !== "string" || !metaRec.name.trim()) return null;
-    const createdAt = typeof metaRec.createdAt === "number" && Number.isFinite(metaRec.createdAt)
-      ? metaRec.createdAt
-      : Date.now();
-    const updatedAt = typeof metaRec.updatedAt === "number" && Number.isFinite(metaRec.updatedAt)
-      ? metaRec.updatedAt
-      : createdAt;
-    const snapshotRaw = rec.snapshot;
-    if (!snapshotRaw || typeof snapshotRaw !== "object") return null;
-    const normalized = normalizeProfileSnapshot(snapshotRaw as Record<string, unknown>);
-    if (typeof normalized === "string") return null;
-    const profileMeta: ProfileMeta = {
-      id: metaRec.id.trim().slice(0, 128),
-      name: metaRec.name.trim().slice(0, 120),
-      createdAt,
-      updatedAt,
-    };
-    if (typeof metaRec.color === "string" && isValidProfileColor(metaRec.color)) {
-      profileMeta.color = metaRec.color;
-    }
-    return {
-      meta: profileMeta,
-      snapshot: { ...normalized, name: profileMeta.name },
-    };
-  }
-
   importProfileIndexRaw(raw: string, mode: "replace" | "merge", deps?: ProfileApplyDeps): string | null {
     let parsed: unknown;
     try {
@@ -425,9 +391,9 @@ export class ProfileManager {
 
     const normalizedProfiles: Record<string, StoredProfile> = {};
     for (const [id, stored] of Object.entries(rec.profiles)) {
-      const normalized = this.normalizeStoredProfile(stored);
+      const normalized = normalizeStoredProfileEntry(stored);
       if (!normalized) continue;
-      normalizedProfiles[id] = normalized;
+      normalizedProfiles[id] = { meta: normalized.meta, snapshot: normalized.snapshot };
     }
     if (Object.keys(normalizedProfiles).length === 0) {
       return "Remote profile index contains no valid profiles.";

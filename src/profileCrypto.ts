@@ -154,12 +154,8 @@ export async function parseProfileImportFile(
     const passphrase = await requestPassphrase();
     if (!passphrase) return "Import cancelled.";
     const decrypted = await decryptProfileExport(raw, passphrase);
-    if (
-      decrypted.startsWith("Could not") ||
-      decrypted.startsWith("Encrypted profile") ||
-      decrypted.startsWith("File is not") ||
-      decrypted.startsWith("Passphrase is required")
-    ) {
+    if (decrypted.startsWith("Could not") || decrypted.startsWith("Encrypted profile")
+      || decrypted.startsWith("File is not") || decrypted.startsWith("Passphrase is required")) {
       return decrypted;
     }
     return parseProfileSnapshot(decrypted);

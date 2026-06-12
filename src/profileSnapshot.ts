@@ -9,6 +9,7 @@ import type { ApiKeyStore } from "./apiKeyStore.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
+import { isValidProfileColor } from "./profileColors.js";
 import {
   pickDisplayPrefs,
   displayPrefsToSettingsPatch,
@@ -253,6 +254,51 @@ export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileS
   };
 }
 
+export interface NormalizedStoredProfile {
+  meta: {
+    id: string;
+    name: string;
+    createdAt: number;
+    updatedAt: number;
+    color?: string;
+  };
+  snapshot: ProfileSnapshotV1;
+}
+
+/** Validate a profile index entry (meta + embedded snapshot). */
+export function normalizeStoredProfileEntry(stored: unknown): NormalizedStoredProfile | null {
+  if (!stored || typeof stored !== "object") return null;
+  const rec = stored as Record<string, unknown>;
+  const meta = rec.meta;
+  if (!meta || typeof meta !== "object") return null;
+  const metaRec = meta as Record<string, unknown>;
+  if (typeof metaRec.id !== "string" || !metaRec.id.trim()) return null;
+  if (typeof metaRec.name !== "string" || !metaRec.name.trim()) return null;
+  const createdAt = typeof metaRec.createdAt === "number" && Number.isFinite(metaRec.createdAt)
+    ? metaRec.createdAt
+    : Date.now();
+  const updatedAt = typeof metaRec.updatedAt === "number" && Number.isFinite(metaRec.updatedAt)
+    ? metaRec.updatedAt
+    : createdAt;
+  const snapshotRaw = rec.snapshot;
+  if (!snapshotRaw || typeof snapshotRaw !== "object") return null;
+  const normalized = normalizeProfileSnapshot(snapshotRaw as Record<string, unknown>);
+  if (typeof normalized === "string") return null;
+  const profileMeta: NormalizedStoredProfile["meta"] = {
+    id: metaRec.id.trim().slice(0, 128),
+    name: metaRec.name.trim().slice(0, 120),
+    createdAt,
+    updatedAt,
+  };
+  if (typeof metaRec.color === "string" && isValidProfileColor(metaRec.color)) {
+    profileMeta.color = metaRec.color;
+  }
+  return {
+    meta: profileMeta,
+    snapshot: { ...normalized, name: profileMeta.name },
+  };
+}
+
 export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
   let parsed: unknown;
   try {
@@ -266,28 +312,11 @@ export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
 
 export interface ApplyProfileSnapshotResult {
   settingsPatch: Partial<Settings>;
-  apiKeyUpdates: Array<{ providerId: string; key: string; enabled: boolean }>;
   oauth: ProfileSnapshotV1["oauth"];
-  cloudSaveHint: ProfileSnapshotV1["cloudSave"];
-  cloudSaveStorage?: Record<string, string>;
 }
 
-/**
- * Turn a parsed snapshot into patches the settings UI can apply.
- * Cloud-save credentials still live in provider-specific localStorage keys;
- * reconnect save sync manually after import (see PROFILE_SYSTEM_PLAN.md).
- */
+/** Turn a parsed snapshot into patches the settings UI can apply. */
 export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileSnapshotResult {
-  const apiKeyUpdates: ApplyProfileSnapshotResult["apiKeyUpdates"] = [];
-  for (const [providerId, state] of Object.entries(snapshot.apiKeys)) {
-    if (!state?.key) continue;
-    apiKeyUpdates.push({
-      providerId,
-      key: state.key,
-      enabled: state.enabled !== false,
-    });
-  }
-
   const displayPrefs = resolveDisplayPrefs(snapshot.settingsSubset.displayPrefs);
 
   return {
@@ -298,9 +327,6 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
       profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,
       ...displayPrefsToSettingsPatch(displayPrefs),
     },
-    apiKeyUpdates,
     oauth: snapshot.oauth,
-    cloudSaveHint: snapshot.cloudSave,
-    cloudSaveStorage: snapshot.cloudSaveStorage,
   };
 }
