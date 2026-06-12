@@ -261,6 +261,7 @@ export function buildCloudTab(
   onSettingsChange: (patch: Partial<Settings>) => void,
   appName?: string,
 ): void {
+  void settings;
   void library;
   void onSettingsChange;
   const APP_NAME = appName ?? "RetroOasis";

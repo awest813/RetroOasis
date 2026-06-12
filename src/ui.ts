@@ -738,10 +738,6 @@ function fileBaseName(fileName: string): string {
   return fileName.split(/[/\\]/).pop()?.toLowerCase() ?? fileName.toLowerCase();
 }
 
-function fileExtension(fileName: string): string {
-  return dreamcastGdiFileExtension(fileName);
-}
-
 async function packageDreamcastGdiSelection(files: readonly File[]): Promise<File | null> {
   if (!isDreamcastGdiSelection(files)) return null;
 

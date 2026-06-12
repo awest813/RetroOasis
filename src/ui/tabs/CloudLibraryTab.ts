@@ -1,7 +1,7 @@
 import { createElement as make } from "../dom.js";
 import { showError, showInfoToast } from "../toasts.js";
 import type { Settings, CloudLibraryConnection } from "../../types/settings.js";
-import { GameLibrary, formatRelativeTime } from "../../library.js";
+import { GameLibrary } from "../../library.js";
 import {
   getGoogleClientId,
   getDropboxAppKey,

@@ -24,6 +24,7 @@ import {
 import { isTopmostOverlay } from "./modals.js";
 import { registerOverlay } from "./overlayStack.js";
 import { showInfoToast } from "./toasts.js";
+import { escHtml } from "./viewHelpers.js";
 
 const APP_NAME = "RetroOasis";
 
@@ -430,7 +431,9 @@ function _buildHostPanel(
   const gameBanner = make("div", { class: "enp-host-game-banner" });
   if (hasGame) {
     const gameIcon = `<svg class="enp-host-game-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M7 10v2M9 10v2" stroke-width="1.8"/></svg>`;
-    gameBanner.innerHTML = `${gameIcon}<span class="enp-host-game-title">Hosting: <strong>${currentGameName ?? currentGameId ?? "Unknown Game"}</strong></span>`;
+    // Security Fix: Sanitize user-provided game name to prevent Cross-Site Scripting (XSS)
+    const safeName = escHtml(currentGameName ?? currentGameId ?? "Unknown Game");
+    gameBanner.innerHTML = `${gameIcon}<span class="enp-host-game-title">Hosting: <strong>${safeName}</strong></span>`;
     gameBanner.classList.add("enp-host-game-banner--loaded");
   } else {
     gameBanner.classList.add("enp-host-game-banner--empty");

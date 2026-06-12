@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { buildAchievementsTab, buildApiKeysTab, buildBiosTab } from "./settingsTabs.js";
 import { ApiKeyStore, type ApiKeyProviderConfig } from "../apiKeyStore.js";
 import { createStoredZip } from "../zip.js";
+import type { BiosLibrary } from "../bios.js";
 
 function makeStorage(): Storage {
   const m = new Map<string, string>();
@@ -65,7 +66,7 @@ describe("buildBiosTab", () => {
       findBios: vi.fn(async () => null),
     };
 
-    buildBiosTab(container, biosLibrary as any, {
+    buildBiosTab(container, biosLibrary as unknown as BiosLibrary, {
       appName: "RetroOasis",
       onError: (message) => errors.push(message),
     });

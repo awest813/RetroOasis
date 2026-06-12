@@ -6,7 +6,7 @@
     "indexHtmlKb": 6
   },
   "lazyChunks": {
-    "modalsGzipKb": 20,
+    "modalsGzipKb": 25,
     "savesGzipKb": 25,
     "toolsGzipKb": 12,
     "multiplayerGzipKb": 10

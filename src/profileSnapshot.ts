@@ -170,7 +170,7 @@ export function parseProfileSnapshot(raw: string): ProfileSnapshotV1 | string {
   }
   const cloudSave = rec.cloudSave;
   if (!cloudSave || typeof cloudSave !== "object") return "Profile is missing save-sync metadata.";
-  return rec as ProfileSnapshotV1;
+  return rec as unknown as ProfileSnapshotV1;
 }
 
 export interface ApplyProfileSnapshotResult {

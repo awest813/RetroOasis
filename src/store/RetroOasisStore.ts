@@ -66,9 +66,11 @@ export interface SettingsSlice {
   uiScale: number;
 }
 
+import type { CloudProviderId } from "../types/settings.js";
+
 export interface CloudLibrarySlice {
   id: string;
-  provider: "gdrive" | "dropbox" | "onedrive" | "pcloud" | "webdav" | "blomp" | "box";
+  provider: CloudProviderId;
   name: string;
   enabled: boolean;
   config: string;

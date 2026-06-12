@@ -96,7 +96,7 @@ export class VmuSaveLibrary {
         fileName,
         timestamp: now,
         checksum,
-        data: new Blob([bytes], { type: "application/octet-stream" }),
+        data: new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" }),
       };
       await promisify(tx(db, "readwrite").put(entry));
       written++;
