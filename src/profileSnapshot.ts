@@ -8,6 +8,12 @@ import type { Settings, CloudLibraryConnection } from "./types/settings.js";
 import type { ApiKeyStore } from "./apiKeyStore.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
+import {
+  pickDisplayPrefs,
+  displayPrefsToSettingsPatch,
+  parseDisplayPrefs,
+  type ProfileDisplayPrefs,
+} from "./profileDisplayPrefs.js";
 
 export const PROFILE_SNAPSHOT_VERSION = 1 as const;
 
@@ -95,6 +101,8 @@ export interface ProfileSnapshotV1 {
     libretroMatchingServerUrl: string;
     netplayUsername: string;
     profileLibraryFilter: boolean;
+    /** Display / performance prefs (optional in older exports). */
+    displayPrefs?: ProfileDisplayPrefs;
   };
 }
 
@@ -136,6 +144,7 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
       netplayUsername: settings.netplayUsername,
       profileLibraryFilter: settings.profileLibraryFilter,
+      displayPrefs: pickDisplayPrefs(settings),
     },
   };
 }
@@ -208,6 +217,7 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
       libretroMatchingServerUrl: snapshot.settingsSubset.libretroMatchingServerUrl ?? "",
       netplayUsername: snapshot.settingsSubset.netplayUsername ?? "",
       profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,
+      ...displayPrefsToSettingsPatch(parseDisplayPrefs(snapshot.settingsSubset.displayPrefs)),
     },
     apiKeyUpdates,
     oauth: snapshot.oauth,

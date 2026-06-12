@@ -83,7 +83,7 @@ describe("ProfileManager", () => {
     settings.netplayUsername = "work-user";
     pm.saveActiveSnapshot(deps);
 
-    const home = pm.createProfile("Home", deps);
+    pm.createProfile("Home", deps);
     settings.netplayUsername = "home-user";
     pm.saveActiveSnapshot(deps);
 

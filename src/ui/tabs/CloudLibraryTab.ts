@@ -27,6 +27,8 @@ import { encryptProfileExport } from "../../profileCrypto.js";
 import { encodeProfileSharePayload, parseProfileImportPayload } from "../../profileShare.js";
 import {
   canSyncProfilesViaCloudSave,
+  profileCloudSyncProviderLabel,
+  getProfileCloudSyncConfig,
   pushProfileIndexToCloud,
   pullProfileIndexFromCloud,
 } from "../../profileCloudSync.js";
@@ -660,10 +662,11 @@ function buildProfileSection(
   const pushCloudBtn = make("button", { class: "btn btn--sm", type: "button" }, "Upload to save sync") as HTMLButtonElement;
   const mergeCloudBtn = make("button", { class: "btn btn--sm", type: "button" }, "Merge from save sync") as HTMLButtonElement;
   const replaceCloudBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Replace from save sync") as HTMLButtonElement;
+  const syncLabel = profileCloudSyncProviderLabel(getProfileCloudSyncConfig());
   const cloudSyncHelp = make("p", { class: "settings-help" },
     canSyncProfilesViaCloudSave()
-      ? "Back up all profile slots to your save-sync folder (WebDAV/Nextcloud)."
-      : "Connect save sync via WebDAV or Nextcloud to back up profile slots to the cloud.");
+      ? `Back up all profile slots to your ${syncLabel} save-sync folder.`
+      : "Connect save sync (WebDAV, Nextcloud, Google Drive, or Dropbox) to back up profile slots.");
 
   if (!canSyncProfilesViaCloudSave()) {
     pushCloudBtn.disabled = true;

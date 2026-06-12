@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PROFILE_INDEX_STORAGE_KEY } from "./profileManager.js";
-import {
-  pushProfileIndexToCloud,
-  pullProfileIndexFromCloud,
-  readLocalProfileIndexRaw,
-} from "./profileCloudSync.js";
 
 const indexJson = JSON.stringify({
   version: 1,
@@ -12,21 +7,30 @@ const indexJson = JSON.stringify({
   profiles: { a: { meta: { id: "a", name: "A", createdAt: 1, updatedAt: 1 }, snapshot: {} } },
 });
 
+let mockProviderId: "webdav" | "gdrive" = "webdav";
+
 vi.mock("./cloudSaveSingleton.js", () => ({
   getCloudSaveManager: () => ({
     isConnected: () => true,
-    providerId: "webdav",
-    loadWebDAVConfig: () => ({
-      url: "https://dav.example.com/saves",
-      username: "user",
-      password: "pass",
-    }),
+    providerId: mockProviderId,
+    loadWebDAVConfig: () => mockProviderId === "webdav"
+      ? { url: "https://dav.example.com/saves", username: "user", password: "pass" }
+      : null,
     loadNextcloudConfig: () => null,
+    loadGDriveConfig: () => mockProviderId === "gdrive" ? { accessToken: "tok" } : null,
+    loadDropboxConfig: () => null,
   }),
 }));
 
+import {
+  pushProfileIndexToCloud,
+  pullProfileIndexFromCloud,
+  readLocalProfileIndexRaw,
+} from "./profileCloudSync.js";
+
 describe("profileCloudSync", () => {
   beforeEach(() => {
+    mockProviderId = "webdav";
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -63,5 +67,16 @@ describe("profileCloudSync", () => {
     fetchMock.mockResolvedValue(new Response(indexJson, { status: 200 }));
     const remote = await pullProfileIndexFromCloud();
     expect(remote).toBe(indexJson);
+  });
+
+  it("uploads profile index to Google Drive appDataFolder", async () => {
+    mockProviderId = "gdrive";
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    const err = await pushProfileIndexToCloud(indexJson);
+    expect(err).toBeNull();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true);
   });
 });

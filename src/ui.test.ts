@@ -59,6 +59,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     recordPlayHistory: true,
     dynamicResolutionScaling: false,
     uiScale: 1.0,
+    profileLibraryFilter: false,
   };
   return {
     ...settings,

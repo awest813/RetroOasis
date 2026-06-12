@@ -21,7 +21,7 @@ unifies them into named, portable bundles.
 | Save sync provider choice | `CloudSaveManager` + per-provider keys | Metadata only (reconnect required) |
 | Netplay username, libretro matching URL | `Settings` | Subset yes |
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
-| Performance / display preferences | `Settings` | Planned v2 |
+| Performance / display preferences | `Settings` | Yes (`settingsSubset.displayPrefs`) |
 
 The initial implementation ships **export / import** and **multi-profile switching** in
 Settings → Cloud Library → Profiles. Import supports **new profile** and **merge into active**.
@@ -86,7 +86,8 @@ Settings → Cloud Library → Profiles. Import supports **new profile** and **m
 - [x] Encrypted share codes (`ro-profile:v1:` gzip + base64url) for copy/paste transfer
 - [x] Sync profiles via user's own cloud save folder (WebDAV/Nextcloud save sync; opt-in)
 - [x] Per-profile library filter (games tagged on import; untagged games remain shared)
-- [ ] QR rendering for small share codes (deferred — copy/paste is primary)
+- [x] QR rendering for compact share codes + optional camera scan on import
+- [x] Save-sync profile backup for Google Drive and Dropbox (in addition to WebDAV/Nextcloud)
 
 ## API sketch (phase 2)
 

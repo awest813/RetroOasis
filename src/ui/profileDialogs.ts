@@ -1,5 +1,6 @@
 import { createElement as make } from "./dom.js";
 import { isTopmostOverlay, registerOverlay } from "./overlayStack.js";
+import { canRenderProfileShareQr, renderProfileShareQrDataUrl } from "../profileQr.js";
 
 export interface PassphraseDialogOpts {
   title: string;
@@ -24,6 +25,7 @@ export function showPassphraseDialog(opts: PassphraseDialogOpts): Promise<string
 
     const passInp = make("input", {
       type: "password",
+      id: "profile-passphrase-input",
       class: "settings-input",
       placeholder: "Passphrase",
       autocomplete: "new-password",
@@ -45,7 +47,7 @@ export function showPassphraseDialog(opts: PassphraseDialogOpts): Promise<string
 
     const form = make("div", { class: "cloud-wizard-form" });
     form.append(
-      make("label", { class: "settings-input-label", for: passInp.id || undefined }, "Passphrase"),
+      make("label", { class: "settings-input-label", for: "profile-passphrase-input" }, "Passphrase"),
       passInp,
     );
     if (confirmInp) {
@@ -127,6 +129,24 @@ export function showProfileShareDialog(shareCode: string): Promise<void> {
     codeArea.value = shareCode;
     box.appendChild(codeArea);
 
+    if (canRenderProfileShareQr(shareCode)) {
+      const qrWrap = make("div", { class: "profile-share-qr-wrap" });
+      const qrImg = make("img", {
+        class: "profile-share-qr",
+        alt: "QR code for profile share",
+      }) as HTMLImageElement;
+      const dataUrl = renderProfileShareQrDataUrl(shareCode, 220);
+      if (dataUrl) {
+        qrImg.src = dataUrl;
+        qrWrap.appendChild(make("p", { class: "settings-help" }, "Scan this QR on another device, then choose Import share code."));
+        qrWrap.appendChild(qrImg);
+        box.appendChild(qrWrap);
+      }
+    } else {
+      box.appendChild(make("p", { class: "settings-help" },
+        "This share code is too large for a QR image — use Copy code instead."));
+    }
+
     const footer = make("div", { class: "confirm-footer" });
     const btnCopy = make("button", { class: "btn btn--primary", type: "button" }, "Copy code") as HTMLButtonElement;
     const btnClose = make("button", { class: "btn", type: "button" }, "Close") as HTMLButtonElement;
@@ -182,9 +202,49 @@ export function showProfileShareImportDialog(): Promise<string | null> {
 
     const footer = make("div", { class: "confirm-footer" });
     const btnCancel = make("button", { class: "btn", type: "button" }, "Cancel") as HTMLButtonElement;
+    const btnScan = make("button", { class: "btn", type: "button" }, "Scan QR") as HTMLButtonElement;
     const btnImport = make("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
-    footer.append(btnCancel, btnImport);
+    footer.append(btnCancel, btnScan, btnImport);
     box.append(codeArea, footer);
+
+    const scanSupported = typeof window !== "undefined"
+      && "BarcodeDetector" in window
+      && typeof navigator.mediaDevices?.getUserMedia === "function";
+    if (!scanSupported) btnScan.hidden = true;
+
+    btnScan.addEventListener("click", () => {
+      void (async () => {
+        btnScan.disabled = true;
+        try {
+          const Detector = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => {
+            detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+          } }).BarcodeDetector;
+          const detector = new Detector({ formats: ["qr_code"] });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          const video = make("video", { autoplay: "true", playsinline: "true", class: "profile-share-qr-video" }) as HTMLVideoElement;
+          video.srcObject = stream;
+          box.insertBefore(video, footer);
+          await new Promise<void>((res) => { video.onloadedmetadata = () => res(); });
+          await video.play();
+          const deadline = Date.now() + 20_000;
+          while (Date.now() < deadline) {
+            const codes = await detector.detect(video);
+            const hit = codes.find((c) => c.rawValue?.startsWith("ro-profile:"));
+            if (hit?.rawValue) {
+              codeArea.value = hit.rawValue;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 250));
+          }
+          stream.getTracks().forEach((t) => t.stop());
+          video.remove();
+        } catch {
+          /* camera unavailable */
+        } finally {
+          btnScan.disabled = false;
+        }
+      })();
+    });
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
