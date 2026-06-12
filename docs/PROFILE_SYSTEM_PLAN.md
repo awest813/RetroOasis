@@ -21,6 +21,7 @@ locations. The **profile system** unifies them into named, portable bundles.
 | Netplay username, libretro matching URL | `Settings` | Subset yes |
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
 | Performance / display preferences | `Settings` | Yes (`settingsSubset.displayPrefs`) |
+| Library game tags (filter) | `retro-oasis.profile.gameTags` | Yes (`libraryGameIds` per profile slot) |
 
 Shipped in **Settings → Cloud Library → Profiles**. Import supports **new profile** and **merge into active**.
 
@@ -72,6 +73,7 @@ Shipped in **Settings → Cloud Library → Profiles**. Import supports **new pr
 - Encrypted share codes (`ro-profile:v1:`) + QR render/scan
 - Cloud index backup via save sync (WebDAV, Nextcloud, Google Drive, Dropbox)
 - Per-profile library filter with game tags on local, cloud, and multi-disc import
+- Header profile chip with quick-switch menu (when multiple profiles exist)
 
 ## API (current)
 
@@ -99,12 +101,12 @@ flushAutoSave(deps): string | null;
 
 ### Cloud index merge semantics
 
-**Merge** adds remote profile slots whose IDs are not present locally; existing slots are unchanged.
+**Merge** adds remote slots with new IDs and replaces existing slots when the remote copy has a newer `updatedAt`. Library game tags embedded in snapshots are merged on import.
 **Replace** overwrites the entire local index with the remote copy.
 
 ## Library filter semantics
 
-- Game tags live in `retro-oasis.profile.gameTags` (global, not embedded in snapshots).
+- Game tags are stored globally in `retro-oasis.profile.gameTags` and also embedded per slot as `libraryGameIds` in snapshots (export/import/cloud sync).
 - When **Filter library to active profile** is enabled, the library shows games tagged to the active profile plus any untagged games (shared household library).
 - Games are tagged on import: local file import, cloud ROM import, and multi-disc/M3U flows.
 
@@ -117,5 +119,4 @@ flushAutoSave(deps): string | null;
 
 1. Should kids' profiles hide Connections / Cloud Library settings?
 2. Default encryption off vs on for exports?
-3. Should game tags be included in profile export/import?
-4. Should cloud index backup optionally encrypt the uploaded index?
+3. Should cloud index backup optionally encrypt the uploaded index?

@@ -10,6 +10,7 @@ import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import { isValidProfileColor } from "./profileColors.js";
+import { getTaggedGameIds, sanitizeLibraryGameIds } from "./profileGameTags.js";
 import {
   pickDisplayPrefs,
   displayPrefsToSettingsPatch,
@@ -99,6 +100,8 @@ export interface ProfileSnapshotV1 {
   };
   /** Raw CloudSaveManager localStorage credential blobs (optional in older exports). */
   cloudSaveStorage?: Record<string, string>;
+  /** Library game ids tagged to this profile (optional; for portable library filter). */
+  libraryGameIds?: string[];
   settingsSubset: {
     libretroMatchingServerUrl: string;
     netplayUsername: string;
@@ -112,6 +115,8 @@ export interface BuildProfileSnapshotOpts {
   name?: string;
   settings: Settings;
   apiKeyStore: ApiKeyStore;
+  /** When set, includes tagged library game ids for this profile slot. */
+  profileId?: string;
 }
 
 /** Collect a portable snapshot of keys and cloud configuration from this browser. */
@@ -126,6 +131,10 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
       apiKeys[provider.id] = { key: state.key, enabled: state.enabled };
     }
   }
+
+  const libraryGameIds = opts.profileId
+    ? sanitizeLibraryGameIds([...getTaggedGameIds(opts.profileId)])
+    : undefined;
 
   return {
     version: PROFILE_SNAPSHOT_VERSION,
@@ -142,6 +151,7 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
       connected: cloudManager.isConnected(),
     },
     cloudSaveStorage: readCloudSaveStorage(),
+    libraryGameIds,
     settingsSubset: {
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
       netplayUsername: settings.netplayUsername,
@@ -245,6 +255,7 @@ export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileS
     },
     cloudSave: { providerId, connected },
     cloudSaveStorage: sanitizeCloudSaveStorage(rec.cloudSaveStorage),
+    libraryGameIds: sanitizeLibraryGameIds(rec.libraryGameIds),
     settingsSubset: {
       libretroMatchingServerUrl: subsetRec.libretroMatchingServerUrl.slice(0, 2048),
       netplayUsername: subsetRec.netplayUsername.slice(0, 64),

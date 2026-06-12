@@ -927,6 +927,13 @@ export function initUI(opts: UIOptions): void {
           getCurrentGameId, getCurrentGameName, getCurrentSystemId,
           getCurrentCoreOptions, onUpdateCoreOption } = opts;
 
+  const profileChipOpts = {
+    openCloudLibrarySettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    },
+    deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
+  };
+
   const saveService = opts.saveService ?? new SaveGameService({
     saveLibrary,
     cloudManager: getCloudSaveManager(),
@@ -1457,9 +1464,7 @@ export function initUI(opts: UIOptions): void {
     rebuildLandingControls();
   });
   bindEvent(document, LEGACY_EVENTS.profileChanged, () => {
-    refreshProfileHeaderChip(() => {
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
-    });
+    refreshProfileHeaderChip(profileChipOpts);
     if (emulator.state !== "running" && emulator.state !== "paused") {
       rebuildLandingControls();
     }
@@ -2655,8 +2660,11 @@ export function buildLandingControls(
     container.appendChild(btnInstall);
   }
 
-  refreshProfileHeaderChip(() => {
-    openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+  refreshProfileHeaderChip({
+    openCloudLibrarySettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    },
+    deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
   });
 
   const btnSettings = make("button", { class: "btn", title: "Settings (F9)", "aria-label": "Open settings" });

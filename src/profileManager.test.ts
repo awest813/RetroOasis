@@ -274,7 +274,47 @@ describe("ProfileManager", () => {
     pm.ensureInitialized(deps);
     const imported = pm.exportActiveSnapshot(deps);
     const meta = pm.importSnapshotAsNewProfile(imported, deps);
+    if (typeof meta === "string") throw new Error(meta);
     expect(pm.getProfileColor(meta.id)).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("includes library game tags in snapshots and restores them on import", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    tagGameForProfile("game-a", pm.getActiveProfileId());
+    tagGameForProfile("game-b", pm.getActiveProfileId());
+    pm.saveActiveSnapshot(deps);
+    const exported = pm.exportActiveSnapshot(deps);
+    expect(exported.libraryGameIds).toEqual(expect.arrayContaining(["game-a", "game-b"]));
+
+    const imported = { ...exported, name: "Tagged import", libraryGameIds: ["game-x", "game-y"] };
+    const meta = pm.importSnapshotAsNewProfile(imported, deps);
+    if (typeof meta === "string") throw new Error(meta);
+    expect(getTaggedGameIds(meta.id, storage).has("game-x")).toBe(true);
+    expect(getTaggedGameIds(meta.id, storage).has("game-y")).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("updates existing profile slots on cloud merge when remote is newer", () => {
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    settings.netplayUsername = "local-old";
+    pm.saveActiveSnapshot(deps);
+    const localId = pm.getActiveProfileId();
+    const localRaw = pm.exportProfileIndexRaw();
+    const remote = JSON.parse(localRaw) as {
+      version: number;
+      activeId: string;
+      profiles: Record<string, { meta: { updatedAt: number }; snapshot: { settingsSubset: { netplayUsername: string } } }>;
+    };
+    remote.profiles[localId]!.snapshot.settingsSubset.netplayUsername = "remote-new";
+    remote.profiles[localId]!.meta.updatedAt = Date.now() + 60_000;
+    const err = pm.importProfileIndexRaw(JSON.stringify(remote), "merge", deps);
+    expect(err).toBeNull();
+    expect(settings.netplayUsername).toBe("remote-new");
   });
 
   it("prunes game tags when a profile is deleted", () => {

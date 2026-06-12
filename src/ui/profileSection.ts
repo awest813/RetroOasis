@@ -145,11 +145,13 @@ export function buildProfileSection(
         { title: "Merge into active profile?", confirmLabel: "Merge", isDanger: true },
       );
       if (!mergeConfirmed) return;
-      pm.importSnapshotIntoActive(parsed, deps);
+      const mergeErr = pm.importSnapshotIntoActive(parsed, deps);
+      if (mergeErr) { showError(mergeErr); return; }
       renameInp.value = pm.getActiveProfileName();
       showInfoToast(`Merged imported settings into "${pm.getActiveProfileName()}".`, "success");
     } else {
       const meta = pm.importSnapshotAsNewProfile(parsed, deps);
+      if (typeof meta === "string") { showError(meta); return; }
       refreshProfileSelect();
       renameInp.value = meta.name;
       showInfoToast(`Imported profile "${meta.name}".`, "success");
@@ -189,7 +191,8 @@ export function buildProfileSection(
 
   const renameBtn = make("button", { class: "btn btn--sm", type: "button" }, "Rename") as HTMLButtonElement;
   renameBtn.addEventListener("click", () => {
-    pm.renameActiveProfile(renameInp.value);
+    const err = pm.renameActiveProfile(renameInp.value);
+    if (err) { showError(err); return; }
     refreshProfileSelect();
     renameInp.value = pm.getActiveProfileName();
     showInfoToast("Profile renamed.", "success");
@@ -205,6 +208,7 @@ export function buildProfileSection(
       );
       if (!confirmed) return;
       const created = pm.createProfile(`Profile ${pm.listProfiles().length + 1}`, deps);
+      if (typeof created === "string") { showError(created); return; }
       refreshProfileSelect();
       renameInp.value = created.name;
       showInfoToast(`Created profile "${created.name}".`, "success");
@@ -215,8 +219,13 @@ export function buildProfileSection(
   const deleteBtn = make("button", { class: "btn btn--sm btn--danger", type: "button" }, "Delete") as HTMLButtonElement;
   deleteBtn.disabled = pm.listProfiles().length <= 1;
   deleteBtn.addEventListener("click", () => {
-    if (!pm.deleteProfile(pm.getActiveProfileId(), deps)) {
+    const deleted = pm.deleteProfile(pm.getActiveProfileId(), deps);
+    if (deleted === false) {
       showError("Keep at least one profile.");
+      return;
+    }
+    if (typeof deleted === "string") {
+      showError(deleted);
       return;
     }
     refreshProfileSelect();

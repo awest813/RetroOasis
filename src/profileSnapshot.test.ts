@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { tagGameForProfile } from "./profileGameTags.js";
 import {
   buildProfileSnapshot,
   parseProfileSnapshot,
@@ -52,6 +53,28 @@ function makeSettings(): Settings {
 }
 
 describe("profileSnapshot", () => {
+  it("includes library game ids when profileId is provided", () => {
+    vi.stubGlobal("localStorage", (() => {
+      const map = new Map<string, string>();
+      return {
+        getItem: (k: string) => map.get(k) ?? null,
+        setItem: (k: string, v: string) => { map.set(k, v); },
+        removeItem: (k: string) => { map.delete(k); },
+        clear: () => { map.clear(); },
+        get length() { return map.size; },
+        key: (i: number) => [...map.keys()][i] ?? null,
+      };
+    })());
+    tagGameForProfile("g1", "profile-1");
+    const snapshot = buildProfileSnapshot({
+      settings: makeSettings(),
+      apiKeyStore: new ApiKeyStore({ providers: [] }),
+      profileId: "profile-1",
+    });
+    expect(snapshot.libraryGameIds).toEqual(["g1"]);
+    vi.unstubAllGlobals();
+  });
+
   it("round-trips export and parse", () => {
     const store = new ApiKeyStore({ providers: [] });
     const snapshot = buildProfileSnapshot({ name: "Test", settings: makeSettings(), apiKeyStore: store });

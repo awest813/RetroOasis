@@ -17,7 +17,12 @@ import {
   normalizeStoredProfileEntry,
   type ProfileSnapshotV1,
 } from "./profileSnapshot.js";
-import { pruneProfileGameTags } from "./profileGameTags.js";
+import {
+  pruneProfileGameTags,
+  mergeLibraryTagsForProfile,
+  sanitizeLibraryGameIds,
+  getTaggedGameIds,
+} from "./profileGameTags.js";
 import { setGoogleClientId, setDropboxAppKey } from "./oauthPopup.js";
 import { isValidProfileColor, pickDefaultProfileColor } from "./profileColors.js";
 
@@ -142,7 +147,12 @@ export class ProfileManager {
     if (!hadProfiles) {
       const id = createUuid();
       const now = Date.now();
-      const snapshot = buildProfileSnapshot({ name: "Default", settings: deps.settings, apiKeyStore: deps.apiKeyStore });
+      const snapshot = buildProfileSnapshot({
+        name: "Default",
+        settings: deps.settings,
+        apiKeyStore: deps.apiKeyStore,
+        profileId: id,
+      });
       this.index.profiles[id] = {
         meta: {
           id,
@@ -204,20 +214,26 @@ export class ProfileManager {
     this.setProfileColor(this.index.activeId, color);
   }
 
-  setProfileColor(id: string, color: string): void {
+  setProfileColor(id: string, color: string): string | null {
     const stored = this.index.profiles[id];
-    if (!stored || !isValidProfileColor(color)) return;
+    if (!stored || !isValidProfileColor(color)) return null;
     stored.meta.color = color;
     stored.meta.updatedAt = Date.now();
-    this.persist();
+    const err = this.persist();
     if (id === this.index.activeId) this.emitChanged();
+    return err;
   }
 
   saveActiveSnapshot(deps: ProfileApplyDeps): string | null {
     const active = this.index.profiles[this.index.activeId];
     if (!active) return null;
     const name = active.meta.name;
-    active.snapshot = buildProfileSnapshot({ name, settings: deps.settings, apiKeyStore: deps.apiKeyStore });
+    active.snapshot = buildProfileSnapshot({
+      name,
+      settings: deps.settings,
+      apiKeyStore: deps.apiKeyStore,
+      profileId: this.index.activeId,
+    });
     active.meta.updatedAt = Date.now();
     return this.persist();
   }
@@ -241,12 +257,18 @@ export class ProfileManager {
     return this.saveActiveSnapshot(deps);
   }
 
-  createProfile(name: string, deps: ProfileApplyDeps): ProfileMeta {
-    this.saveActiveSnapshot(deps);
+  createProfile(name: string, deps: ProfileApplyDeps): ProfileMeta | string {
+    const flushErr = this.saveActiveSnapshot(deps);
+    if (flushErr) return flushErr;
     const id = createUuid();
     const now = Date.now();
     const trimmed = name.trim() || `Profile ${Object.keys(this.index.profiles).length + 1}`;
-    const snapshot = buildProfileSnapshot({ name: trimmed, settings: deps.settings, apiKeyStore: deps.apiKeyStore });
+    const snapshot = buildProfileSnapshot({
+      name: trimmed,
+      settings: deps.settings,
+      apiKeyStore: deps.apiKeyStore,
+      profileId: id,
+    });
     const meta: ProfileMeta = {
       id,
       name: trimmed,
@@ -256,24 +278,26 @@ export class ProfileManager {
     };
     this.index.profiles[id] = { meta, snapshot };
     this.index.activeId = id;
-    this.persist();
+    const err = this.persist();
+    if (err) return err;
     this.emitChanged();
     return meta;
   }
 
-  renameActiveProfile(name: string): void {
+  renameActiveProfile(name: string): string | null {
     const active = this.index.profiles[this.index.activeId];
-    if (!active) return;
+    if (!active) return null;
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) return null;
     active.meta.name = trimmed;
     active.snapshot.name = trimmed;
     active.meta.updatedAt = Date.now();
-    this.persist();
-    this.emitChanged();
+    const err = this.persist();
+    if (!err) this.emitChanged();
+    return err;
   }
 
-  deleteProfile(id: string, deps?: ProfileApplyDeps): boolean {
+  deleteProfile(id: string, deps?: ProfileApplyDeps): boolean | string {
     if (Object.keys(this.index.profiles).length <= 1) return false;
     if (!this.index.profiles[id]) return false;
     const wasActive = this.index.activeId === id;
@@ -290,7 +314,8 @@ export class ProfileManager {
         }
       }
     }
-    this.persist();
+    const err = this.persist();
+    if (err) return err;
     this.emitChanged();
     return true;
   }
@@ -317,7 +342,7 @@ export class ProfileManager {
     }
   }
 
-  importSnapshotAsNewProfile(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): ProfileMeta {
+  importSnapshotAsNewProfile(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): ProfileMeta | string {
     this.switching = true;
     try {
       this.saveActiveSnapshot(deps);
@@ -333,8 +358,10 @@ export class ProfileManager {
       };
       this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
       this.index.activeId = id;
+      mergeLibraryTagsForProfile(id, snapshot.libraryGameIds);
       this.applySnapshot(snapshot, deps);
-      this.persist();
+      const err = this.persist();
+      if (err) return err;
       this.emitChanged();
       return meta;
     } finally {
@@ -343,12 +370,14 @@ export class ProfileManager {
   }
 
   /** Apply an imported snapshot to the active profile without creating a new slot. */
-  importSnapshotIntoActive(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): void {
+  importSnapshotIntoActive(snapshot: ProfileSnapshotV1, deps: ProfileApplyDeps): string | null {
     this.switching = true;
     try {
       this.applySnapshot(snapshot, deps);
-      this.saveActiveSnapshot(deps);
-      this.emitChanged();
+      mergeLibraryTagsForProfile(this.index.activeId, snapshot.libraryGameIds);
+      const err = this.saveActiveSnapshot(deps);
+      if (!err) this.emitChanged();
+      return err;
     } finally {
       this.switching = false;
     }
@@ -370,6 +399,7 @@ export class ProfileManager {
       name: this.getActiveProfileName(),
       settings: deps.settings,
       apiKeyStore: deps.apiKeyStore,
+      profileId: this.index.activeId,
     });
   }
 
@@ -380,7 +410,11 @@ export class ProfileManager {
     }
     const stored = this.index.profiles[id];
     if (!stored) return null;
-    return structuredClone(stored.snapshot);
+    const snapshot = structuredClone(stored.snapshot);
+    const liveTags = sanitizeLibraryGameIds([...getTaggedGameIds(id)]);
+    if (liveTags) snapshot.libraryGameIds = liveTags;
+    else delete snapshot.libraryGameIds;
+    return snapshot;
   }
 
   exportProfileIndexRaw(): string {
@@ -425,8 +459,10 @@ export class ProfileManager {
       };
     } else {
       for (const [id, stored] of Object.entries(normalizedProfiles)) {
-        if (!this.index.profiles[id]) {
+        const existing = this.index.profiles[id];
+        if (!existing || stored.meta.updatedAt > existing.meta.updatedAt) {
           this.index.profiles[id] = stored;
+          mergeLibraryTagsForProfile(id, stored.snapshot.libraryGameIds);
         }
       }
       if (!this.index.activeId && typeof rec.activeId === "string" && this.index.profiles[rec.activeId]) {

@@ -80,6 +80,27 @@ export function isGameVisibleForProfile(
   return getTaggedGameIds(profileId, store).has(gameId);
 }
 
+export function sanitizeLibraryGameIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids = raw.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 128);
+  if (ids.length === 0) return undefined;
+  return [...new Set(ids)].slice(0, 10_000);
+}
+
+/** Merge snapshot library game ids into a profile tag list (e.g. after import). */
+export function mergeLibraryTagsForProfile(
+  profileId: string,
+  gameIds: string[] | undefined,
+  storage?: Storage | null,
+): void {
+  if (!gameIds?.length) return;
+  const trimmedId = profileId.trim();
+  if (!trimmedId) return;
+  for (const gameId of gameIds) {
+    tagGameForProfile(gameId, trimmedId, storage);
+  }
+}
+
 /** Remove all game tags for a deleted profile slot. */
 export function pruneProfileGameTags(profileId: string, storage?: Storage | null): void {
   if (!profileId) return;
