@@ -240,7 +240,7 @@ button {
 .details-rating .ui-inline-icon--star-filled {
   width: 1rem;
   height: 1rem;
-  color: #ffd34d;
+  color: var(--c-gold);
 }
 
 .cover-art-no-results__icon .ui-inline-icon {
@@ -262,8 +262,8 @@ button {
 }
 
 .btn--danger:hover {
-  background: #d44;
-  border-color: #d44;
+  background: var(--c-danger);
+  border-color: var(--c-danger);
 }
 
 .btn--danger-filled {
@@ -274,8 +274,8 @@ button {
 }
 
 .btn--danger-filled:hover {
-  background: #d44;
-  border-color: #d44;
+  background: var(--c-danger);
+  border-color: var(--c-danger);
 }
 
 .btn--active {
@@ -969,7 +969,7 @@ body.is-playing #landing.hidden {
 }
 
 .game-card__patch { right: 182px; }
-.game-card__fav.active { color: #ffd34d; }
+.game-card__fav.active { color: var(--c-gold); }
 
 .game-card__details,
 .game-card__more {
@@ -2432,7 +2432,7 @@ body.is-playing .rotate-hint {
   flex-basis: 100%;
   margin: 0;
   padding-top: 8px;
-  color: var(--c-warning-toned, #e8a31a);
+  color: var(--c-warning-toned, var(--c-gold));
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.35;
@@ -2782,7 +2782,7 @@ html.launch-in-progress .game-card::after {
 #info-toast.info-toast--warning .info-toast__icon { color: var(--c-gold); }
 
 #info-toast.info-toast--error { border-left: 4px solid var(--c-danger); }
-#info-toast.info-toast--error .info-toast__icon { color: #ff9494; }
+#info-toast.info-toast--error .info-toast__icon { color: var(--c-danger); }
 
 #info-toast.info-toast .error-close {
   flex: 0 0 auto;
@@ -5424,7 +5424,7 @@ body.using-gamepad .game-card:focus {
 
 .details-rating {
   font-weight: 800;
-  color: #ffcc00;
+  color: var(--c-gold);
   background: rgba(245, 255, 77, 0.1);
   padding: 4px 10px;
   border-radius: 6px;
@@ -7208,11 +7208,11 @@ body.using-gamepad .game-card:focus {
 }
 
 .account-summary__item--ready {
-  border-color: color-mix(in srgb, var(--c-success, #22c55e) 48%, var(--c-border));
+  border-color: color-mix(in srgb, var(--c-success, var(--c-success)) 48%, var(--c-border));
 }
 
 .account-summary__item--warn {
-  border-color: color-mix(in srgb, var(--c-warning, #f59e0b) 58%, var(--c-border));
+  border-color: color-mix(in srgb, var(--c-warning, var(--c-gold)) 58%, var(--c-border));
 }
 
 .account-summary__item--idle {
@@ -7403,7 +7403,7 @@ body.using-gamepad .game-card:focus {
 }
 
 .playtogether-checklist__item--done {
-  border-color: color-mix(in srgb, var(--c-success, #22c55e) 45%, var(--c-border));
+  border-color: color-mix(in srgb, var(--c-success, var(--c-success)) 45%, var(--c-border));
 }
 
 .playtogether-checklist__mark {
@@ -7420,7 +7420,7 @@ body.using-gamepad .game-card:focus {
 }
 
 .playtogether-checklist__item--done .playtogether-checklist__mark {
-  background: color-mix(in srgb, var(--c-success, #22c55e) 22%, var(--c-surface3));
+  background: color-mix(in srgb, var(--c-success, var(--c-success)) 22%, var(--c-surface3));
 }
 
 .playtogether-checklist__body {
@@ -8886,7 +8886,7 @@ body {
 }
 
 .btn--highlight {
-  color: #f2e7c9;
+  color: var(--c-accent-light);
   background: linear-gradient(180deg, rgba(205,177,114,0.18), rgba(205,177,114,0.07));
   border-color: rgba(205,177,114,0.28);
 }
@@ -9579,7 +9579,7 @@ body {
 .btn--hero {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.28), transparent 34%),
-    linear-gradient(180deg, #d4bd80 0%, #9d7b3e 100%);
+    linear-gradient(180deg, var(--c-accent-light) 0%, var(--c-accent-dark) 100%);
   border-color: rgba(245,229,185,0.46);
   color: #0b0a08;
 }
@@ -9967,7 +9967,7 @@ body {
 
 .conflict-card:focus-visible {
   outline: none;
-  border-color: var(--c-accent, #3b82f6);
+  border-color: var(--c-accent, var(--c-accent-2));
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
 }
 
@@ -10023,16 +10023,16 @@ body {
 
 .conflict-card--local .conflict-card__badge {
   background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
+  color: var(--c-accent-2);
 }
 
 .conflict-card--remote .conflict-card__badge {
   background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
+  color: var(--c-violet);
 }
 
 .sys-badge--newest {
-  background: #10b981 !important;
+  background: var(--c-success) !important;
   color: #fff !important;
   font-size: 0.7rem;
   font-weight: 800;
