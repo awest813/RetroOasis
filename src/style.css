@@ -10821,3 +10821,150 @@ button.is-primary:hover {
   #app::after { display: none; }
   :focus-visible { box-shadow: none; outline-width: 3px; }
 }
+
+/* ============================================================
+   SHIBUYA PUNK — Brutalist Modals & Settings (Phase 5b)
+   Hard edges, exposed structure, neon rules, mono "spec-sheet"
+   labels, tape/sticker accents. Appended last so equal-specificity
+   selectors override the earlier rounded "premium" treatment.
+   ============================================================ */
+
+/* ── Modals: hard-edged neon frame ── */
+.modal-backdrop {
+  background: rgba(4, 3, 10, 0.82);
+}
+.modal-box {
+  border-radius: var(--radius);
+  border: var(--border-thick) solid var(--c-accent);
+  border-top: 4px solid var(--c-accent);
+  box-shadow:
+    8px 8px 0 rgba(0, 0, 0, 0.6),
+    var(--glow-md),
+    var(--shadow-lg);
+}
+/* Yellow "tape" corner accent — pure decoration. */
+.modal-box::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: clamp(20px, 6vw, 48px);
+  width: clamp(56px, 12vw, 92px);
+  height: 20px;
+  background: var(--tape-yellow);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transform: rotate(-3deg);
+  opacity: 0.9;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .modal-box { animation: shibuya-glitch-in 0.4s var(--ease-out) both; }
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-shadow: var(--glow-sm);
+}
+/* Mono kicker tag before the modal title. */
+.modal-title::before {
+  content: "// ";
+  font-family: var(--font-mono);
+  color: var(--c-accent-2);
+  text-shadow: var(--glow-cyan);
+}
+
+.settings-modal-box .modal-header {
+  border-bottom: var(--border-thick) solid var(--c-accent);
+  background: var(--c-surface);
+}
+
+.modal-close {
+  border-radius: 0;
+  border: var(--border-thick) solid var(--c-border-lt);
+}
+.modal-close:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+  box-shadow: var(--glow-sm);
+}
+
+/* ── Settings shell: brutalist control panel ── */
+#settings-backdrop {
+  background: rgba(4, 3, 10, 0.85);
+}
+
+.settings-sidebar {
+  border-right: var(--border-thick) solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.settings-sidebar__item {
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.settings-sidebar__item:hover {
+  background: var(--c-surface2);
+  color: var(--c-accent-light);
+  transform: none;
+  border-left-color: var(--c-accent-2);
+}
+.settings-sidebar__item.settings-tab--active {
+  background: var(--c-surface3);
+  color: var(--c-white);
+  border-left: 3px solid var(--c-accent);
+  transform: none;
+  box-shadow: inset 0 0 24px rgba(255, 46, 151, 0.12);
+}
+.settings-sidebar__item.settings-tab--active .settings-sidebar__icon {
+  color: var(--c-accent);
+  filter: drop-shadow(0 0 4px var(--c-accent-glow));
+}
+
+/* Section headers: spec-sheet kicker + magenta rule. */
+.settings-panel-header {
+  position: relative;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: var(--border-thick) solid var(--c-accent);
+  padding-bottom: 14px;
+}
+.settings-panel-header::before {
+  content: "設定 / ";
+  font-family: var(--font-jp);
+  font-size: 0.5em;
+  font-weight: 700;
+  color: var(--c-accent-2);
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+  margin-right: 0.4em;
+  opacity: 0.85;
+}
+
+/* Section sub-titles get a mono "■" tick. */
+.settings-section__title {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.settings-section__title::before {
+  content: "■ ";
+  color: var(--c-accent);
+  text-shadow: var(--glow-sm);
+}
+
+/* The fullscreen settings panel also carries .modal-box — strip the framed
+   "dialog" treatment (border/tape/offset shadow/glitch) so only its own
+   edge-to-edge chrome shows. */
+.modal-box.settings-modal-box {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  animation: slide-up 0.35s var(--ease-premium-out);
+}
+.modal-box.settings-modal-box::before { content: none; }

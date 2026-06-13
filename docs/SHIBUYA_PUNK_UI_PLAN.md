@@ -229,5 +229,6 @@ This keeps the blast radius mostly in **CSS + one new file + tokens**, with mini
 
 - **Phase 1 (done):** token + typography rework (`design-system.css`, `index.html`, `manifest.json`).
 - **Phase 3/4 (in progress):** neon logo SVG; CRT scanline + neon-grid overlays; focus bloom; card neon offset/tilt; brand glitch-on-hover; hero glitch-in + holographic tag; decorative 東京 watermark; glitch/ticker/holo/bloom keyframes; replaced visible champagne literals + leftover legacy-red hero hover with tokens.
-- **Verification:** `npm run build` ✅, `npm test` — only 2 failures, both **pre-existing on `main`** (`ui.test.ts` settings-tab label/fallback); updated `pwaAssets.test.ts` to the new brand color.
-- **Phase 5 (remaining):** sweep the last alpha-sensitive steel-blue `rgba(122,152,184,*)` panels (5 spots) and other deep-screen literals → tokens; modals/settings/multiplayer brutalist passes; ticker marquee wiring.
+- **Phase 5b (done):** brutalist modal + settings pass — hard-edged neon modal frame with yellow "tape" corner + glitch-in entrance, `//`/`設定` mono-JP kickers, hard cyan sidebar active bar, magenta section rules, `■` section ticks; fullscreen settings panel exempted from the dialog frame.
+- **Verification:** `npm run build` ✅, modal/settings test suites ✅; remaining `npm test` failures are the 2 **pre-existing on `main`** (`ui.test.ts` settings-tab label/fallback); updated `pwaAssets.test.ts` to the new brand color.
+- **Phase 5 (remaining):** sweep the remaining long-tail amber/slate hex literals in deep screens (doctor/multiplayer/cover-art) → tokens; multiplayer brutalist pass; ticker marquee wiring.
