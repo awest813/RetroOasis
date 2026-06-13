@@ -156,12 +156,12 @@ button {
 
 .btn--highlight {
   background: var(--c-accent-2-dim);
-  border-color: rgba(122, 152, 184, 0.45);
-  color: #dcecff;
+  border-color: rgba(0, 240, 255, 0.45);
+  color: var(--c-text);
 }
 
 .btn--highlight:hover {
-  background: rgba(122, 152, 184, 0.22);
+  background: rgba(0, 240, 255, 0.22);
 }
 
 .btn--icon {
@@ -423,7 +423,7 @@ html[data-network="offline"] .app-header::after {
 }
 
 .perf-chip--warn {
-  border-color: rgba(184, 144, 64, 0.42);
+  border-color: rgba(245, 255, 77, 0.42);
   background: var(--c-gold-dim);
   color: var(--c-accent-light);
 }
@@ -2025,7 +2025,7 @@ body:has(#ejs-container.visible) .app-header {
   gap: 8px;
   transform: translateX(-50%);
   padding: 10px 14px;
-  border: 1px solid rgba(184, 144, 64, 0.42);
+  border: 1px solid rgba(245, 255, 77, 0.42);
   border-radius: var(--radius-pill);
   background: rgba(24, 20, 12, 0.92);
   color: var(--c-accent-light);
@@ -3121,7 +3121,7 @@ html.launch-in-progress .game-card::after {
   height: auto;
   margin: 0 0 18px;
   opacity: 0.94;
-  filter: drop-shadow(0 10px 28px rgba(218, 190, 130, 0.18));
+  filter: drop-shadow(0 10px 28px rgba(255, 46, 151, 0.18));
 }
 
 .homepage-platforms {
@@ -7849,8 +7849,8 @@ body.using-gamepad .game-card:focus {
 }
 
 .cover-art-panel--discover {
-  border-color: rgba(122, 152, 184, 0.35);
-  background: linear-gradient(145deg, rgba(122, 152, 184, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-color: rgba(0, 240, 255, 0.35);
+  background: linear-gradient(145deg, rgba(0, 240, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .cover-art-panel__label {
@@ -8576,7 +8576,7 @@ body.using-gamepad .game-card:focus {
 
 .library-overview__item--action:hover,
 .library-overview__item--action:focus-visible {
-  border-color: rgba(218, 190, 130, 0.42);
+  border-color: rgba(255, 46, 151, 0.42);
   background: rgba(255, 255, 255, 0.075);
   transform: translateY(-1px);
   outline: none;
@@ -10300,7 +10300,7 @@ body {
 }
 
 .brand-long {
-  text-shadow: 0 0 15px var(--c-accent-glow), 0 0 30px rgba(205, 177, 114, 0.15) !important;
+  text-shadow: 0 0 15px var(--c-accent-glow), 0 0 30px rgba(255, 46, 151, 0.15) !important;
 }
 
 body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__meta {
@@ -10351,9 +10351,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   position: absolute;
   inset: -50%;
   background: 
-    radial-gradient(circle at 30% 30%, rgba(205, 177, 114, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 70% 60%, rgba(122, 152, 184, 0.03) 0%, transparent 40%),
-    radial-gradient(circle at 50% 40%, rgba(168, 140, 84, 0.03) 0%, transparent 50%);
+    radial-gradient(circle at 30% 30%, rgba(255, 46, 151, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(0, 240, 255, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 50% 40%, rgba(168, 85, 247, 0.04) 0%, transparent 50%);
   z-index: 1;
   pointer-events: none;
   animation: mesh-glow-breathe 20s ease-in-out infinite alternate;
@@ -10393,7 +10393,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 .onboarding__card:hover {
   transform: translateY(-2px) !important;
   border-color: var(--c-accent-glow) !important;
-  box-shadow: 0 10px 30px rgba(205, 177, 114, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 10px 30px rgba(255, 46, 151, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
 .homepage-platforms__chip {
