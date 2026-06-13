@@ -10792,3 +10792,155 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   left: auto;
   bottom: auto;
 }
+
+/* ── Shibuya Punk Menu & Button Polish Pass ── */
+
+/* 1. Comic-Pop Buttons styling override */
+.btn {
+  border-radius: var(--radius-md) !important;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.18s ease, border-color 0.18s ease !important;
+}
+
+/* Comic-pop primary and hero buttons */
+.btn--primary,
+.btn--hero {
+  background: var(--c-accent) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  color: var(--c-ink) !important;
+  font-family: var(--font-display) !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+}
+
+.btn--primary:hover,
+.btn--hero:hover {
+  background: var(--c-accent-light) !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+}
+
+.btn--primary:active,
+.btn--hero:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0 var(--c-ink) !important;
+}
+
+/* Comic-pop secondary/ghost buttons (e.g. Settings, Help in header) */
+.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost) {
+  border: var(--outline-bold) !important;
+  background: var(--c-surface2) !important;
+  box-shadow: var(--pop-shadow) !important;
+  color: var(--c-text) !important;
+}
+
+.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):hover {
+  background: var(--c-surface3) !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+}
+
+.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0 var(--c-ink) !important;
+}
+
+/* Highlight buttons (Play Together, PWA Install) */
+.btn--highlight {
+  background: var(--c-pop-lime) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  color: var(--c-ink) !important;
+  font-weight: 700 !important;
+}
+
+.btn--highlight:hover {
+  background: #c9ff66 !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+}
+
+.btn--highlight:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0 var(--c-ink) !important;
+}
+
+/* Details Panel Play button override to keep the metallic gradient but use the outline + shadow */
+.landing-details__actions .btn--primary {
+  background: var(--accent-metallic-gradient) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  color: var(--c-ink) !important;
+  transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+}
+
+.landing-details__actions .btn--primary:hover {
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  filter: brightness(1.08) !important;
+}
+
+.landing-details__actions .btn--primary:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0 var(--c-ink) !important;
+}
+
+/* Ghost Buttons (Layout, Favorites/Backlog filters) */
+.btn--ghost {
+  background: transparent !important;
+  border: 1px solid var(--c-border) !important;
+  box-shadow: none !important;
+  color: var(--c-text-dim) !important;
+}
+
+.btn--ghost:hover,
+.btn--ghost.active {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--c-accent) !important;
+  color: var(--c-accent) !important;
+}
+
+/* 2. Settings Sidebar Menu Polish */
+.settings-sidebar {
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  background: var(--c-surface) !important;
+  padding: 12px !important;
+}
+
+.settings-sidebar__item {
+  border: 2px solid transparent !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--c-text-dim) !important;
+  transition: all 0.18s ease !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.settings-sidebar__item:hover {
+  background: rgba(255, 46, 151, 0.06) !important;
+  color: var(--c-accent) !important;
+  border-color: rgba(255, 46, 151, 0.18) !important;
+}
+
+.settings-sidebar__item.settings-tab--active {
+  background: rgba(0, 240, 255, 0.08) !important;
+  color: var(--c-accent-2) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.15) !important;
+}
+
+/* 3. Platform Filter Chips active styling */
+.sys-filter-chip {
+  transition: all 0.18s ease !important;
+}
+
+.sys-filter-chip.active {
+  background: rgba(255, 255, 255, 0.045) !important;
+  border: var(--outline-bold) !important;
+  border-left: 6px solid var(--sys-color, var(--c-accent)) !important;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02) !important;
+  color: var(--sys-color, var(--c-accent)) !important;
+}

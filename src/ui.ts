@@ -2297,11 +2297,14 @@ function _renderSystemFilterChips(
       id === ""
         ? "Show all systems"
         : `Filter by ${label}`;
+    const sys = id ? getSystemById(id) : null;
+    const sysColor = sys?.color ?? "var(--c-accent)";
     const chip = make("button", {
       class: `sys-filter-chip${isLibrarySystemFilterActive(id) ? " active" : ""}`,
       "aria-pressed": isLibrarySystemFilterActive(id) ? "true" : "false",
       "aria-label": chipLabel,
     });
+    chip.style.setProperty("--sys-color", sysColor);
     
     const iconEl = make("span", { class: "sys-filter-chip__icon" });
     if (icon.includes("/assets/")) {
