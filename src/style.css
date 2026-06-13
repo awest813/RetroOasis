@@ -10968,3 +10968,69 @@ button.is-primary:hover {
   animation: slide-up 0.35s var(--ease-premium-out);
 }
 .modal-box.settings-modal-box::before { content: none; }
+
+/* ============================================================
+   SHIBUYA PUNK — Toasts + Neon Ticker (Phase 5c)
+   ============================================================ */
+
+/* ── Toasts: stamp/sticker with neon edge ── */
+#info-toast.info-toast,
+.toast-stack .info-toast {
+  border-radius: var(--radius);
+  border: var(--border-thick) solid var(--c-border-lt);
+  background: rgba(11, 8, 16, 0.95);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5), var(--glow-sm);
+  font-family: var(--font-sans);
+}
+.info-toast__icon {
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-mono);
+}
+@media (prefers-reduced-motion: no-preference) {
+  #info-toast.info-toast.visible,
+  .toast-stack .info-toast.visible {
+    animation: shibuya-glitch-in 0.32s var(--ease-out) both;
+  }
+}
+
+/* Per-type neon edge + matching glow */
+#info-toast.info-toast--success { border-left: 5px solid var(--c-success); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 12px rgba(57,255,136,0.3); }
+#info-toast.info-toast--info    { border-left: 5px solid var(--c-accent-2); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), var(--glow-cyan); }
+#info-toast.info-toast--warning { border-left: 5px solid var(--c-gold); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), var(--glow-volt); }
+#info-toast.info-toast--error   { border-left: 5px solid var(--c-danger); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 12px rgba(255,51,85,0.35); }
+#info-toast.info-toast--error .info-toast__icon { color: var(--c-danger); }
+
+/* ── Neon ticker strip (between content and footer) ── */
+.app-ticker {
+  flex: 0 0 auto;
+  height: 22px;
+  overflow: hidden;
+  position: relative;
+  background: var(--c-black);
+  border-top: 1px solid var(--c-accent);
+  border-bottom: 1px solid var(--c-accent-2);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+}
+.app-ticker__track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+}
+.app-ticker__item {
+  display: inline-block;
+  font-family: var(--font-jp);
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  line-height: 22px;
+  color: var(--c-accent);
+  text-shadow: var(--glow-sm);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-ticker__track { animation: shibuya-ticker 32s linear infinite; }
+}
+/* Hide the decorative strip during immersive gameplay. */
+html.in-game .app-ticker,
+.immersive .app-ticker { display: none; }

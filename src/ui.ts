@@ -568,6 +568,14 @@ export function buildDOM(app: HTMLElement): void {
 
     </main>
 
+    <!-- ── Shibuya ticker (decorative neon signage strip) ── -->
+    <div class="app-ticker" aria-hidden="true">
+      <div class="app-ticker__track">
+        <span class="app-ticker__item">シブヤ・パンク ★ RETRO OASIS ★ レトロゲーム ★ 接続中 ★ プレイ ★ </span>
+        <span class="app-ticker__item">シブヤ・パンク ★ RETRO OASIS ★ レトロゲーム ★ 接続中 ★ プレイ ★ </span>
+      </div>
+    </div>
+
     <!-- ── Footer ── -->
     <footer class="app-footer">
       <div class="footer-left">
