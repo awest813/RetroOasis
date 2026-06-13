@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDebugConsoleController } from "./debugConsole.js";
+import { _resetOverlayStackForTests, closeTopmostOverlay, isTopmostOverlay, registerOverlay } from "./overlayStack.js";
 
 function makeEmulator() {
   return {
@@ -26,6 +27,10 @@ function mountDebugConsoleDom(): void {
 }
 
 describe("createDebugConsoleController", () => {
+  beforeEach(() => {
+    _resetOverlayStackForTests();
+  });
+
   it("re-wires controls after the debug console DOM is rebuilt", () => {
     const emulator = makeEmulator();
     const controller = createDebugConsoleController({ onToggleDevOverlay: vi.fn() });
@@ -62,5 +67,29 @@ describe("createDebugConsoleController", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     expect(consoleEl.hidden).toBe(true);
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("registers with the overlay stack and yields close to higher overlays", () => {
+    const emulator = makeEmulator();
+    const controller = createDebugConsoleController({ onToggleDevOverlay: vi.fn() });
+
+    mountDebugConsoleDom();
+    controller.toggle(emulator as never);
+
+    const consoleEl = document.getElementById("debug-console")!;
+    expect(consoleEl.classList.contains("debug-console--stacked")).toBe(true);
+    expect(isTopmostOverlay(consoleEl)).toBe(true);
+
+    const modal = document.createElement("div");
+    const closeModal = vi.fn();
+    registerOverlay({ element: modal, close: closeModal });
+    expect(isTopmostOverlay(consoleEl)).toBe(false);
+
+    expect(closeTopmostOverlay()).toBe(true);
+    expect(closeModal).toHaveBeenCalledTimes(1);
+    expect(consoleEl.hidden).toBe(false);
+
+    expect(closeTopmostOverlay()).toBe(true);
+    expect(consoleEl.hidden).toBe(true);
   });
 });

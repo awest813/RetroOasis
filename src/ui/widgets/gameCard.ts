@@ -658,9 +658,12 @@ export function buildGameCard(
     }
   });
 
+  const actionsWrap = make("div", { class: "game-card__actions" });
+  if (btnPatch) actionsWrap.append(btnPatch);
+  actionsWrap.append(btnArt, btnChangeSystem, btnDetails, btnMore, btnFav, btnRemove);
   card.append(icon, scanline, info);
-  if (patchInput && btnPatch) card.append(patchInput, btnPatch);
-  card.append(btnArt, btnChangeSystem, btnDetails, btnMore, overflowMenu, btnFav, btnRemove, playOverlay);
+  if (patchInput) card.append(patchInput);
+  card.append(actionsWrap, overflowMenu, playOverlay);
 
   let preloadTriggered = false;
   const triggerPreload = () => {

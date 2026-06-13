@@ -48,6 +48,12 @@ export const ICON_MORE_SVG = `<svg class="ui-inline-icon ui-inline-icon--more" v
 
 export const ICON_SPARKLE_SVG = `<svg class="ui-inline-icon ui-inline-icon--sparkle" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.4 4.3L18 9l-4.6 1.7L12 15l-1.4-4.3L6 9l4.6-1.7L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M19 14l.8 2.4L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.6L19 14z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 
+export const ICON_EDIT_PENCIL_SVG = `<svg class="ui-inline-icon ui-inline-icon--edit" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+export const ICON_IMAGE_UPLOAD_SVG = `<svg class="ui-inline-icon ui-inline-icon--upload" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="2" stroke="currentColor" stroke-width="2"/><path d="M4 16l4.5-4.5 3 3L15 11l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+export const ICON_LINK_SVG = `<svg class="ui-inline-icon ui-inline-icon--link" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
 /** Inline SVG strings produced by this module (leading whitespace allowed). */
 export function isSvgMarkup(s: string): boolean {
   return /^\s*<svg\b/i.test(s);

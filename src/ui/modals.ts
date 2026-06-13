@@ -7,7 +7,11 @@ import { getSystemById, getSystemFeatureSummary } from "../systems.js";
 import { threadedCoreBlockedReason } from "../safariCompat.js";
 import {
   ICON_BOOK_SVG,
+  ICON_EDIT_PENCIL_SVG,
+  ICON_IMAGE_UPLOAD_SVG,
+  ICON_LINK_SVG,
   ICON_PLAY_SVG,
+  ICON_SEARCH_SVG,
   ICON_SPARKLE_SVG,
   ICON_STAR_FILLED_SVG,
   ICON_STAR_SVG,
@@ -33,6 +37,14 @@ function iconButton(
   labelEl.textContent = label;
   btn.append(labelEl);
   return btn;
+}
+
+function coverArtPanelLabel(text: string, iconSvg: string): HTMLElement {
+  const el = createElement("div", { class: "cover-art-panel__label cover-art-panel__label--icon" });
+  const icon = createElement("span", { class: "cover-art-panel__label-icon", "aria-hidden": "true" });
+  icon.innerHTML = iconSvg;
+  el.append(icon, document.createTextNode(text));
+  return el;
 }
 
 /**
@@ -516,17 +528,18 @@ export function showCoverArtPickerDialog(
 
     // ── File upload section ──────────────────────────────────────────────────
     const fileSection = createElement("div", { class: "cover-art-section cover-art-panel" });
-    fileSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "From your device"));
+    fileSection.appendChild(coverArtPanelLabel("From your device", ICON_IMAGE_UPLOAD_SVG));
     const fileInput = createElement("input", {
       type: "file",
       accept: "image/jpeg,image/png,image/webp,image/gif,image/avif",
       "aria-label": "Upload image file",
       style: "display:none",
     }) as HTMLInputElement;
-    const btnFile = createElement("button", {
-      class: "btn btn--primary cover-art-btn",
-      type: "button",
-    }, "Upload image…");
+    const btnFile = iconButton(
+      { class: "btn btn--primary cover-art-btn", type: "button" },
+      ICON_IMAGE_UPLOAD_SVG,
+      "Upload image…",
+    );
     btnFile.addEventListener("click", () => fileInput.click(), { signal: ac.signal });
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
@@ -537,7 +550,7 @@ export function showCoverArtPickerDialog(
 
     // ── URL section ─────────────────────────────────────────────────────────
     const urlSection = createElement("div", { class: "cover-art-section cover-art-panel" });
-    urlSection.appendChild(createElement("div", { class: "cover-art-panel__label" }, "From a URL"));
+    urlSection.appendChild(coverArtPanelLabel("From a URL", ICON_LINK_SVG));
     const urlHelpId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? `cover-art-url-help-${crypto.randomUUID()}`
@@ -604,11 +617,11 @@ export function showCoverArtPickerDialog(
     }, { signal: ac.signal });
     const urlRow = createElement("div", { class: "cover-art-url-row" });
     urlRow.append(urlInput, btnPasteUrl);
-    const btnUrl = createElement("button", {
-      class: "btn cover-art-btn",
-      type: "button",
-      "aria-label": "Use image URL as cover art",
-    }, "Use this URL");
+    const btnUrl = iconButton(
+      { class: "btn cover-art-btn", type: "button", "aria-label": "Use image URL as cover art" },
+      ICON_LINK_SVG,
+      "Use this URL",
+    );
     btnUrl.addEventListener("click", () => {
       const url = urlInput.value.trim();
       if (!url) { urlInput.focus(); return; }
@@ -634,16 +647,14 @@ export function showCoverArtPickerDialog(
         "cover-art-section cover-art-panel cover-art-panel--discover" +
         (discoverOffline ? " cover-art-panel--discover-offline" : ""),
     });
-    autoSection.appendChild(createElement(
-      "div",
-      { class: "cover-art-panel__label" },
+    autoSection.appendChild(coverArtPanelLabel(
       discoverOffline ? "Unavailable offline" : "Discover online",
+      ICON_SEARCH_SVG,
     ));
     const autoHint = createElement("p", {
       class: "cover-art-panel__hint",
     }, "Searches Libretro, cover-art-collection, boxart, and Wikimedia automatically, plus any optional providers you enable in Connections (RAWG, IGDB, ScreenScraper, etc.).");
-    const btnAuto = createElement(
-      "button",
+    const btnAuto = iconButton(
       {
         class: "btn btn--highlight cover-art-btn cover-art-btn--discover",
         type: "button",
@@ -651,6 +662,7 @@ export function showCoverArtPickerDialog(
           ? "Search online databases — unavailable while offline"
           : "Search online databases for cover art matching this game",
       },
+      ICON_SEARCH_SVG,
       "Search & pick…",
     );
     btnAuto.addEventListener("click", () => close({ type: "auto" }), { signal: ac.signal });
@@ -956,7 +968,13 @@ export function showGameDetails(
       coverWrap.appendChild(createElement("div", { class: "details-cover-placeholder" }, "No Art"));
     }
     
-    const editArtBtn = createElement("button", { class: "details-edit-art", title: "Change Cover Art", "aria-label": "Change Cover Art" }, "✎");
+    const editArtBtn = createElement("button", {
+      class: "details-edit-art",
+      title: "Change Cover Art",
+      "aria-label": "Change Cover Art",
+      type: "button",
+    });
+    editArtBtn.innerHTML = ICON_EDIT_PENCIL_SVG;
     editArtBtn.addEventListener("click", onEditArt, { signal: ac.signal });
     coverWrap.appendChild(editArtBtn);
     left.appendChild(coverWrap);

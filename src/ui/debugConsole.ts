@@ -1,5 +1,6 @@
 import type { PSPEmulator } from "../emulator.js";
 import { trapFocus } from "./dom.js";
+import { isTopmostOverlay, registerOverlay } from "./overlayStack.js";
 
 export function createDebugConsoleController(opts: { onToggleDevOverlay: () => void }) {
   let visible = false;
@@ -14,6 +15,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
   let lastLoggedEventCount = 0;
   let cleanupBindings: (() => void) | null = null;
   let modalAc: AbortController | null = null;
+  let detachFromStack: (() => void) | null = null;
   let previouslyFocused: HTMLElement | null = null;
   let wiredConsoleEl: HTMLElement | null = null;
 
@@ -23,10 +25,15 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
 
   function closeModal(): void {
     const consoleEl = document.getElementById("debug-console");
+    detachFromStack?.();
+    detachFromStack = null;
     modalAc?.abort();
     modalAc = null;
     visible = false;
-    if (consoleEl) consoleEl.hidden = true;
+    if (consoleEl) {
+      consoleEl.hidden = true;
+      consoleEl.classList.remove("debug-console--stacked");
+    }
     previouslyFocused?.focus();
     previouslyFocused = null;
   }
@@ -38,6 +45,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
     previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     visible = true;
     consoleEl.hidden = false;
+    consoleEl.classList.add("debug-console--stacked");
     consoleEl.style.left = `${position.x}px`;
     consoleEl.style.top = `${position.y}px`;
 
@@ -47,9 +55,10 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
 
     modalAc = new AbortController();
     const { signal } = modalAc;
+    detachFromStack = registerOverlay({ element: consoleEl, close: closeModal });
     trapFocus(consoleEl, signal);
     document.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && isTopmostOverlay(consoleEl)) {
         e.preventDefault();
         e.stopPropagation();
         closeModal();
