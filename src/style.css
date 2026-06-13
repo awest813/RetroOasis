@@ -10684,644 +10684,109 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   right: 12px;
 }
 
-/* ============================================================
-   SHIBUYA PUNK — Signature Effects (Phase 3/4)
-   Effects are ON by default and gated by prefers-reduced-motion.
-   Static fallbacks always remain. All overlays use pointer-events:none
-   and are disabled during immersive gameplay (.in-game / .immersive)
-   to protect the emulator frame budget.
-   ============================================================ */
-
-/* ── CRT scanline + faint neon-grid texture over the whole shell ── */
-#app::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9000;
-  background-image: var(--scanline-overlay);
-  background-size: 100% 4px;
-  opacity: 0.5;
-  mix-blend-mode: multiply;
-}
-
-/* Subtle cyberpunk grid wash behind the landing content. */
-#landing {
-  position: relative;
-}
-#landing::before {
-  content: "";
+.game-card__backlog {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: var(--grid-overlay);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 70%);
-          mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 70%);
-  opacity: 0.6;
-}
-
-/* Kill expensive overlays during gameplay for a clean, fast frame. */
-html.in-game #app::after,
-.immersive #app::after { display: none; }
-
-/* ── Neon focus bloom — strengthens the existing focus ring ── */
-:focus-visible {
-  outline: 2px solid var(--c-accent);
-  outline-offset: 2px;
-  box-shadow: var(--glow-md);
-}
-
-/* ── Brand: glitch on hover, neon logo bloom ── */
-.brand-logo { filter: drop-shadow(0 0 6px var(--c-accent-glow)); }
-.brand-long { position: relative; }
-
-/* ── Primary buttons / CTAs get a neon edge + glow ── */
-.btn-primary,
-.library-hero__tag,
-button.is-primary {
-  box-shadow: var(--glow-sm);
-}
-.btn-primary:hover,
-button.is-primary:hover {
-  box-shadow: var(--glow-md);
-}
-
-/* ── Game cards: hard neon offset + slight tilt on hover ── */
-.game-card { position: relative; }
-.game-card:hover {
-  box-shadow: 6px 6px 0 var(--c-accent), var(--glow-sm);
-}
-
-/* ── Stamp-style neon tag (decorative section labels) ── */
-.library-hero__tag {
-  background: var(--c-accent);
-  color: var(--c-black);
-  border: var(--border-thick) solid var(--c-black);
-  box-shadow: 3px 3px 0 var(--neon-cyan);
-}
-
-/* ── Decorative Japanese watermark on the library hero ── */
-.library-hero__content { position: relative; }
-.library-hero::before {
-  content: "東京";
-  position: absolute;
-  top: clamp(8px, 2vw, 18px);
-  right: clamp(12px, 3vw, 28px);
-  z-index: 1;
-  font-family: var(--font-jp);
-  font-weight: 900;
-  font-size: clamp(3rem, 9vw, 7rem);
-  line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--c-accent);
-  opacity: 0.16;
-  pointer-events: none;
-  letter-spacing: 0.05em;
-}
-
-/* ── Neon scrollbar thumb glow ── */
-::-webkit-scrollbar-thumb:hover { background: var(--c-accent); box-shadow: var(--glow-sm); }
-
-/* ── Motion: only animate when the user allows it ── */
-@media (prefers-reduced-motion: no-preference) {
-  /* Glitch the brand wordmark on hover/focus. */
-  .brand-long:hover,
-  .brand-long:focus-visible {
-    animation: shibuya-glitch 0.45s steps(2, end) 1;
-  }
-
-  /* Glitch-in the library hero headline on mount. */
-  .library-hero__title {
-    animation: shibuya-glitch-in 0.6s var(--ease-out) both;
-  }
-
-  /* Holographic sweep on the hero tag. */
-  .library-hero__tag {
-    background-image: var(--gradient-holo);
-    background-size: 200% 100%;
-    color: var(--c-black);
-    animation: shibuya-holo 6s linear infinite;
-  }
-
-  /* Bloom the controller/keyboard focus ring. */
-  .game-card:focus-visible {
-    animation: shibuya-bloom 1.6s ease-in-out infinite;
-  }
-}
-
-/* ── Reduced motion / data-saver: flat neon, no glitch, no scanline anim ── */
-@media (prefers-reduced-motion: reduce) {
-  #app::after { opacity: 0.3; }
-}
-
-/* ── High-contrast: drop blur-heavy glow for crisp neon ── */
-@media (prefers-contrast: more) {
-  #app::after { display: none; }
-  :focus-visible { box-shadow: none; outline-width: 3px; }
-}
-
-/* ============================================================
-   SHIBUYA PUNK — Brutalist Modals & Settings (Phase 5b)
-   Hard edges, exposed structure, neon rules, mono "spec-sheet"
-   labels, tape/sticker accents. Appended last so equal-specificity
-   selectors override the earlier rounded "premium" treatment.
-   ============================================================ */
-
-/* ── Modals: hard-edged neon frame ── */
-.modal-backdrop {
-  background: rgba(4, 3, 10, 0.82);
-}
-.modal-box {
-  border-radius: var(--radius);
-  border: var(--border-thick) solid var(--c-accent);
-  border-top: 4px solid var(--c-accent);
-  box-shadow:
-    8px 8px 0 rgba(0, 0, 0, 0.6),
-    var(--glow-md),
-    var(--shadow-lg);
-}
-/* Yellow "tape" corner accent — pure decoration. */
-.modal-box::before {
-  content: "";
-  position: absolute;
-  top: -10px;
-  left: clamp(20px, 6vw, 48px);
-  width: clamp(56px, 12vw, 92px);
-  height: 20px;
-  background: var(--tape-yellow);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transform: rotate(-3deg);
-  opacity: 0.9;
-  pointer-events: none;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .modal-box { animation: shibuya-glitch-in 0.4s var(--ease-out) both; }
-}
-
-.modal-title {
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  text-shadow: var(--glow-sm);
-}
-/* Mono kicker tag before the modal title. */
-.modal-title::before {
-  content: "// ";
-  font-family: var(--font-mono);
-  color: var(--c-accent-2);
-  text-shadow: var(--glow-cyan);
-}
-
-.settings-modal-box .modal-header {
-  border-bottom: var(--border-thick) solid var(--c-accent);
-  background: var(--c-surface);
-}
-
-.modal-close {
-  border-radius: 0;
-  border: var(--border-thick) solid var(--c-border-lt);
-}
-.modal-close:hover {
-  border-color: var(--c-accent);
-  color: var(--c-accent);
-  box-shadow: var(--glow-sm);
-}
-
-/* ── Settings shell: brutalist control panel ── */
-#settings-backdrop {
-  background: rgba(4, 3, 10, 0.85);
-}
-
-.settings-sidebar {
-  border-right: var(--border-thick) solid var(--c-border);
-  background: var(--c-surface);
-}
-
-.settings-sidebar__item {
-  border-radius: 0;
-  border-left: 3px solid transparent;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-}
-.settings-sidebar__item:hover {
-  background: var(--c-surface2);
-  color: var(--c-accent-light);
-  transform: none;
-  border-left-color: var(--c-accent-2);
-}
-.settings-sidebar__item.settings-tab--active {
-  background: var(--c-surface3);
-  color: var(--c-white);
-  border-left: 3px solid var(--c-accent);
-  transform: none;
-  box-shadow: inset 0 0 24px rgba(255, 46, 151, 0.12);
-}
-.settings-sidebar__item.settings-tab--active .settings-sidebar__icon {
-  color: var(--c-accent);
-  filter: drop-shadow(0 0 4px var(--c-accent-glow));
-}
-
-/* Section headers: spec-sheet kicker + magenta rule. */
-.settings-panel-header {
-  position: relative;
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-bottom: var(--border-thick) solid var(--c-accent);
-  padding-bottom: 14px;
-}
-.settings-panel-header::before {
-  content: "設定 / ";
-  font-family: var(--font-jp);
-  font-size: 0.5em;
-  font-weight: 700;
-  color: var(--c-accent-2);
-  letter-spacing: 0.08em;
-  vertical-align: middle;
-  margin-right: 0.4em;
-  opacity: 0.85;
-}
-
-/* Section sub-titles get a mono "■" tick. */
-.settings-section__title {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.settings-section__title::before {
-  content: "■ ";
-  color: var(--c-accent);
-  text-shadow: var(--glow-sm);
-}
-
-/* The fullscreen settings panel also carries .modal-box — strip the framed
-   "dialog" treatment (border/tape/offset shadow/glitch) so only its own
-   edge-to-edge chrome shows. */
-.modal-box.settings-modal-box {
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  animation: slide-up 0.35s var(--ease-premium-out);
-}
-.modal-box.settings-modal-box::before { content: none; }
-
-/* ============================================================
-   SHIBUYA PUNK — Toasts + Neon Ticker (Phase 5c)
-   ============================================================ */
-
-/* ── Toasts: stamp/sticker with neon edge ── */
-#info-toast.info-toast,
-.toast-stack .info-toast {
-  border-radius: var(--radius);
-  border: var(--border-thick) solid var(--c-border-lt);
-  background: rgba(11, 8, 16, 0.95);
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5), var(--glow-sm);
-  font-family: var(--font-sans);
-}
-.info-toast__icon {
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.05);
-  font-family: var(--font-mono);
-}
-@media (prefers-reduced-motion: no-preference) {
-  #info-toast.info-toast.visible,
-  .toast-stack .info-toast.visible {
-    animation: shibuya-glitch-in 0.32s var(--ease-out) both;
-  }
-}
-
-/* Per-type neon edge + matching glow */
-#info-toast.info-toast--success { border-left: 5px solid var(--c-success); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 12px rgba(57,255,136,0.3); }
-#info-toast.info-toast--info    { border-left: 5px solid var(--c-accent-2); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), var(--glow-cyan); }
-#info-toast.info-toast--warning { border-left: 5px solid var(--c-gold); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), var(--glow-volt); }
-#info-toast.info-toast--error   { border-left: 5px solid var(--c-danger); box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 12px rgba(255,51,85,0.35); }
-#info-toast.info-toast--error .info-toast__icon { color: var(--c-danger); }
-
-/* ── Neon ticker strip (between content and footer) ── */
-.app-ticker {
-  flex: 0 0 auto;
-  height: 22px;
-  overflow: hidden;
-  position: relative;
-  background: var(--c-black);
-  border-top: 1px solid var(--c-accent);
-  border-bottom: 1px solid var(--c-accent-2);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
-          mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
-}
-.app-ticker__track {
+  top: 50px;
+  right: 14px;
+  bottom: auto;
+  z-index: 20;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
-  white-space: nowrap;
-  will-change: transform;
-}
-.app-ticker__item {
-  display: inline-block;
-  font-family: var(--font-jp);
-  font-weight: 700;
-  font-size: 0.76rem;
-  letter-spacing: 0.18em;
-  line-height: 22px;
-  color: var(--c-accent);
-  text-shadow: var(--glow-sm);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .app-ticker__track { animation: shibuya-ticker 32s linear infinite; }
-}
-/* Hide the decorative strip during immersive gameplay. */
-html.in-game .app-ticker,
-.immersive .app-ticker { display: none; }
-
-/* ============================================================
-   SHIBUYA PUNK — Brutalist Multiplayer / LAN (Phase 5d)
-   ============================================================ */
-
-/* Room cards: hard neon frames with a sticker offset on hover. */
-.enp-room-card,
-.multiplayer-grid > * {
-  border-radius: var(--radius);
-}
-.enp-room-card {
-  border: var(--border-thick) solid var(--c-border);
-}
-.enp-room-card:hover {
-  border-color: var(--c-accent);
-  transform: translateY(-6px);
-  box-shadow: 6px 6px 0 var(--c-accent), var(--glow-sm);
-}
-.enp-room-card__title {
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--c-white);
-  text-shadow: var(--glow-sm);
-}
-.enp-room-card__game {
-  font-family: var(--font-mono);
-}
-
-/* Dashboard title: arcade VS energy + neon. */
-.dashboard-title {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  filter: drop-shadow(0 0 12px var(--c-accent-glow));
-}
-.multiplayer-dashboard-header .dashboard-title::before {
-  content: "対戦 ";
-  font-family: var(--font-jp);
-  font-size: 0.55em;
-  -webkit-text-fill-color: var(--c-accent-2);
-  color: var(--c-accent-2);
-  letter-spacing: 0.1em;
-  text-shadow: var(--glow-cyan);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .dashboard-title { animation: shibuya-glitch-in 0.5s var(--ease-out) both; }
-}
-
-/* Status bar: hard-edged neon readout. */
-.multiplayer-status-bar {
-  border-radius: var(--radius);
-  border: var(--border-thick) solid var(--c-border-lt);
-  background: var(--c-surface);
-  box-shadow: var(--glow-sm);
-}
-.status-indicator {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-/* Waiting/hosting pulse ring picks up the neon glow. */
-.enp-pulse-circle::after {
-  border-color: var(--c-accent);
-  box-shadow: var(--glow-md);
-}
-
-/* ============================================================
-   SHIBUYA PUNK — CRT Boot, Error Banner & Onboarding (Phase 5f)
-   ============================================================ */
-
-/* ── Loading overlay: CRT power-on feel ── */
-#loading-overlay {
-  background: rgba(4, 3, 10, 0.9);
-}
-#loading-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: var(--scanline-overlay);
-  background-size: 100% 4px;
-  opacity: 0.4;
-  z-index: 1;
-}
-.loading-content { position: relative; z-index: 2; }
-
-/* Mono boot prompt + glitch on the status line. */
-#loading-message {
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  text-shadow: var(--glow-md);
-}
-#loading-message::before {
-  content: "> ";
-  font-family: var(--font-mono);
-  color: var(--c-accent-2);
-  text-shadow: var(--glow-cyan);
-}
-#loading-subtitle { font-family: var(--font-mono); }
-@media (prefers-reduced-motion: no-preference) {
-  #loading-overlay.visible #loading-message {
-    animation: shibuya-glitch-in 0.5s var(--ease-out) both;
-  }
-}
-
-/* Progress bar: hard-edged holographic fill. */
-.loading-progress {
-  border-radius: 0;
-  border: 1px solid var(--c-border-lt);
-  background: var(--c-surface);
-}
-.loading-progress-bar {
-  background: var(--gradient-holo);
-  background-size: 200% 100%;
-  box-shadow: var(--glow-md);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .loading-progress-bar { animation: shibuya-holo 4s linear infinite; }
-}
-
-/* ── Error banner: neon danger frame ── */
-#error-banner {
-  border: var(--border-thick) solid var(--c-danger);
-  border-left-width: 5px;
-  background: rgba(11, 8, 16, 0.96);
-  color: var(--c-text);
-  box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 14px rgba(255,51,85,0.3);
-}
-.error-icon { color: var(--c-danger); }
-.error-close { border-radius: 0; background: rgba(255,255,255,0.08); }
-.error-close:hover { background: var(--c-danger); color: var(--c-black); }
-
-/* ── Onboarding: sticker-bombed platform chips ── */
-.welcome-hero__eyebrow { text-shadow: var(--glow-sm); }
-.homepage-platforms__label { font-family: var(--font-mono); }
-.homepage-platforms__chip {
-  border-radius: var(--radius);
-  border: var(--border-thick) solid color-mix(in srgb, var(--sys-color, var(--c-accent)) 50%, transparent);
-  background: var(--c-surface);
-  font-family: var(--font-mono);
-  transition: transform 0.15s var(--spring), box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.homepage-platforms__chip:hover {
-  transform: translateY(-2px) rotate(-1deg);
-  border-color: var(--sys-color, var(--c-accent));
-  box-shadow: 3px 3px 0 var(--sys-color, var(--c-accent));
-}
-
-/* ============================================================
-   SHIBUYA PUNK — Per-System Arcade Accents (Phase 5g)
-   System filter chips and card badges light up in each console's
-   signature colour (--sys-color, set by LibraryTab / gameCard).
-   ============================================================ */
-
-.sys-filter-chip {
-  border-radius: 0;
-  border-left: 3px solid transparent;
-  font-family: var(--font-mono);
-  letter-spacing: 0.03em;
-}
-.sys-filter-chip:hover {
-  border-left-color: var(--sys-color, var(--c-accent-2));
-}
-.sys-filter-chip.active {
-  border-left: 3px solid var(--sys-color, var(--c-accent));
-  box-shadow: inset 0 0 20px color-mix(in srgb, var(--sys-color, var(--c-accent)) 16%, transparent);
-}
-.sys-filter-chip.active .sys-filter-chip__icon {
-  color: var(--sys-color, var(--c-accent));
-  filter: drop-shadow(0 0 5px var(--sys-color, var(--c-accent-glow)));
-}
-
-/* Card system badge: hard-edged neon cabinet tag in the console colour. */
-.game-card__system-chip {
-  border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--sys-color, var(--c-accent)) 60%, transparent);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.game-card:hover .game-card__system-chip {
-  border-color: var(--sys-color, var(--c-accent));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--sys-color, var(--c-accent)) 45%, transparent);
-}
-
-/* ============================================================
-   SHIBUYA PUNK — Comic-Pop Motif Layer (Phase 6)
-   Superflat / Scott Pilgrim / Splatoon / ZZZ / Persona 4 / JSR:
-   flat bold fills, black cel outlines, halftone, comic SFX.
-   ============================================================ */
-
-/* ── Pop buttons: flat bright fill, black cel outline, hard offset ── */
-.btn--primary,
-.btn--hero {
-  background: var(--c-accent);
-  color: var(--c-ink);
-  border: var(--outline-bold);
-  border-radius: var(--radius);
-  box-shadow: var(--pop-shadow);
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition);
-}
-.btn--primary:hover,
-.btn--hero:hover {
-  background: var(--c-accent-h);
-  color: var(--c-ink);
-  border-color: var(--c-ink);
-  transform: translate(-1px, -1px);
-  box-shadow: var(--pop-shadow-lg);
-}
-.btn--primary:active,
-.btn--hero:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--c-ink);
-}
-
-/* ── Persona-4 / ZZZ highlighter eyebrow tag ── */
-.welcome-hero__eyebrow {
-  display: inline-block;
-  background: var(--c-volt);
-  color: var(--c-ink);
-  padding: 4px 14px;
-  border: var(--outline-bold);
-  box-shadow: var(--pop-shadow);
-  transform: rotate(-2deg);
-  text-shadow: none;
-}
-
-/* ── Hero stamp tag: cel outline + Scott-Pilgrim star burst ── */
-.library-hero__tag {
-  position: relative;
-  border: var(--outline-bold);
-  box-shadow: var(--pop-shadow);
-}
-.library-hero__tag::after {
-  content: "★";
-  position: absolute;
-  top: -16px;
-  right: -12px;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--c-volt);
-  text-shadow: var(--pop-shadow);
-  pointer-events: none;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .library-hero__tag::after { animation: shibuya-bloom 2.2s ease-in-out infinite; }
-}
-
-/* ── Halftone wash over the hero (Superflat / ZZZ print texture) ── */
-.library-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background-image: var(--halftone-overlay);
-  background-size: var(--halftone-size);
-  opacity: 0.14;
-  -webkit-mask-image: linear-gradient(225deg, #000, transparent 55%);
-          mask-image: linear-gradient(225deg, #000, transparent 55%);
-}
-
-/* ── Game-of-the-day eyebrow gets the same pop highlighter treatment ── */
-.game-of-the-day__eyebrow {
-  display: inline-block;
-  background: var(--c-accent);
-  color: var(--c-ink);
-  padding: 3px 12px;
-  border: var(--outline-bold);
-  box-shadow: var(--pop-shadow);
-  font-weight: 900;
-}
-
-/* ── Card hover: comic speed-lines sweep across the cover ── */
-.game-card__cover { position: relative; }
-.game-card__cover::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: var(--speedlines);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  background: rgba(4,4,5,0.64);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
   opacity: 0;
-  transition: opacity var(--transition);
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .game-card:hover .game-card__cover::after { opacity: 0.5; }
+
+.game-card__backlog .ui-inline-icon--bookmark,
+.library-backlog-filter .ui-inline-icon--bookmark {
+  width: 1rem;
+  height: 1rem;
+}
+
+.game-card__backlog:hover,
+.game-card__backlog:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(34, 38, 50, 0.92);
+  border-color: rgba(255,255,255,0.62);
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+}
+
+.game-card__backlog.active {
+  color: var(--c-accent);
+  opacity: 1;
+}
+
+.game-card:hover .game-card__backlog,
+.game-card:focus-within .game-card__backlog {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.game-card__fav { top: 86px; right: 14px; }
+.game-card__change-sys { top: 122px; right: 14px; }
+.game-card__art-btn { top: 158px; right: 14px; }
+.game-card__patch { top: 194px; right: 14px; }
+
+.profile-backlog-row {
+  align-items: center;
+}
+
+.profile-backlog-count {
+  color: var(--c-text);
+  font-weight: 700;
+}
+
+.library-grid--compact .game-card__backlog {
+  top: 40px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+}
+
+.library-grid--compact .game-card__fav {
+  top: 72px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__change-sys {
+  top: 104px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__art-btn {
+  top: 136px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__patch {
+  top: 168px;
+  right: 8px;
+}
+
+.library-grid--list .game-card__actions > .game-card__backlog {
+  position: static;
+  display: inline-flex;
+  opacity: 1;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  top: auto;
+  right: auto;
+  left: auto;
+  bottom: auto;
 }

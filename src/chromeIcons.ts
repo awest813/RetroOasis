@@ -44,6 +44,10 @@ export const ICON_USER_SVG = `<svg class="ui-inline-icon ui-inline-icon--user" v
 
 export const ICON_BOOK_SVG = `<svg class="ui-inline-icon ui-inline-icon--book" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 4h8a3 3 0 0 1 3 3v13" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 
+export const ICON_BOOKMARK_SVG = `<svg class="ui-inline-icon ui-inline-icon--bookmark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+
+export const ICON_BOOKMARK_FILLED_SVG = `<svg class="ui-inline-icon ui-inline-icon--bookmark ui-inline-icon--bookmark-filled" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
 export const ICON_MORE_SVG = `<svg class="ui-inline-icon ui-inline-icon--more" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="18" cy="12" r="1.5" fill="currentColor"/></svg>`;
 
 export const ICON_SPARKLE_SVG = `<svg class="ui-inline-icon ui-inline-icon--sparkle" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.4 4.3L18 9l-4.6 1.7L12 15l-1.4-4.3L6 9l4.6-1.7L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M19 14l.8 2.4L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.6L19 14z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;

@@ -25,6 +25,14 @@ import {
   sanitizeLibraryGameIds,
   getTaggedGameIds,
 } from "./profileGameTags.js";
+import {
+  pruneProfileBacklog,
+  syncBacklogForProfile,
+  pruneOrphanBacklogs,
+  syncAllBacklogsFromSnapshots,
+  sanitizeBacklogGameIds,
+  getBacklogGameIds,
+} from "./profileBacklog.js";
 import { setGoogleClientId, setDropboxAppKey } from "./oauthPopup.js";
 import { isValidProfileColor, pickDefaultProfileColor } from "./profileColors.js";
 
@@ -309,6 +317,7 @@ export class ProfileManager {
     const wasActive = this.index.activeId === id;
     delete this.index.profiles[id];
     pruneProfileGameTags(id);
+    pruneProfileBacklog(id);
     if (wasActive) {
       this.index.activeId = Object.keys(this.index.profiles)[0] ?? "";
       if (deps && this.index.activeId) {
@@ -367,6 +376,7 @@ export class ProfileManager {
       this.index.profiles[id] = { meta, snapshot: { ...snapshot, name } };
       this.index.activeId = id;
       syncLibraryTagsForProfile(id, snapshot.libraryGameIds);
+      syncBacklogForProfile(id, snapshot.backlogGameIds);
       this.applySnapshot(snapshot, deps);
       const err = this.persist();
       if (err) return err;
@@ -383,6 +393,7 @@ export class ProfileManager {
     try {
       this.applySnapshot(snapshot, deps);
       syncLibraryTagsForProfile(this.index.activeId, snapshot.libraryGameIds);
+      syncBacklogForProfile(this.index.activeId, snapshot.backlogGameIds);
       const err = this.saveActiveSnapshot(deps);
       if (!err) this.emitChanged();
       return err;
@@ -422,23 +433,29 @@ export class ProfileManager {
     const liveTags = sanitizeLibraryGameIds([...getTaggedGameIds(id)]);
     if (liveTags) snapshot.libraryGameIds = liveTags;
     else delete snapshot.libraryGameIds;
+    const liveBacklog = sanitizeBacklogGameIds([...getBacklogGameIds(id)]);
+    if (liveBacklog) snapshot.backlogGameIds = liveBacklog;
+    else delete snapshot.backlogGameIds;
     return snapshot;
   }
 
-  /** Refresh embedded libraryGameIds from live tag storage for every profile slot. */
-  private refreshEmbeddedLibraryGameIds(): void {
+  /** Refresh embedded per-profile game lists from live storage for every profile slot. */
+  private refreshEmbeddedGameLists(): void {
     for (const [id, stored] of Object.entries(this.index.profiles)) {
       const liveTags = sanitizeLibraryGameIds([...getTaggedGameIds(id)]);
       if (liveTags) stored.snapshot.libraryGameIds = liveTags;
       else delete stored.snapshot.libraryGameIds;
+      const liveBacklog = sanitizeBacklogGameIds([...getBacklogGameIds(id)]);
+      if (liveBacklog) stored.snapshot.backlogGameIds = liveBacklog;
+      else delete stored.snapshot.backlogGameIds;
     }
   }
 
-  /** Flush active profile and export index with up-to-date library game tags for cloud backup. */
+  /** Flush active profile and export index with up-to-date library tags/backlogs for cloud backup. */
   exportProfileIndexForCloud(deps: ProfileApplyDeps): ProfileIndexCloudExport {
     const flushErr = this.flushAutoSave(deps);
     if (flushErr) return { ok: false, error: flushErr };
-    this.refreshEmbeddedLibraryGameIds();
+    this.refreshEmbeddedGameLists();
     return { ok: true, raw: this.exportProfileIndexRaw() };
   }
 
@@ -499,8 +516,14 @@ export class ProfileManager {
     }
 
     pruneOrphanProfileTags(Object.keys(this.index.profiles));
+    pruneOrphanBacklogs(Object.keys(this.index.profiles));
     if (mode === "replace") {
       syncAllLibraryTagsFromSnapshots(
+        Object.fromEntries(
+          Object.entries(this.index.profiles).map(([id, p]) => [id, p.snapshot]),
+        ),
+      );
+      syncAllBacklogsFromSnapshots(
         Object.fromEntries(
           Object.entries(this.index.profiles).map(([id, p]) => [id, p.snapshot]),
         ),
@@ -508,6 +531,7 @@ export class ProfileManager {
     } else {
       for (const id of updatedIds) {
         syncLibraryTagsForProfile(id, this.index.profiles[id]?.snapshot.libraryGameIds);
+        syncBacklogForProfile(id, this.index.profiles[id]?.snapshot.backlogGameIds);
       }
     }
 

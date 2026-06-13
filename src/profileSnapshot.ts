@@ -11,6 +11,7 @@ import { getGoogleClientId, getDropboxAppKey } from "./oauthPopup.js";
 import { parseCloudLibraryConnectionConfig } from "./cloudLibrary.js";
 import { isValidProfileColor } from "./profileColors.js";
 import { getTaggedGameIds, sanitizeLibraryGameIds } from "./profileGameTags.js";
+import { getBacklogGameIds, sanitizeBacklogGameIds } from "./profileBacklog.js";
 import {
   pickDisplayPrefs,
   displayPrefsToSettingsPatch,
@@ -102,6 +103,8 @@ export interface ProfileSnapshotV1 {
   cloudSaveStorage?: Record<string, string>;
   /** Library game ids tagged to this profile (optional; for portable library filter). */
   libraryGameIds?: string[];
+  /** Games queued in this profile's backlog / play-later list. */
+  backlogGameIds?: string[];
   settingsSubset: {
     libretroMatchingServerUrl: string;
     netplayEnabled: boolean;
@@ -138,6 +141,9 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
   const libraryGameIds = opts.profileId
     ? sanitizeLibraryGameIds([...getTaggedGameIds(opts.profileId)])
     : undefined;
+  const backlogGameIds = opts.profileId
+    ? sanitizeBacklogGameIds([...getBacklogGameIds(opts.profileId)])
+    : undefined;
 
   return {
     version: PROFILE_SNAPSHOT_VERSION,
@@ -155,6 +161,7 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
     },
     cloudSaveStorage: readCloudSaveStorage(),
     libraryGameIds,
+    backlogGameIds,
     settingsSubset: {
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
       netplayEnabled: settings.netplayEnabled,
@@ -288,6 +295,7 @@ export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileS
     cloudSave: { providerId, connected },
     cloudSaveStorage: sanitizeCloudSaveStorage(rec.cloudSaveStorage),
     libraryGameIds: sanitizeLibraryGameIds(rec.libraryGameIds),
+    backlogGameIds: sanitizeBacklogGameIds(rec.backlogGameIds),
     settingsSubset: {
       libretroMatchingServerUrl: subsetRec.libretroMatchingServerUrl.slice(0, 2048),
       netplayEnabled: subsetRec.netplayEnabled === true,

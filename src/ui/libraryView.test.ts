@@ -75,4 +75,16 @@ describe("updateLibraryLandingState", () => {
     empty.querySelector<HTMLButtonElement>(".library-empty__profile")?.click();
     expect(onOpenProfileSettings).toHaveBeenCalled();
   });
+
+  it("explains an empty active profile backlog", () => {
+    const empty = buildFilteredLibraryEmptyState({
+      searchQuery: "",
+      activeSystemLabel: "",
+      backlogFilterActive: true,
+      profileName: "Weekend",
+      onReset: vi.fn(),
+    });
+    expect(empty.textContent).toContain("Weekend");
+    expect(empty.textContent).toContain("backlog");
+  });
 });
