@@ -1,98 +1,102 @@
 /* ============================================================
    RetroOasis — Design System Tokens
-   Glass & Silver UI: pitch black base, silver-steel accents, minimal design.
+   SHIBUYA PUNK: neon-noir Tokyo. Pitch-black base, electric
+   magenta / cyan / voltage-yellow triad, brutalist edges,
+   CRT/glitch texture. Token NAMES are preserved so the entire
+   style.css cascade re-themes from this file alone.
 
    Import this file before any component CSS that uses these tokens.
-   All tokens are declared on :root so they cascade freely.
    ============================================================ */
 
 :root {
   /* ── UI Scale — applied as a multiplier to all layout tokens ── */
   --ui-scale: 1;
 
-  /* ── Core Color Palette (Minimalist) ── */
-  --c-bg:         #000000;
-  --c-surface:    #0a0a0c;
-  --c-surface2:   #121215;
-  --c-surface3:   #1a1a1f;
-  --c-border:     rgba(255, 255, 255, 0.08);
-  --c-border-lt:  rgba(255, 255, 255, 0.15);
+  /* ── Core Color Palette (Neon-noir) ── */
+  --c-bg:         #04030a;   /* near-black, violet undertone */
+  --c-surface:    #0b0810;
+  --c-surface2:   #140d1c;
+  --c-surface3:   #1d1230;
+  --c-border:     rgba(255, 46, 151, 0.18);  /* magenta-tinted hairline */
+  --c-border-lt:  rgba(0, 240, 255, 0.28);   /* cyan edge */
 
-  /* Primary accent: polished champagne metal */
-  --c-accent:       #cdb172;
-  --c-accent-h:     #ead7a1;
-  --c-accent-light: #f6e7bb;
-  --c-accent-dark:  #7f6537;
-  --c-accent-dim:   rgba(205, 177, 114, 0.14);
-  --c-accent-glow:  rgba(205, 177, 114, 0.32);
+  /* Primary accent: HOT MAGENTA neon */
+  --c-accent:       #ff2e97;
+  --c-accent-h:     #ff6bb5;
+  --c-accent-light: #ffa6d4;
+  --c-accent-dark:  #9c0f5a;
+  --c-accent-dim:   rgba(255, 46, 151, 0.14);
+  --c-accent-glow:  rgba(255, 46, 151, 0.45);
 
-  /* Secondary accent: Muted Gold (for warnings/highlights) */
-  --c-gold:       #a88c54;
-  --c-gold-h:     #c2a770;
-  --c-gold-dim:   rgba(168, 140, 84, 0.14);
-  --c-gold-glow:  rgba(168, 140, 84, 0.25);
+  /* Secondary accent: VOLTAGE YELLOW (warnings / energy / badges) */
+  --c-gold:       #f5ff4d;
+  --c-gold-h:     #faff8a;
+  --c-gold-dim:   rgba(245, 255, 77, 0.14);
+  --c-gold-glow:  rgba(245, 255, 77, 0.30);
+  --c-volt:       var(--c-gold);   /* semantic alias */
 
-  /* Tertiary: Soft gray */
-  --c-accent-2:      #8a8a99;
-  --c-accent-2-dim:  rgba(138, 138, 153, 0.14);
-  --c-accent-2-glow: rgba(138, 138, 153, 0.25);
+  /* Tertiary: ELECTRIC CYAN */
+  --c-accent-2:      #00f0ff;
+  --c-accent-2-dim:  rgba(0, 240, 255, 0.14);
+  --c-accent-2-glow: rgba(0, 240, 255, 0.32);
 
-  /* Legacy aliases (kept for system color compatibility) */
-  --c-joy-red:    #a85c65;
-  --c-joy-blue:   #5c7aa8;
-  --c-joy-red-dim:  rgba(168, 92, 101, 0.12);
-  --c-joy-blue-dim: rgba(92, 122, 168, 0.12);
+  /* Legacy aliases (per-system color compatibility) — neon-tinted */
+  --c-joy-red:    #ff3d6e;
+  --c-joy-blue:   #00d0ff;
+  --c-joy-red-dim:  rgba(255, 61, 110, 0.14);
+  --c-joy-blue-dim: rgba(0, 208, 255, 0.14);
 
-  /* Semantic colors */
-  --c-danger:     #c95454;
-  --c-warn:       #a88c54;
-  --c-success:    #54a87b;
-  --c-fav:        #d45d79;
+  /* Semantic colors (punched-up neon) */
+  --c-danger:     #ff3355;
+  --c-warn:       #f5ff4d;
+  --c-success:    #39ff88;
+  --c-fav:        #ff2e97;
 
   /* Status indicators */
-  --c-status-running: #6be394;
-  --c-status-paused:  #e3b96b;
-  --c-status-online:  #6be394;
-  --c-status-offline: #e36b6b;
-  --c-status-inactive: #555566;
+  --c-status-running: #39ff88;
+  --c-status-paused:  #f5ff4d;
+  --c-status-online:  #39ff88;
+  --c-status-offline: #ff3355;
+  --c-status-inactive: #4a3d5c;
 
   /* Pure tones */
   --c-white:      #ffffff;
   --c-black:      #000000;
 
   /* Doctor / diagnostic status */
-  --c-doctor-pass: #54a87b;
-  --c-doctor-warn: #a88c54;
-  --c-doctor-fail: #c95454;
+  --c-doctor-pass: #39ff88;
+  --c-doctor-warn: #f5ff4d;
+  --c-doctor-fail: #ff3355;
 
   /* Tier badge colors */
-  --c-tier-ok:       #6be394;
-  --c-tier-ok-text:  #1a442a;
-  --c-tier-mid:      #e3b96b;
-  --c-tier-mid-text: #44351a;
-  --c-tier-warn:     #e36b6b;
-  --c-tier-warn-text:#441a1a;
+  --c-tier-ok:       #39ff88;
+  --c-tier-ok-text:  #06210f;
+  --c-tier-mid:      #f5ff4d;
+  --c-tier-mid-text: #2a2c06;
+  --c-tier-warn:     #ff3355;
+  --c-tier-warn-text:#2a060f;
 
   /* Cover art matching */
-  --c-perfect-match: #6be394;
+  --c-perfect-match: #39ff88;
 
   /* Text hierarchy */
-  --c-text:       #e8e8ed;
-  --c-text-dim:   #a0a0ab;
-  --c-text-faint: #6e6e78;
-  --c-text-muted: #80808c;
+  --c-text:       #f2ecff;
+  --c-text-dim:   #b3a6cc;
+  --c-text-faint: #6e6388;
+  --c-text-muted: #8579a3;
   --c-muted:      var(--c-text-muted);
-  --focus-ring:   0 0 0 3px rgba(238, 226, 196, 0.12);
-  --focus-border: rgba(238, 226, 196, 0.42);
-  --panel-bg:     rgba(7, 7, 9, 0.82);
-  --panel-border: rgba(255, 255, 255, 0.105);
+  --focus-ring:   0 0 0 3px rgba(255, 46, 151, 0.30);
+  --focus-border: rgba(255, 46, 151, 0.65);
+  --panel-bg:     rgba(7, 5, 14, 0.86);
+  --panel-border: rgba(255, 46, 151, 0.16);
 
-  /* ── Shape & Sizing ── */
-  --radius:       6px;
-  --radius-sm:    4px;
-  --radius-lg:    10px;
-  --radius-xl:    14px;
+  /* ── Shape & Sizing (brutalist hard edges) ── */
+  --radius:       2px;
+  --radius-sm:    0px;
+  --radius-lg:    4px;
+  --radius-xl:    6px;
   --radius-pill:  999px;
+  --border-thick: 2px;
 
   /* ── Safe area insets (iOS notch / home bar) ── */
   --safe-top:    env(safe-area-inset-top, 0px);
@@ -108,7 +112,7 @@
   --shell-gutter: clamp(16px, 3vw, 32px);
   --shell-gutter-lg: clamp(24px, 5vw, 48px);
   --section-gap: clamp(16px, 2.5vw, 24px);
-  
+
   /* Full width layout for 3-pane style */
   --library-shell-max-w: 100%;
   --content-max-w: 100%;
@@ -127,32 +131,68 @@
   --shadow:       0 20px 60px rgba(0, 0, 0, 0.85);
   --shadow-sm:    0 4px 18px rgba(0, 0, 0, 0.55);
   --shadow-lg:    0 24px 70px rgba(0, 0, 0, 0.95);
-  --shadow-card:  0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-card:  0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-card-inset: inset 0 1px 0 rgba(255, 46, 151, 0.10);
   --shadow-lift:  0 12px 30px rgba(0, 0, 0, 0.65);
+  /* Hard, un-blurred "sticker" offset shadow */
+  --offset-shadow: 4px 4px 0 var(--c-accent);
 
   /* ── Glass / depth ── */
-  --glass-bg:     rgba(10, 10, 13, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg:     rgba(11, 8, 16, 0.78);
+  --glass-border: rgba(255, 46, 151, 0.14);
 
-  /* ── Typography — Google Fonts + fallbacks ── */
-  --font-display: 'Orbitron', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-sans:    'Outfit', system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono:    "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+  /* ── Shibuya Punk: neon system ── */
+  --neon-magenta: #ff2e97;
+  --neon-cyan:    #00f0ff;
+  --neon-volt:    #f5ff4d;
+  --neon-violet:  #a855f7;
+  --glow-sm: 0 0 4px var(--c-accent-glow);
+  --glow-md: 0 0 10px var(--c-accent-glow), 0 0 22px rgba(255, 46, 151, 0.22);
+  --glow-lg: 0 0 14px var(--c-accent-glow), 0 0 34px rgba(255, 46, 151, 0.30), 0 0 60px rgba(255, 46, 151, 0.18);
+  --glow-cyan: 0 0 10px var(--c-accent-2-glow), 0 0 24px rgba(0, 240, 255, 0.22);
+  --glow-volt: 0 0 10px var(--c-gold-glow), 0 0 24px rgba(245, 255, 77, 0.20);
+
+  /* RGB chromatic-split text shadow (cheap glitch) */
+  --rgb-split: -1.5px 0 0 rgba(0, 240, 255, 0.85), 1.5px 0 0 rgba(255, 46, 151, 0.85);
+
+  /* Gradients */
+  --gradient-neon: linear-gradient(135deg, var(--neon-magenta) 0%, var(--neon-violet) 50%, var(--neon-cyan) 100%);
+  --gradient-holo: linear-gradient(110deg, #ff2e97 0%, #a855f7 25%, #00f0ff 50%, #39ff88 75%, #f5ff4d 100%);
+
+  /* Texture overlays (consumed by Shibuya effect layers) */
+  --scanline-overlay: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.22) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  --grid-overlay: linear-gradient(rgba(255, 46, 151, 0.05) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+
+  /* Tape / sticker accents */
+  --tape-yellow: rgba(245, 255, 77, 0.85);
+  --tape-bg:     rgba(245, 255, 77, 0.14);
+
+  /* ── Premium Console Helpers ── */
+  --bg-gradient:
+    radial-gradient(1200px 600px at 50% -10%, rgba(168, 85, 247, 0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #0a0614 0%, #04030a 72%);
+  --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-dark) 100%);
+  --accent-metallic-gradient: var(--gradient-neon);
+  --glass-fx: saturate(150%) blur(26px);
+  --glass-bg-accent: rgba(255, 46, 151, 0.06);
+
+  /* ── Typography — Shibuya stack ── */
+  --font-display: 'Zen Dots', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:    'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    'Space Mono', "SF Mono", "JetBrains Mono", "Consolas", monospace;
+  --font-jp:      'Zen Kaku Gothic New', 'Chakra Petch', sans-serif;
   font-family: var(--font-sans);
   font-size: calc(clamp(13.5px, 0.14vw + 12.8px, 14.5px) * var(--ui-scale));
   color: var(--c-text);
   background: var(--c-bg);
   color-scheme: dark;
-
-  /* ── Premium Console Helpers ── */
-  --bg-gradient:
-    linear-gradient(115deg, rgba(255,255,255,0.055) 0%, transparent 28%),
-    linear-gradient(180deg, #08080a 0%, #000000 72%);
-  --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-dark) 100%);
-  --accent-metallic-gradient: linear-gradient(135deg, #f6e7bb 0%, #cdb172 45%, #a88c54 70%, #7f6537 100%);
-  --glass-fx: saturate(160%) blur(30px);
-  --glass-bg-accent: rgba(122, 152, 184, 0.05);
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
