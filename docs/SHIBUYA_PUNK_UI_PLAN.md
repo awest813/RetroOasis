@@ -24,6 +24,23 @@ Reference touchstones: Jet Set Radio, Persona 5's UI kinetics, Akira/cyberpunk T
 
 ---
 
+## 1b. Influences & Motif Language
+
+Shibuya Punk here is **neon-noir base × comic-pop street culture**. Reference set and what each contributes:
+
+| Influence | What it brings to the UI |
+|---|---|
+| **Persona 4** | Yellow-on-black pop, kinetic highlighter tags, bold confident menus |
+| **Zenless Zone Zero** | TV/cassette retro-future, sticker-bomb, halftone print, chunky street type |
+| **Splatoon 2/3** | Clashing ink neons (magenta/cyan/lime/orange), splat/graffiti energy |
+| **Danganronpa** | High-contrast neon-pink-on-mono, glossy pop, hard graphic shapes |
+| **Jet Set Radio** | Cel-shaded graffiti, spray paint, bold outlines, radio/cassette retro |
+| **Air Gear** | Street motion, speed lines, kinetic urban energy |
+| **Scott Pilgrim** | Comic SFX (★ bursts, "K.O."), halftone, panel borders, lo-fi game pop |
+| **Superflat (Murakami)** | Flat bold colour planes, hard black outlines, repeating motifs, candy-pop |
+
+**Resulting motif rules:** flat bright fills with **black cel outlines** + hard offset shadows (Superflat/JSR/ZZZ pop buttons); **halftone** print washes (Superflat/ZZZ/Scott Pilgrim); **comic SFX** star bursts; **speed lines** on motion/hover (Air Gear/JSR); **highlighter tags** (Persona 4/ZZZ); ink-pop accent colours (`--c-pop-orange`, `--c-pop-lime`) alongside the neon triad. These layer *on top of* the neon-noir base rather than replacing it.
+
 ## 2. Design Language Pillars
 
 | Pillar | What it means in the UI |
@@ -236,5 +253,6 @@ This keeps the blast radius mostly in **CSS + one new file + tokens**, with mini
 - **Phase 5e (done):** finished the hex long-tail — saturated semantic literals (danger reds, success greens, ambers, blues, violet, champagne remnants) mapped to tokens across the file. Remaining literals are intentional neutral grays + ultra-light pastel tints (light text on tinted chips), kept to preserve contrast.
 - **Phase 5f (done):** CRT-boot loading overlay (scanline layer, `>` mono boot prompt + glitch on status line, hard-edged holographic progress bar), neon-danger error banner, and sticker-bombed onboarding platform chips (hard edges, per-system neon border, tilt + offset on hover).
 - **Phase 5g (done):** per-system arcade accents — library system-filter chips and card system badges now light up in each console's signature `--sys-color` (neon left bar + inset glow on active chips; hard-edged mono cabinet tag on cards that glows on hover).
-- **Status:** overhaul complete (Phases 1, 3, 4, 5a–g). Full suite 2717 pass; only 2 pre-existing `ui.test.ts` tab failures remain.
-- **Optional follow-ups (need a browser):** real-browser visual QA pass; WCAG contrast spot-check on neon-on-black body text.
+- **Phase 6 (done):** comic-pop motif layer reflecting the refined influence set (§1b) — flat pop buttons with black cel outlines + hard offset (`.btn--primary`/`.btn--hero`), Persona-4/ZZZ yellow highlighter eyebrow tags, Scott-Pilgrim ★ burst + cel outline on the hero stamp, Superflat halftone wash over the hero, and Air-Gear/JSR speed-lines sweep on card hover. Added motif tokens (`--c-ink`, `--outline-bold`, `--pop-shadow`, `--halftone-overlay`, `--speedlines`, `--c-pop-orange/lime`).
+- **Status:** overhaul complete (Phases 1, 3, 4, 5a–g, 6). Full suite 2717 pass; only 2 pre-existing `ui.test.ts` tab failures remain.
+- **Optional follow-ups (need a browser):** real-browser visual QA pass; WCAG contrast spot-check; deeper motif work (ink-splat SVG assets, comic panel borders, more speed-line surfaces).

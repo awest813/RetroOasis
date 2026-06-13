@@ -11220,3 +11220,108 @@ html.in-game .app-ticker,
   border-color: var(--sys-color, var(--c-accent));
   box-shadow: 0 0 10px color-mix(in srgb, var(--sys-color, var(--c-accent)) 45%, transparent);
 }
+
+/* ============================================================
+   SHIBUYA PUNK — Comic-Pop Motif Layer (Phase 6)
+   Superflat / Scott Pilgrim / Splatoon / ZZZ / Persona 4 / JSR:
+   flat bold fills, black cel outlines, halftone, comic SFX.
+   ============================================================ */
+
+/* ── Pop buttons: flat bright fill, black cel outline, hard offset ── */
+.btn--primary,
+.btn--hero {
+  background: var(--c-accent);
+  color: var(--c-ink);
+  border: var(--outline-bold);
+  border-radius: var(--radius);
+  box-shadow: var(--pop-shadow);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition);
+}
+.btn--primary:hover,
+.btn--hero:hover {
+  background: var(--c-accent-h);
+  color: var(--c-ink);
+  border-color: var(--c-ink);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--pop-shadow-lg);
+}
+.btn--primary:active,
+.btn--hero:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--c-ink);
+}
+
+/* ── Persona-4 / ZZZ highlighter eyebrow tag ── */
+.welcome-hero__eyebrow {
+  display: inline-block;
+  background: var(--c-volt);
+  color: var(--c-ink);
+  padding: 4px 14px;
+  border: var(--outline-bold);
+  box-shadow: var(--pop-shadow);
+  transform: rotate(-2deg);
+  text-shadow: none;
+}
+
+/* ── Hero stamp tag: cel outline + Scott-Pilgrim star burst ── */
+.library-hero__tag {
+  position: relative;
+  border: var(--outline-bold);
+  box-shadow: var(--pop-shadow);
+}
+.library-hero__tag::after {
+  content: "★";
+  position: absolute;
+  top: -16px;
+  right: -12px;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--c-volt);
+  text-shadow: var(--pop-shadow);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .library-hero__tag::after { animation: shibuya-bloom 2.2s ease-in-out infinite; }
+}
+
+/* ── Halftone wash over the hero (Superflat / ZZZ print texture) ── */
+.library-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--halftone-overlay);
+  background-size: var(--halftone-size);
+  opacity: 0.14;
+  -webkit-mask-image: linear-gradient(225deg, #000, transparent 55%);
+          mask-image: linear-gradient(225deg, #000, transparent 55%);
+}
+
+/* ── Game-of-the-day eyebrow gets the same pop highlighter treatment ── */
+.game-of-the-day__eyebrow {
+  display: inline-block;
+  background: var(--c-accent);
+  color: var(--c-ink);
+  padding: 3px 12px;
+  border: var(--outline-bold);
+  box-shadow: var(--pop-shadow);
+  font-weight: 900;
+}
+
+/* ── Card hover: comic speed-lines sweep across the cover ── */
+.game-card__cover { position: relative; }
+.game-card__cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--speedlines);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .game-card:hover .game-card__cover::after { opacity: 0.5; }
+}
