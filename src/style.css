@@ -10099,8 +10099,8 @@ body {
 
 .settings-modal-box {
   background:
-    linear-gradient(115deg, rgba(238, 226, 196, 0.045), transparent 34%),
-    rgba(3, 3, 5, 0.96);
+    linear-gradient(rgba(4, 3, 10, 0.78), rgba(4, 3, 10, 0.86)),
+    url("/assets/menu-bg.jpg") no-repeat center center / cover !important;
 }
 
 .settings-modal-box .modal-header,
