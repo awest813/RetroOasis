@@ -32,6 +32,7 @@ const CORE_PREFETCH_MAP: Record<string, string> = {
   segaMS:     "cores/genesis_plus_gx-wasm.data",
   arcade:     "cores/fbneo-wasm.data",
   segaSaturn: "cores/yabause-wasm.data",
+  segaDC:     "cores/flycast-wasm.data",
   mame2003:   "cores/mame2003_plus-wasm.data",
   atari7800:  "cores/prosystem-wasm.data",
   intv:       "cores/freeintv-wasm.data",
@@ -48,6 +49,7 @@ const CORE_CDN_BASE_OVERRIDES: Record<string, string> = {
   bsnes: EJS_NIGHTLY_CDN_BASE,
   dosbox_pure: EJS_NIGHTLY_CDN_BASE,
   freeintv: EJS_NIGHTLY_CDN_BASE,
+  flycast: EJS_NIGHTLY_CDN_BASE,
   genesis_plus_gx_wide: EJS_NIGHTLY_CDN_BASE,
 };
 

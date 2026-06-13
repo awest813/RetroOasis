@@ -1908,7 +1908,7 @@ describe("buildDebugTab", () => {
     expect(region?.contains(envHeading ?? null)).toBe(true);
   });
 
-  it("falls back to Performance tab when an invalid initialTab is provided", () => {
+  it("falls back to Account tab when an invalid initialTab is provided", () => {
     openSettingsPanel(
       settings,
       caps,
@@ -1923,9 +1923,11 @@ describe("buildDebugTab", () => {
     );
 
     // In the scroll-based layout all panels are visible; verify active tab button state.
+    const accountTabBtn = document.getElementById("tab-account")!;
     const perfTabBtn = document.getElementById("tab-performance")!;
     const debugTabBtn = document.getElementById("tab-debug")!;
-    expect(perfTabBtn.getAttribute("aria-selected")).toBe("true");
+    expect(accountTabBtn.getAttribute("aria-selected")).toBe("true");
+    expect(perfTabBtn.getAttribute("aria-selected")).toBe("false");
     expect(debugTabBtn.getAttribute("aria-selected")).toBe("false");
   });
 
@@ -5318,7 +5320,7 @@ describe("UX polish shortcuts and feedback", () => {
     openSettingsPanel(makeSettings(), fullCapsForTests, makeFullLibForTests(), makeBiosLibForTests(), vi.fn());
 
     const label = document.querySelector<HTMLElement>(".settings-active-tab-label");
-    expect(label?.textContent).toContain("Performance");
+    expect(label?.textContent).toContain("Account");
 
     const aboutTab = document.getElementById("tab-about") as HTMLButtonElement | null;
     aboutTab?.click();

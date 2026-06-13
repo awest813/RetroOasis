@@ -1598,11 +1598,10 @@ export const SYSTEMS: SystemInfo[] = [
   {
     id: "segaDC",
     coreId: "flycast",
-    corePath: "./cores/flycast-wasm.data",
     name: "Dreamcast",
     shortName: "DC",
     experimental: true,
-    stabilityNotice: "Experimental: Dreamcast (Flycast) uses a bundled flycast-wasm v1.0.0 core and WebGL 2. Boot without BIOS via HLE, or add dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in System Files for better compatibility.",
+    stabilityNotice: "Experimental: Dreamcast (Flycast) requires WebGL 2. Boot without BIOS via HLE, or add dc_boot.bin (or dreamdash.bin) plus dc_flash.bin in System Files for better compatibility.",
     extensions: ["cdi", "gdi", "chd", "m3u", "iso", "cue", "bin", "elf", "zip", "dat", "lst"],
     color: "#e07b20",
     needsThreads: false,

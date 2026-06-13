@@ -484,7 +484,7 @@ describe('PSPEmulator', () => {
       expect(errors[0]).toContain('WebGL 2');
     });
 
-    it('wires Dreamcast to Flycast and forwards the external core bundle path', async () => {
+    it('wires Dreamcast to Flycast and routes the core through the nightly CDN', async () => {
       clearWebGL2SupportCache();
       vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() });
       const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as {
@@ -536,8 +536,11 @@ describe('PSPEmulator', () => {
       }
 
       expect(window.EJS_core).toBe('flycast');
-      expect(window.EJS_corePath).toContain('flycast-wasm.data');
-      expect(window.EJS_paths).toBeUndefined();
+      // Dreamcast now uses CDN paths (no local bundle); EJS_paths points to
+      // the nightly CDN and must contain 'flycast-wasm.data'.
+      expect(window.EJS_corePath).toBeUndefined();
+      expect(window.EJS_paths).toBeDefined();
+      expect(window.EJS_paths?.['flycast-wasm.data']).toContain('flycast-wasm.data');
       expect(window.EJS_threads).toBe(false);
       expect(window.EJS_Settings?.flycast_hle_bios).toBe('enabled');
       expect(window.EJS_Settings?.reicast_hle_bios).toBe('enabled');
@@ -5395,11 +5398,14 @@ describe("buildEjsCorePaths", () => {
     expect(built.paths?.["bsnes-wasm.data"]).toBe(`${EJS_NIGHTLY_CDN_BASE}cores/bsnes-wasm.data`);
   });
 
-  it("uses EJS_corePath for external bundles", () => {
+  it("uses CDN paths for Dreamcast/Flycast (no local bundle)", () => {
     const dc = getSystemById("segaDC")!;
     const built = buildEjsCorePaths(dc, {});
-    expect(built.corePath).toContain("/cores/flycast-wasm.data");
-    expect(built.paths).toBeUndefined();
+    // Dreamcast no longer uses a local external bundle — it routes through the
+    // CDN path system.
+    expect(built.corePath).toBeUndefined();
+    expect(built.paths).toBeDefined();
+    expect(built.paths?.["flycast-wasm.data"]).toContain("flycast-wasm.data");
   });
 });
 

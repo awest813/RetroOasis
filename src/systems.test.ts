@@ -342,13 +342,12 @@ describe('systems performance profiles', () => {
     expect(dc?.tierSettings?.ultra?.flycast_internal_resolution).toBe('1920x1440');
     expect(dc?.tierSettings?.ultra?.reicast_internal_resolution).toBe('1920x1440');
     expect(dc?.coreId).toBe('flycast');
-    expect(dc?.corePath).toBe('./cores/flycast-wasm.data');
+    expect(dc?.corePath).toBeUndefined();
     expect(dc?.extensions).toContain('zip');
     expect(dc?.needsWebGL2).toBe(true);
     expect(dc?.needsBios).toBe(false);
     expect(dc?.experimental).toBe(true);
     expect(dc?.stabilityNotice).toContain('Flycast');
-    expect(dc?.stabilityNotice).toContain('bundled');
     expect(dc?.stabilityNotice).toContain('BIOS');
     expect(dc?.tierSettings?.low?.flycast_hle_bios).toBe('enabled');
     expect(dc?.tierSettings?.low?.reicast_hle_bios).toBe('enabled');
