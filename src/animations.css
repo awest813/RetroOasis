@@ -78,3 +78,40 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* ── Shibuya Punk ───────────────────────────────────────────── */
+
+/* RGB-split glitch jitter — applied to headings/brand on hover/focus. */
+@keyframes shibuya-glitch {
+  0%, 100% { transform: translate(0, 0); text-shadow: var(--rgb-split); }
+  20%      { transform: translate(-1px, 1px); text-shadow: 2px 0 0 var(--neon-cyan), -2px 0 0 var(--neon-magenta); }
+  40%      { transform: translate(1px, -1px); text-shadow: -2px 0 0 var(--neon-cyan), 2px 0 0 var(--neon-magenta); }
+  60%      { transform: translate(-1px, 0); text-shadow: var(--rgb-split); }
+  80%      { transform: translate(1px, 1px); text-shadow: 1px 0 0 var(--neon-cyan), -1px 0 0 var(--neon-magenta); }
+}
+
+/* Glitch-in mount for sections/titles (clip-band sweep). */
+@keyframes shibuya-glitch-in {
+  0%   { opacity: 0; clip-path: inset(45% 0 50% 0); transform: translateX(-6px); }
+  30%  { opacity: 1; clip-path: inset(10% 0 70% 0); transform: translateX(4px); }
+  60%  { clip-path: inset(60% 0 12% 0); transform: translateX(-2px); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); transform: translateX(0); }
+}
+
+/* Holographic gradient sweep for hero/brand/featured surfaces. */
+@keyframes shibuya-holo {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Horizontal ticker marquee (katakana / now-playing strips). */
+@keyframes shibuya-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Neon focus bloom pulse. */
+@keyframes shibuya-bloom {
+  0%, 100% { box-shadow: 0 0 0 3px var(--c-accent-dim), var(--glow-sm); }
+  50%      { box-shadow: 0 0 0 3px var(--c-accent-glow), var(--glow-md); }
+}

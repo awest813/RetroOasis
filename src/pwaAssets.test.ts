@@ -49,8 +49,8 @@ describe("PWA assets", () => {
     const manifest = JSON.parse(readFileSync("public/manifest.json", "utf8")) as PwaManifest;
     const serviceWorkerSource = readFileSync("public/coi-serviceworker.js", "utf8");
 
-    expect(manifest.theme_color).toBe("#e60012");
-    expect(indexHtml).toContain('<meta name="theme-color" content="#e60012" />');
+    expect(manifest.theme_color).toBe("#ff2e97");
+    expect(indexHtml).toContain('<meta name="theme-color" content="#ff2e97" />');
     expect(indexHtml).toContain('<link rel="icon" type="image/x-icon" href="./favicon.ico" />');
     expect(serviceWorkerSource).toContain('"./favicon.ico"');
     expect(serviceWorkerSource).not.toContain('"./favicon-16x16.png"');

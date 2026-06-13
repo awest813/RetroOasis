@@ -9,8 +9,8 @@
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#121212",
-  "theme_color": "#e60012",
+  "background_color": "#04030a",
+  "theme_color": "#ff2e97",
   "orientation": "any",
   "launch_handler": {
     "client_mode": "navigate-existing"
