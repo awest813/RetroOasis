@@ -11183,3 +11183,40 @@ html.in-game .app-ticker,
   border-color: var(--sys-color, var(--c-accent));
   box-shadow: 3px 3px 0 var(--sys-color, var(--c-accent));
 }
+
+/* ============================================================
+   SHIBUYA PUNK — Per-System Arcade Accents (Phase 5g)
+   System filter chips and card badges light up in each console's
+   signature colour (--sys-color, set by LibraryTab / gameCard).
+   ============================================================ */
+
+.sys-filter-chip {
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+.sys-filter-chip:hover {
+  border-left-color: var(--sys-color, var(--c-accent-2));
+}
+.sys-filter-chip.active {
+  border-left: 3px solid var(--sys-color, var(--c-accent));
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--sys-color, var(--c-accent)) 16%, transparent);
+}
+.sys-filter-chip.active .sys-filter-chip__icon {
+  color: var(--sys-color, var(--c-accent));
+  filter: drop-shadow(0 0 5px var(--sys-color, var(--c-accent-glow)));
+}
+
+/* Card system badge: hard-edged neon cabinet tag in the console colour. */
+.game-card__system-chip {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--c-accent)) 60%, transparent);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.game-card:hover .game-card__system-chip {
+  border-color: var(--sys-color, var(--c-accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sys-color, var(--c-accent)) 45%, transparent);
+}
