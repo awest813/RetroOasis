@@ -90,12 +90,28 @@ describe("profileSnapshot", () => {
 
   it("applyProfileSnapshot returns settings patch", () => {
     const snapshot = buildProfileSnapshot({
-      settings: makeSettings(),
+      settings: {
+        ...makeSettings(),
+        netplayEnabled: true,
+        netplayServerUrl: "wss://netplay.example.com/socket",
+        netplayIceServers: [{
+          urls: "turn:turn.example.com:3478",
+          username: "turn-user",
+          credential: "turn-secret",
+        }],
+      },
       apiKeyStore: new ApiKeyStore({ providers: [] }),
     });
     const applied = applyProfileSnapshot(snapshot);
     expect(applied.settingsPatch.cloudLibraries).toHaveLength(1);
+    expect(applied.settingsPatch.netplayEnabled).toBe(true);
+    expect(applied.settingsPatch.netplayServerUrl).toBe("wss://netplay.example.com/socket");
     expect(applied.settingsPatch.netplayUsername).toBe("player1");
+    expect(applied.settingsPatch.netplayIceServers).toEqual([{
+      urls: "turn:turn.example.com:3478",
+      username: "turn-user",
+      credential: "turn-secret",
+    }]);
   });
 
   it("clearCloudSaveStorage removes all credential keys", () => {
@@ -165,6 +181,32 @@ describe("profileSnapshot", () => {
     const applied = applyProfileSnapshot(snapshot);
     expect(Array.isArray(applied.settingsPatch.cloudLibraries)).toBe(true);
     expect(applied.settingsPatch.cloudLibraries).toHaveLength(0);
+  });
+
+  it("sanitizes imported Play Together ICE servers", () => {
+    const store = new ApiKeyStore({ providers: [] });
+    const snapshot = buildProfileSnapshot({ settings: makeSettings(), apiKeyStore: store });
+    const raw = JSON.parse(serializeProfileSnapshot(snapshot)) as Record<string, unknown>;
+    raw.settingsSubset = {
+      ...(raw.settingsSubset as Record<string, unknown>),
+      netplayEnabled: true,
+      netplayServerUrl: "wss://netplay.example.com",
+      netplayIceServers: [
+        { urls: [" stun:one.example.com ", ""], username: "u", credential: "c" },
+        { urls: 42 },
+        { urls: "turn:two.example.com:3478", credential: "secret" },
+      ],
+    };
+
+    const parsed = parseProfileSnapshot(JSON.stringify(raw));
+    expect(typeof parsed).not.toBe("string");
+    if (typeof parsed === "string") return;
+    expect(parsed.settingsSubset.netplayEnabled).toBe(true);
+    expect(parsed.settingsSubset.netplayServerUrl).toBe("wss://netplay.example.com");
+    expect(parsed.settingsSubset.netplayIceServers).toEqual([
+      { urls: ["stun:one.example.com"], username: "u", credential: "c" },
+      { urls: "turn:two.example.com:3478", credential: "secret" },
+    ]);
   });
 
   it("resets display prefs to defaults when snapshot omits displayPrefs", () => {

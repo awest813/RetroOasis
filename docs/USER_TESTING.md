@@ -188,7 +188,7 @@ Before running any tests:
 
 | # | Step | Expected |
 |---|------|----------|
-| 12.1 | Open Settings → Multiplayer | Netplay panel visible |
+| 12.1 | Open Settings → Play Together | Play Together panel visible |
 | 12.2 | Enable Netplay toggle | Additional fields (Server URL, Display Name) appear |
 | 12.3 | Enter a Display Name | Name saved; no error for valid usernames |
 | 12.4 | Enter a name exceeding 32 characters | Validation error shown; name not saved |

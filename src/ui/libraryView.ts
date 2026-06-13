@@ -71,7 +71,7 @@ export function buildFilteredLibraryEmptyState(opts: {
       document.createTextNode(`No games tagged to `),
       make("em", {}, label),
       document.createTextNode(
-        ". Import games while this profile is active, or turn off “Filter library to active profile” in Settings → Cloud Library → Profiles. Untagged games stay visible as shared library.",
+        ". Import games while this profile is active, or turn off “Filter library to active profile” in Settings → Account → Profiles. Untagged games stay visible as shared library.",
       ),
     );
   } else if (hasSearch && activeSystemLabel) {

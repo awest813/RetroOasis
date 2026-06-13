@@ -24,6 +24,7 @@ import { buildDisplayTab } from "../tabs/DisplayTab.js";
 import { buildLibraryTab } from "../tabs/LibraryTab.js";
 import { buildCloudTab } from "../tabs/CloudTab.js";
 import { buildCloudLibraryTab } from "../tabs/CloudLibraryTab.js";
+import { buildAccountTab } from "../tabs/AccountTab.js";
 import { buildMultiplayerTab } from "../tabs/MultiplayerTab.js";
 import { buildDebugTab } from "../tabs/DebugTab.js";
 
@@ -95,7 +96,7 @@ function ensureProfileChangedListener(): void {
   document.addEventListener(LEGACY_EVENTS.profileChanged, _profileChangedHandler);
 }
 
-export type SettingsTab = "performance" | "display" | "library" | "cloud" | "cloudlibrary" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about" | "help";
+export type SettingsTab = "account" | "performance" | "display" | "library" | "cloud" | "cloudlibrary" | "bios" | "multiplayer" | "achievements" | "apikeys" | "debug" | "about" | "help";
 type CanonicalSettingsTab = Exclude<SettingsTab, "help">;
 
 function canonicalSettingsTab(tab: SettingsTab | undefined): CanonicalSettingsTab | undefined {
@@ -103,6 +104,7 @@ function canonicalSettingsTab(tab: SettingsTab | undefined): CanonicalSettingsTa
 }
 
 const SETTINGS_SIDEBAR_ICON_SVG: Record<CanonicalSettingsTab, string> = {
+  account: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>`,
   performance: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
   display: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>`,
   library: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
@@ -175,6 +177,7 @@ function buildSettingsContent(
   quickBar.append(activeTabLabel);
 
   const tabs: Array<{ id: CanonicalSettingsTab; label: string; ariaLabel: string }> = [
+    { id: "account",      label: "Account",       ariaLabel: "Account and Profiles" },
     { id: "performance",  label: "Performance",   ariaLabel: "Performance" },
     { id: "display",      label: "Display",        ariaLabel: "Display" },
     { id: "library",      label: "My Games",       ariaLabel: "My Games" },
@@ -189,8 +192,8 @@ function buildSettingsContent(
   ];
   const tabIndexById = new Map<CanonicalSettingsTab, number>(tabs.map((t, i) => [t.id, i]));
 
-  const requestedTab = canonicalSettingsTab(initialTab) ?? "performance";
-  let activeTab: CanonicalSettingsTab = tabIndexById.has(requestedTab) ? requestedTab : "performance";
+  const requestedTab = canonicalSettingsTab(initialTab) ?? "account";
+  let activeTab: CanonicalSettingsTab = tabIndexById.has(requestedTab) ? requestedTab : "account";
   let suppressScrollSpyUntil = 0;
 
   const tabBar = make("div", {
@@ -352,25 +355,26 @@ function buildSettingsContent(
 
   switchTab(activeTab);
 
-  buildPerfTab(panels[0]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
-  buildDisplayTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
-  buildLibraryTab(panels[2]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef, APP_NAME);
-  buildCloudTab(panels[3]!, settings, library, onSettingsChange, APP_NAME);
-  buildCloudLibraryTab(panels[4]!, settings, library, onSettingsChange, APP_NAME, getApiKeyStore());
-  buildMultiplayerTab(panels[6]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id, APP_NAME);
-  buildDebugTab(panels[9]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
-  panels[10]!.appendChild(make("p", { class: "settings-help", role: "status" }, "Loading help..."));
+  buildAccountTab(panels[0]!, settings, onSettingsChange, getApiKeyStore(), APP_NAME);
+  buildPerfTab(panels[1]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
+  buildDisplayTab(panels[2]!, settings, deviceCaps, onSettingsChange, emulatorRef, APP_NAME);
+  buildLibraryTab(panels[3]!, settings, library, saveLibrary, onSettingsChange, onLaunchGame, emulatorRef, APP_NAME);
+  buildCloudTab(panels[4]!, settings, library, onSettingsChange, APP_NAME);
+  buildCloudLibraryTab(panels[5]!, settings, library, onSettingsChange, APP_NAME, getApiKeyStore());
+  buildMultiplayerTab(panels[7]!, settings, onSettingsChange, getNetplayManager, settings.lastGameName, emulatorRef?.currentSystem?.id, APP_NAME);
+  buildDebugTab(panels[10]!, settings, onSettingsChange, deviceCaps, emulatorRef, getNetplayManager, biosLibrary);
+  panels[11]!.appendChild(make("p", { class: "settings-help", role: "status" }, "Loading help..."));
 
   try {
     void _loadSettingsTabs().then((st) => {
       if (!st) return;
       if (settingsContentToken !== _settingsContentToken) return;
-      st.buildBiosTab(panels[5]!, biosLibrary, { appName: APP_NAME, onError: showError });
-      st.buildAchievementsTab(panels[7]!, getApiKeyStore(), {
+      st.buildBiosTab(panels[6]!, biosLibrary, { appName: APP_NAME, onError: showError });
+      st.buildAchievementsTab(panels[8]!, getApiKeyStore(), {
         appName: APP_NAME,
         onError: showError,
       });
-      const apiKeysCleanup = st.buildApiKeysTab(panels[8]!, getApiKeyStore(), {
+      const apiKeysCleanup = st.buildApiKeysTab(panels[9]!, getApiKeyStore(), {
         appName: APP_NAME,
         getTester: (id: string) => getApiKeyTester(id),
         onError: showError,
@@ -378,8 +382,8 @@ function buildSettingsContent(
         onSettingsChange,
       });
       _settingsContentCleanups.push(apiKeysCleanup);
-      panels[10]!.textContent = "";
-      st.buildAboutTab(panels[10]!, APP_NAME);
+      panels[11]!.textContent = "";
+      st.buildAboutTab(panels[11]!, APP_NAME);
       if (requestedTab === "about") {
         switchTab("about");
       }

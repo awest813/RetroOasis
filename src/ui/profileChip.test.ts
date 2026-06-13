@@ -69,7 +69,7 @@ describe("profileChip", () => {
     pm.ensureInitialized({ settings, apiKeyStore, onSettingsChange: vi.fn() });
 
     refreshProfileHeaderChip({
-      openCloudLibrarySettings: vi.fn(),
+      openAccountSettings: vi.fn(),
       deps: { settings, apiKeyStore, onSettingsChange: vi.fn() },
     });
 

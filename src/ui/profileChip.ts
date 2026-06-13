@@ -3,7 +3,7 @@ import { getProfileManager, type ProfileApplyDeps } from "../profileManager.js";
 import { showError, showInfoToast } from "./toasts.js";
 
 export interface ProfileChipOpts {
-  openCloudLibrarySettings: () => void;
+  openAccountSettings: () => void;
   deps?: ProfileApplyDeps;
 }
 
@@ -73,10 +73,7 @@ function openProfileChipMenu(chip: HTMLButtonElement): void {
         chip.removeAttribute("aria-busy");
         if (result === true) {
           showInfoToast(`Switched to profile "${meta.name}".`, "success");
-          refreshProfileHeaderChip({
-            openCloudLibrarySettings: chipOpenSettings!,
-            deps: chipDeps,
-          });
+          refreshProfileHeaderChip({ openAccountSettings: chipOpenSettings!, deps: chipDeps });
         } else if (result !== false) {
           showError(result);
         }
@@ -150,7 +147,7 @@ function ensureChipDismissListeners(): void {
 export function refreshProfileHeaderChip(
   opts: ProfileChipOpts | (() => void),
 ): void {
-  chipOpenSettings = typeof opts === "function" ? opts : opts.openCloudLibrarySettings;
+  chipOpenSettings = typeof opts === "function" ? opts : opts.openAccountSettings;
   chipDeps = typeof opts === "function" ? undefined : opts.deps;
   ensureChipDismissListeners();
 

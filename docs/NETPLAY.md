@@ -16,7 +16,10 @@ Netplay uses **WebRTC peer-to-peer** connections to reduce latency and keep game
 | GBA | ✓ |
 | GBC | ✓ |
 | GB  | ✓ |
-| NES / SNES | ✗ (no link-cable multiplayer) |
+| NES / SNES | ✓ |
+| Genesis / Mega Drive | ✓ |
+| Master System | ✓ |
+| Game Gear | ✓ |
 
 ---
 
@@ -25,7 +28,7 @@ Netplay uses **WebRTC peer-to-peer** connections to reduce latency and keep game
 - A modern browser: Chrome / Edge 113+, Firefox 116+, or Safari 17+
 - An active internet connection (for online play) **or** a shared Wi-Fi network (for local play)
 - The **same ROM** as your partner — both players must own a copy of the same game file
-- A netplay server URL configured in **Settings → Netplay** (see [Server Setup](#server-setup) below)
+- A netplay server URL configured in **Settings → Play Together** (see [Server Setup](#server-setup) below)
 
 We recommend ROMs from [No-Intro](https://no-intro.org/) sets for best compatibility. The alias system automatically groups regional variants (e.g. USA / Europe / Japan releases of the same title) into the same room so players on different releases can still find each other.
 
@@ -37,7 +40,7 @@ The easiest way to use netplay is through the built-in lobby inside the RetroOas
 
 ### Joining a room
 
-1. Open **Settings → Netplay** and make sure netplay is **enabled**.
+1. Open **Settings → Play Together** and make sure Online play is enabled.
 2. Enter a netplay server URL (`wss://your-server`).
 3. Load a game that supports netplay (see the table above).
 4. Open the **Multiplayer** panel and press **Refresh** to load the room list.
@@ -72,7 +75,7 @@ For an extremely simple same-room or same-network session you do **not** need a 
    ```bash
    npx emulan          # or your preferred local netplay server
    ```
-3. In **Settings → Netplay** on both devices, set the server URL to the LAN address:
+3. In **Settings → Play Together** on both devices, set the server URL to the LAN address:
    ```
    ws://192.168.1.x:3000
    ```
@@ -90,7 +93,7 @@ RetroOasis requires a WebSocket netplay / signalling server. Two common options:
 
 ### Option A — Hosted (online play)
 
-Use any public EmulatorJS-compatible netplay server. Set the URL in **Settings → Netplay → Server URL**:
+Use any public EmulatorJS-compatible netplay server. Set the URL in **Settings → Play Together → Server address**:
 
 ```
 wss://netplay.example.com
@@ -120,7 +123,7 @@ ws://192.168.1.x:3000   # other devices on the same network
 
 RetroOasis ships with two default public STUN servers (Google). These work for most direct peer connections. If you or your partner are behind a symmetric NAT or corporate firewall, add a TURN relay:
 
-1. Open **Settings → Netplay → ICE Servers**.
+1. Open **Settings → Play Together → Advanced: Connection Servers (STUN / ICE)**.
 2. Add a `turn:` URL with credentials:
    ```
    turn:turn.example.com:3478?transport=udp
@@ -149,7 +152,7 @@ For details on the alias pipeline and how to add custom groups, see [`docs/netpl
 
 ## Display Name
 
-Set a display name in **Settings → Netplay → Display Name** so other players can identify you in the room list. Names are limited to 32 characters. Leave it blank to appear as anonymous.
+Set a display name in **Settings → Play Together → Display name** so other players can identify you in the room list. Names are limited to 32 characters. Leave it blank to appear as anonymous.
 
 ---
 
@@ -157,7 +160,7 @@ Set a display name in **Settings → Netplay → Display Name** so other players
 
 | Symptom | Suggested fix |
 |---------|---------------|
-| Netplay panel not visible | Enable netplay in **Settings → Netplay** and enter a server URL |
+| Play Together panel not visible | Enable Online play in **Settings → Play Together** and enter a server URL |
 | Room list empty | Check the server URL is correct and the server is running; press Refresh |
 | Cannot connect to partner | Both players must use the same ROM and the same server |
 | Need better error details | In the Multiplayer modal click **📋 Logs** to copy the full connection diagnostics |

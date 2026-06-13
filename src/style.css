@@ -7162,6 +7162,62 @@ body.using-gamepad .game-card:focus {
   gap: 8px;
 }
 
+.account-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 22px;
+}
+
+.account-summary__item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-surface2) 82%, transparent);
+}
+
+.account-summary__label,
+.account-summary__detail {
+  display: block;
+  color: var(--c-text-dim);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.account-summary__value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 5px 0 3px;
+  color: var(--c-text);
+  font-size: 1rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-summary__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.account-summary__item--ready {
+  border-color: color-mix(in srgb, var(--c-success, #22c55e) 48%, var(--c-border));
+}
+
+.account-summary__item--warn {
+  border-color: color-mix(in srgb, var(--c-warning, #f59e0b) 58%, var(--c-border));
+}
+
+.account-summary__item--idle {
+  opacity: 0.82;
+}
+
 .profile-chip {
   display: inline-flex;
   align-items: center;
@@ -7271,6 +7327,11 @@ body.using-gamepad .game-card:focus {
 }
 
 @media (max-width: 560px) {
+  .account-summary,
+  .playtogether-checklist {
+    grid-template-columns: 1fr;
+  }
+
   .profile-snapshot-actions .btn,
   .profile-cloud-sync-row .btn {
     flex: 1 1 calc(50% - 4px);
@@ -7320,6 +7381,63 @@ body.using-gamepad .game-card:focus {
   border-radius: 8px;
   margin-top: 8px;
   object-fit: cover;
+}
+
+.playtogether-checklist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 16px;
+}
+
+.playtogether-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface2);
+}
+
+.playtogether-checklist__item--done {
+  border-color: color-mix(in srgb, var(--c-success, #22c55e) 45%, var(--c-border));
+}
+
+.playtogether-checklist__mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--c-surface3);
+  color: var(--c-text);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.playtogether-checklist__item--done .playtogether-checklist__mark {
+  background: color-mix(in srgb, var(--c-success, #22c55e) 22%, var(--c-surface3));
+}
+
+.playtogether-checklist__body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.playtogether-checklist__body strong {
+  color: var(--c-text);
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.playtogether-checklist__body small {
+  color: var(--c-text-dim);
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 /* ── Cloud Library ─────────────────────────────────────────── */

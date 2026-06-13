@@ -18,12 +18,12 @@ locations. The **profile system** unifies them into named, portable bundles.
 | Cover-art / metadata API keys | `retro-oasis.apiKeys` localStorage | Yes |
 | Google / Dropbox OAuth app IDs | `cloudAuth` localStorage keys | Yes |
 | Save sync provider choice | `CloudSaveManager` + per-provider keys | Metadata + credential blobs (`cloudSaveStorage`); auto-connect on switch |
-| Netplay username, libretro matching URL | `Settings` | Subset yes |
+| Play Together setup, libretro matching URL | `Settings` | Yes (server URL, display name, ICE/TURN servers) |
 | ROM blobs, save states, play history | IndexedDB | No (too large; out of scope) |
 | Performance / display preferences | `Settings` | Yes (`settingsSubset.displayPrefs`) |
 | Library game tags (filter) | `retro-oasis.profile.gameTags` | Yes (`libraryGameIds` per profile slot) |
 
-Shipped in **Settings → Cloud Library → Profiles**. Import supports **new profile** and **merge into active**.
+Shipped in **Settings → Account → Profiles**. Import supports **new profile** and **merge into active**.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ Shipped in **Settings → Cloud Library → Profiles**. Import supports **new pr
 
 1. User selects profile B in Settings.
 2. `ProfileManager` saves current profile A (flush debounced auto-save on cloud upload).
-3. Applies profile B snapshot to Settings, ApiKeyStore, OAuth IDs.
+3. Applies profile B snapshot to Settings, ApiKeyStore, OAuth IDs, and Play Together connection setup.
 4. Dispatches `profile-changed` event; UI rebuilds cloud tabs, library filter toggle, and header chip.
 5. Restores save-sync credential blobs and attempts auto-connect.
 6. Applies `displayPrefs` from the snapshot, or baseline defaults when absent (prevents volume/UI bleed).

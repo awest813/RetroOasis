@@ -210,7 +210,7 @@ export function syncLibraryProfileFilterChip(settings: Settings): void {
   chip.append(dot, document.createTextNode(`Profile: ${name}`));
   chip.title =
     "Library filtered to games tagged for this profile (plus untagged shared games). " +
-    "Open Settings → Cloud Library → Profiles to change.";
+    "Open Settings → Account → Profiles to change.";
 }
 
 export function syncLibraryControlState(host?: Pick<LibraryControlsHost, "isBulkCoverBusy"> | null): void {

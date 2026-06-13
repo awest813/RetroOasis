@@ -103,6 +103,26 @@ export function buildMultiplayerTab(
   updateStatusBadge();
   introSection.appendChild(statusBadge);
 
+  const setupList = make("div", { class: "playtogether-checklist", role: "list", "aria-label": "Play Together setup checklist" });
+  const addSetupItem = (done: boolean, label: string, detail: string) => {
+    const item = make("div", {
+      class: `playtogether-checklist__item${done ? " playtogether-checklist__item--done" : ""}`,
+      role: "listitem",
+    });
+    item.append(
+      make("span", { class: "playtogether-checklist__mark", "aria-hidden": "true" }, done ? "OK" : "--"),
+      make("span", { class: "playtogether-checklist__body" },
+        make("strong", {}, label),
+        make("small", {}, detail),
+      ),
+    );
+    setupList.appendChild(item);
+  };
+  addSetupItem(settings.netplayEnabled, "Online play", settings.netplayEnabled ? "Shown on home and in-game toolbar" : "Turn this on to show room controls");
+  addSetupItem(currentServerUrl.length > 0 && !validateServerUrl(currentServerUrl), "Server URL", currentServerUrl || "Paste the same WebSocket URL on every device");
+  addSetupItem(settings.netplayIceServers.length > 0, "Connection servers", settings.netplayIceServers.length > 0 ? `${settings.netplayIceServers.length} custom STUN/TURN saved` : "Defaults work for most networks; add TURN for strict NAT");
+  introSection.appendChild(setupList);
+
   introSection.appendChild(buildToggleRow(
     "Online play",
     "Shows Play Together on the home screen and Online in the game toolbar. In-game Wi-Fi or WFC features inside a ROM are separate from this setting.",

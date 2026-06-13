@@ -20,7 +20,6 @@ import {
 } from "../loadingOverlay.js";
 import { showCloudRomImporterDialog } from "../cloudRomImporter.js";
 import { getProfileManager } from "../../profileManager.js";
-import { buildProfileSection } from "../profileSection.js";
 import type { ApiKeyStore } from "../../apiKeyStore.js";
 import {
   CLOUD_LIBRARY_PROVIDERS,
@@ -479,6 +478,5 @@ export function buildCloudLibraryTab(
     oauthSaveBtn,
   );
   section.appendChild(oauthSection);
-  section.appendChild(buildProfileSection(settings, onSettingsChange, apiKeyStore, rebuildTab));
   container.appendChild(section);
 }

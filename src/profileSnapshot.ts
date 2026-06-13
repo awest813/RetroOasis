@@ -104,7 +104,10 @@ export interface ProfileSnapshotV1 {
   libraryGameIds?: string[];
   settingsSubset: {
     libretroMatchingServerUrl: string;
+    netplayEnabled: boolean;
+    netplayServerUrl: string;
     netplayUsername: string;
+    netplayIceServers: Settings["netplayIceServers"];
     profileLibraryFilter: boolean;
     /** Display / performance prefs (optional in older exports). */
     displayPrefs?: ProfileDisplayPrefs;
@@ -154,7 +157,10 @@ export function buildProfileSnapshot(opts: BuildProfileSnapshotOpts): ProfileSna
     libraryGameIds,
     settingsSubset: {
       libretroMatchingServerUrl: settings.libretroMatchingServerUrl,
+      netplayEnabled: settings.netplayEnabled,
+      netplayServerUrl: settings.netplayServerUrl,
       netplayUsername: settings.netplayUsername,
+      netplayIceServers: structuredClone(settings.netplayIceServers),
       profileLibraryFilter: settings.profileLibraryFilter,
       displayPrefs: pickDisplayPrefs(settings),
     },
@@ -217,6 +223,32 @@ export function sanitizeCloudSaveStorage(raw: unknown): Record<string, string> |
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+export function sanitizeNetplayIceServers(raw: unknown): Settings["netplayIceServers"] {
+  if (!Array.isArray(raw)) return [];
+  const out: Settings["netplayIceServers"] = [];
+  for (const item of raw.slice(0, 16)) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    let urls: string | string[] | undefined;
+    if (typeof rec.urls === "string") {
+      const trimmed = rec.urls.trim();
+      if (trimmed) urls = trimmed.slice(0, 2048);
+    } else if (Array.isArray(rec.urls)) {
+      const list = rec.urls
+        .filter((url): url is string => typeof url === "string" && url.trim().length > 0)
+        .slice(0, 8)
+        .map((url) => url.trim().slice(0, 2048));
+      if (list.length > 0) urls = list;
+    }
+    if (!urls) continue;
+    const server: Settings["netplayIceServers"][number] = { urls };
+    if (typeof rec.username === "string") server.username = rec.username.slice(0, 512);
+    if (typeof rec.credential === "string") server.credential = rec.credential.slice(0, 4096);
+    out.push(server);
+  }
+  return out;
+}
+
 /** Normalize an already-parsed snapshot object (import / cloud index validation). */
 export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileSnapshotV1 | string {
   if (rec.version !== PROFILE_SNAPSHOT_VERSION) {
@@ -258,7 +290,12 @@ export function normalizeProfileSnapshot(rec: Record<string, unknown>): ProfileS
     libraryGameIds: sanitizeLibraryGameIds(rec.libraryGameIds),
     settingsSubset: {
       libretroMatchingServerUrl: subsetRec.libretroMatchingServerUrl.slice(0, 2048),
+      netplayEnabled: subsetRec.netplayEnabled === true,
+      netplayServerUrl: typeof subsetRec.netplayServerUrl === "string"
+        ? subsetRec.netplayServerUrl.slice(0, 2048)
+        : "",
       netplayUsername: subsetRec.netplayUsername.slice(0, 64),
+      netplayIceServers: sanitizeNetplayIceServers(subsetRec.netplayIceServers),
       profileLibraryFilter: subsetRec.profileLibraryFilter === true,
       displayPrefs: resolveDisplayPrefs(subsetRec.displayPrefs),
     },
@@ -338,7 +375,10 @@ export function applyProfileSnapshot(snapshot: ProfileSnapshotV1): ApplyProfileS
     settingsPatch: {
       cloudLibraries: structuredClone(cloudLibraries),
       libretroMatchingServerUrl: snapshot.settingsSubset.libretroMatchingServerUrl ?? "",
+      netplayEnabled: snapshot.settingsSubset.netplayEnabled ?? false,
+      netplayServerUrl: snapshot.settingsSubset.netplayServerUrl ?? "",
       netplayUsername: snapshot.settingsSubset.netplayUsername ?? "",
+      netplayIceServers: sanitizeNetplayIceServers(snapshot.settingsSubset.netplayIceServers),
       profileLibraryFilter: snapshot.settingsSubset.profileLibraryFilter ?? false,
       ...displayPrefsToSettingsPatch(displayPrefs),
     },

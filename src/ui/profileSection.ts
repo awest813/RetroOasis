@@ -1,5 +1,5 @@
 /**
- * profileSection.ts — Settings → Cloud Library → Profiles UI.
+ * profileSection.ts — Settings → Account → Profiles UI.
  */
 
 import { createElement as make } from "./dom.js";
@@ -58,7 +58,7 @@ export function buildProfileSection(
   });
   section.appendChild(make("h5", { class: "cloud-library-section__title", id: profileHeadingId }, "Profiles"));
   section.appendChild(make("p", { class: "settings-help" },
-    "Switch between saved bundles of cloud sources, API keys, OAuth app IDs, and save-sync credentials. " +
+    "Switch between saved bundles of cloud sources, API keys, OAuth app IDs, save-sync credentials, Play Together setup, and display preferences. " +
     "Changes auto-save to the active profile every few seconds."));
 
   if (!apiKeyStore) {
@@ -213,7 +213,7 @@ export function buildProfileSection(
   newBtn.addEventListener("click", () => {
     void (async () => {
       const confirmed = await showConfirmDialog(
-        "Creates a new profile from your current cloud connections, API keys, and settings. " +
+        "Creates a new profile from your current cloud connections, API keys, Play Together setup, and settings. " +
         "Existing profiles are not changed.",
         { title: "Create new profile?", confirmLabel: "Create" },
       );
@@ -233,7 +233,7 @@ export function buildProfileSection(
     void (async () => {
       const name = pm.getActiveProfileName();
       const confirmed = await showConfirmDialog(
-        `Delete profile "${name}"? Cloud connections, API keys, and library tags in this slot will be removed.`,
+        `Delete profile "${name}"? Cloud connections, API keys, Play Together setup, preferences, and library tags in this slot will be removed.`,
         { title: "Delete profile?", confirmLabel: "Delete", isDanger: true },
       );
       if (!confirmed) return;
@@ -303,7 +303,7 @@ export function buildProfileSection(
   exportBtn.addEventListener("click", () => {
     void (async () => {
       const confirmed = await showConfirmDialog(
-        "This file contains API keys, cloud tokens, and OAuth app IDs. " +
+        "This file contains API keys, cloud tokens, OAuth app IDs, and any saved TURN credentials for Play Together. " +
         "Anyone with the file can access your connected services. Store it securely and do not share it publicly.",
         { title: "Export profile?", confirmLabel: "Export" },
       );

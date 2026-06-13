@@ -946,8 +946,8 @@ export function initUI(opts: UIOptions): void {
           getCurrentCoreOptions, onUpdateCoreOption } = opts;
 
   const profileChipOpts = {
-    openCloudLibrarySettings: () => {
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    openAccountSettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulator, onLaunchGame, saveLibrary, getNetplayManager, "account");
     },
     deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
   };
@@ -2459,8 +2459,8 @@ export function buildLandingControls(
   }
 
   refreshProfileHeaderChip({
-    openCloudLibrarySettings: () => {
-      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "cloudlibrary");
+    openAccountSettings: () => {
+      openSettingsPanel(settings, deviceCaps, library, biosLibrary, onSettingsChange, emulatorRef, onLaunchGame, saveLibrary, getNetplayManager, "account");
     },
     deps: { settings, apiKeyStore: getApiKeyStore(), onSettingsChange },
   });
