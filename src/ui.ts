@@ -541,7 +541,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <!-- Debug console (toggled with Shift+F3 or Debug button) -->
-      <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog">
+      <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog" aria-modal="true">
         <div class="debug-console__header" id="debug-console-handle">
           <div class="debug-console__title">Debug Console</div>
           <div class="debug-console__actions">

@@ -5,12 +5,34 @@ import { detectCapabilitiesCached } from "../performance.js";
 import type { SystemInfo } from "../systems.js";
 import { getSystemById, getSystemFeatureSummary } from "../systems.js";
 import { threadedCoreBlockedReason } from "../safariCompat.js";
+import {
+  ICON_BOOK_SVG,
+  ICON_PLAY_SVG,
+  ICON_SPARKLE_SVG,
+  ICON_STAR_FILLED_SVG,
+  ICON_STAR_SVG,
+} from "../chromeIcons.js";
 import { createElement, trapFocus } from "./dom.js";
 import { isTopmostOverlay as isTopmostInStack, registerOverlay } from "./overlayStack.js";
 import type { RAProgress, SGDBAssets, IGDBMetadata, IGDBGenre, RAAchievement } from "../types/metadata.js";
 
 function armOverlayStack(overlay: HTMLElement, dismiss: () => void): () => void {
   return registerOverlay({ element: overlay, close: dismiss });
+}
+
+function iconButton(
+  attrs: Record<string, string>,
+  iconSvg: string,
+  label: string,
+): HTMLButtonElement {
+  const btn = createElement("button", attrs) as HTMLButtonElement;
+  btn.classList.add("btn--with-icon");
+  btn.innerHTML = iconSvg;
+  const labelEl = document.createElement("span");
+  labelEl.className = "btn__label";
+  labelEl.textContent = label;
+  btn.append(labelEl);
+  return btn;
 }
 
 /**
@@ -806,7 +828,8 @@ export function showCoverArtCandidatePicker(
     } else {
       // Rich empty state
       const empty = createElement("div", { class: "cover-art-no-results" });
-      const emptyIcon = createElement("div", { class: "cover-art-no-results__icon", "aria-hidden": "true" }, "✦");
+      const emptyIcon = createElement("div", { class: "cover-art-no-results__icon", "aria-hidden": "true" });
+      emptyIcon.innerHTML = ICON_SPARKLE_SVG;
       const emptyP = createElement("p", { class: "cover-art-no-results__text" });
       const gameNameStrong = createElement("strong", {});
       gameNameStrong.textContent = `"${gameName}"`;
@@ -986,7 +1009,9 @@ export function showGameDetails(
         // Rating & Genre Pill
         const infoRow = createElement("div", { class: "details-info-row" });
         if (data.rating) {
-          const rating = createElement("div", { class: "details-rating" }, `★ ${Math.round(data.rating) / 10}`);
+          const rating = createElement("div", { class: "details-rating" });
+          rating.innerHTML = ICON_STAR_FILLED_SVG;
+          rating.append(document.createTextNode(` ${Math.round(data.rating) / 10}`));
           infoRow.appendChild(rating);
         }
         if (data.genres) {
@@ -1049,16 +1074,28 @@ export function showGameDetails(
     // Footer Actions
     const footer = createElement("div", { class: "details-footer" });
     
-    const launchBtn = createElement("button", { class: "btn btn--primary btn--large" }, "▶ Play Game");
+    const launchBtn = iconButton({ class: "btn btn--primary btn--large" }, ICON_PLAY_SVG, "Play Game");
     launchBtn.addEventListener("click", () => { close(); onLaunch(); }, { signal: ac.signal });
     
-    const favBtn = createElement("button", { class: `btn ${game.isFavorite ? "btn--active" : ""}` }, "★ Favorite");
+    const favBtn = iconButton(
+      { class: `btn ${game.isFavorite ? "btn--active" : ""}` },
+      game.isFavorite ? ICON_STAR_FILLED_SVG : ICON_STAR_SVG,
+      "Favorite",
+    );
     favBtn.addEventListener("click", () => { 
       onToggleFav(); 
       favBtn.classList.toggle("btn--active");
+      const icon = favBtn.querySelector(".ui-inline-icon--star");
+      if (icon) {
+        icon.outerHTML = favBtn.classList.contains("btn--active") ? ICON_STAR_FILLED_SVG : ICON_STAR_SVG;
+      }
     }, { signal: ac.signal });
     
-    const strategyBtn = createElement("button", { class: "btn", "aria-label": "Strategy guide (opens in new tab)" }, "📚 Strategy");
+    const strategyBtn = iconButton(
+      { class: "btn", "aria-label": "Strategy guide (opens in new tab)" },
+      ICON_BOOK_SVG,
+      "Strategy",
+    );
     strategyBtn.addEventListener("click", () => {
       window.open(`https://strategywiki.org/wiki/Special:Search?search=${encodeURIComponent(game.name)}`, "_blank", "noopener");
     }, { signal: ac.signal });

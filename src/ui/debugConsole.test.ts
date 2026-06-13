@@ -42,4 +42,25 @@ describe("createDebugConsoleController", () => {
 
     expect(emulator.clearDiagnosticLog).toHaveBeenCalledTimes(1);
   });
+
+  it("traps focus and restores it when closed with Escape", () => {
+    const emulator = makeEmulator();
+    const controller = createDebugConsoleController({ onToggleDevOverlay: vi.fn() });
+
+    mountDebugConsoleDom();
+    const trigger = document.createElement("button");
+    trigger.textContent = "Trigger";
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    controller.toggle(emulator as never);
+
+    const consoleEl = document.getElementById("debug-console")!;
+    expect(consoleEl.hidden).toBe(false);
+    expect(document.activeElement?.id).toBe("debug-console-input");
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(consoleEl.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+  });
 });

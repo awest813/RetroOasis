@@ -15,6 +15,7 @@
 
 import type { GameMetadata } from "../library.js";
 import { createElement as make } from "./dom.js";
+import { ICON_PLAY_SVG, ICON_STAR_FILLED_SVG } from "../chromeIcons.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,8 @@ function _buildFavoritesSection(
 
   const header = make("div", { class: "highlights-section__header" });
   const favTitle = make("h3", { class: "highlights-section__title" });
-  const favIcon = make("span", { "aria-hidden": "true" }, "★");
+  const favIcon = make("span", { class: "highlights-section__title-icon", "aria-hidden": "true" });
+  favIcon.innerHTML = ICON_STAR_FILLED_SVG;
   favTitle.append(favIcon, document.createTextNode(" Favorites"));
   header.appendChild(favTitle);
   section.appendChild(header);
@@ -141,7 +143,8 @@ function _buildFavoriteCard(
   const playOverlay = make("div", {
     class: "highlights-fav-card__play",
     "aria-hidden": "true",
-  }, "▶");
+  });
+  playOverlay.innerHTML = ICON_PLAY_SVG;
 
   card.append(iconWrap, nameEl, badge, playOverlay);
 

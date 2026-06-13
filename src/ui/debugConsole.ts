@@ -1,4 +1,5 @@
 import type { PSPEmulator } from "../emulator.js";
+import { trapFocus } from "./dom.js";
 
 export function createDebugConsoleController(opts: { onToggleDevOverlay: () => void }) {
   let visible = false;
@@ -12,29 +13,59 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
   })();
   let lastLoggedEventCount = 0;
   let cleanupBindings: (() => void) | null = null;
+  let modalAc: AbortController | null = null;
+  let previouslyFocused: HTMLElement | null = null;
   let wiredConsoleEl: HTMLElement | null = null;
 
   function isBoundToCurrentDOM(): boolean {
     return wiredConsoleEl !== null && wiredConsoleEl === document.getElementById("debug-console");
   }
 
-  function toggle(emulator?: PSPEmulator): void {
+  function closeModal(): void {
+    const consoleEl = document.getElementById("debug-console");
+    modalAc?.abort();
+    modalAc = null;
+    visible = false;
+    if (consoleEl) consoleEl.hidden = true;
+    previouslyFocused?.focus();
+    previouslyFocused = null;
+  }
+
+  function openModal(emulator?: PSPEmulator): void {
     const consoleEl = document.getElementById("debug-console");
     if (!consoleEl) return;
 
-    visible = !visible;
-    consoleEl.hidden = !visible;
+    previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    visible = true;
+    consoleEl.hidden = false;
+    consoleEl.style.left = `${position.x}px`;
+    consoleEl.style.top = `${position.y}px`;
 
-    if (visible) {
-      consoleEl.style.left = `${position.x}px`;
-      consoleEl.style.top = `${position.y}px`;
-
-      if (emulator && !isBoundToCurrentDOM()) {
-        wire(emulator);
-      }
-      document.getElementById("debug-console-input")?.focus();
-      if (emulator) update(emulator);
+    if (emulator && !isBoundToCurrentDOM()) {
+      wire(emulator);
     }
+
+    modalAc = new AbortController();
+    const { signal } = modalAc;
+    trapFocus(consoleEl, signal);
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      }
+    }, { signal, capture: true });
+
+    document.getElementById("debug-console-input")?.focus();
+    if (emulator) update(emulator);
+  }
+
+  function toggle(emulator?: PSPEmulator): void {
+    if (visible) {
+      closeModal();
+      return;
+    }
+    openModal(emulator);
   }
 
   function wire(emulator: PSPEmulator): void {
@@ -55,30 +86,41 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
       let startX = 0;
       let startY = 0;
 
-      handle.addEventListener("mousedown", (e) => {
+      const onPointerDown = (e: PointerEvent) => {
+        if (e.button !== 0) return;
         isDragging = true;
         startX = e.clientX - consoleEl.offsetLeft;
         startY = e.clientY - consoleEl.offsetTop;
+        handle.setPointerCapture(e.pointerId);
         handle.style.cursor = "grabbing";
-      }, { signal });
+      };
 
-      window.addEventListener("mousemove", (e) => {
+      const onPointerMove = (e: PointerEvent) => {
         if (!isDragging) return;
         const x = e.clientX - startX;
         const y = e.clientY - startY;
         consoleEl.style.left = `${x}px`;
         consoleEl.style.top = `${y}px`;
         position = { x, y };
-      }, { signal });
+      };
 
-      window.addEventListener("mouseup", () => {
+      const onPointerUp = (e: PointerEvent) => {
+        if (!isDragging) return;
         isDragging = false;
         handle.style.cursor = "grab";
+        if (handle.hasPointerCapture(e.pointerId)) {
+          handle.releasePointerCapture(e.pointerId);
+        }
         localStorage.setItem("ro_debug_console_pos", JSON.stringify(position));
-      }, { signal });
+      };
+
+      handle.addEventListener("pointerdown", onPointerDown, { signal });
+      handle.addEventListener("pointermove", onPointerMove, { signal });
+      handle.addEventListener("pointerup", onPointerUp, { signal });
+      handle.addEventListener("pointercancel", onPointerUp, { signal });
     }
 
-    closeBtn?.addEventListener("click", () => toggle(), { signal });
+    closeBtn?.addEventListener("click", () => closeModal(), { signal });
     clearBtn?.addEventListener("click", () => {
       emulator.clearDiagnosticLog();
       const logEl = document.getElementById("debug-console-log");
@@ -148,7 +190,7 @@ export function createDebugConsoleController(opts: { onToggleDevOverlay: () => v
         break;
       }
       case "close":
-        toggle();
+        closeModal();
         break;
       default:
         emulator.logDiagnostic("error", `Unknown command: ${cmd}`);

@@ -169,6 +169,82 @@ button {
   padding: 0;
 }
 
+.btn--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ui-inline-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ui-inline-icon--play {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.library-empty__icon .ui-inline-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  opacity: 0.72;
+}
+
+.highlights-section__title-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+.highlights-section__title-icon .ui-inline-icon--star-filled {
+  width: 1em;
+  height: 1em;
+  color: var(--c-accent);
+}
+
+.highlights-fav-card__play .ui-inline-icon--play {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.game-card__play-btn .ui-inline-icon--play {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.game-card__fav .ui-inline-icon--star,
+.game-card__fav .ui-inline-icon--star-filled {
+  width: 1rem;
+  height: 1rem;
+}
+
+.game-card__more .ui-inline-icon--more {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.details-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.details-rating .ui-inline-icon--star-filled {
+  width: 1rem;
+  height: 1rem;
+  color: #ffd34d;
+}
+
+.cover-art-no-results__icon .ui-inline-icon {
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.8;
+}
+
 .btn--sm {
   min-height: 32px;
   padding: 0 12px;
@@ -477,6 +553,7 @@ body.is-playing #landing.hidden {
 
 .landing-details__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 20px;
 }
@@ -5922,6 +5999,13 @@ body.using-gamepad .game-card:focus {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--c-text);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.debug-console__header:active {
+  cursor: grabbing;
 }
 
 .debug-console__body {

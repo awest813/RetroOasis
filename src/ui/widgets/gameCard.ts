@@ -10,7 +10,7 @@ import { type GameMetadata, type GameLibrary, formatBytes, formatRelativeTime, c
 import type { PSPEmulator } from "../../emulator.js";
 import type { Settings } from "../../types/settings.js";
 import { shaderCache } from "../../shaderCache.js";
-import { isSvgMarkup, ICON_CLOSE_X_SVG, ICON_TROPHY_SVG } from "../../chromeIcons.js";
+import { isSvgMarkup, ICON_CLOSE_X_SVG, ICON_MORE_SVG, ICON_PLAY_SVG, ICON_STAR_FILLED_SVG, ICON_STAR_SVG, ICON_TROPHY_SVG } from "../../chromeIcons.js";
 import { diagWarn } from "../../diagnosticLog.js";
 import { parseRAKey } from "../../raCredentials.js";
 import {
@@ -243,13 +243,15 @@ export function buildGameCard(
     title: game.isFavorite ? "Remove from favorites" : "Add to favorites",
     "aria-label": game.isFavorite ? `Remove ${game.name} from favorites` : `Add ${game.name} to favorites`,
     "aria-pressed": String(game.isFavorite),
-  }, "\u2605");
+  });
+  btnFav.innerHTML = game.isFavorite ? ICON_STAR_FILLED_SVG : ICON_STAR_SVG;
   btnFav.addEventListener("click", async (e) => {
     e.stopPropagation();
     const next = !game.isFavorite;
     await library.setFavorite(game.id, next);
     game.isFavorite = next;
     btnFav.classList.toggle("active", next);
+    btnFav.innerHTML = next ? ICON_STAR_FILLED_SVG : ICON_STAR_SVG;
     btnFav.title = next ? "Remove from favorites" : "Add to favorites";
     btnFav.setAttribute("aria-label", next ? `Remove ${game.name} from favorites` : `Add ${game.name} to favorites`);
     btnFav.setAttribute("aria-pressed", String(next));
@@ -316,7 +318,8 @@ export function buildGameCard(
   });
 
   const playOverlay = make("div", { class: "game-card__play-overlay", "aria-hidden": "true" });
-  const playBtn     = make("div", { class: "game-card__play-btn" }, "\u25B6");
+  const playBtn     = make("div", { class: "game-card__play-btn" });
+  playBtn.innerHTML = ICON_PLAY_SVG;
   playOverlay.appendChild(playBtn);
 
   const btnArt = make("button", {
@@ -598,7 +601,8 @@ export function buildGameCard(
     "aria-haspopup": "menu",
     "aria-expanded": "false",
     type: "button",
-  }, "⋯");
+  });
+  btnMore.innerHTML = ICON_MORE_SVG;
 
   const overflowMenu = make("div", {
     class: "game-card__menu",
@@ -708,8 +712,14 @@ export function buildGameCard(
     btnPlay.className = "btn btn--primary";
     btnPlay.textContent = "Play";
     btnPlay.onclick = launch;
+
+    const btnDetailsSidebar = document.createElement("button");
+    btnDetailsSidebar.className = "btn btn--ghost";
+    btnDetailsSidebar.textContent = "Full details";
+    btnDetailsSidebar.type = "button";
+    btnDetailsSidebar.onclick = openGameDetails;
     
-    actions.appendChild(btnPlay);
+    actions.append(btnPlay, btnDetailsSidebar);
     content.appendChild(actions);
   };
 
