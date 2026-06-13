@@ -217,10 +217,17 @@ This keeps the blast radius mostly in **CSS + one new file + tokens**, with mini
 | Safari backdrop/glow inconsistency | `-webkit-` fallbacks; test early |
 | Big-bang re-theme breaks tests | Token-first + CSS-only + `data-theme` layering keeps TS/DOM stable |
 
-## 13. Open Decisions (for sign-off)
+## 13. Decisions (locked 2026-06-13)
 
-1. **Default theme:** ship Shibuya Punk as the new default (recommended) vs. opt-in only?
-2. **Old theme:** keep "Glass & Silver" selectable, or fully retire it?
-3. **Effect intensity default:** `Full` neon out of the box vs. `Lite`?
-4. **Japanese text:** decorative-only (recommended, no i18n burden) vs. real localized JP labels?
-5. **Brand/logo:** restyle the existing `retrooasis-logo.svg` with neon treatment, or commission a new katakana brand lockup?
+1. **Default theme:** Shibuya Punk is the default. ✅
+2. **Old theme:** **Retired** — no theme picker; Shibuya is the only theme. ✅
+3. **Effect intensity:** **Full by default**, gated by `prefers-reduced-motion` / `prefers-contrast` and auto-off during gameplay (no persisted toggle for now). ✅
+4. **Japanese text:** **Decorative only** (no i18n burden). ✅
+5. **Brand/logo:** **Restyle** the existing `retrooasis-logo.svg` with neon treatment. ✅
+
+## 14. Progress Log
+
+- **Phase 1 (done):** token + typography rework (`design-system.css`, `index.html`, `manifest.json`).
+- **Phase 3/4 (in progress):** neon logo SVG; CRT scanline + neon-grid overlays; focus bloom; card neon offset/tilt; brand glitch-on-hover; hero glitch-in + holographic tag; decorative 東京 watermark; glitch/ticker/holo/bloom keyframes; replaced visible champagne literals + leftover legacy-red hero hover with tokens.
+- **Verification:** `npm run build` ✅, `npm test` — only 2 failures, both **pre-existing on `main`** (`ui.test.ts` settings-tab label/fallback); updated `pwaAssets.test.ts` to the new brand color.
+- **Phase 5 (remaining):** sweep the last alpha-sensitive steel-blue `rgba(122,152,184,*)` panels (5 spots) and other deep-screen literals → tokens; modals/settings/multiplayer brutalist passes; ticker marquee wiring.

@@ -1,21 +1,30 @@
 <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RetroOasis">
   <defs>
-    <linearGradient id="ro-metal" x1="25" y1="17" x2="71" y2="80" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F7EDCF"/>
-      <stop offset="0.44" stop-color="#B9A06B"/>
-      <stop offset="1" stop-color="#6F6045"/>
+    <linearGradient id="ro-neon" x1="25" y1="17" x2="71" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff6bb5"/>
+      <stop offset="0.5" stop-color="#ff2e97"/>
+      <stop offset="1" stop-color="#00f0ff"/>
     </linearGradient>
     <linearGradient id="ro-ink" x1="18" y1="12" x2="82" y2="88" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#141417"/>
-      <stop offset="0.62" stop-color="#050506"/>
-      <stop offset="1" stop-color="#000000"/>
+      <stop stop-color="#1d1230"/>
+      <stop offset="0.62" stop-color="#0b0810"/>
+      <stop offset="1" stop-color="#04030a"/>
     </linearGradient>
+    <filter id="ro-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect x="10" y="10" width="76" height="76" rx="20" fill="url(#ro-ink)"/>
-  <rect x="10.75" y="10.75" width="74.5" height="74.5" rx="19.25" stroke="white" stroke-opacity="0.08" stroke-width="1.5"/>
-  <path d="M26 48C26 35.85 35.85 26 48 26C60.15 26 70 35.85 70 48C70 60.15 60.15 70 48 70C35.85 70 26 60.15 26 48Z" stroke="url(#ro-metal)" stroke-width="3.25"/>
-  <path d="M36 61V35H49.25C55.05 35 59 38.55 59 43.85C59 49.15 55.05 52.65 49.25 52.65H43.15V61H36ZM43.15 46.7H48.4C50.8 46.7 52.35 45.6 52.35 43.85C52.35 42.1 50.8 41.05 48.4 41.05H43.15V46.7Z" fill="#F4E9C8"/>
-  <path d="M56.5 61L47.8 51.9H56.2L64.7 61H56.5Z" fill="#BCA36F"/>
-  <path d="M34 76H62" stroke="#F7EDCF" stroke-opacity="0.2" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M26 20H70" stroke="white" stroke-opacity="0.07" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="10" y="10" width="76" height="76" rx="6" fill="url(#ro-ink)"/>
+  <rect x="10.75" y="10.75" width="74.5" height="74.5" rx="5.5" stroke="#ff2e97" stroke-opacity="0.45" stroke-width="1.5"/>
+  <g filter="url(#ro-glow)">
+    <path d="M26 48C26 35.85 35.85 26 48 26C60.15 26 70 35.85 70 48C70 60.15 60.15 70 48 70C35.85 70 26 60.15 26 48Z" stroke="url(#ro-neon)" stroke-width="3.25"/>
+    <path d="M36 61V35H49.25C55.05 35 59 38.55 59 43.85C59 49.15 55.05 52.65 49.25 52.65H43.15V61H36ZM43.15 46.7H48.4C50.8 46.7 52.35 45.6 52.35 43.85C52.35 42.1 50.8 41.05 48.4 41.05H43.15V46.7Z" fill="#ffffff"/>
+    <path d="M56.5 61L47.8 51.9H56.2L64.7 61H56.5Z" fill="#00f0ff"/>
+  </g>
+  <path d="M34 76H62" stroke="#00f0ff" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M26 20H70" stroke="#ff2e97" stroke-opacity="0.25" stroke-width="1.5" stroke-linecap="round"/>
 </svg>
