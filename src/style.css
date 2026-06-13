@@ -11100,3 +11100,86 @@ html.in-game .app-ticker,
   border-color: var(--c-accent);
   box-shadow: var(--glow-md);
 }
+
+/* ============================================================
+   SHIBUYA PUNK — CRT Boot, Error Banner & Onboarding (Phase 5f)
+   ============================================================ */
+
+/* ── Loading overlay: CRT power-on feel ── */
+#loading-overlay {
+  background: rgba(4, 3, 10, 0.9);
+}
+#loading-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--scanline-overlay);
+  background-size: 100% 4px;
+  opacity: 0.4;
+  z-index: 1;
+}
+.loading-content { position: relative; z-index: 2; }
+
+/* Mono boot prompt + glitch on the status line. */
+#loading-message {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-shadow: var(--glow-md);
+}
+#loading-message::before {
+  content: "> ";
+  font-family: var(--font-mono);
+  color: var(--c-accent-2);
+  text-shadow: var(--glow-cyan);
+}
+#loading-subtitle { font-family: var(--font-mono); }
+@media (prefers-reduced-motion: no-preference) {
+  #loading-overlay.visible #loading-message {
+    animation: shibuya-glitch-in 0.5s var(--ease-out) both;
+  }
+}
+
+/* Progress bar: hard-edged holographic fill. */
+.loading-progress {
+  border-radius: 0;
+  border: 1px solid var(--c-border-lt);
+  background: var(--c-surface);
+}
+.loading-progress-bar {
+  background: var(--gradient-holo);
+  background-size: 200% 100%;
+  box-shadow: var(--glow-md);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .loading-progress-bar { animation: shibuya-holo 4s linear infinite; }
+}
+
+/* ── Error banner: neon danger frame ── */
+#error-banner {
+  border: var(--border-thick) solid var(--c-danger);
+  border-left-width: 5px;
+  background: rgba(11, 8, 16, 0.96);
+  color: var(--c-text);
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.5), 0 0 14px rgba(255,51,85,0.3);
+}
+.error-icon { color: var(--c-danger); }
+.error-close { border-radius: 0; background: rgba(255,255,255,0.08); }
+.error-close:hover { background: var(--c-danger); color: var(--c-black); }
+
+/* ── Onboarding: sticker-bombed platform chips ── */
+.welcome-hero__eyebrow { text-shadow: var(--glow-sm); }
+.homepage-platforms__label { font-family: var(--font-mono); }
+.homepage-platforms__chip {
+  border-radius: var(--radius);
+  border: var(--border-thick) solid color-mix(in srgb, var(--sys-color, var(--c-accent)) 50%, transparent);
+  background: var(--c-surface);
+  font-family: var(--font-mono);
+  transition: transform 0.15s var(--spring), box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.homepage-platforms__chip:hover {
+  transform: translateY(-2px) rotate(-1deg);
+  border-color: var(--sys-color, var(--c-accent));
+  box-shadow: 3px 3px 0 var(--sys-color, var(--c-accent));
+}
