@@ -10342,7 +10342,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 /* ── Animated Mesh Background for Onboarding ── */
 #landing {
   position: relative;
-  background: radial-gradient(circle at 10% 20%, rgba(12, 12, 15, 0.98) 0%, rgba(0, 0, 0, 1) 100%) !important;
+  background: 
+    linear-gradient(rgba(7, 5, 14, 0.58), rgba(7, 5, 14, 0.68)),
+    url("/assets/homepage-bg.jpg") no-repeat center center / cover !important;
   overflow: hidden;
 }
 
