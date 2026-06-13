@@ -1,4 +1,5 @@
 import { createElement as make } from "./dom.js";
+import { ICON_SEARCH_SVG, ICON_USER_SVG } from "../chromeIcons.js";
 
 const LIBRARY_BROWSE_SELECTORS = [
   ".library-toolbar",
@@ -95,7 +96,8 @@ export function buildFilteredLibraryEmptyState(opts: {
     message.textContent = "No games match your current filters. Try a broader search, choose another system, or clear filters to see every game again.";
   }
 
-  const icon = make("div", { class: "library-empty__icon" }, profileFilterActive && !hasSearch && !activeSystemLabel ? "👤" : "🔍");
+  const icon = make("div", { class: "library-empty__icon", "aria-hidden": "true" });
+  icon.innerHTML = profileFilterActive && !hasSearch && !activeSystemLabel ? ICON_USER_SVG : ICON_SEARCH_SVG;
   const actions = make("div", { class: "library-empty__actions" });
   if (profileFilterActive && onOpenProfileSettings) {
     const profileBtn = make("button", { class: "btn library-empty__profile", type: "button" }, "Profile settings");

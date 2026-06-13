@@ -137,13 +137,13 @@ describe("buildHighlightsPanel — favorites section", () => {
 // ── Accessibility: emoji in headings ──────────────────────────────────────────
 
 describe("buildHighlightsPanel — accessibility", () => {
-  it("wraps the ★ emoji in the Favorites heading with aria-hidden", () => {
+  it("wraps the Favorites heading icon with aria-hidden SVG", () => {
     const opts = makeOpts({ favorites: [makeGame()] });
     const el   = buildHighlightsPanel(opts)!;
     const h3   = el.querySelector(".highlights-section--favorites h3")!;
-    const icon = h3.querySelector<HTMLElement>("[aria-hidden='true']");
+    const icon = h3.querySelector<HTMLElement>(".highlights-section__title-icon[aria-hidden='true']");
     expect(icon).not.toBeNull();
-    expect(icon!.textContent).toBe("★");
+    expect(icon!.querySelector("svg")).not.toBeNull();
     // The visible text should still include "Favorites"
     expect(h3.textContent).toContain("Favorites");
   });

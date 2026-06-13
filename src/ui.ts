@@ -541,7 +541,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <!-- Debug console (toggled with Shift+F3 or Debug button) -->
-      <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog">
+      <div id="debug-console" class="debug-console" hidden aria-label="Debug console" role="dialog" aria-modal="true">
         <div class="debug-console__header" id="debug-console-handle">
           <div class="debug-console__title">Debug Console</div>
           <div class="debug-console__actions">
@@ -580,7 +580,7 @@ export function buildDOM(app: HTMLElement): void {
           <span class="footer-connectivity__dot status--online" id="footer-connectivity-dot" aria-hidden="true"></span>
           <span class="footer-connectivity__label" id="footer-connectivity-label">Online</span>
         </div>
-        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Cross-origin isolation is not active. Threaded cores such as PSP and 3DS may be unavailable." title="Cross-origin isolation is not active — threaded cores such as PSP and 3DS may be unavailable."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span> COI</span>` : ""}
+        ${!window.crossOriginIsolated ? `<span class="footer-info footer-coi-warning" role="note" aria-label="Advanced cores such as PSP and 3DS may be unavailable until the app finishes its security setup. Reload the page if this persists." title="Advanced cores such as PSP and 3DS may be unavailable until the app finishes its security setup. Reload the page if this persists."><span class="footer-coi-warning__icon" aria-hidden="true">${ICON_ALERT_TRIANGLE_SVG}</span><span class="footer-coi-warning__label">Limited cores</span></span>` : ""}
       </div>
       
       <div class="footer-center">
