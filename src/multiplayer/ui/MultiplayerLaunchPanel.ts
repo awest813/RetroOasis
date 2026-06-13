@@ -8,6 +8,7 @@ import { createElement as make } from "../../ui/dom.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import { store } from "../../store/index.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 
 export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode: "host" | "join", onBack: () => void }): void {
   const service = getLanemuService();
@@ -28,13 +29,14 @@ export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode
   panel.appendChild(header);
 
   // ── Game context banner ──
+  // Security Fix: Sanitize user-provided game name and system ID to prevent XSS
   const gameBanner = make("div", { class: "launch-panel__game-banner" });
   gameBanner.innerHTML = `
     <div class="launch-panel__game-icon" aria-hidden="true">${ICON_GAMEPAD_DECOR_SVG}</div>
     <div class="launch-panel__game-info">
       <div class="launch-panel__game-label">Session</div>
-      <div class="launch-panel__game-name">${gameName}</div>
-      ${systemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">${systemId}</div>` : ""}
+      <div class="launch-panel__game-name">${escHtml(gameName)}</div>
+      ${systemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">${escHtml(systemId)}</div>` : ""}
     </div>
   `;
   panel.appendChild(gameBanner);
