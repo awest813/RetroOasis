@@ -10421,14 +10421,14 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 
 .landing-details__cover {
   border-radius: var(--radius-lg) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8) !important;
-  transition: transform 0.4s var(--ease-premium-out), box-shadow 0.4s var(--ease-premium-out) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 .landing-details__cover:hover {
-  transform: scale(1.02) !important;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.9), 0 0 16px var(--c-accent-glow) !important;
+  transform: translate(-3px, -3px) rotate(0.8deg) !important;
+  box-shadow: 6px 6px 0 var(--sys-color, var(--c-accent)), 0 0 16px var(--sys-color, var(--c-accent)) !important;
 }
 
 .landing-details__title {
@@ -10932,17 +10932,61 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.15) !important;
 }
 
-/* 3. Platform Filter Chips active styling */
+/* 3. Platform Filter Chips active styling & peel-off sticker effects */
 .sys-filter-chip {
-  transition: all 0.18s ease !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease !important;
+  border: 2px solid transparent !important;
 }
 
 .sys-filter-chip.active {
   background: rgba(255, 255, 255, 0.045) !important;
   border: var(--outline-bold) !important;
   border-left: 6px solid var(--sys-color, var(--c-accent)) !important;
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02) !important;
+  box-shadow: var(--pop-shadow) !important;
   color: var(--sys-color, var(--c-accent)) !important;
+}
+
+.sys-filter-chip:hover {
+  transform: translate(-2px, -2px) rotate(1deg) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  background: var(--c-surface2) !important;
+  border-color: var(--c-ink) !important;
+  color: var(--c-white) !important;
+}
+
+.sys-filter-chip.active:hover {
+  transform: translate(-3px, -3px) rotate(1.2deg) !important;
+  box-shadow: 5px 5px 0 var(--sys-color, var(--c-accent)) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 5. Brutalist Game Cards visual upgrades */
+.game-card {
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+  border-radius: 16px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.game-card:hover {
+  transform: translate(-3px, -3px) rotate(-0.5deg) !important;
+  box-shadow: 6px 6px 0 var(--sys-color, var(--c-accent)) !important;
+  border-color: var(--c-ink) !important;
+}
+
+.game-card:focus-visible {
+  outline: 2px solid var(--c-accent-light) !important;
+  outline-offset: 3px !important;
+}
+
+/* 6. Accessibility: Reduced Motion for visual upgrades */
+@media (prefers-reduced-motion: reduce) {
+  .game-card:hover,
+  .landing-details__cover:hover,
+  .sys-filter-chip:hover,
+  .sys-filter-chip.active:hover {
+    transform: none !important;
+  }
 }
 
 /* 4. Cover Art Fallback Shibuya Punk Polish */
