@@ -10944,3 +10944,26 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02) !important;
   color: var(--sys-color, var(--c-accent)) !important;
 }
+
+/* 4. Cover Art Fallback Shibuya Punk Polish */
+.game-card__fallback {
+  position: relative;
+  overflow: hidden;
+  background:
+    var(--halftone-overlay) 0 0 / var(--halftone-size),
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--sys-color-bright, var(--c-accent)) 14%, transparent), transparent 48%),
+    #08080a !important;
+}
+
+.game-card__fallback::before {
+  content: "遊";
+  position: absolute;
+  right: -5px;
+  bottom: -15px;
+  font-family: var(--font-jp) !important;
+  font-size: 6.5rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.024);
+  pointer-events: none;
+  line-height: 1;
+}
