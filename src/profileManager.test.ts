@@ -3,6 +3,7 @@ import type { Settings } from "./types/settings.js";
 import { ApiKeyStore } from "./apiKeyStore.js";
 import { getProfileManager, resetProfileManagerForTests, PROFILE_INDEX_STORAGE_KEY } from "./profileManager.js";
 import { tagGameForProfile, getTaggedGameIds, PROFILE_GAME_TAGS_KEY } from "./profileGameTags.js";
+import { getBacklogGameIds, setGameBacklogStatus, PROFILE_BACKLOG_KEY } from "./profileBacklog.js";
 
 function makeSettings(overrides: Partial<Settings> = {}): Settings {
   return {
@@ -299,6 +300,24 @@ describe("ProfileManager", () => {
     vi.unstubAllGlobals();
   });
 
+  it("includes backlog entries in snapshots and restores them on import", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    setGameBacklogStatus("game-a", pm.getActiveProfileId(), true);
+    pm.saveActiveSnapshot(deps);
+    const exported = pm.exportActiveSnapshot(deps);
+    expect(exported.backlogGameIds).toEqual(["game-a"]);
+
+    const imported = { ...exported, name: "Backlog import", backlogGameIds: ["game-x", "game-y"] };
+    const meta = pm.importSnapshotAsNewProfile(imported, deps);
+    if (typeof meta === "string") throw new Error(meta);
+    expect(getBacklogGameIds(meta.id, storage).has("game-x")).toBe(true);
+    expect(getBacklogGameIds(meta.id, storage).has("game-y")).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   it("updates existing profile slots on cloud merge when remote is newer", () => {
     const pm = getProfileManager(storage);
     const deps = { settings, apiKeyStore, onSettingsChange };
@@ -333,6 +352,24 @@ describe("ProfileManager", () => {
     pm.deleteProfile(tempId, deps);
     expect(getTaggedGameIds(tempId).size).toBe(0);
     expect(storage.getItem(PROFILE_GAME_TAGS_KEY)).not.toContain(tempId);
+    expect(pm.getActiveProfileId()).toBe(keepId);
+    vi.unstubAllGlobals();
+  });
+
+  it("prunes backlog entries when a profile is deleted", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const keepId = pm.getActiveProfileId();
+    pm.createProfile("Queued", deps);
+    const tempId = pm.getActiveProfileId();
+    setGameBacklogStatus("game-abc", tempId, true);
+    expect(getBacklogGameIds(tempId).has("game-abc")).toBe(true);
+
+    pm.deleteProfile(tempId, deps);
+    expect(getBacklogGameIds(tempId).size).toBe(0);
+    expect(storage.getItem(PROFILE_BACKLOG_KEY)).not.toContain(tempId);
     expect(pm.getActiveProfileId()).toBe(keepId);
     vi.unstubAllGlobals();
   });
@@ -376,6 +413,29 @@ describe("ProfileManager", () => {
     vi.unstubAllGlobals();
   });
 
+  it("replaces backlog entries on cloud replace import", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    const activeId = pm.getActiveProfileId();
+    setGameBacklogStatus("local-only", activeId, true);
+    pm.saveActiveSnapshot(deps);
+
+    const remote = JSON.parse(pm.exportProfileIndexRaw()) as {
+      version: number;
+      activeId: string;
+      profiles: Record<string, { snapshot: { backlogGameIds?: string[] } }>;
+    };
+    remote.profiles[activeId]!.snapshot.backlogGameIds = ["remote-only"];
+
+    const err = pm.importProfileIndexRaw(JSON.stringify(remote), "replace", deps);
+    expect(err).toBeNull();
+    expect(getBacklogGameIds(activeId, storage).has("remote-only")).toBe(true);
+    expect(getBacklogGameIds(activeId, storage).has("local-only")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
   it("exportProfileIndexForCloud embeds live library tags for every slot", () => {
     vi.stubGlobal("localStorage", storage);
     const pm = getProfileManager(storage);
@@ -392,6 +452,26 @@ describe("ProfileManager", () => {
         profiles: Record<string, { snapshot: { libraryGameIds?: string[] } }>;
       };
       expect(parsed.profiles[taggedId]?.snapshot.libraryGameIds).toContain("live-tag");
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("exportProfileIndexForCloud embeds live backlog entries for every slot", () => {
+    vi.stubGlobal("localStorage", storage);
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange };
+    pm.ensureInitialized(deps);
+    pm.createProfile("Queued", deps);
+    const queuedId = pm.getActiveProfileId();
+    setGameBacklogStatus("live-backlog", queuedId, true);
+
+    const exported = pm.exportProfileIndexForCloud(deps);
+    expect(exported.ok).toBe(true);
+    if (exported.ok) {
+      const parsed = JSON.parse(exported.raw) as {
+        profiles: Record<string, { snapshot: { backlogGameIds?: string[] } }>;
+      };
+      expect(parsed.profiles[queuedId]?.snapshot.backlogGameIds).toContain("live-backlog");
     }
     vi.unstubAllGlobals();
   });

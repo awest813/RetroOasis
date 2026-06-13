@@ -10,9 +10,11 @@ import { type GameMetadata, type GameLibrary, formatBytes, formatRelativeTime, c
 import type { PSPEmulator } from "../../emulator.js";
 import type { Settings } from "../../types/settings.js";
 import { shaderCache } from "../../shaderCache.js";
-import { isSvgMarkup, ICON_CLOSE_X_SVG, ICON_MORE_SVG, ICON_PLAY_SVG, ICON_STAR_FILLED_SVG, ICON_STAR_SVG, ICON_TROPHY_SVG } from "../../chromeIcons.js";
+import { isSvgMarkup, ICON_BOOKMARK_FILLED_SVG, ICON_BOOKMARK_SVG, ICON_CLOSE_X_SVG, ICON_MORE_SVG, ICON_PLAY_SVG, ICON_STAR_FILLED_SVG, ICON_STAR_SVG, ICON_TROPHY_SVG } from "../../chromeIcons.js";
 import { diagWarn } from "../../diagnosticLog.js";
 import { parseRAKey } from "../../raCredentials.js";
+import { getProfileManager } from "../../profileManager.js";
+import { isGameInProfileBacklog, toggleGameBacklogStatus } from "../../profileBacklog.js";
 import {
   fetchAndValidateCoverArt,
   fetchFirstValidCoverArtCandidate,
@@ -72,11 +74,13 @@ export function buildGameCard(
     emulatorRef?:      PSPEmulator;
     onApplyPatch?:     (gameId: string, patchFile: File) => Promise<void>;
     libraryShowFavorites?: boolean;
+    libraryShowBacklog?: boolean;
   }
 ): HTMLElement {
-  const { onLaunchGame, onRenderLibrary, onFetchFromCloud, onOpenApiKeySettings, emulatorRef, onApplyPatch, libraryShowFavorites } = opts;
+  const { onLaunchGame, onRenderLibrary, onFetchFromCloud, onOpenApiKeySettings, emulatorRef, onApplyPatch, libraryShowFavorites, libraryShowBacklog } = opts;
   const system = getSystemById(game.systemId);
   const sysColor = system?.color ?? "#555";
+  const activeProfileId = getProfileManager().getActiveProfileId();
 
   const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000;
   const isNew = Date.now() - game.addedAt < NEW_THRESHOLD_MS;
@@ -258,6 +262,30 @@ export function buildGameCard(
     if (libraryShowFavorites || settings.libraryGrouped) {
       onRenderLibrary();
     }
+  });
+
+  const btnBacklog = make("button", {
+    class: `game-card__backlog${activeProfileId && isGameInProfileBacklog(game.id, activeProfileId) ? " active" : ""}`,
+    title: activeProfileId && isGameInProfileBacklog(game.id, activeProfileId) ? "Remove from backlog" : "Add to backlog",
+    "aria-label": activeProfileId && isGameInProfileBacklog(game.id, activeProfileId)
+      ? `Remove ${game.name} from backlog`
+      : `Add ${game.name} to backlog`,
+    "aria-pressed": String(activeProfileId ? isGameInProfileBacklog(game.id, activeProfileId) : false),
+    type: "button",
+  });
+  btnBacklog.innerHTML = btnBacklog.classList.contains("active") ? ICON_BOOKMARK_FILLED_SVG : ICON_BOOKMARK_SVG;
+  btnBacklog.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const profileId = getProfileManager().getActiveProfileId();
+    if (!profileId) return;
+    const next = toggleGameBacklogStatus(game.id, profileId);
+    btnBacklog.classList.toggle("active", next);
+    btnBacklog.innerHTML = next ? ICON_BOOKMARK_FILLED_SVG : ICON_BOOKMARK_SVG;
+    btnBacklog.title = next ? "Remove from backlog" : "Add to backlog";
+    btnBacklog.setAttribute("aria-label", next ? `Remove ${game.name} from backlog` : `Add ${game.name} to backlog`);
+    btnBacklog.setAttribute("aria-pressed", String(next));
+    showInfoToast(next ? `Added "${game.name}" to backlog.` : `Removed "${game.name}" from backlog.`, next ? "success" : "info");
+    if (libraryShowBacklog) onRenderLibrary();
   });
 
   let patchInput: HTMLInputElement | null = null;
@@ -499,6 +527,8 @@ export function buildGameCard(
       onLaunch:    () => { void launch(); },
       onRemove:    () => btnRemove.click(),
       onToggleFav: () => btnFav.click(),
+      onToggleBacklog: () => btnBacklog.click(),
+      isInBacklog: btnBacklog.classList.contains("active"),
       onEditArt:   () => {
         void showCoverArtPickerDialogImpl(
           game.name,
@@ -630,6 +660,7 @@ export function buildGameCard(
   };
 
   addOverflowItem("Details", openGameDetails);
+  addOverflowItem(btnBacklog.classList.contains("active") ? "Remove from backlog" : "Add to backlog", () => { btnBacklog.click(); });
   addOverflowItem("Cover art", () => { btnArt.click(); });
   addOverflowItem("Change system", () => { btnChangeSystem.click(); });
   if (btnPatch) addOverflowItem("Apply patch", () => { btnPatch.click(); });
@@ -660,7 +691,7 @@ export function buildGameCard(
 
   const actionsWrap = make("div", { class: "game-card__actions" });
   if (btnPatch) actionsWrap.append(btnPatch);
-  actionsWrap.append(btnArt, btnChangeSystem, btnDetails, btnMore, btnFav, btnRemove);
+  actionsWrap.append(btnArt, btnChangeSystem, btnDetails, btnMore, btnBacklog, btnFav, btnRemove);
   card.append(icon, scanline, info);
   if (patchInput) card.append(patchInput);
   card.append(actionsWrap, overflowMenu, playOverlay);

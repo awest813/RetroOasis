@@ -10682,3 +10682,110 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   top: calc(100% - 8px);
   right: 12px;
 }
+
+.game-card__backlog {
+  position: absolute;
+  top: 50px;
+  right: 14px;
+  bottom: auto;
+  z-index: 20;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  background: rgba(4,4,5,0.64);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.game-card__backlog .ui-inline-icon--bookmark,
+.library-backlog-filter .ui-inline-icon--bookmark {
+  width: 1rem;
+  height: 1rem;
+}
+
+.game-card__backlog:hover,
+.game-card__backlog:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(34, 38, 50, 0.92);
+  border-color: rgba(255,255,255,0.62);
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+}
+
+.game-card__backlog.active {
+  color: var(--c-accent);
+  opacity: 1;
+}
+
+.game-card:hover .game-card__backlog,
+.game-card:focus-within .game-card__backlog {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.game-card__fav { top: 86px; right: 14px; }
+.game-card__change-sys { top: 122px; right: 14px; }
+.game-card__art-btn { top: 158px; right: 14px; }
+.game-card__patch { top: 194px; right: 14px; }
+
+.profile-backlog-row {
+  align-items: center;
+}
+
+.profile-backlog-count {
+  color: var(--c-text);
+  font-weight: 700;
+}
+
+.library-grid--compact .game-card__backlog {
+  top: 40px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+}
+
+.library-grid--compact .game-card__fav {
+  top: 72px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__change-sys {
+  top: 104px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__art-btn {
+  top: 136px;
+  right: 8px;
+}
+
+.library-grid--compact .game-card__patch {
+  top: 168px;
+  right: 8px;
+}
+
+.library-grid--list .game-card__actions > .game-card__backlog {
+  position: static;
+  display: inline-flex;
+  opacity: 1;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  top: auto;
+  right: auto;
+  left: auto;
+  bottom: auto;
+}

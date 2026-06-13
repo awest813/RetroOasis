@@ -49,6 +49,7 @@ export function buildFilteredLibraryEmptyState(opts: {
   searchQuery: string;
   activeSystemLabel: string;
   profileFilterActive?: boolean;
+  backlogFilterActive?: boolean;
   profileName?: string;
   onReset(): void;
   onOpenProfileSettings?(): void;
@@ -57,6 +58,7 @@ export function buildFilteredLibraryEmptyState(opts: {
     searchQuery,
     activeSystemLabel,
     profileFilterActive = false,
+    backlogFilterActive = false,
     profileName = "",
     onReset,
     onOpenProfileSettings,
@@ -65,7 +67,14 @@ export function buildFilteredLibraryEmptyState(opts: {
   const message = make("p");
   const hasSearch = searchQuery.trim().length > 0;
 
-  if (profileFilterActive && !hasSearch && !activeSystemLabel) {
+  if (backlogFilterActive && !hasSearch && !activeSystemLabel) {
+    const label = profileName.trim() || "this profile";
+    message.append(
+      document.createTextNode(`No games in `),
+      make("em", {}, label),
+      document.createTextNode("'s backlog. Add games with the bookmark button on a game card, or reset filters to browse the full library."),
+    );
+  } else if (profileFilterActive && !hasSearch && !activeSystemLabel) {
     const label = profileName.trim() || "this profile";
     message.append(
       document.createTextNode(`No games tagged to `),
@@ -97,7 +106,7 @@ export function buildFilteredLibraryEmptyState(opts: {
   }
 
   const icon = make("div", { class: "library-empty__icon", "aria-hidden": "true" });
-  icon.innerHTML = profileFilterActive && !hasSearch && !activeSystemLabel ? ICON_USER_SVG : ICON_SEARCH_SVG;
+  icon.innerHTML = (profileFilterActive || backlogFilterActive) && !hasSearch && !activeSystemLabel ? ICON_USER_SVG : ICON_SEARCH_SVG;
   const actions = make("div", { class: "library-empty__actions" });
   if (profileFilterActive && onOpenProfileSettings) {
     const profileBtn = make("button", { class: "btn library-empty__profile", type: "button" }, "Profile settings");

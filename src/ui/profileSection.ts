@@ -18,6 +18,7 @@ import {
   pullProfileIndexFromCloud,
 } from "../profileCloudSync.js";
 import { PROFILE_COLOR_PRESETS } from "../profileColors.js";
+import { getBacklogGameIds, syncBacklogForProfile } from "../profileBacklog.js";
 import { getProfileManager, type ProfileApplyDeps, type ProfileManager } from "../profileManager.js";
 import {
   showPassphraseDialog,
@@ -92,6 +93,15 @@ export function buildProfileSection(
   }) as HTMLInputElement;
 
   const swatchWrap = make("div", { class: "profile-color-swatches", role: "group", "aria-label": "Profile color" });
+  const backlogCount = make("span", { class: "profile-backlog-count", role: "status" });
+  const clearBacklogBtn = make("button", { class: "btn btn--sm", type: "button" }, "Clear backlog") as HTMLButtonElement;
+
+  const refreshBacklogSummary = () => {
+    const id = selectedProfileId(profileSel, pm);
+    const count = id ? getBacklogGameIds(id).size : 0;
+    backlogCount.textContent = `${count} game${count === 1 ? "" : "s"} queued`;
+    clearBacklogBtn.disabled = count === 0;
+  };
 
   const refreshColorSwatches = () => {
     swatchWrap.innerHTML = "";
@@ -129,6 +139,7 @@ export function buildProfileSection(
     if (!profileSel.value && prev) profileSel.value = prev;
     filterToggle.checked = settings.profileLibraryFilter;
     refreshColorSwatches();
+    refreshBacklogSummary();
   };
 
   const exportSelectedSnapshot = () =>
@@ -170,6 +181,7 @@ export function buildProfileSection(
       const id = profileSel.value;
       const previousId = pm.getActiveProfileId();
       refreshColorSwatches();
+      refreshBacklogSummary();
       if (!id || id === previousId) return;
       profileSel.disabled = true;
       const result = await pm.switchProfile(id, deps);
@@ -269,6 +281,32 @@ export function buildProfileSection(
   section.appendChild(colorRow);
   section.appendChild(make("p", { class: "settings-help" },
     "Color swatches apply to the profile selected above (active or not yet switched)."));
+
+  clearBacklogBtn.addEventListener("click", () => {
+    void (async () => {
+      const id = selectedProfileId(profileSel, pm);
+      if (!id) return;
+      const selectedName = pm.listProfiles().find((meta) => meta.id === id)?.name ?? "this profile";
+      const confirmed = await showConfirmDialog(
+        `Clear the backlog for "${selectedName}"? This only removes queued markers; games stay in your library.`,
+        { title: "Clear backlog?", confirmLabel: "Clear", isDanger: true },
+      );
+      if (!confirmed) return;
+      syncBacklogForProfile(id, undefined);
+      refreshBacklogSummary();
+      document.dispatchEvent(new CustomEvent(LEGACY_EVENTS.libraryCatalogNeedsRefresh));
+      showInfoToast("Profile backlog cleared.", "success");
+    })();
+  });
+  const backlogRow = make("div", { class: "settings-input-row profile-backlog-row" });
+  backlogRow.append(
+    make("span", { class: "settings-input-label" }, "Backlog"),
+    backlogCount,
+    clearBacklogBtn,
+  );
+  section.appendChild(backlogRow);
+  section.appendChild(make("p", { class: "settings-help" },
+    "Backlog is a per-profile play-later list. Use the bookmark button on game cards to add or remove games."));
 
   filterToggle.addEventListener("change", () => {
     onSettingsChange({ profileLibraryFilter: filterToggle.checked });

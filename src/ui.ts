@@ -71,6 +71,7 @@ import { isPwaDisplayMode } from "./ui/mobile.js";
 import {
   ICON_ALERT_TRIANGLE_SVG,
   ICON_BATTERY_SVG,
+  ICON_BOOKMARK_SVG,
   ICON_CLOSE_X_SVG,
   ICON_GRID_ALL_SVG,
   ICON_ROTATE_PHONE_SVG,
@@ -112,6 +113,7 @@ import {
   getLibrarySearchQuery,
   getLibrarySortMode,
   getLibrarySystemFilter,
+  isLibraryBacklogFilterActive,
   isLibrarySystemFilterActive,
   libraryHasActiveOverviewFilters,
   libraryInCleanBrowse,
@@ -336,6 +338,9 @@ export function buildDOM(app: HTMLElement): void {
               </div>
               <button class="btn btn--ghost btn--icon library-fav-filter" id="library-fav-filter" aria-label="Show favorites only" title="Show favorites only" aria-pressed="false">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </button>
+              <button class="btn btn--ghost btn--icon library-backlog-filter" id="library-backlog-filter" aria-label="Show backlog only" title="Show backlog only" aria-pressed="false">
+                ${ICON_BOOKMARK_SVG}
               </button>
               <select class="library-sort" id="library-sort" aria-label="Sort games">
                 <option value="lastPlayed">Last Played</option>
@@ -1903,6 +1908,7 @@ export async function renderLibrary(
       searchQuery: getLibrarySearchQuery(),
       activeSystemLabel: activeSystem,
       profileFilterActive: settings.profileLibraryFilter,
+      backlogFilterActive: isLibraryBacklogFilterActive(),
       profileName: getProfileManager().getActiveProfileName(),
       onReset: () => {
         _resetLibraryFilters(library, settings, onLaunchGame, emulatorRef, onApplyPatch);

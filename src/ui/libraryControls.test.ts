@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GameMetadata } from "../library.js";
 import type { Settings } from "../types/settings.js";
+import { ApiKeyStore } from "../apiKeyStore.js";
+import { getProfileManager, resetProfileManagerForTests } from "../profileManager.js";
+import { setGameBacklogStatus } from "../profileBacklog.js";
 import {
   applyLibraryFilters,
   computeLibraryRenderSignature,
@@ -34,6 +37,51 @@ const baseSettings = {
   profileLibraryFilter: false,
 } as Settings;
 
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    getItem: (k) => map.get(k) ?? null,
+    setItem: (k, v) => { map.set(k, String(v)); },
+    removeItem: (k) => { map.delete(k); },
+    clear: () => { map.clear(); },
+    get length() { return map.size; },
+    key: (i) => [...map.keys()][i] ?? null,
+  };
+}
+
+function makeSettings(overrides: Partial<Settings> = {}): Settings {
+  return {
+    volume: 0.7,
+    lastGameName: null,
+    performanceMode: "auto",
+    showFPS: false,
+    showAudioVis: false,
+    useWebGPU: false,
+    postProcessEffect: "none",
+    autoSaveEnabled: true,
+    coreOptions: {},
+    orientationLock: true,
+    netplayEnabled: false,
+    netplayServerUrl: "",
+    netplayUsername: "",
+    netplayIceServers: [],
+    verboseLogging: false,
+    cloudLibraries: [],
+    libretroMatchingServerUrl: "",
+    audioFilterType: "none",
+    audioFilterCutoff: 10000,
+    uiMode: "auto",
+    libraryLayout: "grid",
+    libraryGrouped: false,
+    recordPlayHistory: true,
+    dynamicResolutionScaling: true,
+    uiScale: 1,
+    profileLibraryFilter: false,
+    profileCloudBackupEncrypted: false,
+    ...overrides,
+  };
+}
+
 function wireTestControls(): void {
   document.body.innerHTML = `
     <input id="library-search" />
@@ -43,6 +91,7 @@ function wireTestControls(): void {
     </select>
     <button id="library-search-clear"></button>
     <button id="library-fav-filter"></button>
+    <button id="library-backlog-filter"></button>
     <button id="library-controls-reset"></button>
     <div id="library-layouts" role="radiogroup">
       <button class="layout-btn" data-layout="grid" role="radio" aria-checked="true"></button>
@@ -62,6 +111,8 @@ function wireTestControls(): void {
 describe("libraryControls", () => {
   beforeEach(() => {
     resetLibraryControlsForTests();
+    resetProfileManagerForTests();
+    vi.unstubAllGlobals();
   });
 
   it("filters by search query and system", () => {
@@ -143,5 +194,24 @@ describe("libraryControls", () => {
     const sigA = computeLibraryRenderSignature(games, games, baseSettings);
     const sigB = computeLibraryRenderSignature(games, games, baseSettings);
     expect(sigA).toBe(sigB);
+  });
+
+  it("filters to the active profile backlog", () => {
+    const storage = memoryStorage();
+    vi.stubGlobal("localStorage", storage);
+    const settings = makeSettings();
+    const apiKeyStore = new ApiKeyStore({ storage: memoryStorage(), providers: [] });
+    const pm = getProfileManager(storage);
+    pm.ensureInitialized({ settings, apiKeyStore, onSettingsChange: (patch) => Object.assign(settings, patch) });
+    setGameBacklogStatus("b", pm.getActiveProfileId(), true);
+
+    wireTestControls();
+    document.getElementById("library-backlog-filter")?.click();
+
+    const games = [
+      makeGame({ id: "a", name: "Alpha" }),
+      makeGame({ id: "b", name: "Beta" }),
+    ];
+    expect(applyLibraryFilters(games, settings).map((g) => g.id)).toEqual(["b"]);
   });
 });

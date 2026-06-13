@@ -7,6 +7,8 @@ import { getSystemById, getSystemFeatureSummary } from "../systems.js";
 import { threadedCoreBlockedReason } from "../safariCompat.js";
 import {
   ICON_BOOK_SVG,
+  ICON_BOOKMARK_FILLED_SVG,
+  ICON_BOOKMARK_SVG,
   ICON_EDIT_PENCIL_SVG,
   ICON_IMAGE_UPLOAD_SVG,
   ICON_LINK_SVG,
@@ -912,6 +914,8 @@ export function showGameDetails(
     onLaunch: () => void;
     onRemove: () => void;
     onToggleFav: () => void;
+    onToggleBacklog?: () => void;
+    isInBacklog?: boolean;
     onEditArt: () => void;
     coverArtSrc?: string;
     getRAProgress?: () => Promise<RAProgress | null>;
@@ -919,7 +923,7 @@ export function showGameDetails(
     getIGDBMetadata?: () => Promise<IGDBMetadata | null>;
   }
 ): Promise<void> {
-  const { system, formatBytes, onLaunch, onRemove, onToggleFav, onEditArt, coverArtSrc, getRAProgress, getSGDBAssets, getIGDBMetadata } = opts;
+  const { system, formatBytes, onLaunch, onRemove, onToggleFav, onToggleBacklog, isInBacklog = false, onEditArt, coverArtSrc, getRAProgress, getSGDBAssets, getIGDBMetadata } = opts;
 
   const coverSrc = coverArtSrc ?? game.thumbnailUrl;
 
@@ -1108,6 +1112,23 @@ export function showGameDetails(
         icon.outerHTML = favBtn.classList.contains("btn--active") ? ICON_STAR_FILLED_SVG : ICON_STAR_SVG;
       }
     }, { signal: ac.signal });
+
+    let backlogBtn: HTMLButtonElement | null = null;
+    if (onToggleBacklog) {
+      backlogBtn = iconButton(
+        { class: `btn ${isInBacklog ? "btn--active" : ""}` },
+        isInBacklog ? ICON_BOOKMARK_FILLED_SVG : ICON_BOOKMARK_SVG,
+        "Backlog",
+      );
+      backlogBtn.addEventListener("click", () => {
+        onToggleBacklog();
+        backlogBtn!.classList.toggle("btn--active");
+        const icon = backlogBtn!.querySelector(".ui-inline-icon--bookmark");
+        if (icon) {
+          icon.outerHTML = backlogBtn!.classList.contains("btn--active") ? ICON_BOOKMARK_FILLED_SVG : ICON_BOOKMARK_SVG;
+        }
+      }, { signal: ac.signal });
+    }
     
     const strategyBtn = iconButton(
       { class: "btn", "aria-label": "Strategy guide (opens in new tab)" },
@@ -1124,7 +1145,9 @@ export function showGameDetails(
     const closeBtn = createElement("button", { class: "btn" }, "Close");
     closeBtn.addEventListener("click", close, { signal: ac.signal });
 
-    footer.append(launchBtn, favBtn, strategyBtn, removeBtn, closeBtn);
+    footer.append(launchBtn, favBtn);
+    if (backlogBtn) footer.appendChild(backlogBtn);
+    footer.append(strategyBtn, removeBtn, closeBtn);
     right.appendChild(footer);
 
     content.append(left, right);

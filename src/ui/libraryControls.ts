@@ -9,6 +9,7 @@ import type { GameMetadata } from "../library.js";
 import { getSystemById } from "../systems.js";
 import { getProfileManager } from "../profileManager.js";
 import { isGameVisibleForProfile } from "../profileGameTags.js";
+import { isGameInProfileBacklog } from "../profileBacklog.js";
 import { createElement as make } from "./dom.js";
 
 export type LibrarySortMode = "lastPlayed" | "name" | "added" | "system";
@@ -27,6 +28,7 @@ let searchQuery = "";
 let sortMode: LibrarySortMode = "lastPlayed";
 let systemFilter = "";
 let showFavorites = false;
+let showBacklog = false;
 let lastLayout: Settings["libraryLayout"] = "grid";
 let controlSettings: Settings | null = null;
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -52,6 +54,7 @@ export function resetLibraryControlsForDomRebuild(): void {
   sortMode = "lastPlayed";
   systemFilter = "";
   showFavorites = false;
+  showBacklog = false;
   renderSignature = "";
   renderHost = null;
 }
@@ -80,6 +83,10 @@ export function getLibrarySortMode(): LibrarySortMode {
   return sortMode;
 }
 
+export function isLibraryBacklogFilterActive(): boolean {
+  return showBacklog;
+}
+
 export function isLibrarySystemFilterActive(id: string): boolean {
   return systemFilter === id;
 }
@@ -103,11 +110,19 @@ export function resetToolbarFilters(): void {
   systemFilter = "";
   sortMode = "lastPlayed";
   showFavorites = false;
+  showBacklog = false;
   syncLibraryControlState();
 }
 
 export function focusLibraryFavorites(): void {
   showFavorites = true;
+  showBacklog = false;
+  syncLibraryControlState();
+}
+
+export function focusLibraryBacklog(): void {
+  showBacklog = true;
+  showFavorites = false;
   syncLibraryControlState();
 }
 
@@ -127,6 +142,7 @@ export function computeLibraryRenderSignature(
     searchQuery,
     systemFilter,
     showFavorites ? 1 : 0,
+    showBacklog ? 1 : 0,
     sortMode,
     settings.libraryLayout,
     settings.libraryGrouped ? 1 : 0,
@@ -160,6 +176,13 @@ export function applyLibraryFilters(games: GameMetadata[], settings: Settings): 
     result = result.filter((g) => g.isFavorite);
   }
 
+  if (showBacklog) {
+    const profileId = getProfileManager().getActiveProfileId();
+    result = profileId
+      ? result.filter((g) => isGameInProfileBacklog(g.id, profileId))
+      : [];
+  }
+
   switch (sortMode) {
     case "name":
       result = [...result].sort((a, b) => a.name.localeCompare(b.name));
@@ -186,6 +209,7 @@ export function libraryHasActiveOverviewFilters(
   return (
     displayed.length !== allGames.length ||
     showFavorites ||
+    showBacklog ||
     !!searchQuery ||
     !!systemFilter ||
     controlSettings?.profileLibraryFilter === true
@@ -228,6 +252,12 @@ export function syncLibraryControlState(host?: Pick<LibraryControlsHost, "isBulk
     favBtn.setAttribute("aria-pressed", String(showFavorites));
   }
 
+  const backlogBtn = document.getElementById("library-backlog-filter") as HTMLButtonElement | null;
+  if (backlogBtn) {
+    backlogBtn.classList.toggle("active", showBacklog);
+    backlogBtn.setAttribute("aria-pressed", String(showBacklog));
+  }
+
   const layoutContainer = document.getElementById("library-layouts");
   if (layoutContainer) {
     layoutContainer.querySelectorAll(".layout-btn").forEach((btn) => {
@@ -239,7 +269,7 @@ export function syncLibraryControlState(host?: Pick<LibraryControlsHost, "isBulk
 
   const resetBtn = document.getElementById("library-controls-reset") as HTMLButtonElement | null;
   if (resetBtn) {
-    resetBtn.hidden = !(searchQuery || systemFilter || showFavorites);
+    resetBtn.hidden = !(searchQuery || systemFilter || showFavorites || showBacklog);
   }
 
   const bulkBusy = host?.isBulkCoverBusy?.() ?? renderHost?.isBulkCoverBusy() ?? false;
@@ -259,8 +289,8 @@ export function syncLibraryControlState(host?: Pick<LibraryControlsHost, "isBulk
   }
 }
 
-export function getLibraryFilterStateForCards(): { libraryShowFavorites: boolean } {
-  return { libraryShowFavorites: showFavorites };
+export function getLibraryFilterStateForCards(): { libraryShowFavorites: boolean; libraryShowBacklog: boolean } {
+  return { libraryShowFavorites: showFavorites, libraryShowBacklog: showBacklog };
 }
 
 export function wireLibraryControls(host: LibraryControlsHost): void {
@@ -323,6 +353,15 @@ export function wireLibraryControls(host: LibraryControlsHost): void {
   const favFilterBtn = document.getElementById("library-fav-filter");
   favFilterBtn?.addEventListener("click", () => {
     showFavorites = !showFavorites;
+    if (showFavorites) showBacklog = false;
+    syncLibraryControlState(host);
+    host.scheduleRender();
+  });
+
+  const backlogFilterBtn = document.getElementById("library-backlog-filter");
+  backlogFilterBtn?.addEventListener("click", () => {
+    showBacklog = !showBacklog;
+    if (showBacklog) showFavorites = false;
     syncLibraryControlState(host);
     host.scheduleRender();
   });

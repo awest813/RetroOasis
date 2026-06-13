@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { tagGameForProfile } from "./profileGameTags.js";
+import { setGameBacklogStatus } from "./profileBacklog.js";
 import {
   buildProfileSnapshot,
   parseProfileSnapshot,
@@ -73,6 +74,28 @@ describe("profileSnapshot", () => {
       profileId: "profile-1",
     });
     expect(snapshot.libraryGameIds).toEqual(["g1"]);
+    vi.unstubAllGlobals();
+  });
+
+  it("includes backlog game ids when profileId is provided", () => {
+    vi.stubGlobal("localStorage", (() => {
+      const map = new Map<string, string>();
+      return {
+        getItem: (k: string) => map.get(k) ?? null,
+        setItem: (k: string, v: string) => { map.set(k, v); },
+        removeItem: (k: string) => { map.delete(k); },
+        clear: () => { map.clear(); },
+        get length() { return map.size; },
+        key: (i: number) => [...map.keys()][i] ?? null,
+      };
+    })());
+    setGameBacklogStatus("queued-game", "profile-1", true);
+    const snapshot = buildProfileSnapshot({
+      settings: makeSettings(),
+      apiKeyStore: new ApiKeyStore({ providers: [] }),
+      profileId: "profile-1",
+    });
+    expect(snapshot.backlogGameIds).toEqual(["queued-game"]);
     vi.unstubAllGlobals();
   });
 
@@ -166,12 +189,14 @@ describe("profileSnapshot", () => {
       "bad id!": { key: "drop", enabled: true },
       empty: { key: "", enabled: true },
     };
+    raw.backlogGameIds = ["queued", "queued", "", "x".repeat(129)];
     const parsed = parseProfileSnapshot(JSON.stringify(raw));
     expect(typeof parsed).not.toBe("string");
     if (typeof parsed === "string") return;
     expect(parsed.cloudLibraries).toHaveLength(1);
     expect(parsed.cloudLibraries[0]?.id).toBe("ok");
     expect(parsed.apiKeys).toEqual({ rawg: { key: "secret", enabled: true } });
+    expect(parsed.backlogGameIds).toEqual(["queued"]);
   });
 
   it("applyProfileSnapshot tolerates malformed cloudLibraries", () => {
