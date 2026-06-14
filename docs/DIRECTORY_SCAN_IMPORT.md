@@ -1,6 +1,7 @@
 # Directory-Scan Import — Design
 
-> Status: Draft / proposal. No code shipped yet.
+> Status: Phase 1 shipped (scan logic + folder inference + unit tests, no UI).
+> Phases 2–5 below remain proposed.
 > Goal: bring retrom's "scan my collection" UX to RetroOasis **without** requiring a
 > server, by reading an on-disk folder tree through the File System Access API and
 > feeding it into the existing import pipeline.
@@ -212,11 +213,30 @@ When the source is a real `FileSystemDirectoryHandle`:
 
 ## Rollout
 
-1. `directoryScan.ts` + inference + unit tests (no UI).
-2. `FOLDER_ALIASES` in `systems.ts` + tests.
+1. ✅ `directoryScan.ts` + inference + unit tests (no UI).
+2. ✅ `FOLDER_ALIASES` + `getSystemIdForFolder()` in `systems.ts` + tests.
 3. Scan review screen + `importScannedFiles()` glue + "Scan Folder" button.
 4. Handle persistence + incremental re-scan (Chromium only).
 5. Docs: add to README "Importing Games" and `docs/PLAN.md` current-state list.
+
+### Phase 1 — as shipped
+
+- `src/directoryScan.ts`: `buildScanPlan()` (the pure, testable core), the
+  `DirectoryEntry`/`ScannedFile`/`ScanPlan` types, plus directory sources
+  `entriesFromDirectoryHandle()` (FS Access API) and `entriesFromFileList()`
+  (`webkitdirectory` fallback), and a `supportsDirectoryPicker()` feature check.
+- `src/systems.ts`: `FOLDER_ALIASES` table (curated community names + auto-seeded
+  id/shortName/name) and `getSystemIdForFolder()`, with a manufacturer-prefix
+  fallback for No-Intro / libretro `"Nintendo - …"` folders.
+- Classification implemented: BIOS (via `BIOS_REQUIREMENTS`), patches, unsupported
+  archives, disc-set raw parts (skipped when a `.cue`/`.gdi`/`.m3u`/`.ccd` sheet is
+  present in the same directory), and junk/hidden files — each with a reason.
+- Inference precedence implemented: folder → extension → header → ambiguous → unknown.
+- Tests: `src/directoryScan.test.ts` (18) and folder-inference cases in
+  `src/systems.test.ts` (5).
+
+Not yet built (Phase 3+): the review UI, the `importScannedFiles()` glue into
+`resolveSystemAndAddImpl()`, the "Scan Folder" button, and handle persistence.
 
 ## Risks
 
