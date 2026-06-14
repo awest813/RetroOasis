@@ -32,7 +32,7 @@ import {
   hideLoadingOverlay,
   setLoadingMessage,
 } from "../loadingOverlay.js";
-import { systemIcon } from "../viewHelpers.js";
+import { systemIcon, escHtml } from "../viewHelpers.js";
 import { buildSystemFeatureRow } from "../systemFeatures.js";
 import {
   showConfirmDialog,
@@ -733,7 +733,7 @@ export function buildGameCard(
     const meta = document.createElement("div");
     meta.className = "landing-details__meta";
     meta.innerHTML = `
-      <strong>Platform:</strong> ${system?.name ?? game.systemId}<br>
+      <strong>Platform:</strong> ${escHtml(system?.name ?? game.systemId)}<br>
       <strong>Added:</strong> ${formatRelativeTime(game.addedAt)}<br>
       <strong>Last Played:</strong> ${game.lastPlayedAt ? formatRelativeTime(game.lastPlayedAt) : 'Never'}
     `;
