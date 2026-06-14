@@ -6,11 +6,7 @@ import type { GameMetadata } from "../library.js";
 import { normalizeRomName } from "../coverArt.js";
 import { getSystemById } from "../systems.js";
 import { WIKI_GAME_CATALOG, type WikiGameCatalogEntry } from "../wikiGameCatalog.js";
-import {
-  WikipediaMetadataClient,
-  wikipediaArticleUrl,
-  type WikipediaGamePage,
-} from "../freeMetadata.js";
+import type { WikipediaGamePage } from "../freeMetadata.js";
 import { createElement as make } from "./dom.js";
 
 /** UTC date key used as the daily random seed (YYYY-MM-DD). */
@@ -54,11 +50,13 @@ export function findWikiGameInLibrary(
   return pool.find((g) => normalizeRomName(g.name) === target) ?? null;
 }
 
-let _wikiClient: WikipediaMetadataClient | null = null;
+let _wikiClientPromise: Promise<import("../freeMetadata.js").WikipediaMetadataClient> | null = null;
 
-function getWikiClient(): WikipediaMetadataClient {
-  if (!_wikiClient) _wikiClient = new WikipediaMetadataClient();
-  return _wikiClient;
+async function getWikiClient(): Promise<import("../freeMetadata.js").WikipediaMetadataClient> {
+  if (!_wikiClientPromise) {
+    _wikiClientPromise = import("../freeMetadata.js").then(({ WikipediaMetadataClient }) => new WikipediaMetadataClient());
+  }
+  return _wikiClientPromise;
 }
 
 /** Load Wikipedia summary and thumbnail for today's catalog entry. */
@@ -66,7 +64,7 @@ export async function loadWikiGameOfTheDayDetails(
   entry: WikiGameCatalogEntry,
   opts: { signal?: AbortSignal } = {},
 ): Promise<WikipediaGamePage | null> {
-  return getWikiClient().fetchGameByTitle(entry.wikiTitle, opts);
+  return (await getWikiClient()).fetchGameByTitle(entry.wikiTitle, opts);
 }
 
 /** StrategyWiki search URL for a game title. */
@@ -91,7 +89,7 @@ export interface GameOfTheDayWidgetOpts {
 export function buildGameOfTheDayWidget(opts: GameOfTheDayWidgetOpts): HTMLElement {
   const { entry, onOpenWiki } = opts;
   const system = getSystemById(entry.systemId);
-  const wikiUrl = opts.wiki?.pageUrl ?? wikipediaArticleUrl(entry.wikiTitle);
+  const wikiUrl = opts.wiki?.pageUrl ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(entry.wikiTitle.replaceAll(" ", "_"))}`;
 
   const widget = make("aside", {
     class: "game-of-the-day",

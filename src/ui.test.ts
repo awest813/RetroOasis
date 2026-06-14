@@ -236,14 +236,14 @@ describe("buildDOM", () => {
     expect(onboarding?.getAttribute("aria-labelledby")).toBe("onboarding-title");
   });
 
-  it("uses minimal onboarding copy", () => {
+  it("uses Shibuya Punk onboarding copy", () => {
     const app = document.createElement("div");
     document.body.appendChild(app);
     buildDOM(app);
 
     const onboarding = app.querySelector("#onboarding");
-    expect(onboarding?.textContent).toMatch(/Your gaming escape/i);
-    expect(onboarding?.textContent).toMatch(/Quiet start, fast launch/i);
+    expect(onboarding?.textContent).toMatch(/Hit start in neon/i);
+    expect(onboarding?.textContent).toMatch(/Fast launch, local saves/i);
     expect(onboarding?.textContent).toMatch(/Play with local saves/i);
   });
 

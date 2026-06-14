@@ -173,6 +173,29 @@ export default defineConfig({
          *          start on a touch device.
          */
         manualChunks(id: string) {
+          if (
+            id.includes("/src/emulator.") ||
+            id.includes("/src/emulatorDisplay.") ||
+            id.includes("/src/webglContextPolicy.") ||
+            id.includes("/src/webgpuPostProcess.") ||
+            id.includes("/src/library.") ||
+            id.includes("/src/systems.") ||
+            id.includes("/src/bios.") ||
+            id.includes("/src/storage.") ||
+            id.includes("/src/blobUtils.")
+          ) {
+            return "app-core";
+          }
+          if (
+            id.includes("/src/coverArt.") ||
+            id.includes("/src/freeMetadata.") ||
+            id.includes("/src/wikiGameCatalog.")
+          ) {
+            return "metadata";
+          }
+          if (id.endsWith("/src/ui.ts")) {
+            return "ui-shell";
+          }
           if (id.includes("/src/archive.") || id.includes("/src/patcher.")) {
             return "tools";
           }

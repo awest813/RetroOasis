@@ -3232,6 +3232,47 @@ html.launch-in-progress .game-card::after {
   margin-right: auto;
 }
 
+#landing.landing-empty .landing-sidebar--empty,
+#landing.landing-empty .homepage-platforms,
+#landing.landing-empty .welcome-hero,
+#landing.landing-empty .onboarding__grid,
+#landing.landing-empty .onboarding__card,
+#landing.landing-empty .onboarding__features {
+  display: none !important;
+}
+
+#landing.landing-empty #library-section {
+  max-width: min(960px, 100%);
+  margin-inline: auto;
+  justify-content: flex-start;
+  min-height: calc(100dvh - var(--header-h) - var(--footer-h));
+  padding-top: clamp(24px, 4vh, 44px);
+}
+
+#landing.landing-empty .library-toolbar {
+  margin-bottom: clamp(14px, 2vh, 22px);
+  padding: clamp(14px, 2vw, 18px) clamp(18px, 2.2vw, 24px);
+}
+
+#landing.landing-empty .library-toolbar .library-controls {
+  display: none;
+}
+
+#landing.landing-empty .drop-zone--prominent {
+  margin-top: 0;
+  padding: clamp(34px, 5vh, 54px) clamp(28px, 4vw, 48px);
+}
+
+#landing.landing-empty .onboarding {
+  margin-top: clamp(14px, 2.4vh, 24px);
+  padding: 0;
+}
+
+#landing.landing-empty .onboarding__quick-actions {
+  justify-content: center;
+  margin-top: 0;
+}
+
 .welcome-hero__eyebrow {
   color: var(--c-accent);
   font-weight: 900;
@@ -9770,7 +9811,7 @@ body {
   }
 }
 
-/* Minimal elegance pass: quieter surfaces, slimmer emphasis, less visual noise. */
+/* Legacy quiet-pass layer, superseded by Shibuya Punk overrides below. */
 #landing {
   background:
     radial-gradient(circle at 76% 12%, rgba(218,190,130,0.05), transparent 30%),
@@ -10793,7 +10834,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   bottom: auto;
 }
 
-/* ── Shibuya Punk Menu & Button Polish Pass ── */
+/* Menu and button hard-edge polish pass */
 
 /* 1. Comic-Pop Buttons styling override */
 .btn {
@@ -10989,7 +11030,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   }
 }
 
-/* 4. Cover Art Fallback Shibuya Punk Polish */
+/* 4. Cover art fallback hard-edge polish */
 .game-card__fallback {
   position: relative;
   overflow: hidden;
@@ -11010,4 +11051,831 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: rgba(255, 255, 255, 0.024);
   pointer-events: none;
   line-height: 1;
+}
+
+/* 7. Form Inputs & Search Bar Brutalist Polish */
+.library-search,
+.settings-input,
+.settings-select,
+.settings-search-input,
+.cover-art-url-input,
+.api-key-input {
+  border: var(--outline-bold) !important;
+  box-shadow: 3px 3px 0 var(--c-ink) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--c-surface1) !important;
+  color: var(--c-text) !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease !important;
+}
+
+.library-search:focus,
+.settings-input:focus,
+.settings-select:focus,
+.settings-search-input:focus,
+.cover-art-url-input:focus,
+.api-key-input:focus,
+.library-search:focus-visible,
+.settings-input:focus-visible,
+.settings-select:focus-visible,
+.settings-search-input:focus-visible,
+.cover-art-url-input:focus-visible,
+.api-key-input:focus-visible {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 5px 5px 0 var(--c-accent), 0 0 15px var(--c-accent-glow) !important;
+  border-color: var(--c-accent) !important;
+  outline: none !important;
+}
+
+/* 8. Toggles & Checkboxes Brutalist Polish */
+.toggle-switch {
+  border: var(--outline-bold) !important;
+  box-shadow: 2px 2px 0 var(--c-ink) !important;
+  transition: all 0.2s ease !important;
+}
+
+.toggle-switch.is-checked {
+  background: var(--c-accent) !important;
+  box-shadow: 3px 3px 0 var(--c-ink), 0 0 12px var(--c-accent-glow) !important;
+}
+
+.toggle-switch__knob {
+  box-shadow: 2px 2px 0 var(--c-ink) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-search:focus,
+  .settings-input:focus,
+  .settings-select:focus,
+  .settings-search-input:focus,
+  .cover-art-url-input:focus,
+  .api-key-input:focus {
+    transform: none !important;
+    box-shadow: 0 0 15px var(--c-accent-glow) !important;
+  }
+}
+
+/* 9. Toast Notifications Brutalist Polish */
+#info-toast.info-toast,
+.toast-stack .info-toast {
+  border-radius: var(--radius-sm) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: 6px 6px 0 var(--c-ink) !important;
+  background: var(--c-surface1) !important;
+  backdrop-filter: none !important;
+}
+
+#info-toast.info-toast--success, .toast-stack .info-toast--success { box-shadow: 6px 6px 0 var(--c-success) !important; border-color: var(--c-success) !important; }
+#info-toast.info-toast--info, .toast-stack .info-toast--info { box-shadow: 6px 6px 0 var(--c-accent-2) !important; border-color: var(--c-accent-2) !important; }
+#info-toast.info-toast--warning, .toast-stack .info-toast--warning { box-shadow: 6px 6px 0 var(--c-gold) !important; border-color: var(--c-gold) !important; }
+#info-toast.info-toast--error, .toast-stack .info-toast--error { box-shadow: 6px 6px 0 var(--c-danger) !important; border-color: var(--c-danger) !important; }
+
+/* 10. Modals Brutalist Polish */
+.modal-box:not(.settings-modal-box),
+.confirm-box,
+.conflict-resolver-box {
+  border-radius: var(--radius-lg) !important;
+  border: var(--outline-bold) !important;
+  box-shadow: 12px 12px 0 rgba(0,0,0,0.8), 0 0 40px var(--c-accent-glow) !important;
+  background: var(--c-bg) !important;
+}
+
+/* 11. Brutalist Scrollbar Polish */
+::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--c-surface1) !important;
+  border-left: var(--outline-bold) !important;
+  border-top: var(--outline-bold) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--c-accent) !important;
+  border: var(--outline-bold) !important;
+  border-radius: 0 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--c-accent-light) !important;
+  box-shadow: 2px 2px 0 var(--c-ink) inset !important;
+}
+
+/* 12. Final GUI Audit: Overlays & Banners */
+.in-game-overlay__panel {
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--c-surface1) !important;
+  box-shadow: 8px 8px 0 var(--c-ink) !important;
+  backdrop-filter: none !important;
+}
+
+.in-game-overlay__hamburger {
+  border: var(--outline-bold) !important;
+  box-shadow: 2px 2px 0 var(--c-ink) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.fps-overlay,
+.dev-overlay {
+  border: var(--outline-bold) !important;
+  border-radius: 0 !important;
+  background: var(--c-surface1) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  backdrop-filter: none !important;
+  color: var(--c-text) !important;
+}
+
+#error-banner {
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--c-surface1) !important;
+  box-shadow: 6px 6px 0 var(--c-danger) !important;
+  backdrop-filter: none !important;
+}
+
+#error-banner .error-close {
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-xs) !important;
+  box-shadow: 2px 2px 0 var(--c-ink) !important;
+}
+
+#error-banner .error-close:hover {
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0 var(--c-danger) !important;
+}
+
+/* 13. Brutalist Loading Block */
+.loading-spinner {
+  border-radius: var(--radius-sm) !important;
+  border: var(--outline-bold) !important;
+  border-top-color: var(--c-accent) !important;
+  box-shadow: 4px 4px 0 var(--c-ink), 0 0 20px var(--c-accent-glow) !important;
+  animation: loading-spin 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite !important;
+}
+
+/* 14. Netplay chat and ping radar */
+.netplay-chat-overlay {
+  position: absolute !important;
+  bottom: 24px !important;
+  left: 24px !important;
+  width: 320px !important;
+  max-width: 80% !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  pointer-events: auto !important;
+  transition: opacity 0.4s ease, transform 0.4s ease !important;
+}
+
+.netplay-chat-overlay--fade {
+  opacity: 0.15 !important;
+  transform: translateY(2px) !important;
+}
+
+.netplay-chat-overlay--fade:hover,
+.netplay-chat-overlay--visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.netplay-chat-log {
+  height: 160px !important;
+  background: var(--c-surface1) !important;
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 6px 6px 0 var(--c-ink) !important;
+  padding: 8px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.chat-msg {
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  font-weight: 700 !important;
+  padding: 2px 4px !important;
+  word-break: break-word !important;
+}
+
+.chat-msg--self {
+  background: rgba(0, 255, 204, 0.08) !important;
+  border-left: 3px solid var(--c-accent) !important;
+}
+
+.chat-msg--system {
+  color: var(--c-text-muted) !important;
+  font-style: italic !important;
+  opacity: 0.8 !important;
+}
+
+.chat-msg__sender {
+  color: var(--c-accent) !important;
+}
+
+.chat-msg--self .chat-msg__sender {
+  color: var(--c-accent2, #ff3366) !important;
+}
+
+.netplay-chat-input-wrap {
+  margin-top: 10px !important;
+  background: var(--c-surface1) !important;
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  padding: 6px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+.netplay-chat-input-wrap--active {
+  box-shadow: 4px 4px 0 var(--c-accent) !important;
+}
+
+.netplay-chat-input {
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--c-text) !important;
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  outline: none !important;
+}
+
+.netplay-ping-radar {
+  position: absolute !important;
+  top: 24px !important;
+  right: 24px !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  background: var(--c-surface1) !important;
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  padding: 6px 12px !important;
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  pointer-events: auto !important;
+}
+
+.ping-radar__dot {
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  margin-right: 8px !important;
+  box-shadow: 0 0 6px currentColor !important;
+}
+
+.ping-radar__val {
+  color: var(--c-text) !important;
+}
+
+/* Desync badge styling in HUD */
+.netplay-desync-warning {
+  margin: 10px 0 !important;
+  background: var(--c-danger) !important;
+  color: #fff !important;
+  border: var(--outline-bold) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 4px 8px !important;
+  text-align: center !important;
+  font-weight: bold !important;
+  box-shadow: 4px 4px 0 var(--c-ink) !important;
+  font-family: var(--font-mono, monospace) !important;
+  text-transform: uppercase !important;
+  animation: pulse-red 1.5s infinite !important;
+}
+
+@keyframes pulse-red {
+  0% { opacity: 0.9; }
+  50% { opacity: 0.4; }
+  100% { opacity: 0.9; }
+}
+
+/* ============================================================
+   Shibuya Punk UI cohesion override
+   ============================================================ */
+body {
+  background:
+    radial-gradient(900px 420px at 72% -10%, rgba(255, 46, 151, 0.18), transparent 58%),
+    radial-gradient(680px 360px at 8% 8%, rgba(0, 240, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #0a0614 0%, #05030d 74%) !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background:
+    repeating-linear-gradient(100deg, rgba(0,240,255,0.05) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,0.24) 3px 4px);
+  mix-blend-mode: screen;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+#landing {
+  background:
+    linear-gradient(90deg, rgba(5,3,13,0.9) 0%, rgba(5,3,13,0.58) 42%, rgba(5,3,13,0.9) 100%),
+    radial-gradient(circle at 52% 42%, rgba(255,46,151,0.20), transparent 34%),
+    linear-gradient(118deg, rgba(255,46,151,0.24) 0 14%, transparent 14.2% 68%, rgba(0,240,255,0.18) 68.2%),
+    url("/assets/homepage-bg-shibuya-neon.webp") center center / cover no-repeat,
+    linear-gradient(180deg, #0a0614 0%, #05030d 100%) !important;
+}
+
+#landing::before {
+  opacity: 0.56 !important;
+  mix-blend-mode: screen !important;
+  background:
+    repeating-linear-gradient(115deg, rgba(0,240,255,0.10) 0 2px, transparent 2px 18px),
+    linear-gradient(90deg, transparent 0 49.9%, rgba(255,46,151,0.20) 50%, transparent 50.1%) !important;
+}
+
+.app-header,
+.app-footer {
+  background:
+    linear-gradient(90deg, rgba(255,46,151,0.16), transparent 34%, rgba(0,240,255,0.10)),
+    #070411 !important;
+  border-color: rgba(255,46,151,0.42) !important;
+  box-shadow: inset 0 -2px 0 #000, 0 10px 28px rgba(0,0,0,0.5), 0 0 20px rgba(255,46,151,0.12) !important;
+}
+
+.footer-era-mark {
+  color: var(--c-gold);
+  font-family: var(--font-jp);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 2px 0 0 rgba(255,46,151,0.68), -2px 0 0 rgba(0,240,255,0.46), 0 0 12px rgba(245,255,77,0.22);
+  white-space: nowrap;
+}
+
+.welcome-hero__eyebrow,
+.homepage-platforms__label,
+.drop-zone__label::before,
+.settings-chip,
+.footer-era-mark {
+  font-family: var(--font-jp) !important;
+}
+
+.app-ticker {
+  display: none !important;
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    gap: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .app-header__actions .btn {
+    min-height: 40px !important;
+    padding-inline: 10px !important;
+  }
+
+  .footer-left {
+    gap: 6px !important;
+  }
+
+  .footer-center {
+    font-size: 1rem !important;
+  }
+
+  .footer-right {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    gap: 8px !important;
+    font-size: 0.7rem !important;
+  }
+
+  .footer-right .footer-info,
+  .footer-right .footer-battery {
+    display: none !important;
+  }
+
+  .footer-era-mark {
+    font-size: 0.68rem;
+  }
+}
+
+.app-header::after {
+  height: 3px !important;
+  opacity: 1 !important;
+  background: linear-gradient(90deg, transparent, var(--c-accent), var(--c-accent-light), transparent) !important;
+}
+
+.brand-long,
+.library-title,
+.welcome-hero__title,
+.settings-panel-header,
+.modal-title,
+.enp-title,
+.game-card__name {
+  letter-spacing: 0.075em !important;
+  text-transform: uppercase !important;
+  text-shadow: 2px 0 0 rgba(0,240,255,0.22), -2px 0 0 rgba(255,46,151,0.18) !important;
+}
+
+.brand-wordmark__tagline,
+.library-subtitle,
+.welcome-hero__tagline,
+.drop-zone__sub,
+.landing__legal,
+.landing-details__meta {
+  color: var(--c-text-dim) !important;
+}
+
+.btn,
+.library-search,
+.library-sort,
+.settings-input,
+.settings-select,
+.settings-search-input,
+.cover-art-url-input,
+.api-key-input,
+.sys-filter-chip,
+.layout-btn {
+  border: 2px solid rgba(0,0,0,0.95) !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012)),
+    var(--c-surface2) !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  color: var(--c-text) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.btn:hover,
+.sys-filter-chip:hover,
+.layout-btn:hover {
+  border-color: #000 !important;
+  background: linear-gradient(180deg, var(--c-accent-dim), rgba(0,240,255,0.05)), var(--c-surface3) !important;
+  box-shadow: 5px 5px 0 var(--c-accent-dark) !important;
+  color: #fff !important;
+  transform: translate(-2px, -2px) skewX(-2deg) !important;
+}
+
+.btn:active,
+.sys-filter-chip:active,
+.layout-btn:active {
+  box-shadow: 1px 1px 0 #000 !important;
+  transform: translate(1px, 1px) !important;
+}
+
+.btn--primary,
+.btn--hero,
+.game-card__play-btn,
+.landing-details__actions .btn--primary {
+  color: #130402 !important;
+  background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-light) 100%) !important;
+  border: 2px solid #000 !important;
+  box-shadow: 4px 4px 0 #000, 0 0 18px var(--c-accent-glow) !important;
+}
+
+.btn--ghost {
+  background: rgba(9,11,13,0.72) !important;
+  color: var(--c-text-dim) !important;
+  border-color: rgba(0,0,0,0.95) !important;
+}
+
+.btn--highlight {
+  color: #100900 !important;
+  background: linear-gradient(135deg, var(--c-gold), var(--c-accent-2)) !important;
+}
+
+.landing-sidebar,
+.landing-details,
+.library-toolbar,
+.settings-sidebar,
+.settings-panel-content,
+.settings-section,
+.multiplayer-card,
+.cloud-provider-card,
+.cloud-storage-card,
+.cloud-connection-item,
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip,
+.enp-radio-card,
+.modal-box:not(.settings-modal-box),
+.easy-netplay-dialog,
+.confirm-box,
+.conflict-resolver-box,
+.highlights-panel {
+  border-radius: 0 !important;
+  border: 2px solid #000 !important;
+  background:
+    linear-gradient(135deg, var(--c-accent-dim), transparent 32%),
+    linear-gradient(108deg, transparent 0 68%, rgba(0,240,255,0.05) 68.3%),
+    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)),
+    rgba(11,7,20,0.94) !important;
+  box-shadow: 6px 6px 0 #000 !important;
+  backdrop-filter: none !important;
+}
+
+.library-toolbar {
+  border-left: 8px solid var(--c-accent) !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  overflow: hidden !important;
+}
+
+.library-title::after {
+  width: 56px !important;
+  height: 4px !important;
+  opacity: 1 !important;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-gold)) !important;
+}
+
+#library-section > .drop-zone,
+.drop-zone {
+  border: 2px dashed var(--c-accent-light) !important;
+  border-radius: 0 !important;
+  outline: 2px solid #000 !important;
+  outline-offset: -8px !important;
+  background:
+    repeating-linear-gradient(115deg, rgba(0,240,255,0.10) 0 2px, transparent 2px 14px),
+    linear-gradient(135deg, var(--c-accent-dim), rgba(0,240,255,0.07)),
+    #0d0717 !important;
+  box-shadow: 8px 8px 0 #000 !important;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+  transform: translate(-3px, -3px) skewX(-1deg) !important;
+  box-shadow: 12px 12px 0 #000, 0 0 24px var(--c-accent-glow) !important;
+}
+
+.drop-zone__label::before {
+  content: "シブヤ / ";
+  color: var(--c-gold);
+}
+
+.game-card,
+.highlights-fav-card {
+  border-radius: 0 !important;
+  border: 2px solid #000 !important;
+  background:
+    linear-gradient(135deg, var(--c-accent-dim), transparent 30%),
+    #0e0818 !important;
+  box-shadow: 5px 5px 0 #000 !important;
+}
+
+.game-card:hover,
+.highlights-fav-card:hover {
+  transform: translate(-4px, -4px) skewX(-1deg) !important;
+  box-shadow: 9px 9px 0 var(--sys-color, var(--c-accent)) !important;
+}
+
+.game-card__icon,
+.game-card__fallback,
+.landing-details__cover {
+  border-radius: 0 !important;
+}
+
+.game-card__system-chip,
+.game-card__status-chip,
+.game-card__new-badge,
+.sys-badge,
+.library-profile-filter,
+.tier-badge {
+  border-radius: 0 !important;
+  border: 1px solid #000 !important;
+  background: #111417 !important;
+  box-shadow: 2px 2px 0 #000 !important;
+  text-transform: uppercase;
+}
+
+.game-card__fallback::before {
+  content: "01" !important;
+  right: -8px !important;
+  bottom: -18px !important;
+  font-family: var(--font-display) !important;
+  color: rgba(0,240,255,0.08) !important;
+}
+
+.game-card__patch,
+.game-card__art-btn,
+.game-card__change-sys,
+.game-card__details,
+.game-card__more,
+.game-card__fav,
+.game-card__remove,
+.game-card__backlog {
+  border-radius: 0 !important;
+  border: 2px solid #000 !important;
+  box-shadow: 2px 2px 0 #000 !important;
+}
+
+.settings-modal-box {
+  background:
+    linear-gradient(135deg, rgba(255,46,151,0.18), transparent 36%),
+    linear-gradient(rgba(5,3,13,0.86), rgba(5,3,13,0.94)),
+    url("/assets/menu-bg.jpg") no-repeat center center / cover !important;
+}
+
+.settings-sidebar__item,
+.enp-tab,
+.enp-filter-btn {
+  border-radius: 0 !important;
+}
+
+.settings-sidebar__item.settings-tab--active,
+.enp-tab--active,
+.enp-radio-card--active,
+.cloud-provider-card.active,
+.sys-filter-chip.active {
+  color: #fff !important;
+  border-color: #000 !important;
+  background:
+    linear-gradient(90deg, rgba(255,46,151,0.34), rgba(0,240,255,0.12)),
+    #140b22 !important;
+  box-shadow: 4px 4px 0 var(--c-accent-dark) !important;
+}
+
+.modal-backdrop,
+.easy-netplay-overlay {
+  background:
+    repeating-linear-gradient(115deg, rgba(255,46,151,0.08) 0 2px, transparent 2px 18px),
+    rgba(0,0,0,0.88) !important;
+}
+
+.in-game-overlay__hamburger,
+.in-game-overlay__panel,
+.fps-overlay,
+.dev-overlay,
+#error-banner,
+#info-toast.info-toast,
+.toast-stack .info-toast,
+.netplay-chat-log,
+.netplay-chat-input-wrap,
+.netplay-ping-radar,
+.netplay-desync-warning {
+  border-radius: 0 !important;
+  border: 2px solid #000 !important;
+  background: #0b0714 !important;
+  box-shadow: 5px 5px 0 #000 !important;
+  backdrop-filter: none !important;
+}
+
+.netplay-desync-warning,
+#error-banner {
+  box-shadow: 5px 5px 0 var(--c-danger) !important;
+}
+
+.netplay-chat-overlay--fade {
+  opacity: 0.26 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover,
+  .sys-filter-chip:hover,
+  .layout-btn:hover,
+  .drop-zone:hover,
+  .game-card:hover,
+  .highlights-fav-card:hover {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  #landing.landing-empty #library-section {
+    padding-top: 14px;
+  }
+
+  #landing.landing-empty .library-toolbar {
+    margin-bottom: 10px;
+    padding: 12px 12px 12px 14px;
+    gap: 12px;
+  }
+
+  #landing.landing-empty .library-toolbar .library-title-row {
+    justify-content: flex-start;
+  }
+
+  #landing.landing-empty .library-toolbar .library-controls {
+    display: none;
+  }
+
+  #landing.landing-empty .drop-zone--prominent {
+    margin-top: 10px;
+    padding: 16px 14px;
+    gap: 8px;
+  }
+
+  #landing.landing-empty .drop-zone--prominent .drop-zone__icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  #landing.landing-empty .drop-zone--prominent .drop-zone__sub,
+  #landing.landing-empty .drop-zone--prominent .drop-zone__formats {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  #landing.landing-empty .drop-zone--prominent .drop-zone__formats {
+    display: none;
+  }
+
+  #landing.landing-empty .onboarding {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0 8px;
+  }
+
+  #landing.landing-empty .welcome-hero {
+    display: none;
+  }
+
+  #landing.landing-empty .homepage-platforms {
+    margin: 0 0 12px;
+  }
+
+  #landing.landing-empty .onboarding__card {
+    padding: 14px;
+  }
+
+  #landing.landing-empty .onboarding__card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+
+  #landing.landing-empty .onboarding__card p {
+    margin: 0;
+    font-size: 0.88rem;
+  }
+
+  #landing.landing-empty .welcome-steps {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  #landing.landing-empty .welcome-step {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+  }
+
+  #landing.landing-empty .onboarding__quick-actions {
+    order: -1;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 0;
+    margin-bottom: 12px;
+  }
+
+  #landing.landing-empty #btn-add-game-secondary {
+    display: none;
+  }
+
+  #landing.landing-empty .onboarding__quick-actions .btn {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+
+  #landing.landing-empty .onboarding__features {
+    display: none;
+  }
+
+  #landing.landing-empty .onboarding__feature {
+    padding: 12px;
+  }
+
+  .netplay-chat-overlay {
+    left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .netplay-chat-log {
+    height: min(132px, 28dvh) !important;
+  }
+
+  .netplay-ping-radar {
+    top: max(12px, env(safe-area-inset-top, 0px)) !important;
+    right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    padding: 5px 9px !important;
+  }
 }

@@ -148,6 +148,8 @@ import { VirtualGrid, VIRTUAL_THRESHOLD } from "./ui/virtualGrid.js";
 import { InputRouter } from "./ui/InputRouter.js";
 import { openEasyNetplayModal as openEasyNetplayModalImpl } from "./ui/easyNetplayModal.js";
 import { getEasyNetplayManager } from "./ui/easyNetplayShared.js";
+import { requestForceResync, onDesyncChanged } from "./netplay/desyncDetector.js";
+import { isCustomChannelOpen } from "./netplay/customNetplayChannel.js";
 import { systemIcon, isEditableTarget } from "./ui/viewHelpers.js";
 import { buildGameCard as buildGameCardImpl } from "./ui/widgets/gameCard.js";
 import { startLibraryGamepadNavigation, stopLibraryGamepadNavigation, restartLibraryGamepadNavigation, invalidateLibraryGamepadCardCache, focusFirstLibraryCard } from "./ui/widgets/libraryNav.js";
@@ -198,7 +200,7 @@ export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=minimal-20260523";
+const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=shibuya-oasis-20260614";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
@@ -236,12 +238,16 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
-const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <rect x="4.5" y="4.5" width="35" height="35" rx="9" fill="#050506" />
-  <rect x="5" y="5" width="34" height="34" rx="8.5" stroke="#FFFFFF" stroke-opacity="0.08" />
-  <circle cx="22" cy="22" r="12.8" stroke="#DCCB9F" stroke-width="1.6" />
-  <path d="M16.4 29.5V14.5H23.9C27.25 14.5 29.55 16.55 29.55 19.55C29.55 22.55 27.25 24.55 23.9 24.55H20.5V29.5H16.4ZM20.5 21.25H23.45C24.85 21.25 25.75 20.62 25.75 19.55C25.75 18.5 24.85 17.9 23.45 17.9H20.5V21.25Z" fill="#F4E9C8" />
-  <path d="M27.2 29.5L22.3 24.25H27L31.8 29.5H27.2Z" fill="#BCA36F" />
+const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
+  <path d="M12 20L20 12H76L84 20V76L76 84H20L12 76V20Z" fill="#07030f" stroke="#05030d" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M16 21.5L21.5 16H74.5L80 21.5V74.5L74.5 80H21.5L16 74.5V21.5Z" stroke="#ff2e97" stroke-width="3.4" stroke-linejoin="round"/>
+  <circle cx="63" cy="50" r="21" fill="#05030d"/>
+  <circle cx="63" cy="50" r="17" fill="#ff2e97"/>
+  <path d="M44 47H82M44 53H82M46 59H80M50 65H76" stroke="#05030d" stroke-opacity="0.8" stroke-width="3"/>
+  <path d="M61 31C64 38 64.2 47.2 61.6 57.6C60.5 62.1 58.8 66.3 56.5 70.4" stroke="#05030d" stroke-width="4" stroke-linecap="round"/>
+  <path d="M62 38C68 34.6 73.4 34.4 78 37.3C72.7 40.2 67.5 40.3 62 38Z" fill="#05030d"/>
+  <path d="M25 67V30H47.2C54.7 30 59.6 34.7 59.6 41.6C59.6 48.1 55.1 52.4 48 53.2L60.4 67H47.8L37.3 54.2H35.8V67H25Z" fill="#fff7ff" stroke="#05030d" stroke-width="3.6" stroke-linejoin="round"/>
+  <path d="M52 66C58.6 68.8 67.1 68.1 73 63.2" stroke="#00f0ff" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {
@@ -401,16 +407,16 @@ export function buildDOM(app: HTMLElement): void {
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
             <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="welcome-hero__logo" width="80" height="80" decoding="async" draggable="false" aria-hidden="true" />
-            <p class="welcome-hero__eyebrow">First run</p>
-            <h2 class="welcome-hero__title" id="onboarding-title">Your gaming escape.</h2>
-            <p class="welcome-hero__tagline">${APP_NAME} keeps your retro library simple, calm, and ready to play.</p>
+            <p class="welcome-hero__eyebrow">シブヤ boot</p>
+            <h2 class="welcome-hero__title" id="onboarding-title">Hit start in neon.</h2>
+            <p class="welcome-hero__tagline">${APP_NAME} keeps imports fast, saves local, and your next arcade run one tap away.</p>
           </div>
 
           <div id="homepage-platforms" class="homepage-platforms-host"></div>
 
           <div class="onboarding__grid">
             <div class="onboarding__card onboarding__card--main">
-              <h3>Quiet start, fast launch</h3>
+              <h3>Fast launch, local saves</h3>
               <p>Pick one or many files and ${APP_NAME} handles detection, startup, and local save management for you.</p>
               <div class="welcome-steps">
                 <div class="welcome-step">1. Import a game</div>
@@ -573,14 +579,6 @@ export function buildDOM(app: HTMLElement): void {
 
     </main>
 
-    <!-- ── Shibuya ticker (decorative neon signage strip) ── -->
-    <div class="app-ticker" aria-hidden="true">
-      <div class="app-ticker__track">
-        <span class="app-ticker__item">シブヤ・パンク ★ RETRO OASIS ★ レトロゲーム ★ 接続中 ★ プレイ ★ </span>
-        <span class="app-ticker__item">シブヤ・パンク ★ RETRO OASIS ★ レトロゲーム ★ 接続中 ★ プレイ ★ </span>
-      </div>
-    </div>
-
     <!-- ── Footer ── -->
     <footer class="app-footer">
       <div class="footer-left">
@@ -601,6 +599,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <div class="footer-right">
+        <span class="footer-era-mark" aria-hidden="true">シブヤ接続中</span>
         <span class="footer-info">${APP_NAME} v1.4.2</span>
         <span class="footer-battery" id="footer-battery" hidden><span class="footer-battery__icon" aria-hidden="true">${ICON_BATTERY_SVG}</span> <span id="footer-battery-pct"></span></span>
       </div>
@@ -2774,6 +2773,29 @@ function buildInGameControls(
       actions.append(btnSyncCloud);
     }
 
+    if (isCustomChannelOpen()) {
+      const btnForceResync = make("button", {
+        class: "btn btn--ghost in-game-overlay__btn",
+        type: "button",
+        title: "Synchronize emulator state across players",
+        "aria-label": "Force Resync",
+        role: "menuitem",
+      }, "Force Resync");
+      btnForceResync.addEventListener("click", () => {
+        void runMenuTask(btnForceResync, "Synchronizing...", async () => {
+          try {
+            requestForceResync(emulator);
+            menuStatus.textContent = "Resync request sent";
+            showInfoToast("Resync request sent to peer");
+          } catch (err) {
+            menuStatus.textContent = "Resync failed";
+            showError(`Resync failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        });
+      }, { signal });
+      actions.append(btnForceResync);
+    }
+
     actions.append(buildLibraryButton("btn btn--gradient in-game-overlay__btn"));
     const libBtn = actions.lastElementChild as HTMLElement;
     if (libBtn) libBtn.setAttribute("role", "menuitem");
@@ -2786,7 +2808,20 @@ function buildInGameControls(
     });
     closeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
-    expandedPanel.append(chip, menuStatus, actions, closeBtn);
+    const desyncWarning = make("div", {
+      class: "netplay-desync-warning",
+      hidden: "",
+    }, "⚠️ Desync Detected!");
+
+    const unsubDesync = onDesyncChanged((desynced) => {
+      desyncWarning.hidden = !desynced;
+      if (desynced) {
+        menuStatus.textContent = "Warning: Gameplay has desynchronized!";
+      }
+    });
+    signal.addEventListener("abort", () => unsubDesync());
+
+    expandedPanel.append(chip, desyncWarning, menuStatus, actions, closeBtn);
     overlayContainer.append(hamburgerBtn, expandedPanel);
 
     const togglePanel = () => {

@@ -33,6 +33,12 @@ import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT, MAX_SAVE_SLOTS } from "./saves.js";
 import { VmuSaveLibrary } from "./vmuSaves.js";
 import { VmuSaveService } from "./vmuSaveService.js";
+import { initializeRTCInterceptor } from "./netplay/rtcInterceptor.js";
+import { initializeCustomNetplayChannel } from "./netplay/customNetplayChannel.js";
+import { mountChatOverlay, unmountChatOverlay } from "./ui/chatOverlay.js";
+import { mountPingRadar, unmountPingRadar } from "./ui/pingRadar.js";
+import { startDesyncDetection, stopDesyncDetection } from "./netplay/desyncDetector.js";
+import { getEasyNetplayManager } from "./ui/easyNetplayShared.js";
 import {
   detectCapabilitiesCached,
   formatDetailedSummary,
@@ -394,6 +400,10 @@ async function consumePwaSharedFiles(onFileChosen: (file: File) => Promise<void>
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Initialize WebRTC Interceptor & Custom Channel for Netplay
+  initializeRTCInterceptor();
+  initializeCustomNetplayChannel();
+
   // 1. Build DOM
   const app = document.getElementById("app");
   if (!app) throw new Error("Root element #app not found");
@@ -1090,6 +1100,19 @@ async function main(): Promise<void> {
     if (currentSystemId === "segaDC" && currentGameId) {
       void vmuSaveService.reloadInGameSaves();
     }
+
+    // Mount Netplay Overlays & Start Desync Detection
+    const netplayMgr = peekNetplayManager();
+    const isNetplayActive = settings.netplayEnabled && currentSystemId && netplayMgr?.isSupportedForSystem(currentSystemId);
+    if (isNetplayActive) {
+      const ejsContainer = document.getElementById("ejs-container");
+      if (ejsContainer) {
+        mountChatOverlay(ejsContainer, settings.netplayUsername);
+        mountPingRadar(ejsContainer);
+        const easyMgr = getEasyNetplayManager();
+        startDesyncDetection(emulator, easyMgr.state === "hosting");
+      }
+    }
   };
 
   // 5d. Wire auto tier downgrade — triggered by onLowFPS
@@ -1137,6 +1160,11 @@ async function main(): Promise<void> {
 
   // 6b. Wire "return to library" — pauses and hides the emulator, shows library
   const onReturnToLibrary = (): void => {
+    // Teardown netplay overlays and desync checks
+    unmountChatOverlay();
+    unmountPingRadar();
+    stopDesyncDetection();
+
     if (emulator.state !== "running" && emulator.state !== "paused") return;
     if (currentSystemId === "segaDC" && currentGameId) {
       void vmuSaveService.captureForGame(currentGameId);

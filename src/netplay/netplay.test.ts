@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   generateInviteCode,
   normaliseInviteCode,
@@ -1173,5 +1173,85 @@ describe("EasyNetplayManager.getShareLink", () => {
         (globalThis as { window?: unknown }).window = originalWindow;
       }
     }
+  });
+});
+
+// ── Custom Multiplayer Netplay Features ───────────────────────────────────────
+import {
+  initializeRTCInterceptor,
+  teardownRTCInterceptor,
+  onPeerConnectionCreated,
+  getActivePeerConnection,
+} from "./rtcInterceptor.js";
+import {
+  initializeCustomNetplayChannel,
+} from "./customNetplayChannel.js";
+import {
+  startDesyncDetection,
+  stopDesyncDetection,
+  isDesynced,
+} from "./desyncDetector.js";
+
+describe("Custom Multiplayer Netplay Features", () => {
+  let mockOriginalRTCPeerConnection: typeof RTCPeerConnection;
+
+  beforeEach(() => {
+    teardownRTCInterceptor();
+    stopDesyncDetection();
+    mockOriginalRTCPeerConnection = vi.fn().mockImplementation(() => {
+      return {
+        createDataChannel: vi.fn().mockReturnValue({
+          addEventListener: vi.fn(),
+          send: vi.fn(),
+          readyState: "new",
+        }),
+        addEventListener: vi.fn(),
+        setLocalDescription: vi.fn().mockResolvedValue(undefined),
+      };
+    }) as unknown as typeof RTCPeerConnection;
+    Object.defineProperty(globalThis, "RTCPeerConnection", {
+      configurable: true,
+      value: mockOriginalRTCPeerConnection,
+    });
+  });
+
+  afterEach(() => {
+    teardownRTCInterceptor();
+    stopDesyncDetection();
+    Reflect.deleteProperty(globalThis, "RTCPeerConnection");
+  });
+
+  it("RTC Interceptor captures RTCPeerConnection creation", () => {
+    initializeRTCInterceptor();
+    const spy = vi.fn();
+    onPeerConnectionCreated(spy);
+
+    const pc = new window.RTCPeerConnection();
+    expect(spy).toHaveBeenCalledWith(pc);
+    expect(getActivePeerConnection()).toBe(pc);
+  });
+
+  it("Custom Netplay Channel initiates data channel on offer", async () => {
+    initializeRTCInterceptor();
+    initializeCustomNetplayChannel();
+
+    const pc = new window.RTCPeerConnection();
+    const createDataChannelSpy = vi.spyOn(pc, "createDataChannel");
+
+    await pc.setLocalDescription({ type: "offer" });
+    expect(createDataChannelSpy).toHaveBeenCalledWith("retro-oasis-metadata");
+  });
+
+  it("Desync Detector starts and stops correctly", () => {
+    const mockEmulator = {
+      state: "running",
+      readStateData: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
+      writeStateData: vi.fn().mockReturnValue(true),
+      loadState: vi.fn(),
+    };
+
+    startDesyncDetection(mockEmulator, true);
+    expect(isDesynced()).toBe(false);
+    stopDesyncDetection();
   });
 });
