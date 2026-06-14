@@ -6,10 +6,12 @@ import {
   showArchiveEntryPickerDialog,
   showCoverArtPickerDialog,
   showConflictDialog,
+  showScanReviewDialog,
   isTopmostOverlay,
 } from "./modals.js";
 import { _resetOverlayStackForTests } from "./overlayStack.js";
 import type { SystemInfo } from "../systems.js";
+import type { ScanPlan, ScannedFile } from "../directoryScan.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -532,5 +534,75 @@ describe("showMultiDiscPicker — initial focus", () => {
     document.querySelector<HTMLButtonElement>(".confirm-footer .btn")!.click();
     await promise;
     focusSpy.mockRestore();
+  });
+});
+
+describe("showScanReviewDialog", () => {
+  beforeEach(() => {
+    _resetOverlayStackForTests();
+    document.body.innerHTML = "";
+  });
+
+  function scanned(
+    relativePath: string,
+    inferredSystemId: string | null,
+    source: ScannedFile["inferenceSource"] = "folder",
+  ): ScannedFile {
+    return {
+      file: new File([new Uint8Array(8)], relativePath.split("/").pop()!),
+      relativePath,
+      size: 8,
+      inferredSystemId,
+      inferenceSource: source,
+    };
+  }
+
+  function plan(files: ScannedFile[], skipped: ScanPlan["skipped"] = []): ScanPlan {
+    return { files, skipped, totalBytes: 0, truncated: false };
+  }
+
+  it("returns the inferred imports when confirmed", async () => {
+    const promise = showScanReviewDialog(plan([
+      scanned("snes/A.sfc", "snes"),
+      scanned("misc/B.iso", null, "ambiguous"),
+    ]));
+    await new Promise((r) => requestAnimationFrame(r));
+
+    // One row per candidate file.
+    expect(document.querySelectorAll(".scan-review-row").length).toBe(2);
+
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn--primary")!.click();
+    const result = await promise;
+    // The ambiguous file defaults to "Skip", so only the SNES game imports.
+    expect(result).toEqual([
+      expect.objectContaining({ relativePath: "snes/A.sfc", systemId: "snes" }),
+    ]);
+  });
+
+  it("honours a per-file system override before import", async () => {
+    const promise = showScanReviewDialog(plan([scanned("misc/B.iso", null, "ambiguous")]));
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const select = document.querySelector<HTMLSelectElement>(".scan-review-row__select")!;
+    select.value = "psx";
+    select.dispatchEvent(new Event("change"));
+
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn--primary")!.click();
+    const result = await promise;
+    expect(result).toEqual([
+      expect.objectContaining({ relativePath: "misc/B.iso", systemId: "psx" }),
+    ]);
+  });
+
+  it("summarises skipped files and resolves null on cancel", async () => {
+    const promise = showScanReviewDialog(plan(
+      [scanned("snes/A.sfc", "snes")],
+      [{ relativePath: "x.ips", reason: "patch" }],
+    ));
+    await new Promise((r) => requestAnimationFrame(r));
+
+    expect(document.querySelector(".scan-review-skipped")).toBeTruthy();
+    document.querySelector<HTMLButtonElement>(".confirm-footer .btn:not(.btn--primary)")!.click();
+    expect(await promise).toBeNull();
   });
 });

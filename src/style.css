@@ -5660,6 +5660,84 @@ body.using-gamepad .game-card:focus {
   justify-content: flex-end;
 }
 
+/* ── Directory-scan review dialog ──────────────────────────── */
+.scan-review-box {
+  max-width: 640px;
+}
+
+.scan-review-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scan-review-group__head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+
+.scan-review-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.scan-review-row__name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.scan-review-row__path {
+  color: var(--c-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-review-row__badge {
+  font-size: 0.72rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scan-review-row__select {
+  flex: 0 0 auto;
+  max-width: 220px;
+}
+
+.scan-review-skipped {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+  margin-bottom: 16px;
+  color: var(--c-text-dim);
+}
+
+.scan-review-skipped__head {
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 4px;
+}
+
+.scan-review-skipped__item {
+  font-size: 0.85rem;
+}
+
+.scan-review-footer__info {
+  margin-right: auto;
+  color: var(--c-text-dim);
+  align-self: center;
+}
+
 /* Touch / stylus: ~44px targets (modal chrome + confirm actions) */
 @media (hover: none), (pointer: coarse) {
   .modal-close {

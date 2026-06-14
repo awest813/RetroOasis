@@ -294,3 +294,91 @@ export function entriesFromFileList(fileList: ArrayLike<File>): DirectoryEntry[]
   }
   return out;
 }
+
+/** A chosen directory, ready to be walked into a ScanPlan. */
+export interface DirectorySource {
+  /** Root folder display name. */
+  name: string;
+  /** Whether this source supports a later incremental re-scan (FS Access only). */
+  canRescan: boolean;
+  entries(): AsyncIterable<DirectoryEntry> | Iterable<DirectoryEntry>;
+}
+
+interface PickerWindow {
+  showDirectoryPicker?: (opts?: { id?: string; mode?: "read" }) => Promise<FsDirectoryHandle>;
+}
+
+/**
+ * Prompt the user for a directory. Prefers the File System Access picker (which
+ * supports re-scan); falls back to a hidden `<input webkitdirectory>` element.
+ * Resolves to null if the user cancels or no directory mechanism is available.
+ */
+export async function acquireDirectory(): Promise<DirectorySource | null> {
+  const picker = (globalThis as unknown as PickerWindow).showDirectoryPicker;
+  if (typeof picker === "function") {
+    try {
+      const handle = await picker({ id: "retrooasis-roms", mode: "read" });
+      return {
+        name: handle.name,
+        canRescan: true,
+        entries: () => entriesFromDirectoryHandle(handle),
+      };
+    } catch (err) {
+      // AbortError = user cancelled the picker; treat as no selection.
+      if (err && (err as DOMException).name === "AbortError") return null;
+      // Otherwise fall through to the input fallback.
+    }
+  }
+  return acquireDirectoryViaInput();
+}
+
+function acquireDirectoryViaInput(): Promise<DirectorySource | null> {
+  if (typeof document === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    // Non-standard attributes for directory selection across browsers.
+    input.setAttribute("webkitdirectory", "");
+    input.setAttribute("directory", "");
+    input.multiple = true;
+    input.style.display = "none";
+    let settled = false;
+    const finish = (source: DirectorySource | null) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(source);
+    };
+    input.addEventListener("change", () => {
+      const files = input.files;
+      if (!files || files.length === 0) return finish(null);
+      const entries = entriesFromFileList(files);
+      const rootName = rootFolderName(files);
+      finish({
+        name: rootName,
+        canRescan: false,
+        entries: () => entries,
+      });
+    });
+    // If the dialog is dismissed without a selection, clean up on focus return.
+    input.addEventListener("cancel", () => finish(null));
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+function rootFolderName(files: ArrayLike<File>): string {
+  const first = files[0] as (File & { webkitRelativePath?: string }) | undefined;
+  const rel = first?.webkitRelativePath ?? "";
+  const slash = rel.indexOf("/");
+  return slash > 0 ? rel.slice(0, slash) : "Selected folder";
+}
+
+/** Convenience: acquire a directory and build its scan plan in one call. */
+export async function scanDirectory(
+  source: DirectorySource,
+  opts: ScanOptions = {},
+): Promise<ScanPlan> {
+  return buildScanPlan(source.entries(), opts);
+}
+

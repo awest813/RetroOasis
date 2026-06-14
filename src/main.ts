@@ -60,6 +60,10 @@ import { buildDOM, initUI,
           showError, showInfoToast, showLoadingOverlay, hideLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
           openEasyNetplayModal } from "./ui.js";
+import { acquireDirectory, scanDirectory } from "./directoryScan.js";
+import { showScanReviewDialog } from "./ui/modals.js";
+import { importScannedFiles } from "./ui/screens/gameImport.js";
+import { setLoadingProgress } from "./ui/loadingOverlay.js";
 import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
 import { sessionTracker } from "./sessionTracker.js";
 import { store } from "./store/index.js";
@@ -1029,6 +1033,53 @@ async function main(): Promise<void> {
   const onFileChosen = async (file: File): Promise<void> => {
     await resolveSystemAndAdd(file, library, settings, onLaunchGame, emulator, onApplyPatch, urlImportSystem?.id);
   };
+  const onScanFolder = async (): Promise<void> => {
+    const source = await acquireDirectory();
+    if (!source) return;
+    showLoadingOverlay();
+    setLoadingMessage(`Scanning ${source.name}…`);
+    setLoadingProgress(null);
+    const plan = await (async () => {
+      try {
+        return await scanDirectory(source);
+      } finally {
+        hideLoadingOverlay();
+      }
+    })();
+    if (plan.files.length === 0) {
+      showInfoToast("No importable games were found in that folder.", "warning");
+      return;
+    }
+    const imports = await showScanReviewDialog(plan);
+    if (!imports || imports.length === 0) return;
+    showLoadingOverlay();
+    const result = await importScannedFiles(
+      imports,
+      (file, systemId) => resolveSystemAndAdd(
+        file, library, settings, onLaunchGame, emulator, onApplyPatch, systemId,
+        { launchAfterImport: false, quiet: true },
+      ),
+      library,
+      ({ done, total, current }) => {
+        setLoadingMessage(`Importing ${Math.min(done + 1, total)} of ${total}…`);
+        if (current) setLoadingSubtitle(current);
+        setLoadingProgress(total > 0 ? Math.round((done / total) * 100) : null);
+      },
+    );
+    hideLoadingOverlay();
+    if (result.added === 0) {
+      showInfoToast("No new games were added — they may already be in your library.", "warning");
+      return;
+    }
+    const extras = [
+      result.skipped > 0 ? `${result.skipped} skipped` : null,
+      result.failed > 0 ? `${result.failed} failed` : null,
+    ].filter(Boolean).join(", ");
+    showInfoToast(
+      `Imported ${result.added} ${result.added === 1 ? "game" : "games"}${extras ? ` (${extras})` : ""}.`,
+      "success",
+    );
+  };
   const onFilesChosen = async (files: File[]): Promise<void> => {
     let added = 0;
     let skipped = 0;
@@ -1332,6 +1383,7 @@ async function main(): Promise<void> {
     onApplyPatch,
     onFileChosen,
     onFilesChosen,
+    onScanFolder,
     onSettingsChange,
     onReturnToLibrary,
     getCurrentGameId:   () => currentGameId,

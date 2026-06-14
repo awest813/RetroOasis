@@ -1,7 +1,7 @@
 # Directory-Scan Import — Design
 
-> Status: Phase 1 shipped (scan logic + folder inference + unit tests, no UI).
-> Phases 2–5 below remain proposed.
+> Status: Phases 1–3 shipped (scan logic, folder inference, review model, import
+> glue, review dialog, and the "Scan Folder" button). Phases 4–5 remain proposed.
 > Goal: bring retrom's "scan my collection" UX to RetroOasis **without** requiring a
 > server, by reading an on-disk folder tree through the File System Access API and
 > feeding it into the existing import pipeline.
@@ -215,9 +215,33 @@ When the source is a real `FileSystemDirectoryHandle`:
 
 1. ✅ `directoryScan.ts` + inference + unit tests (no UI).
 2. ✅ `FOLDER_ALIASES` + `getSystemIdForFolder()` in `systems.ts` + tests.
-3. Scan review screen + `importScannedFiles()` glue + "Scan Folder" button.
+3. ✅ Scan review screen + `importScannedFiles()` glue + "Scan Folder" button.
 4. Handle persistence + incremental re-scan (Chromium only).
 5. Docs: add to README "Importing Games" and `docs/PLAN.md` current-state list.
+
+### Phase 3 — as shipped
+
+- `src/scanReviewModel.ts`: pure view-model — `buildScanReviewModel()` (groups
+  candidates by system, summarises skips, counts files needing a choice) and
+  `resolveScannedImports()` (applies the user's per-file choices, dropping skips
+  and unknown systems). Plus `confidenceLabel()`.
+- `src/directoryScan.ts`: `acquireDirectory()` (FS Access picker with a
+  `webkitdirectory` fallback) and `scanDirectory()`.
+- `src/ui/modals.ts`: `showScanReviewDialog(plan)` — grouped, editable review with
+  a per-file system `<select>`, a live "importing N games (size)" footer, a
+  skipped-files summary, and Import/Cancel.
+- `src/ui/screens/gameImport.ts`: `importScannedFiles()` — loops the chosen files
+  through `resolveSystemAndAdd` (`{ launchAfterImport: false, quiet: true }`),
+  distinguishing newly-added games from already-present ones via library counts,
+  with a progress callback.
+- `src/ui.ts`: a "Scan Folder" button (shown only when a host handler is wired) +
+  `onScanFolder` opt. `src/main.ts`: the orchestrator that wires acquire → scan →
+  review → import with loading-overlay progress and a result toast.
+- `src/style.css`: review-dialog styling.
+- Tests: `scanReviewModel.test.ts` (6), `importScannedFiles.test.ts` (3), and
+  three `showScanReviewDialog` DOM cases in `modals.test.ts`.
+
+Not yet built (Phase 4): directory-handle persistence + incremental re-scan.
 
 ### Phase 1 — as shipped
 

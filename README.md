@@ -60,8 +60,9 @@ New system work should include extension routing, core selection, BIOS expectati
 
 ## Importing Games
 
-Games can be added through the drop zone, mobile add button, PWA file handling, share target, and compatible webretro-style URLs. The import pipeline can:
+Games can be added through the drop zone, mobile add button, folder scan, PWA file handling, share target, and compatible webretro-style URLs. The import pipeline can:
 
+- Scan a whole folder (via "Scan Folder") and infer each game's system from its containing directory (`snes/`, `psx/`, `Nintendo - Game Boy Advance/`, …), with a review step before anything is imported
 - Detect systems from extensions and prompt when a file could belong to multiple systems
 - Extract ZIP, 7z, RAR, TAR, and GZIP archives
 - Preserve archive files for cores that need zipped ROM sets
