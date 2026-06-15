@@ -68,6 +68,22 @@ describe('formatBytes', () => {
 
 // ── getAllGamesMetadata ────────────────────────────────────────────────────────
 
+describe('GameLibrary as a LibrarySource', () => {
+  it('identifies as the local source', () => {
+    const library = new GameLibrary();
+    expect(library.id).toBe('local');
+    expect(library.kind).toBe('local');
+  });
+
+  it('listGames() mirrors getAllGamesMetadata()', async () => {
+    const library = new GameLibrary();
+    await library.addGame(new File(['rom'], 'conform.nes'), 'nes');
+    const viaSource = await library.listGames();
+    const viaDirect = await library.getAllGamesMetadata();
+    expect(viaSource.map((g) => g.id)).toEqual(viaDirect.map((g) => g.id));
+  });
+});
+
 describe('GameLibrary.getAllGamesMetadata', () => {
   let library: GameLibrary;
 

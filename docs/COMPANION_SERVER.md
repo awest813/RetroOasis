@@ -1,6 +1,7 @@
 # Optional Companion Server — Design
 
-> Status: Draft / proposal. Strategic, larger bet than `docs/DIRECTORY_SCAN_IMPORT.md`.
+> Status: Phase 1 shipped (the `LibrarySource` abstraction + registry; `GameLibrary`
+> is the registered "local" source). Phases 2–5 (the actual server) remain proposed.
 > Goal: lift RetroOasis's structural browser limits (storage quota, no filesystem, per-
 > device re-import) for users who opt in to running a small self-hosted server — **without
 > compromising the zero-install, fully-local default**.
@@ -154,14 +155,32 @@ They compose:
 
 ## Phasing
 
-1. **Abstraction only (no server):** extract `LibrarySource`, refactor `GameLibrary` →
-   `LocalSource`, route the existing cloud library through it. Pure refactor, fully tested,
-   ships value as cleanup even if the server never lands.
+1. ✅ **Abstraction only (no server):** extract `LibrarySource`, make `GameLibrary` the
+   registered "local" source. Pure refactor, fully tested, ships value as cleanup even if
+   the server never lands. **Shipped** — see below.
 2. **Read-only companion:** server scanner + `GET /library` + `GET /blob` +
    `CompanionSource` with virtual-game caching. Browse and play a server library.
 3. **Saves:** authoritative save-state sync via the server.
 4. **Multi-user + metadata proxy + job UI.**
 5. **Packaging:** Docker image, `docker-compose.yml`, and a `docs/DEPLOYMENT.md` section.
+
+### Phase 1 — as shipped
+
+- `src/librarySource.ts` (new): the `LibrarySource` interface (`id`, `kind`,
+  `listGames`, `getGameBlob`, `getCoverArt`), `SourcedGame` (metadata + `sourceId`),
+  `mergeKey()` (content-hash-first dedupe key), and `LibrarySourceRegistry`
+  (register/unregister/get/has/list plus a merged `listGames()` that dedupes
+  local-first and tolerates a throwing source, and `getGameBlob`/`getCoverArt`
+  routing by source id). A process-wide singleton via `getLibraryRegistry()`.
+- `src/library.ts`: `GameLibrary implements LibrarySource` — adds `id="local"`,
+  `kind="local"`, and `listGames()` (alias of `getAllGamesMetadata()`); plus an
+  optional `contentHash?` field on `GameEntry`/`GameMetadata` for cross-source dedupe.
+- `src/main.ts`: registers the `GameLibrary` instance as the local source at startup.
+- Existing read paths (`getAllGamesMetadata`, `getGameBlob`, …) are untouched, so
+  there is no behavioural change; the registry is the seam Phase 2's `CompanionSource`
+  plugs into. (Cloud-indexed games are already folded into `GameLibrary` as virtual
+  entries, so they surface through the local source today.)
+- Tests: `src/librarySource.test.ts` (9) + two conformance cases in `library.test.ts`.
 
 ## Risks / open questions
 

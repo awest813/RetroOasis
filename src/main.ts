@@ -29,6 +29,7 @@ import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
+import { getLibraryRegistry } from "./librarySource.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT, MAX_SAVE_SLOTS } from "./saves.js";
 import { VmuSaveLibrary } from "./vmuSaves.js";
@@ -490,6 +491,9 @@ async function main(): Promise<void> {
     showInfoToast("WebGPU post-processing was disabled due to instability.", "warning");
   };
   const library       = new GameLibrary();
+  // Register the on-device library as the "local" source. Future sources (e.g. a
+  // companion server) register here so the registry can present a merged view.
+  getLibraryRegistry().register(library);
   const biosLibrary   = new BiosLibrary();
   const saveLibrary   = new SaveStateLibrary();
   const cloudSaveManager = getCloudSaveManager();
