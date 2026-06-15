@@ -203,7 +203,7 @@
 
   /* Typography stack */
   --font-display: 'Zen Dots', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-sans:    'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:    'Rajdhani', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono:    'Space Mono', "SF Mono", "JetBrains Mono", "Consolas", monospace;
   --font-jp:      'Reggae One', 'Zen Kaku Gothic New', 'Chakra Petch', sans-serif;
   font-family: var(--font-sans);

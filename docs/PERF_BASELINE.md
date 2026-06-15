@@ -17,7 +17,7 @@
 |---|---:|---:|
 | `archive-BSgyjfso.wasm` | 809.8 KB | 401.9 KB |
 | `filing-archive.wasm` | 809.8 KB | 401.9 KB |
-| `logo_nso.png` | 563.0 KB | — |
+| `arcade-bg-punk.webp` | 745.3 KB | — |
 | `index-CGPe19mg.js` | 477.6 KB | 140.7 KB |
 | `extract7z-DD94nMxo.js` | 273.6 KB | 72.8 KB |
 | `libunrar-mFCQbZ-V.wasm` | 169.7 KB | 72.1 KB |

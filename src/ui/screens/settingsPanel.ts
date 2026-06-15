@@ -231,12 +231,16 @@ function buildSettingsContent(
     
     activeTabLabel.textContent = activeIndex >= 0 ? `Viewing: ${tabs[activeIndex]!.label}` : "";
     const activeButton = tabBtns[activeIndex];
-    if (typeof activeButton?.scrollIntoView === "function") {
-      activeButton.scrollIntoView({
-        behavior: scroll ? "smooth" : "auto",
-        block: "nearest",
-        inline: "center",
-      });
+    if (activeButton) {
+      const left = activeButton.offsetLeft - ((tabBar.clientWidth - activeButton.offsetWidth) / 2);
+      try {
+        tabBar.scrollTo({
+          left: Math.max(0, left),
+          behavior: scroll ? "smooth" : "auto",
+        });
+      } catch {
+        tabBar.scrollLeft = Math.max(0, left);
+      }
     }
     
     if (scroll && activeIndex >= 0) {
@@ -262,27 +266,38 @@ function buildSettingsContent(
     }
   };
 
+  const syncActiveTabToScroll = () => {
+    if (performance.now() < suppressScrollSpyUntil) return;
+    const bodyRect = bodyEl.getBoundingClientRect();
+    const useRectAnchor = bodyRect.height > 0;
+    const scrollAnchor = bodyEl.scrollTop + 96;
+    const viewportAnchor = bodyRect.top + Math.min(120, bodyRect.height * 0.24);
+    let bestMatch = activeTab;
+    let bestOffset = Number.NEGATIVE_INFINITY;
+
+    panels.forEach((panel) => {
+      const panelRect = panel.getBoundingClientRect();
+      const offset = useRectAnchor ? panelRect.top : panel.offsetTop;
+      const anchor = useRectAnchor ? viewportAnchor : scrollAnchor;
+      if (offset <= anchor && offset >= bestOffset) {
+        bestOffset = offset;
+        bestMatch = panel.id.replace("tab-panel-", "") as CanonicalSettingsTab;
+      }
+    });
+
+    if (bestOffset > Number.NEGATIVE_INFINITY && bestMatch !== activeTab) {
+      switchTab(bestMatch, false);
+    }
+  };
+
   // IntersectionObserver to spy on scroll position and update active tab.
   // Guard against environments that do not implement the API (e.g. jsdom).
   _settingsPanelIo?.disconnect();
   _settingsPanelIo = typeof IntersectionObserver !== "undefined"
-    ? new IntersectionObserver(() => {
-        if (performance.now() < suppressScrollSpyUntil) return;
-        const scrollAnchor = bodyEl.scrollTop + 96;
-        let bestMatch = activeTab;
-        let bestOffset = Number.NEGATIVE_INFINITY;
-        panels.forEach((panel) => {
-          const offset = panel.offsetTop;
-          if (offset <= scrollAnchor && offset >= bestOffset) {
-            bestOffset = offset;
-            bestMatch = panel.id.replace("tab-panel-", "") as CanonicalSettingsTab;
-          }
-        });
-        if (bestOffset > Number.NEGATIVE_INFINITY && bestMatch !== activeTab) {
-          switchTab(bestMatch, false);
-        }
-      }, { root: bodyEl, threshold: 0.2 })
+    ? new IntersectionObserver(syncActiveTabToScroll, { root: bodyEl, threshold: 0.2 })
     : null;
+  bodyEl.addEventListener("scroll", syncActiveTabToScroll, { passive: true });
+  _settingsContentCleanups.push(() => bodyEl.removeEventListener("scroll", syncActiveTabToScroll));
 
   tabs.forEach((tab, i) => {
     const iconEl = settingsSidebarIconEl(tab.id);
