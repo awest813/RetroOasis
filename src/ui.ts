@@ -399,6 +399,7 @@ export function buildDOM(app: HTMLElement): void {
           <p class="drop-zone__sub" id="drop-zone-subtitle">${touchUI ? "Choose ROMs, archives, or disc images from your device" : 'ROMs, archives, and disc images import locally, or <span class="drop-zone__browse">browse your device</span>'}</p>
           <div class="drop-zone__actions">
             <button class="btn btn--primary btn--sm drop-zone__cta" id="btn-add-game-onboarding" type="button">Choose ROMs</button>
+            <button class="btn btn--ghost btn--sm drop-zone__scan" id="btn-scan-folder" type="button" hidden>Scan Folder</button>
           </div>
           <p class="drop-zone__formats" id="drop-zone-formats" title="Supported file formats">${formatHint}</p>
         </div>
@@ -637,6 +638,8 @@ export interface UIOptions {
   onApplyPatch:      (gameId: string, patchFile: File) => Promise<void>;
   onFileChosen:      (file: File) => Promise<void>;
   onFilesChosen?:    (files: File[]) => Promise<void>;
+  /** Scan an on-disk folder and import matched games (directory-scan import). */
+  onScanFolder?:     () => Promise<void>;
   getCurrentGameId:   () => string | null;
   getCurrentGameName: () => string | null;
   getCurrentSystemId: () => string | null;
@@ -1185,6 +1188,18 @@ export function initUI(opts: UIOptions): void {
   };
   bindFilePickerButton("btn-add-game-onboarding");
   bindFilePickerButton("btn-add-game-secondary");
+
+  // Directory-scan import: only surfaced when the host wires a handler.
+  const scanFolderBtn = document.getElementById("btn-scan-folder");
+  if (scanFolderBtn && opts.onScanFolder) {
+    const runScan = opts.onScanFolder;
+    scanFolderBtn.hidden = false;
+    bindEvent(scanFolderBtn, "click", (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void runScan();
+    });
+  }
 
   const onDragOver = (event: Event) => {
     const e = event as DragEvent;

@@ -29,6 +29,8 @@ import { SaveGameService } from "./saveService.js";
 import { getCloudSaveManager } from "./cloudSaveSingleton.js";
 import { getNetplayManager, peekNetplayManager } from "./netplaySingleton.js";
 import { GameLibrary, getGameTierProfile, saveGameTierProfile, getGameGraphicsProfile } from "./library.js";
+import { getLibraryRegistry } from "./librarySource.js";
+import { restoreCompanionConnection } from "./companionConnection.js";
 import { BiosLibrary }   from "./bios.js";
 import { SaveStateLibrary, AUTO_SAVE_SLOT, MAX_SAVE_SLOTS } from "./saves.js";
 import { VmuSaveLibrary } from "./vmuSaves.js";
@@ -60,6 +62,16 @@ import { buildDOM, initUI,
           showError, showInfoToast, showLoadingOverlay, hideLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
           openEasyNetplayModal } from "./ui.js";
+import { acquireDirectory, directorySourceFromHandle, scanDirectory } from "./directoryScan.js";
+import { filterToNewOrChanged, signaturesForPaths } from "./scanRescan.js";
+import {
+  loadScanRecord,
+  saveScanRecord,
+  verifyHandlePermission,
+} from "./scanHandleStore.js";
+import { showConfirmDialog, showScanReviewDialog } from "./ui/modals.js";
+import { importScannedFiles } from "./ui/screens/gameImport.js";
+import { setLoadingProgress } from "./ui/loadingOverlay.js";
 import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
 import { sessionTracker } from "./sessionTracker.js";
 import { store } from "./store/index.js";
@@ -480,6 +492,12 @@ async function main(): Promise<void> {
     showInfoToast("WebGPU post-processing was disabled due to instability.", "warning");
   };
   const library       = new GameLibrary();
+  // Register the on-device library as the "local" source. Future sources (e.g. a
+  // companion server) register here so the registry can present a merged view.
+  getLibraryRegistry().register(library);
+  // Re-register an opt-in companion server source if one was configured. No-op
+  // when none is saved, so the default experience is unchanged.
+  restoreCompanionConnection();
   const biosLibrary   = new BiosLibrary();
   const saveLibrary   = new SaveStateLibrary();
   const cloudSaveManager = getCloudSaveManager();
@@ -1029,6 +1047,90 @@ async function main(): Promise<void> {
   const onFileChosen = async (file: File): Promise<void> => {
     await resolveSystemAndAdd(file, library, settings, onLaunchGame, emulator, onApplyPatch, urlImportSystem?.id);
   };
+  const onScanFolder = async (): Promise<void> => {
+    // Offer to re-scan a previously imported folder before prompting for one.
+    const saved = await loadScanRecord();
+    let source = null as Awaited<ReturnType<typeof acquireDirectory>>;
+    let knownSignatures: ReadonlySet<string> | null = null;
+    if (saved) {
+      const reuse = await showConfirmDialog(
+        `Re-scan "${saved.name}" for new or changed games? Choose Cancel to pick a different folder.`,
+        { title: "Scan folder", confirmLabel: "Re-scan" },
+      );
+      if (reuse) {
+        if (await verifyHandlePermission(saved.handle)) {
+          source = directorySourceFromHandle(saved.handle);
+          knownSignatures = new Set(saved.signatures);
+        } else {
+          showInfoToast("Couldn't reopen that folder — choose it again to continue.", "warning");
+        }
+      }
+    }
+    if (!source) source = await acquireDirectory();
+    if (!source) return;
+
+    showLoadingOverlay();
+    setLoadingMessage(`Scanning ${source.name}…`);
+    setLoadingProgress(null);
+    let plan = await (async () => {
+      try {
+        return await scanDirectory(source);
+      } finally {
+        hideLoadingOverlay();
+      }
+    })();
+    if (knownSignatures) {
+      const diff = filterToNewOrChanged(plan, knownSignatures);
+      if (diff.plan.files.length === 0) {
+        showInfoToast(`No new games since the last scan of "${source.name}".`, "info");
+        return;
+      }
+      plan = diff.plan;
+    }
+    if (plan.files.length === 0) {
+      showInfoToast("No importable games were found in that folder.", "warning");
+      return;
+    }
+    const imports = await showScanReviewDialog(plan);
+    if (!imports || imports.length === 0) return;
+    showLoadingOverlay();
+    const result = await importScannedFiles(
+      imports,
+      (file, systemId) => resolveSystemAndAdd(
+        file, library, settings, onLaunchGame, emulator, onApplyPatch, systemId,
+        { launchAfterImport: false, quiet: true },
+      ),
+      library,
+      ({ done, total, current }) => {
+        setLoadingMessage(`Importing ${Math.min(done + 1, total)} of ${total}…`);
+        if (current) setLoadingSubtitle(current);
+        setLoadingProgress(total > 0 ? Math.round((done / total) * 100) : null);
+      },
+    );
+    hideLoadingOverlay();
+
+    // Remember this folder + what we imported so a later visit can re-scan.
+    if (source.canRescan && source.handle) {
+      const newSignatures = signaturesForPaths(plan, imports.map((i) => i.relativePath));
+      const merged = knownSignatures
+        ? [...new Set([...knownSignatures, ...newSignatures])]
+        : newSignatures;
+      await saveScanRecord(source.handle, source.name, merged).catch(() => { /* non-fatal */ });
+    }
+
+    if (result.added === 0) {
+      showInfoToast("No new games were added — they may already be in your library.", "warning");
+      return;
+    }
+    const extras = [
+      result.skipped > 0 ? `${result.skipped} skipped` : null,
+      result.failed > 0 ? `${result.failed} failed` : null,
+    ].filter(Boolean).join(", ");
+    showInfoToast(
+      `Imported ${result.added} ${result.added === 1 ? "game" : "games"}${extras ? ` (${extras})` : ""}.`,
+      "success",
+    );
+  };
   const onFilesChosen = async (files: File[]): Promise<void> => {
     let added = 0;
     let skipped = 0;
@@ -1332,6 +1434,7 @@ async function main(): Promise<void> {
     onApplyPatch,
     onFileChosen,
     onFilesChosen,
+    onScanFolder,
     onSettingsChange,
     onReturnToLibrary,
     getCurrentGameId:   () => currentGameId,

@@ -11,6 +11,7 @@ This is the single source of truth for shipped work, active improvements, and fu
 - Per-system and per-tier RetroArch options, including tuned 3D systems and dynamic resolution support.
 - IndexedDB-backed ROM library, metadata cache, BIOS library, save states, thumbnails, and WASM/shader caches.
 - Archive handling for ZIP, 7z, RAR, TAR, and GZIP, plus IPS/BPS/UPS patching.
+- Directory-scan import ("Scan Folder"): folder-name + extension + ROM-header system inference, a pre-import review screen, and BIOS/patch/disc-part/junk classification (see `docs/DIRECTORY_SCAN_IMPORT.md`). Phase 4 (handle persistence + incremental re-scan) is still open.
 - Multi-disc `.m3u` and CHD support for PS1, Saturn, and Dreamcast, plus 3DS `.3ds`/`.cci`/`.cxi`/`.app` import routing.
 - Cross-origin isolation support through `public/coi-serviceworker.js`.
 

@@ -33,6 +33,7 @@
 import type { PerformanceTier, ResolutionPreset } from "./performance.js";
 import { parsePostProcessEffect, type PostProcessEffect } from "./postProcessEffectSchema.js";
 import { createUuid } from "./uuid.js";
+import type { LibrarySource, LibrarySourceKind } from "./librarySource.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,12 @@ export interface GameEntry {
   coverArtBlob?: Blob | null;
   /** True when a local cover art blob is present — available in metadata without loading the blob. */
   hasCoverArt?: boolean;
+  /**
+   * Optional content hash (e.g. SHA-1 of the ROM) used to dedupe the same game
+   * across library sources. Unset for plain local imports; a companion server
+   * source can populate it so a local and server copy collapse to one entry.
+   */
+  contentHash?: string;
 }
 
 /**
@@ -202,7 +209,16 @@ const _preloadInFlight = new Map<string, Promise<Blob | null>>();
 
 // ── GameLibrary class ─────────────────────────────────────────────────────────
 
-export class GameLibrary {
+export class GameLibrary implements LibrarySource {
+  /** Identifies this as the on-device source in the LibrarySource registry. */
+  readonly id = "local";
+  readonly kind: LibrarySourceKind = "local";
+
+  /** LibrarySource view of the library listing (alias of getAllGamesMetadata). */
+  listGames(): Promise<GameMetadata[]> {
+    return this.getAllGamesMetadata();
+  }
+
   private buildGameEntry(file: File, systemId: string, blob: Blob | null): GameEntry {
     return {
       id:           createUuid(),

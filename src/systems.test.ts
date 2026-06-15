@@ -15,7 +15,48 @@ import {
   getGBCSettingsForTier,
   type SystemInfo,
 } from "./systems.js";
+import {
+  FOLDER_ALIASES,
+  getSystemIdForFolder,
+} from "./systems.js";
 import { EJS_CDN_BASE, wasmCorePackageNameFor } from "./emulator.js";
+
+describe('folder-name inference', () => {
+  it('maps common community folder names to system ids', () => {
+    expect(getSystemIdForFolder('snes')).toBe('snes');
+    expect(getSystemIdForFolder('Super Nintendo')).toBe('snes');
+    expect(getSystemIdForFolder('PSX')).toBe('psx');
+    expect(getSystemIdForFolder('Sega Genesis')).toBe('segaMD');
+    expect(getSystemIdForFolder('Dreamcast')).toBe('segaDC');
+    expect(getSystemIdForFolder('Nintendo 64')).toBe('n64');
+  });
+
+  it('is case- and separator-insensitive', () => {
+    expect(getSystemIdForFolder('  GAME_BOY-ADVANCE  ')).toBe('gba');
+    expect(getSystemIdForFolder('Nintendo - Game Boy Advance')).toBe('gba');
+  });
+
+  it('returns null for unknown folder names', () => {
+    expect(getSystemIdForFolder('My Random Folder')).toBeNull();
+    expect(getSystemIdForFolder('')).toBeNull();
+  });
+
+  it('gives every system at least one folder alias', () => {
+    const covered = new Set(FOLDER_ALIASES.values());
+    for (const sys of SYSTEMS) {
+      expect(covered.has(sys.id)).toBe(true);
+    }
+  });
+
+  it('never maps one alias to two different systems', () => {
+    // FOLDER_ALIASES is keyed by normalised alias → single id, so uniqueness is
+    // structural; assert every referenced id is a real system.
+    const ids = new Set(SYSTEMS.map((s) => s.id));
+    for (const id of FOLDER_ALIASES.values()) {
+      expect(ids.has(id)).toBe(true);
+    }
+  });
+});
 
 describe('systems performance profiles', () => {
   describe('detectSystem', () => {

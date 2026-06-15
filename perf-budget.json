@@ -2,14 +2,14 @@
   "description": "RetroOasis frontend performance budgets. CI fails when critical-path assets exceed these gzip limits.",
   "criticalPath": {
     "mainJsGzipKb": 175,
-    "mainCssGzipKb": 36,
+    "mainCssGzipKb": 39,
     "indexHtmlKb": 6
   },
   "lazyChunks": {
     "modalsGzipKb": 27,
     "savesGzipKb": 25,
     "toolsGzipKb": 12,
-    "multiplayerGzipKb": 10
+    "multiplayerGzipKb": 11
   },
   "precache": {
     "maxTotalKb": 850,

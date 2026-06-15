@@ -3,7 +3,14 @@ import type { ArchiveFormat } from "../archive.js";
 import type { DeviceCapabilities } from "../performance.js";
 import { detectCapabilitiesCached } from "../performance.js";
 import type { SystemInfo } from "../systems.js";
-import { getSystemById, getSystemFeatureSummary } from "../systems.js";
+import { SYSTEMS, getSystemById, getSystemFeatureSummary } from "../systems.js";
+import type { ScanPlan } from "../directoryScan.js";
+import {
+  buildScanReviewModel,
+  confidenceLabel,
+  resolveScannedImports,
+  type ScannedImport,
+} from "../scanReviewModel.js";
 import { threadedCoreBlockedReason } from "../safariCompat.js";
 import {
   ICON_BOOK_SVG,
@@ -1264,6 +1271,155 @@ export function showConflictDialog(
     requestAnimationFrame(() => {
       overlay.classList.add("confirm-overlay--visible");
       (conflict.local.timestamp >= conflict.remote.timestamp ? localCard : remoteCard).focus();
+    });
+  });
+}
+
+const SCAN_SKIP_VALUE = "__skip__";
+
+/**
+ * Review the result of a directory scan and choose what to import. Each
+ * candidate file gets a system <select> (defaulting to the inferred system, or
+ * "Skip" when none was inferred). Resolves to the confirmed imports, or null if
+ * the user cancels.
+ */
+export function showScanReviewDialog(plan: ScanPlan): Promise<ScannedImport[] | null> {
+  return new Promise((resolve) => {
+    const model = buildScanReviewModel(plan);
+    const ac = new AbortController();
+    const overlay = createElement("div", { class: "confirm-overlay" });
+    const box = createElement("div", {
+      class: "confirm-box scan-review-box",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Review scanned games",
+    });
+
+    box.appendChild(createElement("h3", { class: "confirm-title" }, "Review scanned games"));
+    const summary = model.needsChoiceCount > 0
+      ? `${model.totalFiles} games found. ${model.needsChoiceCount} need a system before importing.`
+      : `${model.totalFiles} games found and matched to a system.`;
+    box.appendChild(createElement("p", { class: "confirm-body" }, summary));
+
+    const sortedSystems = [...SYSTEMS].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+    // relativePath -> its <select>, read on confirm.
+    const selects = new Map<string, HTMLSelectElement>();
+
+    const list = createElement("div", { class: "scan-review-list" });
+    for (const group of model.groups) {
+      const groupEl = createElement("div", { class: "scan-review-group" });
+      groupEl.appendChild(createElement(
+        "div",
+        { class: "scan-review-group__head" },
+        `${group.label} — ${group.files.length} ${group.files.length === 1 ? "file" : "files"} (${formatBytes(group.totalBytes)})`,
+      ));
+      for (const file of group.files) {
+        const row = createElement("div", { class: "scan-review-row" });
+        const nameWrap = createElement("div", { class: "scan-review-row__name" });
+        nameWrap.appendChild(createElement("span", { class: "scan-review-row__path" }, file.relativePath));
+        nameWrap.appendChild(createElement(
+          "span",
+          { class: "scan-review-row__badge" },
+          confidenceLabel(file.inferenceSource),
+        ));
+        row.appendChild(nameWrap);
+
+        const select = createElement("select", {
+          class: "settings-input scan-review-row__select",
+          "aria-label": `System for ${file.relativePath}`,
+        }) as HTMLSelectElement;
+        const skipOpt = document.createElement("option");
+        skipOpt.value = SCAN_SKIP_VALUE;
+        skipOpt.textContent = "— Skip —";
+        select.appendChild(skipOpt);
+        for (const sys of sortedSystems) {
+          const opt = document.createElement("option");
+          opt.value = sys.id;
+          opt.textContent = sys.name;
+          select.appendChild(opt);
+        }
+        select.value = file.inferredSystemId ?? SCAN_SKIP_VALUE;
+        select.addEventListener("change", updateFooter, { signal: ac.signal });
+        selects.set(file.relativePath, select);
+        row.appendChild(select);
+        groupEl.appendChild(row);
+      }
+      list.appendChild(groupEl);
+    }
+    box.appendChild(list);
+
+    if (model.skipped.length > 0) {
+      const skippedEl = createElement("div", { class: "scan-review-skipped" });
+      skippedEl.appendChild(createElement("div", { class: "scan-review-skipped__head" }, "Not imported"));
+      for (const item of model.skipped) {
+        skippedEl.appendChild(createElement(
+          "div",
+          { class: "scan-review-skipped__item" },
+          `${item.count} × ${item.label}`,
+        ));
+      }
+      box.appendChild(skippedEl);
+    }
+
+    const footer = createElement("div", { class: "confirm-footer" });
+    const footerInfo = createElement("span", { class: "scan-review-footer__info" }, "");
+    const cancelBtn = createElement("button", { class: "btn", type: "button" }, "Cancel");
+    const importBtn = createElement("button", { class: "btn btn--primary", type: "button" }, "Import") as HTMLButtonElement;
+    cancelBtn.addEventListener("click", () => close(null), { signal: ac.signal });
+    importBtn.addEventListener("click", () => {
+      const choices = new Map<string, string | null>();
+      for (const [path, select] of selects) {
+        choices.set(path, select.value === SCAN_SKIP_VALUE ? null : select.value);
+      }
+      close(resolveScannedImports(plan, choices));
+    }, { signal: ac.signal });
+    footer.append(footerInfo, cancelBtn, importBtn);
+    box.appendChild(footer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    function updateFooter(): void {
+      let count = 0;
+      let bytes = 0;
+      for (const [path, select] of selects) {
+        if (select.value === SCAN_SKIP_VALUE) continue;
+        count += 1;
+        const file = plan.files.find((f) => f.relativePath === path);
+        if (file) bytes += file.size;
+      }
+      footerInfo.textContent = count > 0
+        ? `Importing ${count} ${count === 1 ? "game" : "games"} (${formatBytes(bytes)})`
+        : "No games selected";
+      importBtn.disabled = count === 0;
+    }
+    updateFooter();
+
+    let detachFromStack: (() => void) | null = null;
+    const close = (result: ScannedImport[] | null) => {
+      detachFromStack?.();
+      detachFromStack = null;
+      ac.abort();
+      overlay.classList.remove("confirm-overlay--visible");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    };
+    detachFromStack = armOverlayStack(overlay, () => close(null));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(null);
+    }, { signal: ac.signal });
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTopmostOverlay(overlay)) {
+        e.preventDefault();
+        e.stopPropagation();
+        close(null);
+      }
+    }, { signal: ac.signal, capture: true });
+    trapFocus(box, ac.signal);
+    requestAnimationFrame(() => {
+      overlay.classList.add("confirm-overlay--visible");
+      importBtn.focus();
     });
   });
 }

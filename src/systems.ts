@@ -1854,6 +1854,107 @@ export function getSystemByCoreHint(coreHint: string | null | undefined): System
   return SYSTEM_BY_ID.get(WEBRETRO_CORE_TO_SYSTEM_ID[normalized] ?? normalized);
 }
 
+// ── Folder-name → system inference ───────────────────────────────────────────
+//
+// Used by directory-scan import (docs/DIRECTORY_SCAN_IMPORT.md) to infer a
+// platform from the directory a ROM lives in, e.g. `/roms/snes/...`. Collections
+// name these folders many different ways ("snes", "Super Nintendo",
+// "Nintendo - Super Nintendo Entertainment System"), so each system carries a
+// curated set of community aliases in addition to its id / shortName / name.
+
+/** Normalise a folder name for alias matching: lowercase, separators → spaces. */
+function normalizeFolderName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * Curated community / No-Intro / libretro folder names per system id. These are
+ * registered first and win over the auto-seeded id/shortName/name aliases on the
+ * rare normalised collision, keeping lookups deterministic.
+ */
+const CURATED_FOLDER_ALIASES: Record<string, string[]> = {
+  psp:        ["psp", "playstation portable", "sony playstation portable"],
+  nes:        ["nes", "famicom", "fc", "nintendo entertainment system"],
+  snes:       ["snes", "super nintendo", "super famicom", "sfc", "sufami",
+               "super nintendo entertainment system"],
+  snesBsnes:  ["snes bsnes", "bsnes"],
+  gba:        ["gba", "game boy advance", "gameboy advance", "advance"],
+  gbc:        ["gbc", "game boy color", "gameboy color"],
+  gb:         ["gb", "game boy", "gameboy", "dmg"],
+  nds:        ["nds", "ds", "nintendo ds"],
+  "3ds":      ["3ds", "n3ds", "nintendo 3ds", "ctr"],
+  n64:        ["n64", "nintendo 64", "nintendo64"],
+  psx:        ["psx", "ps1", "playstation", "psone", "sony playstation"],
+  segaMD:     ["genesis", "mega drive", "megadrive", "sega genesis",
+               "sega mega drive", "md", "gen", "smd"],
+  segaMDWide: ["genesis wide", "mega drive wide"],
+  segaCD:     ["segacd", "sega cd", "mega cd", "megacd", "scd"],
+  sega32x:    ["32x", "sega 32x", "mega 32x"],
+  segaGG:     ["gg", "game gear", "gamegear", "sega game gear"],
+  segaMS:     ["sms", "master system", "sega master system", "mark iii"],
+  atari2600:  ["2600", "atari 2600", "vcs"],
+  intv:       ["intv", "intellivision"],
+  dos:        ["dos", "ms dos", "msdos", "dosbox", "pc dos"],
+  arcade:     ["arcade", "fbneo", "fba", "final burn neo", "finalburn"],
+  segaSaturn: ["saturn", "sega saturn", "ss"],
+  segaDC:     ["dc", "dreamcast", "sega dreamcast"],
+  mame2003:   ["mame", "mame2003", "mame 2003", "mame 2003 plus", "mame2003plus"],
+  atari7800:  ["7800", "atari 7800"],
+  lynx:       ["lynx", "atari lynx"],
+  ngp:        ["ngp", "ngpc", "neo geo pocket", "neogeo pocket"],
+};
+
+const FOLDER_ALIAS_TO_ID: Map<string, string> = new Map();
+
+function registerFolderAlias(alias: string, systemId: string): void {
+  const key = normalizeFolderName(alias);
+  if (!key) return;
+  const existing = FOLDER_ALIAS_TO_ID.get(key);
+  if (existing && existing !== systemId) return; // first registration wins
+  FOLDER_ALIAS_TO_ID.set(key, systemId);
+}
+
+// Curated aliases first (authoritative), then auto-seed from each system so a
+// folder named exactly like a system's id, short name, or full name resolves.
+for (const [id, aliases] of Object.entries(CURATED_FOLDER_ALIASES)) {
+  for (const alias of aliases) registerFolderAlias(alias, id);
+}
+for (const sys of SYSTEMS) {
+  registerFolderAlias(sys.id, sys.id);
+  registerFolderAlias(sys.shortName, sys.id);
+  registerFolderAlias(sys.name, sys.id);
+}
+
+/** Read-only view of the normalised folder-alias → system id table. */
+export const FOLDER_ALIASES: ReadonlyMap<string, string> = FOLDER_ALIAS_TO_ID;
+
+// Leading manufacturer tokens used by No-Intro / libretro folder naming, e.g.
+// "Nintendo - Game Boy Advance". Stripped on a miss so the platform alias matches.
+const MANUFACTURER_PREFIXES = [
+  "nintendo", "sega", "sony", "atari", "snk", "microsoft", "nec", "bandai",
+];
+
+/**
+ * Infer a system id from a directory name (e.g. the parent folder of a ROM).
+ * Returns null when the folder name doesn't match any known system alias.
+ */
+export function getSystemIdForFolder(folderName: string): string | null {
+  const key = normalizeFolderName(folderName);
+  if (!key) return null;
+  const direct = FOLDER_ALIAS_TO_ID.get(key);
+  if (direct) return direct;
+  // Fall back to stripping a leading manufacturer token ("nintendo game boy
+  // advance" → "game boy advance") to handle "Manufacturer - System" folders.
+  for (const prefix of MANUFACTURER_PREFIXES) {
+    if (key.startsWith(prefix + " ")) {
+      const stripped = key.slice(prefix.length + 1);
+      const hit = FOLDER_ALIAS_TO_ID.get(stripped);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
 /**
  * Human-readable system capabilities used across the UI for consistent
  * messaging in cards, pickers, and settings.

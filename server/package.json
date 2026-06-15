@@ -1,0 +1,11 @@
+{
+  "name": "retrooasis-companion-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference read-only companion server for RetroOasis (Phase 2). Scans a roms directory and serves a library index + ROM payloads to the browser client.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

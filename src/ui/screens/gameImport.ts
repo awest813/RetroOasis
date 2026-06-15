@@ -812,3 +812,61 @@ async function handleM3UFile(
     blobUrls.forEach(u => URL.revokeObjectURL(u));
   }
 }
+
+/** Progress callback payload for {@link importScannedFiles}. */
+export interface ScanImportProgress {
+  done: number;
+  total: number;
+  /** Path/name of the file currently importing. */
+  current: string;
+}
+
+/** Result summary from a directory-scan import run. */
+export interface ScanImportResult {
+  /** Games newly added to the library. */
+  added: number;
+  /** Files that resolved to no new game (already present or no-op). */
+  skipped: number;
+  /** Files that threw during import. */
+  failed: number;
+}
+
+/**
+ * Import a batch of scan-resolved files via the standard import pipeline.
+ *
+ * `addOne` performs the actual per-file import (typically a thin wrapper over
+ * resolveSystemAndAdd with the chosen system id and {launchAfterImport:false,
+ * quiet:true}). Library counts before/after distinguish new games from files
+ * that were already present, mirroring the multi-file picker flow.
+ */
+export async function importScannedFiles(
+  imports: ReadonlyArray<{ file: File; systemId: string; relativePath?: string }>,
+  addOne: (file: File, systemId: string) => Promise<void>,
+  library: GameLibrary,
+  onProgress?: (progress: ScanImportProgress) => void,
+): Promise<ScanImportResult> {
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+  const total = imports.length;
+  for (let i = 0; i < total; i++) {
+    const imp = imports[i]!;
+    onProgress?.({ done: i, total, current: imp.relativePath ?? imp.file.name });
+    try {
+      const before = await library.count().catch(() => null);
+      await addOne(imp.file, imp.systemId);
+      const after = await library.count().catch(() => null);
+      if (before !== null && after !== null) {
+        if (after > before) added += after - before;
+        else skipped += 1;
+      } else {
+        added += 1;
+      }
+    } catch (err) {
+      failed += 1;
+      console.warn(`[RetroOasis] scan import failed for ${imp.file.name}:`, err);
+    }
+  }
+  onProgress?.({ done: total, total, current: "" });
+  return { added, skipped, failed };
+}
