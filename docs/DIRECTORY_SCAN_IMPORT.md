@@ -1,7 +1,8 @@
 # Directory-Scan Import — Design
 
-> Status: Phases 1–3 shipped (scan logic, folder inference, review model, import
-> glue, review dialog, and the "Scan Folder" button). Phases 4–5 remain proposed.
+> Status: Phases 1–4 shipped (scan logic, folder inference, review model, import
+> glue, review dialog, the "Scan Folder" button, and folder persistence +
+> incremental re-scan). Phase 5 (further docs polish) is optional.
 > Goal: bring retrom's "scan my collection" UX to RetroOasis **without** requiring a
 > server, by reading an on-disk folder tree through the File System Access API and
 > feeding it into the existing import pipeline.
@@ -216,8 +217,25 @@ When the source is a real `FileSystemDirectoryHandle`:
 1. ✅ `directoryScan.ts` + inference + unit tests (no UI).
 2. ✅ `FOLDER_ALIASES` + `getSystemIdForFolder()` in `systems.ts` + tests.
 3. ✅ Scan review screen + `importScannedFiles()` glue + "Scan Folder" button.
-4. Handle persistence + incremental re-scan (Chromium only).
-5. Docs: add to README "Importing Games" and `docs/PLAN.md` current-state list.
+4. ✅ Handle persistence + incremental re-scan (Chromium only).
+5. ✅ Docs: added to README "Importing Games" and `docs/PLAN.md` current-state list.
+
+### Phase 4 — as shipped
+
+- `src/scanRescan.ts`: pure diff helpers — `fileSignature()` (path + size +
+  lastModified), `planSignatures()` / `signaturesForPaths()`, and
+  `filterToNewOrChanged()` which keeps only files whose signature is unknown.
+- `src/scanHandleStore.ts`: a single-slot IndexedDB store
+  (`saveScanRecord` / `loadScanRecord` / `clearScanRecord`) for the last scanned
+  FileSystemDirectoryHandle plus the signatures imported from it, and
+  `verifyHandlePermission()` (query → request `read`).
+- `src/directoryScan.ts`: `DirectorySource.handle` + `directorySourceFromHandle()`
+  so a saved handle can be resumed.
+- `src/main.ts`: on "Scan Folder", offers to re-scan the saved folder (after a
+  permission check); a re-scan diffs against the saved signatures and only
+  reviews/imports new or changed files, then persists the merged signatures. The
+  `webkitdirectory` fallback has no handle, so it never persists.
+- Tests: `scanRescan.test.ts` (6) and `scanHandleStore.test.ts` (8).
 
 ### Phase 3 — as shipped
 

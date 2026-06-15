@@ -301,7 +301,20 @@ export interface DirectorySource {
   name: string;
   /** Whether this source supports a later incremental re-scan (FS Access only). */
   canRescan: boolean;
+  /** The underlying FileSystemDirectoryHandle, when one is available (for persistence). */
+  handle?: unknown;
   entries(): AsyncIterable<DirectoryEntry> | Iterable<DirectoryEntry>;
+}
+
+/** Build a DirectorySource from a FileSystemDirectoryHandle (e.g. a resumed one). */
+export function directorySourceFromHandle(handle: unknown): DirectorySource {
+  const h = handle as FsDirectoryHandle;
+  return {
+    name: h.name,
+    canRescan: true,
+    handle,
+    entries: () => entriesFromDirectoryHandle(h),
+  };
 }
 
 interface PickerWindow {
@@ -318,11 +331,7 @@ export async function acquireDirectory(): Promise<DirectorySource | null> {
   if (typeof picker === "function") {
     try {
       const handle = await picker({ id: "retrooasis-roms", mode: "read" });
-      return {
-        name: handle.name,
-        canRescan: true,
-        entries: () => entriesFromDirectoryHandle(handle),
-      };
+      return directorySourceFromHandle(handle);
     } catch (err) {
       // AbortError = user cancelled the picker; treat as no selection.
       if (err && (err as DOMException).name === "AbortError") return null;

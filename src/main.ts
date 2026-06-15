@@ -60,8 +60,14 @@ import { buildDOM, initUI,
           showError, showInfoToast, showLoadingOverlay, hideLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
           openEasyNetplayModal } from "./ui.js";
-import { acquireDirectory, scanDirectory } from "./directoryScan.js";
-import { showScanReviewDialog } from "./ui/modals.js";
+import { acquireDirectory, directorySourceFromHandle, scanDirectory } from "./directoryScan.js";
+import { filterToNewOrChanged, signaturesForPaths } from "./scanRescan.js";
+import {
+  loadScanRecord,
+  saveScanRecord,
+  verifyHandlePermission,
+} from "./scanHandleStore.js";
+import { showConfirmDialog, showScanReviewDialog } from "./ui/modals.js";
 import { importScannedFiles } from "./ui/screens/gameImport.js";
 import { setLoadingProgress } from "./ui/loadingOverlay.js";
 import { extractJoinCodeFromUrl } from "./netplay/signalingClient.js";
@@ -1034,18 +1040,45 @@ async function main(): Promise<void> {
     await resolveSystemAndAdd(file, library, settings, onLaunchGame, emulator, onApplyPatch, urlImportSystem?.id);
   };
   const onScanFolder = async (): Promise<void> => {
-    const source = await acquireDirectory();
+    // Offer to re-scan a previously imported folder before prompting for one.
+    const saved = await loadScanRecord();
+    let source = null as Awaited<ReturnType<typeof acquireDirectory>>;
+    let knownSignatures: ReadonlySet<string> | null = null;
+    if (saved) {
+      const reuse = await showConfirmDialog(
+        `Re-scan "${saved.name}" for new or changed games? Choose Cancel to pick a different folder.`,
+        { title: "Scan folder", confirmLabel: "Re-scan" },
+      );
+      if (reuse) {
+        if (await verifyHandlePermission(saved.handle)) {
+          source = directorySourceFromHandle(saved.handle);
+          knownSignatures = new Set(saved.signatures);
+        } else {
+          showInfoToast("Couldn't reopen that folder — choose it again to continue.", "warning");
+        }
+      }
+    }
+    if (!source) source = await acquireDirectory();
     if (!source) return;
+
     showLoadingOverlay();
     setLoadingMessage(`Scanning ${source.name}…`);
     setLoadingProgress(null);
-    const plan = await (async () => {
+    let plan = await (async () => {
       try {
         return await scanDirectory(source);
       } finally {
         hideLoadingOverlay();
       }
     })();
+    if (knownSignatures) {
+      const diff = filterToNewOrChanged(plan, knownSignatures);
+      if (diff.plan.files.length === 0) {
+        showInfoToast(`No new games since the last scan of "${source.name}".`, "info");
+        return;
+      }
+      plan = diff.plan;
+    }
     if (plan.files.length === 0) {
       showInfoToast("No importable games were found in that folder.", "warning");
       return;
@@ -1067,6 +1100,16 @@ async function main(): Promise<void> {
       },
     );
     hideLoadingOverlay();
+
+    // Remember this folder + what we imported so a later visit can re-scan.
+    if (source.canRescan && source.handle) {
+      const newSignatures = signaturesForPaths(plan, imports.map((i) => i.relativePath));
+      const merged = knownSignatures
+        ? [...new Set([...knownSignatures, ...newSignatures])]
+        : newSignatures;
+      await saveScanRecord(source.handle, source.name, merged).catch(() => { /* non-fatal */ });
+    }
+
     if (result.added === 0) {
       showInfoToast("No new games were added — they may already be in your library.", "warning");
       return;
