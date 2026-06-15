@@ -18,7 +18,7 @@
 }
 
 .hidden-section {
-  display: none;
+  display: none !important;
 }
 
 html, body {
@@ -12913,7 +12913,6 @@ body::before {
   }
 }
 
-/* Mobile shell fit: keep the new mark visible without crushing header actions. */
 @media (max-width: 520px) {
   .app-header {
     align-content: center !important;
@@ -12966,56 +12965,79 @@ body::before {
   }
 }
 
-/* Header profile cartridge polish. */
+/* Header profile riot-pass badge. */
 .app-header .profile-chip {
   position: relative;
   min-height: 38px !important;
-  max-width: 170px;
-  padding: 0 18px 0 12px !important;
-  gap: 8px;
-  border: 2px solid var(--c-ink) !important;
+  max-width: 186px;
+  padding: 0 16px 0 46px !important;
+  gap: 7px;
+  border: 3px solid var(--c-ink) !important;
   border-radius: 0 !important;
-  color: #f7f0ff !important;
+  color: #050308 !important;
   background:
-    radial-gradient(circle at calc(100% - 16px) 50%, rgba(0, 240, 255, 0.24) 0 7px, transparent 8px),
-    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 10px),
-    linear-gradient(96deg, rgba(0, 240, 255, 0.12), rgba(255, 46, 151, 0.14)),
-    #080411 !important;
-  box-shadow: 4px 4px 0 var(--c-ink), inset 0 0 0 1px rgba(0, 240, 255, 0.18) !important;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
-  font-family: var(--font-mono) !important;
-  font-size: 0.73rem !important;
+    linear-gradient(112deg, var(--c-gold) 0 34%, var(--c-accent) 34.5% 66%, var(--c-accent-2) 66.5%),
+    #f5ff4d !important;
+  box-shadow: 5px 5px 0 var(--c-ink), -2px 0 0 var(--c-accent-2), 2px 0 0 var(--c-accent) !important;
+  clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 44%, calc(100% - 7px) 100%, 0 100%, 7px 50%);
+  font-family: var(--font-display) !important;
+  font-size: 0.7rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .app-header .profile-chip::before {
-  content: "ID";
+  content: "P1";
+  position: absolute;
+  left: 9px;
+  top: 50%;
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 18px;
-  margin-right: -2px;
+  width: 27px;
+  height: 24px;
+  transform: translateY(-50%) rotate(-7deg);
   border: 2px solid var(--c-ink);
-  background: var(--c-gold);
+  background: #fff7ff;
   color: var(--c-ink);
   box-shadow: 2px 2px 0 var(--c-ink);
   font-family: var(--font-display);
-  font-size: 0.5rem;
+  font-size: 0.58rem;
   line-height: 1;
-  transform: rotate(-3deg);
+}
+
+.app-header .profile-chip::after {
+  content: "LIVE";
+  position: absolute;
+  right: 7px;
+  bottom: -8px;
+  padding: 1px 5px 2px;
+  border: 2px solid var(--c-ink);
+  background: var(--c-accent-2);
+  color: var(--c-ink);
+  box-shadow: 2px 2px 0 var(--c-ink);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  transform: rotate(3deg);
 }
 
 .app-header .profile-chip__dot {
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--c-ink);
-  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.16), 0 0 12px currentColor;
+  width: 8px;
+  height: 18px;
+  border: 2px solid var(--c-ink);
+  border-radius: 0;
+  background: var(--c-success);
+  box-shadow: 2px 2px 0 var(--c-ink);
+  transform: skewX(-12deg);
 }
 
 .app-header .profile-chip__label {
-  max-width: 78px;
+  max-width: 82px;
+  color: #050308;
+  text-shadow: 1px 0 0 rgba(255,255,255,0.5);
 }
 
 .app-header .profile-chip__caret {
@@ -13024,14 +13046,13 @@ body::before {
 
 .app-header .profile-chip:hover,
 .app-header .profile-chip:focus-visible {
-  color: #fff !important;
+  color: #050308 !important;
   border-color: var(--c-ink) !important;
   background:
-    radial-gradient(circle at calc(100% - 16px) 50%, var(--c-gold) 0 7px, transparent 8px),
-    linear-gradient(96deg, rgba(255, 46, 151, 0.48), rgba(0, 240, 255, 0.20)),
-    #130822 !important;
+    linear-gradient(112deg, var(--c-accent-2) 0 34%, var(--c-gold) 34.5% 66%, var(--c-accent) 66.5%),
+    #f5ff4d !important;
   transform: translate(-2px, -2px) skewX(-1deg) !important;
-  box-shadow: 6px 6px 0 var(--c-ink), 0 0 18px rgba(0, 240, 255, 0.24) !important;
+  box-shadow: 8px 8px 0 var(--c-ink), -2px 0 0 var(--c-accent), 2px 0 0 var(--c-accent-2) !important;
 }
 
 @media (max-width: 520px) {
@@ -13041,6 +13062,10 @@ body::before {
   }
 
   .app-header .profile-chip::before {
+    display: none;
+  }
+
+  .app-header .profile-chip::after {
     display: none;
   }
 
@@ -13184,9 +13209,11 @@ body::before {
   min-height: clamp(196px, 28vh, 260px);
   margin-inline: auto;
   padding: clamp(24px, 4vw, 38px) clamp(22px, 4vw, 44px) !important;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
   align-items: center;
-  column-gap: clamp(20px, 3vw, 34px);
+  column-gap: clamp(18px, 3vw, 30px);
+  row-gap: 10px;
   border-style: solid !important;
   background:
     linear-gradient(110deg, rgba(255,46,151,0.20), transparent 32%),
@@ -13198,10 +13225,10 @@ body::before {
 }
 
 #landing.landing-empty .drop-zone::after {
-  content: "INSERT FILE";
+  content: "LOAD SLOT";
   position: absolute;
   right: clamp(14px, 2vw, 24px);
-  bottom: clamp(18px, 2.4vw, 26px);
+  top: clamp(16px, 2vw, 24px);
   color: rgba(245,255,77,0.88);
   font-family: var(--font-display);
   font-size: 0.75rem;
@@ -13213,6 +13240,7 @@ body::before {
 #landing.landing-empty .drop-zone__icon {
   width: clamp(48px, 6vw, 70px);
   height: clamp(48px, 6vw, 70px);
+  grid-row: 1 / span 3;
   border: 2px solid #000;
   background: rgba(245,255,77,0.12);
   box-shadow: 4px 4px 0 #000, 0 0 18px rgba(245,255,77,0.12);
@@ -13229,20 +13257,25 @@ body::before {
 }
 
 #landing.landing-empty .drop-zone__formats {
-  grid-column: 2 / -1;
+  grid-column: 2;
   max-width: 70ch;
 }
 
 #landing.landing-empty .drop-zone__actions {
-  justify-self: end;
-  display: flex;
-  flex-direction: column;
+  grid-column: 2;
+  justify-self: start;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  min-width: 176px;
+  min-width: 0;
+  margin-top: 2px;
 }
 
 #landing.landing-empty .drop-zone__actions .btn {
-  width: 100%;
+  width: auto;
+  min-width: 154px;
 }
 
 #landing.landing-empty .onboarding {
@@ -13325,7 +13358,8 @@ body::before {
 
   #landing.landing-empty .drop-zone::after {
     right: 20px;
-    bottom: 16px;
+    top: 16px;
+    bottom: auto;
     font-size: 0.62rem;
   }
 
@@ -13798,5 +13832,640 @@ body::before {
       repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.08) 0 1px, transparent 1px 16px),
       var(--arcade-punk-bg) 58% center / cover no-repeat,
       #05030d !important;
+  }
+}
+
+/* Empty-library mobile shell: account for wrapped header actions so the
+   import marquee starts below the chrome instead of crowding it. */
+@media (max-width: 760px) {
+  #landing.landing-empty #library-section {
+    padding-top: clamp(44px, 7vh, 64px) !important;
+  }
+
+  #landing.landing-empty .drop-zone--prominent,
+  #landing.landing-empty .drop-zone {
+    margin-top: 0 !important;
+  }
+}
+
+/* Narrow header fit: keep all primary actions on one row before the
+   smallest-phone wordmark rules take over. */
+@media (max-width: 720px) {
+  .app-header__actions {
+    flex-wrap: nowrap !important;
+  }
+
+  .app-header .profile-chip {
+    max-width: 96px !important;
+    padding-inline: 10px !important;
+  }
+
+  .app-header .profile-chip::before {
+    display: none !important;
+  }
+
+  .app-header .profile-chip__label {
+    max-width: 52px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-header__actions .header-play-together {
+    width: 44px;
+    min-width: 44px;
+    padding-inline: 0 !important;
+    overflow: hidden;
+    font-size: 0 !important;
+    gap: 0 !important;
+  }
+
+  .app-header__actions .header-play-together .btn__icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+  }
+}
+
+/* UI audit pass: viewport-safe menus and scale clamps. */
+#settings-panel,
+.modal-backdrop,
+.easy-netplay-overlay,
+.confirm-overlay {
+  max-width: 100vw;
+  max-width: 100dvw;
+  overflow: hidden;
+}
+
+#settings-panel .settings-modal-box,
+.modal-box:not(.settings-modal-box),
+.easy-netplay-dialog,
+.confirm-box,
+.conflict-resolver-box,
+.scan-review-box {
+  box-sizing: border-box;
+  max-width: calc(100vw - max(12px, env(safe-area-inset-left, 0px)) - max(12px, env(safe-area-inset-right, 0px))) !important;
+  max-width: calc(100dvw - max(12px, env(safe-area-inset-left, 0px)) - max(12px, env(safe-area-inset-right, 0px))) !important;
+  max-height: calc(100vh - max(12px, env(safe-area-inset-top, 0px)) - max(12px, env(safe-area-inset-bottom, 0px))) !important;
+  max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - max(12px, env(safe-area-inset-bottom, 0px))) !important;
+}
+
+#settings-panel .settings-modal-box {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  inset: 0 !important;
+  box-shadow: inset 0 0 0 3px var(--c-ink) !important;
+}
+
+#settings-panel .settings-modal-box,
+#settings-panel .settings-shell,
+#settings-panel .settings-quickbar,
+#settings-panel .settings-body,
+#settings-panel .settings-panels,
+#settings-panel .settings-panel-content,
+#settings-panel .settings-section,
+.easy-netplay-dialog,
+.enp-header,
+.enp-panels,
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip,
+.enp-radio-card,
+.profile-chip-menu,
+.profile-chip-menu__item {
+  min-width: 0;
+}
+
+#settings-panel .settings-shell,
+#settings-panel .settings-body {
+  min-height: 0;
+}
+
+#settings-panel .settings-body {
+  overflow-x: hidden !important;
+}
+
+#settings-panel .settings-panels {
+  width: 100%;
+  max-width: 100%;
+  overflow: clip;
+}
+
+#settings-panel .settings-panel-header,
+#settings-panel .settings-section__title,
+#settings-panel .settings-section-title,
+.enp-title,
+.enp-header__subtitle,
+.enp-tab,
+.enp-filter-btn,
+.profile-chip-menu__item {
+  overflow-wrap: anywhere;
+}
+
+#settings-panel .settings-row,
+#settings-panel .toggle-row,
+#settings-panel .radio-row,
+#settings-panel .settings-jumpbar,
+.enp-readiness__items,
+.enp-readiness__actions,
+.enp-radio-group,
+.enp-filter-row,
+.enp-seg-row,
+.enp-seg-actions {
+  max-width: 100%;
+}
+
+.easy-netplay-dialog {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+.enp-tabs {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+.enp-panels,
+.enp-panel {
+  overflow-x: clip !important;
+}
+
+@media (max-width: 900px) {
+  #settings-panel .settings-modal-box {
+    max-width: 100vw !important;
+    max-width: 100dvw !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+  }
+
+  #settings-panel .settings-quickbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  #settings-panel .settings-search-input {
+    grid-column: 1 / -1;
+    max-width: none !important;
+  }
+
+  #settings-panel .settings-shell {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  #settings-panel .settings-quickbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #settings-panel .settings-sidebar {
+    max-width: 100%;
+  }
+
+  #settings-panel .settings-sidebar__item {
+    flex: 0 0 auto;
+  }
+}
+
+/* Type harmony pass: stamped punk ink without the heavy menu halo. */
+.brand-long {
+  color: #fff7ff !important;
+  font-family: var(--font-display) !important;
+  font-size: clamp(1.08rem, 0.92rem + 0.7vw, 1.42rem) !important;
+  font-weight: 780 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1 !important;
+  text-shadow:
+    1px 1px 0 var(--c-ink),
+    -1px 0 0 rgba(0, 240, 255, 0.32),
+    1px 0 0 rgba(255, 46, 151, 0.26) !important;
+}
+
+.app-header .btn,
+.app-header .profile-chip {
+  text-shadow: none !important;
+}
+
+#settings-panel .modal-header {
+  background:
+    linear-gradient(100deg, rgba(255, 46, 151, 0.78) 0 18%, transparent 18.4%),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.14), rgba(5, 3, 13, 0.96) 52%, rgba(245, 255, 77, 0.08)),
+    #07030f !important;
+  box-shadow: inset 0 -3px 0 var(--c-ink) !important;
+}
+
+#settings-panel .modal-title,
+#settings-panel .settings-panel-header,
+#settings-panel .settings-section__title,
+#settings-panel .settings-section-title,
+.enp-title {
+  color: #fff7ff !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.045em !important;
+  text-shadow:
+    1px 1px 0 var(--c-ink),
+    -1px 0 0 rgba(0, 240, 255, 0.30),
+    1px 0 0 rgba(255, 46, 151, 0.24) !important;
+}
+
+#settings-panel .modal-title::after {
+  color: var(--c-gold) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.58em !important;
+  letter-spacing: 0.08em !important;
+  text-shadow: 1px 1px 0 var(--c-ink) !important;
+}
+
+#settings-panel .settings-modal-box {
+  box-shadow:
+    inset 0 0 0 3px var(--c-ink),
+    6px 6px 0 rgba(5, 3, 8, 0.92),
+    -2px -2px 0 rgba(255, 46, 151, 0.48) !important;
+}
+
+#settings-panel .settings-panel-header {
+  box-shadow: 3px 3px 0 var(--c-ink) !important;
+}
+
+#settings-panel .settings-sidebar__item,
+#settings-panel .settings-active-tab-label {
+  font-family: var(--font-sans) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+  text-shadow: none !important;
+}
+
+/* Old layer cleanup: one print-shadow scale across routine UI. */
+:root {
+  --punk-shadow-control: 2px 2px 0 var(--c-ink);
+  --punk-shadow-selected: 3px 3px 0 var(--c-ink);
+  --punk-shadow-panel: 4px 4px 0 var(--c-ink);
+  --punk-surface-quiet: rgba(8, 4, 16, 0.96);
+}
+
+.btn:not(.profile-chip):not(.header-play-together),
+.library-search,
+.library-sort,
+.settings-input,
+#settings-panel .settings-search-input,
+#settings-panel select,
+#settings-panel input,
+#settings-panel textarea,
+.game-card__menu-item,
+.profile-chip-menu__item,
+.enp-tab,
+.enp-filter-btn,
+.enp-radio-card,
+.enp-seg-box {
+  border-radius: 0 !important;
+  box-shadow: var(--punk-shadow-control) !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+.btn--primary:not(.profile-chip),
+.pwa-install-btn,
+.header-play-together,
+#settings-panel .settings-sidebar__item.settings-tab--active,
+#settings-panel .settings-sidebar__item:hover,
+.enp-tab--active,
+.enp-filter-btn--active,
+.enp-radio-card--active,
+.game-card__menu-item:hover,
+.game-card__menu-item:focus-visible,
+.profile-chip-menu__item:hover,
+.profile-chip-menu__item--active {
+  box-shadow: var(--punk-shadow-selected) !important;
+  filter: none !important;
+}
+
+.btn:hover:not(:disabled),
+.btn:focus-visible,
+.game-card__menu-item:hover,
+.profile-chip-menu__item:hover,
+.enp-tab:hover,
+.enp-filter-btn:hover,
+.enp-radio-card:hover {
+  transform: translate(-1px, -1px) !important;
+}
+
+#settings-panel .settings-section,
+#settings-panel .settings-row,
+#settings-panel .toggle-row,
+#settings-panel .radio-row,
+#settings-panel .cloud-library-section,
+.game-card__menu,
+.profile-chip-menu,
+.modal-box:not(.settings-modal-box),
+.easy-netplay-dialog,
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip,
+.confirm-box,
+.conflict-resolver-box,
+.scan-review-box {
+  border-radius: 0 !important;
+  box-shadow: var(--punk-shadow-panel) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#settings-panel .settings-section,
+#settings-panel .settings-row,
+#settings-panel .toggle-row,
+#settings-panel .radio-row {
+  background:
+    linear-gradient(108deg, rgba(255, 46, 151, 0.07), rgba(0, 240, 255, 0.045) 56%, rgba(5, 3, 13, 0.96)),
+    var(--punk-surface-quiet) !important;
+}
+
+#settings-panel .settings-quickbar,
+#settings-panel .settings-sidebar {
+  box-shadow: var(--punk-shadow-panel) !important;
+}
+
+#settings-panel .settings-sidebar__item {
+  min-height: 40px !important;
+  background:
+    linear-gradient(95deg, rgba(255, 46, 151, 0.10), rgba(0, 240, 255, 0.055)),
+    rgba(8, 4, 16, 0.94) !important;
+}
+
+#settings-panel .settings-sidebar__item.settings-tab--active,
+#settings-panel .settings-sidebar__item:hover {
+  background:
+    linear-gradient(96deg, rgba(255, 46, 151, 0.64), rgba(0, 240, 255, 0.16)),
+    #10061b !important;
+}
+
+#settings-panel .settings-search-input,
+.library-search {
+  background:
+    linear-gradient(90deg, rgba(0, 240, 255, 0.07), rgba(255, 46, 151, 0.045)),
+    #080411 !important;
+}
+
+.btn--primary:not(.profile-chip) {
+  background:
+    linear-gradient(100deg, var(--c-accent) 0 68%, var(--c-gold) 68.5% 76%, var(--c-accent-2) 76.5%),
+    var(--c-accent) !important;
+  color: #050308 !important;
+}
+
+.btn--ghost:not(.profile-chip),
+.btn:not(.btn--primary):not(.btn--highlight):not(.profile-chip) {
+  background:
+    linear-gradient(96deg, rgba(255, 46, 151, 0.10), rgba(0, 240, 255, 0.055)),
+    rgba(8, 4, 16, 0.96) !important;
+}
+
+.game-card__menu,
+.profile-chip-menu {
+  background:
+    linear-gradient(112deg, rgba(255, 46, 151, 0.12), rgba(0, 240, 255, 0.07)),
+    #080411 !important;
+}
+
+.easy-netplay-dialog {
+  background:
+    linear-gradient(112deg, rgba(255, 46, 151, 0.13), rgba(0, 240, 255, 0.07)),
+    #080411 !important;
+}
+
+.enp-tab {
+  min-width: 86px !important;
+  padding-inline: 8px !important;
+  font-size: clamp(0.68rem, 1.6vw, 0.8rem) !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip {
+  background:
+    linear-gradient(108deg, rgba(255, 46, 151, 0.07), rgba(0, 240, 255, 0.045) 56%, rgba(5, 3, 13, 0.96)),
+    var(--punk-surface-quiet) !important;
+}
+
+/* Font + scaling pass: compact action type and viewport-aware chrome. */
+:root {
+  --punk-type-action: clamp(0.92rem, 0.48vw + 0.78rem, 1.08rem);
+  --punk-type-action-sm: clamp(0.8rem, 0.38vw + 0.7rem, 0.94rem);
+  --punk-type-ui: clamp(0.92rem, 0.22vw + 0.86rem, 1rem);
+  --punk-type-caption: clamp(0.74rem, 0.24vw + 0.68rem, 0.84rem);
+  --punk-type-title: clamp(1.25rem, 1.4vw + 0.92rem, 1.78rem);
+  --punk-control-h: clamp(36px, 2.1vw + 28px, 44px);
+  --punk-control-pad-x: clamp(10px, 1.2vw + 6px, 18px);
+  --punk-panel-pad: clamp(14px, 1.6vw + 8px, 24px);
+  --punk-modal-gutter: clamp(10px, 1.8vw, 24px);
+}
+
+.btn:not(.profile-chip),
+.settings-jumpbar__btn,
+#settings-panel .settings-sidebar__item,
+.game-card__menu-item,
+.profile-chip-menu__item,
+.enp-tab,
+.enp-filter-btn,
+.enp-ready-action,
+.enp-open-source__btn,
+.enp-no-game-btn {
+  font-family: var(--font-action) !important;
+  font-size: var(--punk-type-action) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.075em !important;
+  line-height: 0.98 !important;
+  text-transform: uppercase !important;
+}
+
+.btn:not(.profile-chip),
+.settings-jumpbar__btn,
+.enp-ready-action,
+.enp-open-source__btn,
+.enp-no-game-btn {
+  min-height: var(--punk-control-h) !important;
+  padding-block: 0 !important;
+  padding-inline: var(--punk-control-pad-x) !important;
+  align-items: center;
+  justify-content: center;
+}
+
+#settings-panel,
+.easy-netplay-dialog,
+.modal-box,
+.confirm-box {
+  font-size: var(--punk-type-ui);
+}
+
+#settings-panel .modal-title,
+#settings-panel .settings-panel-header,
+.enp-title {
+  font-size: var(--punk-type-title) !important;
+  line-height: 0.94 !important;
+}
+
+#settings-panel .settings-section,
+#settings-panel .settings-row,
+#settings-panel .toggle-row,
+#settings-panel .radio-row,
+.enp-panel,
+.enp-readiness,
+.enp-setup-strip {
+  padding: var(--punk-panel-pad) !important;
+}
+
+#settings-panel .settings-panels {
+  padding-inline: clamp(14px, 4vw, 52px) !important;
+  padding-block: clamp(20px, 3.4vw, 44px) clamp(60px, 8vh, 104px) !important;
+}
+
+#settings-panel .settings-sidebar {
+  width: clamp(190px, 17vw, 246px) !important;
+}
+
+#settings-panel .settings-sidebar__item {
+  min-height: clamp(34px, 1.8vw + 28px, 42px) !important;
+  padding: 6px clamp(9px, 1vw, 13px) !important;
+}
+
+#settings-panel .settings-sidebar__label,
+.profile-chip-menu__item,
+.game-card__menu-item {
+  font-size: var(--punk-type-action-sm) !important;
+}
+
+#settings-panel .settings-quickbar {
+  min-height: clamp(58px, 5vw, 72px) !important;
+  padding: clamp(8px, 1.2vw, 12px) clamp(12px, 2vw, 24px) !important;
+}
+
+#settings-panel .settings-quickbar__summary,
+#settings-panel .settings-active-tab-label,
+.enp-header__subtitle,
+.enp-radio-card__desc,
+.enp-help {
+  font-size: var(--punk-type-caption) !important;
+}
+
+.easy-netplay-dialog {
+  width: min(900px, calc(100vw - (var(--punk-modal-gutter) * 2))) !important;
+  width: min(900px, calc(100dvw - (var(--punk-modal-gutter) * 2))) !important;
+  padding: clamp(16px, 2.4vw, 28px) !important;
+}
+
+.enp-tabs {
+  gap: clamp(7px, 1vw, 12px) !important;
+  align-items: stretch !important;
+  min-height: calc(clamp(40px, 5vw, 56px) + 12px) !important;
+}
+
+.enp-tab {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  min-width: clamp(78px, 10vw, 116px) !important;
+  height: clamp(40px, 5vw, 56px) !important;
+  padding-inline: clamp(7px, 1vw, 12px) !important;
+  font-size: clamp(0.74rem, 1vw, 0.92rem) !important;
+}
+
+.enp-radio-card__label,
+.settings-label,
+.radio-row__label,
+.toggle-row__label {
+  font-size: clamp(0.96rem, 0.32vw + 0.88rem, 1.08rem) !important;
+}
+
+#landing.landing-empty .drop-zone__actions .btn,
+#landing.landing-empty .onboarding__quick-actions .btn,
+#landing.landing-empty .btn--primary,
+#landing.landing-empty .btn--ghost {
+  font-family: var(--font-action) !important;
+  font-size: clamp(1.04rem, 1.1vw + 0.82rem, 1.22rem) !important;
+  letter-spacing: 0.075em !important;
+  line-height: 0.96 !important;
+  min-height: clamp(38px, 2vw + 30px, 44px) !important;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --punk-type-action: clamp(0.82rem, 2.6vw, 0.98rem);
+    --punk-control-h: 38px;
+    --punk-control-pad-x: 10px;
+    --punk-panel-pad: 13px;
+  }
+
+  .app-header__actions .btn:not(.profile-chip) {
+    min-width: 40px !important;
+  }
+
+  .app-header__actions .btn:not(.profile-chip):not(.header-play-together) {
+    font-size: clamp(0.78rem, 2.2vw, 0.9rem) !important;
+  }
+
+  .app-header__actions .header-play-together {
+    font-size: 0 !important;
+  }
+
+  #settings-panel .settings-shell {
+    gap: 10px !important;
+  }
+
+  #settings-panel .settings-panels {
+    padding-inline: 12px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #settings-panel .settings-modal-box {
+    left: 0 !important;
+    right: auto !important;
+    top: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    max-width: 100vw !important;
+    max-width: 100dvw !important;
+    transform: none !important;
+  }
+
+  #settings-panel .settings-quickbar,
+  #settings-panel .settings-shell,
+  #settings-panel .settings-body {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .brand-long {
+    font-size: clamp(0.98rem, 4.2vw, 1.18rem) !important;
+    letter-spacing: 0.045em !important;
+  }
+
+  .app-header__actions .btn:not(.profile-chip):not(.header-play-together) {
+    padding-inline: 8px !important;
+  }
+
+  #settings-panel .settings-panel-header,
+  #settings-panel .modal-title,
+  .enp-title {
+    font-size: clamp(1.12rem, 5.6vw, 1.42rem) !important;
+  }
+
+  .enp-tab {
+    flex: 0 0 auto !important;
+    min-width: clamp(72px, 18vw, 92px) !important;
+    height: 40px !important;
+    font-size: clamp(0.7rem, 3.1vw, 0.82rem) !important;
+  }
+
+  .enp-tabs {
+    flex-wrap: nowrap !important;
+    min-height: 52px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding-block: 6px !important;
   }
 }

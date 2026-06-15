@@ -200,7 +200,7 @@ export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=shibuya-oasis-20260614";
+const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=shibuya-punk-20260615";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
@@ -239,15 +239,16 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <path d="M12 20L20 12H76L84 20V76L76 84H20L12 76V20Z" fill="#07030f" stroke="#05030d" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M16 21.5L21.5 16H74.5L80 21.5V74.5L74.5 80H21.5L16 74.5V21.5Z" stroke="#ff2e97" stroke-width="3.4" stroke-linejoin="round"/>
-  <circle cx="63" cy="50" r="21" fill="#05030d"/>
-  <circle cx="63" cy="50" r="17" fill="#ff2e97"/>
-  <path d="M44 47H82M44 53H82M46 59H80M50 65H76" stroke="#05030d" stroke-opacity="0.8" stroke-width="3"/>
-  <path d="M61 31C64 38 64.2 47.2 61.6 57.6C60.5 62.1 58.8 66.3 56.5 70.4" stroke="#05030d" stroke-width="4" stroke-linecap="round"/>
-  <path d="M62 38C68 34.6 73.4 34.4 78 37.3C72.7 40.2 67.5 40.3 62 38Z" fill="#05030d"/>
-  <path d="M25 67V30H47.2C54.7 30 59.6 34.7 59.6 41.6C59.6 48.1 55.1 52.4 48 53.2L60.4 67H47.8L37.3 54.2H35.8V67H25Z" fill="#fff7ff" stroke="#05030d" stroke-width="3.6" stroke-linejoin="round"/>
-  <path d="M52 66C58.6 68.8 67.1 68.1 73 63.2" stroke="#00f0ff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M10 23L24 9L48 14L71 7L88 24L80 47L88 72L66 87L42 82L19 89L7 68L14 47L10 23Z" fill="#050308"/>
+  <path d="M14 24L26 13L48 18L70 12L83 26L76 47L83 69L64 81L42 76L22 82L12 66L19 47L14 24Z" fill="#ff2e97"/>
+  <path d="M19 28L30 20L49 24L68 18L76 29L71 47L77 65L62 73L43 69L27 74L19 63L24 47L19 28Z" fill="#080411" stroke="#050308" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M13 58L83 33" stroke="#f5ff4d" stroke-width="5"/>
+  <path d="M23 66V29H49C57 29 62 33.7 62 40.8C62 46.1 59.1 50 53.8 51.7L66 66H49.8L40.2 53.7H37.3V66H23Z" fill="#fff7ff" stroke="#050308" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M37.3 43.9H47.2C50.1 43.9 51.8 42.7 51.8 40.5C51.8 38.2 50.1 37 47.2 37H37.3V43.9Z" fill="#080411"/>
+  <path d="M66 26C78.2 26 86 34.6 86 47.5C86 60.4 78.2 69 66 69C54 69 46 60.4 46 47.5C46 34.6 54 26 66 26Z" fill="#050308"/>
+  <path d="M66 35C72.3 35 76.2 39.8 76.2 47.5C76.2 55.2 72.3 60 66 60C59.8 60 55.8 55.2 55.8 47.5C55.8 39.8 59.8 35 66 35Z" fill="#f5ff4d"/>
+  <path d="M55 48H78M57 55H74M59 40H76" stroke="#050308" stroke-width="3"/>
+  <path d="M30 15L34 5L38 15L47 18L38 21L34 31L30 21L21 18L30 15Z" fill="#f5ff4d" stroke="#050308" stroke-width="3" stroke-linejoin="round"/>
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {
@@ -2518,11 +2519,11 @@ export function buildLandingControls(
   });
 
   const btnMultiplayer = make("button", {
-    class: "btn btn--highlight",
+    class: "btn btn--highlight header-play-together",
     title: "Open Play Together — Host or join a game with friends",
     "aria-label": "Open Play Together",
   }) as HTMLButtonElement;
-  btnMultiplayer.innerHTML = `<svg class="btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="7" cy="12" r="4" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="12" r="4" stroke="currentColor" stroke-width="1.9"/></svg> Play Together`;
+  btnMultiplayer.innerHTML = `<svg class="btn__icon btn__icon--punch" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 8h4M2 12h5M3 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/><path d="M8 9.4C8 8.1 9 7 10.4 7H18l3 4.2v4.1L18.2 19H11c-1.7 0-3-1.3-3-3v-6.6Z" fill="currentColor"/><path d="M10.7 7V4.8C10.7 3.8 11.5 3 12.5 3C13.5 3 14.3 3.8 14.3 4.8V7M14.3 7V4.5C14.3 3.7 15 3 15.9 3C16.8 3 17.5 3.7 17.5 4.5V7M17.5 7V5.3C17.5 4.5 18.2 3.9 19 3.9C19.8 3.9 20.4 4.5 20.4 5.3V10" stroke="#050308" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.2 12H20.4M12 15.4H18.2" stroke="#050308" stroke-width="1.7" stroke-linecap="square"/></svg> Play Together`;
   btnMultiplayer.addEventListener("click", () => {
     const openWith = (nm: import("./multiplayer.js").NetplayManager) => {
       openEasyNetplayModalImpl({
