@@ -10459,11 +10459,12 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 }
 
 /* ── Animated Mesh Background for Onboarding ── */
+/* Fill the positioned .app-main so the wallpaper's `cover` scales/crops to the
+   viewport rather than to the (content-sized) landing box. The home wallpaper
+   itself is declared once, lower down (homepage-bg-shibuya-neon). */
 #landing {
-  position: relative;
-  background: 
-    linear-gradient(rgba(7, 5, 14, 0.58), rgba(7, 5, 14, 0.68)),
-    url("/assets/homepage-bg.jpg") no-repeat center center / cover !important;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
 }
 
