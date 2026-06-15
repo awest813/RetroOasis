@@ -1,7 +1,9 @@
 # Optional Companion Server — Design
 
-> Status: Phase 1 shipped (the `LibrarySource` abstraction + registry; `GameLibrary`
-> is the registered "local" source). Phases 2–5 (the actual server) remain proposed.
+> Status: Phase 1 shipped (`LibrarySource` abstraction + registry). Phase 2a shipped
+> (client `CompanionSource` + connection management + a runnable reference server).
+> Phase 2b — wiring companion games into the library UI and caching-on-launch for
+> playback — and Phases 3–5 remain to do.
 > Goal: lift RetroOasis's structural browser limits (storage quota, no filesystem, per-
 > device re-import) for users who opt in to running a small self-hosted server — **without
 > compromising the zero-install, fully-local default**.
@@ -160,6 +162,12 @@ They compose:
    the server never lands. **Shipped** — see below.
 2. **Read-only companion:** server scanner + `GET /library` + `GET /blob` +
    `CompanionSource` with virtual-game caching. Browse and play a server library.
+   - ✅ **2a (shipped):** `CompanionSource`, wire protocol, connection management,
+     and a runnable reference server (`server/`). See below.
+   - ◻️ **2b (next):** consume the registry in the library read paths so companion
+     games render, a Connections settings panel to configure the server, and
+     cache-on-launch (`getGameBlob` → `upsertVirtualGame`) so a remote game plays
+     offline after first fetch. Needs in-app verification.
 3. **Saves:** authoritative save-state sync via the server.
 4. **Multi-user + metadata proxy + job UI.**
 5. **Packaging:** Docker image, `docker-compose.yml`, and a `docs/DEPLOYMENT.md` section.
@@ -181,6 +189,29 @@ They compose:
   plugs into. (Cloud-indexed games are already folded into `GameLibrary` as virtual
   entries, so they surface through the local source today.)
 - Tests: `src/librarySource.test.ts` (9) + two conformance cases in `library.test.ts`.
+
+### Phase 2a — as shipped
+
+- `src/companionProtocol.ts`: wire types (`CompanionGame`, `CompanionLibraryResponse`),
+  a response validator, and `companionGameToMetadata()`.
+- `src/companionSource.ts`: `CompanionSource implements LibrarySource` over an
+  injectable `fetch` — `listGames` (`GET /library`), `getGameBlob` (`GET /blob/:id`,
+  null on 404), `getCoverArt` (`GET /cover/:id`), with optional bearer auth.
+- `src/companionConnection.ts`: localStorage config + `connectCompanion` /
+  `disconnectCompanion` (register/unregister in the registry), `testCompanionConnection`,
+  and `restoreCompanionConnection` (called from `main.ts` at startup — a no-op when
+  nothing is configured, so the default experience is unchanged).
+- `server/`: a dependency-free Node reference server (`server.mjs`) with a pure,
+  unit-tested scanner (`scan.mjs`) — `/health`, `/library`, `/blob/:id`, optional
+  `AUTH_TOKEN`, CORS, and blob reads restricted to scanned files. `server/README.md`
+  documents running it.
+- Tests: `companionProtocol` (4), `companionSource` (7), `companionConnection` (10),
+  and `tests/companion-server/scan` (3). The reference server was also smoke-tested
+  end to end (scan → `/library` → `/blob` returns exact bytes).
+
+> Note: a `CompanionSource` registers into the library registry, but the UI read
+> paths still read the local `GameLibrary` directly (see Phase 1 note), so companion
+> games are not yet displayed or playable — that is Phase 2b.
 
 ## Risks / open questions
 
