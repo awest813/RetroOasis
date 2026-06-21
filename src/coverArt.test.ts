@@ -1358,7 +1358,7 @@ describe("IGDBCoverArtProvider", () => {
       cacheTtlMs: 1,
     });
     expect(await provider.search("Ridge Racer", "psx")).toHaveLength(1);
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    await new Promise((resolve) => setTimeout(resolve, 10)); // Increase timeout to ensure TTL expires completely
     expect(await provider.search("Ridge Racer", "psx")).toEqual([]);
     await provider.testConnection();
 
