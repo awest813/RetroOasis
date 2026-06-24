@@ -5,6 +5,7 @@
  */
 
 import { createElement as make } from "../../ui/dom.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import { store } from "../../store/index.js";
@@ -12,8 +13,8 @@ import { store } from "../../store/index.js";
 export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode: "host" | "join", onBack: () => void }): void {
   const service = getLanemuService();
   const session = store.get("session");
-  const gameName = session.gameName || "Unknown Game";
-  const systemId = session.systemId || "";
+  const gameName = escHtml(session.gameName || "Unknown Game");
+  const systemId = escHtml(session.systemId || "");
   
   container.innerHTML = "";
 
