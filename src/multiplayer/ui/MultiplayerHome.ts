@@ -5,6 +5,7 @@
  */
 
 import { createElement as make } from "../../ui/dom.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import type { LanemuStatus } from "../lanemu/LanemuStatus.js";
@@ -68,8 +69,8 @@ export function buildMultiplayerHome(container: HTMLElement): () => void {
 
     // ── Game context banner ──
     const session = store.get("session");
-    const gameName = session.gameName || null;
-    const systemId = session.systemId || null;
+    const gameName = session.gameName ? escHtml(session.gameName) : null;
+    const systemId = session.systemId ? escHtml(session.systemId) : null;
 
     if (gameName) {
       const gameBanner = make("div", { class: "launch-panel__game-banner", style: "margin-bottom: 32px;" });
