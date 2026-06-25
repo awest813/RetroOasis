@@ -5,6 +5,7 @@
  */
 
 import { createElement as make } from "../../ui/dom.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import type { LanemuStatus } from "../lanemu/LanemuStatus.js";
@@ -77,8 +78,8 @@ export function buildMultiplayerHome(container: HTMLElement): () => void {
         <div class="launch-panel__game-icon" aria-hidden="true">${ICON_GAMEPAD_DECOR_SVG}</div>
         <div class="launch-panel__game-info">
           <div class="launch-panel__game-label">Currently Playing</div>
-          <div class="launch-panel__game-name">${gameName}</div>
-          ${systemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: none; letter-spacing: normal;">${systemId.toUpperCase()}</div>` : ""}
+          <div class="launch-panel__game-name">${escHtml(gameName)}</div>
+          ${systemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: none; letter-spacing: normal;">${escHtml(systemId).toUpperCase()}</div>` : ""}
         </div>
       `;
       container.appendChild(gameBanner);
