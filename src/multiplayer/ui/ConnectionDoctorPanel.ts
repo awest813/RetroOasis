@@ -7,6 +7,7 @@
 import { createElement as make } from "../../ui/dom.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import { LanemuConnectionDoctor } from "../lanemu/LanemuConnectionDoctor.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 
 export function buildConnectionDoctorPanel(container: HTMLElement, opts: { roomId: string; onBack: () => void }): void {
   const service = getLanemuService();
@@ -66,10 +67,10 @@ export function buildConnectionDoctorPanel(container: HTMLElement, opts: { roomI
       item.innerHTML = `
         <div class="doctor-item__header">
           <span class="doctor-item__status" aria-hidden="true">${statusIcon}</span>
-          <strong class="doctor-item__label">${res.label}</strong>
+          <strong class="doctor-item__label">${escHtml(res.label)}</strong>
         </div>
-        <div class="doctor-item__message">${res.message}</div>
-        ${res.fix ? `<div class="doctor-item__fix"><strong>Fix:</strong> ${res.fix}</div>` : ""}
+        <div class="doctor-item__message">${escHtml(res.message)}</div>
+        ${res.fix ? `<div class="doctor-item__fix"><strong>Fix:</strong> ${escHtml(res.fix)}</div>` : ""}
       `;
       resultsList.appendChild(item);
     }
