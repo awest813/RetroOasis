@@ -12,3 +12,8 @@
 **Vulnerability:** The codebase contained a weak validation utility `isSvgMarkup` in `src/chromeIcons.ts` that only asserted a string starts with `<svg`. Untrusted user inputs utilizing this function could bypass HTML escaping and be rendered via `innerHTML`, causing XSS.
 **Learning:** `isSvgMarkup` is vulnerable to payloads starting with `<svg` (e.g., `<svg onload=alert(1)>`). When this weak validation is combined with raw DOM injection (`innerHTML`), attackers can easily achieve XSS.
 **Prevention:** The `isSvgMarkup` validation utility in `src/chromeIcons.ts` must use a strict allowlist (e.g., `SAFE_SVGS` Set) to prevent XSS via `innerHTML` injection. Untrusted user inputs failing this check will then fall back to safe sanitization (e.g., `escHtml` or `textContent`).
+
+## 2025-02-20 - [XSS via DOM innerHTML in Multiplayer Dashboard]
+**Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped variables `gameName` and `systemId` were injected directly into `innerHTML`.
+**Learning:** Multiplayer user sessions expose game data and system IDs from local storage or remote synchronization. Injecting these into template literals inside `innerHTML` without sanitization creates Cross-Site Scripting (XSS) risks if malicious game metadata propagates through a session payload.
+**Prevention:** Always use `escHtml()` for any user-provided string properties, or variables sourced from external sessions, prior to rendering them via `innerHTML`.
