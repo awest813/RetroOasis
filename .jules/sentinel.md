@@ -17,3 +17,8 @@
 **Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped variables `gameName` and `systemId` were injected directly into `innerHTML`.
 **Learning:** Multiplayer user sessions expose game data and system IDs from local storage or remote synchronization. Injecting these into template literals inside `innerHTML` without sanitization creates Cross-Site Scripting (XSS) risks if malicious game metadata propagates through a session payload.
 **Prevention:** Always use `escHtml()` for any user-provided string properties, or variables sourced from external sessions, prior to rendering them via `innerHTML`.
+
+## 2026-06-22 - [XSS via DOM innerHTML in Multiplayer Dashboard]
+**Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped user data `gameName` and `systemId` is injected into `innerHTML`.
+**Learning:** When creating new components like the multiplayer UI, developers may forget to apply standard sanitization to dynamic data interpolated into HTML template strings. This allows malicious payloads inside game names or system IDs to execute.
+**Prevention:** Use the project's `escHtml()` utility for all variable interpolations inside `innerHTML`, or use safe DOM methods like `.textContent`.
