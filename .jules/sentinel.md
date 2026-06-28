@@ -26,3 +26,8 @@
 **Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped user data `session.gameName` and `session.systemId` are injected into `innerHTML`.
 **Learning:** Just like with `currentGameName` in the easy netplay modal, developers might use `innerHTML` out of convenience to mix HTML icons and user data from the session store without properly isolating the data. This creates an XSS vulnerability when a maliciously crafted session configuration is loaded.
 **Prevention:** Always use safe DOM manipulation methods such as `.textContent`, or when using `innerHTML`, ensure the dynamic variables are escaped using helpers like `escHtml()`. This pattern is pervasive across the UI and must be checked wherever `innerHTML` is used.
+
+## 2024-06-25 - XSS Vulnerability in UI Component innerHTML assignments
+**Vulnerability:** XSS vulnerabilities found in `src/multiplayer/ui/MultiplayerLaunchPanel.ts`, `src/multiplayer/ui/MultiplayerHome.ts`, and `src/multiplayer/ui/ConnectionDoctorPanel.ts` where unescaped state variables (`gameName`, `systemId`, `res.label`, `res.message`, `res.fix`) were directly injected into `innerHTML` strings.
+**Learning:** This pattern of building DOM structures using template literals with `innerHTML` without sanitizing variables leaves the application vulnerable to XSS if the data source is untrusted or can be manipulated by users (e.g. game names from ROM metadata or custom filenames).
+**Prevention:** Always use the `escHtml` utility function provided in `src/ui/viewHelpers.js` to sanitize variables before embedding them within `innerHTML` template strings.

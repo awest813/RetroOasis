@@ -14,8 +14,8 @@ import { escHtml } from "../../ui/viewHelpers.js";
 export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode: "host" | "join", onBack: () => void }): void {
   const service = getLanemuService();
   const session = store.get("session");
-  const gameName = escHtml(session.gameName || "Unknown Game");
-  const systemId = escHtml(session.systemId || "");
+  const gameName = session.gameName || "Unknown Game";
+  const systemId = session.systemId || "";
   
   // Security Fix: Sanitize user-provided game details to prevent Cross-Site Scripting (XSS)
   const safeGameName = escHtml(gameName);
