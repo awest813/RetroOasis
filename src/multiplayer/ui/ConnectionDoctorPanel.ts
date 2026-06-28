@@ -8,7 +8,6 @@ import { createElement as make } from "../../ui/dom.js";
 import { escHtml } from "../../ui/viewHelpers.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import { LanemuConnectionDoctor } from "../lanemu/LanemuConnectionDoctor.js";
-import { escHtml } from "../../ui/viewHelpers.js";
 
 export function buildConnectionDoctorPanel(container: HTMLElement, opts: { roomId: string; onBack: () => void }): void {
   const service = getLanemuService();

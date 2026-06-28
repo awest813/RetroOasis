@@ -10,7 +10,6 @@ import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import type { LanemuStatus } from "../lanemu/LanemuStatus.js";
 import { store } from "../../store/index.js";
-import { escHtml } from "../../ui/viewHelpers.js";
 
 export function buildMultiplayerHome(container: HTMLElement): () => void {
   const service = getLanemuService();
