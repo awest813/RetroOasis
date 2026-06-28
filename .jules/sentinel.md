@@ -7,7 +7,6 @@
 **Vulnerability:** XSS vulnerability in `src/ui/widgets/gameCard.ts` where unescaped variable `system?.name ?? game.systemId` is injected into `innerHTML`.
 **Learning:** Even variables that seem safe, like system IDs or names, can be manipulated by malicious files or integrations if not strictly validated. It is important to escape all variable interpolations inside `innerHTML` regardless of where the data originates.
 **Prevention:** Consistently use `escHtml()` on all variables dynamically injected into `innerHTML`, or prefer `.textContent` where possible.
-
 ## 2026-06-27 - [Strict SVG Validation to Prevent XSS]
 **Vulnerability:** The codebase contained a weak validation utility `isSvgMarkup` in `src/chromeIcons.ts` that only asserted a string starts with `<svg`. Untrusted user inputs utilizing this function could bypass HTML escaping and be rendered via `innerHTML`, causing XSS.
 **Learning:** `isSvgMarkup` is vulnerable to payloads starting with `<svg` (e.g., `<svg onload=alert(1)>`). When this weak validation is combined with raw DOM injection (`innerHTML`), attackers can easily achieve XSS.
@@ -22,3 +21,8 @@
 **Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped user data `gameName` and `systemId` is injected into `innerHTML`.
 **Learning:** When creating new components like the multiplayer UI, developers may forget to apply standard sanitization to dynamic data interpolated into HTML template strings. This allows malicious payloads inside game names or system IDs to execute.
 **Prevention:** Use the project's `escHtml()` utility for all variable interpolations inside `innerHTML`, or use safe DOM methods like `.textContent`.
+
+## 2024-11-20 - [XSS via DOM innerHTML in Multiplayer UI]
+**Vulnerability:** XSS vulnerability in `src/multiplayer/ui/MultiplayerLaunchPanel.ts` and `src/multiplayer/ui/MultiplayerHome.ts` where unescaped user data `session.gameName` and `session.systemId` are injected into `innerHTML`.
+**Learning:** Just like with `currentGameName` in the easy netplay modal, developers might use `innerHTML` out of convenience to mix HTML icons and user data from the session store without properly isolating the data. This creates an XSS vulnerability when a maliciously crafted session configuration is loaded.
+**Prevention:** Always use safe DOM manipulation methods such as `.textContent`, or when using `innerHTML`, ensure the dynamic variables are escaped using helpers like `escHtml()`. This pattern is pervasive across the UI and must be checked wherever `innerHTML` is used.
