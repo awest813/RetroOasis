@@ -59,8 +59,12 @@ export const ICON_IMAGE_UPLOAD_SVG = `<svg class="ui-inline-icon ui-inline-icon-
 export const ICON_LINK_SVG = `<svg class="ui-inline-icon ui-inline-icon--link" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 /** Inline SVG strings produced by this module (leading whitespace allowed). */
+const SAFE_SVGS = new Set([
+  ICON_CLOSE_X_SVG, ICON_ALERT_TRIANGLE_SVG, ICON_TOAST_SUCCESS_SVG, ICON_TOAST_INFO_SVG, ICON_TOAST_WARN_SVG, ICON_TOAST_ERROR_SVG, ICON_GAMEPAD_DECOR_SVG, ICON_GRID_ALL_SVG, ONBOARD_ICON_FAST_SVG, ONBOARD_ICON_INPUTS_SVG, ONBOARD_ICON_LOCK_SVG, ICON_ROTATE_PHONE_SVG, ICON_BATTERY_SVG, ICON_TROPHY_SVG, ICON_PLAY_SVG, ICON_STAR_SVG, ICON_STAR_FILLED_SVG, ICON_SEARCH_SVG, ICON_USER_SVG, ICON_BOOK_SVG, ICON_BOOKMARK_SVG, ICON_BOOKMARK_FILLED_SVG, ICON_MORE_SVG, ICON_SPARKLE_SVG, ICON_EDIT_PENCIL_SVG, ICON_IMAGE_UPLOAD_SVG, ICON_LINK_SVG
+].map((svg) => svg.trim()));
+
 export function isSvgMarkup(s: string): boolean {
-  return /^\s*<svg\b/i.test(s);
+  return SAFE_SVGS.has(s.trim());
 }
 
 export const INFO_TOAST_ICON_HTML: Record<"success" | "info" | "warning" | "error", string> = {

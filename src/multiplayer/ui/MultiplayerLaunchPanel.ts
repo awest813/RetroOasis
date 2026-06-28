@@ -5,10 +5,10 @@
  */
 
 import { createElement as make } from "../../ui/dom.js";
+import { escHtml } from "../../ui/viewHelpers.js";
 import { ICON_GAMEPAD_DECOR_SVG } from "../../chromeIcons.js";
 import { getLanemuService } from "../lanemu/LanemuSingleton.js";
 import { store } from "../../store/index.js";
-import { escHtml } from "../../ui/viewHelpers.js";
 
 export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode: "host" | "join", onBack: () => void }): void {
   const service = getLanemuService();
@@ -16,6 +16,10 @@ export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode
   const gameName = session.gameName || "Unknown Game";
   const systemId = session.systemId || "";
   
+  // Security Fix: Sanitize user-provided game details to prevent Cross-Site Scripting (XSS)
+  const safeGameName = escHtml(gameName);
+  const safeSystemId = systemId ? escHtml(systemId).toUpperCase() : "";
+
   container.innerHTML = "";
 
   const panel = make("div", { class: "launch-panel" });
@@ -34,8 +38,8 @@ export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode
     <div class="launch-panel__game-icon" aria-hidden="true">${ICON_GAMEPAD_DECOR_SVG}</div>
     <div class="launch-panel__game-info">
       <div class="launch-panel__game-label">Session</div>
-      <div class="launch-panel__game-name">${escHtml(gameName)}</div>
-      ${systemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">${escHtml(systemId)}</div>` : ""}
+      <div class="launch-panel__game-name">${safeGameName}</div>
+      ${safeSystemId ? `<div class="launch-panel__game-label launch-panel__game-label--system-id">${safeSystemId}</div>` : ""}
     </div>
   `;
   panel.appendChild(gameBanner);
