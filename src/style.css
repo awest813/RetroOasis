@@ -4685,6 +4685,11 @@ body.using-gamepad .game-card:focus {
   font-weight: 700;
 }
 
+.launch-panel__game-label--system-id {
+  margin-top: 4px;
+  letter-spacing: 0.1em;
+}
+
 .launch-panel__game-name {
   font-weight: 900;
   font-size: 1.1rem;

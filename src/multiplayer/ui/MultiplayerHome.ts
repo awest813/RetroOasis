@@ -74,7 +74,7 @@ export function buildMultiplayerHome(container: HTMLElement): () => void {
 
     // Security Fix: Sanitize user-provided game details to prevent Cross-Site Scripting (XSS)
     const safeGameName = gameName ? escHtml(gameName) : null;
-    const safeSystemId = systemId ? escHtml(systemId) : null;
+    const safeSystemId = systemId ? escHtml(systemId).toUpperCase() : null;
 
     if (safeGameName) {
       const gameBanner = make("div", { class: "launch-panel__game-banner", style: "margin-bottom: 32px;" });
@@ -83,7 +83,7 @@ export function buildMultiplayerHome(container: HTMLElement): () => void {
         <div class="launch-panel__game-info">
           <div class="launch-panel__game-label">Currently Playing</div>
           <div class="launch-panel__game-name">${safeGameName}</div>
-          ${safeSystemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: uppercase; letter-spacing: normal;">${safeSystemId}</div>` : ""}
+          ${safeSystemId ? `<div class="launch-panel__game-label launch-panel__game-label--system-id">${safeSystemId}</div>` : ""}
         </div>
       `;
       container.appendChild(gameBanner);

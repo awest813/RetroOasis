@@ -18,7 +18,7 @@ export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode
   
   // Security Fix: Sanitize user-provided game details to prevent Cross-Site Scripting (XSS)
   const safeGameName = escHtml(gameName);
-  const safeSystemId = systemId ? escHtml(systemId) : "";
+  const safeSystemId = systemId ? escHtml(systemId).toUpperCase() : "";
 
   container.innerHTML = "";
 
@@ -39,7 +39,7 @@ export function buildMultiplayerLaunchPanel(container: HTMLElement, opts: { mode
     <div class="launch-panel__game-info">
       <div class="launch-panel__game-label">Session</div>
       <div class="launch-panel__game-name">${safeGameName}</div>
-      ${safeSystemId ? `<div class="launch-panel__game-label" style="margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">${safeSystemId}</div>` : ""}
+      ${safeSystemId ? `<div class="launch-panel__game-label launch-panel__game-label--system-id">${safeSystemId}</div>` : ""}
     </div>
   `;
   panel.appendChild(gameBanner);
