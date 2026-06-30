@@ -17,3 +17,8 @@
 **Vulnerability:** Multiple XSS issues were present in the multiplayer UI and SVG validation flow: unescaped session values such as `gameName` and `systemId` were interpolated into `innerHTML`, and `isSvgMarkup` used weak validation that could admit unsafe SVG markup.
 **Learning:** UI templates that mix untrusted values with HTML are vulnerable when the values are not escaped. This risk is especially high when the data comes from session state, user-controlled filenames, or diagnostic output.
 **Prevention:** Always escape any untrusted values before interpolating them into `innerHTML`, and keep SVG validation strict with a concrete allowlist rather than a simple prefix check.
+
+## 2025-02-23 - [XSS via DOM innerHTML with Asset Paths]
+**Vulnerability:** A DOM-based XSS vulnerability existed in `src/ui/librarySections.ts` where the `systemIcon` output, potentially containing malicious data, was interpolated directly into an `innerHTML` string for creating `<img>` tags.
+**Learning:** Developers often interpolate dynamic asset paths or values returned by helper functions into HTML template strings out of convenience, leading to XSS vulnerabilities. Even seemingly safe values like "system ID icons" can be exploited if they originate from or can be influenced by untrusted sources.
+**Prevention:** To prevent DOM-based XSS when rendering images dynamically, UI components must use native DOM node creation (e.g., `make("img", { ... })` and `.textContent`) instead of `innerHTML` string interpolation, particularly for asset paths or unverified string return values.
