@@ -8,6 +8,7 @@ import { getSystemById } from "../systems.js";
 import { WIKI_GAME_CATALOG, type WikiGameCatalogEntry } from "../wikiGameCatalog.js";
 import type { WikipediaGamePage } from "../freeMetadata.js";
 import { createElement as make } from "./dom.js";
+import { isSvgMarkup } from "../chromeIcons.js";
 
 /** UTC date key used as the daily random seed (YYYY-MM-DD). */
 export function dateSeedForGameOfTheDay(date: Date = new Date()): string {
@@ -132,7 +133,10 @@ export function buildGameOfTheDayWidget(opts: GameOfTheDayWidgetOpts): HTMLEleme
     icon.appendChild(img);
   } else {
     const iconOutput = opts.getSystemIcon(entry.systemId);
-    if (iconOutput.includes("<svg") || iconOutput.includes("<img")) {
+    if (iconOutput.includes("/assets/")) {
+      const fallbackImg = make("img", { src: iconOutput, alt: "" });
+      icon.appendChild(fallbackImg);
+    } else if (isSvgMarkup(iconOutput)) {
       icon.innerHTML = iconOutput;
     } else {
       icon.textContent = iconOutput;
