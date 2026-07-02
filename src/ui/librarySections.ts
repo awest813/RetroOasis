@@ -21,9 +21,9 @@ export function buildLibraryHero(opts: {
     settings,
     onLaunchGame,
     systemIcon,
-    escapeHtml,
     onFetchFromCloud,
   } = opts;
+  void opts.escapeHtml;
 
   const hero = make("div", { class: "library-hero" });
   const system = getSystemById(game.systemId);
@@ -50,12 +50,20 @@ export function buildLibraryHero(opts: {
   const meta = make("div", { class: "library-hero__meta" });
   const sysName = system?.shortName ?? game.systemId.toUpperCase();
   const iconOutput = systemIcon(game.systemId);
-  const iconHtml = iconOutput.includes("/assets/")
-    ? `<img src="${iconOutput}" alt="" class="hero-sys-icon" />`
-    : isSvgMarkup(iconOutput)
-      ? iconOutput
-      : escapeHtml(iconOutput);
-  meta.innerHTML = `<span>${iconHtml} ${escapeHtml(sysName)}</span> • <span>${game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played"}</span>`;
+
+  const spanLeft = make("span");
+  if (iconOutput.includes("/assets/")) {
+    spanLeft.appendChild(make("img", { src: iconOutput, alt: "", class: "hero-sys-icon" }));
+  } else if (isSvgMarkup(iconOutput)) {
+    spanLeft.innerHTML = iconOutput;
+  } else {
+    spanLeft.textContent = iconOutput;
+  }
+  spanLeft.appendChild(document.createTextNode(` ${sysName}`));
+
+  const spanRight = make("span", {}, game.lastPlayedAt ? `Played ${formatRelativeTime(game.lastPlayedAt)}` : "Never played");
+
+  meta.append(spanLeft, " • ", spanRight);
 
   const actions = make("div", { class: "library-hero__actions" });
   const playBtn = make("button", { class: "btn--hero" });
@@ -118,7 +126,7 @@ export function buildLibraryRow(opts: {
     const iconOutput = systemIcon(systemId);
     const icon = make("span", { class: "library-row__icon-span" });
     if (iconOutput.includes("/assets/")) {
-      icon.innerHTML = `<img src="${iconOutput}" alt="" class="row-sys-icon" />`;
+      icon.appendChild(make("img", { src: iconOutput, alt: "", class: "row-sys-icon" }));
     } else if (isSvgMarkup(iconOutput)) {
       icon.innerHTML = iconOutput;
     } else {
