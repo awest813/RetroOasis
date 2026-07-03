@@ -2,6 +2,7 @@ import type { GameMetadata } from "../library.js";
 import type { Settings } from "../types/settings.js";
 import { getSystemById } from "../systems.js";
 import { createElement as make } from "./dom.js";
+import { isSvgMarkup } from "../chromeIcons.js";
 
 /** Featured platforms shown on the empty-state homepage. */
 export const HOMEPAGE_FEATURED_SYSTEM_IDS = [
@@ -140,7 +141,9 @@ export function buildPlatformsStrip(
 
     const icon = make("span", { class: "homepage-platforms__icon", "aria-hidden": "true" });
     const iconOutput = getIcon(systemId);
-    if (iconOutput.includes("<svg") || iconOutput.includes("<img")) {
+    if (iconOutput.includes("/assets/")) {
+      icon.appendChild(make("img", { src: iconOutput, alt: "" }));
+    } else if (isSvgMarkup(iconOutput)) {
       icon.innerHTML = iconOutput;
     } else {
       icon.textContent = iconOutput;
