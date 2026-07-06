@@ -11119,8 +11119,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: 2px 2px 0 var(--c-ink) inset !important;
 }
 
-/* 12. Final GUI Audit: Overlays & Banners */
-.in-game-overlay__panel {
+/* 12. Overlays & Banners — Arcade theme only (hard outline + offset shadow).
+   Premium uses the soft base in-game panel / FPS overlay / error banner. */
+:root[data-theme="arcade"] .in-game-overlay__panel {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-sm) !important;
   background: var(--c-surface1) !important;
@@ -11128,14 +11129,14 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   backdrop-filter: none !important;
 }
 
-.in-game-overlay__hamburger {
+:root[data-theme="arcade"] .in-game-overlay__hamburger {
   border: var(--outline-bold) !important;
   box-shadow: 2px 2px 0 var(--c-ink) !important;
   border-radius: var(--radius-sm) !important;
 }
 
-.fps-overlay,
-.dev-overlay {
+:root[data-theme="arcade"] .fps-overlay,
+:root[data-theme="arcade"] .dev-overlay {
   border: var(--outline-bold) !important;
   border-radius: 0 !important;
   background: var(--c-surface1) !important;
@@ -11144,7 +11145,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: var(--c-text) !important;
 }
 
-#error-banner {
+:root[data-theme="arcade"] #error-banner {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-sm) !important;
   background: var(--c-surface1) !important;
@@ -11152,13 +11153,13 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   backdrop-filter: none !important;
 }
 
-#error-banner .error-close {
+:root[data-theme="arcade"] #error-banner .error-close {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-xs) !important;
   box-shadow: 2px 2px 0 var(--c-ink) !important;
 }
 
-#error-banner .error-close:hover {
+:root[data-theme="arcade"] #error-banner .error-close:hover {
   transform: translate(-1px, -1px) !important;
   box-shadow: 3px 3px 0 var(--c-danger) !important;
 }
