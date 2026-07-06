@@ -33,6 +33,17 @@
 >   its `!important`); the metric *reduction* comes as the remaining brutalist sections (chips, inputs,
 >   toggles, toasts, modals, scrollbar, loading) get the same treatment and the dead/legacy passes are
 >   removed — **Phase 3 part 2+, still to do**.
+> - **Phase 3 — part 2 (done):** Scoped six more brutalist sections to `:root[data-theme="arcade"]` so the
+>   Premium default is consistently clean: **settings menu** (drops uppercase hard-outline items),
+>   **platform chips** (drops the peel-off sticker → quiet fill + system-colour accent), **form inputs &
+>   search** (drops the offset shadow + spring-translate focus), **toggles** (soft pill instead of hard
+>   outline), **toasts**, and **modals**. Added quiet premium fallbacks where needed (chip active state).
+>   The budget guard caught **two** more colour-literal regressions mid-change; both fixed to tokens.
+>   Build green; verified Premium settings + library + both themes. **Reduction note:** scoping still
+>   preserves the counts (arcade keeps its `!important`); the raw line/`!important` *drop* needs careful
+>   per-pass before/after diffing to delete genuinely dead/duplicate rules — banked as the next increment
+>   rather than rushed. Remaining brutalist bits (scrollbar, overlays/banners, loading, netplay chat) and
+>   the dead-pass deletions are **Phase 3 part 3**.
 
 ---
 
