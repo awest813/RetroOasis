@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A** chosen; **Phases 0–2 shipped**
+**Status:** In progress — **Direction A** chosen; **Phases 0–2 shipped, Phase 3 in progress**
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -23,6 +23,16 @@
 >   into **Phase 3**, where those 48 override passes are rewritten/deleted anyway — converting them
 >   now then deleting them would be wasted churn. Next: **Phase 3** (consolidate the warring layers,
 >   one `.game-card` spec, strip `!important`), which is where the two themes visibly diverge.
+> - **Phase 3 — part 1 (done):** The two themes now **visibly diverge**. Scoped the brutalist/comic-pop
+>   layer to `:root[data-theme="arcade"]` so the **Premium default is clean** while Arcade keeps the loud
+>   look: game cards drop the hard 2px outline + offset shadow + `遊` halftone stamp for the calm gallery
+>   tile; buttons drop the cel outline + hard offset + uppercase for the base accent-fill / quiet-secondary
+>   / ghost styling (with premium emphasis kept for hero + Play Together). The **CSS budget guard caught a
+>   3-colour regression** mid-change and I fixed it to tokens — the guard works. Build green. **Note:** this
+>   restructures rather than deletes, so the raw line/`!important` counts hold (arcade legitimately keeps
+>   its `!important`); the metric *reduction* comes as the remaining brutalist sections (chips, inputs,
+>   toggles, toasts, modals, scrollbar, loading) get the same treatment and the dead/legacy passes are
+>   removed — **Phase 3 part 2+, still to do**.
 
 ---
 

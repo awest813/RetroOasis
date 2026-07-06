@@ -10926,9 +10926,11 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.18s ease, border-color 0.18s ease !important;
 }
 
-/* Comic-pop primary and hero buttons */
-.btn--primary,
-.btn--hero {
+/* Comic-pop buttons — Arcade theme only (cel outline + hard offset shadow +
+   uppercase). Premium (default) uses the clean base .btn styling above:
+   accent-fill primary, soft shadow, quiet secondary/ghost. */
+:root[data-theme="arcade"] .btn--primary,
+:root[data-theme="arcade"] .btn--hero {
   background: var(--c-accent) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10938,40 +10940,40 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   text-transform: uppercase;
 }
 
-.btn--primary:hover,
-.btn--hero:hover {
+:root[data-theme="arcade"] .btn--primary:hover,
+:root[data-theme="arcade"] .btn--hero:hover {
   background: var(--c-accent-light) !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn--primary:active,
-.btn--hero:active {
+:root[data-theme="arcade"] .btn--primary:active,
+:root[data-theme="arcade"] .btn--hero:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Comic-pop secondary/ghost buttons (e.g. Settings, Help in header) */
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost) {
+/* Comic-pop secondary buttons (Settings, Help in header) — Arcade only. */
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost) {
   border: var(--outline-bold) !important;
   background: var(--c-surface2) !important;
   box-shadow: var(--pop-shadow) !important;
   color: var(--c-text) !important;
 }
 
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):hover {
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):hover {
   background: var(--c-surface3) !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):active {
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Highlight buttons (Play Together, PWA Install) */
-.btn--highlight {
+/* Highlight buttons (Play Together, PWA Install) — Arcade only. */
+:root[data-theme="arcade"] .btn--highlight {
   background: var(--c-pop-lime) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10979,19 +10981,37 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   font-weight: 700 !important;
 }
 
-.btn--highlight:hover {
+:root[data-theme="arcade"] .btn--highlight:hover {
   background: #c9ff66 !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn--highlight:active {
+:root[data-theme="arcade"] .btn--highlight:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Details Panel Play button override to keep the metallic gradient but use the outline + shadow */
-.landing-details__actions .btn--primary {
+/* Premium (default) emphasis for hero + highlight so they stay prominent
+   without the cel outline: soft accent / lime fill, soft shadow. */
+.btn--hero {
+  background: var(--c-accent);
+  border-color: var(--c-accent-light);
+  color: var(--c-white);
+  box-shadow: 0 10px 24px var(--c-accent-dim);
+}
+.btn--hero:hover { background: var(--c-accent-h); }
+.btn--highlight {
+  background: var(--c-success);
+  border-color: color-mix(in srgb, var(--c-success) 55%, transparent);
+  color: var(--c-ink);
+  font-weight: 800;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--c-success) 16%, transparent);
+}
+.btn--highlight:hover { filter: brightness(1.06); }
+
+/* Details Panel Play button — Arcade only keeps the cel outline. */
+:root[data-theme="arcade"] .landing-details__actions .btn--primary {
   background: var(--accent-metallic-gradient) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10999,13 +11019,13 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: transform 0.1s ease, box-shadow 0.1s ease !important;
 }
 
-.landing-details__actions .btn--primary:hover {
+:root[data-theme="arcade"] .landing-details__actions .btn--primary:hover {
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
   filter: brightness(1.08) !important;
 }
 
-.landing-details__actions .btn--primary:active {
+:root[data-theme="arcade"] .landing-details__actions .btn--primary:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
@@ -11085,15 +11105,16 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   background: rgba(255, 255, 255, 0.06) !important;
 }
 
-/* 5. Brutalist Game Cards visual upgrades */
-.game-card {
+/* 5. Brutalist Game Cards visual upgrades — Arcade theme only.
+   Premium (default) keeps the clean gallery tile from the card base above. */
+:root[data-theme="arcade"] .game-card {
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
   border-radius: 16px !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
 }
 
-.game-card:hover {
+:root[data-theme="arcade"] .game-card:hover {
   transform: translate(-3px, -3px) rotate(-0.5deg) !important;
   box-shadow: 6px 6px 0 var(--sys-color, var(--c-accent)) !important;
   border-color: var(--c-ink) !important;
@@ -11114,17 +11135,21 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   }
 }
 
-/* 4. Cover art fallback hard-edge polish */
+/* 4. Cover art fallback — Arcade theme keeps the halftone + 遊 ink stamp;
+   Premium (default) uses the quieter system-tinted fallback from the base. */
 .game-card__fallback {
   position: relative;
   overflow: hidden;
+}
+
+:root[data-theme="arcade"] .game-card__fallback {
   background:
     var(--halftone-overlay) 0 0 / var(--halftone-size),
     radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--sys-color-bright, var(--c-accent)) 14%, transparent), transparent 48%),
     #08080a !important;
 }
 
-.game-card__fallback::before {
+:root[data-theme="arcade"] .game-card__fallback::before {
   content: "遊";
   position: absolute;
   right: -5px;
