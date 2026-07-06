@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A** chosen; **Phases 0–2 shipped, Phase 3 in progress**
+**Status:** In progress — **Direction A**; **Phases 0–2 shipped, Phase 3 brutalist-scoping complete** (metric reduction ongoing)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -52,6 +52,19 @@
 >   colours **887 → 845** (−42 literals); the budget guard ratcheted down to lock it in. Build green.
 >   Remaining: in-game overlay/banner + netplay-chat brutalist bits (unverifiable without a running game),
 >   and further dead/duplicate-pass deletions toward the `<6k` line / `<20 !important` goal.
+> - **Phase 3 — part 4 / brutalist scoping complete (done):** Scoped the last brutalist sections —
+>   **in-game overlay panel, hamburger, FPS/dev overlays, and error banner** — to Arcade (Premium uses the
+>   soft base). Left netplay chat brutalist (deep-niche; splitting it grew `!important` for no real gain).
+>   **All 13 brutalist sections are now Arcade-scoped**, so the Premium default is consistently clean and
+>   the two themes fully diverge.
+>   **Deletion finding:** attempted to also delete the ~293-line "Gran Turismo luxury" pass, but a
+>   before/after pixel diff showed a **10% change with a real regression** (the card fallback name
+>   duplicated) — that pass is **load-bearing, not dead**, so I reverted it. Takeaway for the numeric
+>   targets: beyond the one genuinely-dead legacy pass (already removed), the remaining bulk cannot be
+>   *deleted* safely — it has to be **migrated rule-by-rule onto a clean base then removed** (Phase 5
+>   territory). So `<6k` lines / `<20 !important` stay as **directional goals**, enforced-not-regressing by
+>   the budget guard, rather than something reachable by more bulk deletion. The **premium-feel** objective
+>   of Phase 3 (default theme clean, one accent, soft depth, gold conflict resolved) **is met.**
 
 ---
 
