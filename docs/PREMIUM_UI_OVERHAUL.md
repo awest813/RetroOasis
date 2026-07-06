@@ -44,6 +44,14 @@
 >   per-pass before/after diffing to delete genuinely dead/duplicate rules — banked as the next increment
 >   rather than rushed. Remaining brutalist bits (scrollbar, overlays/banners, loading, netplay chat) and
 >   the dead-pass deletions are **Phase 3 part 3**.
+> - **Phase 3 — part 3 (done):** First real **metric reduction**. Scoped the last verifiable brutalist
+>   bits (scrollbar, loading spinner) to Arcade, then **deleted the legacy "Gran Turismo" gold/cream pass**
+>   (~150 lines) that caused the original gold-vs-magenta card/button conflict. Verified the deletion with a
+>   before/after **pixel diff** (settings 0.0%, library/arcade ~1.7% — a *benign, positive* change: cards
+>   pick up their intended system-colour tint and the residual gold borders/buttons are gone). Hardcoded
+>   colours **887 → 845** (−42 literals); the budget guard ratcheted down to lock it in. Build green.
+>   Remaining: in-game overlay/banner + netplay-chat brutalist bits (unverifiable without a running game),
+>   and further dead/duplicate-pass deletions toward the `<6k` line / `<20 !important` goal.
 
 ---
 
