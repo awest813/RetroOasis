@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A**; **Phases 0–2 shipped, Phase 3 brutalist-scoping complete** (metric reduction ongoing)
+**Status:** In progress — **Direction A**; **Phases 0–3 + Phase 6 shipped** (Phase 3 metric reduction + Phases 4–5 ongoing)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -65,6 +65,13 @@
 >   territory). So `<6k` lines / `<20 !important` stay as **directional goals**, enforced-not-regressing by
 >   the budget guard, rather than something reachable by more bulk deletion. The **premium-feel** objective
 >   of Phase 3 (default theme clean, one accent, soft depth, gold conflict resolved) **is met.**
+> - **Phase 6 — theme picker (done):** The theme system is now **user-facing**, not devtools-only. Added a
+>   `theme: "premium" | "arcade"` setting wired exactly like `uiMode` (type, default, localStorage
+>   parse/validate, and a `data-theme` apply on the root element on load + on change), plus a **Theme**
+>   radio group at the top of **Settings → Display** ("Premium (Default)" / "Arcade (Classic)"). Verified
+>   end-to-end: selecting a theme applies instantly, persists to `retro-oasis-settings`, and survives a
+>   reload. Updated 11 test fixtures for the new required field; build green, **325 touched tests pass.**
+>   The theme is intentionally global (not per-profile) so profile switches don't clobber it.
 
 ---
 

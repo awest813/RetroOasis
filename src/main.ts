@@ -148,6 +148,7 @@ const DEFAULT_SETTINGS: Settings = {
   audioFilterType: "none" as "none" | "lowpass" | "highpass",
   audioFilterCutoff: 10_000,
   uiMode: "auto",
+  theme: "premium",
   libraryLayout: "grid",
   libraryGrouped: true,
   recordPlayHistory: true,
@@ -233,6 +234,9 @@ function loadSettings(deviceCaps?: import("./performance.js").DeviceCapabilities
       uiMode: (["auto", "quality", "lite"] as Array<Settings["uiMode"]>).includes(parsed.uiMode as Settings["uiMode"])
         ? (parsed.uiMode as Settings["uiMode"])
         : DEFAULT_SETTINGS.uiMode,
+      theme: (["premium", "arcade"] as Array<Settings["theme"]>).includes(parsed.theme as Settings["theme"])
+        ? (parsed.theme as Settings["theme"])
+        : DEFAULT_SETTINGS.theme,
       coreOptions: (typeof parsed.coreOptions === "object" && parsed.coreOptions !== null)
         ? (parsed.coreOptions as Record<string, string>)
         : DEFAULT_SETTINGS.coreOptions,
@@ -482,6 +486,14 @@ async function main(): Promise<void> {
     document.documentElement.classList.toggle("lite-ui", useLiteUI);
   };
   updateUILite();
+
+  // Apply the selected UI theme via [data-theme] on the root element.
+  // "premium" (default) matches no [data-theme] rule and uses the base tokens;
+  // "arcade" activates the louder classic neon layer in the stylesheet.
+  const applyTheme = () => {
+    document.documentElement.dataset.theme = settings.theme;
+  };
+  applyTheme();
 
   /** Installed PWA / Chrome OS window-controls-overlay — hook for CSS if needed */
   document.documentElement.classList.toggle("pwa-standalone", isPwaDisplayMode());
@@ -1348,6 +1360,10 @@ async function main(): Promise<void> {
     // UI Mode change
     if (patch.uiMode !== undefined) {
       updateUILite();
+    }
+    // Theme change — swap the [data-theme] layer (premium <-> arcade).
+    if (patch.theme !== undefined) {
+      applyTheme();
     }
     if (typeof patch.dynamicResolutionScaling === "boolean" && playingOrPaused && currentSystemId) {
       const ladder = getResolutionLadder(currentSystemId);

@@ -16,6 +16,30 @@ export function buildDisplayTab(
   emulatorRef?:     PSPEmulator,
   appName = "RetroOasis"
 ): void {
+  // Theme section — overall look of the library and menus.
+  const themeSection = make("div", { class: "settings-section" });
+  themeSection.appendChild(make("h4", { class: "settings-section__title" }, "Theme"));
+  themeSection.appendChild(make("p", { class: "settings-help" },
+    "The overall look of the library and menus — not in-game emulation."
+  ));
+  const themes: Array<{ value: Settings["theme"]; label: string; desc: string }> = [
+    { value: "premium", label: "Premium (Default)", desc: "Disciplined neon-noir: clean, one accent, soft depth — lets cover art lead." },
+    { value: "arcade",  label: "Arcade (Classic)",  desc: "Louder Shibuya Punk neon: bold outlines, offset shadows, comic-pop energy." },
+  ];
+  const themeRg = make("div", { role: "radiogroup", class: "settings-radio-group", "aria-label": "UI theme" });
+  themeSection.appendChild(themeRg);
+  for (const t of themes) {
+    const row   = make("label", { class: "radio-row" });
+    const radio = make("input", { type: "radio", name: "ui-theme", value: t.value }) as HTMLInputElement;
+    if (settings.theme === t.value) radio.checked = true;
+    radio.addEventListener("change", () => { if (radio.checked) onSettingsChange({ theme: t.value }); });
+    const txt = make("span", { class: "radio-row__text" });
+    txt.append(make("span", { class: "radio-row__label" }, t.label), make("span", { class: "radio-row__desc" }, t.desc));
+    row.append(radio, txt);
+    themeRg.appendChild(row);
+  }
+  container.appendChild(themeSection);
+
   // FPS & Audio section
   const overlaySection = make("div", { class: "settings-section" });
   overlaySection.appendChild(make("h4", { class: "settings-section__title" }, "In-Game Overlays"));

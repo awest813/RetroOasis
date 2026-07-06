@@ -32,6 +32,7 @@ function makeSettings(): Settings {
     audioFilterType: "lowpass",
     audioFilterCutoff: 8000,
     uiMode: "lite",
+    theme: "premium",
     libraryLayout: "list",
     libraryGrouped: true,
     recordPlayHistory: true,

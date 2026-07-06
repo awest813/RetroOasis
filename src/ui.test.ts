@@ -54,6 +54,7 @@ function makeSettings(overrides: Partial<Settings> = {}): Settings {
     audioFilterType: "none",
     audioFilterCutoff: 10_000,
     uiMode: "auto",
+    theme: "premium",
     libraryLayout: "grid",
     libraryGrouped: true,
     recordPlayHistory: true,

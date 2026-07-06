@@ -39,6 +39,7 @@ function makeSettings(): Settings {
     audioFilterType: "none",
     audioFilterCutoff: 10000,
     uiMode: "auto",
+    theme: "premium",
     libraryLayout: "grid",
     libraryGrouped: false,
     recordPlayHistory: true,
