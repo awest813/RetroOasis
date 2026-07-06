@@ -1,9 +1,18 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** Proposal / awaiting direction + build approval
+**Status:** In progress — **Direction A** chosen; **Phase 0 + Phase 1 shipped**
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
+
+> **Progress log**
+> - **Phase 0/1 (done):** Removed the busy, copyright-infringing arcade cityscape from the
+>   landing *and* Settings, replacing it with the quiet `--backdrop` neon-noir wash; deleted
+>   ~2 MB of background art (`homepage-bg-shibuya-neon.webp`, `arcade-bg-punk.webp`,
+>   `menu-bg.jpg`, `homepage-bg.jpg`) and every reference; fixed the clipped library toolbar
+>   (a flexbox `overflow:hidden` shrink bug) so search + controls render fully; toned down the
+>   `#landing::before` center-stripe noise; added the `--backdrop` token to `design-system.css`.
+>   Production build green. Next: **Phase 2** (single token source of truth + colour codemod).
 
 ---
 

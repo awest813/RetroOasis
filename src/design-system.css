@@ -314,6 +314,12 @@
     radial-gradient(900px 420px at 78% -12%, rgba(255, 46, 151, 0.16) 0%, transparent 58%),
     radial-gradient(700px 340px at 8% 12%, rgba(0, 240, 255, 0.09) 0%, transparent 56%),
     linear-gradient(180deg, #0a0614 0%, #05030d 72%);
+  /* Premium overhaul (Direction A) — quiet neon-noir wash that replaces the
+     busy arcade cityscape. Content leads; the accent light is subtle. */
+  --backdrop:
+    radial-gradient(1100px 620px at 80% -6%, rgba(255, 61, 154, 0.10), transparent 60%),
+    radial-gradient(820px 480px at 4% 2%, rgba(70, 200, 255, 0.055), transparent 55%),
+    linear-gradient(180deg, #0a0713 0%, #07060c 68%);
   --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-light) 100%);
   --accent-metallic-gradient: var(--gradient-neon);
   --glass-bg: rgba(11, 7, 20, 0.88);
