@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",
+    "lint:css": "node tools/css-budget.js",
     "doctor": "node tools/doctor.js",
     "build:analyze": "ANALYZE=1 npm run build",
     "perf:audit": "npm run build && node tools/perf-audit/check-budget.js",

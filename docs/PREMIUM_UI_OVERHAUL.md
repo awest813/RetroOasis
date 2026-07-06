@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A** chosen; **Phase 0 + Phase 1 shipped**
+**Status:** In progress — **Direction A** chosen; **Phases 0–2 shipped**
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -12,7 +12,17 @@
 >   `menu-bg.jpg`, `homepage-bg.jpg`) and every reference; fixed the clipped library toolbar
 >   (a flexbox `overflow:hidden` shrink bug) so search + controls render fully; toned down the
 >   `#landing::before` center-stripe noise; added the `--backdrop` token to `design-system.css`.
->   Production build green. Next: **Phase 2** (single token source of truth + colour codemod).
+>   Production build green.
+> - **Phase 2 (done):** Made `design-system.css` the authoritative, documented **single source
+>   of truth** with a real theme system — the default `:root` is now the calmer **Premium**
+>   theme (quiet hairlines, one soft halo instead of triple-layer glow spam) and a new
+>   `:root[data-theme="arcade"]` preserves the louder classic neon one switch away. Added a
+>   dependency-free **regression guard** (`tools/css-budget.js`, `npm run lint:css`) that ratchets
+>   the `!important` (929) and hardcoded-colour (887) counts so they can only shrink. Verified the
+>   theme swap via computed tokens; build green. **Note:** the mass rgba→token migration is folded
+>   into **Phase 3**, where those 48 override passes are rewritten/deleted anyway — converting them
+>   now then deleting them would be wasted churn. Next: **Phase 3** (consolidate the warring layers,
+>   one `.game-card` spec, strip `!important`), which is where the two themes visibly diverge.
 
 ---
 

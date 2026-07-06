@@ -12984,7 +12984,7 @@ body::before {
   color: #050308 !important;
   background:
     linear-gradient(112deg, var(--c-gold) 0 34%, var(--c-accent) 34.5% 66%, var(--c-accent-2) 66.5%),
-    #f5ff4d !important;
+    var(--c-gold) !important;
   box-shadow: 5px 5px 0 var(--c-ink), -2px 0 0 var(--c-accent-2), 2px 0 0 var(--c-accent) !important;
   clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 44%, calc(100% - 7px) 100%, 0 100%, 7px 50%);
   font-family: var(--font-display) !important;
@@ -13057,7 +13057,7 @@ body::before {
   border-color: var(--c-ink) !important;
   background:
     linear-gradient(112deg, var(--c-accent-2) 0 34%, var(--c-gold) 34.5% 66%, var(--c-accent) 66.5%),
-    #f5ff4d !important;
+    var(--c-gold) !important;
   transform: translate(-2px, -2px) skewX(-1deg) !important;
   box-shadow: 8px 8px 0 var(--c-ink), -2px 0 0 var(--c-accent), 2px 0 0 var(--c-accent-2) !important;
 }

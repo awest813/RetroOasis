@@ -218,9 +218,14 @@
 }
 
 /* ============================================================
-   Shibuya Punk cohesion override.
-   Night-violet glass, hot magenta signage, electric cyan edges,
-   voltage-yellow utility, hard arcade panels, and CRT grit.
+   THEME LAYER — the single source of truth for colour & light.
+   The base :root above declares every token NAME. This layer sets
+   the effective VALUES. Default (no [data-theme]) = PREMIUM
+   (Direction A): disciplined neon-noir — magenta is the one
+   signature accent, depth comes from soft light rather than glow
+   spam, and borders stay quiet so content leads.
+   [data-theme="arcade"] (below) restores the louder classic
+   Shibuya Punk neon. Re-theme the whole app by editing values here.
    ============================================================ */
 :root {
   --c-bg:         #05030d;
@@ -228,15 +233,16 @@
   --c-surface1:   var(--c-surface);
   --c-surface2:   #140b22;
   --c-surface3:   #211338;
-  --c-border:     rgba(255, 46, 151, 0.24);
-  --c-border-lt:  rgba(0, 240, 255, 0.34);
+  /* Premium: quiet hairlines; the accent is reserved for emphasis, not edges. */
+  --c-border:     rgba(255, 46, 151, 0.14);
+  --c-border-lt:  rgba(0, 240, 255, 0.18);
 
   --c-accent:       #ff2e97;
   --c-accent-h:     #ff6bb5;
   --c-accent-light: #ffa6d4;
   --c-accent-dark:  #9c0f5a;
   --c-accent-dim:   rgba(255, 46, 151, 0.16);
-  --c-accent-glow:  rgba(255, 46, 151, 0.42);
+  --c-accent-glow:  rgba(255, 46, 151, 0.30);
 
   --c-gold:       #f5ff4d;
   --c-gold-h:     #faff8a;
@@ -247,7 +253,7 @@
   --c-accent-2:      #00f0ff;
   --c-accent2:       var(--c-accent-2);
   --c-accent-2-dim:  rgba(0, 240, 255, 0.13);
-  --c-accent-2-glow: rgba(0, 240, 255, 0.3);
+  --c-accent-2-glow: rgba(0, 240, 255, 0.20);
 
   --c-joy-red:       #ff3d6e;
   --c-joy-blue:      #00d0ff;
@@ -287,18 +293,19 @@
   --focus-ring:   0 0 0 3px rgba(255, 46, 151, 0.32);
   --focus-border: rgba(0, 240, 255, 0.72);
   --panel-bg:     rgba(7, 5, 14, 0.90);
-  --panel-border: rgba(255, 46, 151, 0.22);
+  --panel-border: rgba(255, 46, 151, 0.14);
 
   --neon-magenta: #ff2e97;
   --neon-cyan:    #00f0ff;
   --neon-volt:    #f5ff4d;
   --neon-violet:  #a855f7;
 
+  /* Premium: depth through a single soft halo, not layered neon spam. */
   --glow-sm:   0 0 4px var(--c-accent-glow);
-  --glow-md:   0 0 10px var(--c-accent-glow), 0 0 22px rgba(255, 46, 151, 0.22);
-  --glow-lg:   0 0 14px var(--c-accent-glow), 0 0 34px rgba(255, 46, 151, 0.30), 0 0 60px rgba(255, 46, 151, 0.18);
-  --glow-cyan: 0 0 10px var(--c-accent-2-glow), 0 0 24px rgba(0, 240, 255, 0.22);
-  --glow-volt: 0 0 10px var(--c-gold-glow), 0 0 24px rgba(245, 255, 77, 0.20);
+  --glow-md:   0 0 12px rgba(255, 46, 151, 0.20);
+  --glow-lg:   0 0 22px rgba(255, 46, 151, 0.22);
+  --glow-cyan: 0 0 12px rgba(0, 240, 255, 0.16);
+  --glow-volt: 0 0 12px rgba(245, 255, 77, 0.14);
 
   --rgb-split: -1.5px 0 0 rgba(0, 240, 255, 0.85), 1.5px 0 0 rgba(255, 46, 151, 0.85);
   --gradient-neon: linear-gradient(135deg, #ff2e97 0%, #a855f7 48%, #00f0ff 100%);
@@ -323,7 +330,27 @@
   --accent-gradient: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-light) 100%);
   --accent-metallic-gradient: var(--gradient-neon);
   --glass-bg: rgba(11, 7, 20, 0.88);
-  --glass-border: rgba(255, 46, 151, 0.20);
+  --glass-border: rgba(255, 46, 151, 0.12);
   --glass-bg-accent: rgba(255, 46, 151, 0.07);
   --glass-fx: none;
+}
+
+/* ============================================================
+   Arcade (Classic) theme — the louder original Shibuya Punk neon.
+   Opt in with <html data-theme="arcade">. Restores bright accent
+   borders, multi-layer glows, and heavier signage light. Kept so
+   the personality people liked stays one switch away.
+   ============================================================ */
+:root[data-theme="arcade"] {
+  --c-border:        rgba(255, 46, 151, 0.24);
+  --c-border-lt:     rgba(0, 240, 255, 0.34);
+  --c-accent-glow:   rgba(255, 46, 151, 0.42);
+  --c-accent-2-glow: rgba(0, 240, 255, 0.30);
+  --panel-border:    rgba(255, 46, 151, 0.22);
+  --glass-border:    rgba(255, 46, 151, 0.20);
+
+  --glow-md:   0 0 10px var(--c-accent-glow), 0 0 22px rgba(255, 46, 151, 0.22);
+  --glow-lg:   0 0 14px var(--c-accent-glow), 0 0 34px rgba(255, 46, 151, 0.30), 0 0 60px rgba(255, 46, 151, 0.18);
+  --glow-cyan: 0 0 10px var(--c-accent-2-glow), 0 0 24px rgba(0, 240, 255, 0.22);
+  --glow-volt: 0 0 10px var(--c-gold-glow), 0 0 24px rgba(245, 255, 77, 0.20);
 }
