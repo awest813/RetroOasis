@@ -9894,159 +9894,10 @@ body {
   }
 }
 
-/* Legacy quiet-pass layer, superseded by Shibuya Punk overrides below. */
-#landing {
-  background:
-    radial-gradient(circle at 76% 12%, rgba(218,190,130,0.05), transparent 30%),
-    linear-gradient(180deg, #070708 0%, #020203 100%);
-}
-
-#landing::before {
-  opacity: 0.16;
-  mix-blend-mode: normal;
-  background:
-    linear-gradient(90deg, transparent 0 49.95%, rgba(255,255,255,0.025) 50%, transparent 50.05%),
-    linear-gradient(180deg, transparent, rgba(255,255,255,0.018), transparent);
-}
-
-.app-header {
-  background: rgba(5,5,6,0.9);
-  border-bottom-color: rgba(255,255,255,0.075);
-  box-shadow: none;
-}
-
-.app-header::after {
-  opacity: 0.22;
-  background: linear-gradient(90deg, transparent, rgba(238,226,196,0.46), transparent);
-}
-
-.brand-long,
-.library-title {
-  letter-spacing: 0.035em;
-  font-weight: 760;
-}
-
-.library-title::after {
-  width: 24px;
-  opacity: 0.5;
-  background: rgba(238,226,196,0.58);
-}
-
-.landing-sidebar,
-.landing-details {
-  background: rgba(0,0,0,0.16);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.028);
-}
-
-.library-toolbar {
-  background: rgba(3,3,4,0.34);
-  border-bottom: 1px solid rgba(255,255,255,0.052);
-  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.025);
-}
-
-.library-overview__item,
-.library-overview__scope,
-.btn,
-.library-search,
-.library-sort,
-.sys-filter-chip {
-  background: rgba(255,255,255,0.032);
-  border-color: rgba(255,255,255,0.09);
-  box-shadow: none;
-  text-shadow: none;
-}
-
-.btn,
-.sys-filter-chip {
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-.btn:hover,
-.sys-filter-chip:hover {
-  background: rgba(255,255,255,0.052);
-  border-color: rgba(238,226,196,0.18);
-  box-shadow: none;
-  transform: translateY(-1px);
-}
-
-.btn--primary,
-.btn--hero,
-.game-card__play-btn {
-  color: #050505;
-  background: rgba(238,226,196,0.88);
-  border-color: rgba(238,226,196,0.5);
-  box-shadow: none;
-}
-
-.btn--primary:hover,
-.btn--hero:hover,
-.game-card__play-btn:hover {
-  background: rgba(248,239,214,0.94);
-  border-color: rgba(248,239,214,0.64);
-}
-
-.btn--highlight {
-  color: rgba(255,255,255,0.86);
-  background: rgba(255,255,255,0.045);
-  border-color: rgba(255,255,255,0.11);
-}
-
-.library-search:focus,
-.library-sort:focus-visible,
-.btn:focus-visible,
-.game-card__action:focus-visible,
-.game-card__play-btn:focus-visible {
-  border-color: rgba(238,226,196,0.34);
-  box-shadow: 0 0 0 3px rgba(238,226,196,0.08);
-}
-
-.sys-filter-chip {
-  min-height: 36px;
-}
-
-.sys-filter-chip.active {
-  color: rgba(255,255,255,0.92);
-  background: rgba(255,255,255,0.055);
-  border-color: rgba(238,226,196,0.2);
-  border-left-color: rgba(238,226,196,0.58);
-}
-
-.game-card {
-  background: rgba(255,255,255,0.034);
-  border-color: rgba(255,255,255,0.09);
-  box-shadow: 0 14px 36px rgba(0,0,0,0.42);
-}
-
-.game-card:hover {
-  border-color: rgba(238,226,196,0.24);
-  box-shadow: 0 18px 44px rgba(0,0,0,0.52);
-  transform: translateY(-3px);
-}
-
-.game-card__icon {
-  background: linear-gradient(180deg, #111114, #050506);
-  box-shadow: none;
-}
-
-.game-card__icon::before {
-  opacity: 0.55;
-  background: linear-gradient(to top, rgba(0,0,0,0.34), transparent 48%);
-}
-
-.game-card__cover-art {
-  transition: transform 450ms ease, opacity 220ms ease;
-}
-
-.game-card:hover .game-card__cover-art {
-  transform: scale(1.035);
-}
-
-.game-card__system-chip,
-.game-card__status-chip,
-.game-card__action {
-  background: rgba(5,5,6,0.68);
-  border-color: rgba(255,255,255,0.1);
-}
+/* (Removed in Phase 3 consolidation) Legacy "Gran Turismo" gold/cream pass —
+   superseded by the premium token layer + the Phase 1-3 overrides. Deleting it
+   removes the gold-vs-magenta conflict and ~150 lines of dead cascade.
+   Verified with a before/after pixel diff. */
 
 /* Conflict Resolver Modal */
 .conflict-resolver-box {
@@ -10224,7 +10075,7 @@ body {
 .settings-modal-box {
   background:
     linear-gradient(rgba(4, 3, 10, 0.78), rgba(4, 3, 10, 0.86)),
-    url("/assets/menu-bg.jpg") no-repeat center center / cover !important;
+    #0b0714 !important;
 }
 
 .settings-modal-box .modal-header,
@@ -10463,10 +10314,10 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: var(--shadow-sm) !important;
 }
 
-/* ── Animated Mesh Background for Onboarding ── */
-/* Fill the positioned .app-main so the wallpaper's `cover` scales/crops to the
-   viewport rather than to the (content-sized) landing box. The home wallpaper
-   itself is declared once, lower down (homepage-bg-shibuya-neon). */
+/* ── Landing backdrop container ── */
+/* Fill the positioned .app-main so the backdrop covers the viewport rather
+   than the (content-sized) landing box. The backdrop wash itself is the
+   token --backdrop, applied lower down in the quiet backdrop pass. */
 #landing {
   position: absolute;
   inset: 0;
@@ -10926,9 +10777,11 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.18s ease, border-color 0.18s ease !important;
 }
 
-/* Comic-pop primary and hero buttons */
-.btn--primary,
-.btn--hero {
+/* Comic-pop buttons — Arcade theme only (cel outline + hard offset shadow +
+   uppercase). Premium (default) uses the clean base .btn styling above:
+   accent-fill primary, soft shadow, quiet secondary/ghost. */
+:root[data-theme="arcade"] .btn--primary,
+:root[data-theme="arcade"] .btn--hero {
   background: var(--c-accent) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10938,40 +10791,40 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   text-transform: uppercase;
 }
 
-.btn--primary:hover,
-.btn--hero:hover {
+:root[data-theme="arcade"] .btn--primary:hover,
+:root[data-theme="arcade"] .btn--hero:hover {
   background: var(--c-accent-light) !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn--primary:active,
-.btn--hero:active {
+:root[data-theme="arcade"] .btn--primary:active,
+:root[data-theme="arcade"] .btn--hero:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Comic-pop secondary/ghost buttons (e.g. Settings, Help in header) */
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost) {
+/* Comic-pop secondary buttons (Settings, Help in header) — Arcade only. */
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost) {
   border: var(--outline-bold) !important;
   background: var(--c-surface2) !important;
   box-shadow: var(--pop-shadow) !important;
   color: var(--c-text) !important;
 }
 
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):hover {
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):hover {
   background: var(--c-surface3) !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):active {
+:root[data-theme="arcade"] .btn:not(.btn--primary):not(.btn--hero):not(.btn--icon):not(.layout-btn):not(.btn--ghost):active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Highlight buttons (Play Together, PWA Install) */
-.btn--highlight {
+/* Highlight buttons (Play Together, PWA Install) — Arcade only. */
+:root[data-theme="arcade"] .btn--highlight {
   background: var(--c-pop-lime) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10979,19 +10832,37 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   font-weight: 700 !important;
 }
 
-.btn--highlight:hover {
+:root[data-theme="arcade"] .btn--highlight:hover {
   background: #c9ff66 !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
 }
 
-.btn--highlight:active {
+:root[data-theme="arcade"] .btn--highlight:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-/* Details Panel Play button override to keep the metallic gradient but use the outline + shadow */
-.landing-details__actions .btn--primary {
+/* Premium (default) emphasis for hero + highlight so they stay prominent
+   without the cel outline: soft accent / lime fill, soft shadow. */
+.btn--hero {
+  background: var(--c-accent);
+  border-color: var(--c-accent-light);
+  color: var(--c-white);
+  box-shadow: 0 10px 24px var(--c-accent-dim);
+}
+.btn--hero:hover { background: var(--c-accent-h); }
+.btn--highlight {
+  background: var(--c-success);
+  border-color: color-mix(in srgb, var(--c-success) 55%, transparent);
+  color: var(--c-ink);
+  font-weight: 800;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--c-success) 16%, transparent);
+}
+.btn--highlight:hover { filter: brightness(1.06); }
+
+/* Details Panel Play button — Arcade only keeps the cel outline. */
+:root[data-theme="arcade"] .landing-details__actions .btn--primary {
   background: var(--accent-metallic-gradient) !important;
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
@@ -10999,13 +10870,13 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: transform 0.1s ease, box-shadow 0.1s ease !important;
 }
 
-.landing-details__actions .btn--primary:hover {
+:root[data-theme="arcade"] .landing-details__actions .btn--primary:hover {
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
   filter: brightness(1.08) !important;
 }
 
-.landing-details__actions .btn--primary:active {
+:root[data-theme="arcade"] .landing-details__actions .btn--primary:active {
   transform: translate(2px, 2px) !important;
   box-shadow: 1px 1px 0 var(--c-ink) !important;
 }
@@ -11025,15 +10896,16 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: var(--c-accent) !important;
 }
 
-/* 2. Settings Sidebar Menu Polish */
-.settings-sidebar {
+/* 2. Settings Sidebar Menu — Arcade theme only (hard outline, uppercase
+   display font, cyan active). Premium uses the clean base menu above. */
+:root[data-theme="arcade"] .settings-sidebar {
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
   background: var(--c-surface) !important;
   padding: 12px !important;
 }
 
-.settings-sidebar__item {
+:root[data-theme="arcade"] .settings-sidebar__item {
   border: 2px solid transparent !important;
   font-family: var(--font-display) !important;
   font-weight: 700 !important;
@@ -11044,26 +10916,27 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   border-radius: var(--radius-sm) !important;
 }
 
-.settings-sidebar__item:hover {
+:root[data-theme="arcade"] .settings-sidebar__item:hover {
   background: rgba(255, 46, 151, 0.06) !important;
   color: var(--c-accent) !important;
   border-color: rgba(255, 46, 151, 0.18) !important;
 }
 
-.settings-sidebar__item.settings-tab--active {
+:root[data-theme="arcade"] .settings-sidebar__item.settings-tab--active {
   background: rgba(0, 240, 255, 0.08) !important;
   color: var(--c-accent-2) !important;
   border: var(--outline-bold) !important;
   box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.15) !important;
 }
 
-/* 3. Platform Filter Chips active styling & peel-off sticker effects */
-.sys-filter-chip {
+/* 3. Platform Filter Chips — Arcade theme only (peel-off sticker + rotate).
+   Premium keeps the quiet chip with a system-colour accent from the base. */
+:root[data-theme="arcade"] .sys-filter-chip {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease !important;
   border: 2px solid transparent !important;
 }
 
-.sys-filter-chip.active {
+:root[data-theme="arcade"] .sys-filter-chip.active {
   background: rgba(255, 255, 255, 0.045) !important;
   border: var(--outline-bold) !important;
   border-left: 6px solid var(--sys-color, var(--c-accent)) !important;
@@ -11071,7 +10944,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: var(--sys-color, var(--c-accent)) !important;
 }
 
-.sys-filter-chip:hover {
+:root[data-theme="arcade"] .sys-filter-chip:hover {
   transform: translate(-2px, -2px) rotate(1deg) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
   background: var(--c-surface2) !important;
@@ -11079,21 +10952,30 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: var(--c-white) !important;
 }
 
-.sys-filter-chip.active:hover {
+:root[data-theme="arcade"] .sys-filter-chip.active:hover {
   transform: translate(-3px, -3px) rotate(1.2deg) !important;
   box-shadow: 5px 5px 0 var(--sys-color, var(--c-accent)) !important;
   background: rgba(255, 255, 255, 0.06) !important;
 }
 
-/* 5. Brutalist Game Cards visual upgrades */
-.game-card {
+/* Premium (default): platform chips get a quiet active state — subtle fill
+   plus a system-colour left accent, no sticker peel. */
+.sys-filter-chip.active {
+  border-left: 3px solid var(--sys-color, var(--c-accent));
+  color: var(--c-text);
+  background: var(--c-accent-dim);
+}
+
+/* 5. Brutalist Game Cards visual upgrades — Arcade theme only.
+   Premium (default) keeps the clean gallery tile from the card base above. */
+:root[data-theme="arcade"] .game-card {
   border: var(--outline-bold) !important;
   box-shadow: var(--pop-shadow) !important;
   border-radius: 16px !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
 }
 
-.game-card:hover {
+:root[data-theme="arcade"] .game-card:hover {
   transform: translate(-3px, -3px) rotate(-0.5deg) !important;
   box-shadow: 6px 6px 0 var(--sys-color, var(--c-accent)) !important;
   border-color: var(--c-ink) !important;
@@ -11114,17 +10996,21 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   }
 }
 
-/* 4. Cover art fallback hard-edge polish */
+/* 4. Cover art fallback — Arcade theme keeps the halftone + 遊 ink stamp;
+   Premium (default) uses the quieter system-tinted fallback from the base. */
 .game-card__fallback {
   position: relative;
   overflow: hidden;
+}
+
+:root[data-theme="arcade"] .game-card__fallback {
   background:
     var(--halftone-overlay) 0 0 / var(--halftone-size),
     radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--sys-color-bright, var(--c-accent)) 14%, transparent), transparent 48%),
     #08080a !important;
 }
 
-.game-card__fallback::before {
+:root[data-theme="arcade"] .game-card__fallback::before {
   content: "遊";
   position: absolute;
   right: -5px;
@@ -11137,13 +11023,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   line-height: 1;
 }
 
-/* 7. Form Inputs & Search Bar Brutalist Polish */
-.library-search,
-.settings-input,
-.settings-select,
-.settings-search-input,
-.cover-art-url-input,
-.api-key-input {
+/* 7. Form Inputs & Search Bar — Arcade theme only (hard outline + offset
+   shadow + spring translate on focus). Premium uses the clean base inputs. */
+:root[data-theme="arcade"] :is(.library-search, .settings-input, .settings-select, .settings-search-input, .cover-art-url-input, .api-key-input) {
   border: var(--outline-bold) !important;
   box-shadow: 3px 3px 0 var(--c-ink) !important;
   border-radius: var(--radius-sm) !important;
@@ -11152,37 +11034,28 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease !important;
 }
 
-.library-search:focus,
-.settings-input:focus,
-.settings-select:focus,
-.settings-search-input:focus,
-.cover-art-url-input:focus,
-.api-key-input:focus,
-.library-search:focus-visible,
-.settings-input:focus-visible,
-.settings-select:focus-visible,
-.settings-search-input:focus-visible,
-.cover-art-url-input:focus-visible,
-.api-key-input:focus-visible {
+:root[data-theme="arcade"] :is(.library-search, .settings-input, .settings-select, .settings-search-input, .cover-art-url-input, .api-key-input):focus,
+:root[data-theme="arcade"] :is(.library-search, .settings-input, .settings-select, .settings-search-input, .cover-art-url-input, .api-key-input):focus-visible {
   transform: translate(-2px, -2px) !important;
   box-shadow: 5px 5px 0 var(--c-accent), 0 0 15px var(--c-accent-glow) !important;
   border-color: var(--c-accent) !important;
   outline: none !important;
 }
 
-/* 8. Toggles & Checkboxes Brutalist Polish */
-.toggle-switch {
+/* 8. Toggles & Checkboxes — Arcade theme only (hard outline + offset shadow).
+   Premium uses the clean base toggle (soft pill) above. */
+:root[data-theme="arcade"] .toggle-switch {
   border: var(--outline-bold) !important;
   box-shadow: 2px 2px 0 var(--c-ink) !important;
   transition: all 0.2s ease !important;
 }
 
-.toggle-switch.is-checked {
+:root[data-theme="arcade"] .toggle-switch.is-checked {
   background: var(--c-accent) !important;
   box-shadow: 3px 3px 0 var(--c-ink), 0 0 12px var(--c-accent-glow) !important;
 }
 
-.toggle-switch__knob {
+:root[data-theme="arcade"] .toggle-switch__knob {
   box-shadow: 2px 2px 0 var(--c-ink) !important;
 }
 
@@ -11198,9 +11071,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   }
 }
 
-/* 9. Toast Notifications Brutalist Polish */
-#info-toast.info-toast,
-.toast-stack .info-toast {
+/* 9. Toast Notifications — Arcade theme only (hard outline + offset shadow).
+   Premium uses the soft base toast with a semantic accent stripe. */
+:root[data-theme="arcade"] :is(#info-toast.info-toast, .toast-stack .info-toast) {
   border-radius: var(--radius-sm) !important;
   border: var(--outline-bold) !important;
   box-shadow: 6px 6px 0 var(--c-ink) !important;
@@ -11208,40 +11081,40 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   backdrop-filter: none !important;
 }
 
-#info-toast.info-toast--success, .toast-stack .info-toast--success { box-shadow: 6px 6px 0 var(--c-success) !important; border-color: var(--c-success) !important; }
-#info-toast.info-toast--info, .toast-stack .info-toast--info { box-shadow: 6px 6px 0 var(--c-accent-2) !important; border-color: var(--c-accent-2) !important; }
-#info-toast.info-toast--warning, .toast-stack .info-toast--warning { box-shadow: 6px 6px 0 var(--c-gold) !important; border-color: var(--c-gold) !important; }
-#info-toast.info-toast--error, .toast-stack .info-toast--error { box-shadow: 6px 6px 0 var(--c-danger) !important; border-color: var(--c-danger) !important; }
+:root[data-theme="arcade"] :is(#info-toast.info-toast--success, .toast-stack .info-toast--success) { box-shadow: 6px 6px 0 var(--c-success) !important; border-color: var(--c-success) !important; }
+:root[data-theme="arcade"] :is(#info-toast.info-toast--info, .toast-stack .info-toast--info) { box-shadow: 6px 6px 0 var(--c-accent-2) !important; border-color: var(--c-accent-2) !important; }
+:root[data-theme="arcade"] :is(#info-toast.info-toast--warning, .toast-stack .info-toast--warning) { box-shadow: 6px 6px 0 var(--c-gold) !important; border-color: var(--c-gold) !important; }
+:root[data-theme="arcade"] :is(#info-toast.info-toast--error, .toast-stack .info-toast--error) { box-shadow: 6px 6px 0 var(--c-danger) !important; border-color: var(--c-danger) !important; }
 
-/* 10. Modals Brutalist Polish */
-.modal-box:not(.settings-modal-box),
-.confirm-box,
-.conflict-resolver-box {
+/* 10. Modals — Arcade theme only (hard outline + offset shadow). Premium uses
+   the soft base modal (surface, soft shadow, scrim). */
+:root[data-theme="arcade"] :is(.modal-box:not(.settings-modal-box), .confirm-box, .conflict-resolver-box) {
   border-radius: var(--radius-lg) !important;
   border: var(--outline-bold) !important;
   box-shadow: 12px 12px 0 rgba(0,0,0,0.8), 0 0 40px var(--c-accent-glow) !important;
   background: var(--c-bg) !important;
 }
 
-/* 11. Brutalist Scrollbar Polish */
-::-webkit-scrollbar {
+/* 11. Scrollbar — Arcade theme only (hard-edged magenta thumb). Premium uses
+   the quiet base scrollbar. */
+:root[data-theme="arcade"] ::-webkit-scrollbar {
   width: 14px !important;
   height: 14px !important;
 }
 
-::-webkit-scrollbar-track {
+:root[data-theme="arcade"] ::-webkit-scrollbar-track {
   background: var(--c-surface1) !important;
   border-left: var(--outline-bold) !important;
   border-top: var(--outline-bold) !important;
 }
 
-::-webkit-scrollbar-thumb {
+:root[data-theme="arcade"] ::-webkit-scrollbar-thumb {
   background: var(--c-accent) !important;
   border: var(--outline-bold) !important;
   border-radius: 0 !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
+:root[data-theme="arcade"] ::-webkit-scrollbar-thumb:hover {
   background: var(--c-accent-light) !important;
   box-shadow: 2px 2px 0 var(--c-ink) inset !important;
 }
@@ -11290,8 +11163,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: 3px 3px 0 var(--c-danger) !important;
 }
 
-/* 13. Brutalist Loading Block */
-.loading-spinner {
+/* 13. Loading spinner — Arcade theme only (hard square block). Premium uses
+   the soft base spinner. */
+:root[data-theme="arcade"] .loading-spinner {
   border-radius: var(--radius-sm) !important;
   border: var(--outline-bold) !important;
   border-top-color: var(--c-accent) !important;
@@ -11478,16 +11352,14 @@ body::before {
     linear-gradient(90deg, rgba(5,3,13,0.9) 0%, rgba(5,3,13,0.58) 42%, rgba(5,3,13,0.9) 100%),
     radial-gradient(circle at 52% 42%, rgba(255,46,151,0.20), transparent 34%),
     linear-gradient(118deg, rgba(255,46,151,0.24) 0 14%, transparent 14.2% 68%, rgba(0,240,255,0.18) 68.2%),
-    url("/assets/homepage-bg-shibuya-neon.webp") center center / cover no-repeat,
     linear-gradient(180deg, #0a0614 0%, #05030d 100%) !important;
 }
 
 #landing::before {
-  opacity: 0.56 !important;
+  opacity: 0.22 !important;
   mix-blend-mode: screen !important;
   background:
-    repeating-linear-gradient(115deg, rgba(0,240,255,0.10) 0 2px, transparent 2px 18px),
-    linear-gradient(90deg, transparent 0 49.9%, rgba(255,46,151,0.20) 50%, transparent 50.1%) !important;
+    repeating-linear-gradient(115deg, rgba(0,240,255,0.06) 0 2px, transparent 2px 22px) !important;
 }
 
 .app-header,
@@ -11680,7 +11552,11 @@ body::before {
   max-width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
-  overflow: hidden !important;
+  /* Premium overhaul · Phase 1 — never let the sticky toolbar be shrunk by the
+     column flex layout (overflow:hidden had dropped its flex min-size to 0,
+     clipping the search + controls row). Keep natural height. */
+  overflow: visible !important;
+  flex-shrink: 0 !important;
 }
 
 .library-title::after {
@@ -11774,7 +11650,7 @@ body::before {
   background:
     linear-gradient(135deg, rgba(255,46,151,0.18), transparent 36%),
     linear-gradient(rgba(5,3,13,0.86), rgba(5,3,13,0.94)),
-    url("/assets/menu-bg.jpg") no-repeat center center / cover !important;
+    #0b0714 !important;
 }
 
 .settings-sidebar__item,
@@ -12010,7 +11886,7 @@ body::before {
     radial-gradient(circle at 86% 12%, rgba(0, 240, 255, 0.18) 0 11%, transparent 12%),
     linear-gradient(115deg, rgba(255, 46, 151, 0.32) 0 18%, transparent 18.3% 72%, rgba(0, 240, 255, 0.18) 72.4%),
     linear-gradient(rgba(5, 3, 13, 0.84), rgba(5, 3, 13, 0.96)),
-    url("/assets/menu-bg.jpg") no-repeat center center / cover !important;
+    #0b0714 !important;
   box-shadow:
     10px 10px 0 var(--c-ink),
     -5px -5px 0 rgba(255, 46, 151, 0.62),
@@ -12982,7 +12858,7 @@ body::before {
   color: #050308 !important;
   background:
     linear-gradient(112deg, var(--c-gold) 0 34%, var(--c-accent) 34.5% 66%, var(--c-accent-2) 66.5%),
-    #f5ff4d !important;
+    var(--c-gold) !important;
   box-shadow: 5px 5px 0 var(--c-ink), -2px 0 0 var(--c-accent-2), 2px 0 0 var(--c-accent) !important;
   clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 44%, calc(100% - 7px) 100%, 0 100%, 7px 50%);
   font-family: var(--font-display) !important;
@@ -13055,7 +12931,7 @@ body::before {
   border-color: var(--c-ink) !important;
   background:
     linear-gradient(112deg, var(--c-accent-2) 0 34%, var(--c-gold) 34.5% 66%, var(--c-accent) 66.5%),
-    #f5ff4d !important;
+    var(--c-gold) !important;
   transform: translate(-2px, -2px) skewX(-1deg) !important;
   box-shadow: 8px 8px 0 var(--c-ink), -2px 0 0 var(--c-accent), 2px 0 0 var(--c-accent-2) !important;
 }
@@ -13164,7 +13040,6 @@ body::before {
     linear-gradient(90deg, rgba(5,3,13,0.92) 0%, rgba(5,3,13,0.42) 42%, rgba(5,3,13,0.72) 100%),
     radial-gradient(circle at 54% 44%, rgba(255,46,151,0.18), transparent 30%),
     linear-gradient(118deg, rgba(255,46,151,0.18) 0 12%, transparent 12.2% 69%, rgba(0,240,255,0.16) 69.2%),
-    url("/assets/homepage-bg-shibuya-neon.webp") center center / cover no-repeat,
     linear-gradient(180deg, #0a0614 0%, #05030d 100%) !important;
 }
 
@@ -13193,7 +13068,8 @@ body::before {
 
 #landing.landing-empty .library-title {
   font-size: clamp(1.95rem, 4.2vw, 3.25rem);
-  line-height: 0.92;
+  line-height: 1.08;
+  padding-block: 2px;
 }
 
 #landing.landing-empty .library-count {
@@ -13743,39 +13619,23 @@ body::before {
   }
 }
 
-/* Shared arcade-street backdrop pass: homepage and settings use the same punk city. */
+/* Shared quiet backdrop pass (Premium overhaul · Direction A · Phase 1):
+   the busy arcade cityscape is replaced by a calm neon-noir wash so content
+   leads, contrast is restored, and copyrighted imagery is removed. Slated to
+   fold into the base layer during the Phase 3 cascade consolidation. */
 :root {
-  --arcade-punk-bg: url("/assets/arcade-bg-punk.webp");
+  --arcade-punk-bg: none;
 }
 
-#landing {
-  background:
-    linear-gradient(90deg, rgba(5, 3, 13, 0.94) 0%, rgba(5, 3, 13, 0.52) 42%, rgba(5, 3, 13, 0.78) 100%),
-    radial-gradient(circle at 72% 35%, rgba(0, 240, 255, 0.18), transparent 32%),
-    radial-gradient(circle at 18% 42%, rgba(255, 46, 151, 0.18), transparent 28%),
-    linear-gradient(118deg, rgba(255, 46, 151, 0.20) 0 12%, transparent 12.2% 69%, rgba(0, 240, 255, 0.18) 69.2%),
-    var(--arcade-punk-bg) center center / cover no-repeat,
-    linear-gradient(180deg, #070411 0%, #03020a 100%) !important;
-}
-
+#landing,
 #landing.landing-empty {
-  background:
-    linear-gradient(90deg, rgba(5, 3, 13, 0.95) 0%, rgba(5, 3, 13, 0.44) 45%, rgba(5, 3, 13, 0.66) 100%),
-    radial-gradient(circle at 74% 38%, rgba(0, 240, 255, 0.20), transparent 34%),
-    radial-gradient(circle at 20% 44%, rgba(255, 46, 151, 0.20), transparent 30%),
-    repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.07) 0 1px, transparent 1px 18px),
-    var(--arcade-punk-bg) center center / cover no-repeat,
-    linear-gradient(180deg, #070411 0%, #03020a 100%) !important;
+  background: var(--backdrop) !important;
 }
 
 #settings-panel .settings-modal-box {
   background:
-    radial-gradient(circle at 8% 14%, rgba(245, 255, 77, 0.16) 0 8%, transparent 9%),
-    radial-gradient(circle at 90% 18%, rgba(0, 240, 255, 0.16) 0 10%, transparent 11%),
-    linear-gradient(112deg, rgba(255, 46, 151, 0.34) 0 19%, rgba(5, 3, 13, 0.93) 19.3% 74%, rgba(0, 240, 255, 0.18) 74.3%),
-    linear-gradient(rgba(5, 3, 13, 0.72), rgba(5, 3, 13, 0.90)),
-    var(--arcade-punk-bg) center center / cover no-repeat,
-    #05030d !important;
+    radial-gradient(1100px 520px at 82% -8%, rgba(255, 61, 154, 0.08), transparent 60%),
+    linear-gradient(180deg, #0d0b14 0%, #08060f 72%) !important;
 }
 
 #settings-panel .settings-quickbar,
@@ -13785,58 +13645,33 @@ body::before {
 }
 
 #settings-panel .settings-quickbar {
-  background:
-    linear-gradient(90deg, rgba(255, 46, 151, 0.30), rgba(5, 3, 13, 0.90) 42%, rgba(0, 240, 255, 0.20)),
-    var(--arcade-punk-bg) center 36% / cover no-repeat,
-    #080411 !important;
+  background: rgba(11, 8, 20, 0.92) !important;
 }
 
 #settings-panel .settings-body {
-  background:
-    linear-gradient(90deg, rgba(5, 3, 13, 0.82), rgba(5, 3, 13, 0.60) 48%, rgba(5, 3, 13, 0.84)),
-    repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.08) 0 1px, transparent 1px 18px),
-    var(--arcade-punk-bg) center center / cover no-repeat,
-    #05030d !important;
+  background: transparent !important;
 }
 
 #settings-panel .settings-section {
-  background:
-    linear-gradient(108deg, rgba(255, 46, 151, 0.10), rgba(0, 240, 255, 0.07) 58%, rgba(5, 3, 13, 0.98)),
-    rgba(8, 5, 18, 0.96) !important;
+  background: rgba(18, 14, 26, 0.96) !important;
 }
 
 @media (max-width: 760px) {
   #landing,
   #landing.landing-empty {
-    background:
-      linear-gradient(180deg, rgba(5, 3, 13, 0.82) 0%, rgba(5, 3, 13, 0.48) 44%, rgba(5, 3, 13, 0.90) 100%),
-      linear-gradient(90deg, rgba(255, 46, 151, 0.20), rgba(0, 240, 255, 0.10)),
-      repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.08) 0 1px, transparent 1px 16px),
-      var(--arcade-punk-bg) 58% center / cover no-repeat,
-      #05030d !important;
+    background: var(--backdrop) !important;
   }
 
   #settings-panel .settings-modal-box {
-    background:
-      linear-gradient(180deg, rgba(5, 3, 13, 0.88) 0%, rgba(5, 3, 13, 0.74) 45%, rgba(5, 3, 13, 0.96) 100%),
-      linear-gradient(112deg, rgba(255, 46, 151, 0.34) 0 24%, transparent 24.4% 78%, rgba(0, 240, 255, 0.18) 78.4%),
-      var(--arcade-punk-bg) 59% center / cover no-repeat,
-      #05030d !important;
+    background: linear-gradient(180deg, #0d0b14 0%, #08060f 72%) !important;
   }
 
   #settings-panel .settings-quickbar {
-    background:
-      linear-gradient(90deg, rgba(255, 46, 151, 0.36), rgba(5, 3, 13, 0.88) 44%, rgba(0, 240, 255, 0.24)),
-      var(--arcade-punk-bg) 58% 30% / cover no-repeat,
-      #080411 !important;
+    background: rgba(11, 8, 20, 0.94) !important;
   }
 
   #settings-panel .settings-body {
-    background:
-      linear-gradient(180deg, rgba(5, 3, 13, 0.78), rgba(5, 3, 13, 0.64) 45%, rgba(5, 3, 13, 0.90)),
-      repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.08) 0 1px, transparent 1px 16px),
-      var(--arcade-punk-bg) 58% center / cover no-repeat,
-      #05030d !important;
+    background: transparent !important;
   }
 }
 
