@@ -72,6 +72,12 @@ export interface Settings {
    * `"lite"`    — simplified UI with blurs and heavy animations disabled
    */
   uiMode: "auto" | "quality" | "lite";
+  /**
+   * UI theme applied via `data-theme` on the root element.
+   * `"premium"` — default disciplined neon-noir (clean, one accent, soft depth).
+   * `"arcade"`  — the louder classic Shibuya Punk neon (brutalist / comic-pop).
+   */
+  theme: "premium" | "arcade";
   /** Library layout mode: "grid", "list", or "compact". */
   libraryLayout: "grid" | "list" | "compact";
   /** Whether to group games by system in the library. */

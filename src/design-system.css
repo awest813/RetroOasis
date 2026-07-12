@@ -201,9 +201,11 @@
   --glass-fx: saturate(150%) blur(26px);
   --glass-bg-accent: rgba(255, 46, 151, 0.06);
 
-  /* Typography stack */
+  /* Typography stack — Premium loads only Zen Dots + Rajdhani + Space Mono.
+     --font-action resolves to the UI face by default; the Arcade theme
+     re-points it to Teko (lazy-loaded by applyTheme() in main.ts). */
   --font-display: 'Zen Dots', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-action:  'Teko', 'Rajdhani', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-action:  var(--font-sans);
   --font-sans:    'Rajdhani', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono:    'Space Mono', "SF Mono", "JetBrains Mono", "Consolas", monospace;
   --font-jp:      'Reggae One', 'Zen Kaku Gothic New', 'Chakra Petch', sans-serif;
@@ -342,6 +344,8 @@
    the personality people liked stays one switch away.
    ============================================================ */
 :root[data-theme="arcade"] {
+  --font-action: 'Teko', 'Rajdhani', 'Chakra Petch', system-ui, -apple-system, "Segoe UI", sans-serif;
+
   --c-border:        rgba(255, 46, 151, 0.24);
   --c-border-lt:     rgba(0, 240, 255, 0.34);
   --c-accent-glow:   rgba(255, 46, 151, 0.42);

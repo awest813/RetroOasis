@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A** chosen; **Phases 0–2 shipped, Phase 3 in progress**
+**Status:** In progress — **Direction A**; **Phases 0–6 shipped** (Phase 5 part 2 niche surfaces + Phase 7 QA remaining)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -52,6 +52,51 @@
 >   colours **887 → 845** (−42 literals); the budget guard ratcheted down to lock it in. Build green.
 >   Remaining: in-game overlay/banner + netplay-chat brutalist bits (unverifiable without a running game),
 >   and further dead/duplicate-pass deletions toward the `<6k` line / `<20 !important` goal.
+> - **Phase 3 — part 4 / brutalist scoping complete (done):** Scoped the last brutalist sections —
+>   **in-game overlay panel, hamburger, FPS/dev overlays, and error banner** — to Arcade (Premium uses the
+>   soft base). Left netplay chat brutalist (deep-niche; splitting it grew `!important` for no real gain).
+>   **All 13 brutalist sections are now Arcade-scoped**, so the Premium default is consistently clean and
+>   the two themes fully diverge.
+>   **Deletion finding:** attempted to also delete the ~293-line "Gran Turismo luxury" pass, but a
+>   before/after pixel diff showed a **10% change with a real regression** (the card fallback name
+>   duplicated) — that pass is **load-bearing, not dead**, so I reverted it. Takeaway for the numeric
+>   targets: beyond the one genuinely-dead legacy pass (already removed), the remaining bulk cannot be
+>   *deleted* safely — it has to be **migrated rule-by-rule onto a clean base then removed** (Phase 5
+>   territory). So `<6k` lines / `<20 !important` stay as **directional goals**, enforced-not-regressing by
+>   the budget guard, rather than something reachable by more bulk deletion. The **premium-feel** objective
+>   of Phase 3 (default theme clean, one accent, soft depth, gold conflict resolved) **is met.**
+> - **Phase 6 — theme picker (done):** The theme system is now **user-facing**, not devtools-only. Added a
+>   `theme: "premium" | "arcade"` setting wired exactly like `uiMode` (type, default, localStorage
+>   parse/validate, and a `data-theme` apply on the root element on load + on change), plus a **Theme**
+>   radio group at the top of **Settings → Display** ("Premium (Default)" / "Arcade (Classic)"). Verified
+>   end-to-end: selecting a theme applies instantly, persists to `retro-oasis-settings`, and survives a
+>   reload. Updated 11 test fixtures for the new required field; build green, **325 touched tests pass.**
+>   The theme is intentionally global (not per-profile) so profile switches don't clobber it.
+> - **Phase 4 — typography (done):** Font payload cut **7 families → 3** on the critical path (Zen Dots ·
+>   Rajdhani · Space Mono); the Arcade faces (Teko, Chakra Petch, Reggae One, Zen Kaku Gothic New) are
+>   **lazy-loaded by `applyTheme()`** only when that theme is selected. `--font-action` now resolves to the
+>   UI face by default and to Teko under Arcade. Retired uppercase from body-adjacent text in Premium —
+>   buttons, settings sidebar + section titles, modal/card/panel titles, menus, system-picker headlines —
+>   keeping it only for small labels, chips, and badges; the display face is reserved for the brand, the
+>   library headline, and the onboarding H1, all in sentence case with the glitch text-shadow scoped to
+>   Arcade. Verified per-theme via computed styles + screenshots; **net-zero** on the `!important`/colour
+>   budgets (loud rules were scoped in place, premium rules win by cascade position). Build green, full
+>   suite **2,812 tests pass**. Motion-token unification rides with the Phase 5 rule-by-rule migration.
+> - **Phase 5 — part 1, chrome polish (done):** The big one visually. Scoped the remaining un-scoped punk
+>   chrome to Arcade so the Premium default finally reads premium end-to-end: the **hard-inked control
+>   block** (buttons/inputs/chips: 2px ink, 0 radius, offset shadow, skew-pop hover), the **19-surface
+>   panel block** (rails, toolbar, settings sidebar/sections, modals, cloud/multiplayer cards, netplay
+>   panels, highlights), the **card/drop-zone/badge run** (inked cards + skew hover, dashed シブヤ marquee,
+>   "01" stamp, inked action buttons and badges, hatched modal backdrop, inked toasts/banners/overlays),
+>   the **settings furniture** (magenta-wedge header, " / MENU" tag, glitch title shadows, rotated gold
+>   close, punk quickbar, hatched sidebar, the highlighter **SELECT** tag, arrow clip-path menu tags), the
+>   **riot-pass profile sticker** (P1 / LIVE tri-stripe chip → quiet "· Default" pill), and the late
+>   **punk-ink washes** (tri-stripe primary button, pink-cyan surface washes). Premium fallbacks verified
+>   by screenshot at each cluster; re-themed the leftover cream title underline to the accent (colour count
+>   **845 → 843**); quieted the selected layout-toggle state. Budgets at/under cap, build green, full suite
+>   **2,812 tests pass**, Arcade verified fully intact. **Remaining for part 2:** niche surfaces not yet
+>   walked (scan-review dialog, cover-art picker, netplay lobby depths, in-game HUD reskin), motion-token
+>   unification, and the eventual deletion of now-fully-superseded rules for real line-count reduction.
 
 ---
 

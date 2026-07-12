@@ -502,12 +502,11 @@ body.is-playing #landing.hidden {
 }
 
 .landing-sidebar__header {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--c-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.02em;
   margin-bottom: 20px;
 }
 
@@ -3905,11 +3904,18 @@ html.launch-in-progress .game-card::after {
 }
 
 .settings-section__title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+
+:root[data-theme="arcade"] .settings-section__title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
-  color: #fff;
-  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -5994,13 +6000,12 @@ body.using-gamepad .game-card:focus {
 }
 
 .highlights-section__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--c-text);
   margin: 0 0 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
 .highlights-fav-card {
@@ -9680,9 +9685,10 @@ body {
   content: "";
   display: block;
   width: 34px;
-  height: 1px;
+  height: 2px;
   margin-top: 10px;
-  background: linear-gradient(90deg, rgba(218,190,130,0.9), rgba(132,23,35,0.52), transparent);
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--c-accent), transparent);
 }
 
 .btn,
@@ -10258,18 +10264,28 @@ body {
    RetroOasis — Premium UI/UX Polish Overrides
    ============================================================ */
 
-/* ── Typography Stack ── */
+/* ── Typography Stack (Premium) ──
+   Display face is reserved for the brand, the library headline, and the
+   onboarding H1. Everything else uses the UI face in sentence case; the
+   Arcade theme re-adds its uppercase display treatment further down. */
 .brand-long,
 .library-title,
-.modal-title,
-.settings-panel-header,
-.landing-sidebar__header,
-.landing-details__title,
-.welcome-hero__title,
-.highlights-section__title,
-.game-card__name,
-.library-row__title {
+.welcome-hero__title {
   font-family: var(--font-display) !important;
+  letter-spacing: 0.02em;
+}
+
+:root[data-theme="arcade"] .brand-long,
+:root[data-theme="arcade"] .library-title,
+:root[data-theme="arcade"] .modal-title,
+:root[data-theme="arcade"] .settings-panel-header,
+:root[data-theme="arcade"] .landing-sidebar__header,
+:root[data-theme="arcade"] .landing-details__title,
+:root[data-theme="arcade"] .welcome-hero__title,
+:root[data-theme="arcade"] .highlights-section__title,
+:root[data-theme="arcade"] .game-card__name,
+:root[data-theme="arcade"] .library-row__title {
+  font-family: var(--font-display);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -10308,7 +10324,15 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
+/* Premium: quiet selected state — accent tint + accent icon, not a hot fill. */
 .library-layout-toggle .layout-btn[aria-checked="true"] {
+  background: var(--c-accent-dim);
+  color: var(--c-accent-light);
+  border-color: var(--c-accent-glow);
+  box-shadow: none;
+}
+
+:root[data-theme="arcade"] .library-layout-toggle .layout-btn[aria-checked="true"] {
   background: var(--c-accent) !important;
   color: var(--c-black) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -11119,8 +11143,9 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: 2px 2px 0 var(--c-ink) inset !important;
 }
 
-/* 12. Final GUI Audit: Overlays & Banners */
-.in-game-overlay__panel {
+/* 12. Overlays & Banners — Arcade theme only (hard outline + offset shadow).
+   Premium uses the soft base in-game panel / FPS overlay / error banner. */
+:root[data-theme="arcade"] .in-game-overlay__panel {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-sm) !important;
   background: var(--c-surface1) !important;
@@ -11128,14 +11153,14 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   backdrop-filter: none !important;
 }
 
-.in-game-overlay__hamburger {
+:root[data-theme="arcade"] .in-game-overlay__hamburger {
   border: var(--outline-bold) !important;
   box-shadow: 2px 2px 0 var(--c-ink) !important;
   border-radius: var(--radius-sm) !important;
 }
 
-.fps-overlay,
-.dev-overlay {
+:root[data-theme="arcade"] .fps-overlay,
+:root[data-theme="arcade"] .dev-overlay {
   border: var(--outline-bold) !important;
   border-radius: 0 !important;
   background: var(--c-surface1) !important;
@@ -11144,7 +11169,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   color: var(--c-text) !important;
 }
 
-#error-banner {
+:root[data-theme="arcade"] #error-banner {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-sm) !important;
   background: var(--c-surface1) !important;
@@ -11152,13 +11177,13 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   backdrop-filter: none !important;
 }
 
-#error-banner .error-close {
+:root[data-theme="arcade"] #error-banner .error-close {
   border: var(--outline-bold) !important;
   border-radius: var(--radius-xs) !important;
   box-shadow: 2px 2px 0 var(--c-ink) !important;
 }
 
-#error-banner .error-close:hover {
+:root[data-theme="arcade"] #error-banner .error-close:hover {
   transform: translate(-1px, -1px) !important;
   box-shadow: 3px 3px 0 var(--c-danger) !important;
 }
@@ -11435,13 +11460,9 @@ body::before {
   background: linear-gradient(90deg, transparent, var(--c-accent), var(--c-accent-light), transparent) !important;
 }
 
-.brand-long,
-.library-title,
-.welcome-hero__title,
-.settings-panel-header,
-.modal-title,
-.enp-title,
-.game-card__name {
+/* Arcade: uppercase display type with the RGB-split glitch shadow. Premium
+   keeps sentence case and no glitch (see the Typography Stack above). */
+:root[data-theme="arcade"] :is(.brand-long, .library-title, .welcome-hero__title, .settings-panel-header, .modal-title, .enp-title, .game-card__name) {
   letter-spacing: 0.075em !important;
   text-transform: uppercase !important;
   text-shadow: 2px 0 0 rgba(0,240,255,0.22), -2px 0 0 rgba(255,46,151,0.18) !important;
@@ -11456,16 +11477,9 @@ body::before {
   color: var(--c-text-dim) !important;
 }
 
-.btn,
-.library-search,
-.library-sort,
-.settings-input,
-.settings-select,
-.settings-search-input,
-.cover-art-url-input,
-.api-key-input,
-.sys-filter-chip,
-.layout-btn {
+/* Arcade only: hard-inked controls with the skew-pop hover. Premium controls
+   fall back to the clean base .btn / pill search / quiet chips. */
+:root[data-theme="arcade"] :is(.btn, .library-search, .library-sort, .settings-input, .settings-select, .settings-search-input, .cover-art-url-input, .api-key-input, .sys-filter-chip, .layout-btn) {
   border: 2px solid rgba(0,0,0,0.95) !important;
   border-radius: 0 !important;
   background:
@@ -11477,9 +11491,7 @@ body::before {
   letter-spacing: 0.045em;
 }
 
-.btn:hover,
-.sys-filter-chip:hover,
-.layout-btn:hover {
+:root[data-theme="arcade"] :is(.btn, .sys-filter-chip, .layout-btn):hover {
   border-color: #000 !important;
   background: linear-gradient(180deg, var(--c-accent-dim), rgba(0,240,255,0.05)), var(--c-surface3) !important;
   box-shadow: 5px 5px 0 var(--c-accent-dark) !important;
@@ -11487,53 +11499,32 @@ body::before {
   transform: translate(-2px, -2px) skewX(-2deg) !important;
 }
 
-.btn:active,
-.sys-filter-chip:active,
-.layout-btn:active {
+:root[data-theme="arcade"] :is(.btn, .sys-filter-chip, .layout-btn):active {
   box-shadow: 1px 1px 0 #000 !important;
   transform: translate(1px, 1px) !important;
 }
 
-.btn--primary,
-.btn--hero,
-.game-card__play-btn,
-.landing-details__actions .btn--primary {
+:root[data-theme="arcade"] :is(.btn--primary, .btn--hero, .game-card__play-btn, .landing-details__actions .btn--primary) {
   color: #130402 !important;
   background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-light) 100%) !important;
   border: 2px solid #000 !important;
   box-shadow: 4px 4px 0 #000, 0 0 18px var(--c-accent-glow) !important;
 }
 
-.btn--ghost {
+:root[data-theme="arcade"] .btn--ghost {
   background: rgba(9,11,13,0.72) !important;
   color: var(--c-text-dim) !important;
   border-color: rgba(0,0,0,0.95) !important;
 }
 
-.btn--highlight {
+:root[data-theme="arcade"] .btn--highlight {
   color: #100900 !important;
   background: linear-gradient(135deg, var(--c-gold), var(--c-accent-2)) !important;
 }
 
-.landing-sidebar,
-.landing-details,
-.library-toolbar,
-.settings-sidebar,
-.settings-panel-content,
-.settings-section,
-.multiplayer-card,
-.cloud-provider-card,
-.cloud-storage-card,
-.cloud-connection-item,
-.enp-panel,
-.enp-readiness,
-.enp-setup-strip,
-.enp-radio-card,
-.modal-box:not(.settings-modal-box),
-.easy-netplay-dialog,
-.confirm-box,
-.conflict-resolver-box,
-.highlights-panel {
+/* Arcade only: hard-inked panel chrome (0 radius, 2px ink, 6px offset).
+   Premium panels fall back to their soft token-driven bases. */
+:root[data-theme="arcade"] :is(.landing-sidebar, .landing-details, .library-toolbar, .settings-sidebar, .settings-panel-content, .settings-section, .multiplayer-card, .cloud-provider-card, .cloud-storage-card, .cloud-connection-item, .enp-panel, .enp-readiness, .enp-setup-strip, .enp-radio-card, .modal-box:not(.settings-modal-box), .easy-netplay-dialog, .confirm-box, .conflict-resolver-box, .highlights-panel) {
   border-radius: 0 !important;
   border: 2px solid #000 !important;
   background:
@@ -11545,8 +11536,11 @@ body::before {
   backdrop-filter: none !important;
 }
 
-.library-toolbar {
+:root[data-theme="arcade"] .library-toolbar {
   border-left: 8px solid var(--c-accent) !important;
+}
+
+.library-toolbar {
   box-sizing: border-box !important;
   width: 100% !important;
   max-width: 100% !important;
@@ -11559,15 +11553,16 @@ body::before {
   flex-shrink: 0 !important;
 }
 
-.library-title::after {
+:root[data-theme="arcade"] .library-title::after {
   width: 56px !important;
   height: 4px !important;
   opacity: 1 !important;
   background: linear-gradient(90deg, var(--c-accent), var(--c-gold)) !important;
 }
 
-#library-section > .drop-zone,
-.drop-zone {
+/* Arcade only: hard-inked import marquee with the シブヤ tag and skew hover.
+   Premium falls back to the quiet base drop zone. */
+:root[data-theme="arcade"] :is(#library-section > .drop-zone, .drop-zone) {
   border: 2px dashed var(--c-accent-light) !important;
   border-radius: 0 !important;
   outline: 2px solid #000 !important;
@@ -11579,19 +11574,17 @@ body::before {
   box-shadow: 8px 8px 0 #000 !important;
 }
 
-.drop-zone:hover,
-.drop-zone.drag-over {
+:root[data-theme="arcade"] :is(.drop-zone:hover, .drop-zone.drag-over) {
   transform: translate(-3px, -3px) skewX(-1deg) !important;
   box-shadow: 12px 12px 0 #000, 0 0 24px var(--c-accent-glow) !important;
 }
 
-.drop-zone__label::before {
+:root[data-theme="arcade"] .drop-zone__label::before {
   content: "シブヤ / ";
   color: var(--c-gold);
 }
 
-.game-card,
-.highlights-fav-card {
+:root[data-theme="arcade"] :is(.game-card, .highlights-fav-card) {
   border-radius: 0 !important;
   border: 2px solid #000 !important;
   background:
@@ -11600,24 +11593,16 @@ body::before {
   box-shadow: 5px 5px 0 #000 !important;
 }
 
-.game-card:hover,
-.highlights-fav-card:hover {
+:root[data-theme="arcade"] :is(.game-card:hover, .highlights-fav-card:hover) {
   transform: translate(-4px, -4px) skewX(-1deg) !important;
   box-shadow: 9px 9px 0 var(--sys-color, var(--c-accent)) !important;
 }
 
-.game-card__icon,
-.game-card__fallback,
-.landing-details__cover {
+:root[data-theme="arcade"] :is(.game-card__icon, .game-card__fallback, .landing-details__cover) {
   border-radius: 0 !important;
 }
 
-.game-card__system-chip,
-.game-card__status-chip,
-.game-card__new-badge,
-.sys-badge,
-.library-profile-filter,
-.tier-badge {
+:root[data-theme="arcade"] :is(.game-card__system-chip, .game-card__status-chip, .game-card__new-badge, .sys-badge, .library-profile-filter, .tier-badge) {
   border-radius: 0 !important;
   border: 1px solid #000 !important;
   background: #111417 !important;
@@ -11625,7 +11610,7 @@ body::before {
   text-transform: uppercase;
 }
 
-.game-card__fallback::before {
+:root[data-theme="arcade"] .game-card__fallback::before {
   content: "01" !important;
   right: -8px !important;
   bottom: -18px !important;
@@ -11633,14 +11618,7 @@ body::before {
   color: rgba(0,240,255,0.08) !important;
 }
 
-.game-card__patch,
-.game-card__art-btn,
-.game-card__change-sys,
-.game-card__details,
-.game-card__more,
-.game-card__fav,
-.game-card__remove,
-.game-card__backlog {
+:root[data-theme="arcade"] :is(.game-card__patch, .game-card__art-btn, .game-card__change-sys, .game-card__details, .game-card__more, .game-card__fav, .game-card__remove, .game-card__backlog) {
   border-radius: 0 !important;
   border: 2px solid #000 !important;
   box-shadow: 2px 2px 0 #000 !important;
@@ -11653,17 +11631,11 @@ body::before {
     #0b0714 !important;
 }
 
-.settings-sidebar__item,
-.enp-tab,
-.enp-filter-btn {
+:root[data-theme="arcade"] :is(.settings-sidebar__item, .enp-tab, .enp-filter-btn) {
   border-radius: 0 !important;
 }
 
-.settings-sidebar__item.settings-tab--active,
-.enp-tab--active,
-.enp-radio-card--active,
-.cloud-provider-card.active,
-.sys-filter-chip.active {
+:root[data-theme="arcade"] :is(.settings-sidebar__item.settings-tab--active, .enp-tab--active, .enp-radio-card--active, .cloud-provider-card.active, .sys-filter-chip.active) {
   color: #fff !important;
   border-color: #000 !important;
   background:
@@ -11672,24 +11644,13 @@ body::before {
   box-shadow: 4px 4px 0 var(--c-accent-dark) !important;
 }
 
-.modal-backdrop,
-.easy-netplay-overlay {
+:root[data-theme="arcade"] :is(.modal-backdrop, .easy-netplay-overlay) {
   background:
     repeating-linear-gradient(115deg, rgba(255,46,151,0.08) 0 2px, transparent 2px 18px),
     rgba(0,0,0,0.88) !important;
 }
 
-.in-game-overlay__hamburger,
-.in-game-overlay__panel,
-.fps-overlay,
-.dev-overlay,
-#error-banner,
-#info-toast.info-toast,
-.toast-stack .info-toast,
-.netplay-chat-log,
-.netplay-chat-input-wrap,
-.netplay-ping-radar,
-.netplay-desync-warning {
+:root[data-theme="arcade"] :is(.in-game-overlay__hamburger, .in-game-overlay__panel, .fps-overlay, .dev-overlay, #error-banner, #info-toast.info-toast, .toast-stack .info-toast, .netplay-chat-log, .netplay-chat-input-wrap, .netplay-ping-radar, .netplay-desync-warning) {
   border-radius: 0 !important;
   border: 2px solid #000 !important;
   background: #0b0714 !important;
@@ -11697,8 +11658,7 @@ body::before {
   backdrop-filter: none !important;
 }
 
-.netplay-desync-warning,
-#error-banner {
+:root[data-theme="arcade"] :is(.netplay-desync-warning, #error-banner) {
   box-shadow: 5px 5px 0 var(--c-danger) !important;
 }
 
@@ -11932,9 +11892,10 @@ body::before {
   opacity: 0.8;
 }
 
-.settings-modal-box .modal-header,
-.modal-box .modal-header,
-.enp-header {
+/* Arcade only: the magenta-wedge modal header kit — banner, glitch title,
+   " / MENU" tag, rotated gold close, punk quickbar, and inked inputs.
+   Premium falls back to the quiet base modal chrome. */
+:root[data-theme="arcade"] :is(.settings-modal-box .modal-header, .modal-box .modal-header, .enp-header) {
   min-height: 64px;
   border-bottom: 3px solid var(--c-ink) !important;
   background:
@@ -11943,15 +11904,12 @@ body::before {
     #07030f !important;
 }
 
-.modal-title,
-.settings-panel-header,
-.confirm-title,
-.enp-title {
+:root[data-theme="arcade"] :is(.modal-title, .settings-panel-header, .confirm-title, .enp-title) {
   letter-spacing: 0.09em !important;
   text-shadow: var(--rgb-split), 3px 3px 0 var(--c-ink) !important;
 }
 
-.modal-title::after {
+:root[data-theme="arcade"] .modal-title::after {
   content: " / MENU";
   color: var(--c-gold);
   font-family: var(--font-jp);
@@ -11960,8 +11918,7 @@ body::before {
   text-shadow: 2px 2px 0 var(--c-ink);
 }
 
-.modal-close,
-.enp-close {
+:root[data-theme="arcade"] :is(.modal-close, .enp-close) {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   background: var(--c-gold) !important;
@@ -11970,8 +11927,7 @@ body::before {
   transform: rotate(2deg);
 }
 
-.modal-close:hover,
-.enp-close:hover {
+:root[data-theme="arcade"] :is(.modal-close, .enp-close):hover {
   background: var(--c-accent-2) !important;
   transform: translate(-2px, -2px) rotate(-2deg) !important;
   box-shadow: 5px 5px 0 var(--c-ink) !important;
@@ -11983,6 +11939,9 @@ body::before {
   z-index: 6;
   margin: 0 !important;
   padding: 12px 16px !important;
+}
+
+:root[data-theme="arcade"] .settings-quickbar {
   border-bottom: 3px solid var(--c-ink);
   background:
     repeating-linear-gradient(115deg, rgba(0, 240, 255, 0.12) 0 2px, transparent 2px 12px),
@@ -11995,14 +11954,14 @@ body::before {
 .settings-active-tab-label,
 .settings-search-status {
   font-family: var(--font-mono);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.settings-search-input,
-.settings-input,
-.settings-select,
-.cover-art-url-input {
+:root[data-theme="arcade"] :is(.settings-quickbar__summary, .settings-active-tab-label, .settings-search-status) {
+  text-transform: uppercase;
+}
+
+:root[data-theme="arcade"] :is(.settings-search-input, .settings-input, .settings-select, .cover-art-url-input) {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   background:
@@ -12012,10 +11971,7 @@ body::before {
   box-shadow: 3px 3px 0 var(--c-ink) !important;
 }
 
-.settings-search-input:focus,
-.settings-input:focus,
-.settings-select:focus,
-.cover-art-url-input:focus {
+:root[data-theme="arcade"] :is(.settings-search-input, .settings-input, .settings-select, .cover-art-url-input):focus {
   transform: translate(-1px, -1px);
   border-color: var(--c-gold) !important;
   box-shadow: 5px 5px 0 var(--c-ink), 0 0 0 3px rgba(245, 255, 77, 0.18) !important;
@@ -12025,7 +11981,7 @@ body::before {
   gap: clamp(14px, 2vw, 24px) !important;
 }
 
-.settings-sidebar {
+:root[data-theme="arcade"] .settings-sidebar {
   position: relative;
   padding: 14px 10px !important;
   border: 3px solid var(--c-ink) !important;
@@ -12036,7 +11992,8 @@ body::before {
   box-shadow: 7px 7px 0 var(--c-ink) !important;
 }
 
-.settings-sidebar::before {
+/* Arcade only: the highlighter "SELECT" tag above the menu. */
+:root[data-theme="arcade"] .settings-sidebar::before {
   content: "SELECT";
   display: block;
   margin: 0 0 12px;
@@ -12059,6 +12016,11 @@ body::before {
 .settings-jumpbar__btn {
   position: relative;
   min-height: 42px;
+}
+
+/* Arcade only: inked arrow-tag menu chrome with shouted labels. Premium
+   menus fall back to the quiet base rows in sentence case. */
+:root[data-theme="arcade"] :is(.settings-sidebar__item, .enp-tab, .enp-filter-btn, .profile-chip-menu__item, .game-card__menu-item, .settings-jumpbar__btn) {
   border: 2px solid var(--c-ink) !important;
   background:
     linear-gradient(95deg, rgba(255, 46, 151, 0.12), rgba(0, 240, 255, 0.08)),
@@ -12190,10 +12152,8 @@ body::before {
   box-shadow: 5px 5px 0 var(--c-ink) !important;
 }
 
-.settings-section__title,
-.settings-section-title,
-.scan-review-group__head,
-.scan-review-skipped__head {
+/* Arcade: gold stamped section heads. Premium keeps quiet sentence-case titles. */
+:root[data-theme="arcade"] :is(.settings-section__title, .settings-section-title, .scan-review-group__head, .scan-review-skipped__head) {
   color: var(--c-gold) !important;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -12393,6 +12353,9 @@ body::before {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
+}
+
+:root[data-theme="arcade"] :is(.confirm-box__actions .btn, .details-footer .btn, .multidisc-row .btn, .cover-art-btn, .cover-art-paste-url, .cover-art-open-apikeys) {
   text-transform: uppercase;
 }
 
@@ -12479,6 +12442,12 @@ body::before {
 
 .system-pick-btn__headline {
   color: #fff !important;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+:root[data-theme="arcade"] .system-pick-btn__headline {
   font-family: var(--font-display);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -12847,7 +12816,7 @@ body::before {
 }
 
 /* Header profile riot-pass badge. */
-.app-header .profile-chip {
+:root[data-theme="arcade"] .app-header .profile-chip {
   position: relative;
   min-height: 38px !important;
   max-width: 186px;
@@ -12868,7 +12837,7 @@ body::before {
   text-transform: uppercase;
 }
 
-.app-header .profile-chip::before {
+:root[data-theme="arcade"] .app-header .profile-chip::before {
   content: "P1";
   position: absolute;
   left: 9px;
@@ -12887,7 +12856,7 @@ body::before {
   line-height: 1;
 }
 
-.app-header .profile-chip::after {
+:root[data-theme="arcade"] .app-header .profile-chip::after {
   content: "LIVE";
   position: absolute;
   right: 7px;
@@ -12905,7 +12874,7 @@ body::before {
   transform: rotate(3deg);
 }
 
-.app-header .profile-chip__dot {
+:root[data-theme="arcade"] .app-header .profile-chip__dot {
   width: 8px;
   height: 18px;
   border: 2px solid var(--c-ink);
@@ -12915,18 +12884,18 @@ body::before {
   transform: skewX(-12deg);
 }
 
-.app-header .profile-chip__label {
+:root[data-theme="arcade"] .app-header .profile-chip__label {
   max-width: 82px;
   color: #050308;
   text-shadow: 1px 0 0 rgba(255,255,255,0.5);
 }
 
-.app-header .profile-chip__caret {
+:root[data-theme="arcade"] .app-header .profile-chip__caret {
   display: none;
 }
 
-.app-header .profile-chip:hover,
-.app-header .profile-chip:focus-visible {
+:root[data-theme="arcade"] .app-header .profile-chip:hover,
+:root[data-theme="arcade"] .app-header .profile-chip:focus-visible {
   color: #050308 !important;
   border-color: var(--c-ink) !important;
   background:
@@ -12937,20 +12906,20 @@ body::before {
 }
 
 @media (max-width: 520px) {
-  .app-header .profile-chip {
+  :root[data-theme="arcade"] .app-header .profile-chip {
     max-width: 88px;
     padding-inline: 8px !important;
   }
 
-  .app-header .profile-chip::before {
+  :root[data-theme="arcade"] .app-header .profile-chip::before {
     display: none;
   }
 
-  .app-header .profile-chip::after {
+  :root[data-theme="arcade"] .app-header .profile-chip::after {
     display: none;
   }
 
-  .app-header .profile-chip__label {
+  :root[data-theme="arcade"] .app-header .profile-chip__label {
     max-width: 50px;
   }
 }
@@ -13332,6 +13301,9 @@ body::before {
   width: clamp(214px, 18vw, 252px);
   padding: 12px 9px !important;
   gap: 8px !important;
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-sidebar {
   background:
     radial-gradient(circle at 16% 10%, rgba(245, 255, 77, 0.16) 0 10%, transparent 11%),
     repeating-linear-gradient(112deg, rgba(255, 46, 151, 0.10) 0 2px, transparent 2px 18px),
@@ -13887,7 +13859,7 @@ body::before {
   text-shadow: none !important;
 }
 
-#settings-panel .modal-header {
+:root[data-theme="arcade"] #settings-panel .modal-header {
   background:
     linear-gradient(100deg, rgba(255, 46, 151, 0.78) 0 18%, transparent 18.4%),
     linear-gradient(90deg, rgba(0, 240, 255, 0.14), rgba(5, 3, 13, 0.96) 52%, rgba(245, 255, 77, 0.08)),
@@ -13904,6 +13876,9 @@ body::before {
   font-family: var(--font-sans) !important;
   font-weight: 900 !important;
   letter-spacing: 0.045em !important;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, #settings-panel .settings-section__title, #settings-panel .settings-section-title, .enp-title) {
   text-shadow:
     1px 1px 0 var(--c-ink),
     -1px 0 0 rgba(0, 240, 255, 0.30),
@@ -14040,35 +14015,34 @@ body::before {
     #10061b !important;
 }
 
-#settings-panel .settings-search-input,
-.library-search {
+/* Arcade only: punk-ink washes and the tri-stripe primary. Premium keeps the
+   clean accent-fill primary and quiet surfaces from the base. */
+:root[data-theme="arcade"] :is(#settings-panel .settings-search-input, .library-search) {
   background:
     linear-gradient(90deg, rgba(0, 240, 255, 0.07), rgba(255, 46, 151, 0.045)),
     #080411 !important;
 }
 
-.btn--primary:not(.profile-chip) {
+:root[data-theme="arcade"] .btn--primary:not(.profile-chip) {
   background:
     linear-gradient(100deg, var(--c-accent) 0 68%, var(--c-gold) 68.5% 76%, var(--c-accent-2) 76.5%),
     var(--c-accent) !important;
   color: #050308 !important;
 }
 
-.btn--ghost:not(.profile-chip),
-.btn:not(.btn--primary):not(.btn--highlight):not(.profile-chip) {
+:root[data-theme="arcade"] :is(.btn--ghost:not(.profile-chip), .btn:not(.btn--primary):not(.btn--highlight):not(.profile-chip)) {
   background:
     linear-gradient(96deg, rgba(255, 46, 151, 0.10), rgba(0, 240, 255, 0.055)),
     rgba(8, 4, 16, 0.96) !important;
 }
 
-.game-card__menu,
-.profile-chip-menu {
+:root[data-theme="arcade"] :is(.game-card__menu, .profile-chip-menu) {
   background:
     linear-gradient(112deg, rgba(255, 46, 151, 0.12), rgba(0, 240, 255, 0.07)),
     #080411 !important;
 }
 
-.easy-netplay-dialog {
+:root[data-theme="arcade"] .easy-netplay-dialog {
   background:
     linear-gradient(112deg, rgba(255, 46, 151, 0.13), rgba(0, 240, 255, 0.07)),
     #080411 !important;
@@ -14118,6 +14092,11 @@ body::before {
   font-family: var(--font-action) !important;
   font-size: var(--punk-type-action) !important;
   font-weight: 600 !important;
+}
+
+/* Arcade only: condensed shouted action type (Teko). Premium keeps the UI
+   face in sentence case with normal tracking and line-height. */
+:root[data-theme="arcade"] :is(.btn:not(.profile-chip), .settings-jumpbar__btn, #settings-panel .settings-sidebar__item, .game-card__menu-item, .profile-chip-menu__item, .enp-tab, .enp-filter-btn, .enp-ready-action, .enp-open-source__btn, .enp-no-game-btn) {
   letter-spacing: 0.075em !important;
   line-height: 0.98 !important;
   text-transform: uppercase !important;
@@ -14308,4 +14287,21 @@ body::before {
     overflow-y: hidden !important;
     padding-block: 6px !important;
   }
+}
+
+/* ============================================================
+   Premium type pass (Phase 4). Titles below the brand/H1 level
+   use the UI face in sentence case — uppercase stays reserved
+   for small labels, chips, and badges. The Arcade theme re-adds
+   its display treatment via the scoped rules above.
+   ============================================================ */
+.modal-title,
+.settings-panel-header,
+.landing-details__title,
+.library-row__title,
+.enp-title,
+.game-card__name {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }

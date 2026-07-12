@@ -22,8 +22,3 @@
 **Vulnerability:** XSS vulnerabilities in `src/ui/gameOfTheDay.ts` and `src/ui/librarySections.ts` where unescaped user-controlled or external data (like `iconOutput`) was injected directly into `innerHTML` strings.
 **Learning:** Using `innerHTML` for convenience to render images from asset paths or external SVG strings leaves the code vulnerable when data paths might be tampered with. The `escapeHtml` utility was previously bypassed.
 **Prevention:** To prevent DOM-based XSS when rendering images dynamically, UI components in this codebase should use native DOM node creation (e.g., `make("img", { src: ..., alt: "" })`) instead of `innerHTML` string interpolation, particularly for asset paths.
-
-## 2026-07-03 - [XSS via weak SVG validation in homepage.ts]
-**Vulnerability:** XSS vulnerability in `src/ui/homepage.ts` where the `getIcon(systemId)` output was inserted via `innerHTML` if it contained `<svg` or `<img`, allowing injection of malicious strings like `<img src=x onerror=alert(1)>`.
-**Learning:** Checking for the presence of markup substrings (e.g., `includes("<svg")`) is insufficient for validation and creates an easily exploitable XSS vector. The strict `isSvgMarkup` allowlist function should be used consistently across all components rendering dynamic icons.
-**Prevention:** Always use a strict allowlist (e.g., `isSvgMarkup`) when validating and rendering inline SVGs via `innerHTML`. For image assets, construct the `<img>` DOM node natively rather than interpolating strings into `innerHTML`.
