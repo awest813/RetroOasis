@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A**; **Phases 0–4 + Phase 6 shipped** (Phase 5 component polish/migration remaining)
+**Status:** In progress — **Direction A**; **Phases 0–6 shipped** (Phase 5 part 2 niche surfaces + Phase 7 QA remaining)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -82,6 +82,21 @@
 >   Arcade. Verified per-theme via computed styles + screenshots; **net-zero** on the `!important`/colour
 >   budgets (loud rules were scoped in place, premium rules win by cascade position). Build green, full
 >   suite **2,812 tests pass**. Motion-token unification rides with the Phase 5 rule-by-rule migration.
+> - **Phase 5 — part 1, chrome polish (done):** The big one visually. Scoped the remaining un-scoped punk
+>   chrome to Arcade so the Premium default finally reads premium end-to-end: the **hard-inked control
+>   block** (buttons/inputs/chips: 2px ink, 0 radius, offset shadow, skew-pop hover), the **19-surface
+>   panel block** (rails, toolbar, settings sidebar/sections, modals, cloud/multiplayer cards, netplay
+>   panels, highlights), the **card/drop-zone/badge run** (inked cards + skew hover, dashed シブヤ marquee,
+>   "01" stamp, inked action buttons and badges, hatched modal backdrop, inked toasts/banners/overlays),
+>   the **settings furniture** (magenta-wedge header, " / MENU" tag, glitch title shadows, rotated gold
+>   close, punk quickbar, hatched sidebar, the highlighter **SELECT** tag, arrow clip-path menu tags), the
+>   **riot-pass profile sticker** (P1 / LIVE tri-stripe chip → quiet "· Default" pill), and the late
+>   **punk-ink washes** (tri-stripe primary button, pink-cyan surface washes). Premium fallbacks verified
+>   by screenshot at each cluster; re-themed the leftover cream title underline to the accent (colour count
+>   **845 → 843**); quieted the selected layout-toggle state. Budgets at/under cap, build green, full suite
+>   **2,812 tests pass**, Arcade verified fully intact. **Remaining for part 2:** niche surfaces not yet
+>   walked (scan-review dialog, cover-art picker, netplay lobby depths, in-game HUD reskin), motion-token
+>   unification, and the eventual deletion of now-fully-superseded rules for real line-count reduction.
 
 ---
 
