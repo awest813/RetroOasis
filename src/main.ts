@@ -490,8 +490,18 @@ async function main(): Promise<void> {
   // Apply the selected UI theme via [data-theme] on the root element.
   // "premium" (default) matches no [data-theme] rule and uses the base tokens;
   // "arcade" activates the louder classic neon layer in the stylesheet.
+  // The Arcade theme's extra display faces are lazy-loaded on first use so the
+  // Premium default ships only 3 font families on the critical path.
+  const ARCADE_FONTS_ID = "arcade-theme-fonts";
   const applyTheme = () => {
     document.documentElement.dataset.theme = settings.theme;
+    if (settings.theme === "arcade" && !document.getElementById(ARCADE_FONTS_ID)) {
+      const link = document.createElement("link");
+      link.id = ARCADE_FONTS_ID;
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Chakra+Petch:wght@400;500;600;700&family=Reggae+One&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap";
+      document.head.appendChild(link);
+    }
   };
   applyTheme();
 

@@ -502,12 +502,11 @@ body.is-playing #landing.hidden {
 }
 
 .landing-sidebar__header {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--c-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.02em;
   margin-bottom: 20px;
 }
 
@@ -3905,11 +3904,18 @@ html.launch-in-progress .game-card::after {
 }
 
 .settings-section__title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+
+:root[data-theme="arcade"] .settings-section__title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
-  color: #fff;
-  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -5994,13 +6000,12 @@ body.using-gamepad .game-card:focus {
 }
 
 .highlights-section__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--c-text);
   margin: 0 0 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
 .highlights-fav-card {
@@ -10258,18 +10263,28 @@ body {
    RetroOasis — Premium UI/UX Polish Overrides
    ============================================================ */
 
-/* ── Typography Stack ── */
+/* ── Typography Stack (Premium) ──
+   Display face is reserved for the brand, the library headline, and the
+   onboarding H1. Everything else uses the UI face in sentence case; the
+   Arcade theme re-adds its uppercase display treatment further down. */
 .brand-long,
 .library-title,
-.modal-title,
-.settings-panel-header,
-.landing-sidebar__header,
-.landing-details__title,
-.welcome-hero__title,
-.highlights-section__title,
-.game-card__name,
-.library-row__title {
+.welcome-hero__title {
   font-family: var(--font-display) !important;
+  letter-spacing: 0.02em;
+}
+
+:root[data-theme="arcade"] .brand-long,
+:root[data-theme="arcade"] .library-title,
+:root[data-theme="arcade"] .modal-title,
+:root[data-theme="arcade"] .settings-panel-header,
+:root[data-theme="arcade"] .landing-sidebar__header,
+:root[data-theme="arcade"] .landing-details__title,
+:root[data-theme="arcade"] .welcome-hero__title,
+:root[data-theme="arcade"] .highlights-section__title,
+:root[data-theme="arcade"] .game-card__name,
+:root[data-theme="arcade"] .library-row__title {
+  font-family: var(--font-display);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -11436,13 +11451,9 @@ body::before {
   background: linear-gradient(90deg, transparent, var(--c-accent), var(--c-accent-light), transparent) !important;
 }
 
-.brand-long,
-.library-title,
-.welcome-hero__title,
-.settings-panel-header,
-.modal-title,
-.enp-title,
-.game-card__name {
+/* Arcade: uppercase display type with the RGB-split glitch shadow. Premium
+   keeps sentence case and no glitch (see the Typography Stack above). */
+:root[data-theme="arcade"] :is(.brand-long, .library-title, .welcome-hero__title, .settings-panel-header, .modal-title, .enp-title, .game-card__name) {
   letter-spacing: 0.075em !important;
   text-transform: uppercase !important;
   text-shadow: 2px 0 0 rgba(0,240,255,0.22), -2px 0 0 rgba(255,46,151,0.18) !important;
@@ -11474,6 +11485,10 @@ body::before {
     var(--c-surface2) !important;
   box-shadow: 3px 3px 0 #000 !important;
   color: var(--c-text) !important;
+}
+
+/* Arcade only: shouted control labels. Premium buttons read in sentence case. */
+:root[data-theme="arcade"] :is(.btn, .library-search, .library-sort, .settings-input, .settings-select, .settings-search-input, .cover-art-url-input, .api-key-input, .sys-filter-chip, .layout-btn) {
   text-transform: uppercase;
   letter-spacing: 0.045em;
 }
@@ -12066,6 +12081,10 @@ body::before {
     #10091a !important;
   box-shadow: 3px 3px 0 var(--c-ink) !important;
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 8px 50%);
+}
+
+/* Arcade only: shouted menu tags. Premium menus read in sentence case. */
+:root[data-theme="arcade"] :is(.settings-sidebar__item, .enp-tab, .enp-filter-btn, .profile-chip-menu__item, .game-card__menu-item, .settings-jumpbar__btn) {
   text-transform: uppercase;
 }
 
@@ -12191,10 +12210,8 @@ body::before {
   box-shadow: 5px 5px 0 var(--c-ink) !important;
 }
 
-.settings-section__title,
-.settings-section-title,
-.scan-review-group__head,
-.scan-review-skipped__head {
+/* Arcade: gold stamped section heads. Premium keeps quiet sentence-case titles. */
+:root[data-theme="arcade"] :is(.settings-section__title, .settings-section-title, .scan-review-group__head, .scan-review-skipped__head) {
   color: var(--c-gold) !important;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -12394,6 +12411,9 @@ body::before {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
+}
+
+:root[data-theme="arcade"] :is(.confirm-box__actions .btn, .details-footer .btn, .multidisc-row .btn, .cover-art-btn, .cover-art-paste-url, .cover-art-open-apikeys) {
   text-transform: uppercase;
 }
 
@@ -12480,6 +12500,12 @@ body::before {
 
 .system-pick-btn__headline {
   color: #fff !important;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+:root[data-theme="arcade"] .system-pick-btn__headline {
   font-family: var(--font-display);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -14119,6 +14145,11 @@ body::before {
   font-family: var(--font-action) !important;
   font-size: var(--punk-type-action) !important;
   font-weight: 600 !important;
+}
+
+/* Arcade only: condensed shouted action type (Teko). Premium keeps the UI
+   face in sentence case with normal tracking and line-height. */
+:root[data-theme="arcade"] :is(.btn:not(.profile-chip), .settings-jumpbar__btn, #settings-panel .settings-sidebar__item, .game-card__menu-item, .profile-chip-menu__item, .enp-tab, .enp-filter-btn, .enp-ready-action, .enp-open-source__btn, .enp-no-game-btn) {
   letter-spacing: 0.075em !important;
   line-height: 0.98 !important;
   text-transform: uppercase !important;
@@ -14309,4 +14340,21 @@ body::before {
     overflow-y: hidden !important;
     padding-block: 6px !important;
   }
+}
+
+/* ============================================================
+   Premium type pass (Phase 4). Titles below the brand/H1 level
+   use the UI face in sentence case — uppercase stays reserved
+   for small labels, chips, and badges. The Arcade theme re-adds
+   its display treatment via the scoped rules above.
+   ============================================================ */
+.modal-title,
+.settings-panel-header,
+.landing-details__title,
+.library-row__title,
+.enp-title,
+.game-card__name {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }

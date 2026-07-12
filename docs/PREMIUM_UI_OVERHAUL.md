@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A**; **Phases 0–3 + Phase 6 shipped** (Phase 3 metric reduction + Phases 4–5 ongoing)
+**Status:** In progress — **Direction A**; **Phases 0–4 + Phase 6 shipped** (Phase 5 component polish/migration remaining)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -72,6 +72,16 @@
 >   end-to-end: selecting a theme applies instantly, persists to `retro-oasis-settings`, and survives a
 >   reload. Updated 11 test fixtures for the new required field; build green, **325 touched tests pass.**
 >   The theme is intentionally global (not per-profile) so profile switches don't clobber it.
+> - **Phase 4 — typography (done):** Font payload cut **7 families → 3** on the critical path (Zen Dots ·
+>   Rajdhani · Space Mono); the Arcade faces (Teko, Chakra Petch, Reggae One, Zen Kaku Gothic New) are
+>   **lazy-loaded by `applyTheme()`** only when that theme is selected. `--font-action` now resolves to the
+>   UI face by default and to Teko under Arcade. Retired uppercase from body-adjacent text in Premium —
+>   buttons, settings sidebar + section titles, modal/card/panel titles, menus, system-picker headlines —
+>   keeping it only for small labels, chips, and badges; the display face is reserved for the brand, the
+>   library headline, and the onboarding H1, all in sentence case with the glitch text-shadow scoped to
+>   Arcade. Verified per-theme via computed styles + screenshots; **net-zero** on the `!important`/colour
+>   budgets (loud rules were scoped in place, premium rules win by cascade position). Build green, full
+>   suite **2,812 tests pass**. Motion-token unification rides with the Phase 5 rule-by-rule migration.
 
 ---
 
