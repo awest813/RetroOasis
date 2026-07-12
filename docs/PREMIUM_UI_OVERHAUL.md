@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A**; **Phases 0–6 shipped** (Phase 5 part 2 niche surfaces + Phase 7 QA remaining)
+**Status:** In progress — **Direction A**; **Phases 0–6 shipped** (Phase 5 modal cluster done; motion tokens + Phase 7 QA remaining)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -97,6 +97,18 @@
 >   **2,812 tests pass**, Arcade verified fully intact. **Remaining for part 2:** niche surfaces not yet
 >   walked (scan-review dialog, cover-art picker, netplay lobby depths, in-game HUD reskin), motion-token
 >   unification, and the eventual deletion of now-fully-superseded rules for real line-count reduction.
+> - **Phase 5 — part 2, modal/picker cluster (done):** Walked the secondary modal surfaces the panel block
+>   didn't reach and scoped their "menu ink-pop" kit to Arcade: the shared **3px-ink modal frame + halftone
+>   `::before` + clipped SFX `::after` burst**, the **confirm / scan-review / conflict / cover-art / archive
+>   / multidisc dialog** backgrounds + offset shadows + slam animations, the rotated **gold `.confirm-title`
+>   sticker** (→ a quiet sentence-case heading in Premium), the **hatched drifting modal backdrop** (→ a
+>   plain scrim), the **card context menu / profile menu** halftone panels, the inked **modal-action /
+>   cover-art buttons** (→ clean soft buttons), and the **system-picker cards** (clip-path slam cards with
+>   the gold/cyan ink stack → clean soft surface cards with a quiet accent hover). Verified end-to-end by
+>   triggering the live remove-confirm dialog in both themes (Premium: clean dark box, sentence-case title,
+>   plain scrim; Arcade: full sticker-tag ink-pop). Budget held at cap after fixing a caught +1 `!important`
+>   regression; colours **844**. Build green. **Still open:** in-game HUD reskin (needs a running game to
+>   verify), motion-token unification, and superseded-rule deletion.
 
 ---
 
