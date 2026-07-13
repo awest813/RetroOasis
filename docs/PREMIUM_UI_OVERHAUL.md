@@ -134,6 +134,12 @@
 >   `--radius-md`). Scoped those leaks to `:root[data-theme="arcade"]`, restored the empty-state hero +
 >   platforms strip, soft Premium radii in `design-system.css`, and ratcheted the CSS budget
 >   (`!important` 928 / colours 841).
+> - **UI audit polish pass 2 (2026-07):** Scoped remaining punk chrome that still
+>   leaked into Premium — loud header/footer bars, cover-art / details / netplay
+>   ink-pop furniture, hard settings-row corners, gold “Viewing:” label, and JP
+>   footer ticker treatment. Retargeted leftover cream/gold hover accents on
+>   buttons/chips/search to the magenta accent token. Quieted the Premium footer
+>   clock and era mark. CSS budget ratcheted to colours **826**.
 
 ---
 
