@@ -2,7 +2,7 @@
 
 ## Homepage / library landing
 
-- **Empty library:** onboarding hero, supported-platforms strip, prominent drop zone, and cloud-saves quick action stay visible (browse chrome is hidden, not the whole `#library-section`).
+- **Empty library:** onboarding hero, supported-platforms strip, prominent drop zone, and cloud-saves quick action stay visible (browse chrome / side rails are hidden, not the whole `#library-section`). Premium keeps soft chrome; Arcade keeps the loud sticker drop-zone treatment.
 - **Returning users:** dynamic headline (`Welcome back` within 7 days of last play) and a **Continue playing** hero for the most recent title.
 - **Jump Back In row:** horizontal strip for additional recent games; skips the hero title to avoid duplication.
 - **Recently Added row:** games imported in the last 14 days (when not using grouped layout).

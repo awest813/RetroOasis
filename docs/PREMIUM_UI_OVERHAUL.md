@@ -128,6 +128,12 @@
 > **The overhaul's planned arc is complete.** The Premium default reads premium end-to-end — content-first,
 > one disciplined magenta accent, soft depth, AA-legible, keyboard-focusable — with the full Shibuya Punk
 > look preserved one toggle away and a regression guard holding the line.
+> - **UI audit polish (2026-07 follow-up):** Live audit found late unscoped punk passes had collapsed
+>   Premium back into Arcade look (yellow sticker `.settings-panel-header`, hard offset shadows on
+>   buttons/panels, `LOAD SLOT` stamp + hard drop-zone chrome on the empty landing, missing
+>   `--radius-md`). Scoped those leaks to `:root[data-theme="arcade"]`, restored the empty-state hero +
+>   platforms strip, soft Premium radii in `design-system.css`, and ratcheted the CSS budget
+>   (`!important` 928 / colours 841).
 
 ---
 

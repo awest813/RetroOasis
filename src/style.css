@@ -3231,9 +3231,9 @@ html.launch-in-progress .game-card::after {
   margin-right: auto;
 }
 
+/* Empty landing keeps the hero + platforms strip; hide only the heavier
+   secondary cards/features so the first viewport stays one clear job. */
 #landing.landing-empty .landing-sidebar--empty,
-#landing.landing-empty .homepage-platforms,
-#landing.landing-empty .welcome-hero,
 #landing.landing-empty .onboarding__grid,
 #landing.landing-empty .onboarding__card,
 #landing.landing-empty .onboarding__features {
@@ -9011,13 +9011,13 @@ body {
   background: linear-gradient(180deg, var(--c-accent-light) 0%, var(--c-accent-dark) 100%);
   color: #111;
   border: 1px solid rgba(255,255,255,0.34);
-  box-shadow: 0 16px 34px rgba(205,177,114,0.2);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--c-accent) 22%, transparent);
 }
 
 .btn--highlight {
   color: var(--c-accent-light);
-  background: linear-gradient(180deg, rgba(205,177,114,0.18), rgba(205,177,114,0.07));
-  border-color: rgba(205,177,114,0.28);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-accent) 18%, transparent), color-mix(in srgb, var(--c-accent) 7%, transparent));
+  border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
 }
 
 .btn__icon,
@@ -11732,7 +11732,21 @@ body::before {
   }
 
   #landing.landing-empty .welcome-hero {
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  #landing.landing-empty .welcome-hero__logo {
     display: none;
+  }
+
+  #landing.landing-empty .welcome-hero__title {
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+    margin-bottom: 8px;
+  }
+
+  #landing.landing-empty .welcome-hero__tagline {
+    font-size: 0.92rem;
   }
 
   #landing.landing-empty .homepage-platforms {
@@ -12121,7 +12135,8 @@ body::before {
   padding-inline: clamp(4px, 1.2vw, 12px);
 }
 
-.settings-panel-header {
+/* Arcade only: sticker-tag panel headers. Premium keeps the quiet underline title. */
+:root[data-theme="arcade"] .settings-panel-header {
   display: inline-block;
   margin-bottom: 18px !important;
   padding: 7px 14px 8px;
@@ -12132,20 +12147,25 @@ body::before {
   transform: rotate(-0.8deg);
 }
 
-.settings-panel-content:nth-child(even) .settings-panel-header {
+:root[data-theme="arcade"] .settings-panel-content:nth-child(even) .settings-panel-header {
   background: var(--c-accent-2);
   transform: rotate(0.8deg);
 }
 
-.settings-section,
-.multiplayer-card,
-.cloud-provider-card,
-.cloud-storage-card,
-.cloud-connection-item,
-.enp-panel,
-.enp-readiness,
-.enp-setup-strip,
-:root[data-theme="arcade"] :is(.enp-radio-card, .scan-review-group, .scan-review-skipped) {
+/* Arcade only: hard-inked settings / cloud / netplay panels. */
+:root[data-theme="arcade"] :is(
+  .settings-section,
+  .multiplayer-card,
+  .cloud-provider-card,
+  .cloud-storage-card,
+  .cloud-connection-item,
+  .enp-panel,
+  .enp-readiness,
+  .enp-setup-strip,
+  .enp-radio-card,
+  .scan-review-group,
+  .scan-review-skipped
+) {
   border: 2px solid var(--c-ink) !important;
   background:
     linear-gradient(112deg, rgba(255, 46, 151, 0.11), transparent 34%, rgba(0, 240, 255, 0.08)),
@@ -13015,20 +13035,25 @@ body::before {
   }
 }
 
-/* Homepage focus pass: one poster, one import marquee, no duplicate guide rail. */
+/* Homepage focus pass: one poster, one import marquee, no duplicate guide rail.
+   Premium stays soft/content-first; Arcade keeps the hard sticker chrome. */
 @keyframes homepage-marquee-enter {
   from {
     opacity: 0;
-    transform: translateY(16px) skewX(-1deg);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) skewX(0deg);
+    transform: translateY(0);
   }
 }
 
 #landing.landing-empty {
   justify-content: center;
+  background: var(--backdrop);
+}
+
+:root[data-theme="arcade"] #landing.landing-empty {
   background:
     linear-gradient(90deg, rgba(5,3,13,0.92) 0%, rgba(5,3,13,0.42) 42%, rgba(5,3,13,0.72) 100%),
     radial-gradient(circle at 54% 44%, rgba(255,46,151,0.18), transparent 30%),
@@ -13044,7 +13069,7 @@ body::before {
   flex: 0 1 min(100%, 1120px);
   width: min(100%, 1120px);
   padding-inline: clamp(18px, 4vw, 44px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 #landing.landing-empty .library-toolbar {
@@ -13052,11 +13077,20 @@ body::before {
   min-height: 76px;
   margin: clamp(8px, 2.4vh, 22px) 0 clamp(20px, 3vh, 34px) !important;
   padding: 18px 22px 18px 26px !important;
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  animation: homepage-marquee-enter 360ms var(--ease-out, ease) both;
+}
+
+:root[data-theme="arcade"] #landing.landing-empty .library-toolbar {
   background:
     linear-gradient(103deg, rgba(255,46,151,0.18) 0 34%, rgba(0,240,255,0.08) 34.4% 72%, rgba(5,3,13,0.92) 72.4%),
     rgba(7,4,16,0.86) !important;
+  border: 0;
+  border-radius: 0;
   box-shadow: 8px 8px 0 #000, 0 0 28px rgba(255,46,151,0.14) !important;
-  animation: homepage-marquee-enter 360ms var(--ease-out, ease) both;
 }
 
 #landing.landing-empty .library-title {
@@ -13073,7 +13107,7 @@ body::before {
   color: transparent !important;
   border: 0;
   background: linear-gradient(90deg, var(--c-accent), var(--c-accent-2));
-  box-shadow: 0 0 18px rgba(255,46,151,0.28);
+  box-shadow: 0 0 18px var(--c-accent-glow);
 }
 
 #landing.landing-empty .drop-zone--prominent,
@@ -13082,23 +13116,33 @@ body::before {
   width: min(100%, 940px);
   min-height: clamp(196px, 28vh, 260px);
   margin-inline: auto;
-  padding: clamp(24px, 4vw, 38px) clamp(22px, 4vw, 44px) !important;
+  padding: clamp(24px, 4vw, 38px) clamp(22px, 4vw, 44px);
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto auto;
   align-items: center;
   column-gap: clamp(18px, 3vw, 30px);
   row-gap: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--c-accent) 14%, transparent), transparent 42%),
+    color-mix(in srgb, var(--c-surface) 82%, transparent);
+  box-shadow: var(--shadow-card);
+  animation: homepage-marquee-enter 420ms var(--ease-out, ease) 70ms both;
+}
+
+:root[data-theme="arcade"] #landing.landing-empty :is(.drop-zone--prominent, .drop-zone) {
   border-style: solid !important;
+  border-radius: 0;
   background:
     linear-gradient(110deg, rgba(255,46,151,0.20), transparent 32%),
     linear-gradient(290deg, rgba(0,240,255,0.16), transparent 36%),
     repeating-linear-gradient(112deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 14px),
     rgba(8,5,18,0.74) !important;
   box-shadow: 12px 12px 0 #000, 0 0 36px rgba(255,46,151,0.20) !important;
-  animation: homepage-marquee-enter 420ms var(--ease-out, ease) 70ms both;
 }
 
-#landing.landing-empty .drop-zone::after {
+:root[data-theme="arcade"] #landing.landing-empty .drop-zone::after {
   content: "LOAD SLOT";
   position: absolute;
   right: clamp(14px, 2vw, 24px);
@@ -13115,7 +13159,15 @@ body::before {
   width: clamp(48px, 6vw, 70px);
   height: clamp(48px, 6vw, 70px);
   grid-row: 1 / span 3;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  box-shadow: none;
+}
+
+:root[data-theme="arcade"] #landing.landing-empty .drop-zone__icon {
   border: 2px solid #000;
+  border-radius: 0;
   background: rgba(245,255,77,0.12);
   box-shadow: 4px 4px 0 #000, 0 0 18px rgba(245,255,77,0.12);
 }
@@ -13155,6 +13207,27 @@ body::before {
 #landing.landing-empty .onboarding {
   width: min(100%, 760px);
   margin: clamp(18px, 3vh, 28px) auto 0;
+  padding: 0;
+}
+
+#landing.landing-empty .welcome-hero {
+  margin-bottom: clamp(16px, 2.4vh, 28px);
+  text-align: center;
+}
+
+#landing.landing-empty .welcome-hero__title {
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  margin-bottom: 12px;
+}
+
+#landing.landing-empty .welcome-hero__tagline {
+  font-size: 1rem;
+  max-width: 48ch;
+}
+
+#landing.landing-empty .homepage-platforms {
+  margin: 0 auto clamp(14px, 2vh, 22px);
+  max-width: min(100%, 760px);
 }
 
 #landing.landing-empty .onboarding__quick-actions {
@@ -13382,8 +13455,12 @@ body::before {
 #settings-panel .settings-section__title,
 #settings-panel .settings-section-title {
   margin-bottom: 10px;
-  color: var(--c-gold) !important;
+  color: var(--c-text);
   line-height: 1.05;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .settings-section__title, #settings-panel .settings-section-title) {
+  color: var(--c-gold) !important;
 }
 
 #settings-panel .settings-section__desc,
@@ -13561,6 +13638,9 @@ body::before {
   #settings-panel .settings-section {
     padding: 14px !important;
     margin-bottom: 16px;
+  }
+
+  :root[data-theme="arcade"] #settings-panel .settings-section {
     box-shadow: 4px 4px 0 var(--c-ink) !important;
   }
 
@@ -13917,14 +13997,14 @@ body::before {
   text-shadow: 1px 1px 0 var(--c-ink) !important;
 }
 
-#settings-panel .settings-modal-box {
+:root[data-theme="arcade"] #settings-panel .settings-modal-box {
   box-shadow:
     inset 0 0 0 3px var(--c-ink),
     6px 6px 0 rgba(5, 3, 8, 0.92),
     -2px -2px 0 rgba(255, 46, 151, 0.48) !important;
 }
 
-#settings-panel .settings-panel-header {
+:root[data-theme="arcade"] #settings-panel .settings-panel-header {
   box-shadow: 3px 3px 0 var(--c-ink) !important;
 }
 
@@ -13936,7 +14016,8 @@ body::before {
   text-shadow: none !important;
 }
 
-/* Old layer cleanup: one print-shadow scale across routine UI. */
+/* Old layer cleanup: print-shadow scale for Arcade only.
+   Premium keeps soft radii / shadows from the Phase 3–5 base. */
 :root {
   --punk-shadow-control: 2px 2px 0 var(--c-ink);
   --punk-shadow-selected: 3px 3px 0 var(--c-ink);
@@ -13944,84 +14025,96 @@ body::before {
   --punk-surface-quiet: rgba(8, 4, 16, 0.96);
 }
 
-.btn:not(.profile-chip):not(.header-play-together),
-.library-search,
-.library-sort,
-.settings-input,
-#settings-panel .settings-search-input,
-#settings-panel select,
-#settings-panel input,
-#settings-panel textarea,
-.game-card__menu-item,
-.profile-chip-menu__item,
-.enp-tab,
-.enp-filter-btn,
-.enp-radio-card,
-.enp-seg-box {
+:root[data-theme="arcade"] :is(
+  .btn:not(.profile-chip):not(.header-play-together),
+  .library-search,
+  .library-sort,
+  .settings-input,
+  #settings-panel .settings-search-input,
+  #settings-panel select,
+  #settings-panel input,
+  #settings-panel textarea,
+  .game-card__menu-item,
+  .profile-chip-menu__item,
+  .enp-tab,
+  .enp-filter-btn,
+  .enp-radio-card,
+  .enp-seg-box
+) {
   border-radius: 0 !important;
   box-shadow: var(--punk-shadow-control) !important;
   filter: none !important;
   text-shadow: none !important;
 }
 
-.btn--primary:not(.profile-chip),
-.pwa-install-btn,
-.header-play-together,
-#settings-panel .settings-sidebar__item.settings-tab--active,
-#settings-panel .settings-sidebar__item:hover,
-.enp-tab--active,
-.enp-filter-btn--active,
-.enp-radio-card--active,
-.game-card__menu-item:hover,
-.game-card__menu-item:focus-visible,
-.profile-chip-menu__item:hover,
-.profile-chip-menu__item--active {
+:root[data-theme="arcade"] :is(
+  .btn--primary:not(.profile-chip),
+  .pwa-install-btn,
+  .header-play-together,
+  #settings-panel .settings-sidebar__item.settings-tab--active,
+  #settings-panel .settings-sidebar__item:hover,
+  .enp-tab--active,
+  .enp-filter-btn--active,
+  .enp-radio-card--active,
+  .game-card__menu-item:hover,
+  .game-card__menu-item:focus-visible,
+  .profile-chip-menu__item:hover,
+  .profile-chip-menu__item--active
+) {
   box-shadow: var(--punk-shadow-selected) !important;
   filter: none !important;
 }
 
-.btn:hover:not(:disabled),
-.btn:focus-visible,
-.game-card__menu-item:hover,
-.profile-chip-menu__item:hover,
-.enp-tab:hover,
-.enp-filter-btn:hover,
-.enp-radio-card:hover {
+:root[data-theme="arcade"] :is(
+  .btn:hover:not(:disabled),
+  .btn:focus-visible,
+  .game-card__menu-item:hover,
+  .profile-chip-menu__item:hover,
+  .enp-tab:hover,
+  .enp-filter-btn:hover,
+  .enp-radio-card:hover
+) {
   transform: translate(-1px, -1px) !important;
 }
 
-#settings-panel .settings-section,
-#settings-panel .settings-row,
-#settings-panel .toggle-row,
-#settings-panel .radio-row,
-#settings-panel .cloud-library-section,
-.game-card__menu,
-.profile-chip-menu,
-.modal-box:not(.settings-modal-box),
-.easy-netplay-dialog,
-.enp-panel,
-.enp-readiness,
-.enp-setup-strip,
-.confirm-box,
-.conflict-resolver-box,
-.scan-review-box {
+:root[data-theme="arcade"] :is(
+  #settings-panel .settings-section,
+  #settings-panel .settings-row,
+  #settings-panel .toggle-row,
+  #settings-panel .radio-row,
+  #settings-panel .cloud-library-section,
+  .game-card__menu,
+  .profile-chip-menu,
+  .modal-box:not(.settings-modal-box),
+  .easy-netplay-dialog,
+  .enp-panel,
+  .enp-readiness,
+  .enp-setup-strip,
+  .confirm-box,
+  .conflict-resolver-box,
+  .scan-review-box
+) {
   border-radius: 0 !important;
   box-shadow: var(--punk-shadow-panel) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
-#settings-panel .settings-section,
-#settings-panel .settings-row,
-#settings-panel .toggle-row,
-#settings-panel .radio-row {
+:root[data-theme="arcade"] :is(
+  #settings-panel .settings-section,
+  #settings-panel .settings-row,
+  #settings-panel .toggle-row,
+  #settings-panel .radio-row
+) {
   background:
     linear-gradient(108deg, rgba(255, 46, 151, 0.07), rgba(0, 240, 255, 0.045) 56%, rgba(5, 3, 13, 0.96)),
     var(--punk-surface-quiet) !important;
 }
 
-#settings-panel .settings-quickbar,
-#settings-panel .settings-sidebar {
+:root[data-theme="arcade"] :is(
+  #settings-panel .settings-quickbar,
+  #settings-panel .settings-sidebar
+) {
   box-shadow: var(--punk-shadow-panel) !important;
 }
 
@@ -14328,4 +14421,44 @@ body::before {
   font-family: var(--font-sans);
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   UI audit polish (2026-07): restore Premium as the clean default.
+   Late unscoped punk passes had collapsed Premium into Arcade look
+   (yellow sticker titles, hard offset shadows, LOAD SLOT stamp).
+   Premium keeps soft depth; Arcade retains the loud chrome above.
+   ============================================================ */
+:root:not([data-theme="arcade"]) .settings-panel-header {
+  display: block;
+  margin-bottom: 18px;
+  padding: 0 0 12px;
+  color: var(--c-text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--c-border);
+  box-shadow: none;
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-section,
+:root:not([data-theme="arcade"]) #settings-panel .settings-row,
+:root:not([data-theme="arcade"]) #settings-panel .toggle-row,
+:root:not([data-theme="arcade"]) #settings-panel .radio-row {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+}
+
+/* Soften onboarding eyebrow on Premium — keep the Shibuya label for Arcade. */
+:root:not([data-theme="arcade"]) #landing.landing-empty .welcome-hero__eyebrow {
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--c-text-muted);
+}
+
+:root:not([data-theme="arcade"]) #landing.landing-empty .homepage-platforms__label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 600;
 }
