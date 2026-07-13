@@ -25,7 +25,7 @@ const FILES = ["src/style.css"];
 // Ratchet budgets — lower these as phases land. Never raise them.
 const BUDGET = {
   important: 927, // Phase 3 target: < 20 (each justified)
-  colors: 821, //    Phase 3 target: 0 (tokens only) — ratcheted from 887 after
+  colors: 816, //    Phase 3 target: 0 (tokens only) — ratcheted from 887 after
   //                 deleting the legacy Gran Turismo gold pass (-42 literals).
 };
 // End-goal targets, for the report only.

@@ -152,6 +152,11 @@
 >   highlights title, and loading message type — scoped or soft-overridden so
 >   Premium stays clean while Arcade keeps the comic chrome. CSS budget ratcheted
 >   to `!important` **927** / colours **821**.
+> - **UI audit polish pass 5 (2026-07):** Condensed action type (Teko) scoped to
+>   Arcade; quieter header accent bar; soft hero eyebrow / platforms label /
+>   drop-zone label / card chips / cloud eyebrows; cream primary borders retargeted
+>   to accent tokens; modal body copy + title line-height softened; landing mesh
+>   animation Arcade-only. CSS budget ratcheted to `!important` **927** / colours **816**.
 
 ---
 

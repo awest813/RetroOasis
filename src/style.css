@@ -9533,8 +9533,15 @@ body {
   display: grid;
   place-items: center;
   color: var(--c-accent-light);
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+  border-radius: var(--radius-md);
+}
+
+:root[data-theme="arcade"] .enp-header__logo {
   background: rgba(205,177,114,0.12);
   border: 1px solid rgba(205,177,114,0.3);
+  border-radius: 0;
 }
 
 #library-section {
@@ -9742,8 +9749,8 @@ body {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.28), transparent 34%),
     linear-gradient(180deg, var(--c-accent-light) 0%, var(--c-accent-dark) 100%);
-  border-color: rgba(245,229,185,0.46);
-  color: #0b0a08;
+  border-color: color-mix(in srgb, var(--c-accent-light) 46%, transparent);
+  color: var(--c-bg);
 }
 
 .btn--primary:hover,
@@ -9755,9 +9762,9 @@ body {
 
 .btn--highlight {
   background:
-    linear-gradient(180deg, rgba(218,190,130,0.13), rgba(218,190,130,0.04)),
+    linear-gradient(180deg, color-mix(in srgb, var(--c-success) 13%, transparent), color-mix(in srgb, var(--c-success) 4%, transparent)),
     rgba(255,255,255,0.025);
-  border-color: rgba(218,190,130,0.24);
+  border-color: color-mix(in srgb, var(--c-success) 24%, transparent);
 }
 
 .library-search {
@@ -9840,6 +9847,10 @@ textarea::placeholder {
 
 #library-section .welcome-hero__eyebrow,
 .welcome-hero__eyebrow {
+  color: var(--c-text-muted);
+}
+
+:root[data-theme="arcade"] :is(#library-section .welcome-hero__eyebrow, .welcome-hero__eyebrow) {
   color: rgba(218,190,130,0.92);
 }
 
@@ -10408,12 +10419,20 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   content: "";
   position: absolute;
   inset: -50%;
-  background: 
+  background:
+    radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--c-accent) 5%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--c-accent-2) 3%, transparent) 0%, transparent 40%);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+:root[data-theme="arcade"] #landing::before {
+  background:
     radial-gradient(circle at 30% 30%, rgba(255, 46, 151, 0.05) 0%, transparent 40%),
     radial-gradient(circle at 70% 60%, rgba(0, 240, 255, 0.03) 0%, transparent 40%),
     radial-gradient(circle at 50% 40%, rgba(168, 85, 247, 0.04) 0%, transparent 50%);
-  z-index: 1;
-  pointer-events: none;
+  opacity: 1;
   animation: mesh-glow-breathe 20s ease-in-out infinite alternate;
 }
 
@@ -11519,7 +11538,7 @@ body::before {
   }
 }
 
-.app-header::after {
+:root[data-theme="arcade"] .app-header::after {
   height: 3px !important;
   opacity: 1 !important;
   background: linear-gradient(90deg, transparent, var(--c-accent), var(--c-accent-light), transparent) !important;
@@ -12440,8 +12459,12 @@ body::before {
 .cover-art-dialog__subtitle,
 .cover-art-candidate__intro,
 .scan-review-footer__info {
-  color: #d9d0ff !important;
+  color: var(--c-text-dim);
   line-height: 1.5;
+}
+
+:root[data-theme="arcade"] :is(.confirm-body, .modal-subtitle, .cover-art-dialog__subtitle, .cover-art-candidate__intro, .scan-review-footer__info) {
+  color: #d9d0ff !important;
 }
 
 .confirm-footer,
@@ -14321,16 +14344,19 @@ body::before {
   --punk-modal-gutter: clamp(10px, 1.8vw, 24px);
 }
 
-.btn:not(.profile-chip),
-.settings-jumpbar__btn,
-#settings-panel .settings-sidebar__item,
-.game-card__menu-item,
-.profile-chip-menu__item,
-.enp-tab,
-.enp-filter-btn,
-.enp-ready-action,
-.enp-open-source__btn,
-.enp-no-game-btn {
+/* Arcade only: condensed action face (Teko). Premium keeps the UI face. */
+:root[data-theme="arcade"] :is(
+  .btn:not(.profile-chip),
+  .settings-jumpbar__btn,
+  #settings-panel .settings-sidebar__item,
+  .game-card__menu-item,
+  .profile-chip-menu__item,
+  .enp-tab,
+  .enp-filter-btn,
+  .enp-ready-action,
+  .enp-open-source__btn,
+  .enp-no-game-btn
+) {
   font-family: var(--font-action) !important;
   font-size: var(--punk-type-action) !important;
   font-weight: 600 !important;
@@ -14367,6 +14393,10 @@ body::before {
 #settings-panel .settings-panel-header,
 .enp-title {
   font-size: var(--punk-type-title) !important;
+  line-height: 1.15;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, .enp-title) {
   line-height: 0.94 !important;
 }
 
@@ -14899,4 +14929,75 @@ body::before {
 
 :root:not([data-theme="arcade"]) .scan-review-row__path {
   color: var(--c-text-dim);
+}
+
+/* ── Pass 5: action type, header accent, chips, hero labels ── */
+:root:not([data-theme="arcade"]) :is(
+  .btn:not(.profile-chip),
+  .settings-jumpbar__btn,
+  #settings-panel .settings-sidebar__item,
+  .game-card__menu-item,
+  .profile-chip-menu__item,
+  .enp-tab,
+  .enp-filter-btn,
+  .enp-ready-action,
+  .enp-open-source__btn,
+  .enp-no-game-btn
+) {
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  line-height: 1.15;
+}
+
+:root:not([data-theme="arcade"]) .app-header::after {
+  height: 1px;
+  opacity: 0.42;
+  background: linear-gradient(90deg, transparent, var(--c-accent), transparent);
+  animation: none;
+}
+
+:root:not([data-theme="arcade"]) .welcome-hero__eyebrow {
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--c-text-muted);
+}
+
+:root:not([data-theme="arcade"]) .drop-zone__label {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) :is(.game-card__system-chip, .game-card__status-chip) {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+:root:not([data-theme="arcade"]) .cloud-storage-card__eyebrow {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .homepage-platforms__label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+:root:not([data-theme="arcade"]) #landing::before {
+  animation: none;
+}
+
+:root:not([data-theme="arcade"]) .app-header {
+  border-bottom-color: var(--c-border);
+}
+
+:root:not([data-theme="arcade"]) .btn {
+  text-shadow: none;
 }
