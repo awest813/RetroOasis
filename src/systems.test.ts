@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PerformanceTier } from "./performance.js";
 import {
   SYSTEMS,
   detectSystem,
@@ -6,20 +7,17 @@ import {
   getSystemById,
   getSystemByCoreHint,
   getSystemFeatureSummary,
-  getPSPSettingsForTier,
-  getNDSSettingsForTier,
-  getN3DSSettingsForTier,
-  getGBASettingsForTier,
-  getPSXSettingsForTier,
-  getGBSettingsForTier,
-  getGBCSettingsForTier,
-  type SystemInfo,
-} from "./systems.js";
-import {
   FOLDER_ALIASES,
   getSystemIdForFolder,
+  type SystemInfo,
 } from "./systems.js";
 import { EJS_CDN_BASE, wasmCorePackageNameFor } from "./emulator.js";
+
+function tierCopy(systemId: string, tier: PerformanceTier): Record<string, string> {
+  const settings = getSystemById(systemId)?.tierSettings?.[tier];
+  if (!settings) throw new Error(`missing tierSettings for ${systemId}/${tier}`);
+  return { ...settings };
+}
 
 describe('folder-name inference', () => {
   it('maps common community folder names to system ids', () => {
@@ -585,13 +583,13 @@ describe('systems performance profiles', () => {
       expect(gba?.tierSettings?.ultra?.mgba_skip_bios).toBe('ON');
     });
 
-    it('getGBASettingsForTier returns a copy of the correct tier settings', () => {
-      const lowSettings = getGBASettingsForTier('low');
+    it('gba tierSettings returns a copy of the correct tier settings', () => {
+      const lowSettings = tierCopy('gba', 'low');
       expect(lowSettings.retroarch_core).toBe('mgba');
       expect(lowSettings.mgba_frameskip).toBeUndefined();
       expect(lowSettings.mgba_color_correction).toBeUndefined();
 
-      const ultraSettings = getGBASettingsForTier('ultra');
+      const ultraSettings = tierCopy('gba', 'ultra');
       expect(ultraSettings.mgba_frameskip).toBeUndefined();
       expect(ultraSettings.mgba_interframe_blending).toBeUndefined();
     });
@@ -634,23 +632,23 @@ describe('systems performance profiles', () => {
       expect(psx?.tierSettings?.low?.beetle_psx_hw_filter).toBeUndefined();
     });
 
-    it('getPSXSettingsForTier returns a copy of the correct tier settings', () => {
+    it('psx tierSettings returns a copy of the correct tier settings', () => {
       // low/medium: pcsx_rearmed options
-      const lowSettings = getPSXSettingsForTier('low');
+      const lowSettings = tierCopy('psx', 'low');
       expect(lowSettings.pcsx_rearmed_drc).toBe('enabled');
       expect(lowSettings.pcsx_rearmed_frameskip).toBe('0');
       expect(lowSettings.retroarch_core).toBe('pcsx_rearmed');
 
-      const mediumSettings = getPSXSettingsForTier('medium');
+      const mediumSettings = tierCopy('psx', 'medium');
       expect(mediumSettings.pcsx_rearmed_drc).toBe('enabled');
       expect(mediumSettings.retroarch_core).toBe('pcsx_rearmed');
 
       // high/ultra remain on PCSX ReARMed.
-      const highSettings = getPSXSettingsForTier('high');
+      const highSettings = tierCopy('psx', 'high');
       expect(highSettings.retroarch_core).toBe('pcsx_rearmed');
       expect(highSettings.pcsx_rearmed_drc).toBe('enabled');
 
-      const ultraSettings = getPSXSettingsForTier('ultra');
+      const ultraSettings = tierCopy('psx', 'ultra');
       expect(ultraSettings.retroarch_core).toBe('pcsx_rearmed');
       expect(ultraSettings.pcsx_rearmed_drc).toBe('enabled');
     });
@@ -663,10 +661,10 @@ describe('systems performance profiles', () => {
       expect(psx?.tierSettings?.ultra?.retroarch_core).toBe('pcsx_rearmed');
     });
 
-    it('getPSXSettingsForTier has pcsx_rearmed_ options, not beetle_psx_hw_ options', () => {
+    it('psx tierSettings has pcsx_rearmed_ options, not beetle_psx_hw_ options', () => {
       const tiers = ['low', 'medium', 'high', 'ultra'] as const;
       for (const tier of tiers) {
-        const settings = getPSXSettingsForTier(tier);
+        const settings = tierCopy('psx', tier);
         expect(settings.pcsx_rearmed_drc).toBe('enabled');
         expect(settings.beetle_psx_hw_renderer).toBeUndefined();
       }
@@ -706,35 +704,35 @@ describe('systems performance profiles', () => {
     });
   });
 
-  // ── getN3DSSettingsForTier ──────────────────────────────────────────────
+  // ── 3ds tierSettings ──────────────────────────────────────────────
 
-  describe('getN3DSSettingsForTier', () => {
+  describe('3ds tierSettings', () => {
     it('returns tier settings for 3DS low tier', () => {
-      const settings = getN3DSSettingsForTier('low');
+      const settings = tierCopy('3ds', 'low');
       expect(settings.retroarch_core).toBe('azahar');
       expect(settings.citra_resolution_factor).toBe('1');
       expect(settings.citra_use_cpu_jit).toBe('enabled');
     });
 
     it('returns tier settings for 3DS ultra tier', () => {
-      const settings = getN3DSSettingsForTier('ultra');
+      const settings = tierCopy('3ds', 'ultra');
       expect(settings.citra_resolution_factor).toBe('3');
       expect(settings.citra_use_acc_mul).toBe('enabled');
     });
 
     it('returns a deep copy (mutations do not affect the original)', () => {
-      const settings = getN3DSSettingsForTier('low');
+      const settings = tierCopy('3ds', 'low');
       settings.citra_resolution_factor = '10x';
-      const fresh = getN3DSSettingsForTier('low');
+      const fresh = tierCopy('3ds', 'low');
       expect(fresh.citra_resolution_factor).toBe('1');
     });
   });
 
-  // ── getNDSSettingsForTier ───────────────────────────────────────────────
+  // ── nds tierSettings ───────────────────────────────────────────────
 
-  describe('getNDSSettingsForTier', () => {
+  describe('nds tierSettings', () => {
     it('returns tier settings for NDS low tier', () => {
-      const settings = getNDSSettingsForTier('low');
+      const settings = tierCopy('nds', 'low');
       expect(settings.retroarch_core).toBe('desmume2015');
       expect(settings.desmume_num_cores).toBe('1');
       expect(settings.desmume_frameskip).toBe('2');
@@ -744,7 +742,7 @@ describe('systems performance profiles', () => {
     });
 
     it('returns tier settings for NDS ultra tier', () => {
-      const settings = getNDSSettingsForTier('ultra');
+      const settings = tierCopy('nds', 'ultra');
       expect(settings.retroarch_core).toBe('desmume2015');
       expect(settings.desmume_internal_resolution).toBe('1024x768');
       expect(settings.desmume_cpu_mode).toBe('jit');
@@ -753,7 +751,7 @@ describe('systems performance profiles', () => {
     });
 
     it('high tier enables advanced timing and OpenGL', () => {
-      const settings = getNDSSettingsForTier('high');
+      const settings = tierCopy('nds', 'high');
       expect(settings.desmume_advanced_timing).toBe('enabled');
       expect(settings.desmume_opengl_mode).toBe('enabled');
       expect(settings.desmume_color_depth).toBe('32-bit');
@@ -761,22 +759,22 @@ describe('systems performance profiles', () => {
     });
 
     it('returns a deep copy (mutations do not affect the original)', () => {
-      const settings = getNDSSettingsForTier('low');
+      const settings = tierCopy('nds', 'low');
       settings.desmume_frameskip = '999';
 
-      const fresh = getNDSSettingsForTier('low');
+      const fresh = tierCopy('nds', 'low');
       expect(fresh.desmume_frameskip).toBe('2');
     });
   });
 
-  // ── getPSPSettingsForTier ───────────────────────────────────────────────
+  // ── psp tierSettings ───────────────────────────────────────────────
 
-  describe('getPSPSettingsForTier', () => {
+  describe('psp tierSettings', () => {
     it('returns a deep copy (mutations do not affect the original)', () => {
-      const settings = getPSPSettingsForTier('low');
+      const settings = tierCopy('psp', 'low');
       settings.ppsspp_internal_resolution = '999';
 
-      const fresh = getPSPSettingsForTier('low');
+      const fresh = tierCopy('psp', 'low');
       expect(fresh.ppsspp_internal_resolution).toBe('1');
     });
   });
@@ -835,16 +833,16 @@ describe('systems performance profiles', () => {
     });
 
     it('uses DMG hardware mode on the low tier for authentic monochrome experience', () => {
-      const settings = getGBSettingsForTier('low');
+      const settings = tierCopy('gb', 'low');
       expect(settings['retroarch_core']).toBe('gambatte');
       expect(settings['gambatte_gb_hwmode']).toBe('GB');
       expect(settings['gambatte_gb_colorization']).toBe('disabled');
     });
 
     it('switches to GBC hardware mode on medium+ tiers to enable built-in colour palettes', () => {
-      const medium = getGBSettingsForTier('medium');
-      const high   = getGBSettingsForTier('high');
-      const ultra  = getGBSettingsForTier('ultra');
+      const medium = tierCopy('gb', 'medium');
+      const high   = tierCopy('gb', 'high');
+      const ultra  = tierCopy('gb', 'ultra');
       expect(medium['retroarch_core']).toBe('gambatte');
       expect(high['retroarch_core']).toBe('gambatte');
       expect(ultra['retroarch_core']).toBe('gambatte');
@@ -854,15 +852,15 @@ describe('systems performance profiles', () => {
     });
 
     it('enables internal GBC colour palettes on medium+ tiers', () => {
-      const medium = getGBSettingsForTier('medium');
+      const medium = tierCopy('gb', 'medium');
       expect(medium['gambatte_gb_colorization']).toBe('internal');
     });
 
     it('enables mix_frames LCD ghosting on high and ultra tiers', () => {
-      const low    = getGBSettingsForTier('low');
-      const medium = getGBSettingsForTier('medium');
-      const high   = getGBSettingsForTier('high');
-      const ultra  = getGBSettingsForTier('ultra');
+      const low    = tierCopy('gb', 'low');
+      const medium = tierCopy('gb', 'medium');
+      const high   = tierCopy('gb', 'high');
+      const ultra  = tierCopy('gb', 'ultra');
       expect(low['gambatte_mix_frames']).toBe('disabled');
       expect(medium['gambatte_mix_frames']).toBe('disabled');
       expect(high['gambatte_mix_frames']).toBe('mix');
@@ -870,9 +868,9 @@ describe('systems performance profiles', () => {
     });
 
     it('applies dark_filter_level 10 only on ultra tier', () => {
-      expect(getGBSettingsForTier('low')['gambatte_dark_filter_level']).toBe('0');
-      expect(getGBSettingsForTier('high')['gambatte_dark_filter_level']).toBe('0');
-      expect(getGBSettingsForTier('ultra')['gambatte_dark_filter_level']).toBe('10');
+      expect(tierCopy('gb', 'low')['gambatte_dark_filter_level']).toBe('0');
+      expect(tierCopy('gb', 'high')['gambatte_dark_filter_level']).toBe('0');
+      expect(tierCopy('gb', 'ultra')['gambatte_dark_filter_level']).toBe('10');
     });
 
     it('GB system uses GB_TIER_SETTINGS via getSystemById', () => {
@@ -892,30 +890,30 @@ describe('systems performance profiles', () => {
     it('always uses GBC hardware mode on all tiers', () => {
       const tiers = (['low', 'medium', 'high', 'ultra'] as const);
       for (const tier of tiers) {
-        expect(getGBCSettingsForTier(tier)['retroarch_core']).toBe('gambatte');
-        expect(getGBCSettingsForTier(tier)['gambatte_gb_hwmode']).toBe('GBC');
+        expect(tierCopy('gbc', tier)['retroarch_core']).toBe('gambatte');
+        expect(tierCopy('gbc', tier)['gambatte_gb_hwmode']).toBe('GBC');
       }
     });
 
     it('does not apply GB colorisation keys — native GBC games are already full colour', () => {
       for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
-        const settings = getGBCSettingsForTier(tier);
+        const settings = tierCopy('gbc', tier);
         expect(settings['gambatte_gb_colorization']).toBeUndefined();
         expect(settings['gambatte_gb_internal_palette']).toBeUndefined();
       }
     });
 
     it('enables mix_frames LCD ghosting on high and ultra tiers', () => {
-      expect(getGBCSettingsForTier('low')['gambatte_mix_frames']).toBe('disabled');
-      expect(getGBCSettingsForTier('medium')['gambatte_mix_frames']).toBe('disabled');
-      expect(getGBCSettingsForTier('high')['gambatte_mix_frames']).toBe('mix');
-      expect(getGBCSettingsForTier('ultra')['gambatte_mix_frames']).toBe('mix');
+      expect(tierCopy('gbc', 'low')['gambatte_mix_frames']).toBe('disabled');
+      expect(tierCopy('gbc', 'medium')['gambatte_mix_frames']).toBe('disabled');
+      expect(tierCopy('gbc', 'high')['gambatte_mix_frames']).toBe('mix');
+      expect(tierCopy('gbc', 'ultra')['gambatte_mix_frames']).toBe('mix');
     });
 
     it('applies dark_filter_level 10 only on ultra tier', () => {
-      expect(getGBCSettingsForTier('low')['gambatte_dark_filter_level']).toBe('0');
-      expect(getGBCSettingsForTier('high')['gambatte_dark_filter_level']).toBe('0');
-      expect(getGBCSettingsForTier('ultra')['gambatte_dark_filter_level']).toBe('10');
+      expect(tierCopy('gbc', 'low')['gambatte_dark_filter_level']).toBe('0');
+      expect(tierCopy('gbc', 'high')['gambatte_dark_filter_level']).toBe('0');
+      expect(tierCopy('gbc', 'ultra')['gambatte_dark_filter_level']).toBe('10');
     });
 
     it('GBC system uses GBC_TIER_SETTINGS via getSystemById', () => {

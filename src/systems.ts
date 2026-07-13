@@ -540,58 +540,6 @@ const PSX_TIER_SETTINGS: Record<PerformanceTier, Record<string, string>> = {
   },
 };
 
-/**
- * Get the appropriate PPSSPP settings for a given performance tier.
- */
-export function getPSPSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...PSP_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate DeSmuME (NDS) settings for a given performance tier.
- */
-export function getNDSSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...NDS_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate Azahar (3DS) settings for a given performance tier.
- */
-export function getN3DSSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...N3DS_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate mGBA settings for a given performance tier.
- */
-export function getGBASettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...GBA_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate Gambatte GB settings for a given performance tier.
- * Use this for original Game Boy (.gb) ROMs.
- */
-export function getGBSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...GB_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate Gambatte GBC settings for a given performance tier.
- * Use this for native Game Boy Color (.gbc) ROMs.
- */
-export function getGBCSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...GBC_TIER_SETTINGS[tier] };
-}
-
-/**
- * Get the appropriate PCSX ReARMed settings for a given performance tier.
- */
-export function getPSXSettingsForTier(tier: PerformanceTier): Record<string, string> {
-  return { ...PSX_TIER_SETTINGS[tier] };
-}
-
-
 // ── NES (FCEUmm) tier-specific core options ───────────────────────────────────
 //
 // EmulatorJS uses FCEUmm for NES. Key options:

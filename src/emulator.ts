@@ -57,7 +57,6 @@ export {
   buildEjsCorePaths,
   probeEmulatorCoreCdn,
 } from "./coreCdn.js";
-export type { CoreCdnProbeResult, EjsCorePathsResult } from "./coreCdn.js";
 import { roomDisplayNameForKey, type NetplayManager } from "./multiplayer.js";
 import {
   WebGPUPostProcessor,

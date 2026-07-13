@@ -25,23 +25,6 @@ function buildQrMatrix(text: string): ReturnType<typeof qrcodeFactory> | null {
   }
 }
 
-/** SVG QR suitable for dialogs and tests (no canvas required). */
-export function renderProfileShareQrSvg(text: string, moduleSize = 4): string | null {
-  const qr = buildQrMatrix(text);
-  if (!qr) return null;
-  const count = qr.getModuleCount();
-  const size = count * moduleSize;
-  let path = "";
-  for (let y = 0; y < count; y++) {
-    for (let x = 0; x < count; x++) {
-      if (qr.isDark(y, x)) {
-        path += `M${x * moduleSize} ${y * moduleSize}h${moduleSize}v${moduleSize}h-${moduleSize}z`;
-      }
-    }
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="Profile share QR code"><rect width="100%" height="100%" fill="#fff"/><path fill="#000" d="${path}"/></svg>`;
-}
-
 /** Draw a QR code onto a canvas and return a PNG data URL. */
 export function renderProfileShareQrDataUrl(text: string, size = 240): string | null {
   const qr = buildQrMatrix(text);

@@ -57,33 +57,6 @@ export function mergeLibretroCoreExtensions(systemId: string, extensions: readon
   return [...new Set([...extensions, ...extras])];
 }
 
-/** libretro-image-matching-server console slug → RetroOasis systemId. */
-export const LIBRETRO_MATCHING_CONSOLE_TO_SYSTEM_ID: Readonly<Record<string, string>> = Object.freeze({
-  FC: "nes",
-  SFC: "snes",
-  SUPA: "snes",
-  GB: "gb",
-  GBC: "gbc",
-  GBA: "gba",
-  MGBA: "gba",
-  NDS: "nds",
-  N64: "n64",
-  PS: "psx",
-  PSP: "psp",
-  MD: "segaMD",
-  SMS: "segaMS",
-  GG: "segaGG",
-  SATURN: "segaSaturn",
-  DC: "segaDC",
-  THIRTYTWOX: "sega32x",
-  LYNX: "lynx",
-  NGPC: "ngp",
-  FBN: "arcade",
-  ATARI: "atari2600",
-  INTELLIVISION: "intv",
-  DOS: "dos",
-});
-
 /**
  * RetroOasis systemId → libretro-image-matching-server console slug.
  * Explicit map so shared targets (e.g. GBA + MGBA) resolve to the preferred slug.
