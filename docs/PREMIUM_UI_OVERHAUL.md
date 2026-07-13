@@ -1,7 +1,7 @@
 # RetroOasis — Premium UI/UX Overhaul Plan
 
 **Codename:** `PREMIUM` · **Branch:** `claude/premium-ui-overhaul-plan-pyph54`
-**Status:** In progress — **Direction A**; **Phases 0–6 shipped** (Phase 5 modal cluster done; motion tokens + Phase 7 QA remaining)
+**Status:** **Phases 0–7 shipped** — Direction A premium default delivered, Arcade theme preserved, guarded by budget lint. (Optional tails: motion-token unification, in-game HUD reskin, superseded-rule deletion for line-count reduction.)
 **Author:** UI/UX audit pass
 **Supersedes the execution of:** `docs/SHIBUYA_PUNK_UI_PLAN.md` (kept as an optional *theme*, not the default chrome)
 
@@ -109,6 +109,25 @@
 >   plain scrim; Arcade: full sticker-tag ink-pop). Budget held at cap after fixing a caught +1 `!important`
 >   regression; colours **844**. Build green. **Still open:** in-game HUD reskin (needs a running game to
 >   verify), motion-token unification, and superseded-rule deletion.
+> - **Phase 7 — accessibility & QA (done):** Measured, not eyeballed. Wrote a **WCAG contrast auditor**
+>   (hides glyphs, screenshots once, samples each element's true rendered background pixel — handles
+>   gradients/compositing) and swept the Premium theme across library, cards, onboarding, and settings.
+>   Result: **every text token passes AA** (`--c-text-dim`/`--c-text-muted` land 7–17:1); the one real
+>   failure was **`.drop-zone__formats`** (32%-white ≈ 2.77) → repointed to `--c-text-muted` (~5:1), and
+>   **input placeholders** (34%-white / browser-default grey ≈ 3.0–4.1) → a shared token placeholder
+>   (~5:1). A flagged 1.10 on the active settings tab was a **sampling artifact** (a direct label-vs-bg
+>   probe measured **10.05** — white on the magenta gradient). **Reduced-motion** verified: the global
+>   `*` reset forces `animation-duration: 0.01ms`, so entrance/hover motion is effectively removed
+>   (transition-duration measured `1e-05s`). **Focus visibility** (WCAG 2.4.7): controls take
+>   `box-shadow: var(--focus-ring)`, which was a weak 3px/32%-alpha ring — strengthened to a crisp
+>   two-layer halo (`0 0 0 2px --c-bg, 0 0 0 4px --c-accent-light`) so keyboard focus is clearly visible on
+>   any surface. Colours **842**, budget at/under cap, build green. (Note: the final live focus screenshot
+>   was blocked by dev-server flakiness late in this long session; the change is a deterministic box-shadow
+>   token consumed by the existing focus rule, build- and math-verified.)
+>
+> **The overhaul's planned arc is complete.** The Premium default reads premium end-to-end — content-first,
+> one disciplined magenta accent, soft depth, AA-legible, keyboard-focusable — with the full Shibuya Punk
+> look preserved one toggle away and a regression guard holding the line.
 
 ---
 

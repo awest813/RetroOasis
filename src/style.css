@@ -9732,8 +9732,16 @@ body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -18px 42px rgba(0,0,0,0.16);
 }
 
-.library-search::placeholder {
-  color: rgba(255,255,255,0.34);
+/* AA-legible placeholders (Phase 7): a real token, not faint white. */
+.library-search::placeholder,
+.settings-search-input::placeholder,
+.settings-input::placeholder,
+.cover-art-url-input::placeholder,
+.api-key-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-text-muted);
+  opacity: 1;
 }
 
 .sys-filter-chip {
@@ -9795,7 +9803,7 @@ body {
 }
 
 .drop-zone__formats {
-  color: rgba(255,255,255,0.32);
+  color: var(--c-text-muted);
 }
 
 #library-section .welcome-hero__eyebrow,
