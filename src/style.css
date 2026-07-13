@@ -7343,24 +7343,29 @@ body.using-gamepad .game-card:focus {
 .account-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin: 18px 0 22px;
+  gap: 12px;
+  margin: 18px 0 24px;
 }
 
 .account-summary__item {
   min-width: 0;
-  padding: 14px 16px;
+  padding: 16px 18px;
   border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--c-surface2) 82%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
 }
 
 .account-summary__label,
 .account-summary__detail {
   display: block;
   color: var(--c-text-dim);
-  font-size: 0.78rem;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.account-summary__label {
+  letter-spacing: 0.02em;
 }
 
 .account-summary__value {
@@ -7368,9 +7373,9 @@ body.using-gamepad .game-card:focus {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin: 5px 0 3px;
+  margin: 8px 0 6px;
   color: var(--c-text);
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7393,73 +7398,94 @@ body.using-gamepad .game-card:focus {
 }
 
 .account-summary__item--idle {
-  opacity: 0.82;
+  opacity: 0.92;
 }
 
 .profile-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 160px;
+  gap: 8px;
+  max-width: 168px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-pill, 999px);
-  color: var(--c-accent);
-  font-weight: 600;
-  font-size: 0.8rem;
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-weight: 650;
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.profile-chip:hover,
+.profile-chip:focus-visible {
+  border-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-surface2));
+  color: var(--c-text);
+  transform: none;
 }
 
 .profile-chip__dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-bg) 70%, transparent);
 }
 
 .profile-chip__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
 }
 
 .profile-chip__caret {
-  font-size: 0.65rem;
-  opacity: 0.75;
+  font-size: 0.7rem;
+  opacity: 0.7;
   margin-left: 2px;
 }
 
 .profile-chip-menu {
-  min-width: 180px;
-  max-width: 260px;
-  padding: 6px;
-  border-radius: var(--radius-md, 10px);
+  min-width: 200px;
+  max-width: 280px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--c-border);
-  background: var(--c-surface-elevated, var(--c-surface));
+  background: color-mix(in srgb, var(--c-surface2) 96%, transparent);
   box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.25));
 }
 
 .profile-chip-menu__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: none;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: inherit;
+  color: var(--c-text);
   font: inherit;
+  font-weight: 600;
   text-align: left;
+  text-transform: none;
+  letter-spacing: 0.01em;
   cursor: pointer;
 }
 
 .profile-chip-menu__item:hover,
 .profile-chip-menu__item--active {
-  background: var(--c-surface-hover, rgba(255, 255, 255, 0.06));
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
 }
 
 .profile-chip-menu__dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -7467,41 +7493,108 @@ body.using-gamepad .game-card:focus {
 .profile-chip-menu__manage {
   display: block;
   width: 100%;
-  margin-top: 4px;
-  padding: 8px 10px;
+  margin-top: 6px;
+  padding: 10px 12px;
   border: none;
   border-top: 1px solid var(--c-border);
-  border-radius: 0 0 var(--radius-sm, 6px) var(--radius-sm, 6px);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: transparent;
-  color: var(--c-accent);
+  color: var(--c-accent-light);
   font: inherit;
+  font-weight: 700;
   text-align: left;
   cursor: pointer;
+}
+
+.profile-chip-menu__manage:hover {
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
 }
 
 .profile-color-swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 
 .profile-color-swatch {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.profile-color-swatch:hover {
+  transform: translateY(-1px);
 }
 
 .profile-color-swatch--active {
   border-color: var(--c-text);
-  box-shadow: 0 0 0 2px var(--c-bg);
+  box-shadow: 0 0 0 2px var(--c-bg), 0 0 0 4px color-mix(in srgb, var(--c-accent) 45%, transparent);
 }
 
 .profile-color-swatch:focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
+}
+
+.profile-backlog-row,
+.profile-manage-row,
+.profile-switch-row,
+.profile-color-row,
+.profile-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-block: 10px;
+}
+
+.profile-switch-row .settings-input-label,
+.profile-manage-row .settings-input-label,
+.profile-color-row .settings-input-label,
+.profile-backlog-row__label {
+  flex: 0 0 auto;
+  min-width: 7.25rem;
+  font-weight: 650;
+  color: var(--c-text-dim);
+}
+
+.profile-manage-row .settings-input,
+.profile-switch-row .settings-input {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.profile-backlog-row__label {
+  margin-inline-end: 2px;
+}
+
+.profile-backlog-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 22%, var(--c-border));
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+  color: var(--c-accent-light);
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.profile-snapshot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 @media (max-width: 560px) {
@@ -10850,11 +10943,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   align-items: center;
 }
 
-.profile-backlog-count {
-  color: var(--c-text);
-  font-weight: 700;
-}
-
 .library-grid--compact .game-card__backlog {
   top: 40px;
   right: 8px;
@@ -10898,10 +10986,15 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 
 /* Menu and button hard-edge polish pass */
 
-/* 1. Comic-Pop Buttons styling override */
-.btn {
+/* 1. Comic-Pop Buttons styling override.
+   Profile chip keeps its own pill radius (see .profile-chip). */
+.btn:not(.profile-chip) {
   border-radius: var(--radius-md) !important;
   transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.18s ease, border-color 0.18s ease !important;
+}
+
+.profile-chip.btn {
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.18s ease, border-color 0.18s ease;
 }
 
 /* Comic-pop buttons — Arcade theme only (cel outline + hard offset shadow +
@@ -15268,4 +15361,204 @@ body::before {
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0.01em;
+}
+
+/* ── Profiles & Account (Premium): chip, summary, backlog, manage ── */
+:root:not([data-theme="arcade"]) .app-header .profile-chip.btn,
+:root:not([data-theme="arcade"]) .app-header .profile-chip {
+  min-height: var(--punk-control-h);
+  height: auto;
+  padding: 0 14px 0 10px;
+  gap: 10px;
+  max-width: 188px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid color-mix(in srgb, var(--c-border-lt) 88%, transparent);
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  box-shadow: 0 1px 0 color-mix(in srgb, white 8%, transparent) inset;
+}
+
+:root:not([data-theme="arcade"]) .app-header .profile-chip:hover,
+:root:not([data-theme="arcade"]) .app-header .profile-chip:focus-visible {
+  border-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-surface2));
+  color: var(--c-text);
+  transform: none;
+  box-shadow: 0 8px 18px color-mix(in srgb, black 12%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .app-header .profile-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--c-accent) 22%, transparent),
+    0 1px 0 color-mix(in srgb, white 8%, transparent) inset;
+}
+
+:root:not([data-theme="arcade"]) .app-header .profile-chip__dot {
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-bg) 72%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .app-header .profile-chip__label {
+  font-weight: 650;
+  color: inherit;
+}
+
+:root:not([data-theme="arcade"]) .app-header .profile-chip__caret {
+  opacity: 0.72;
+  font-size: 0.72rem;
+}
+
+:root:not([data-theme="arcade"]) .profile-chip-menu {
+  min-width: 228px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 96%, transparent);
+  box-shadow: var(--shadow-lg);
+}
+
+:root:not([data-theme="arcade"]) .profile-chip-menu__item {
+  min-height: 40px;
+  padding: 8px 12px;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+:root:not([data-theme="arcade"]) .profile-chip-menu__item--active {
+  background: color-mix(in srgb, var(--c-accent) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--c-accent);
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) .profile-chip-menu__manage {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--c-border) 90%, transparent);
+  color: color-mix(in srgb, var(--c-text) 78%, var(--c-text-dim));
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .profile-chip-menu__manage:hover {
+  color: var(--c-text);
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .account-summary {
+  gap: 12px;
+  margin: 18px 0 26px;
+}
+
+:root:not([data-theme="arcade"]) .account-summary__item {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--c-border) 92%, transparent);
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) .account-summary__item--ready {
+  border-color: color-mix(in srgb, var(--c-success) 42%, var(--c-border));
+  background: color-mix(in srgb, var(--c-success) 8%, var(--c-surface2));
+}
+
+:root:not([data-theme="arcade"]) .account-summary__item--warn {
+  border-color: color-mix(in srgb, var(--c-warning, var(--c-gold)) 48%, var(--c-border));
+  background: color-mix(in srgb, var(--c-warning, var(--c-gold)) 8%, var(--c-surface2));
+}
+
+:root:not([data-theme="arcade"]) .account-summary__item--idle {
+  opacity: 1;
+  background: color-mix(in srgb, var(--c-surface2) 72%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .account-summary__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .account-summary__value {
+  margin: 10px 0 6px;
+  font-size: 1.08rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+:root:not([data-theme="arcade"]) .account-summary__detail {
+  font-size: 0.84rem;
+  font-weight: 550;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--c-text-dim) 92%, var(--c-text));
+}
+
+:root:not([data-theme="arcade"]) .account-summary__dot {
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-bg) 70%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .settings-help,
+:root:not([data-theme="arcade"]) #tab-panel-account .settings-section__desc {
+  max-width: 46rem;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--c-text) 78%, var(--c-text-dim));
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .cloud-library-section__subtitle {
+  margin: 22px 0 10px;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: color-mix(in srgb, var(--c-text) 86%, var(--c-text-dim));
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-backlog-row,
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-manage-row,
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-switch-row,
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-color-row,
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-filter-row {
+  gap: 12px 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--c-border) 88%, transparent);
+  background: color-mix(in srgb, var(--c-surface2) 42%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-manage-row__create.btn--primary {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-color-swatch {
+  width: 28px;
+  height: 28px;
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-color-swatch--active {
+  box-shadow:
+    0 0 0 2px var(--c-bg),
+    0 0 0 4px color-mix(in srgb, var(--c-accent) 55%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-snapshot-actions .btn,
+:root:not([data-theme="arcade"]) #tab-panel-account .profile-cloud-sync-row .btn {
+  min-height: 36px;
+  font-weight: 650;
 }

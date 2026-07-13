@@ -221,7 +221,7 @@ export function buildProfileSection(
     }
   });
 
-  const newBtn = make("button", { class: "btn btn--sm", type: "button" }, "New profile") as HTMLButtonElement;
+  const newBtn = make("button", { class: "btn btn--sm btn--primary profile-manage-row__create", type: "button" }, "New profile") as HTMLButtonElement;
   newBtn.addEventListener("click", () => {
     void (async () => {
       const confirmed = await showConfirmDialog(
@@ -300,7 +300,7 @@ export function buildProfileSection(
   });
   const backlogRow = make("div", { class: "settings-input-row profile-backlog-row" });
   backlogRow.append(
-    make("span", { class: "settings-input-label" }, "Backlog"),
+    make("span", { class: "settings-input-label profile-backlog-row__label" }, "Backlog"),
     backlogCount,
     clearBacklogBtn,
   );

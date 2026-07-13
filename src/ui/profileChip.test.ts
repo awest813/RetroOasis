@@ -77,4 +77,28 @@ describe("profileChip", () => {
     const chip = document.getElementById("header-profile-chip");
     expect(chip?.textContent).toContain("Default");
   });
+
+  it("opens a profile menu even when only one profile exists", () => {
+    const storage = memoryStorage();
+    const settings = makeSettings();
+    const apiKeyStore = new ApiKeyStore({ storage: memoryStorage(), providers: [] });
+    const pm = getProfileManager(storage);
+    const deps = { settings, apiKeyStore, onSettingsChange: vi.fn() };
+    pm.ensureInitialized(deps);
+
+    const openAccountSettings = vi.fn();
+    refreshProfileHeaderChip({ openAccountSettings, deps });
+
+    const chip = document.getElementById("header-profile-chip") as HTMLButtonElement;
+    expect(chip.getAttribute("aria-haspopup")).toBe("menu");
+    expect(chip.querySelector(".profile-chip__caret")).toBeTruthy();
+
+    chip.click();
+
+    const menu = document.getElementById("header-profile-chip-menu");
+    expect(menu).toBeTruthy();
+    expect(menu?.textContent).toContain("Default");
+    expect(menu?.textContent).toContain("Manage profiles");
+    expect(openAccountSettings).not.toHaveBeenCalled();
+  });
 });

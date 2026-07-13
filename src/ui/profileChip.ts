@@ -157,7 +157,8 @@ export function refreshProfileHeaderChip(
   const pm = getProfileManager();
   const name = pm.getActiveProfileName();
   const color = pm.getActiveProfileColor();
-  const canQuickSwitch = Boolean(chipDeps) && pm.listProfiles().length > 1;
+  const canOpenMenu = Boolean(chipDeps);
+  const profileCount = pm.listProfiles().length;
 
   let chip = document.getElementById("header-profile-chip") as HTMLButtonElement | null;
 
@@ -169,7 +170,7 @@ export function refreshProfileHeaderChip(
     }) as HTMLButtonElement;
     chip.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (!chipDeps || pm.listProfiles().length <= 1) {
+      if (!chipDeps) {
         closeProfileChipMenu();
         chipOpenSettings?.();
         return;
@@ -189,15 +190,17 @@ export function refreshProfileHeaderChip(
     dotEl,
     make("span", { class: "profile-chip__label" }, name),
   );
-  if (canQuickSwitch) {
+  if (canOpenMenu) {
     chip.appendChild(make("span", { class: "profile-chip__caret", "aria-hidden": "true" }, "▾"));
   }
 
-  chip.title = canQuickSwitch
-    ? `Profile: ${name} — click to switch`
+  chip.title = canOpenMenu
+    ? (profileCount > 1
+      ? `Profile: ${name} — click to switch`
+      : `Profile: ${name} — click for profile options`)
     : `Profile: ${name} — click to manage`;
   chip.setAttribute("aria-label", `Active profile: ${name}`);
-  chip.setAttribute("aria-haspopup", canQuickSwitch ? "menu" : "false");
+  chip.setAttribute("aria-haspopup", canOpenMenu ? "menu" : "false");
   if (!isProfileChipMenuOpen()) chip.setAttribute("aria-expanded", "false");
 
   const settingsAnchor = actions.querySelector<HTMLElement>("[aria-label='Open settings']");
