@@ -13114,6 +13114,10 @@ body::before {
 
 .settings-body {
   position: relative;
+  scrollbar-color: color-mix(in srgb, var(--c-border-lt) 80%, transparent) transparent;
+}
+
+:root[data-theme="arcade"] .settings-body {
   scrollbar-color: var(--c-accent) rgba(5, 3, 13, 0.45);
 }
 
@@ -13127,6 +13131,10 @@ body::before {
   height: 34px;
   margin-top: -34px;
   pointer-events: none;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--c-bg) 88%, transparent));
+}
+
+:root[data-theme="arcade"] .settings-body::after {
   background: linear-gradient(to bottom, transparent, rgba(5, 3, 13, 0.88));
 }
 
@@ -13464,7 +13472,7 @@ body::before {
   }
 }
 
-#settings-panel .settings-modal-box {
+:root[data-theme="arcade"] #settings-panel .settings-modal-box {
   background:
     radial-gradient(circle at 10% 16%, rgba(245, 255, 77, 0.16) 0 8%, transparent 9%),
     radial-gradient(circle at 90% 18%, rgba(0, 240, 255, 0.14) 0 10%, transparent 11%),
@@ -13522,6 +13530,10 @@ body::before {
 #settings-panel .settings-shell {
   gap: 14px !important;
   padding: 10px 12px 12px;
+  background: transparent;
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-shell {
   background:
     linear-gradient(90deg, rgba(255, 46, 151, 0.08), transparent 34%, rgba(0, 240, 255, 0.06)),
     rgba(0, 0, 0, 0.18);
@@ -13572,6 +13584,21 @@ body::before {
   animation: settings-board-enter 260ms var(--ease-premium-out) both;
 }
 
+:root:not([data-theme="arcade"]) #settings-panel .settings-panel-content {
+  animation: settings-panel-enter-soft 240ms var(--ease-premium-out) both;
+}
+
+@keyframes settings-panel-enter-soft {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 #settings-panel .settings-panel-header {
   margin-bottom: 16px !important;
   font-size: clamp(1.45rem, 2.8vw, 2.2rem);
@@ -13580,6 +13607,10 @@ body::before {
 #settings-panel .settings-section {
   margin-bottom: 18px;
   padding: clamp(16px, 2vw, 22px) !important;
+  background: color-mix(in srgb, var(--c-surface2) 94%, transparent);
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-section {
   background:
     linear-gradient(108deg, rgba(255, 46, 151, 0.08), rgba(0, 240, 255, 0.06) 58%, rgba(5, 3, 13, 0.96)),
     rgba(8, 5, 18, 0.98) !important;
@@ -13599,8 +13630,12 @@ body::before {
 #settings-panel .settings-section__desc,
 #settings-panel .settings-help {
   max-width: 86ch;
-  color: rgba(226, 217, 255, 0.82) !important;
+  color: var(--c-text-dim);
   line-height: 1.48;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .settings-section__desc, #settings-panel .settings-help) {
+  color: rgba(226, 217, 255, 0.82) !important;
 }
 
 #settings-panel .settings-row,
@@ -13608,6 +13643,11 @@ body::before {
 #settings-panel .radio-row {
   margin-block: 8px;
   padding: 13px 14px !important;
+  background: color-mix(in srgb, var(--c-surface) 88%, transparent);
+  border: 1px solid var(--c-border);
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .settings-row, #settings-panel .toggle-row, #settings-panel .radio-row) {
   background:
     linear-gradient(90deg, rgba(255, 46, 151, 0.08), rgba(0, 240, 255, 0.035)),
     rgba(12, 7, 22, 0.82) !important;
@@ -13617,13 +13657,18 @@ body::before {
 #settings-panel .settings-row:hover,
 #settings-panel .toggle-row:hover,
 #settings-panel .radio-row:hover {
+  border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--c-surface3) 80%, transparent);
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .settings-row:hover, #settings-panel .toggle-row:hover, #settings-panel .radio-row:hover) {
   border-color: rgba(245, 255, 77, 0.28) !important;
 }
 
 #settings-panel .settings-label,
 #settings-panel .radio-row__label,
 #settings-panel .toggle-row__label {
-  color: #fff;
+  color: var(--c-text);
 }
 
 #settings-panel .settings-input,
@@ -13677,12 +13722,24 @@ body::before {
     max-width: 190px;
     min-height: 38px;
     padding: 8px 12px !important;
-    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%);
     scroll-snap-align: start;
+  }
+
+  :root[data-theme="arcade"] #settings-panel .settings-sidebar__item {
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%);
+  }
+
+  :root:not([data-theme="arcade"]) #settings-panel .settings-sidebar__item {
+    clip-path: none;
+    border-radius: var(--radius-md);
   }
 
   #settings-panel .settings-sidebar__item:hover,
   #settings-panel .settings-sidebar__item.settings-tab--active {
+    transform: none;
+  }
+
+  :root[data-theme="arcade"] :is(#settings-panel .settings-sidebar__item:hover, #settings-panel .settings-sidebar__item.settings-tab--active) {
     transform: translateY(-1px) !important;
   }
 
@@ -13696,7 +13753,7 @@ body::before {
 }
 
 @media (max-width: 700px) {
-  #settings-panel .settings-modal-box {
+  :root[data-theme="arcade"] #settings-panel .settings-modal-box {
     background:
       linear-gradient(112deg, rgba(255, 46, 151, 0.28) 0 23%, rgba(5, 3, 13, 0.99) 23.4% 78%, rgba(0, 240, 255, 0.13) 78.4%),
       #05030d !important;
@@ -13846,8 +13903,7 @@ body::before {
 
 #settings-panel .settings-modal-box {
   background:
-    radial-gradient(1100px 520px at 82% -8%, rgba(255, 61, 154, 0.08), transparent 60%),
-    linear-gradient(180deg, #0d0b14 0%, #08060f 72%) !important;
+    linear-gradient(180deg, color-mix(in srgb, var(--c-surface) 92%, transparent), var(--c-bg)) !important;
 }
 
 #settings-panel .settings-quickbar,
@@ -13875,7 +13931,7 @@ body::before {
   }
 
   #settings-panel .settings-modal-box {
-    background: linear-gradient(180deg, #0d0b14 0%, #08060f 72%) !important;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c-surface) 94%, transparent), var(--c-bg)) !important;
   }
 
   :root[data-theme="arcade"] #settings-panel .settings-quickbar {
@@ -14611,6 +14667,12 @@ body::before {
   border-radius: var(--radius-lg);
   border: 1px solid var(--c-border);
   box-shadow: none;
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.settings-row, .toggle-row, .radio-row):hover {
+  border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--c-surface3) 82%, transparent);
 }
 
 /* Soften onboarding eyebrow on Premium — keep the Shibuya label for Arcade. */
@@ -15000,4 +15062,84 @@ body::before {
 
 :root:not([data-theme="arcade"]) .btn {
   text-shadow: none;
+}
+
+/* ── Settings pass: rows, cards, search focus, heading marks ── */
+:root:not([data-theme="arcade"]) #settings-panel .settings-search-input:focus,
+:root:not([data-theme="arcade"]) #settings-panel .settings-search-input:focus-visible {
+  box-shadow: var(--focus-ring);
+  border-color: var(--c-accent);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.settings-input, .settings-select, .api-key-input, .cover-art-url-input, select, textarea) {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.settings-input, .settings-select, .api-key-input, .cover-art-url-input, select, textarea):focus,
+:root:not([data-theme="arcade"]) #settings-panel :is(.settings-input, .settings-select, .api-key-input, .cover-art-url-input, select, textarea):focus-visible {
+  box-shadow: var(--focus-ring);
+  border-color: var(--c-accent);
+  outline: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.cloud-provider-card, .multiplayer-card, .cloud-storage-card, .cloud-connection-item) {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.cloud-provider-card, .multiplayer-card):hover {
+  border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--c-surface3) 70%, transparent);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .cloud-provider-card.active {
+  background: color-mix(in srgb, var(--c-accent) 22%, var(--c-surface2));
+  border-color: color-mix(in srgb, var(--c-accent) 45%, transparent);
+  box-shadow: none;
+  transform: none;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-core-heading__mark {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent);
+  color: var(--c-accent-light);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .modal-close {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 90%, transparent);
+  color: var(--c-text);
+  box-shadow: none;
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .modal-close:hover {
+  border-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-shell {
+  background: transparent;
+}
+
+:root:not([data-theme="arcade"]) .settings-quickbar__summary,
+:root:not([data-theme="arcade"]) .settings-active-tab-label,
+:root:not([data-theme="arcade"]) .settings-search-status {
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: none;
 }

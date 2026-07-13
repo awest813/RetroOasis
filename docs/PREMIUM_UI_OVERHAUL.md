@@ -157,6 +157,11 @@
 >   drop-zone label / card chips / cloud eyebrows; cream primary borders retargeted
 >   to accent tokens; modal body copy + title line-height softened; landing mesh
 >   animation Arcade-only. CSS budget ratcheted to `!important` **927** / colours **816**.
+> - **Settings chrome pass (2026-07):** Walked Premium settings end-to-end —
+>   scoped command-board section/row washes, gold hover, shell stripe, mobile
+>   arrow clip-path, and modal ink frames to Arcade; soft Premium rows, inputs,
+>   cloud/multiplayer cards, close button, heading marks, and focus rings.
+>   CSS budget ratcheted to `!important` **927** / colours **810**.
 
 ---
 
