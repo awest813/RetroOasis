@@ -61,7 +61,7 @@ import { buildDOM, initUI,
           resolveSystemAndAdd,
           showError, showInfoToast, showLoadingOverlay, hideLoadingOverlay,
           setLoadingMessage, setLoadingSubtitle,
-          openEasyNetplayModal } from "./ui.js";
+          openEasyNetplayModal, applyBrandLogoTheme } from "./ui.js";
 import { acquireDirectory, directorySourceFromHandle, scanDirectory } from "./directoryScan.js";
 import { filterToNewOrChanged, signaturesForPaths } from "./scanRescan.js";
 import {
@@ -495,6 +495,7 @@ async function main(): Promise<void> {
   const ARCADE_FONTS_ID = "arcade-theme-fonts";
   const applyTheme = () => {
     document.documentElement.dataset.theme = settings.theme;
+    applyBrandLogoTheme(settings.theme);
     if (settings.theme === "arcade" && !document.getElementById(ARCADE_FONTS_ID)) {
       const link = document.createElement("link");
       link.id = ARCADE_FONTS_ID;

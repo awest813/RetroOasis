@@ -1,0 +1,32 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RetroOasis">
+  <defs>
+    <linearGradient id="ro-premium-wash" x1="18" y1="14" x2="78" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff6bb5"/>
+      <stop offset="0.55" stop-color="#ff2e97"/>
+      <stop offset="1" stop-color="#9c0f5a"/>
+    </linearGradient>
+    <linearGradient id="ro-premium-orb" x1="54" y1="32" x2="78" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffa6d4"/>
+      <stop offset="1" stop-color="#00d0ff"/>
+    </linearGradient>
+    <filter id="ro-premium-soft" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#ff2e97" flood-opacity="0.28"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#050308" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Soft mark plate -->
+  <circle cx="48" cy="48" r="40" fill="#0b0714" opacity="0.92"/>
+  <circle cx="48" cy="48" r="40" fill="url(#ro-premium-wash)" opacity="0.18"/>
+  <circle cx="48" cy="48" r="39" stroke="rgba(255,46,151,0.35)" stroke-width="1.5"/>
+
+  <g filter="url(#ro-premium-soft)">
+    <!-- R stem + bowl -->
+    <path d="M26 68V30H48.5C56.4 30 61.2 34.4 61.2 41.2C61.2 46.2 58.4 49.8 53.4 51.4L64.8 68H51.2L42.6 55.8H38.8V68H26Z" fill="#f7f2ff"/>
+    <path d="M38.8 44.6H47.8C50.5 44.6 52.1 43.4 52.1 41.2C52.1 39 50.5 37.8 47.8 37.8H38.8V44.6Z" fill="#12091c"/>
+    <!-- Oasis orb -->
+    <circle cx="66" cy="48" r="15.5" fill="#12091c"/>
+    <circle cx="66" cy="48" r="10.5" fill="url(#ro-premium-orb)"/>
+    <path d="M57.5 48H74.5M59 54.2H73M60.5 41.8H73.5" stroke="#12091c" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>
+  </g>
+</svg>

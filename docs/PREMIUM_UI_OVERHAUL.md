@@ -140,6 +140,12 @@
 >   footer ticker treatment. Retargeted leftover cream/gold hover accents on
 >   buttons/chips/search to the magenta accent token. Quieted the Premium footer
 >   clock and era mark. CSS budget ratcheted to colours **826**.
+> - **UI audit polish pass 3 (2026-07):** Toolbars, menus, settings nav, and brand.
+>   Theme-aware logos (`retrooasis-logo-premium.svg` / `retrooasis-logo-arcade.svg`)
+>   swap via `applyBrandLogoTheme()`; quieter Premium wordmark; soft library toolbar
+>   + search; soft context/profile menus; soft settings sidebar/quickbar/jumpbar/
+>   body with late `!important` punk washes scoped back to Arcade. CSS budget at
+>   `!important` **928** / colours **825**.
 
 ---
 

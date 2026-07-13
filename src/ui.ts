@@ -200,11 +200,27 @@ export { toggleDevOverlay, isDevOverlayVisible } from "./modules/DevOverlay.js";
 export { openEasyNetplayModalImpl as openEasyNetplayModal };
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const APP_NAME = "RetroOasis";
-const LOGO_ASSET_PATH = "assets/retrooasis-logo.svg?v=shibuya-punk-20260615";
 const resolveAssetUrl = (path: string): string => {
   const base = APP_BASE_URL === "/" ? "" : APP_BASE_URL;
   return `${base}${path}`;
 };
+const LOGO_ASSET_PREMIUM = "assets/retrooasis-logo-premium.svg?v=premium-20260713";
+const LOGO_ASSET_ARCADE = "assets/retrooasis-logo-arcade.svg?v=arcade-20260713";
+const LOGO_ASSET_PATH = LOGO_ASSET_PREMIUM;
+
+function logoAssetForTheme(theme: "premium" | "arcade" | string = "premium"): string {
+  return theme === "arcade" ? LOGO_ASSET_ARCADE : LOGO_ASSET_PREMIUM;
+}
+
+/** Swap every branded logo image to match the active theme. */
+export function applyBrandLogoTheme(theme: "premium" | "arcade" | string): void {
+  const src = resolveAssetUrl(logoAssetForTheme(theme));
+  document.querySelectorAll<HTMLImageElement>(
+    "img.brand-logo, img.welcome-hero__logo, img.loading-brand__logo",
+  ).forEach((img) => {
+    if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+  });
+}
 
 // ── Settings opener callback (set once from initUI, used by showError action buttons) ──
 let _openSettingsFn: ((tab?: string) => void) | null = null;
@@ -239,16 +255,12 @@ function updateDebugConsoleLog(emulator: PSPEmulator): void {
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 
 const _LOGO_FALLBACK_SVG = `<svg class="brand-logo" width="44" height="44" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="${APP_NAME}" role="img">
-  <path d="M10 23L24 9L48 14L71 7L88 24L80 47L88 72L66 87L42 82L19 89L7 68L14 47L10 23Z" fill="#050308"/>
-  <path d="M14 24L26 13L48 18L70 12L83 26L76 47L83 69L64 81L42 76L22 82L12 66L19 47L14 24Z" fill="#ff2e97"/>
-  <path d="M19 28L30 20L49 24L68 18L76 29L71 47L77 65L62 73L43 69L27 74L19 63L24 47L19 28Z" fill="#080411" stroke="#050308" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M13 58L83 33" stroke="#f5ff4d" stroke-width="5"/>
-  <path d="M23 66V29H49C57 29 62 33.7 62 40.8C62 46.1 59.1 50 53.8 51.7L66 66H49.8L40.2 53.7H37.3V66H23Z" fill="#fff7ff" stroke="#050308" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M37.3 43.9H47.2C50.1 43.9 51.8 42.7 51.8 40.5C51.8 38.2 50.1 37 47.2 37H37.3V43.9Z" fill="#080411"/>
-  <path d="M66 26C78.2 26 86 34.6 86 47.5C86 60.4 78.2 69 66 69C54 69 46 60.4 46 47.5C46 34.6 54 26 66 26Z" fill="#050308"/>
-  <path d="M66 35C72.3 35 76.2 39.8 76.2 47.5C76.2 55.2 72.3 60 66 60C59.8 60 55.8 55.2 55.8 47.5C55.8 39.8 59.8 35 66 35Z" fill="#f5ff4d"/>
-  <path d="M55 48H78M57 55H74M59 40H76" stroke="#050308" stroke-width="3"/>
-  <path d="M30 15L34 5L38 15L47 18L38 21L34 31L30 21L21 18L30 15Z" fill="#f5ff4d" stroke="#050308" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="48" cy="48" r="40" fill="#0b0714"/>
+  <circle cx="48" cy="48" r="39" stroke="#ff2e97" stroke-opacity="0.35" stroke-width="1.5"/>
+  <path d="M26 68V30H48.5C56.4 30 61.2 34.4 61.2 41.2C61.2 46.2 58.4 49.8 53.4 51.4L64.8 68H51.2L42.6 55.8H38.8V68H26Z" fill="#f7f2ff"/>
+  <path d="M38.8 44.6H47.8C50.5 44.6 52.1 43.4 52.1 41.2C52.1 39 50.5 37.8 47.8 37.8H38.8V44.6Z" fill="#12091c"/>
+  <circle cx="66" cy="48" r="15.5" fill="#12091c"/>
+  <circle cx="66" cy="48" r="10.5" fill="#ff6bb5"/>
 </svg>`;
 
 export function buildDOM(app: HTMLElement): void {

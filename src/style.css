@@ -392,12 +392,19 @@ html[data-network="offline"] .app-header::after {
 
 .brand-long {
   font-family: var(--font-display);
-  font-weight: 900;
+  font-weight: 800;
   font-size: clamp(1.35rem, 1.05rem + 1vw, 1.7rem);
-  letter-spacing: 0;
-  color: #fff;
+  letter-spacing: 0.01em;
+  color: var(--c-text);
+  text-transform: none;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--c-accent) 28%, transparent);
+}
+
+:root[data-theme="arcade"] .brand-long {
+  font-weight: 900;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  text-shadow: 0 0 15px var(--c-accent-glow);
+  text-shadow: var(--rgb-split), 0 0 15px var(--c-accent-glow);
 }
 
 .brand-logo {
@@ -405,9 +412,16 @@ html[data-network="offline"] .app-header::after {
   width: clamp(40px, 4vw, 44px);
   height: clamp(40px, 4vw, 44px);
   object-fit: contain;
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--c-accent) 22%, transparent));
   transition: transform 0.28s var(--spring), filter 0.28s ease;
 }
 .brand-logo:hover { transform: translateY(-1px) scale(1.045); }
+
+:root[data-theme="arcade"] .brand-logo {
+  filter:
+    drop-shadow(0 10px 22px rgba(0,0,0,0.46))
+    drop-shadow(0 2px 10px rgba(255,46,151,0.28));
+}
 
 .perf-chip {
   min-height: clamp(28px, 3vw, 30px);
@@ -8946,21 +8960,25 @@ body {
 .brand-long,
 .library-title {
   font-family: var(--font-display);
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
   text-shadow: none;
 }
 
 .brand-long {
-  font-weight: 760;
-  color: rgba(249,244,226,0.94);
+  font-weight: 800;
+  color: var(--c-text);
 }
 
 .brand-logo {
   width: 42px;
   height: 42px;
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--c-accent) 22%, transparent));
+}
+
+:root[data-theme="arcade"] .brand-logo {
   filter:
     drop-shadow(0 10px 22px rgba(0,0,0,0.46))
-    drop-shadow(0 2px 10px rgba(231,201,121,0.22));
+    drop-shadow(0 2px 10px rgba(255,46,151,0.28));
 }
 
 #landing {
@@ -10325,7 +10343,11 @@ textarea::placeholder {
 }
 
 .brand-long {
-  text-shadow: 0 0 15px var(--c-accent-glow), 0 0 30px rgba(255, 46, 151, 0.15) !important;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--c-accent) 28%, transparent);
+}
+
+:root[data-theme="arcade"] .brand-long {
+  text-shadow: var(--rgb-split), 0 0 15px var(--c-accent-glow) !important;
 }
 
 body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__meta {
@@ -12076,11 +12098,13 @@ body::before {
   text-transform: uppercase;
 }
 
-.settings-sidebar__item::after,
-.enp-tab::after,
-.enp-filter-btn::after,
-.profile-chip-menu__item::after,
-.game-card__menu-item::after {
+:root[data-theme="arcade"] :is(
+  .settings-sidebar__item::after,
+  .enp-tab::after,
+  .enp-filter-btn::after,
+  .profile-chip-menu__item::after,
+  .game-card__menu-item::after
+) {
   content: "";
   position: absolute;
   inset: 5px auto 5px 8px;
@@ -12091,16 +12115,18 @@ body::before {
   transition: opacity var(--transition-fast);
 }
 
-.settings-sidebar__item:hover,
-.settings-sidebar__item.settings-tab--active,
-.enp-tab:hover,
-.enp-tab--active,
-.enp-filter-btn:hover,
-.profile-chip-menu__item:hover,
-.profile-chip-menu__item--active,
-.game-card__menu-item:hover,
-.game-card__menu-item:focus-visible,
-.settings-jumpbar__btn:hover {
+:root[data-theme="arcade"] :is(
+  .settings-sidebar__item:hover,
+  .settings-sidebar__item.settings-tab--active,
+  .enp-tab:hover,
+  .enp-tab--active,
+  .enp-filter-btn:hover,
+  .profile-chip-menu__item:hover,
+  .profile-chip-menu__item--active,
+  .game-card__menu-item:hover,
+  .game-card__menu-item:focus-visible,
+  .settings-jumpbar__btn:hover
+) {
   color: #fff !important;
   border-color: var(--c-ink) !important;
   background:
@@ -12111,25 +12137,34 @@ body::before {
   transform: translate(-2px, -2px) skewX(-2deg) !important;
 }
 
-.settings-sidebar__item.settings-tab--active,
-.enp-tab--active,
-.profile-chip-menu__item--active {
+:root[data-theme="arcade"] :is(
+  .settings-sidebar__item.settings-tab--active,
+  .enp-tab--active,
+  .profile-chip-menu__item--active
+) {
   animation: menu-active-jolt 0.28s steps(2, end);
 }
 
-.settings-sidebar__item:hover::after,
-.settings-sidebar__item.settings-tab--active::after,
-.enp-tab:hover::after,
-.enp-tab--active::after,
-.enp-filter-btn:hover::after,
-.profile-chip-menu__item:hover::after,
-.profile-chip-menu__item--active::after,
-.game-card__menu-item:hover::after,
-.game-card__menu-item:focus-visible::after {
+:root[data-theme="arcade"] :is(
+  .settings-sidebar__item:hover::after,
+  .settings-sidebar__item.settings-tab--active::after,
+  .enp-tab:hover::after,
+  .enp-tab--active::after,
+  .enp-filter-btn:hover::after,
+  .profile-chip-menu__item:hover::after,
+  .profile-chip-menu__item--active::after,
+  .game-card__menu-item:hover::after,
+  .game-card__menu-item:focus-visible::after
+) {
   opacity: 1;
 }
 
 .settings-sidebar__icon {
+  color: var(--c-text-dim);
+  filter: none;
+}
+
+:root[data-theme="arcade"] .settings-sidebar__icon {
   color: var(--c-gold) !important;
   filter: drop-shadow(2px 2px 0 var(--c-ink));
 }
@@ -12138,17 +12173,32 @@ body::before {
   position: relative;
   z-index: 1;
   padding-left: 3px;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+:root[data-theme="arcade"] .settings-sidebar__label {
   font-family: var(--font-display);
   font-size: 0.82rem;
   letter-spacing: 0.06em;
 }
 
 .settings-body {
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface) 94%, transparent);
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+}
+
+:root[data-theme="arcade"] .settings-body {
   border: 3px solid var(--c-ink) !important;
   background:
     repeating-linear-gradient(116deg, rgba(0, 240, 255, 0.08) 0 2px, transparent 2px 18px),
     linear-gradient(180deg, rgba(8, 4, 16, 0.92), rgba(5, 3, 13, 0.96)) !important;
   box-shadow: 8px 8px 0 var(--c-ink) !important;
+  border-radius: 0;
 }
 
 .settings-panels {
@@ -13375,6 +13425,9 @@ body::before {
   padding: 10px clamp(16px, 2.4vw, 28px) !important;
   align-items: center;
   gap: 14px !important;
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-quickbar {
   background:
     linear-gradient(90deg, rgba(255, 46, 151, 0.20), rgba(5, 3, 13, 0.94) 46%, rgba(0, 240, 255, 0.12)),
     #080411 !important;
@@ -13452,7 +13505,7 @@ body::before {
   white-space: nowrap;
 }
 
-#settings-panel .settings-body {
+:root[data-theme="arcade"] #settings-panel .settings-body {
   background:
     linear-gradient(180deg, rgba(10, 6, 18, 0.98), rgba(5, 3, 13, 0.98)) !important;
 }
@@ -13625,6 +13678,9 @@ body::before {
 
   #settings-panel .settings-sidebar {
     max-height: 58px;
+  }
+
+  :root[data-theme="arcade"] #settings-panel .settings-sidebar {
     border-width: 2px !important;
     box-shadow: 0 3px 0 var(--c-ink) !important;
   }
@@ -13646,7 +13702,7 @@ body::before {
     height: 1rem;
   }
 
-  #settings-panel .settings-body {
+  :root[data-theme="arcade"] #settings-panel .settings-body {
     border-width: 2px !important;
   }
 
@@ -13748,15 +13804,15 @@ body::before {
   backdrop-filter: none !important;
 }
 
-#settings-panel .settings-quickbar {
+:root[data-theme="arcade"] #settings-panel .settings-quickbar {
   background: rgba(11, 8, 20, 0.92) !important;
 }
 
-#settings-panel .settings-body {
+:root[data-theme="arcade"] #settings-panel .settings-body {
   background: transparent !important;
 }
 
-#settings-panel .settings-section {
+:root[data-theme="arcade"] #settings-panel .settings-section {
   background: rgba(18, 14, 26, 0.96) !important;
 }
 
@@ -13770,11 +13826,11 @@ body::before {
     background: linear-gradient(180deg, #0d0b14 0%, #08060f 72%) !important;
   }
 
-  #settings-panel .settings-quickbar {
+  :root[data-theme="arcade"] #settings-panel .settings-quickbar {
     background: rgba(11, 8, 20, 0.94) !important;
   }
 
-  #settings-panel .settings-body {
+  :root[data-theme="arcade"] #settings-panel .settings-body {
     background: transparent !important;
   }
 }
@@ -13972,8 +14028,9 @@ body::before {
   }
 }
 
-/* Type harmony pass: stamped punk ink without the heavy menu halo. */
-.brand-long {
+/* Type harmony pass: stamped punk ink without the heavy menu halo.
+   Arcade only — Premium keeps the quiet sentence-case brand above. */
+:root[data-theme="arcade"] .brand-long {
   color: #fff7ff !important;
   font-family: var(--font-display) !important;
   font-size: clamp(1.08rem, 0.92rem + 0.7vw, 1.42rem) !important;
@@ -13984,6 +14041,14 @@ body::before {
     1px 1px 0 var(--c-ink),
     -1px 0 0 rgba(0, 240, 255, 0.32),
     1px 0 0 rgba(255, 46, 151, 0.26) !important;
+}
+
+:root:not([data-theme="arcade"]) .brand-long {
+  color: var(--c-text);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 800;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--c-accent) 28%, transparent);
 }
 
 .app-header .btn,
@@ -13999,25 +14064,18 @@ body::before {
   box-shadow: inset 0 -3px 0 var(--c-ink) !important;
 }
 
-#settings-panel .modal-title,
-#settings-panel .settings-panel-header,
-#settings-panel .settings-section__title,
-#settings-panel .settings-section-title,
-.enp-title {
+:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, #settings-panel .settings-section__title, #settings-panel .settings-section-title, .enp-title) {
   color: #fff7ff !important;
   font-family: var(--font-sans) !important;
   font-weight: 900 !important;
   letter-spacing: 0.045em !important;
-}
-
-:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, #settings-panel .settings-section__title, #settings-panel .settings-section-title, .enp-title) {
   text-shadow:
     1px 1px 0 var(--c-ink),
     -1px 0 0 rgba(0, 240, 255, 0.30),
     1px 0 0 rgba(255, 46, 151, 0.24) !important;
 }
 
-#settings-panel .modal-title::after {
+:root[data-theme="arcade"] #settings-panel .modal-title::after {
   color: var(--c-gold) !important;
   font-family: var(--font-mono) !important;
   font-size: 0.58em !important;
@@ -14039,9 +14097,12 @@ body::before {
 #settings-panel .settings-sidebar__item,
 #settings-panel .settings-active-tab-label {
   font-family: var(--font-sans) !important;
+  text-shadow: none !important;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .settings-sidebar__item, #settings-panel .settings-active-tab-label) {
   font-weight: 900 !important;
   letter-spacing: 0.04em !important;
-  text-shadow: none !important;
 }
 
 /* Old layer cleanup: print-shadow scale for Arcade only.
@@ -14148,13 +14209,19 @@ body::before {
 
 #settings-panel .settings-sidebar__item {
   min-height: 40px !important;
+  background: color-mix(in srgb, var(--c-surface2) 70%, transparent);
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-sidebar__item {
   background:
     linear-gradient(95deg, rgba(255, 46, 151, 0.10), rgba(0, 240, 255, 0.055)),
     rgba(8, 4, 16, 0.94) !important;
 }
 
-#settings-panel .settings-sidebar__item.settings-tab--active,
-#settings-panel .settings-sidebar__item:hover {
+:root[data-theme="arcade"] :is(
+  #settings-panel .settings-sidebar__item.settings-tab--active,
+  #settings-panel .settings-sidebar__item:hover
+) {
   background:
     linear-gradient(96deg, rgba(255, 46, 151, 0.64), rgba(0, 240, 255, 0.16)),
     #10061b !important;
@@ -14516,4 +14583,163 @@ body::before {
   :root:not([data-theme="arcade"]) .kbd--inline {
     display: none;
   }
+}
+
+/* ── Pass 3: toolbars, menus, settings nav, brand ── */
+:root:not([data-theme="arcade"]) .library-toolbar {
+  border-bottom: 1px solid var(--c-border);
+  background: transparent;
+  box-shadow: none;
+  gap: clamp(12px, 2vw, 20px);
+  padding-block: clamp(14px, 2vw, 18px);
+}
+
+:root:not([data-theme="arcade"]) .library-search {
+  border-width: 1px;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .library-search:focus {
+  box-shadow: var(--focus-ring);
+}
+
+:root:not([data-theme="arcade"]) .library-title {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 800;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-sidebar {
+  background: color-mix(in srgb, var(--c-surface) 92%, transparent);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-sidebar__item {
+  border-radius: var(--radius-md);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  text-transform: none;
+  min-height: 40px;
+  transform: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-sidebar__item:hover {
+  background: color-mix(in srgb, var(--c-surface3) 80%, transparent);
+  color: var(--c-text);
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-sidebar__item.settings-tab--active {
+  background: color-mix(in srgb, var(--c-accent) 16%, transparent);
+  color: var(--c-text);
+  border-left: 2px solid var(--c-accent);
+  box-shadow: none;
+  transform: none;
+  animation: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-sidebar__item.settings-tab--active .settings-sidebar__icon {
+  color: var(--c-accent-light);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-body {
+  background: color-mix(in srgb, var(--c-surface) 94%, transparent);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-quickbar {
+  border-bottom: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface) 90%, transparent);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-search-input {
+  border-width: 1px;
+  border-radius: var(--radius-md);
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.settings-quickbar__summary, .settings-active-tab-label, .settings-search-status) {
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 600;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-jumpbar__btn {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
+  box-shadow: none;
+  text-transform: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-jumpbar__btn:hover {
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  color: var(--c-text);
+  transform: none;
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel :is(.modal-title, .settings-panel-header, .settings-section__title, .settings-section-title) {
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) :is(.game-card__menu, .profile-chip-menu) {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 96%, transparent);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+}
+
+:root:not([data-theme="arcade"]) :is(.game-card__menu-item, .profile-chip-menu__item) {
+  border-radius: var(--radius-sm);
+  border: 0;
+  box-shadow: none;
+  clip-path: none;
+  text-transform: none;
+  min-height: 36px;
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) :is(.game-card__menu-item:hover, .game-card__menu-item:focus-visible, .profile-chip-menu__item:hover, .profile-chip-menu__item--active) {
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  color: var(--c-text);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) .btn--highlight {
+  background: color-mix(in srgb, var(--c-success) 82%, var(--c-tier-ok-text));
+  border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+  color: var(--c-tier-ok-text);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--c-success) 18%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .perf-chip--warn {
+  border-color: color-mix(in srgb, var(--c-warn) 28%, transparent);
+  background: color-mix(in srgb, var(--c-warn) 10%, transparent);
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .welcome-hero__logo,
+:root:not([data-theme="arcade"]) .loading-brand__logo {
+  filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--c-accent) 22%, transparent));
 }
