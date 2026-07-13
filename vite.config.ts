@@ -217,9 +217,6 @@ export default defineConfig({
           if (id.includes("/src/compatibility.")) {
             return "compatibility";
           }
-          if (id.includes("/src/performancePrimitives.")) {
-            return "perf-primitives";
-          }
           if (id.includes("/src/performanceMonitors.")) {
             return "perf-monitors";
           }

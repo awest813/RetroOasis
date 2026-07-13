@@ -3,14 +3,6 @@
  * Fetches game metadata like genres, ratings, and developers.
  */
 
-export interface IGDBMetadata {
-  summary?: string;
-  rating?: number;
-  genres?: string[];
-  involved_companies?: string[];
-  release_date?: string;
-}
-
 interface IGDBTokenResponse {
   access_token: string;
 }

@@ -24,9 +24,8 @@ const FILES = ["src/style.css"];
 
 // Ratchet budgets — lower these as phases land. Never raise them.
 const BUDGET = {
-  important: 927, // Phase 3 target: < 20 (each justified)
-  colors: 806, //    Phase 3 target: 0 (tokens only) — ratcheted after profiles Premium pass
-  //                 (removed a hover rgba fallback on profile menu items).
+  important: 924, // Phase 3 target: < 20 (each justified)
+  colors: 801, //    Phase 3 target: 0 (tokens only) — ratcheted after polish+dead-code merge
 };
 // End-goal targets, for the report only.
 const TARGET = { important: 20, colors: 0 };

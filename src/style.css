@@ -1438,11 +1438,6 @@ body.is-playing #landing.hidden {
   flex: 0 0 auto;
 }
 
-.pwa-install__glyph {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
 
 .pwa-install-btn {
   gap: 8px;
@@ -2535,19 +2530,6 @@ body.is-playing .rotate-hint {
   gap: 16px;
 }
 
-/* ── Cloud Sync Button Animation ── */
-
-@keyframes spin-sync {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.btn-sync-active {
-  animation: spin-sync 1.5s linear infinite;
-  pointer-events: none;
-  opacity: 0.7;
-}
-
 /* ── Premium Loading Overlay ── */
 
 #loading-overlay {
@@ -2766,10 +2748,6 @@ body.is-playing .rotate-hint {
 
 html.launch-in-progress .game-card,
 html.launch-in-progress .library-hero__actions .btn--hero,
-html.launch-in-progress .highlights-panel__play {
-  pointer-events: none;
-  opacity: 0.72;
-}
 
 html.launch-in-progress .game-card::after {
   content: "";
@@ -2933,29 +2911,7 @@ html.launch-in-progress .game-card::after {
   content: "Stream";
 }
 
-/* ── Cloud Library Sync Progress ── */
 
-.sync-status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  background: var(--c-surface3);
-  border-radius: 12px;
-  margin-top: 16px;
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.sync-status-indicator--scanning::before {
-  content: "";
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--c-accent);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: loading-spin 0.8s linear infinite;
-}
 
 /* ── Library Management Polish ── */
 
@@ -3780,17 +3736,10 @@ html.launch-in-progress .game-card::after {
     letter-spacing: 0.02em;
   }
 
-  .settings-row,
   .radio-row,
   .toggle-row {
     padding: 16px;
     border-radius: 8px;
-  }
-
-  .settings-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
   }
 
   .radio-row {
@@ -3804,8 +3753,7 @@ html.launch-in-progress .game-card::after {
   }
 
   .radio-row__text,
-  .toggle-row__text,
-  .settings-label {
+  .toggle-row__text {
     min-width: 0;
   }
 
@@ -3877,47 +3825,6 @@ html.launch-in-progress .game-card::after {
   }
 }
 
-/* Individual Setting Items */
-.settings-section-title {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 1.8rem;
-  margin-bottom: 32px;
-  color: #fff;
-  border-bottom: 4px solid var(--c-accent);
-  display: inline-block;
-  padding-bottom: 8px;
-}
-
-.settings-row {
-  background: var(--c-surface);
-  border: 2px solid transparent;
-  border-radius: 20px;
-  padding: 24px 32px;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: all 0.2s ease;
-}
-
-.settings-row:hover {
-  background: var(--c-surface2);
-  border-color: var(--c-border-lt);
-}
-
-.settings-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.settings-label-text {
-  font-weight: 800;
-  font-size: 1.1rem;
-  color: #fff;
-}
-
 .settings-help {
   font-size: 0.9rem;
   color: var(--c-text-dim);
@@ -3955,15 +3862,6 @@ html.launch-in-progress .game-card::after {
   margin-bottom: 8px;
 }
 
-.settings-core-heading__icon {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  flex: 0 0 auto;
-  border-radius: 12px;
-  border: 1px solid var(--c-border-lt);
-  background: rgba(255, 255, 255, 0.04);
-}
 
 .settings-core-heading__text {
   flex: 1 1 auto;
@@ -4267,13 +4165,7 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
   box-shadow: 0 5px 15px var(--c-accent-glow);
 }
 
-/* Room Cards & Grid */
-.enp-room-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
-  padding: 32px;
-}
+/* Room Cards */
 
 .enp-room-card {
   background: var(--c-surface);
@@ -4293,11 +4185,6 @@ label.radio-row:has(> input[type="radio"]:disabled):hover {
   transform: translateY(-8px);
 }
 
-.enp-room-card__title {
-  font-weight: 900;
-  font-size: 1.2rem;
-  color: #fff;
-}
 
 .enp-room-card__game {
   font-size: 0.95rem;
@@ -4628,47 +4515,6 @@ body.using-gamepad .game-card:focus {
   font-size: 0.9rem;
   line-height: 1.5;
 }
-
-/* Connection Quality Meter (Signal Bars) */
-.connection-meter {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 20px;
-}
-
-.connection-meter__bar {
-  width: 4px;
-  border-radius: 2px;
-  background: var(--c-border);
-  transition: background 0.3s ease;
-}
-
-.connection-meter__bar:nth-child(1) { height: 6px; }
-.connection-meter__bar:nth-child(2) { height: 10px; }
-.connection-meter__bar:nth-child(3) { height: 14px; }
-.connection-meter__bar:nth-child(4) { height: 18px; }
-.connection-meter__bar:nth-child(5) { height: 20px; }
-
-.connection-meter--excellent .connection-meter__bar { background: var(--c-doctor-pass); }
-.connection-meter--good .connection-meter__bar:nth-child(-n+4) { background: var(--c-doctor-pass); }
-.connection-meter--fair .connection-meter__bar:nth-child(-n+3) { background: var(--c-doctor-warn); }
-.connection-meter--poor .connection-meter__bar:nth-child(-n+2) { background: var(--c-doctor-fail); }
-.connection-meter--none .connection-meter__bar { background: var(--c-border); }
-
-/* Ping Indicator */
-.ping-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.ping-indicator--good { color: var(--c-doctor-pass); }
-.ping-indicator--warn { color: var(--c-doctor-warn); }
-.ping-indicator--bad { color: var(--c-doctor-fail); }
 
 /* ── Premium Launch Panel ── */
 
@@ -5805,9 +5651,6 @@ body.using-gamepad .game-card:focus {
   margin-bottom: 32px;
 }
 
-.library-row--entering {
-  animation: fade-in-up 0.4s ease-out;
-}
 
 .library-row__header {
   display: flex;
@@ -6397,11 +6240,6 @@ body.using-gamepad .game-card:focus {
   line-height: 1.2;
 }
 
-.api-key-row__title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--c-text);
-}
 
 .api-key-row__desc {
   margin-bottom: 12px;
@@ -6703,13 +6541,6 @@ body.using-gamepad .game-card:focus {
   border-radius: var(--radius);
 }
 
-.enp-setup-strip__copy {
-  flex: 1 1 260px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
 .enp-setup-strip__title {
   font-weight: 700;
@@ -6718,12 +6549,6 @@ body.using-gamepad .game-card:focus {
   margin: 0;
 }
 
-.enp-setup-strip__text {
-  color: var(--c-text-dim);
-  font-size: 0.9rem;
-  line-height: 1.45;
-  margin: 4px 0 0;
-}
 
 .enp-setup-strip__steps {
   margin: 0;
@@ -8576,22 +8401,12 @@ body.using-gamepad .game-card:focus {
     opacity: 1 !important;
   }
 
-  .sync-status-indicator--scanning::before {
-    animation: none !important;
-    opacity: 0.85;
-    border-color: var(--c-accent);
-    border-top-color: rgba(255, 255, 255, 0.35);
-  }
 
   .cloud-provider-card:hover,
   .cloud-provider-card.active {
     transform: none !important;
   }
 
-  .btn-sync-active {
-    animation: none !important;
-    opacity: 1;
-  }
 
   .settings-sidebar__item:hover,
   .settings-sidebar__item.settings-tab--active {
@@ -8676,9 +8491,6 @@ body.using-gamepad .game-card:focus {
     padding: 16px;
   }
 
-  .launch-panel__ip {
-    font-size: 0.8rem;
-  }
 
   .doctor-item {
     padding: 12px 14px;
@@ -10211,7 +10023,6 @@ textarea::placeholder {
 .game-card__name,
 .game-card__scan-title,
 .fps-val,
-.settings-section-title,
 .settings-section__title,
 .enp-title,
 .enp-invite-code-large,
@@ -12392,19 +12203,19 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 }
 
 /* Arcade: gold stamped section heads. Premium keeps quiet sentence-case titles. */
-:root[data-theme="arcade"] :is(.settings-section__title, .settings-section-title, .scan-review-group__head, .scan-review-skipped__head) {
+:root[data-theme="arcade"] :is(.settings-section__title, .scan-review-group__head, .scan-review-skipped__head) {
   color: var(--c-gold) !important;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-shadow: 2px 2px 0 var(--c-ink);
 }
 
-:root[data-theme="arcade"] :is(.settings-row, .scan-review-row) {
+.scan-review-row {
   border-radius: 0 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-:root[data-theme="arcade"] :is(.settings-row:hover, .scan-review-row:hover) {
+.scan-review-row:hover {
   background:
     linear-gradient(90deg, rgba(255, 46, 151, 0.13), transparent),
     rgba(255, 255, 255, 0.025) !important;
@@ -13762,8 +13573,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
     rgba(8, 5, 18, 0.98) !important;
 }
 
-#settings-panel .settings-section__title,
-#settings-panel .settings-section-title {
+#settings-panel .settings-section__title {
   margin-bottom: 10px;
   color: var(--c-text);
   line-height: 1.05;
@@ -13780,11 +13590,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   line-height: 1.48;
 }
 
-:root[data-theme="arcade"] :is(#settings-panel .settings-section__desc, #settings-panel .settings-help) {
-  color: rgba(226, 217, 255, 0.82) !important;
-}
-
-#settings-panel .settings-row,
 #settings-panel .toggle-row,
 #settings-panel .radio-row {
   margin-block: 8px;
@@ -13800,7 +13605,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-#settings-panel .settings-row:hover,
 #settings-panel .toggle-row:hover,
 #settings-panel .radio-row:hover {
   border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
@@ -13811,10 +13615,8 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   border-color: rgba(245, 255, 77, 0.28) !important;
 }
 
-#settings-panel .settings-label,
-#settings-panel .radio-row__label,
-#settings-panel .toggle-row__label {
-  color: var(--c-text);
+#settings-panel .radio-row__label {
+  color: #fff;
 }
 
 #settings-panel .settings-input,
@@ -13983,8 +13785,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
     box-shadow: 4px 4px 0 var(--c-ink) !important;
   }
 
-  #settings-panel .settings-section__title,
-  #settings-panel .settings-section-title {
+  #settings-panel .settings-section__title {
     font-size: 1rem;
   }
 
@@ -13993,7 +13794,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
     font-size: 0.86rem;
   }
 
-  #settings-panel .settings-row,
   #settings-panel .toggle-row,
   #settings-panel .radio-row {
     padding: 12px !important;
@@ -14210,7 +14010,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 
 #settings-panel .settings-panel-header,
 #settings-panel .settings-section__title,
-#settings-panel .settings-section-title,
 .enp-title,
 .enp-header__subtitle,
 .enp-tab,
@@ -14219,7 +14018,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   overflow-wrap: anywhere;
 }
 
-#settings-panel .settings-row,
 #settings-panel .toggle-row,
 #settings-panel .radio-row,
 #settings-panel .settings-jumpbar,
@@ -14321,11 +14119,17 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: inset 0 -3px 0 var(--c-ink) !important;
 }
 
-:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, #settings-panel .settings-section__title, #settings-panel .settings-section-title, .enp-title) {
+#settings-panel .modal-title,
+#settings-panel .settings-panel-header,
+#settings-panel .settings-section__title,
+.enp-title {
   color: #fff7ff !important;
   font-family: var(--font-sans) !important;
   font-weight: 900 !important;
   letter-spacing: 0.045em !important;
+}
+
+:root[data-theme="arcade"] :is(#settings-panel .modal-title, #settings-panel .settings-panel-header, #settings-panel .settings-section__title, #settings-panel .enp-title) {
   text-shadow:
     1px 1px 0 var(--c-ink),
     -1px 0 0 rgba(0, 240, 255, 0.30),
@@ -14603,7 +14407,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 }
 
 #settings-panel .settings-section,
-#settings-panel .settings-row,
 #settings-panel .toggle-row,
 #settings-panel .radio-row,
 .enp-panel,
@@ -14674,9 +14477,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 }
 
 .enp-radio-card__label,
-.settings-label,
-.radio-row__label,
-.toggle-row__label {
+.radio-row__label {
   font-size: clamp(0.96rem, 0.32vw + 0.88rem, 1.08rem) !important;
 }
 
@@ -15302,7 +15103,6 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 :root:not([data-theme="arcade"]) :is(
   .enp-header__subtitle,
   .enp-help,
-  .enp-setup-strip__text,
   .enp-setup-strip__steps,
   .enp-radio-card__desc,
   .enp-no-game-sub,

@@ -162,7 +162,7 @@ import {
 } from "./ui/gameImportHelpers.js";
 export { isTransientImportError, withRetry };
 import { openSettingsPanel, closeSettingsPanel, type SettingsTab } from "./ui/screens/settingsPanel.js";
-export { openSettingsPanel, closeSettingsPanel };
+export { openSettingsPanel };
 import {
   showLoadingOverlay as showLoadingOverlayImpl,
   hideLoadingOverlay as hideLoadingOverlayImpl,
@@ -687,8 +687,6 @@ export interface UIOptions {
   canInstallPWA?:     () => boolean;
   onInstallPWA?:      () => Promise<boolean>;
 }
-
-export const RESTART_REQUIRED_EVENT = LEGACY_EVENTS.restartRequired;
 
 interface FileSystemEntryLike {
   name: string;
@@ -1572,12 +1570,6 @@ export function initUI(opts: UIOptions): void {
 }
 
 // ── Cinematic Overhaul Helpers ────────────────────────────────────────────────
-
-/** Force the next `renderLibrary()` call to rebuild the card grid. */
-export function invalidateLibraryRender(): void {
-  setLibraryRenderSignature("");
-  _uiDirty.mark(UIDirtyFlags.LIBRARY);
-}
 
 let _librarySearchDebounce: ReturnType<typeof setTimeout> | null = null;
 const _uiDirty = new UIDirtyTracker();

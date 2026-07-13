@@ -6,7 +6,6 @@
  */
 
 import type { RAUserSummary } from "./types/metadata.js";
-export { parseRAKey } from "./raCredentials.js";
 
 export interface Achievement {
   id: number;

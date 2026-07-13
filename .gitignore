@@ -29,3 +29,6 @@ test_*.cjs
 test_*.mjs
 test_*.html
 old_*.ts
+
+# Local scratch / agent audit artifacts
+scratch/
