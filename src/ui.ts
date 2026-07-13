@@ -230,6 +230,12 @@ export function applyThemeChromeCopy(theme: "premium" | "arcade" | string): void
   if (eyebrow) eyebrow.textContent = arcade ? "シブヤ boot" : "Getting started";
   const title = document.querySelector(".welcome-hero__title");
   if (title) title.textContent = arcade ? "Hit start in neon." : "Your library, ready to play.";
+  const tagline = document.querySelector(".welcome-hero__tagline");
+  if (tagline) {
+    tagline.textContent = arcade
+      ? `${APP_NAME} keeps imports fast, saves local, and your next arcade run one tap away.`
+      : `${APP_NAME} keeps imports fast, saves local, and your next session one tap away.`;
+  }
   const era = document.querySelector<HTMLElement>(".footer-era-mark");
   if (era) {
     era.hidden = !arcade;
@@ -438,7 +444,7 @@ export function buildDOM(app: HTMLElement): void {
             <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="welcome-hero__logo" width="80" height="80" decoding="async" draggable="false" aria-hidden="true" />
             <p class="welcome-hero__eyebrow">Getting started</p>
             <h2 class="welcome-hero__title" id="onboarding-title">Your library, ready to play.</h2>
-            <p class="welcome-hero__tagline">${APP_NAME} keeps imports fast, saves local, and your next arcade run one tap away.</p>
+            <p class="welcome-hero__tagline">${APP_NAME} keeps imports fast, saves local, and your next session one tap away.</p>
           </div>
 
           <div id="homepage-platforms" class="homepage-platforms-host"></div>

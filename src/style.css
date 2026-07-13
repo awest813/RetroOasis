@@ -9305,15 +9305,21 @@ body {
 }
 
 .game-card__fallback-name {
+  display: -webkit-box;
+}
+
+:root[data-theme="arcade"] .game-card__fallback-name {
   display: none;
 }
 
-.game-card__fallback-img,
-.sys-icon-img,
-.hero-sys-icon,
-.row-sys-icon,
-.system-pick-btn__icon,
-.settings-core-heading__icon {
+:root[data-theme="arcade"] :is(
+  .game-card__fallback-img,
+  .sys-icon-img,
+  .hero-sys-icon,
+  .row-sys-icon,
+  .system-pick-btn__icon,
+  .settings-core-heading__icon
+) {
   display: none !important;
 }
 
@@ -15200,6 +15206,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 }
 
 :root:not([data-theme="arcade"]) #landing::before {
+  content: none;
   animation: none;
 }
 
@@ -15678,3 +15685,83 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   line-height: 1.15;
   letter-spacing: 0.02em;
 }
+
+/* ── Pass 7 (final): restore Premium icons + quiet remaining shout chrome ── */
+:root:not([data-theme="arcade"]) .library-overview__label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .library-count {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .fps-label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+:root:not([data-theme="arcade"]) :is(.conflict-card__badge, .sys-badge--newest) {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .cover-art-panel__label {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+:root:not([data-theme="arcade"]) .game-card__meta .sys-badge {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .library-title::after {
+  width: 28px;
+  height: 2px;
+  margin-top: 8px;
+  background: color-mix(in srgb, var(--c-accent) 55%, transparent);
+  opacity: 0.7;
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  grid-template-columns: none;
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone .drop-zone__icon {
+  grid-row: auto;
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone .drop-zone__actions,
+:root:not([data-theme="arcade"]) #library-section > .drop-zone .drop-zone__formats {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+:root:not([data-theme="arcade"]) .details-section-title,
+:root:not([data-theme="arcade"]) .scan-review-row__badge {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .game-card__fallback-name {
+  font-family: var(--font-sans);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  text-shadow: none;
+}
+
