@@ -10712,7 +10712,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 12px var(--c-accent-dim) !important;
 }
 
-.highlights-section__title {
+:root[data-theme="arcade"] .highlights-section__title {
   font-size: 1.1rem !important;
   letter-spacing: 0.08em !important;
   font-weight: 800 !important;
@@ -11419,7 +11419,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transform: translateY(0) !important;
 }
 
-.netplay-chat-log {
+:root[data-theme="arcade"] .netplay-chat-log {
   height: 160px !important;
   background: var(--c-surface1) !important;
   border: var(--outline-bold) !important;
@@ -11432,7 +11432,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   gap: 4px !important;
 }
 
-.chat-msg {
+:root[data-theme="arcade"] .chat-msg {
   font-family: var(--font-mono, monospace) !important;
   font-size: 13px !important;
   line-height: 1.4 !important;
@@ -11441,26 +11441,26 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   word-break: break-word !important;
 }
 
-.chat-msg--self {
+:root[data-theme="arcade"] .chat-msg--self {
   background: rgba(0, 255, 204, 0.08) !important;
   border-left: 3px solid var(--c-accent) !important;
 }
 
-.chat-msg--system {
+:root[data-theme="arcade"] .chat-msg--system {
   color: var(--c-text-muted) !important;
   font-style: italic !important;
   opacity: 0.8 !important;
 }
 
-.chat-msg__sender {
+:root[data-theme="arcade"] .chat-msg__sender {
   color: var(--c-accent) !important;
 }
 
-.chat-msg--self .chat-msg__sender {
+:root[data-theme="arcade"] .chat-msg--self .chat-msg__sender {
   color: var(--c-accent2, #ff3366) !important;
 }
 
-.netplay-chat-input-wrap {
+:root[data-theme="arcade"] .netplay-chat-input-wrap {
   margin-top: 10px !important;
   background: var(--c-surface1) !important;
   border: var(--outline-bold) !important;
@@ -11472,11 +11472,11 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   transition: box-shadow 0.2s ease, transform 0.2s ease !important;
 }
 
-.netplay-chat-input-wrap--active {
+:root[data-theme="arcade"] .netplay-chat-input-wrap--active {
   box-shadow: 4px 4px 0 var(--c-accent) !important;
 }
 
-.netplay-chat-input {
+:root[data-theme="arcade"] .netplay-chat-input {
   width: 100% !important;
   background: transparent !important;
   border: none !important;
@@ -11487,7 +11487,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   outline: none !important;
 }
 
-.netplay-ping-radar {
+:root[data-theme="arcade"] .netplay-ping-radar {
   position: absolute !important;
   top: 24px !important;
   right: 24px !important;
@@ -11505,7 +11505,7 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   pointer-events: auto !important;
 }
 
-.ping-radar__dot {
+:root[data-theme="arcade"] .ping-radar__dot {
   display: inline-block !important;
   width: 8px !important;
   height: 8px !important;
@@ -11514,12 +11514,12 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
   box-shadow: 0 0 6px currentColor !important;
 }
 
-.ping-radar__val {
+:root[data-theme="arcade"] .ping-radar__val {
   color: var(--c-text) !important;
 }
 
 /* Desync badge styling in HUD */
-.netplay-desync-warning {
+:root[data-theme="arcade"] .netplay-desync-warning {
   margin: 10px 0 !important;
   background: var(--c-danger) !important;
   color: #fff !important;
@@ -11543,14 +11543,14 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 /* ============================================================
    Shibuya Punk UI cohesion override
    ============================================================ */
-body {
+:root[data-theme="arcade"] body {
   background:
     radial-gradient(900px 420px at 72% -10%, rgba(255, 46, 151, 0.18), transparent 58%),
     radial-gradient(680px 360px at 8% 8%, rgba(0, 240, 255, 0.08), transparent 55%),
     linear-gradient(180deg, #0a0614 0%, #05030d 74%) !important;
 }
 
-body::before {
+:root[data-theme="arcade"] body::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -11568,7 +11568,7 @@ body::before {
   z-index: 1;
 }
 
-#landing {
+:root[data-theme="arcade"] #landing {
   background:
     linear-gradient(90deg, rgba(5,3,13,0.9) 0%, rgba(5,3,13,0.58) 42%, rgba(5,3,13,0.9) 100%),
     radial-gradient(circle at 52% 42%, rgba(255,46,151,0.20), transparent 34%),
@@ -13317,41 +13317,66 @@ body::before {
 }
 
 #landing.landing-empty .library-toolbar {
+  width: 100%;
+  min-height: 0;
+  margin: 0 0 18px;
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--c-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root[data-theme="arcade"] #landing.landing-empty .library-toolbar {
   width: min(100%, 860px) !important;
   min-height: 76px;
   margin: clamp(8px, 2.4vh, 22px) 0 clamp(20px, 3vh, 34px) !important;
   padding: 18px 22px 18px 26px !important;
-  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  animation: homepage-marquee-enter 360ms var(--ease-out, ease) both;
-}
-
-:root[data-theme="arcade"] #landing.landing-empty .library-toolbar {
   background:
     linear-gradient(103deg, rgba(255,46,151,0.18) 0 34%, rgba(0,240,255,0.08) 34.4% 72%, rgba(5,3,13,0.92) 72.4%),
     rgba(7,4,16,0.86) !important;
   border: 0;
   border-radius: 0;
   box-shadow: 8px 8px 0 #000, 0 0 28px rgba(255,46,151,0.14) !important;
+  animation: homepage-marquee-enter 360ms var(--ease-out, ease) both;
 }
 
 #landing.landing-empty .library-title {
-  font-size: clamp(1.95rem, 4.2vw, 3.25rem);
-  line-height: 1.08;
+  font-size: clamp(1.45rem, 2.6vw, 1.9rem);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   padding-block: 2px;
 }
 
+:root[data-theme="arcade"] #landing.landing-empty .library-title {
+  font-size: clamp(1.95rem, 4.2vw, 3.25rem);
+  line-height: 1.08;
+}
+
 #landing.landing-empty .library-count {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  overflow: visible;
+  color: var(--c-text-dim);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+:root[data-theme="arcade"] #landing.landing-empty .library-count {
   width: 42px;
   height: 8px;
   min-width: 42px;
   overflow: hidden;
   color: transparent !important;
-  border: 0;
   background: linear-gradient(90deg, var(--c-accent), var(--c-accent-2));
   box-shadow: 0 0 18px var(--c-accent-glow);
+  font-size: 0;
 }
 
 #landing.landing-empty .drop-zone--prominent,
@@ -15561,4 +15586,95 @@ body::before {
 :root:not([data-theme="arcade"]) #tab-panel-account .profile-cloud-sync-row .btn {
   min-height: 36px;
   font-weight: 650;
+}
+
+/* ── Pass 6: Premium quiet shell — body, footer, library, cards, cloud ── */
+:root:not([data-theme="arcade"]) body {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--c-bg) 92%, var(--c-accent)), var(--c-bg) 55%, var(--c-bg));
+}
+
+:root:not([data-theme="arcade"]) body::before {
+  content: none;
+}
+
+:root:not([data-theme="arcade"]) .footer-era-mark {
+  display: none;
+}
+
+:root:not([data-theme="arcade"]) .footer-connectivity {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+:root:not([data-theme="arcade"]) .footer-connectivity__label {
+  text-transform: none;
+}
+
+:root:not([data-theme="arcade"]) .highlights-section__title {
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) .landing-sidebar__header {
+  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  text-transform: none;
+  font-weight: 650;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .game-card__scanline {
+  display: none;
+}
+
+:root:not([data-theme="arcade"]) .game-card__scan-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) .cloud-storage-card__eyebrow {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .welcome-hero__eyebrow {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .welcome-hero__title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) :is(.netplay-chat-log, .netplay-chat-input-wrap, .netplay-ping-radar) {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  background: color-mix(in srgb, var(--c-surface2) 94%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .netplay-desync-warning {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  font-family: var(--font-sans);
+}
+
+:root:not([data-theme="arcade"]) #landing.landing-empty :is(.drop-zone__actions .btn, .onboarding__quick-actions .btn) {
+  line-height: 1.15;
+  letter-spacing: 0.02em;
 }

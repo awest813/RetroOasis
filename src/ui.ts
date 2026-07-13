@@ -220,6 +220,21 @@ export function applyBrandLogoTheme(theme: "premium" | "arcade" | string): void 
   ).forEach((img) => {
     if (img.getAttribute("src") !== src) img.setAttribute("src", src);
   });
+  applyThemeChromeCopy(theme);
+}
+
+/** Swap Arcade-flavored chrome copy for Premium-quiet defaults (and back). */
+export function applyThemeChromeCopy(theme: "premium" | "arcade" | string): void {
+  const arcade = theme === "arcade";
+  const eyebrow = document.querySelector(".welcome-hero__eyebrow");
+  if (eyebrow) eyebrow.textContent = arcade ? "シブヤ boot" : "Getting started";
+  const title = document.querySelector(".welcome-hero__title");
+  if (title) title.textContent = arcade ? "Hit start in neon." : "Your library, ready to play.";
+  const era = document.querySelector<HTMLElement>(".footer-era-mark");
+  if (era) {
+    era.hidden = !arcade;
+    era.textContent = arcade ? "シブヤ接続中" : "";
+  }
 }
 
 // ── Settings opener callback (set once from initUI, used by showError action buttons) ──
@@ -421,8 +436,8 @@ export function buildDOM(app: HTMLElement): void {
         <div class="onboarding" id="onboarding" role="region" aria-labelledby="onboarding-title" aria-hidden="true">
           <div class="welcome-hero">
             <img src="${resolveAssetUrl(LOGO_ASSET_PATH)}" alt="" class="welcome-hero__logo" width="80" height="80" decoding="async" draggable="false" aria-hidden="true" />
-            <p class="welcome-hero__eyebrow">シブヤ boot</p>
-            <h2 class="welcome-hero__title" id="onboarding-title">Hit start in neon.</h2>
+            <p class="welcome-hero__eyebrow">Getting started</p>
+            <h2 class="welcome-hero__title" id="onboarding-title">Your library, ready to play.</h2>
             <p class="welcome-hero__tagline">${APP_NAME} keeps imports fast, saves local, and your next arcade run one tap away.</p>
           </div>
 
@@ -613,7 +628,7 @@ export function buildDOM(app: HTMLElement): void {
       </div>
 
       <div class="footer-right">
-        <span class="footer-era-mark" aria-hidden="true">シブヤ接続中</span>
+        <span class="footer-era-mark" aria-hidden="true" hidden></span>
         <span class="footer-info">${APP_NAME} v1.4.2</span>
         <span class="footer-battery" id="footer-battery" hidden><span class="footer-battery__icon" aria-hidden="true">${ICON_BATTERY_SVG}</span> <span id="footer-battery-pct"></span></span>
       </div>
