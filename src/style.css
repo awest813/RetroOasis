@@ -10477,12 +10477,15 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 
 .landing-details__cover {
   border-radius: var(--radius-lg) !important;
-  border: var(--outline-bold) !important;
-  box-shadow: var(--pop-shadow) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 
-.landing-details__cover:hover {
+:root[data-theme="arcade"] .landing-details__cover {
+  border: var(--outline-bold) !important;
+  box-shadow: var(--pop-shadow) !important;
+}
+
+:root[data-theme="arcade"] .landing-details__cover:hover {
   transform: translate(-3px, -3px) rotate(0.8deg) !important;
   box-shadow: 6px 6px 0 var(--sys-color, var(--c-accent)), 0 0 16px var(--sys-color, var(--c-accent)) !important;
 }
@@ -10507,20 +10510,23 @@ body, p, select, input, button, textarea, .btn, .kbd--inline, .landing-details__
 
 .landing-details__actions .btn--primary {
   width: 100%;
+  border: none !important;
+  transition: all 0.3s var(--ease-premium-out) !important;
+  min-height: 44px !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+:root[data-theme="arcade"] .landing-details__actions .btn--primary {
   background: var(--accent-metallic-gradient) !important;
   color: var(--c-black) !important;
   font-family: var(--font-display) !important;
   font-weight: 900 !important;
   letter-spacing: 0.08em;
-  border: none !important;
   box-shadow: 0 12px 28px var(--c-accent-dim) !important;
-  transition: all 0.3s var(--ease-premium-out) !important;
-  min-height: 44px !important;
-  border-radius: var(--radius-lg) !important;
   text-transform: uppercase;
 }
 
-.landing-details__actions .btn--primary:hover {
+:root[data-theme="arcade"] .landing-details__actions .btn--primary:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 16px 36px var(--c-accent-glow) !important;
   filter: brightness(1.08);
@@ -11683,13 +11689,6 @@ body::before {
   box-shadow: 2px 2px 0 #000 !important;
 }
 
-.settings-modal-box {
-  background:
-    linear-gradient(135deg, rgba(255,46,151,0.18), transparent 36%),
-    linear-gradient(rgba(5,3,13,0.86), rgba(5,3,13,0.94)),
-    #0b0714 !important;
-}
-
 :root[data-theme="arcade"] :is(.settings-sidebar__item, .enp-tab, .enp-filter-btn) {
   border-radius: 0 !important;
 }
@@ -12201,7 +12200,7 @@ body::before {
   border-radius: 0;
 }
 
-.settings-panels {
+:root[data-theme="arcade"] .settings-panels {
   background:
     radial-gradient(circle at 88% 5%, rgba(245, 255, 77, 0.11), transparent 20%),
     radial-gradient(circle at 8% 28%, rgba(255, 46, 151, 0.12), transparent 22%);
@@ -12348,7 +12347,7 @@ body::before {
 }
 
 @media (max-width: 760px) {
-  .settings-modal-box {
+  :root[data-theme="arcade"] .settings-modal-box {
     box-shadow: 0 6px 0 var(--c-ink) !important;
   }
 
@@ -12356,7 +12355,7 @@ body::before {
     padding: 10px 12px !important;
   }
 
-  .settings-sidebar {
+  :root[data-theme="arcade"] .settings-sidebar {
     box-shadow: 0 4px 0 var(--c-ink) !important;
   }
 
@@ -12588,7 +12587,15 @@ body::before {
 .multidisc-row {
   margin-block: 8px;
   padding: 12px !important;
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-surface2) 92%, transparent);
+  box-shadow: none;
+  border-radius: var(--radius-md);
+}
+
+:root[data-theme="arcade"] .multidisc-row {
   border: 2px solid var(--c-ink);
+  border-radius: 0;
   background:
     linear-gradient(90deg, rgba(0, 240, 255, 0.12), transparent),
     #0b0614;
@@ -12797,16 +12804,21 @@ body::before {
   text-shadow: 2px 2px 0 var(--c-ink);
 }
 
-.scan-review-group,
-.scan-review-skipped {
+:root[data-theme="arcade"] :is(.scan-review-group, .scan-review-skipped) {
   animation: menu-card-slam 0.28s var(--ease-premium-out);
 }
 
 .scan-review-row {
   padding: 10px 12px !important;
+  background: color-mix(in srgb, var(--c-surface2) 88%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+:root[data-theme="arcade"] .scan-review-row {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent),
     rgba(7, 3, 15, 0.72);
+  border-radius: 0;
 }
 
 .scan-review-row__path {
@@ -12850,6 +12862,17 @@ body::before {
   .scan-review-box {
     width: min(94vw, 100%);
     padding: 16px !important;
+  }
+
+  :root[data-theme="arcade"] :is(
+    .confirm-box,
+    .archive-picker-box,
+    .multidisc-box,
+    .cover-art-box,
+    .cover-art-candidate-box,
+    .conflict-resolver-box,
+    .scan-review-box
+  ) {
     box-shadow: 0 5px 0 var(--c-ink) !important;
   }
 
@@ -12861,11 +12884,17 @@ body::before {
   .details-box {
     width: 94vw;
     max-height: 88vh;
+  }
+
+  :root[data-theme="arcade"] .details-box {
     box-shadow: 0 6px 0 var(--c-ink) !important;
   }
 
   .details-left {
     border-right: 0 !important;
+  }
+
+  :root[data-theme="arcade"] .details-left {
     border-bottom: 3px solid var(--c-ink) !important;
   }
 
@@ -13914,6 +13943,9 @@ body::before {
   height: 100% !important;
   margin: 0 !important;
   inset: 0 !important;
+}
+
+:root[data-theme="arcade"] #settings-panel .settings-modal-box {
   box-shadow: inset 0 0 0 3px var(--c-ink) !important;
 }
 
@@ -14270,9 +14302,7 @@ body::before {
   overflow-wrap: normal !important;
 }
 
-.enp-panel,
-.enp-readiness,
-.enp-setup-strip {
+:root[data-theme="arcade"] :is(.enp-panel, .enp-readiness, .enp-setup-strip) {
   background:
     linear-gradient(108deg, rgba(255, 46, 151, 0.07), rgba(0, 240, 255, 0.045) 56%, rgba(5, 3, 13, 0.96)),
     var(--punk-surface-quiet) !important;
@@ -14417,9 +14447,17 @@ body::before {
 #landing.landing-empty .btn--ghost {
   font-family: var(--font-action) !important;
   font-size: clamp(1.04rem, 1.1vw + 0.82rem, 1.22rem) !important;
-  letter-spacing: 0.075em !important;
   line-height: 0.96 !important;
   min-height: clamp(38px, 2vw + 30px, 44px) !important;
+}
+
+:root[data-theme="arcade"] :is(
+  #landing.landing-empty .drop-zone__actions .btn,
+  #landing.landing-empty .onboarding__quick-actions .btn,
+  #landing.landing-empty .btn--primary,
+  #landing.landing-empty .btn--ghost
+) {
+  letter-spacing: 0.075em !important;
 }
 
 @media (max-width: 720px) {
@@ -14742,4 +14780,123 @@ body::before {
 :root:not([data-theme="arcade"]) .welcome-hero__logo,
 :root:not([data-theme="arcade"]) .loading-brand__logo {
   filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--c-accent) 22%, transparent));
+}
+
+/* ── Pass 4: details pane, drop-zone, chips, dialogs, loading ── */
+:root:not([data-theme="arcade"]) .settings-modal-box {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--c-surface) 88%, transparent), color-mix(in srgb, var(--c-bg) 94%, transparent)),
+    var(--c-bg);
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) #settings-panel .settings-modal-box {
+  box-shadow: none;
+}
+
+:root:not([data-theme="arcade"]) .settings-panels {
+  background: transparent;
+}
+
+:root:not([data-theme="arcade"]) .landing-details__cover {
+  border: 1px solid var(--c-border);
+  box-shadow: var(--shadow-card);
+  transform: none;
+}
+
+:root:not([data-theme="arcade"]) .landing-details__cover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+:root:not([data-theme="arcade"]) .landing-details__actions .btn--primary {
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--c-accent) 22%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .landing-details__actions .btn--primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--c-accent) 28%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .landing-sidebar__header {
+  color: var(--c-text-dim);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+:root:not([data-theme="arcade"]) .sys-filter-chip {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--c-text-dim);
+}
+
+:root:not([data-theme="arcade"]) .sys-filter-chip:hover,
+:root:not([data-theme="arcade"]) .sys-filter-chip.active {
+  color: var(--c-text);
+  background: color-mix(in srgb, var(--c-accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 32%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone {
+  border: 2px dashed var(--c-border-lt);
+  outline: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-surface2) 70%, transparent), color-mix(in srgb, var(--c-surface) 55%, transparent));
+  box-shadow: none;
+  border-radius: var(--radius-xl);
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone::before,
+:root:not([data-theme="arcade"]) #library-section > .drop-zone::after {
+  display: none;
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone:hover,
+:root:not([data-theme="arcade"]) #library-section > .drop-zone.drag-over {
+  border-color: var(--c-accent-light);
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+}
+
+:root:not([data-theme="arcade"]) #library-section > .drop-zone .drop-zone__icon {
+  color: var(--c-accent-light);
+  background: color-mix(in srgb, var(--c-surface3) 80%, transparent);
+}
+
+:root:not([data-theme="arcade"]) .highlights-section__title {
+  color: var(--c-text);
+  letter-spacing: 0.01em;
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) #loading-message {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) #landing.landing-empty :is(.drop-zone__actions .btn, .onboarding__quick-actions .btn, .btn--primary, .btn--ghost) {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+:root:not([data-theme="arcade"]) :is(.enp-panel, .enp-readiness, .enp-setup-strip) {
+  background: color-mix(in srgb, var(--c-surface2) 94%, transparent);
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+}
+
+:root:not([data-theme="arcade"]) .scan-review-row__path {
+  color: var(--c-text-dim);
 }

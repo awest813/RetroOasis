@@ -146,6 +146,12 @@
 >   + search; soft context/profile menus; soft settings sidebar/quickbar/jumpbar/
 >   body with late `!important` punk washes scoped back to Arcade. CSS budget at
 >   `!important` **928** / colours **825**.
+> - **UI audit polish pass 4 (2026-07):** Details pane cover/Play CTA, library
+>   drop-zone gold corners, system-filter chips, settings shell/panels washes,
+>   Easy Netplay panel ink, multidisc/scan-review rows, mobile ink offset shadows,
+>   highlights title, and loading message type — scoped or soft-overridden so
+>   Premium stays clean while Arcade keeps the comic chrome. CSS budget ratcheted
+>   to `!important` **927** / colours **821**.
 
 ---
 
