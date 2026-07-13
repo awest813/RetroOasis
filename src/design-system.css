@@ -292,7 +292,9 @@
   --c-text-muted: #8579a3;
   --c-muted:      var(--c-text-muted);
 
-  --focus-ring:   0 0 0 3px rgba(255, 46, 151, 0.32);
+  /* Phase 7: a crisp, high-contrast focus halo — a dark separator ring plus a
+     solid light-magenta ring — clearly visible on any surface (WCAG 2.4.7). */
+  --focus-ring:   0 0 0 2px var(--c-bg), 0 0 0 4px var(--c-accent-light);
   --focus-border: rgba(0, 240, 255, 0.72);
   --panel-bg:     rgba(7, 5, 14, 0.90);
   --panel-border: rgba(255, 46, 151, 0.14);

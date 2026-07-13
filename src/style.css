@@ -9732,8 +9732,16 @@ body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -18px 42px rgba(0,0,0,0.16);
 }
 
-.library-search::placeholder {
-  color: rgba(255,255,255,0.34);
+/* AA-legible placeholders (Phase 7): a real token, not faint white. */
+.library-search::placeholder,
+.settings-search-input::placeholder,
+.settings-input::placeholder,
+.cover-art-url-input::placeholder,
+.api-key-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-text-muted);
+  opacity: 1;
 }
 
 .sys-filter-chip {
@@ -9795,7 +9803,7 @@ body {
 }
 
 .drop-zone__formats {
-  color: rgba(255,255,255,0.32);
+  color: var(--c-text-muted);
 }
 
 #library-section .welcome-hero__eyebrow,
@@ -11835,12 +11843,17 @@ body::before {
 .scan-review-box {
   position: relative;
   isolation: isolate;
+}
+
+/* Arcade only: the ink-pop modal kit — hard 3px ink frame, halftone wash, and
+   the clipped SFX burst in the corner. Premium modals keep their soft base. */
+:root[data-theme="arcade"] :is(.settings-modal-box, .modal-box:not(.settings-modal-box), .easy-netplay-dialog, .confirm-box, .conflict-resolver-box, .scan-review-box) {
   border-radius: 0 !important;
   border: 3px solid var(--c-ink) !important;
   overflow: hidden;
 }
 
-.settings-modal-box {
+:root[data-theme="arcade"] .settings-modal-box {
   background:
     radial-gradient(circle at 8% 15%, rgba(245, 255, 77, 0.22) 0 9%, transparent 10%),
     radial-gradient(circle at 86% 12%, rgba(0, 240, 255, 0.18) 0 11%, transparent 12%),
@@ -11854,12 +11867,7 @@ body::before {
   animation: menu-ink-pop 0.34s var(--ease-premium-out);
 }
 
-.settings-modal-box::before,
-.modal-box:not(.settings-modal-box)::before,
-.easy-netplay-dialog::before,
-.confirm-box::before,
-.conflict-resolver-box::before,
-.scan-review-box::before {
+:root[data-theme="arcade"] :is(.settings-modal-box, .modal-box:not(.settings-modal-box), .easy-netplay-dialog, .confirm-box, .conflict-resolver-box, .scan-review-box)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -11872,12 +11880,7 @@ body::before {
   opacity: 0.18;
 }
 
-.settings-modal-box::after,
-.modal-box:not(.settings-modal-box)::after,
-.easy-netplay-dialog::after,
-.confirm-box::after,
-.conflict-resolver-box::after,
-.scan-review-box::after {
+:root[data-theme="arcade"] :is(.settings-modal-box, .modal-box:not(.settings-modal-box), .easy-netplay-dialog, .confirm-box, .conflict-resolver-box, .scan-review-box)::after {
   content: "";
   position: absolute;
   inset: auto -18px -18px auto;
@@ -12142,9 +12145,7 @@ body::before {
 .enp-panel,
 .enp-readiness,
 .enp-setup-strip,
-.enp-radio-card,
-.scan-review-group,
-.scan-review-skipped {
+:root[data-theme="arcade"] :is(.enp-radio-card, .scan-review-group, .scan-review-skipped) {
   border: 2px solid var(--c-ink) !important;
   background:
     linear-gradient(112deg, rgba(255, 46, 151, 0.11), transparent 34%, rgba(0, 240, 255, 0.08)),
@@ -12175,6 +12176,10 @@ body::before {
 
 .game-card__menu,
 .profile-chip-menu {
+  padding: 8px !important;
+}
+
+:root[data-theme="arcade"] :is(.game-card__menu, .profile-chip-menu) {
   border: 3px solid var(--c-ink) !important;
   border-radius: 0 !important;
   background:
@@ -12182,7 +12187,6 @@ body::before {
     repeating-linear-gradient(112deg, rgba(0, 240, 255, 0.11) 0 2px, transparent 2px 16px),
     #080411 !important;
   box-shadow: 7px 7px 0 var(--c-ink), 0 0 22px rgba(255, 46, 151, 0.24) !important;
-  padding: 8px !important;
 }
 
 .game-card__menu-item,
@@ -12191,11 +12195,7 @@ body::before {
   padding-left: 18px !important;
 }
 
-.modal-box:not(.settings-modal-box),
-.easy-netplay-dialog,
-.confirm-box,
-.conflict-resolver-box,
-.scan-review-box {
+:root[data-theme="arcade"] :is(.modal-box:not(.settings-modal-box), .easy-netplay-dialog, .confirm-box, .conflict-resolver-box, .scan-review-box) {
   background:
     radial-gradient(circle at 12% 14%, rgba(255, 46, 151, 0.18) 0 11%, transparent 12%),
     linear-gradient(112deg, rgba(0, 240, 255, 0.12), transparent 42%),
@@ -12210,7 +12210,7 @@ body::before {
   padding-right: 8px;
 }
 
-.scan-review-row__badge {
+:root[data-theme="arcade"] .scan-review-row__badge {
   border: 2px solid var(--c-ink) !important;
   border-radius: 0 !important;
   color: var(--c-ink) !important;
@@ -12218,9 +12218,14 @@ body::before {
   box-shadow: 2px 2px 0 var(--c-ink);
 }
 
+/* Premium: a plain dark scrim. Arcade: the drifting hatched overlay. */
 .modal-backdrop,
 .easy-netplay-overlay,
 .confirm-overlay {
+  background: rgba(4, 3, 10, 0.72);
+}
+
+:root[data-theme="arcade"] :is(.modal-backdrop, .easy-netplay-overlay, .confirm-overlay) {
   background:
     repeating-linear-gradient(112deg, rgba(255, 46, 151, 0.09) 0 2px, transparent 2px 18px),
     repeating-linear-gradient(24deg, rgba(0, 240, 255, 0.055) 0 1px, transparent 1px 22px),
@@ -12309,21 +12314,28 @@ body::before {
   padding: clamp(18px, 2.5vw, 28px) !important;
 }
 
+/* Premium: a quiet modal heading. Arcade: the rotated gold sticker tag. */
 .confirm-title {
-  display: inline-block;
+  display: block;
   margin: 0 0 14px !important;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--c-text);
+  max-width: 100%;
+}
+
+:root[data-theme="arcade"] .confirm-title {
+  display: inline-block;
   padding: 8px 13px 9px;
   color: var(--c-ink) !important;
   background: var(--c-gold);
   border: 3px solid var(--c-ink);
   box-shadow: 5px 5px 0 var(--c-ink);
   transform: rotate(-1deg);
-  max-width: 100%;
 }
 
-.cover-art-candidate-box .confirm-title,
-.scan-review-box .confirm-title,
-.conflict-resolver-box .confirm-title {
+:root[data-theme="arcade"] :is(.cover-art-candidate-box .confirm-title, .scan-review-box .confirm-title, .conflict-resolver-box .confirm-title) {
   background: var(--c-accent-2);
 }
 
@@ -12343,29 +12355,24 @@ body::before {
   padding-top: 14px;
 }
 
-.confirm-footer .btn,
-.confirm-box__actions .btn,
-.details-footer .btn,
-.multidisc-row .btn,
+/* Premium: clean modal-action buttons. Arcade: inked offset-shadow buttons. */
 .cover-art-btn,
 .cover-art-paste-url,
 .cover-art-open-apikeys {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border-lt);
+  background: var(--c-surface2);
+  color: var(--c-text);
+}
+
+:root[data-theme="arcade"] :is(.confirm-footer .btn, .confirm-box__actions .btn, .details-footer .btn, .multidisc-row .btn, .cover-art-btn, .cover-art-paste-url, .cover-art-open-apikeys) {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   box-shadow: 4px 4px 0 var(--c-ink) !important;
-}
-
-:root[data-theme="arcade"] :is(.confirm-box__actions .btn, .details-footer .btn, .multidisc-row .btn, .cover-art-btn, .cover-art-paste-url, .cover-art-open-apikeys) {
   text-transform: uppercase;
 }
 
-.confirm-footer .btn:hover,
-.confirm-box__actions .btn:hover,
-.details-footer .btn:hover,
-.multidisc-row .btn:hover,
-.cover-art-btn:hover,
-.cover-art-paste-url:hover,
-.cover-art-open-apikeys:hover {
+:root[data-theme="arcade"] :is(.confirm-footer .btn, .confirm-box__actions .btn, .details-footer .btn, .multidisc-row .btn, .cover-art-btn, .cover-art-paste-url, .cover-art-open-apikeys):hover {
   transform: translate(-2px, -2px) rotate(-0.5deg) !important;
   box-shadow: 6px 6px 0 var(--c-ink) !important;
 }
@@ -12394,9 +12401,24 @@ body::before {
   padding: 4px 10px 4px 4px !important;
 }
 
+/* Premium: clean system-picker cards (soft surface, quiet accent hover).
+   Arcade: the clip-path slam cards with the gold/cyan ink stack. */
 .game-picker-btn:not(.system-pick-btn),
 .system-pick-btn {
   position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface2);
+}
+
+.game-picker-btn:not(.system-pick-btn):hover,
+.system-pick-btn:hover,
+.system-pick-btn:focus-visible {
+  border-color: var(--c-accent-glow);
+  background: var(--c-surface3);
+}
+
+:root[data-theme="arcade"] :is(.game-picker-btn:not(.system-pick-btn), .system-pick-btn) {
   border-radius: 0 !important;
   border: 3px solid var(--c-ink) !important;
   background:
@@ -12408,8 +12430,7 @@ body::before {
   animation: menu-card-slam 0.26s var(--ease-premium-out);
 }
 
-.game-picker-btn:not(.system-pick-btn)::before,
-.system-pick-btn::before {
+:root[data-theme="arcade"] :is(.game-picker-btn:not(.system-pick-btn), .system-pick-btn)::before {
   content: "";
   position: absolute;
   inset: 8px auto 8px 8px;
@@ -12419,9 +12440,7 @@ body::before {
   opacity: 0.72;
 }
 
-.game-picker-btn:not(.system-pick-btn):hover,
-.system-pick-btn:hover,
-.system-pick-btn:focus-visible {
+:root[data-theme="arcade"] :is(.game-picker-btn:not(.system-pick-btn):hover, .system-pick-btn:hover, .system-pick-btn:focus-visible) {
   background:
     radial-gradient(circle at 94% 25%, var(--c-gold) 0 9%, transparent 9.8%),
     linear-gradient(100deg, rgba(255, 46, 151, 0.62), rgba(0, 240, 255, 0.18)),
@@ -12431,6 +12450,11 @@ body::before {
 }
 
 .system-pick-btn__visual {
+  border-radius: var(--radius);
+  background: var(--c-accent);
+}
+
+:root[data-theme="arcade"] .system-pick-btn__visual {
   border-radius: 0 !important;
   border: 2px solid var(--c-ink) !important;
   background:
