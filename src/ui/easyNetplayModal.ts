@@ -205,6 +205,7 @@ export function openEasyNetplayModal(opts: {
   const needsEnable = !netplayEnabled;
   if (needsServerUrl || needsEnable) {
     const setupStrip = make("div", { class: "enp-setup-strip", role: "region", "aria-label": "Online play setup" });
+    const setupCopy = make("div", { class: "enp-setup-strip__copy" });
     const setupTitle = make("p", { class: "enp-setup-strip__title" }, "Set up multiplayer (one minute)");
     const setupSteps = make("ol", { class: "enp-setup-strip__steps" });
     const step1 = needsEnable
@@ -217,7 +218,8 @@ export function openEasyNetplayModal(opts: {
       make("li", {}, step2),
       make("li", {}, step3),
     );
-    setupStrip.append(setupTitle, setupSteps);
+    setupCopy.append(setupTitle, setupSteps);
+    setupStrip.appendChild(setupCopy);
     if (onOpenPlayTogetherSettings) {
       const btnSetup = make("button", {
         type: "button",

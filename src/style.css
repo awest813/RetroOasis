@@ -4074,18 +4074,18 @@ html.launch-in-progress .game-card::after {
   width: fit-content;
   max-width: 100%;
   margin: 8px 0 2px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--c-border-lt);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--c-text-dim);
-  font-size: 0.78rem;
-  font-weight: 900;
+  background: color-mix(in srgb, var(--c-surface3) 88%, transparent);
+  color: var(--c-text);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .netplay-status-pill--active {
-  border-color: rgba(0, 255, 136, 0.35);
-  background: rgba(0, 255, 136, 0.12);
+  border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+  background: color-mix(in srgb, var(--c-success) 14%, transparent);
   color: var(--c-tier-ok);
 }
 
@@ -6586,10 +6586,10 @@ body.using-gamepad .game-card:focus {
 
 .enp-header__subtitle {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--c-text-dim);
-  line-height: 1.25;
+  line-height: 1.4;
 }
 
 .enp-pre-tabs {
@@ -6638,15 +6638,16 @@ body.using-gamepad .game-card:focus {
 }
 
 .enp-readiness__label {
-  color: var(--c-text-dim);
-  font-size: 0.72rem;
+  color: var(--c-text-muted);
+  font-size: 0.78rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .enp-readiness__value {
   color: var(--c-text);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -6694,37 +6695,51 @@ body.using-gamepad .game-card:focus {
 .enp-setup-strip {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
+  align-items: flex-start;
+  gap: 12px 16px;
+  padding: 14px 16px;
   background: var(--c-surface2);
   border: 1px solid var(--c-border);
   border-radius: var(--radius);
 }
 
 .enp-setup-strip__copy {
+  flex: 1 1 260px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .enp-setup-strip__title {
   font-weight: 700;
   font-size: 0.9rem;
   color: var(--c-text);
+  margin: 0;
 }
 
 .enp-setup-strip__text {
   color: var(--c-text-dim);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
   margin: 4px 0 0;
 }
 
 .enp-setup-strip__steps {
-  font-size: 0.8rem;
+  margin: 0;
+  padding-left: 1.25em;
+  font-size: 0.88rem;
+  line-height: 1.55;
   color: var(--c-text-dim);
+}
+
+.enp-setup-strip__steps li + li {
+  margin-top: 4px;
 }
 
 .enp-setup-strip__btn {
   margin-left: auto;
+  align-self: center;
 }
 
 .enp-open-source {
@@ -6850,9 +6865,11 @@ body.using-gamepad .game-card:focus {
 }
 
 .enp-help {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: var(--c-text-dim);
   margin: 8px 0;
+  font-weight: 600;
 }
 
 .enp-code-row {
@@ -6943,16 +6960,18 @@ body.using-gamepad .game-card:focus {
 
 .enp-no-game-title {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   color: var(--c-text);
   margin: 0;
 }
 
 .enp-no-game-sub {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
   color: var(--c-text-dim);
   margin: 0;
-  max-width: 320px;
+  max-width: 360px;
+  font-weight: 600;
 }
 
 .enp-no-game-btn {
@@ -7044,9 +7063,10 @@ body.using-gamepad .game-card:focus {
 }
 
 .enp-radio-card__desc {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--c-text-dim);
-  line-height: 1.35;
+  line-height: 1.45;
+  font-weight: 600;
 }
 
 .enp-radio-card__check {
@@ -7588,14 +7608,15 @@ body.using-gamepad .game-card:focus {
 
 .playtogether-checklist__body strong {
   color: var(--c-text);
-  font-size: 0.84rem;
-  line-height: 1.25;
+  font-size: 0.9rem;
+  line-height: 1.3;
 }
 
 .playtogether-checklist__body small {
   color: var(--c-text-dim);
-  font-size: 0.75rem;
-  line-height: 1.35;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-weight: 600;
 }
 
 /* ── Cloud Library ─────────────────────────────────────────── */
@@ -8275,7 +8296,7 @@ body.using-gamepad .game-card:focus {
 
 .netplay-sys-group__title {
   margin: 0 0 10px;
-  font-size: 0.75rem;
+  font-size: 0.88rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -8299,9 +8320,10 @@ body.using-gamepad .game-card:focus {
 
 .netplay-sys-card__hint {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   color: var(--c-text-dim);
-  line-height: 1.35;
+  line-height: 1.45;
+  font-weight: 600;
 }
 
 .netplay-sys-card__badge {
@@ -14492,10 +14514,17 @@ body::before {
 }
 
 #settings-panel .settings-quickbar__summary,
-#settings-panel .settings-active-tab-label,
-.enp-header__subtitle,
-.enp-radio-card__desc,
-.enp-help {
+#settings-panel .settings-active-tab-label {
+  font-size: var(--punk-type-caption);
+}
+
+:root[data-theme="arcade"] :is(
+  #settings-panel .settings-quickbar__summary,
+  #settings-panel .settings-active-tab-label,
+  .enp-header__subtitle,
+  .enp-radio-card__desc,
+  .enp-help
+) {
   font-size: var(--punk-type-caption) !important;
 }
 
@@ -15142,4 +15171,101 @@ body::before {
   font-family: var(--font-sans);
   letter-spacing: 0.02em;
   text-transform: none;
+}
+
+/* ── Play Together text clarity ── */
+:root:not([data-theme="arcade"]) :is(
+  .enp-header__subtitle,
+  .enp-help,
+  .enp-setup-strip__text,
+  .enp-setup-strip__steps,
+  .enp-radio-card__desc,
+  .enp-no-game-sub,
+  .enp-open-source,
+  .enp-active-room__waiting,
+  .multiplayer-card p,
+  .playtogether-checklist__body small,
+  #tab-panel-multiplayer .settings-help,
+  #tab-panel-multiplayer .toggle-row__text,
+  #tab-panel-multiplayer .radio-row__desc,
+  #tab-panel-multiplayer .settings-section__desc,
+  #tab-panel-multiplayer .netplay-sys-card__hint
+) {
+  color: color-mix(in srgb, var(--c-text) 82%, var(--c-text-dim));
+  font-size: 0.94rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) .enp-readiness__label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c-text-muted);
+}
+
+:root:not([data-theme="arcade"]) .enp-readiness__value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) .enp-setup-strip__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) .enp-title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--c-text);
+}
+
+:root:not([data-theme="arcade"]) .enp-tab {
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+:root:not([data-theme="arcade"]) .enp-open-source__summary {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) .netplay-status-pill {
+  color: var(--c-text);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+:root:not([data-theme="arcade"]) .multiplayer-card h3 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+:root:not([data-theme="arcade"]) .playtogether-checklist__body strong {
+  font-size: 0.94rem;
+}
+
+:root:not([data-theme="arcade"]) :is(.netplay-sys-card__hint, .netplay-sys-group__title, .netplay-ice-url, .netplay-ice-empty, .netplay-advanced summary) {
+  color: color-mix(in srgb, var(--c-text) 82%, var(--c-text-dim));
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+:root:not([data-theme="arcade"]) .netplay-sys-card__hint {
+  font-size: 0.88rem;
+}
+
+:root:not([data-theme="arcade"]) .netplay-sys-group__title {
+  font-size: 0.95rem;
+  color: var(--c-text);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.01em;
 }

@@ -162,6 +162,10 @@
 >   arrow clip-path, and modal ink frames to Arcade; soft Premium rows, inputs,
 >   cloud/multiplayer cards, close button, heading marks, and focus rings.
 >   CSS budget ratcheted to `!important` **927** / colours **810**.
+> - **Play Together text clarity (2026-07):** Stopped Easy Netplay helper copy from
+>   being forced to caption size; bumped setup strip / readiness / checklist /
+>   status pill / console-hint type; brighter Premium body copy for Help text in
+>   the lobby modal and Play Together settings. Colours **807**.
 
 ---
 
