@@ -22,3 +22,8 @@
 **Vulnerability:** XSS vulnerabilities in `src/ui/gameOfTheDay.ts` and `src/ui/librarySections.ts` where unescaped user-controlled or external data (like `iconOutput`) was injected directly into `innerHTML` strings.
 **Learning:** Using `innerHTML` for convenience to render images from asset paths or external SVG strings leaves the code vulnerable when data paths might be tampered with. The `escapeHtml` utility was previously bypassed.
 **Prevention:** To prevent DOM-based XSS when rendering images dynamically, UI components in this codebase should use native DOM node creation (e.g., `make("img", { src: ..., alt: "" })`) instead of `innerHTML` string interpolation, particularly for asset paths.
+
+## 2024-07-16 - [Timing Attack in Auth Token Comparison]
+**Vulnerability:** The companion server used standard string equality (`===`) to verify `AUTH_TOKEN`, making it vulnerable to a timing attack where an attacker could guess the token character by character based on response time.
+**Learning:** Security-sensitive string comparisons, such as checking tokens, API keys, or passwords, should never use standard equality operators because they short-circuit and leak timing information.
+**Prevention:** Always use `timingSafeEqual` (from `node:crypto`) or an equivalent constant-time comparison function when verifying secrets. Ensure both inputs are buffers of the same length before comparing.

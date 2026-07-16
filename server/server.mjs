@@ -19,6 +19,7 @@
 import { createServer } from "node:http";
 import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
+import { timingSafeEqual } from "node:crypto";
 import { scanRoms, buildLibraryResponse } from "./scan.mjs";
 
 const ROMS_DIR = path.resolve(process.env.ROMS_DIR ?? "./roms");
@@ -45,7 +46,18 @@ function json(res, status, body) {
 
 function authorized(req) {
   if (!AUTH_TOKEN) return true;
-  return req.headers.authorization === `Bearer ${AUTH_TOKEN}`;
+
+  const expectedTokenStr = `Bearer ${AUTH_TOKEN}`;
+  const providedTokenStr = req.headers.authorization || "";
+
+  const expectedBuffer = Buffer.from(expectedTokenStr, "utf8");
+  const providedBuffer = Buffer.from(providedTokenStr, "utf8");
+
+  if (expectedBuffer.length !== providedBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
 const server = createServer(async (req, res) => {
