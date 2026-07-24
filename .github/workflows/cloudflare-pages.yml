@@ -20,12 +20,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            retrooasis/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix retrooasis
 
       - name: Build RetroOasis
-        run: npm run build
+        run: npm run build --prefix retrooasis
+
+      - name: Verify build output
+        run: test -d retrooasis/dist
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
@@ -33,5 +41,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
-          directory: dist
+          directory: retrooasis/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
