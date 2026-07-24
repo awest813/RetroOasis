@@ -184,6 +184,14 @@ select.ro-input {
   padding-bottom: 0;
 }
 
+.ro-main:has(.ro-detail) {
+  padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.ro-main:has(.ro-lobby) {
+  overflow: hidden;
+}
+
 .ro-footer {
   padding: 1rem var(--ro-space) 1.35rem;
   color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
@@ -594,9 +602,14 @@ html[data-crt='on'] .ro-shell::after {
 .ro-system__name {
   font-size: 0.92rem;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ro-system__count {
@@ -765,6 +778,31 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   text-shadow: 0 1px 0 #000;
 }
 
+.ro-cover__mark {
+  position: absolute;
+  inset: 18% 16% 28%;
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+  opacity: 0.38;
+  background:
+    linear-gradient(var(--ro-text), var(--ro-text)) center 18% / 42% 6% no-repeat,
+    linear-gradient(var(--ro-text), var(--ro-text)) center 30% / 58% 4% no-repeat,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 55%, transparent) 0%,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 18%, transparent) 100%
+    );
+  border: 2px solid color-mix(in srgb, var(--ro-text) 55%, transparent);
+  border-radius: 3px 3px 8px 8px;
+  box-shadow: inset 0 -18% 0 color-mix(in srgb, #000 35%, transparent);
+}
+
+.ro-cover--missing .ro-cover__mark,
+.ro-cover:not(.ro-cover--image) .ro-cover__mark {
+  display: block;
+}
+
 .ro-tile__meta {
   display: flex;
   flex-direction: column;
@@ -833,6 +871,7 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   display: grid;
   gap: 1.5rem;
   max-width: 52rem;
+  align-content: start;
 }
 
 @media (min-width: 720px) {
@@ -868,6 +907,10 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   color: var(--ro-accent);
 }
 
+.ro-shell:has(.ro-detail) .ro-footer {
+  margin-top: auto;
+}
+
 .ro-muted {
   color: var(--ro-text-dim);
 }
@@ -879,6 +922,27 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   min-width: 0;
 }
 
+.ro-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ro-settings__group {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ro-line);
+  padding-top: 0.35rem;
+}
+
+.ro-settings__heading {
+  margin: 0 0 0.15rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ro-accent);
+}
+
 .ro-settings-row {
   display: flex;
   flex-wrap: wrap;
@@ -887,6 +951,10 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   gap: 0.75rem 1.25rem;
   padding: 1rem 0;
   border-bottom: 1px solid var(--ro-line);
+}
+
+.ro-settings__group > .ro-settings-row:last-child {
+  border-bottom: 0;
 }
 
 .ro-settings-row:last-child {

@@ -338,6 +338,7 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
       data-ro-focusable="true"
       ${active ? 'aria-current="page"' : ''}
       style="--cover-accent: ${platformAccentVar(platform.accent)}"
+      title="${escapeAttr(platform.name)}"
     >
       <span class="ro-system__glyph" aria-hidden="true">${escapeHtml(platform.shortName.slice(0, 3))}</span>
       <span class="ro-system__text">
