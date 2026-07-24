@@ -1,18 +1,6 @@
-import { coreFromExtension } from '../lib/cores'
+import { UPLOAD_CORE_OPTIONS, coreFromExtension, coreNeedsThreads } from '../lib/cores'
 import { hrefFor } from '../lib/router'
-
-const CORE_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Auto-detect', value: 'auto' },
-  { label: 'NES', value: 'nes' },
-  { label: 'SNES', value: 'snes' },
-  { label: 'Game Boy', value: 'gb' },
-  { label: 'GBA', value: 'gba' },
-  { label: 'N64', value: 'n64' },
-  { label: 'Mega Drive', value: 'segaMD' },
-  { label: 'Master System', value: 'segaMS' },
-  { label: 'PlayStation', value: 'psx' },
-  { label: 'Arcade', value: 'arcade' },
-]
+import { getEjsChannel } from '../lib/store'
 
 export function renderUpload(root: HTMLElement): void {
   root.innerHTML = `
@@ -20,20 +8,20 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Upload ROM</h1>
       <p class="ro-lede">
-        Drop a file to play immediately via EmulatorJS. For a lasting library, link a folder,
-        or host <code>roms/manifest.json</code> beside the site.
+        Drop a file to play immediately via EmulatorJS. PSP / DOS / 3DS cores need threads
+        (COOP/COEP) and default to the <strong>nightly</strong> CDN channel.
       </p>
       <div class="ro-stack" style="margin-top: 1.5rem; max-width: 32rem;">
         <label class="ro-muted" for="ro-core">System core</label>
         <select id="ro-core" class="ro-input">
-          ${CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+          ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
         <div class="ro-drop" id="ro-drop" tabindex="0" data-ro-focusable="true">
           <strong>Drop ROM here</strong>
           <span class="ro-muted">or click to choose a file</span>
         </div>
         <input id="ro-file" type="file" hidden />
-        <p class="ro-muted" id="ro-status">No file selected.</p>
+        <p class="ro-muted" id="ro-status">Channel: ${getEjsChannel()}. Change in Settings.</p>
         <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
       </div>
     </section>
@@ -53,14 +41,17 @@ export function renderUpload(root: HTMLElement): void {
 
     const objectUrl = URL.createObjectURL(file)
     const name = file.name.replace(/\.[^.]+$/, '')
+    const channel = getEjsChannel()
     const params = new URLSearchParams({
       rom: objectUrl,
       core,
       name,
+      channel,
       back: './#/upload',
     })
+    if (coreNeedsThreads(core)) params.set('threads', '1')
 
-    if (status) status.textContent = `Launching ${file.name} (${core})…`
+    if (status) status.textContent = `Launching ${file.name} (${core}, ${channel})…`
     window.location.href = `./player.html?${params.toString()}`
   }
 

@@ -10,7 +10,14 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies repo-root `data/` and `roms/` so EmulatorJS can load.
+Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies repo-root `data/` and `roms/` so EmulatorJS can load, and sends **COOP/COEP** headers so threaded cores (PSP/PPSSPP, DOS, 3DS) work.
+
+### EmulatorJS cores / PSP (PPSSPP)
+
+- The library lists **all EmulatorJS systems** (NES through PSP, 3DS, DOS, etc.).
+- Settings → **EmulatorJS channel** defaults to **nightly** so PPSSPP and other CDN cores are available without installing every npm core package locally.
+- Channels: `nightly` · `stable` · `latest` · `local` (`data/` beside the site).
+- PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` (Netlify/Cloudflare Pages).
 
 ## Scripts
 

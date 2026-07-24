@@ -7,15 +7,7 @@ import { loadHostedManifest } from './hostedLibrary'
 import { applyOverridesToGames } from './overrides'
 import { getHideDemos } from './store'
 
-export type PlatformAccent =
-  | 'nes'
-  | 'snes'
-  | 'gb'
-  | 'gba'
-  | 'sega'
-  | 'ps'
-  | 'n64'
-  | 'arcade'
+export type PlatformAccent = string
 
 export interface Platform {
   id: string

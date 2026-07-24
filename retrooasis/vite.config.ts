@@ -51,6 +51,12 @@ function serveRepoStatic(route: string, absDir: string): Plugin {
   }
 }
 
+/** Required for SharedArrayBuffer → PPSSPP / DOS / 3DS threaded cores. */
+const threadHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+}
+
 export default defineConfig({
   base: './',
   publicDir: 'public',
@@ -62,9 +68,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    headers: threadHeaders,
     fs: {
       allow: [repoRoot],
     },
+  },
+  preview: {
+    headers: threadHeaders,
   },
   plugins: [
     serveRepoStatic('data', path.join(repoRoot, 'data')),

@@ -79,6 +79,26 @@
       "cover": null,
       "tags": ["demo", "platform"],
       "demo": true
+    },
+    {
+      "id": "demo-psp-adventure",
+      "title": "Handheld Horizon",
+      "platform": "psp",
+      "core": "ppsspp",
+      "file": "roms/psp/handheld-horizon.iso",
+      "cover": null,
+      "tags": ["demo", "action"],
+      "demo": true
+    },
+    {
+      "id": "demo-nds-rpg",
+      "title": "Dual Screen Saga",
+      "platform": "nds",
+      "core": "nds",
+      "file": "roms/nds/dual-screen-saga.nds",
+      "cover": null,
+      "tags": ["demo", "rpg"],
+      "demo": true
     }
   ]
 }

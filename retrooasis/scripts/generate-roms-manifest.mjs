@@ -13,46 +13,52 @@ const romsRoot = path.join(repoRoot, 'roms')
 const outFile = path.join(romsRoot, 'manifest.json')
 
 const FOLDER_TO_PLATFORM = {
-  nes: 'nes',
-  famicom: 'nes',
-  snes: 'snes',
-  sfc: 'snes',
-  gb: 'gb',
-  gameboy: 'gb',
-  gbc: 'gb',
-  gba: 'gba',
-  n64: 'n64',
-  nintendo64: 'n64',
-  psx: 'psx',
-  ps1: 'psx',
-  playstation: 'psx',
-  segamd: 'segaMD',
-  md: 'segaMD',
-  genesis: 'segaMD',
-  megadrive: 'segaMD',
-  segams: 'segaMS',
-  sms: 'segaMS',
-  mastersystem: 'segaMS',
-  arcade: 'arcade',
-  mame: 'arcade',
+  nes: 'nes', famicom: 'nes', snes: 'snes', sfc: 'snes',
+  gb: 'gb', gameboy: 'gb', gbc: 'gb', gba: 'gba',
+  n64: 'n64', nintendo64: 'n64', nds: 'nds', ds: 'nds',
+  vb: 'vb', virtualboy: 'vb', '3ds': '3ds', nintendo3ds: '3ds',
+  psx: 'psx', ps1: 'psx', playstation: 'psx',
+  psp: 'psp', ppsspp: 'psp', playstationportable: 'psp',
+  segamd: 'segaMD', md: 'segaMD', genesis: 'segaMD', megadrive: 'segaMD',
+  segams: 'segaMS', sms: 'segaMS', mastersystem: 'segaMS',
+  segagg: 'segaGG', gg: 'segaGG', gamegear: 'segaGG',
+  segacd: 'segaCD', megacd: 'segaCD', sega32x: 'sega32x', '32x': 'sega32x',
+  segasaturn: 'segaSaturn', saturn: 'segaSaturn',
+  arcade: 'arcade', mame: 'mame', fbneo: 'arcade',
+  atari2600: 'atari2600', a2600: 'atari2600',
+  atari7800: 'atari7800', a7800: 'atari7800',
+  atari5200: 'atari5200', a5200: 'atari5200',
+  lynx: 'lynx', jaguar: 'jaguar', '3do': '3do',
+  pce: 'pce', tg16: 'pce', pcengine: 'pce', pcfx: 'pcfx',
+  ngp: 'ngp', ngpc: 'ngp', ws: 'ws', wonderswan: 'ws',
+  coleco: 'coleco', colecovision: 'coleco',
+  c64: 'c64', commodore64: 'c64', c128: 'c128',
+  vic20: 'vic20', plus4: 'plus4', pet: 'pet',
+  amiga: 'amiga', dos: 'dos', dosbox: 'dos', pc: 'dos',
+  intv: 'intv', intellivision: 'intv',
 }
 
 const PLATFORM_TO_CORE = {
-  nes: 'nes',
-  snes: 'snes',
-  gb: 'gb',
-  gba: 'gba',
-  n64: 'n64',
-  psx: 'psx',
-  segaMD: 'segaMD',
-  segaMS: 'segaMS',
-  arcade: 'arcade',
+  nes: 'nes', snes: 'snes', gb: 'gb', gba: 'gba', n64: 'n64', nds: 'nds',
+  vb: 'vb', '3ds': '3ds', psx: 'psx', psp: 'ppsspp',
+  segaMD: 'segaMD', segaMS: 'segaMS', segaGG: 'segaGG', segaCD: 'segaCD',
+  sega32x: 'sega32x', segaSaturn: 'segaSaturn',
+  arcade: 'arcade', mame: 'mame2003',
+  atari2600: 'atari2600', atari7800: 'atari7800', atari5200: 'atari5200',
+  lynx: 'lynx', jaguar: 'jaguar', '3do': '3do',
+  pce: 'pce', pcfx: 'pcfx', ngp: 'ngp', ws: 'ws', coleco: 'coleco',
+  c64: 'vice_x64sc', c128: 'vice_x128', vic20: 'vice_xvic',
+  plus4: 'vice_xplus4', pet: 'vice_xpet', amiga: 'puae',
+  dos: 'dosbox_pure', intv: 'intv',
 }
 
 const ROM_EXT = new Set([
   'nes', 'fds', 'unif', 'unf', 'smc', 'fig', 'sfc', 'gb', 'gbc', 'gba',
-  'nds', 'z64', 'n64', 'v64', 'md', 'smd', 'gen', 'bin', 'iso', 'cue',
-  'img', 'pbp', 'chd', 'sms', 'gg', 'zip', '7z',
+  'nds', 'z64', 'n64', 'v64', 'vb', '3ds', 'cci', 'cia', 'cxi', 'app',
+  'md', 'smd', 'gen', 'bin', 'iso', 'cue', 'img', 'pbp', 'cso', 'chd', 'm3u',
+  'sms', 'gg', 'zip', '7z', 'a26', 'a78', 'a52', 'lnx', 'j64', 'jag',
+  'pce', 'ngp', 'ngc', 'ws', 'wsc', 'col', 'cv', 'd64', 't64', 'adf', 'hdf',
+  'exe', 'com', 'int', 'itv',
 ])
 
 const COVER_EXT = ['png', 'jpg', 'jpeg', 'webp']
@@ -75,15 +81,11 @@ function slugId(platform, filename) {
 function findCover(platformDir, platform, base) {
   for (const ext of COVER_EXT) {
     const sidecar = path.join(platformDir, `${base}.${ext}`)
-    if (fs.existsSync(sidecar)) {
-      return `roms/${platform}/${base}.${ext}`
-    }
+    if (fs.existsSync(sidecar)) return `roms/${platform}/${base}.${ext}`
   }
   for (const ext of COVER_EXT) {
     const bucket = path.join(romsRoot, 'covers', platform, `${base}.${ext}`)
-    if (fs.existsSync(bucket)) {
-      return `roms/covers/${platform}/${base}.${ext}`
-    }
+    if (fs.existsSync(bucket)) return `roms/covers/${platform}/${base}.${ext}`
   }
   return null
 }

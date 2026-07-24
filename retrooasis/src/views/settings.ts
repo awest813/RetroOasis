@@ -23,17 +23,20 @@ import {
   getCrtEnabled,
   getHideDemos,
   getLayout,
+  getEjsChannel,
   getLibretroCovers,
   getSoundPack,
   getSoundsEnabled,
   setAccent,
   setCrtEnabled,
+  setEjsChannel,
   setHideDemos,
   setLayout,
   setLibretroCovers,
   setSoundPack,
   setSoundsEnabled,
   type AccentMode,
+  type EjsChannel,
   type LayoutMode,
   type SoundPack,
 } from '../lib/store'
@@ -47,7 +50,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const sounds = getSoundsEnabled()
   const pack = getSoundPack()
   const libretro = getLibretroCovers()
+  const ejsChannel = getEjsChannel()
   const meta = await getLocalLibraryMeta()
+  const hasSab = typeof SharedArrayBuffer !== 'undefined'
   const catalog = await loadCatalog()
   const canPick = supportsDirectoryPicker()
   const installable = canInstallPwa()
@@ -115,6 +120,23 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <p class="ro-muted" style="margin: 0.25rem 0 0;">Guess boxart from thumbnails.libretro.com when a game has no cover (on by default).</p>
           </div>
           <button type="button" class="ro-btn" id="ro-libretro" aria-pressed="${libretro}">${libretro ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>EmulatorJS channel</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">
+              Core/loader source. <strong>Nightly</strong> includes PPSSPP (PSP) and other threaded cores.
+              Threads available here: <strong>${hasSab ? 'yes' : 'no'}</strong>
+              ${hasSab ? '' : '(serve with COOP/COEP headers for PSP/DOS/3DS).'}
+            </p>
+          </div>
+          <div class="ro-toggle-group" style="flex-wrap: wrap;">
+            <button type="button" class="ro-btn" data-ejs="nightly" aria-pressed="${ejsChannel === 'nightly'}">Nightly</button>
+            <button type="button" class="ro-btn" data-ejs="stable" aria-pressed="${ejsChannel === 'stable'}">Stable</button>
+            <button type="button" class="ro-btn" data-ejs="latest" aria-pressed="${ejsChannel === 'latest'}">Latest</button>
+            <button type="button" class="ro-btn" data-ejs="local" aria-pressed="${ejsChannel === 'local'}">Local</button>
+          </div>
         </div>
 
         <div class="ro-settings-row">
@@ -250,6 +272,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   root.querySelector('#ro-libretro')?.addEventListener('click', () => {
     setLibretroCovers(!getLibretroCovers())
     void renderSettings(root)
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('[data-ejs]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setEjsChannel(btn.dataset.ejs as EjsChannel)
+      void renderSettings(root)
+    })
   })
 
   root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {

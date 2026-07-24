@@ -70,6 +70,11 @@
         white-space: nowrap;
       }
 
+      .ro-play-meta {
+        font-size: 0.7rem;
+        opacity: 0.65;
+      }
+
       .ro-play-error {
         position: absolute;
         inset: 0;
@@ -94,8 +99,12 @@
 
       .ro-play-error p {
         margin: 0;
-        max-width: 28rem;
+        max-width: 32rem;
         color: #9aabbc;
+      }
+
+      .ro-play-error code {
+        color: #2ee6d6;
       }
     </style>
   </head>
@@ -103,57 +112,94 @@
     <div class="ro-play-bar">
       <a id="back" href="./#/">Exit</a>
       <span class="ro-play-title" id="title"></span>
+      <span class="ro-play-meta" id="meta"></span>
     </div>
     <div id="display"><div id="game"></div></div>
     <script>
       (function () {
+        const THREADED = new Set(["ppsspp", "psp", "dosbox_pure", "dos", "azahar", "3ds"]);
+        const PATHS = {
+          local: "data/",
+          stable: "https://cdn.emulatorjs.org/stable/data/",
+          latest: "https://cdn.emulatorjs.org/latest/data/",
+          nightly: "https://cdn.emulatorjs.org/nightly/data/",
+        };
+
         const params = new URLSearchParams(window.location.search);
         const gameUrl = params.get("rom") || "";
-        const core = params.get("core") || "";
+        let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
         const back = params.get("back") || "./#/";
+        let channel = params.get("channel") || "nightly";
+        if (!PATHS[channel]) channel = "nightly";
 
+        if (core === "psp") core = "ppsspp";
+        if (core === "dos") core = "dosbox_pure";
+        if (core === "3ds") core = "azahar";
+
+        const needsThreads = THREADED.has(core);
+        // Threaded cores (PSP/PPSSPP, DOS, 3DS) prefer nightly builds when local is unset.
+        if (needsThreads && !params.get("channel")) channel = "nightly";
+
+        const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
+        document.getElementById("meta").textContent = core + " · " + channel;
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
-        if (!gameUrl || !core) {
-          document.body.innerHTML =
-            '<div class="ro-play-error">' +
-            "<h1>MISSING LOAD DATA</h1>" +
-            "<p>Rom path and core are required to start EmulatorJS.</p>" +
-            '<a href="' +
+        function fail(title, message) {
+          document.getElementById("display").innerHTML =
+            '<div class="ro-play-error"><h1>' +
+            title +
+            "</h1><p>" +
+            message +
+            '</p><a href="' +
             back +
-            '">Back to Oasis</a>' +
-            "</div>";
+            '">Back to Oasis</a></div>';
+        }
+
+        if (!gameUrl || !core) {
+          fail("MISSING LOAD DATA", "Rom path and core are required to start EmulatorJS.");
           return;
         }
 
-        // Relative to this page when deployed beside EmulatorJS data/
+        if (needsThreads && typeof SharedArrayBuffer === "undefined") {
+          fail(
+            "THREADS REQUIRED",
+            "Core <code>" +
+              core +
+              "</code> needs <code>SharedArrayBuffer</code> (COOP/COEP headers). " +
+              "Dev server sets these automatically; for static hosts add " +
+              "<code>Cross-Origin-Opener-Policy: same-origin</code> and " +
+              "<code>Cross-Origin-Embedder-Policy: require-corp</code>.",
+          );
+          return;
+        }
+
         window.EJS_player = "#game";
         window.EJS_gameName = name;
         window.EJS_gameUrl = gameUrl;
         window.EJS_core = core;
         window.EJS_biosUrl = bios;
-        window.EJS_pathtodata = "data/";
+        window.EJS_pathtodata = dataPath;
         window.EJS_startOnLoaded = true;
         window.EJS_askBeforeExit = false;
+        window.EJS_threads = needsThreads;
         window.EJS_onExit = function () {
           window.location.href = back;
         };
 
         const script = document.createElement("script");
-        script.src = "data/loader.js";
+        script.src = dataPath + "loader.js";
         script.onerror = function () {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-error">' +
-            "<h1>EMULATOR DATA MISSING</h1>" +
-            "<p>Could not load <code>data/loader.js</code>. Deploy EmulatorJS <code>data/</code> next to this site, or run the Vite dev server from the RetroOasis repo.</p>" +
-            '<a href="' +
-            back +
-            '">Back to Oasis</a>' +
-            "</div>";
+          fail(
+            "EMULATOR DATA MISSING",
+            "Could not load <code>" +
+              dataPath +
+              "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
+              "Or use Settings → EmulatorJS channel = nightly.",
+          );
         };
         document.body.appendChild(script);
       })();

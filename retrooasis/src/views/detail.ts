@@ -5,6 +5,7 @@ import {
   platformAccentVar,
   refreshCatalogView,
 } from '../lib/catalog'
+import { coreNeedsThreads, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { hrefFor } from '../lib/router'
@@ -46,6 +47,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
   const paint = () => {
     const over = getOverride(game.id)
+    const playCore = normalizePlayCore(game.core)
+    const threadBadge = coreNeedsThreads(playCore)
+      ? '<span class="ro-badge">Threads</span>'
+      : ''
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
@@ -63,9 +68,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
+            ${threadBadge}
           </div>
           <p class="ro-lede">
-            Core <strong>${escapeHtml(game.core)}</strong>
+            Core <strong>${escapeHtml(playCore)}</strong>
             · File <code>${escapeHtml(game.file)}</code>
             ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
             ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}

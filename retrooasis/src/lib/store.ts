@@ -7,11 +7,14 @@ const LAYOUT_KEY = 'retrooasis.layout'
 const SOUNDS_KEY = 'retrooasis.sounds'
 const SOUND_PACK_KEY = 'retrooasis.soundPack'
 const LIBRETRO_COVERS_KEY = 'retrooasis.libretroCovers'
+const EJS_CHANNEL_KEY = 'retrooasis.ejsChannel'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
 export type LayoutMode = 'standard' | 'tv'
 export type SoundPack = 'soft' | 'arcade'
+/** Where EmulatorJS loader + cores are fetched from. Nightly includes PSP/PPSSPP. */
+export type EjsChannel = 'local' | 'stable' | 'latest' | 'nightly'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -130,6 +133,19 @@ export function getLibretroCovers(): boolean {
 
 export function setLibretroCovers(enabled: boolean): void {
   localStorage.setItem(LIBRETRO_COVERS_KEY, enabled ? '1' : '0')
+}
+
+export function getEjsChannel(): EjsChannel {
+  const value = localStorage.getItem(EJS_CHANNEL_KEY)
+  if (value === 'local' || value === 'stable' || value === 'latest' || value === 'nightly') {
+    return value
+  }
+  // Default nightly so PPSSPP / threaded cores are available without a full local cores install.
+  return 'nightly'
+}
+
+export function setEjsChannel(channel: EjsChannel): void {
+  localStorage.setItem(EJS_CHANNEL_KEY, channel)
 }
 
 export function clearLocalPrefs(): void {

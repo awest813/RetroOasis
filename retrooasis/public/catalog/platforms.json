@@ -1,67 +1,41 @@
 {
   "platforms": [
-    {
-      "id": "nes",
-      "name": "Nintendo Entertainment System",
-      "shortName": "NES",
-      "core": "nes",
-      "accent": "nes"
-    },
-    {
-      "id": "snes",
-      "name": "Super Nintendo",
-      "shortName": "SNES",
-      "core": "snes",
-      "accent": "snes"
-    },
-    {
-      "id": "gb",
-      "name": "Game Boy",
-      "shortName": "GB",
-      "core": "gb",
-      "accent": "gb"
-    },
-    {
-      "id": "gba",
-      "name": "Game Boy Advance",
-      "shortName": "GBA",
-      "core": "gba",
-      "accent": "gba"
-    },
-    {
-      "id": "segaMD",
-      "name": "Sega Mega Drive",
-      "shortName": "Genesis",
-      "core": "segaMD",
-      "accent": "sega"
-    },
-    {
-      "id": "segaMS",
-      "name": "Sega Master System",
-      "shortName": "SMS",
-      "core": "segaMS",
-      "accent": "sega"
-    },
-    {
-      "id": "psx",
-      "name": "PlayStation",
-      "shortName": "PS1",
-      "core": "psx",
-      "accent": "ps"
-    },
-    {
-      "id": "n64",
-      "name": "Nintendo 64",
-      "shortName": "N64",
-      "core": "n64",
-      "accent": "n64"
-    },
-    {
-      "id": "arcade",
-      "name": "Arcade",
-      "shortName": "Arcade",
-      "core": "arcade",
-      "accent": "arcade"
-    }
+    { "id": "nes", "name": "Nintendo Entertainment System", "shortName": "NES", "core": "nes", "accent": "nes" },
+    { "id": "snes", "name": "Super Nintendo", "shortName": "SNES", "core": "snes", "accent": "snes" },
+    { "id": "gb", "name": "Game Boy / Color", "shortName": "GB", "core": "gb", "accent": "gb" },
+    { "id": "gba", "name": "Game Boy Advance", "shortName": "GBA", "core": "gba", "accent": "gba" },
+    { "id": "nds", "name": "Nintendo DS", "shortName": "NDS", "core": "nds", "accent": "gba" },
+    { "id": "n64", "name": "Nintendo 64", "shortName": "N64", "core": "n64", "accent": "n64" },
+    { "id": "vb", "name": "Virtual Boy", "shortName": "VB", "core": "vb", "accent": "nes" },
+    { "id": "3ds", "name": "Nintendo 3DS", "shortName": "3DS", "core": "3ds", "accent": "n64" },
+    { "id": "psx", "name": "PlayStation", "shortName": "PS1", "core": "psx", "accent": "ps" },
+    { "id": "psp", "name": "PlayStation Portable", "shortName": "PSP", "core": "ppsspp", "accent": "ps" },
+    { "id": "segaMD", "name": "Sega Mega Drive", "shortName": "Genesis", "core": "segaMD", "accent": "sega" },
+    { "id": "segaMS", "name": "Sega Master System", "shortName": "SMS", "core": "segaMS", "accent": "sega" },
+    { "id": "segaGG", "name": "Sega Game Gear", "shortName": "GG", "core": "segaGG", "accent": "sega" },
+    { "id": "segaCD", "name": "Sega CD", "shortName": "Sega CD", "core": "segaCD", "accent": "sega" },
+    { "id": "sega32x", "name": "Sega 32X", "shortName": "32X", "core": "sega32x", "accent": "sega" },
+    { "id": "segaSaturn", "name": "Sega Saturn", "shortName": "Saturn", "core": "segaSaturn", "accent": "sega" },
+    { "id": "arcade", "name": "Arcade", "shortName": "Arcade", "core": "arcade", "accent": "arcade" },
+    { "id": "mame", "name": "MAME 2003", "shortName": "MAME", "core": "mame2003", "accent": "arcade" },
+    { "id": "atari2600", "name": "Atari 2600", "shortName": "2600", "core": "atari2600", "accent": "arcade" },
+    { "id": "atari7800", "name": "Atari 7800", "shortName": "7800", "core": "atari7800", "accent": "arcade" },
+    { "id": "atari5200", "name": "Atari 5200", "shortName": "5200", "core": "atari5200", "accent": "arcade" },
+    { "id": "lynx", "name": "Atari Lynx", "shortName": "Lynx", "core": "lynx", "accent": "arcade" },
+    { "id": "jaguar", "name": "Atari Jaguar", "shortName": "Jaguar", "core": "jaguar", "accent": "arcade" },
+    { "id": "3do", "name": "3DO", "shortName": "3DO", "core": "3do", "accent": "ps" },
+    { "id": "pce", "name": "PC Engine / TurboGrafx-16", "shortName": "PCE", "core": "pce", "accent": "snes" },
+    { "id": "pcfx", "name": "PC-FX", "shortName": "PC-FX", "core": "pcfx", "accent": "snes" },
+    { "id": "ngp", "name": "Neo Geo Pocket", "shortName": "NGP", "core": "ngp", "accent": "gb" },
+    { "id": "ws", "name": "WonderSwan", "shortName": "WS", "core": "ws", "accent": "gb" },
+    { "id": "coleco", "name": "ColecoVision", "shortName": "Coleco", "core": "coleco", "accent": "nes" },
+    { "id": "c64", "name": "Commodore 64", "shortName": "C64", "core": "vice_x64sc", "accent": "n64" },
+    { "id": "c128", "name": "Commodore 128", "shortName": "C128", "core": "vice_x128", "accent": "n64" },
+    { "id": "vic20", "name": "Commodore VIC-20", "shortName": "VIC-20", "core": "vice_xvic", "accent": "n64" },
+    { "id": "plus4", "name": "Commodore Plus/4", "shortName": "Plus/4", "core": "vice_xplus4", "accent": "n64" },
+    { "id": "pet", "name": "Commodore PET", "shortName": "PET", "core": "vice_xpet", "accent": "n64" },
+    { "id": "amiga", "name": "Amiga", "shortName": "Amiga", "core": "puae", "accent": "sega" },
+    { "id": "dos", "name": "DOS", "shortName": "DOS", "core": "dosbox_pure", "accent": "ps" },
+    { "id": "intv", "name": "Intellivision", "shortName": "INTV", "core": "intv", "accent": "arcade" }
   ]
 }
