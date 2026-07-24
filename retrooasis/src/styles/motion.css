@@ -84,6 +84,10 @@
   animation: ro-fade-up 520ms ease both;
 }
 
+.ro-lobby__content .ro-kicker {
+  opacity: 0.95;
+}
+
 .ro-lobby__brand {
   font-family: var(--ro-font-display);
   font-size: clamp(1.15rem, 4.5vw, 2.35rem);

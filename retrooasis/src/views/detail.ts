@@ -64,7 +64,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
           <div>
             <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
-            ${game.demo ? '<span class="ro-badge">Demo catalog</span>' : ''}
+            ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
@@ -89,8 +89,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <p class="ro-muted" id="ro-play-status" hidden></p>
           <div class="ro-btn-row ro-detail__actions">
             <button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>
-            <button type="button" class="ro-btn" id="ro-favorite" data-ro-focusable="true">
-              ${favorited ? 'Unfavorite' : 'Favorite'}
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
+              ${favorited ? '★ Favorited' : 'Favorite'}
             </button>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-edit" data-ro-focusable="true">
               ${editing ? 'Close editor' : 'Edit metadata'}

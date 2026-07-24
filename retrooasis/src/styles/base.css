@@ -76,14 +76,21 @@ select.ro-input {
 .ro-drop {
   display: grid;
   place-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-height: 9rem;
   padding: 1.25rem;
   border: 1px dashed var(--ro-line);
   background: var(--ro-bg-panel);
   text-align: center;
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.ro-drop__mark {
+  font-size: 1.1rem;
+  color: var(--ro-accent);
+  line-height: 1;
+  opacity: 0.85;
 }
 
 .ro-drop:hover,
@@ -91,6 +98,7 @@ select.ro-input {
 .ro-drop:focus-visible {
   border-color: var(--ro-accent);
   background: var(--ro-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ro-accent) 35%, transparent);
 }
 
 .ro-brand {
@@ -138,8 +146,9 @@ select.ro-input {
   font-size: 0.78rem;
   text-decoration: none;
   padding: 0.35rem 0.1rem;
-  border-bottom: 1px solid transparent;
+  border-bottom: 2px solid transparent;
   line-height: 1.2;
+  transition: color 140ms ease, border-color 140ms ease;
 }
 
 .ro-nav a[aria-current="page"],
@@ -147,6 +156,10 @@ select.ro-input {
   color: var(--ro-accent);
   border-bottom-color: var(--ro-accent);
   text-decoration: none;
+}
+
+.ro-nav a[aria-current="page"] {
+  font-weight: 600;
 }
 
 .ro-main {
@@ -164,8 +177,8 @@ select.ro-input {
 
 .ro-footer {
   padding: 1rem var(--ro-space) 1.35rem;
-  color: var(--ro-text-dim);
-  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
+  font-size: 0.84rem;
   text-align: center;
   border-top: 1px solid var(--ro-line);
 }
@@ -222,6 +235,7 @@ select.ro-input {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ro-accent);
+  text-shadow: 0 1px 10px var(--ro-accent-soft);
 }
 
 .ro-title {
@@ -251,22 +265,43 @@ select.ro-input {
 
 .ro-search {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  gap: 0;
+  align-items: stretch;
   flex: 1 1 14rem;
   min-width: 0;
-  max-width: 22rem;
+  max-width: 24rem;
+  border: 1px solid var(--ro-line);
+  border-radius: var(--ro-radius);
+  background: var(--ro-bg-panel);
+  overflow: hidden;
 }
 
 .ro-search input {
-  background: var(--ro-bg-panel);
-  border: 1px solid var(--ro-line);
+  background: transparent;
+  border: 0;
   color: var(--ro-text);
   padding: 0.55rem 0.75rem;
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
-  border-radius: var(--ro-radius);
+  border-radius: 0;
+}
+
+.ro-search input:focus {
+  outline: none;
+}
+
+.ro-search .ro-btn {
+  border: 0;
+  border-left: 1px solid var(--ro-line);
+  border-radius: 0;
+  padding-inline: 0.85rem;
+  background: transparent;
+}
+
+.ro-search .ro-btn:hover {
+  background: var(--ro-accent-soft);
+  color: var(--ro-accent);
 }
 
 .ro-search input::placeholder {
@@ -339,8 +374,15 @@ html[data-crt='on'] .ro-shell::after {
   border: 1px solid var(--ro-line);
   border-radius: var(--ro-radius);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 35%, #102433), #0a1520 70%),
-    var(--ro-bg-panel-solid);
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 28%, transparent), transparent 42%),
+    repeating-linear-gradient(
+      -18deg,
+      transparent 0,
+      transparent 7px,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 10%, transparent) 7px,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 10%, transparent) 8px
+    ),
+    linear-gradient(165deg, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 42%, #102433), #071018 72%);
   display: grid;
   place-items: center;
   padding: 0.75rem;
@@ -725,6 +767,10 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   letter-spacing: 0.08em;
 }
 
+.ro-tile__sub--sample {
+  color: color-mix(in srgb, var(--ro-accent) 70%, var(--ro-text-dim));
+}
+
 .ro-badge {
   display: inline-flex;
   align-items: center;
@@ -738,15 +784,38 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 }
 
 .ro-empty {
-  padding: 2rem 1rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2.25rem 1.25rem;
   border: 1px dashed var(--ro-line);
+  background: color-mix(in srgb, var(--ro-bg-panel) 55%, transparent);
   color: var(--ro-text-dim);
   text-align: center;
+}
+
+.ro-empty__title {
+  margin: 0;
+  font-family: var(--ro-font-display);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--ro-text);
+}
+
+.ro-empty__body {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.95rem;
+}
+
+.ro-empty .ro-btn-row {
+  margin-top: 0.35rem;
 }
 
 .ro-detail {
   display: grid;
   gap: 1.5rem;
+  max-width: 52rem;
 }
 
 @media (min-width: 720px) {
@@ -776,6 +845,12 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   margin-top: 1.15rem;
 }
 
+.ro-detail__actions #ro-favorite[aria-pressed='true'] {
+  border-color: var(--ro-accent);
+  background: var(--ro-accent-soft);
+  color: var(--ro-accent);
+}
+
 .ro-muted {
   color: var(--ro-text-dim);
 }
@@ -792,8 +867,8 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem 1rem;
-  padding: 0.75rem 0;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--ro-line);
 }
 
@@ -802,8 +877,12 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 }
 
 .ro-settings-row > div:first-child {
-  flex: 1 1 12rem;
+  flex: 1 1 14rem;
   min-width: 0;
+}
+
+.ro-settings-row strong {
+  font-size: 0.98rem;
 }
 
 .ro-toggle-group {
@@ -816,6 +895,7 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
 .ro-toggle-group .ro-btn {
   flex: 0 0 auto;
+  padding: 0.55rem 0.85rem;
 }
 
 .ro-toggle-group button[aria-pressed="true"] {
@@ -983,7 +1063,7 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
 @media (min-width: 1280px) {
   :root {
-    --ro-systems-w: 17rem;
+    --ro-systems-w: 15.75rem;
     --ro-tile-min: 10rem;
     --ro-platform-min: 11.5rem;
   }
@@ -991,7 +1071,7 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
 @media (min-width: 1600px) {
   :root {
-    --ro-systems-w: 18rem;
+    --ro-systems-w: 16.5rem;
     --ro-tile-min: 10.5rem;
     --ro-max-library: 110rem;
   }
