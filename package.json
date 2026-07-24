@@ -16,7 +16,8 @@
     "scripts": {
         "start": "http-server",
         "minify": "node minify/minify.js",
-        "build": "node build.js",
+        "build": "npm --prefix retrooasis install && npm --prefix retrooasis run build && node scripts/sync-pages-dist.mjs",
+        "build:emulatorjs": "node build.js",
         "update": "node update.js",
         "docs": "jsdoc data/src/*.js -d jsdoc",
         "oasis:dev": "npm --prefix retrooasis run dev",
