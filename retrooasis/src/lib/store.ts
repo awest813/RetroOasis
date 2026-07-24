@@ -5,10 +5,13 @@ const CRT_KEY = 'retrooasis.crt'
 const HIDE_DEMOS_KEY = 'retrooasis.hideDemos'
 const LAYOUT_KEY = 'retrooasis.layout'
 const SOUNDS_KEY = 'retrooasis.sounds'
+const SOUND_PACK_KEY = 'retrooasis.soundPack'
+const LIBRETRO_COVERS_KEY = 'retrooasis.libretroCovers'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
 export type LayoutMode = 'standard' | 'tv'
+export type SoundPack = 'soft' | 'arcade'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -111,6 +114,22 @@ export function getSoundsEnabled(): boolean {
 
 export function setSoundsEnabled(enabled: boolean): void {
   localStorage.setItem(SOUNDS_KEY, enabled ? '1' : '0')
+}
+
+export function getSoundPack(): SoundPack {
+  return localStorage.getItem(SOUND_PACK_KEY) === 'arcade' ? 'arcade' : 'soft'
+}
+
+export function setSoundPack(pack: SoundPack): void {
+  localStorage.setItem(SOUND_PACK_KEY, pack)
+}
+
+export function getLibretroCovers(): boolean {
+  return localStorage.getItem(LIBRETRO_COVERS_KEY) !== '0'
+}
+
+export function setLibretroCovers(enabled: boolean): void {
+  localStorage.setItem(LIBRETRO_COVERS_KEY, enabled ? '1' : '0')
 }
 
 export function clearLocalPrefs(): void {

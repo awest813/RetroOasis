@@ -18,7 +18,13 @@ export function coverMarkup(
   if (coverUrl) {
     return `
       <div class="ro-cover ro-cover--image" style="--cover-accent: ${accentVar}">
-        <img src="${escapeAttr(coverUrl)}" alt="" loading="lazy" />
+        <img
+          src="${escapeAttr(coverUrl)}"
+          alt=""
+          loading="lazy"
+          onerror="this.style.display='none'; this.parentElement && this.parentElement.classList.add('ro-cover--missing')"
+        />
+        <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(title)}</span>
       </div>
     `
   }

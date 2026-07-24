@@ -1,7 +1,10 @@
+export type VirtualCollection = 'recent' | 'favorites' | 'all'
+
 export type Route =
   | { name: 'lobby' }
   | { name: 'library' }
   | { name: 'platform'; platformId: string }
+  | { name: 'collection'; collection: VirtualCollection }
   | { name: 'game'; gameId: string }
   | { name: 'upload' }
   | { name: 'settings' }
@@ -10,6 +13,7 @@ export type Route =
 type Listener = (route: Route) => void
 
 const listeners = new Set<Listener>()
+const VIRTUAL = new Set<VirtualCollection>(['recent', 'favorites', 'all'])
 
 function parseHash(hash: string): Route {
   const raw = hash.replace(/^#\/?/, '').replace(/\/$/, '')
@@ -17,7 +21,14 @@ function parseHash(hash: string): Route {
 
   if (parts.length === 0) return { name: 'lobby' }
   if (parts[0] === 'library' && parts.length === 1) return { name: 'library' }
-  if (parts[0] === 'library' && parts[1]) return { name: 'platform', platformId: decodeURIComponent(parts[1]) }
+  if (parts[0] === 'library' && parts[1]) {
+    const id = decodeURIComponent(parts[1])
+    if (id.startsWith('@')) {
+      const collection = id.slice(1) as VirtualCollection
+      if (VIRTUAL.has(collection)) return { name: 'collection', collection }
+    }
+    return { name: 'platform', platformId: id }
+  }
   if (parts[0] === 'game' && parts[1]) return { name: 'game', gameId: decodeURIComponent(parts[1]) }
   if (parts[0] === 'upload') return { name: 'upload' }
   if (parts[0] === 'settings') return { name: 'settings' }
@@ -68,6 +79,8 @@ export function routePath(route: Route): string {
       return '#/library'
     case 'platform':
       return `#/library/${encodeURIComponent(route.platformId)}`
+    case 'collection':
+      return `#/library/@${route.collection}`
     case 'game':
       return `#/game/${encodeURIComponent(route.gameId)}`
     case 'upload':

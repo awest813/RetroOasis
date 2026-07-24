@@ -294,7 +294,16 @@ Detail → Play
 
 ### Phase 3 status
 
-Phase 3 polish items above are complete for the static SPA path. Further work is optional product depth (sounds packs, scrapers, thin scan API), not blockers for hosting RetroOasis.
+Phase 3 polish items above are complete for the static SPA path.
+
+### Phase 4 — Next depth (static-friendly)
+
+- [x] Virtual collections in systems rail (Recent / Favorites / All)
+- [x] Richer sound packs (soft / arcade)
+- [x] Libretro cover enrichment (runtime + `oasis:scan -- --covers`)
+- [x] Local metadata overrides + export JSON
+- [x] Thin scan CLI (`oasis:scan`) — no always-on server required
+- Optional later: credentialed scrapers (IGDB / ScreenScraper) writing sidecars offline
 
 ---
 

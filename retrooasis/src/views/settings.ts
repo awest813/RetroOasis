@@ -14,6 +14,7 @@ import {
   isPwaInstalled,
   promptPwaInstall,
 } from '../lib/pwa'
+import { clearAllOverrides, exportOverridesJson } from '../lib/overrides'
 import {
   applyStoredCrt,
   applyStoredLayout,
@@ -22,14 +23,19 @@ import {
   getCrtEnabled,
   getHideDemos,
   getLayout,
+  getLibretroCovers,
+  getSoundPack,
   getSoundsEnabled,
   setAccent,
   setCrtEnabled,
   setHideDemos,
   setLayout,
+  setLibretroCovers,
+  setSoundPack,
   setSoundsEnabled,
   type AccentMode,
   type LayoutMode,
+  type SoundPack,
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
 
@@ -39,6 +45,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const hideDemos = getHideDemos()
   const layout = getLayout()
   const sounds = getSoundsEnabled()
+  const pack = getSoundPack()
+  const libretro = getLibretroCovers()
   const meta = await getLocalLibraryMeta()
   const catalog = await loadCatalog()
   const canPick = supportsDirectoryPicker()
@@ -85,9 +93,28 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         <div class="ro-settings-row">
           <div>
             <strong>UI sounds</strong>
-            <p class="ro-muted" style="margin: 0.25rem 0 0;">Soft menu blips on move / confirm. Off by default.</p>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Menu blips on move / confirm. Off by default.</p>
           </div>
           <button type="button" class="ro-btn" id="ro-sounds" aria-pressed="${sounds}">${sounds ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Sound pack</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Soft sine tones or arcade square blips.</p>
+          </div>
+          <div class="ro-toggle-group">
+            <button type="button" class="ro-btn" data-pack="soft" aria-pressed="${pack === 'soft'}">Soft</button>
+            <button type="button" class="ro-btn" data-pack="arcade" aria-pressed="${pack === 'arcade'}">Arcade</button>
+          </div>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Libretro covers</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Guess boxart from thumbnails.libretro.com when a game has no cover (on by default).</p>
+          </div>
+          <button type="button" class="ro-btn" id="ro-libretro" aria-pressed="${libretro}">${libretro ? 'On' : 'Off'}</button>
         </div>
 
         <div class="ro-settings-row">
@@ -161,11 +188,22 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
         <div class="ro-settings-row">
           <div>
-            <strong>Hosting</strong>
+            <strong>Metadata overrides</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Local edits from game detail pages. Export as JSON or clear.</p>
+          </div>
+          <div class="ro-btn-row">
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export</button>
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over">Clear</button>
+          </div>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Hosting / scan</strong>
             <p class="ro-muted" style="margin: 0.25rem 0 0;">
-              <code>npm run oasis:build</code> → serve <code>retrooasis/dist/</code> beside EmulatorJS
-              <code>data/</code> and optional <code>roms/</code>. Generate a manifest with
-              <code>npm run oasis:manifest</code>.
+              <code>npm run oasis:build</code> → serve <code>dist/</code> beside <code>data/</code> + <code>roms/</code>.
+              Scan ROMs with <code>npm run oasis:scan</code>; probe Libretro covers with
+              <code>npm run oasis:scan -- --covers</code>.
             </p>
           </div>
         </div>
@@ -201,6 +239,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     void renderSettings(root)
   })
 
+  root.querySelectorAll<HTMLButtonElement>('[data-pack]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setSoundPack(btn.dataset.pack as SoundPack)
+      if (getSoundsEnabled()) sfxToggle()
+      void renderSettings(root)
+    })
+  })
+
+  root.querySelector('#ro-libretro')?.addEventListener('click', () => {
+    setLibretroCovers(!getLibretroCovers())
+    void renderSettings(root)
+  })
+
   root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {
     setHideDemos(!getHideDemos())
     refreshCatalogView()
@@ -233,6 +284,22 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelector('#ro-clear-prefs')?.addEventListener('click', () => {
     clearLocalPrefs()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-export-over')?.addEventListener('click', () => {
+    const blob = new Blob([exportOverridesJson()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'retrooasis-overrides.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  })
+
+  root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
+    clearAllOverrides()
+    refreshCatalogView()
     void renderSettings(root)
   })
 }

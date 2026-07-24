@@ -4,6 +4,7 @@ import {
   type LocalScanResult,
 } from './localLibrary'
 import { loadHostedManifest } from './hostedLibrary'
+import { applyOverridesToGames } from './overrides'
 import { getHideDemos } from './store'
 
 export type PlatformAccent =
@@ -81,9 +82,10 @@ function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
   for (const game of seedGames) byId.set(game.id, game)
   for (const game of hostedGames) byId.set(game.id, game)
   for (const game of localGames) byId.set(game.id, game)
+  const games = applyOverridesToGames([...byId.values()])
   return {
     platforms: seed.platforms,
-    games: [...byId.values()],
+    games,
     local: localMeta,
     hostedCount: hostedGames.length,
   }

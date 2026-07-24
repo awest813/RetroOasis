@@ -15,7 +15,7 @@ import {
 } from './lib/pwa'
 import { installInputChrome } from './lib/input'
 import { renderLobby } from './views/lobby'
-import { renderLibrary } from './views/library'
+import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
 import { renderSettings } from './views/settings'
@@ -87,6 +87,7 @@ function syncNav(route: Route): void {
     lobby: 'lobby',
     library: 'library',
     platform: 'library',
+    collection: 'library',
     game: 'library',
     upload: 'upload',
     settings: 'settings',
@@ -113,7 +114,10 @@ async function render(route: Route): Promise<void> {
       await renderLibrary(main)
       break
     case 'platform':
-      await renderLibrary(main, route.platformId)
+      await renderLibrary(main, { kind: 'platform', id: route.platformId })
+      break
+    case 'collection':
+      await renderCollection(main, route.collection)
       break
     case 'game':
       await renderGameDetail(main, route.gameId)

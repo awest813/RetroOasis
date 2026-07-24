@@ -3,12 +3,20 @@ import {
   findPlatform,
   loadCatalog,
   platformAccentVar,
+  refreshCatalogView,
 } from '../lib/catalog'
-import { coverMarkup, escapeHtml } from '../lib/dom'
+import { resolveCoverUrl } from '../lib/covers'
+import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { hrefFor } from '../lib/router'
 import { launchGame } from '../lib/play'
+import {
+  clearOverride,
+  exportOverridesJson,
+  getOverride,
+  setOverride,
+} from '../lib/overrides'
 import { sfxConfirm, sfxToggle } from '../lib/sfx'
-import { isFavorite, toggleFavorite } from '../lib/store'
+import { getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -26,14 +34,22 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   }
 
   const platform = findPlatform(catalog, game.platform)
+  const cover = resolveCoverUrl(
+    game.platform,
+    game.title,
+    game.cover,
+    getLibretroCovers(),
+  )
   let favorited = isFavorite(game.id)
   let busy = false
+  let editing = false
 
   const paint = () => {
+    const over = getOverride(game.id)
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
-          ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), game.cover)}
+          ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
         </div>
         <div class="ro-stack">
           <p class="ro-kicker">
@@ -46,6 +62,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${game.demo ? '<span class="ro-badge">Demo catalog</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
+            ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
           </div>
           <p class="ro-lede">
             Core <strong>${escapeHtml(game.core)}</strong>
@@ -69,8 +86,28 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             <button type="button" class="ro-btn" id="ro-favorite" data-ro-focusable="true">
               ${favorited ? 'Unfavorite' : 'Favorite'}
             </button>
-            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/upload')}">Upload ROM</a>
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-edit" data-ro-focusable="true">
+              ${editing ? 'Close editor' : 'Edit metadata'}
+            </button>
           </div>
+          ${
+            editing
+              ? `
+            <form class="ro-stack ro-meta-form" id="ro-meta-form">
+              <label class="ro-muted">Title <input class="ro-input" name="title" value="${escapeAttr(over?.title ?? game.title)}" /></label>
+              <label class="ro-muted">Year <input class="ro-input" name="year" value="${escapeAttr(String(over?.year ?? game.year ?? ''))}" /></label>
+              <label class="ro-muted">Developer <input class="ro-input" name="developer" value="${escapeAttr(over?.developer ?? game.developer ?? '')}" /></label>
+              <label class="ro-muted">Cover URL <input class="ro-input" name="cover" value="${escapeAttr(over?.cover ?? game.cover ?? '')}" /></label>
+              <label class="ro-muted">Description <textarea class="ro-input" name="description" rows="3">${escapeHtml(over?.description ?? game.description ?? '')}</textarea></label>
+              <div class="ro-btn-row">
+                <button type="submit" class="ro-btn ro-btn--primary">Save locally</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over">Clear override</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export all</button>
+              </div>
+              <p class="ro-muted">Overrides stay in this browser. Export JSON to turn them into sidecars / manifest fields.</p>
+            </form>`
+              : ''
+          }
         </div>
       </section>
     `
@@ -96,6 +133,40 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       sfxToggle()
       favorited = toggleFavorite(game.id)
       paint()
+    })
+
+    root.querySelector('#ro-edit')?.addEventListener('click', () => {
+      editing = !editing
+      paint()
+    })
+
+    root.querySelector('#ro-meta-form')?.addEventListener('submit', (event) => {
+      event.preventDefault()
+      const form = event.target as HTMLFormElement
+      const data = new FormData(form)
+      setOverride(game.id, {
+        title: String(data.get('title') || ''),
+        year: String(data.get('year') || '') || undefined,
+        developer: String(data.get('developer') || '') || undefined,
+        cover: String(data.get('cover') || '') || undefined,
+        description: String(data.get('description') || '') || undefined,
+      })
+      refreshCatalogView()
+    })
+
+    root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
+      clearOverride(game.id)
+      refreshCatalogView()
+    })
+
+    root.querySelector('#ro-export-over')?.addEventListener('click', () => {
+      const blob = new Blob([exportOverridesJson()], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'retrooasis-overrides.json'
+      a.click()
+      URL.revokeObjectURL(url)
     })
 
     root.querySelector<HTMLElement>('#ro-play')?.focus()

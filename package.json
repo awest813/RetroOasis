@@ -22,7 +22,8 @@
         "oasis:dev": "npm --prefix retrooasis run dev",
         "oasis:build": "npm --prefix retrooasis run build",
         "oasis:preview": "npm --prefix retrooasis run preview",
-        "oasis:manifest": "npm --prefix retrooasis run manifest"
+        "oasis:manifest": "npm --prefix retrooasis run manifest",
+        "oasis:scan": "npm --prefix retrooasis run scan"
     },
     "dependencies": {
         "@node-minify/clean-css": "^10.4.0",
