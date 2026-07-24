@@ -19,8 +19,13 @@
   --ro-radius: 2px;
   --ro-font-display: "Press Start 2P", ui-monospace, monospace;
   --ro-font-ui: "Chakra Petch", system-ui, sans-serif;
-  --ro-space: clamp(1rem, 2vw, 1.75rem);
+  --ro-space: clamp(0.9rem, 2.2vw, 1.75rem);
   --ro-max: 72rem;
+  --ro-max-library: 96rem;
+  --ro-topbar-h: 3.65rem;
+  --ro-tile-min: 9.5rem;
+  --ro-platform-min: 11rem;
+  --ro-systems-w: 16rem;
 
   /* Platform accent hints for placeholders */
   --ro-plat-nes: #c43c3c;

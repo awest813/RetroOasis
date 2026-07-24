@@ -34,7 +34,7 @@
   align-content: center;
   position: relative;
   overflow: hidden;
-  padding: clamp(1.5rem, 5vw, 3rem) 0;
+  padding: clamp(1.15rem, 4vw, 3rem) 0;
 }
 
 .ro-lobby__stage {
@@ -79,14 +79,14 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  max-width: 40rem;
+  gap: clamp(0.85rem, 2vw, 1.25rem);
+  max-width: min(40rem, 100%);
   animation: ro-fade-up 520ms ease both;
 }
 
 .ro-lobby__brand {
   font-family: var(--ro-font-display);
-  font-size: clamp(1.35rem, 5vw, 2.35rem);
+  font-size: clamp(1.15rem, 4.5vw, 2.35rem);
   line-height: 1.45;
   color: var(--ro-accent);
   text-shadow: 0 0 24px var(--ro-accent-soft);
@@ -95,7 +95,7 @@
 
 .ro-lobby__headline {
   margin: 0;
-  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
+  font-size: clamp(1.05rem, 2.4vw, 1.55rem);
   font-weight: 600;
   color: var(--ro-text);
   letter-spacing: 0.02em;
@@ -103,6 +103,24 @@
 
 .ro-view {
   animation: ro-fade-up 280ms ease both;
+}
+
+@media (max-width: 640px) {
+  .ro-lobby {
+    min-height: calc(100dvh - 7.5rem);
+    align-content: start;
+    padding-top: clamp(1.5rem, 8vw, 2.75rem);
+  }
+
+  .ro-lobby__content .ro-btn-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ro-lobby__content .ro-btn-row > .ro-btn,
+  .ro-lobby__content .ro-btn-row > a.ro-btn {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
