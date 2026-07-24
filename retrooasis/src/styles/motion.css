@@ -1,0 +1,118 @@
+@keyframes ro-grid-drift {
+  from {
+    background-position: 0 0, 0 0, 50% 0;
+  }
+  to {
+    background-position: 0 48px, 48px 0, 50% 0;
+  }
+}
+
+@keyframes ro-scan-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes ro-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ro-lobby {
+  min-height: calc(100dvh - 5.5rem);
+  display: grid;
+  align-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.5rem, 5vw, 3rem) 0;
+}
+
+.ro-lobby__stage {
+  position: absolute;
+  inset: -10% -5% 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, transparent 0%, var(--ro-bg-void) 78%),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 47px,
+      var(--ro-grid) 47px,
+      var(--ro-grid) 48px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 47px,
+      var(--ro-grid) 47px,
+      var(--ro-grid) 48px
+    ),
+    radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--ro-accent) 18%, transparent), transparent 55%);
+  transform: perspective(500px) rotateX(58deg);
+  transform-origin: center top;
+  animation: ro-grid-drift 18s linear infinite;
+}
+
+.ro-lobby__glow {
+  position: absolute;
+  inset: auto 10% 8% 10%;
+  height: 40%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--ro-accent-soft), transparent 70%);
+  animation: ro-scan-pulse 4.5s ease-in-out infinite;
+}
+
+.ro-lobby__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 40rem;
+  animation: ro-fade-up 520ms ease both;
+}
+
+.ro-lobby__brand {
+  font-family: var(--ro-font-display);
+  font-size: clamp(1.35rem, 5vw, 2.35rem);
+  line-height: 1.45;
+  color: var(--ro-accent);
+  text-shadow: 0 0 24px var(--ro-accent-soft);
+  margin: 0;
+}
+
+.ro-lobby__headline {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
+  font-weight: 600;
+  color: var(--ro-text);
+  letter-spacing: 0.02em;
+}
+
+.ro-view {
+  animation: ro-fade-up 280ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-lobby__stage,
+  .ro-lobby__glow,
+  .ro-lobby__content,
+  .ro-view,
+  .ro-cover,
+  .ro-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,4 @@
+# Cloudflare Pages — RetroOasis static SPA
+name = "retrooasis"
+compatibility_date = "2025-07-01"
+pages_build_output_dir = "dist"
