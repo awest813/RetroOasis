@@ -8,6 +8,7 @@ import {
   titleFromFilename,
 } from './cores'
 import { idbDelete, idbGet, idbSet } from './idb'
+import { parseSidecar, type GameSidecar } from './sidecar'
 
 const ROOT_HANDLE_KEY = 'libraryRoot'
 const fileHandles = new Map<string, FileSystemFileHandle>()
@@ -72,32 +73,70 @@ async function readCoverUrl(
   return null
 }
 
+async function readJsonSidecar(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<GameSidecar | null> {
+  try {
+    const handle = await dir.getFileHandle(name)
+    const file = await handle.getFile()
+    return parseSidecar(JSON.parse(await file.text()))
+  } catch {
+    return null
+  }
+}
+
 async function scanPlatformDir(
   platformId: string,
   dir: FileSystemDirectoryHandle,
   games: Game[],
 ): Promise<void> {
-  const core = coreForPlatform(platformId)
+  const defaultCore = coreForPlatform(platformId)
+  const romEntries: Array<[string, FileSystemFileHandle]> = []
 
   for await (const [name, handle] of dir.entries()) {
-    if (handle.kind !== 'file' || !isRomFile(name)) continue
+    if (handle.kind === 'file' && isRomFile(name)) {
+      romEntries.push([name, handle as FileSystemFileHandle])
+    }
+  }
 
+  const sharedMeta = romEntries.length === 1 ? await readJsonSidecar(dir, 'game.json') : null
+
+  for (const [name, handle] of romEntries) {
     const id = slugId(platformId, name)
     const romBase = name.replace(/\.[^.]+$/, '')
+    const meta = (await readJsonSidecar(dir, `${romBase}.json`)) || sharedMeta
     let cover = await readCoverUrl(dir, romBase)
+
+    // Sidecar may point at a relative cover filename in the same folder.
+    if (!cover && meta?.cover && !meta.cover.includes('://') && !meta.cover.includes('/')) {
+      cover = await readCoverUrl(dir, meta.cover.replace(/\.[^.]+$/, ''))
+      if (!cover) {
+        try {
+          const coverHandle = await dir.getFileHandle(meta.cover)
+          cover = URL.createObjectURL(await coverHandle.getFile())
+        } catch {
+          // ignore missing sidecar cover
+        }
+      }
+    }
 
     fileHandles.set(id, handle as FileSystemFileHandle)
     if (cover) coverUrls.set(id, cover)
 
     games.push({
       id,
-      title: titleFromFilename(name),
+      title: meta?.title || titleFromFilename(name),
       platform: platformId,
-      core,
+      core: meta?.core || defaultCore,
       file: `local://${id}`,
       cover,
+      bios: meta?.bios ?? null,
+      description: meta?.description,
+      year: meta?.year,
+      developer: meta?.developer,
       source: 'local',
-      tags: ['local'],
+      tags: meta?.tags?.length ? meta.tags : ['local'],
     })
   }
 }

@@ -17,6 +17,9 @@ export interface HostedManifest {
     cover?: string | null
     bios?: string | null
     tags?: string[]
+    description?: string
+    year?: string | number
+    developer?: string
   }>
 }
 
@@ -56,6 +59,9 @@ export function normalizeHostedGames(manifest: HostedManifest): Game[] {
       file: entry.file,
       cover: entry.cover ?? null,
       bios: entry.bios ?? null,
+      description: entry.description,
+      year: entry.year,
+      developer: entry.developer,
       tags: entry.tags ?? ['hosted'],
       source: 'hosted',
     })

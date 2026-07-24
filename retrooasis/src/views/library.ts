@@ -53,16 +53,21 @@ export async function renderLibrary(
   const platform = selectedId ? findPlatform(catalog, selectedId) : undefined
   let query = ''
   let favoritesOnly = false
+  let sortDesc = false
   let cleanup: (() => void) | undefined
 
   const paint = () => {
     cleanup?.()
     const games = selectedId
-      ? gamesForPlatform(catalog, selectedId).filter((g) => {
-          if (favoritesOnly && !getFavorites().includes(g.id)) return false
-          if (!query) return true
-          return g.title.toLowerCase().includes(query)
-        })
+      ? gamesForPlatform(catalog, selectedId)
+          .filter((g) => {
+            if (favoritesOnly && !getFavorites().includes(g.id)) return false
+            if (!query) return true
+            return g.title.toLowerCase().includes(query)
+          })
+          .sort((a, b) =>
+            sortDesc ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title),
+          )
       : []
 
     root.innerHTML = `
@@ -98,6 +103,9 @@ export async function renderLibrary(
             </div>
             <div class="ro-search">
               <input type="search" id="ro-q" placeholder="Search titles" value="${escapeAttr(query)}" ${selectedId ? '' : 'disabled'} />
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort" ${selectedId ? '' : 'disabled'}>
+                ${sortDesc ? 'Z–A' : 'A–Z'}
+              </button>
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-fav" aria-pressed="${favoritesOnly}" ${selectedId ? '' : 'disabled'}>
                 ${favoritesOnly ? 'Favorites' : 'All'}
               </button>
@@ -125,6 +133,11 @@ export async function renderLibrary(
       query = input.value.trim().toLowerCase()
       paint()
       root.querySelector<HTMLInputElement>('#ro-q')?.focus()
+    })
+
+    root.querySelector('#ro-sort')?.addEventListener('click', () => {
+      sortDesc = !sortDesc
+      paint()
     })
 
     root.querySelector('#ro-fav')?.addEventListener('click', () => {

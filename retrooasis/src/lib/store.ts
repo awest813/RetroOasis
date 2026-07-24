@@ -4,6 +4,7 @@ const ACCENT_KEY = 'retrooasis.accent'
 const CRT_KEY = 'retrooasis.crt'
 const HIDE_DEMOS_KEY = 'retrooasis.hideDemos'
 const LAYOUT_KEY = 'retrooasis.layout'
+const SOUNDS_KEY = 'retrooasis.sounds'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
@@ -102,6 +103,14 @@ export function setLayout(mode: LayoutMode): void {
 
 export function applyStoredLayout(): void {
   document.documentElement.dataset.layout = getLayout()
+}
+
+export function getSoundsEnabled(): boolean {
+  return localStorage.getItem(SOUNDS_KEY) === '1'
+}
+
+export function setSoundsEnabled(enabled: boolean): void {
+  localStorage.setItem(SOUNDS_KEY, enabled ? '1' : '0')
 }
 
 export function clearLocalPrefs(): void {

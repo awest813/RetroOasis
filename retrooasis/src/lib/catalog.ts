@@ -35,6 +35,9 @@ export interface Game {
   demo?: boolean
   bios?: string | null
   source?: 'catalog' | 'hosted' | 'local'
+  description?: string
+  year?: string | number
+  developer?: string
 }
 
 export interface Catalog {

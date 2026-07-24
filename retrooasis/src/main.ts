@@ -13,6 +13,7 @@ import {
   promptPwaInstall,
   registerServiceWorker,
 } from './lib/pwa'
+import { installInputChrome } from './lib/input'
 import { renderLobby } from './views/lobby'
 import { renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
@@ -32,6 +33,7 @@ const app = appEl
 applyStoredAccent()
 applyStoredCrt()
 applyStoredLayout()
+installInputChrome()
 initPwaInstall()
 registerServiceWorker()
 

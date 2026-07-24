@@ -88,6 +88,23 @@ function findCover(platformDir, platform, base) {
   return null
 }
 
+function readJsonFile(full) {
+  if (!fs.existsSync(full)) return null
+  try {
+    const data = JSON.parse(fs.readFileSync(full, 'utf8'))
+    return data && typeof data === 'object' ? data : null
+  } catch {
+    return null
+  }
+}
+
+function readSidecar(platformDir, base, allowSharedGameJson) {
+  return (
+    readJsonFile(path.join(platformDir, `${base}.json`)) ||
+    (allowSharedGameJson ? readJsonFile(path.join(platformDir, 'game.json')) : null)
+  )
+}
+
 if (!fs.existsSync(romsRoot)) {
   console.error(`No roms/ directory at ${romsRoot}`)
   process.exit(1)
@@ -102,18 +119,29 @@ for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
   if (!platform) continue
 
   const platformDir = path.join(romsRoot, entry.name)
-  for (const file of fs.readdirSync(platformDir)) {
+  const romFiles = fs.readdirSync(platformDir).filter((file) => {
     const ext = file.split('.').pop()?.toLowerCase()
-    if (!ext || !ROM_EXT.has(ext)) continue
+    return !!ext && ROM_EXT.has(ext)
+  })
+  const allowShared = romFiles.length === 1
+
+  for (const file of romFiles) {
     const base = file.replace(/\.[^.]+$/, '')
-    games.push({
+    const meta = readSidecar(platformDir, base, allowShared) || {}
+    const game = {
       id: slugId(platform, file),
-      title: titleFromFilename(file),
+      title: meta.title || titleFromFilename(file),
       platform,
-      core: PLATFORM_TO_CORE[platform] || platform,
+      core: meta.core || PLATFORM_TO_CORE[platform] || platform,
       file: `roms/${entry.name}/${file}`,
-      cover: findCover(platformDir, entry.name, base),
-    })
+      cover: meta.cover || findCover(platformDir, entry.name, base),
+    }
+    if (meta.bios != null) game.bios = meta.bios
+    if (meta.description) game.description = meta.description
+    if (meta.year != null) game.year = meta.year
+    if (meta.developer) game.developer = meta.developer
+    if (Array.isArray(meta.tags)) game.tags = meta.tags
+    games.push(game)
   }
 }
 

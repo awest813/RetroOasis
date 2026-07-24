@@ -22,19 +22,23 @@ import {
   getCrtEnabled,
   getHideDemos,
   getLayout,
+  getSoundsEnabled,
   setAccent,
   setCrtEnabled,
   setHideDemos,
   setLayout,
+  setSoundsEnabled,
   type AccentMode,
   type LayoutMode,
 } from '../lib/store'
+import { sfxToggle } from '../lib/sfx'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
   const crt = getCrtEnabled()
   const hideDemos = getHideDemos()
   const layout = getLayout()
+  const sounds = getSoundsEnabled()
   const meta = await getLocalLibraryMeta()
   const catalog = await loadCatalog()
   const canPick = supportsDirectoryPicker()
@@ -76,6 +80,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <p class="ro-muted" style="margin: 0.25rem 0 0;">Heavier scanlines + vignette on the shell.</p>
           </div>
           <button type="button" class="ro-btn" id="ro-crt" aria-pressed="${crt}">${crt ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>UI sounds</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Soft menu blips on move / confirm. Off by default.</p>
+          </div>
+          <button type="button" class="ro-btn" id="ro-sounds" aria-pressed="${sounds}">${sounds ? 'On' : 'Off'}</button>
         </div>
 
         <div class="ro-settings-row">
@@ -179,6 +191,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   root.querySelector('#ro-crt')?.addEventListener('click', () => {
     setCrtEnabled(!getCrtEnabled())
     applyStoredCrt()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-sounds')?.addEventListener('click', () => {
+    const next = !getSoundsEnabled()
+    setSoundsEnabled(next)
+    if (next) sfxToggle()
     void renderSettings(root)
   })
 

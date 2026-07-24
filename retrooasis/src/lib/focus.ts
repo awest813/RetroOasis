@@ -1,5 +1,8 @@
 /** Keyboard + gamepad focus for grids. */
 
+import { setModalityFromPad } from './inputModality'
+import { sfxBack, sfxConfirm, sfxMove } from './sfx'
+
 type Cleanup = () => void
 
 function focusables(root: HTMLElement): HTMLElement[] {
@@ -28,6 +31,7 @@ function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'c
   if (index < 0) index = 0
 
   if (key === 'confirm') {
+    sfxConfirm()
     ;(active && list.includes(active) ? active : list[0]).click()
     return
   }
@@ -39,6 +43,7 @@ function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'c
   if (key === 'down') next = Math.min(list.length - 1, index + columns)
   if (key === 'up') next = Math.max(0, index - columns)
 
+  if (next !== index) sfxMove()
   list[next]?.focus()
 }
 
@@ -80,6 +85,8 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
     const a = !!pad.buttons[0]?.pressed
     const b = !!pad.buttons[1]?.pressed
 
+    if (x || y || a || b) setModalityFromPad()
+
     if (now > cool) {
       if (x === 1 && prev.x !== 1) {
         moveFocus(root, 'right')
@@ -97,6 +104,7 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
         moveFocus(root, 'confirm')
         cool = now + 220
       } else if (b && !prev.b) {
+        sfxBack()
         history.back()
         cool = now + 220
       }

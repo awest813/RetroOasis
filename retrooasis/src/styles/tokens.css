@@ -85,10 +85,18 @@ img {
   outline: none;
 }
 
-:focus-visible,
-[data-focus="true"] {
+/* Focus rings only when navigating with keyboard or gamepad */
+html[data-input='key'] :focus-visible,
+html[data-input='pad'] :focus-visible,
+html[data-input='key'] [data-ro-focusable='true']:focus,
+html[data-input='pad'] [data-ro-focusable='true']:focus {
   outline: 2px solid var(--ro-focus);
   outline-offset: 3px;
+}
+
+html[data-input='mouse'] :focus,
+html[data-input='mouse'] :focus-visible {
+  outline: none;
 }
 
 #app {

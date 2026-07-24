@@ -7,6 +7,7 @@ import {
 import { coverMarkup, escapeHtml } from '../lib/dom'
 import { hrefFor } from '../lib/router'
 import { launchGame } from '../lib/play'
+import { sfxConfirm, sfxToggle } from '../lib/sfx'
 import { isFavorite, toggleFavorite } from '../lib/store'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
@@ -49,7 +50,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <p class="ro-lede">
             Core <strong>${escapeHtml(game.core)}</strong>
             · File <code>${escapeHtml(game.file)}</code>
+            ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
+            ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
           </p>
+          ${
+            game.description
+              ? `<p class="ro-lede">${escapeHtml(game.description)}</p>`
+              : ''
+          }
           ${
             game.demo
               ? `<p class="ro-muted">Sample entry for UI walkthrough. Link a ROM folder, point catalog <code>file</code> at a hosted ROM, or use Upload.</p>`
@@ -68,6 +76,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     `
 
     root.querySelector('#ro-play')?.addEventListener('click', async () => {
+      sfxConfirm()
       busy = true
       paint()
       try {
@@ -84,6 +93,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
 
     root.querySelector('#ro-favorite')?.addEventListener('click', () => {
+      sfxToggle()
       favorited = toggleFavorite(game.id)
       paint()
     })

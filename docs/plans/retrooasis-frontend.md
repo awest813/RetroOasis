@@ -286,9 +286,15 @@ Detail → Play
 - [x] Console/TV layout mode
 - [x] Static `roms/manifest.json` + generate script (Safari/Firefox/CDN)
 - [x] Upload drag-drop + core auto-detect
-- Soft UI sounds
-- Optional metadata sidecar files (`game.json` next to ROM)
+- [x] Soft UI sounds (toggleable, off by default)
+- [x] Optional metadata sidecar files (`<romBase>.json` / `game.json`)
+- [x] RomM-style left systems rail in library
+- [x] Focus modality (key/pad rings) + Escape / B back
 - Only if needed: thin scan backend (still far lighter than RomM)
+
+### Phase 3 status
+
+Phase 3 polish items above are complete for the static SPA path. Further work is optional product depth (sounds packs, scrapers, thin scan API), not blockers for hosting RetroOasis.
 
 ---
 
