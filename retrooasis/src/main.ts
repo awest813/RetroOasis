@@ -15,7 +15,6 @@ import {
 } from './lib/pwa'
 import { renderLobby } from './views/lobby'
 import { renderLibrary } from './views/library'
-import { renderPlatform } from './views/platform'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
 import { renderSettings } from './views/settings'
@@ -112,7 +111,7 @@ async function render(route: Route): Promise<void> {
       await renderLibrary(main)
       break
     case 'platform':
-      await renderPlatform(main, route.platformId)
+      await renderLibrary(main, route.platformId)
       break
     case 'game':
       await renderGameDetail(main, route.gameId)
