@@ -58,9 +58,18 @@
 }
 
 .ro-install-btn {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.7rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.68rem;
   flex-shrink: 0;
+  border-color: color-mix(in srgb, var(--ro-line) 80%, transparent);
+  color: var(--ro-text-dim);
+  background: transparent;
+}
+
+.ro-install-btn:hover {
+  border-color: var(--ro-accent);
+  color: var(--ro-accent);
+  background: transparent;
 }
 
 .ro-input,
@@ -308,6 +317,11 @@ select.ro-input {
   color: var(--ro-text-dim);
 }
 
+.ro-search:focus-within {
+  border-color: var(--ro-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ro-accent) 40%, transparent);
+}
+
 .ro-grid {
   display: grid;
   gap: clamp(0.75rem, 1.4vw, 1.15rem);
@@ -374,15 +388,18 @@ html[data-crt='on'] .ro-shell::after {
   border: 1px solid var(--ro-line);
   border-radius: var(--ro-radius);
   background:
-    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 28%, transparent), transparent 42%),
+    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 40%, transparent), transparent 46%),
     repeating-linear-gradient(
-      -18deg,
-      transparent 0,
-      transparent 7px,
-      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 10%, transparent) 7px,
-      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 10%, transparent) 8px
+      -22deg,
+      transparent 0 5px,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 18%, transparent) 5px 6px
     ),
-    linear-gradient(165deg, color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 42%, #102433), #071018 72%);
+    linear-gradient(
+      168deg,
+      color-mix(in srgb, var(--cover-accent, var(--ro-accent)) 48%, #143246) 0%,
+      #0a1520 58%,
+      #071018 100%
+    );
   display: grid;
   place-items: center;
   padding: 0.75rem;
@@ -1024,6 +1041,45 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
   .ro-lede code {
     word-break: break-all;
+  }
+
+  .ro-systems__head {
+    padding-top: 0.75rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .ro-systems__title {
+    font-size: 0.7rem;
+  }
+
+  .ro-systems__section + .ro-systems__section {
+    margin-top: 0.15rem;
+  }
+
+  .ro-systems__label {
+    padding-top: 0.35rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .ro-systems__list {
+    padding-bottom: 0.55rem;
+  }
+
+  .ro-system {
+    min-width: 10.5rem;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .ro-systems__actions {
+    display: none;
+  }
+
+  .ro-gallery {
+    padding-top: 0.85rem;
+  }
+
+  .ro-empty {
+    padding: 1.5rem 1rem;
   }
 }
 
