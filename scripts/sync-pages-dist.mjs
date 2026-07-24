@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Copy RetroOasis production build to repo-root dist/ for Cloudflare Pages
+ * Copy RetroOasis production build to repo-root dist/ for GitHub Pages
  * (and other hosts that expect `npm run build` → ./dist).
  */
 import fs from 'node:fs'
