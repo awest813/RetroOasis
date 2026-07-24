@@ -1,0 +1,17 @@
+{
+  "name": "RetroOasis",
+  "short_name": "RetroOasis",
+  "description": "Browse and play your retro ROM library in the browser.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#071018",
+  "theme_color": "#071018",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

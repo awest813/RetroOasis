@@ -18,7 +18,10 @@
         "minify": "node minify/minify.js",
         "build": "node build.js",
         "update": "node update.js",
-        "docs": "jsdoc data/src/*.js -d jsdoc"
+        "docs": "jsdoc data/src/*.js -d jsdoc",
+        "oasis:dev": "npm --prefix retrooasis run dev",
+        "oasis:build": "npm --prefix retrooasis run build",
+        "oasis:preview": "npm --prefix retrooasis run preview"
     },
     "dependencies": {
         "@node-minify/clean-css": "^10.4.0",

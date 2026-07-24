@@ -16,6 +16,8 @@ RomM is the functional reference for library UX. EmulatorJS (this repo) remains 
 | Play via EmulatorJS | Launch into an iframe player using `EJS_player`, `EJS_core`, `EJS_gameUrl`, `EJS_pathtodata`. |
 | Controller friendly | Keyboard + gamepad spatial nav on library screens (RomM v2 pattern, simplified). |
 | Self-hosted | Drop ROMs into a folder (or upload), open RetroOasis in a browser. |
+| Static hostable | Ship as static files (CDN, GitHub Pages, S3, nginx). No server required for MVP. |
+| PWA-ready | Structure for a later service worker / installable app (Phase 3+). |
 
 ### Non-goals (MVP)
 
@@ -311,11 +313,13 @@ Detail → Play
 
 | Decision | Options | Recommendation |
 | -------- | ------- | -------------- |
-| Shell framework | Vanilla / Vite vanilla / Vue | Vite + vanilla TS for speed + room to grow |
-| Catalog source | JSON only / FS Access / small API | JSON + FS Access; API later |
-| Covers | Manual / hashed filenames / scrapers | Manual + filename match; scrapers out of scope |
-| Root entry | Replace `index.html` vs `/retrooasis/` | Serve shell at `/` demo path; keep EmulatorJS data paths stable |
+| Shell framework | Vanilla / Vite vanilla / Vue | **Done:** Vite + vanilla TS in `retrooasis/` |
+| Catalog source | JSON only / FS Access / small API | JSON now; FS Access later |
+| Covers | Manual / hashed filenames / scrapers | Placeholder covers now; manual paths later |
+| Root entry | Replace `index.html` vs `/retrooasis/` | App lives in `retrooasis/` (build → `dist/`); EmulatorJS `data/` stays sibling |
 | Theming accents | Fixed dual / user toggle | User toggle: Sega cyan default, PS amber alternate |
+| Routing | History vs hash | **Hash** for zero-config static hosts |
+| PWA | Later | Manifest linked; service worker in a follow-up phase |
 
 ---
 

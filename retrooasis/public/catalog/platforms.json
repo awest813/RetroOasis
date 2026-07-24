@@ -1,0 +1,67 @@
+{
+  "platforms": [
+    {
+      "id": "nes",
+      "name": "Nintendo Entertainment System",
+      "shortName": "NES",
+      "core": "nes",
+      "accent": "nes"
+    },
+    {
+      "id": "snes",
+      "name": "Super Nintendo",
+      "shortName": "SNES",
+      "core": "snes",
+      "accent": "snes"
+    },
+    {
+      "id": "gb",
+      "name": "Game Boy",
+      "shortName": "GB",
+      "core": "gb",
+      "accent": "gb"
+    },
+    {
+      "id": "gba",
+      "name": "Game Boy Advance",
+      "shortName": "GBA",
+      "core": "gba",
+      "accent": "gba"
+    },
+    {
+      "id": "segaMD",
+      "name": "Sega Mega Drive",
+      "shortName": "Genesis",
+      "core": "segaMD",
+      "accent": "sega"
+    },
+    {
+      "id": "segaMS",
+      "name": "Sega Master System",
+      "shortName": "SMS",
+      "core": "segaMS",
+      "accent": "sega"
+    },
+    {
+      "id": "psx",
+      "name": "PlayStation",
+      "shortName": "PS1",
+      "core": "psx",
+      "accent": "ps"
+    },
+    {
+      "id": "n64",
+      "name": "Nintendo 64",
+      "shortName": "N64",
+      "core": "n64",
+      "accent": "n64"
+    },
+    {
+      "id": "arcade",
+      "name": "Arcade",
+      "shortName": "Arcade",
+      "core": "arcade",
+      "accent": "arcade"
+    }
+  ]
+}

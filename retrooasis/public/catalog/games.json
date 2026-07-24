@@ -1,0 +1,84 @@
+{
+  "games": [
+    {
+      "id": "demo-nes-adventure",
+      "title": "Pixel Quest",
+      "platform": "nes",
+      "core": "nes",
+      "file": "roms/nes/pixel-quest.nes",
+      "cover": null,
+      "tags": ["demo", "action"],
+      "demo": true
+    },
+    {
+      "id": "demo-snes-rpg",
+      "title": "Crystal Road",
+      "platform": "snes",
+      "core": "snes",
+      "file": "roms/snes/crystal-road.sfc",
+      "cover": null,
+      "tags": ["demo", "rpg"],
+      "demo": true
+    },
+    {
+      "id": "demo-genesis-racer",
+      "title": "Neon Drift",
+      "platform": "segaMD",
+      "core": "segaMD",
+      "file": "roms/segaMD/neon-drift.md",
+      "cover": null,
+      "tags": ["demo", "racing"],
+      "demo": true
+    },
+    {
+      "id": "demo-psx-fighter",
+      "title": "Arena One",
+      "platform": "psx",
+      "core": "psx",
+      "file": "roms/psx/arena-one.bin",
+      "cover": null,
+      "tags": ["demo", "fighting"],
+      "demo": true
+    },
+    {
+      "id": "demo-gb-puzzle",
+      "title": "Pocket Blocks",
+      "platform": "gb",
+      "core": "gb",
+      "file": "roms/gb/pocket-blocks.gb",
+      "cover": null,
+      "tags": ["demo", "puzzle"],
+      "demo": true
+    },
+    {
+      "id": "demo-arcade-shooter",
+      "title": "Oasis Invaders",
+      "platform": "arcade",
+      "core": "arcade",
+      "file": "roms/arcade/oasis-invaders.zip",
+      "cover": null,
+      "tags": ["demo", "shmup"],
+      "demo": true
+    },
+    {
+      "id": "demo-n64-adventure",
+      "title": "Jungle Circuit",
+      "platform": "n64",
+      "core": "n64",
+      "file": "roms/n64/jungle-circuit.z64",
+      "cover": null,
+      "tags": ["demo", "adventure"],
+      "demo": true
+    },
+    {
+      "id": "demo-gba-platformer",
+      "title": "Leaf Runner",
+      "platform": "gba",
+      "core": "gba",
+      "file": "roms/gba/leaf-runner.gba",
+      "cover": null,
+      "tags": ["demo", "platform"],
+      "demo": true
+    }
+  ]
+}

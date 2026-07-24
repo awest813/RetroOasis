@@ -1,0 +1,96 @@
+:root {
+  color-scheme: dark;
+
+  --ro-bg-void: #071018;
+  --ro-bg-void-mid: #0c1c28;
+  --ro-bg-panel: rgba(12, 28, 40, 0.82);
+  --ro-bg-panel-solid: #102433;
+  --ro-accent-sega: #2ee6d6;
+  --ro-accent-ps: #f0b429;
+  --ro-accent: var(--ro-accent-sega);
+  --ro-accent-soft: color-mix(in srgb, var(--ro-accent) 22%, transparent);
+  --ro-danger: #ff4d6d;
+  --ro-text: #e8eef5;
+  --ro-text-dim: #9aabbc;
+  --ro-line: rgba(46, 230, 214, 0.28);
+  --ro-scanline: rgba(255, 255, 255, 0.035);
+  --ro-grid: rgba(46, 230, 214, 0.12);
+  --ro-focus: var(--ro-accent-sega);
+  --ro-radius: 2px;
+  --ro-font-display: "Press Start 2P", ui-monospace, monospace;
+  --ro-font-ui: "Chakra Petch", system-ui, sans-serif;
+  --ro-space: clamp(1rem, 2vw, 1.75rem);
+  --ro-max: 72rem;
+
+  /* Platform accent hints for placeholders */
+  --ro-plat-nes: #c43c3c;
+  --ro-plat-snes: #7b68c8;
+  --ro-plat-gb: #8fbc5a;
+  --ro-plat-gba: #5b7cfa;
+  --ro-plat-sega: #2ee6d6;
+  --ro-plat-ps: #f0b429;
+  --ro-plat-n64: #3ecf8e;
+  --ro-plat-arcade: #ff7a18;
+}
+
+html[data-accent="ps"] {
+  --ro-accent: var(--ro-accent-ps);
+  --ro-line: rgba(240, 180, 41, 0.3);
+  --ro-grid: rgba(240, 180, 41, 0.14);
+  --ro-focus: var(--ro-accent-ps);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ro-bg-void);
+  color: var(--ro-text);
+  font-family: var(--ro-font-ui);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+a {
+  color: var(--ro-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible,
+[data-focus="true"] {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+#app {
+  min-height: 100dvh;
+}
