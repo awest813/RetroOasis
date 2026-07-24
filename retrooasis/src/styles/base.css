@@ -834,10 +834,19 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   }
 
   .ro-topbar {
-    flex-wrap: wrap;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand install"
+      "nav nav";
+    align-items: center;
+    column-gap: 0.65rem;
+    row-gap: 0.45rem;
     padding: 0.65rem var(--ro-space) 0.55rem;
-    gap: 0.55rem;
+  }
+
+  .ro-brand {
+    grid-area: brand;
   }
 
   .ro-brand__sub {
@@ -849,19 +858,19 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   }
 
   .ro-topbar__right {
-    width: 100%;
-    justify-content: flex-start;
-    align-items: center;
+    display: contents;
   }
 
-  .ro-install-btn:not([hidden]) {
-    margin-left: auto;
+  .ro-install-btn {
+    grid-area: install;
+    margin-left: 0;
   }
 
   .ro-nav {
-    flex: 1 1 auto;
+    grid-area: nav;
     justify-content: flex-start;
-    gap: 0.15rem 0.55rem;
+    gap: 0.15rem 0.6rem;
+    width: 100%;
   }
 
   .ro-nav a {
@@ -882,12 +891,13 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
   .ro-btn-row > .ro-btn,
   .ro-btn-row > a.ro-btn {
-    flex: 1 1 auto;
+    flex: 1 1 calc(50% - 0.35rem);
+    min-width: 8rem;
     text-align: center;
   }
 
   .ro-detail__cover {
-    max-width: 11.5rem;
+    max-width: 10.5rem;
     margin-inline: auto;
   }
 
