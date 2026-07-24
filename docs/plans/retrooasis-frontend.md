@@ -282,7 +282,10 @@ Detail → Play
 ### Phase 3 — Polish & optional depth
 
 - [x] PWA app-shell service worker (`sw.js`, production only)
-- Console/TV layout
+- [x] PWA install prompt UX (top bar + Settings)
+- [x] Console/TV layout mode
+- [x] Static `roms/manifest.json` + generate script (Safari/Firefox/CDN)
+- [x] Upload drag-drop + core auto-detect
 - Soft UI sounds
 - Optional metadata sidecar files (`game.json` next to ROM)
 - Only if needed: thin scan backend (still far lighter than RomM)

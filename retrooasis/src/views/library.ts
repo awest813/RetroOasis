@@ -25,7 +25,9 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
             ${
               catalog.local
                 ? `Linked folder <strong>${escapeHtml(catalog.local.folderName)}</strong> · ${catalog.local.count} local ROM${catalog.local.count === 1 ? '' : 's'}.`
-                : 'Pick a cabinet, or link a local <code>roms/&lt;platform&gt;/</code> folder (Chrome / Edge).'
+                : catalog.hostedCount
+                  ? `Hosted manifest loaded · ${catalog.hostedCount} ROM${catalog.hostedCount === 1 ? '' : 's'}.`
+                  : 'Pick a cabinet, link a folder (Chrome / Edge), or host <code>roms/manifest.json</code>.'
             }
           </p>
         </div>

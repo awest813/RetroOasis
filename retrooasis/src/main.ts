@@ -1,8 +1,18 @@
 import type { Route } from './lib/router'
 import { getRoute, hrefFor, onRoute, startRouter } from './lib/router'
-import { applyStoredAccent, applyStoredCrt } from './lib/store'
-import { initLocalCatalog, onCatalogChange } from './lib/catalog'
-import { registerServiceWorker } from './lib/pwa'
+import {
+  applyStoredAccent,
+  applyStoredCrt,
+  applyStoredLayout,
+} from './lib/store'
+import { initCatalogExtras, onCatalogChange } from './lib/catalog'
+import {
+  canInstallPwa,
+  initPwaInstall,
+  onPwaInstallChange,
+  promptPwaInstall,
+  registerServiceWorker,
+} from './lib/pwa'
 import { renderLobby } from './views/lobby'
 import { renderLibrary } from './views/library'
 import { renderPlatform } from './views/platform'
@@ -22,6 +32,8 @@ const app = appEl
 
 applyStoredAccent()
 applyStoredCrt()
+applyStoredLayout()
+initPwaInstall()
 registerServiceWorker()
 
 app.innerHTML = `
@@ -32,12 +44,15 @@ app.innerHTML = `
         <span class="ro-brand__mark">RETRO OASIS</span>
         <span class="ro-brand__sub">Arcade</span>
       </a>
-      <nav class="ro-nav" aria-label="Primary">
-        <a data-nav="lobby" href="${hrefFor('/')}">Lobby</a>
-        <a data-nav="library" href="${hrefFor('/library')}">Library</a>
-        <a data-nav="upload" href="${hrefFor('/upload')}">Upload</a>
-        <a data-nav="settings" href="${hrefFor('/settings')}">Settings</a>
-      </nav>
+      <div class="ro-topbar__right">
+        <button type="button" class="ro-btn ro-btn--primary ro-install-btn" id="ro-install-top" hidden>Install</button>
+        <nav class="ro-nav" aria-label="Primary">
+          <a data-nav="lobby" href="${hrefFor('/')}">Lobby</a>
+          <a data-nav="library" href="${hrefFor('/library')}">Library</a>
+          <a data-nav="upload" href="${hrefFor('/upload')}">Upload</a>
+          <a data-nav="settings" href="${hrefFor('/settings')}">Settings</a>
+        </nav>
+      </div>
     </header>
     <main class="ro-main" id="ro-main" tabindex="-1"></main>
     <footer class="ro-footer">RetroOasis · static ROM shelf · powered by EmulatorJS</footer>
@@ -47,6 +62,24 @@ app.innerHTML = `
 const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
 const main = mainEl
+
+const installTop = app.querySelector<HTMLButtonElement>('#ro-install-top')
+
+function syncInstallButton(): void {
+  if (!installTop) return
+  const show = canInstallPwa()
+  installTop.hidden = !show
+}
+
+installTop?.addEventListener('click', async () => {
+  await promptPwaInstall()
+  syncInstallButton()
+})
+
+onPwaInstallChange(() => {
+  syncInstallButton()
+  if (getRoute().name === 'settings') void render(getRoute())
+})
 
 function syncNav(route: Route): void {
   const map: Record<string, string> = {
@@ -68,6 +101,7 @@ function syncNav(route: Route): void {
 
 async function render(route: Route): Promise<void> {
   syncNav(route)
+  syncInstallButton()
   main.focus({ preventScroll: true })
 
   switch (route.name) {
@@ -110,6 +144,6 @@ onCatalogChange(() => {
 
 startRouter()
 
-void initLocalCatalog().finally(() => {
+void initCatalogExtras().finally(() => {
   void render(getRoute())
 })

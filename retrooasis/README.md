@@ -38,9 +38,24 @@ Hash routing (`#/library`, `#/game/…`) means no server rewrite rules are requi
 
 Demo entries ship for UI walkthrough. Point `file` at real ROMs you host; do not commit copyrighted game binaries.
 
-## Local ROM folder
+## ROM library sources
 
-On Chromium browsers, use **Library → Link folder** (or Settings) and choose a directory shaped like:
+Merge order: demo catalog → `roms/manifest.json` (hosted) → linked local folder (wins on id clash).
+
+### Hosted manifest (all browsers)
+
+Place ROMs under `roms/<platform>/` next to the built site, then either write `roms/manifest.json` by hand or generate it:
+
+```sh
+npm run oasis:manifest
+# → ../roms/manifest.json
+```
+
+See `roms.manifest.example.json`.
+
+### Local ROM folder (Chromium)
+
+**Library → Link folder** (or Settings) and choose a directory shaped like:
 
 ```text
 roms/
@@ -53,9 +68,11 @@ roms/
 
 Handles are remembered in IndexedDB; ROMs play via blob URLs into `player.html`.
 
-## PWA
+## Layout & PWA
 
-`manifest.webmanifest` + `sw.js` cache the app shell and catalog (not EmulatorJS cores or ROMs). Register only in production builds served over HTTPS / localhost.
+- **TV layout** (Settings): larger tiles/focus for couch + gamepad
+- **Install**: top-bar / Settings button when `beforeinstallprompt` fires
+- `manifest.webmanifest` + `sw.js` cache the app shell and catalog (not cores/ROMs), production only
 
 ## Repo layout
 

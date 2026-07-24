@@ -1,6 +1,8 @@
+import { coreFromExtension } from '../lib/cores'
 import { hrefFor } from '../lib/router'
 
 const CORE_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: 'Auto-detect', value: 'auto' },
   { label: 'NES', value: 'nes' },
   { label: 'SNES', value: 'snes' },
   { label: 'Game Boy', value: 'gb' },
@@ -18,18 +20,18 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Upload ROM</h1>
       <p class="ro-lede">
-        Drop a file to play immediately via EmulatorJS. For a lasting library, link a
-        <code>roms/&lt;platform&gt;/</code> folder from the Library page, or host files and list them in
-        <code>catalog/games.json</code>.
+        Drop a file to play immediately via EmulatorJS. For a lasting library, link a folder,
+        or host <code>roms/manifest.json</code> beside the site.
       </p>
-      <div class="ro-stack" style="margin-top: 1.5rem; max-width: 28rem;">
+      <div class="ro-stack" style="margin-top: 1.5rem; max-width: 32rem;">
         <label class="ro-muted" for="ro-core">System core</label>
-        <select id="ro-core" class="ro-search" style="padding: 0.55rem 0.75rem; background: var(--ro-bg-panel); border: 1px solid var(--ro-line); color: var(--ro-text);">
+        <select id="ro-core" class="ro-input">
           ${CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
-        <label class="ro-btn" for="ro-file" data-ro-focusable="true" style="text-align: center;">
-          Choose ROM file
-        </label>
+        <div class="ro-drop" id="ro-drop" tabindex="0" data-ro-focusable="true">
+          <strong>Drop ROM here</strong>
+          <span class="ro-muted">or click to choose a file</span>
+        </div>
         <input id="ro-file" type="file" hidden />
         <p class="ro-muted" id="ro-status">No file selected.</p>
         <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
@@ -40,20 +42,56 @@ export function renderUpload(root: HTMLElement): void {
   const input = root.querySelector<HTMLInputElement>('#ro-file')
   const coreSelect = root.querySelector<HTMLSelectElement>('#ro-core')
   const status = root.querySelector<HTMLElement>('#ro-status')
+  const drop = root.querySelector<HTMLElement>('#ro-drop')
 
-  input?.addEventListener('change', () => {
-    const file = input.files?.[0]
-    if (!file || !coreSelect) return
+  const launch = (file: File) => {
+    if (!coreSelect) return
+    let core = coreSelect.value
+    if (core === 'auto') {
+      core = coreFromExtension(file.name) || 'nes'
+    }
 
     const objectUrl = URL.createObjectURL(file)
+    const name = file.name.replace(/\.[^.]+$/, '')
     const params = new URLSearchParams({
       rom: objectUrl,
-      core: coreSelect.value,
-      name: file.name.replace(/\.[^.]+$/, ''),
+      core,
+      name,
       back: './#/upload',
     })
 
-    if (status) status.textContent = `Launching ${file.name}…`
+    if (status) status.textContent = `Launching ${file.name} (${core})…`
     window.location.href = `./player.html?${params.toString()}`
+  }
+
+  drop?.addEventListener('click', () => input?.click())
+  drop?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      input?.click()
+    }
+  })
+
+  ;['dragenter', 'dragover'].forEach((type) => {
+    drop?.addEventListener(type, (event) => {
+      event.preventDefault()
+      drop.setAttribute('data-drag', 'true')
+    })
+  })
+  ;['dragleave', 'drop'].forEach((type) => {
+    drop?.addEventListener(type, (event) => {
+      event.preventDefault()
+      drop.removeAttribute('data-drag')
+    })
+  })
+
+  drop?.addEventListener('drop', (event) => {
+    const file = event.dataTransfer?.files?.[0]
+    if (file) launch(file)
+  })
+
+  input?.addEventListener('change', () => {
+    const file = input.files?.[0]
+    if (file) launch(file)
   })
 }

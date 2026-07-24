@@ -44,6 +44,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Demo catalog</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
+            ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
           </div>
           <p class="ro-lede">
             Core <strong>${escapeHtml(game.core)}</strong>

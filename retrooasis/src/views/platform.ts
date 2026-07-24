@@ -83,7 +83,14 @@ export async function renderPlatform(
 }
 
 function gameTile(game: Game, accent: string): string {
-  const sub = game.source === 'local' ? 'Local' : game.demo ? 'Demo entry' : 'Catalog'
+  const sub =
+    game.source === 'local'
+      ? 'Local'
+      : game.source === 'hosted'
+        ? 'Hosted'
+        : game.demo
+          ? 'Demo entry'
+          : 'Catalog'
   return `
     <a
       class="ro-tile"

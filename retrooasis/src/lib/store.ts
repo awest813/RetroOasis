@@ -3,9 +3,11 @@ const FAVORITES_KEY = 'retrooasis.favorites'
 const ACCENT_KEY = 'retrooasis.accent'
 const CRT_KEY = 'retrooasis.crt'
 const HIDE_DEMOS_KEY = 'retrooasis.hideDemos'
+const LAYOUT_KEY = 'retrooasis.layout'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
+export type LayoutMode = 'standard' | 'tv'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -87,6 +89,19 @@ export function getHideDemos(): boolean {
 
 export function setHideDemos(hide: boolean): void {
   localStorage.setItem(HIDE_DEMOS_KEY, hide ? '1' : '0')
+}
+
+export function getLayout(): LayoutMode {
+  return localStorage.getItem(LAYOUT_KEY) === 'tv' ? 'tv' : 'standard'
+}
+
+export function setLayout(mode: LayoutMode): void {
+  localStorage.setItem(LAYOUT_KEY, mode)
+  document.documentElement.dataset.layout = mode
+}
+
+export function applyStoredLayout(): void {
+  document.documentElement.dataset.layout = getLayout()
 }
 
 export function clearLocalPrefs(): void {

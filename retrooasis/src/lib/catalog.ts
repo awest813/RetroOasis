@@ -3,6 +3,7 @@ import {
   restoreLocalLibrary,
   type LocalScanResult,
 } from './localLibrary'
+import { loadHostedManifest } from './hostedLibrary'
 import { getHideDemos } from './store'
 
 export type PlatformAccent =
@@ -33,16 +34,18 @@ export interface Game {
   tags?: string[]
   demo?: boolean
   bios?: string | null
-  source?: 'catalog' | 'local'
+  source?: 'catalog' | 'hosted' | 'local'
 }
 
 export interface Catalog {
   platforms: Platform[]
   games: Game[]
   local?: { folderName: string; count: number } | null
+  hostedCount?: number
 }
 
 let seedPromise: Promise<{ platforms: Platform[]; games: Game[] }> | null = null
+let hostedGames: Game[] = []
 let localGames: Game[] = []
 let localMeta: Catalog['local'] = null
 let listeners = new Set<() => void>()
@@ -73,11 +76,13 @@ function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
   const seedGames = hideDemos ? seed.games.filter((g) => !g.demo) : seed.games
   const byId = new Map<string, Game>()
   for (const game of seedGames) byId.set(game.id, game)
+  for (const game of hostedGames) byId.set(game.id, game)
   for (const game of localGames) byId.set(game.id, game)
   return {
     platforms: seed.platforms,
     games: [...byId.values()],
     local: localMeta,
+    hostedCount: hostedGames.length,
   }
 }
 
@@ -103,7 +108,13 @@ export async function applyLocalScan(result: LocalScanResult): Promise<Catalog> 
   return catalog
 }
 
-export async function initLocalCatalog(): Promise<void> {
+export async function initCatalogExtras(): Promise<void> {
+  try {
+    hostedGames = await loadHostedManifest()
+  } catch {
+    hostedGames = []
+  }
+
   try {
     const restored = await restoreLocalLibrary()
     if (restored) {
@@ -114,6 +125,11 @@ export async function initLocalCatalog(): Promise<void> {
     localGames = []
     localMeta = null
   }
+}
+
+/** @deprecated use initCatalogExtras */
+export async function initLocalCatalog(): Promise<void> {
+  return initCatalogExtras()
 }
 
 export async function unlinkLocalCatalog(): Promise<void> {

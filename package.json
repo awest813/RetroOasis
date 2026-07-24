@@ -21,7 +21,8 @@
         "docs": "jsdoc data/src/*.js -d jsdoc",
         "oasis:dev": "npm --prefix retrooasis run dev",
         "oasis:build": "npm --prefix retrooasis run build",
-        "oasis:preview": "npm --prefix retrooasis run preview"
+        "oasis:preview": "npm --prefix retrooasis run preview",
+        "oasis:manifest": "npm --prefix retrooasis run manifest"
     },
     "dependencies": {
         "@node-minify/clean-css": "^10.4.0",
