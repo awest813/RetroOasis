@@ -1,6 +1,8 @@
 const RECENTS_KEY = 'retrooasis.recents'
 const FAVORITES_KEY = 'retrooasis.favorites'
 const ACCENT_KEY = 'retrooasis.accent'
+const CRT_KEY = 'retrooasis.crt'
+const HIDE_DEMOS_KEY = 'retrooasis.hideDemos'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
@@ -28,6 +30,10 @@ export function pushRecent(gameId: string): void {
   writeJson(RECENTS_KEY, next)
 }
 
+export function clearRecents(): void {
+  localStorage.removeItem(RECENTS_KEY)
+}
+
 export function getFavorites(): string[] {
   return readJson<string[]>(FAVORITES_KEY, [])
 }
@@ -44,6 +50,10 @@ export function toggleFavorite(gameId: string): boolean {
   return !exists
 }
 
+export function clearFavorites(): void {
+  localStorage.removeItem(FAVORITES_KEY)
+}
+
 export function getAccent(): AccentMode {
   const value = localStorage.getItem(ACCENT_KEY)
   return value === 'ps' ? 'ps' : 'sega'
@@ -56,4 +66,30 @@ export function setAccent(mode: AccentMode): void {
 
 export function applyStoredAccent(): void {
   document.documentElement.dataset.accent = getAccent()
+}
+
+export function getCrtEnabled(): boolean {
+  return localStorage.getItem(CRT_KEY) === '1'
+}
+
+export function setCrtEnabled(enabled: boolean): void {
+  localStorage.setItem(CRT_KEY, enabled ? '1' : '0')
+  document.documentElement.dataset.crt = enabled ? 'on' : 'off'
+}
+
+export function applyStoredCrt(): void {
+  document.documentElement.dataset.crt = getCrtEnabled() ? 'on' : 'off'
+}
+
+export function getHideDemos(): boolean {
+  return localStorage.getItem(HIDE_DEMOS_KEY) === '1'
+}
+
+export function setHideDemos(hide: boolean): void {
+  localStorage.setItem(HIDE_DEMOS_KEY, hide ? '1' : '0')
+}
+
+export function clearLocalPrefs(): void {
+  clearRecents()
+  clearFavorites()
 }

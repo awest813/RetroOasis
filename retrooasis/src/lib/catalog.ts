@@ -1,3 +1,10 @@
+import {
+  clearLocalLibrary,
+  restoreLocalLibrary,
+  type LocalScanResult,
+} from './localLibrary'
+import { getHideDemos } from './store'
+
 export type PlatformAccent =
   | 'nes'
   | 'snes'
@@ -26,14 +33,19 @@ export interface Game {
   tags?: string[]
   demo?: boolean
   bios?: string | null
+  source?: 'catalog' | 'local'
 }
 
 export interface Catalog {
   platforms: Platform[]
   games: Game[]
+  local?: { folderName: string; count: number } | null
 }
 
-let catalogPromise: Promise<Catalog> | null = null
+let seedPromise: Promise<{ platforms: Platform[]; games: Game[] }> | null = null
+let localGames: Game[] = []
+let localMeta: Catalog['local'] = null
+let listeners = new Set<() => void>()
 
 async function loadJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -43,17 +55,76 @@ async function loadJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function loadCatalog(): Promise<Catalog> {
-  if (!catalogPromise) {
-    catalogPromise = Promise.all([
+function loadSeed() {
+  if (!seedPromise) {
+    seedPromise = Promise.all([
       loadJson<{ platforms: Platform[] }>('./catalog/platforms.json'),
       loadJson<{ games: Game[] }>('./catalog/games.json'),
     ]).then(([platforms, games]) => ({
       platforms: platforms.platforms,
-      games: games.games,
+      games: games.games.map((g) => ({ ...g, source: 'catalog' as const })),
     }))
   }
-  return catalogPromise
+  return seedPromise
+}
+
+function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
+  const hideDemos = getHideDemos()
+  const seedGames = hideDemos ? seed.games.filter((g) => !g.demo) : seed.games
+  const byId = new Map<string, Game>()
+  for (const game of seedGames) byId.set(game.id, game)
+  for (const game of localGames) byId.set(game.id, game)
+  return {
+    platforms: seed.platforms,
+    games: [...byId.values()],
+    local: localMeta,
+  }
+}
+
+export async function loadCatalog(): Promise<Catalog> {
+  const seed = await loadSeed()
+  return buildCatalog(seed)
+}
+
+export function onCatalogChange(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function emitCatalogChange(): void {
+  for (const listener of listeners) listener()
+}
+
+export async function applyLocalScan(result: LocalScanResult): Promise<Catalog> {
+  localGames = result.games
+  localMeta = { folderName: result.folderName, count: result.count }
+  const catalog = await loadCatalog()
+  emitCatalogChange()
+  return catalog
+}
+
+export async function initLocalCatalog(): Promise<void> {
+  try {
+    const restored = await restoreLocalLibrary()
+    if (restored) {
+      localGames = restored.games
+      localMeta = { folderName: restored.folderName, count: restored.count }
+    }
+  } catch {
+    localGames = []
+    localMeta = null
+  }
+}
+
+export async function unlinkLocalCatalog(): Promise<void> {
+  await clearLocalLibrary()
+  localGames = []
+  localMeta = null
+  emitCatalogChange()
+}
+
+export function refreshCatalogView(): void {
+  emitCatalogChange()
 }
 
 export function gamesForPlatform(catalog: Catalog, platformId: string): Game[] {

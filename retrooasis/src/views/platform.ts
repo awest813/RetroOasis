@@ -1,12 +1,13 @@
 import {
-  loadCatalog,
   findPlatform,
   gamesForPlatform,
+  loadCatalog,
   platformAccentVar,
   type Game,
 } from '../lib/catalog'
-import { hrefFor } from '../lib/router'
+import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
+import { hrefFor } from '../lib/router'
 import { getFavorites } from '../lib/store'
 
 export async function renderPlatform(
@@ -27,12 +28,13 @@ export async function renderPlatform(
     return
   }
 
-  let games = gamesForPlatform(catalog, platformId)
   let query = ''
   let favoritesOnly = false
+  let cleanup: (() => void) | undefined
 
   const paint = () => {
-    const filtered = games.filter((g) => {
+    cleanup?.()
+    const games = gamesForPlatform(catalog, platformId).filter((g) => {
       if (favoritesOnly && !getFavorites().includes(g.id)) return false
       if (!query) return true
       return g.title.toLowerCase().includes(query)
@@ -44,7 +46,7 @@ export async function renderPlatform(
           <div>
             <p class="ro-kicker"><a href="${hrefFor('/library')}">Library</a> / ${escapeHtml(platform.shortName)}</p>
             <h1 class="ro-title">${escapeHtml(platform.name)}</h1>
-            <p class="ro-lede">${filtered.length} game${filtered.length === 1 ? '' : 's'}</p>
+            <p class="ro-lede">${games.length} game${games.length === 1 ? '' : 's'}</p>
           </div>
           <div class="ro-search">
             <input type="search" id="ro-q" placeholder="Search titles" value="${escapeAttr(query)}" />
@@ -54,9 +56,9 @@ export async function renderPlatform(
           </div>
         </div>
         ${
-          filtered.length
-            ? `<div class="ro-grid" data-ro-grid>${filtered.map((g) => gameTile(g, platform.accent)).join('')}</div>`
-            : `<div class="ro-empty">No games match. Add files under <code>roms/${escapeHtml(platformId)}/</code> and update the catalog JSON.</div>`
+          games.length
+            ? `<div class="ro-grid" data-ro-grid>${games.map((g) => gameTile(g, platform.accent)).join('')}</div>`
+            : `<div class="ro-empty">No games match. Link a folder from the library, or add files under <code>roms/${escapeHtml(platformId)}/</code>.</div>`
         }
       </section>
     `
@@ -74,41 +76,25 @@ export async function renderPlatform(
     })
 
     const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
-    if (grid) bindGridFocus(grid)
+    if (grid) cleanup = bindGridFocus(grid)
   }
 
-  // keep reference stable for filter closure
-  games = gamesForPlatform(catalog, platformId)
   paint()
 }
 
 function gameTile(game: Game, accent: string): string {
+  const sub = game.source === 'local' ? 'Local' : game.demo ? 'Demo entry' : 'Catalog'
   return `
     <a
       class="ro-tile"
       href="${hrefFor(`/game/${game.id}`)}"
       data-ro-focusable="true"
-      style="--cover-accent: ${platformAccentVar(accent)}"
     >
-      <div class="ro-cover">
-        <span class="ro-cover__label">${escapeHtml(game.title)}</span>
-      </div>
+      ${coverMarkup(game.title, platformAccentVar(accent), game.cover)}
       <div class="ro-tile__meta">
         <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-        <span class="ro-tile__sub">${game.demo ? 'Demo entry' : 'Ready'}</span>
+        <span class="ro-tile__sub">${sub}</span>
       </div>
     </a>
   `
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;')
 }

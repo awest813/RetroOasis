@@ -1,11 +1,22 @@
+import {
+  findGame,
+  findPlatform,
+  loadCatalog,
+  platformAccentVar,
+} from '../lib/catalog'
+import { coverMarkup, escapeHtml } from '../lib/dom'
+import { bindGridFocus } from '../lib/focus'
 import { getRecents } from '../lib/store'
-import { loadCatalog, findGame } from '../lib/catalog'
 import { hrefFor } from '../lib/router'
 
 export async function renderLobby(root: HTMLElement): Promise<void> {
   const catalog = await loadCatalog()
-  const recentId = getRecents()[0]
-  const recent = recentId ? findGame(catalog, recentId) : undefined
+  const recentIds = getRecents()
+  const recents = recentIds
+    .map((id) => findGame(catalog, id))
+    .filter((g): g is NonNullable<typeof g> => !!g)
+    .slice(0, 6)
+  const recent = recents[0]
 
   root.innerHTML = `
     <section class="ro-lobby ro-view" aria-label="RetroOasis lobby">
@@ -28,15 +39,37 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
         </div>
       </div>
     </section>
+    ${
+      recents.length
+        ? `
+      <section class="ro-view ro-shelf" aria-label="Recently played">
+        <div class="ro-section-head">
+          <div>
+            <p class="ro-kicker">Continue</p>
+            <h2 class="ro-title">Recently played</h2>
+          </div>
+        </div>
+        <div class="ro-grid" data-ro-grid>
+          ${recents
+            .map((game) => {
+              const platform = findPlatform(catalog, game.platform)
+              return `
+              <a class="ro-tile" href="${hrefFor(`/game/${game.id}`)}" data-ro-focusable="true">
+                ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), game.cover)}
+                <div class="ro-tile__meta">
+                  <span class="ro-tile__title">${escapeHtml(game.title)}</span>
+                  <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}</span>
+                </div>
+              </a>`
+            })
+            .join('')}
+        </div>
+      </section>`
+        : ''
+    }
   `
 
-  root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+  root.querySelector<HTMLElement>('.ro-lobby [data-ro-focusable="true"]')?.focus()
+  const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
+  if (grid) bindGridFocus(grid)
 }

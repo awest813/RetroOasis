@@ -1,6 +1,8 @@
 import type { Route } from './lib/router'
 import { getRoute, hrefFor, onRoute, startRouter } from './lib/router'
-import { applyStoredAccent } from './lib/store'
+import { applyStoredAccent, applyStoredCrt } from './lib/store'
+import { initLocalCatalog, onCatalogChange } from './lib/catalog'
+import { registerServiceWorker } from './lib/pwa'
 import { renderLobby } from './views/lobby'
 import { renderLibrary } from './views/library'
 import { renderPlatform } from './views/platform'
@@ -19,9 +21,12 @@ if (!appEl) {
 const app = appEl
 
 applyStoredAccent()
+applyStoredCrt()
+registerServiceWorker()
 
 app.innerHTML = `
   <div class="ro-shell">
+    <div class="ro-crt" aria-hidden="true"></div>
     <header class="ro-topbar">
       <a class="ro-brand" href="${hrefFor('/')}">
         <span class="ro-brand__mark">RETRO OASIS</span>
@@ -82,7 +87,7 @@ async function render(route: Route): Promise<void> {
       renderUpload(main)
       break
     case 'settings':
-      renderSettings(main)
+      await renderSettings(main)
       break
     default:
       main.innerHTML = `
@@ -99,5 +104,12 @@ onRoute((route) => {
   void render(route)
 })
 
+onCatalogChange(() => {
+  void render(getRoute())
+})
+
 startRouter()
-void render(getRoute())
+
+void initLocalCatalog().finally(() => {
+  void render(getRoute())
+})

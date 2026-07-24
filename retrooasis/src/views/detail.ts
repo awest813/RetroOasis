@@ -1,9 +1,10 @@
 import {
-  loadCatalog,
   findGame,
   findPlatform,
+  loadCatalog,
   platformAccentVar,
 } from '../lib/catalog'
+import { coverMarkup, escapeHtml } from '../lib/dom'
 import { hrefFor } from '../lib/router'
 import { launchGame } from '../lib/play'
 import { isFavorite, toggleFavorite } from '../lib/store'
@@ -25,14 +26,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
   const platform = findPlatform(catalog, game.platform)
   let favorited = isFavorite(game.id)
+  let busy = false
 
   const paint = () => {
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
-          <div class="ro-cover" style="--cover-accent: ${platformAccentVar(platform?.accent ?? 'sega')}">
-            <span class="ro-cover__label">${escapeHtml(game.title)}</span>
-          </div>
+          ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), game.cover)}
         </div>
         <div class="ro-stack">
           <p class="ro-kicker">
@@ -43,6 +43,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <div>
             <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Demo catalog</span>' : ''}
+            ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
           </div>
           <p class="ro-lede">
             Core <strong>${escapeHtml(game.core)}</strong>
@@ -50,11 +51,12 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           </p>
           ${
             game.demo
-              ? `<p class="ro-muted">Sample entry for UI walkthrough. Point <code>file</code> at a ROM you host (or use Upload) to play for real.</p>`
+              ? `<p class="ro-muted">Sample entry for UI walkthrough. Link a ROM folder, point catalog <code>file</code> at a hosted ROM, or use Upload.</p>`
               : ''
           }
+          <p class="ro-muted" id="ro-play-status" hidden></p>
           <div class="ro-btn-row ro-detail__actions">
-            <button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true">Play</button>
+            <button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>
             <button type="button" class="ro-btn" id="ro-favorite" data-ro-focusable="true">
               ${favorited ? 'Unfavorite' : 'Favorite'}
             </button>
@@ -64,8 +66,20 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       </section>
     `
 
-    root.querySelector('#ro-play')?.addEventListener('click', () => {
-      launchGame(game)
+    root.querySelector('#ro-play')?.addEventListener('click', async () => {
+      busy = true
+      paint()
+      try {
+        await launchGame(game)
+      } catch (err) {
+        busy = false
+        paint()
+        const el = root.querySelector<HTMLElement>('#ro-play-status')
+        if (el) {
+          el.hidden = false
+          el.textContent = err instanceof Error ? err.message : 'Could not launch game.'
+        }
+      }
     })
 
     root.querySelector('#ro-favorite')?.addEventListener('click', () => {
@@ -77,12 +91,4 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   }
 
   paint()
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }

@@ -18,8 +18,9 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Upload ROM</h1>
       <p class="ro-lede">
-        Drop a file to play immediately via EmulatorJS. For a lasting library, place ROMs under
-        <code>roms/&lt;platform&gt;/</code> and list them in <code>catalog/games.json</code>.
+        Drop a file to play immediately via EmulatorJS. For a lasting library, link a
+        <code>roms/&lt;platform&gt;/</code> folder from the Library page, or host files and list them in
+        <code>catalog/games.json</code>.
       </p>
       <div class="ro-stack" style="margin-top: 1.5rem; max-width: 28rem;">
         <label class="ro-muted" for="ro-core">System core</label>

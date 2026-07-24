@@ -38,9 +38,24 @@ Hash routing (`#/library`, `#/game/…`) means no server rewrite rules are requi
 
 Demo entries ship for UI walkthrough. Point `file` at real ROMs you host; do not commit copyrighted game binaries.
 
+## Local ROM folder
+
+On Chromium browsers, use **Library → Link folder** (or Settings) and choose a directory shaped like:
+
+```text
+roms/
+  nes/*.nes
+  snes/*.sfc
+  segaMD/*.md
+  psx/*.bin
+  covers/nes/Game.png   # optional
+```
+
+Handles are remembered in IndexedDB; ROMs play via blob URLs into `player.html`.
+
 ## PWA
 
-`manifest.webmanifest` is already linked. A service worker / offline cache will be added in a later phase without changing the static deploy model.
+`manifest.webmanifest` + `sw.js` cache the app shell and catalog (not EmulatorJS cores or ROMs). Register only in production builds served over HTTPS / localhost.
 
 ## Repo layout
 

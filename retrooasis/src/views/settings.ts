@@ -1,15 +1,39 @@
-import { getAccent, setAccent, type AccentMode } from '../lib/store'
+import {
+  applyLocalScan,
+  refreshCatalogView,
+  unlinkLocalCatalog,
+} from '../lib/catalog'
+import {
+  getLocalLibraryMeta,
+  pickLocalLibrary,
+  supportsDirectoryPicker,
+} from '../lib/localLibrary'
+import {
+  applyStoredCrt,
+  clearLocalPrefs,
+  getAccent,
+  getCrtEnabled,
+  getHideDemos,
+  setAccent,
+  setCrtEnabled,
+  setHideDemos,
+  type AccentMode,
+} from '../lib/store'
 
-export function renderSettings(root: HTMLElement): void {
+export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
+  const crt = getCrtEnabled()
+  const hideDemos = getHideDemos()
+  const meta = await getLocalLibraryMeta()
+  const canPick = supportsDirectoryPicker()
 
   root.innerHTML = `
     <section class="ro-view">
       <p class="ro-kicker">Cabinet prefs</p>
       <h1 class="ro-title">Settings</h1>
-      <p class="ro-lede">Local-only preferences. A service worker / installable PWA lands in a later phase.</p>
+      <p class="ro-lede">Local-only preferences. The app shell can install as a PWA when served over HTTPS.</p>
 
-      <div class="ro-stack" style="margin-top: 1.5rem; max-width: 36rem;">
+      <div class="ro-stack" style="margin-top: 1.5rem; max-width: 40rem;">
         <div class="ro-settings-row">
           <div>
             <strong>Accent</strong>
@@ -20,20 +44,66 @@ export function renderSettings(root: HTMLElement): void {
             <button type="button" class="ro-btn" data-accent="ps" aria-pressed="${accent === 'ps'}">PS</button>
           </div>
         </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>CRT overlay</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Heavier scanlines + vignette on the shell.</p>
+          </div>
+          <button type="button" class="ro-btn" id="ro-crt" aria-pressed="${crt}">${crt ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Hide demo catalog</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only linked / hosted ROMs in the library.</p>
+          </div>
+          <button type="button" class="ro-btn" id="ro-hide-demos" aria-pressed="${hideDemos}">${hideDemos ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Local ROM folder</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">
+              ${
+                meta.linked
+                  ? `Linked: <strong>${meta.name ?? 'folder'}</strong>`
+                  : canPick
+                    ? 'Use File System Access to scan <code>roms/&lt;platform&gt;/</code>.'
+                    : 'This browser cannot link folders. Host ROMs statically or use Upload.'
+              }
+            </p>
+            <p class="ro-muted" id="ro-folder-status" hidden></p>
+          </div>
+          <div class="ro-btn-row">
+            ${canPick ? `<button type="button" class="ro-btn" id="ro-link">Link</button>` : ''}
+            ${meta.linked ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-unlink">Unlink</button>` : ''}
+          </div>
+        </div>
+
+        <div class="ro-settings-row">
+          <div>
+            <strong>Clear play data</strong>
+            <p class="ro-muted" style="margin: 0.25rem 0 0;">Recents and favorites stored in this browser.</p>
+          </div>
+          <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-prefs">Clear</button>
+        </div>
+
         <div class="ro-settings-row">
           <div>
             <strong>Hosting</strong>
             <p class="ro-muted" style="margin: 0.25rem 0 0;">
-              Build with <code>npm run build</code> in <code>retrooasis/</code>, then serve
-              <code>dist/</code> beside EmulatorJS <code>data/</code> and your <code>roms/</code>.
+              <code>npm run oasis:build</code> → serve <code>retrooasis/dist/</code> beside EmulatorJS
+              <code>data/</code> and optional <code>roms/</code>. Hash routes need no rewrites.
             </p>
           </div>
         </div>
+
         <div class="ro-settings-row">
           <div>
             <strong>PWA</strong>
             <p class="ro-muted" style="margin: 0.25rem 0 0;">
-              Manifest is wired. Offline caching + install prompt come next once the shell settles.
+              Manifest + service worker cache the app shell (not cores/ROMs). Install from the browser when served on HTTPS.
             </p>
           </div>
         </div>
@@ -43,9 +113,44 @@ export function renderSettings(root: HTMLElement): void {
 
   root.querySelectorAll<HTMLButtonElement>('[data-accent]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const mode = btn.dataset.accent as AccentMode
-      setAccent(mode)
-      renderSettings(root)
+      setAccent(btn.dataset.accent as AccentMode)
+      void renderSettings(root)
     })
+  })
+
+  root.querySelector('#ro-crt')?.addEventListener('click', () => {
+    setCrtEnabled(!getCrtEnabled())
+    applyStoredCrt()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {
+    setHideDemos(!getHideDemos())
+    refreshCatalogView()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-link')?.addEventListener('click', async () => {
+    const status = root.querySelector<HTMLElement>('#ro-folder-status')
+    try {
+      const result = await pickLocalLibrary()
+      await applyLocalScan(result)
+      void renderSettings(root)
+    } catch (err) {
+      if (status) {
+        status.hidden = false
+        status.textContent = err instanceof Error ? err.message : 'Cancelled.'
+      }
+    }
+  })
+
+  root.querySelector('#ro-unlink')?.addEventListener('click', async () => {
+    await unlinkLocalCatalog()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-clear-prefs')?.addEventListener('click', () => {
+    clearLocalPrefs()
+    void renderSettings(root)
   })
 }

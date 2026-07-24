@@ -273,17 +273,18 @@ Detail → Play
 
 ### Phase 2 — Local library UX
 
-- Folder picker / `roms/` convention indexing
-- Cover placeholders + optional manual cover drop
-- Settings: CRT overlay, accent (Sega cyan vs PS amber), cache clear
-- Gamepad pass on all library screens
+- [x] Folder picker / `roms/` convention indexing (File System Access + IndexedDB handle)
+- [x] Cover placeholders + sidecar / `covers/<platform>/` images when linking a folder
+- [x] Settings: CRT overlay, accent, hide demos, clear recents/favorites
+- [x] Gamepad + keyboard focus on library grids
+- [x] Lobby recently-played shelf (below hero)
 
 ### Phase 3 — Polish & optional depth
 
+- [x] PWA app-shell service worker (`sw.js`, production only)
 - Console/TV layout
 - Soft UI sounds
 - Optional metadata sidecar files (`game.json` next to ROM)
-- PWA install shell
 - Only if needed: thin scan backend (still far lighter than RomM)
 
 ---
