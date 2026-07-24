@@ -17,7 +17,7 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 - The library lists **all EmulatorJS systems** (NES through PSP, 3DS, DOS, etc.).
 - Settings → **EmulatorJS channel** defaults to **nightly** so PPSSPP and other CDN cores are available without installing every npm core package locally.
 - Channels: `nightly` · `stable` · `latest` · `local` (`data/` beside the site).
-- PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` (Netlify/Cloudflare Pages).
+- PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` on a host that supports custom headers (for example, Netlify). GitHub Pages does not support custom header files.
 
 ## Scripts
 
@@ -30,21 +30,15 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 ## Static hosting
 
 1. Build: `npm run build`
-2. Publish the contents of `retrooasis/dist/`
+2. Publish the contents of the generated repo-root `dist/` folder
 3. Place EmulatorJS **`data/`** next to the built site (same origin path `/data/…`)
 4. Place your ROMs under **`roms/<platform>/…`** and list them in `catalog/games.json` (copied into `dist/catalog/` at build time)
 
 Hash routing (`#/library`, `#/game/…`) means no server rewrite rules are required (GitHub Pages, S3, nginx `try_files`, etc. all work).
 
-### Cloudflare Pages
+### GitHub Pages
 
-The repo includes a GitHub Actions workflow at `.github/workflows/cloudflare-pages.yml` that builds the app and deploys the generated `dist/` folder to Cloudflare Pages. To use it, add these repository secrets:
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_PAGES_PROJECT_NAME`
-
-The workflow runs on pushes to `main` and can also be triggered manually from the Actions tab.
+The repo includes a GitHub Actions workflow at `.github/workflows/github-pages.yml` that builds the app and deploys the generated `dist/` folder to GitHub Pages. The workflow runs on pushes to `main` and can also be triggered manually from the Actions tab.
 
 `player.html` loads EmulatorJS in a dedicated page (iframe-friendly / SPA-safe) via `data/loader.js`.
 
