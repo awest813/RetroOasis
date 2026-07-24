@@ -195,7 +195,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
           ${
             installable
-              ? `<button type="button" class="ro-btn ro-btn--primary" id="ro-install">Install</button>`
+              ? `<button type="button" class="ro-btn" id="ro-install">Install</button>`
               : ''
           }
         </div>

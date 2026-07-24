@@ -17,6 +17,7 @@ export function renderUpload(root: HTMLElement): void {
           ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
         <div class="ro-drop" id="ro-drop" tabindex="0" data-ro-focusable="true">
+          <span class="ro-drop__mark" aria-hidden="true">▼</span>
           <strong>Drop ROM here</strong>
           <span class="ro-muted">or click to choose a file</span>
         </div>

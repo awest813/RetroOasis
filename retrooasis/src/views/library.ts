@@ -140,7 +140,7 @@ export async function renderLibrary(
                     ),
                   )
                   .join('')}</div>`
-              : `<div class="ro-empty">${emptyCopy(sel)}</div>`
+              : emptyState(sel)
           }
         </div>
       </section>
@@ -239,17 +239,40 @@ function galleryHeading(
   return map[sel.id]
 }
 
-function emptyCopy(sel: LibrarySelection): string {
+function emptyState(sel: LibrarySelection): string {
   if (sel.kind === 'collection' && sel.id === 'recent') {
-    return 'No recently played games yet. Launch something from a system shelf.'
+    return `
+      <div class="ro-empty">
+        <p class="ro-empty__title">No recent plays</p>
+        <p class="ro-empty__body">Launch a title from any system shelf and it will show up here.</p>
+        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+      </div>`
   }
   if (sel.kind === 'collection' && sel.id === 'favorites') {
-    return 'No favorites yet. Star a game from its detail page.'
+    return `
+      <div class="ro-empty">
+        <p class="ro-empty__title">No favorites yet</p>
+        <p class="ro-empty__body">Open a game and tap Favorite to pin it on this shelf.</p>
+        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+      </div>`
   }
   if (sel.kind === 'platform') {
-    return `No games here yet. Link a folder, host roms/manifest.json, or add files under roms/${sel.id}/.`
+    return `
+      <div class="ro-empty">
+        <p class="ro-empty__title">Shelf is empty</p>
+        <p class="ro-empty__body">Link a ROM folder, host <code>roms/manifest.json</code>, or add files under <code>roms/${escapeHtml(sel.id)}/</code>.</p>
+        <div class="ro-btn-row" style="justify-content:center">
+          <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Upload a ROM</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
+        </div>
+      </div>`
   }
-  return 'Library is empty.'
+  return `
+    <div class="ro-empty">
+      <p class="ro-empty__title">Library is empty</p>
+      <p class="ro-empty__body">Add hosted ROMs or upload a file to start playing.</p>
+      <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Upload a ROM</a>
+    </div>`
 }
 
 function bindLibraryChrome(root: HTMLElement, reload: () => void): void {
@@ -333,8 +356,9 @@ function gameTile(game: Game, accent: string, useLibretro: boolean): string {
       : game.source === 'hosted'
         ? 'Hosted'
         : game.demo
-          ? 'Demo entry'
+          ? 'Sample'
           : 'Catalog'
+  const subClass = game.demo ? 'ro-tile__sub ro-tile__sub--sample' : 'ro-tile__sub'
   return `
     <a
       class="ro-tile"
@@ -344,7 +368,7 @@ function gameTile(game: Game, accent: string, useLibretro: boolean): string {
       ${coverMarkup(game.title, platformAccentVar(accent), cover)}
       <div class="ro-tile__meta">
         <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-        <span class="ro-tile__sub">${sub}</span>
+        <span class="${subClass}">${sub}</span>
       </div>
     </a>
   `
