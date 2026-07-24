@@ -36,6 +36,16 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 
 Hash routing (`#/library`, `#/game/…`) means no server rewrite rules are required (GitHub Pages, S3, nginx `try_files`, etc. all work).
 
+### Cloudflare Pages
+
+The repo includes a GitHub Actions workflow at `.github/workflows/cloudflare-pages.yml` that builds the app and deploys the generated `dist/` folder to Cloudflare Pages. To use it, add these repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_PAGES_PROJECT_NAME`
+
+The workflow runs on pushes to `main` and can also be triggered manually from the Actions tab.
+
 `player.html` loads EmulatorJS in a dedicated page (iframe-friendly / SPA-safe) via `data/loader.js`.
 
 ## Catalog
