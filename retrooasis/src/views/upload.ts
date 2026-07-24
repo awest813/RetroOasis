@@ -2,6 +2,47 @@ import { UPLOAD_CORE_OPTIONS, coreFromExtension, coreNeedsThreads } from '../lib
 import { hrefFor } from '../lib/router'
 import { getEjsChannel } from '../lib/store'
 
+const CORE_EXT_HINTS: Record<string, string> = {
+  auto: 'Auto picks a core from the file extension (.nes, .sfc, .gba, .zip, …).',
+  nes: 'Common: .nes · .fds · .unif',
+  snes: 'Common: .sfc · .smc',
+  gb: 'Common: .gb · .gbc',
+  gba: 'Common: .gba',
+  nds: 'Common: .nds',
+  n64: 'Common: .z64 · .n64 · .v64',
+  vb: 'Common: .vb',
+  '3ds': 'Common: .3ds · .cia · .cci — needs threads',
+  psx: 'Common: .cue · .chd · .bin/.img',
+  ppsspp: 'Common: .iso · .cso · .pbp — needs threads',
+  segaMD: 'Common: .md · .gen · .smd',
+  segaMS: 'Common: .sms',
+  segaGG: 'Common: .gg',
+  segaCD: 'Common: .cue · .chd · .iso',
+  sega32x: 'Common: .32x',
+  segaSaturn: 'Common: .cue · .chd',
+  arcade: 'Common: .zip · .7z (FBNeo sets)',
+  mame2003: 'Common: .zip (MAME 2003 sets)',
+  atari2600: 'Common: .a26 · .bin',
+  atari7800: 'Common: .a78',
+  atari5200: 'Common: .a52',
+  lynx: 'Common: .lnx',
+  jaguar: 'Common: .j64 · .jag',
+  '3do': 'Common: .iso · .cue',
+  pce: 'Common: .pce',
+  pcfx: 'Common: .cue · .chd',
+  ngp: 'Common: .ngp · .ngc',
+  ws: 'Common: .ws · .wsc',
+  coleco: 'Common: .col · .cv',
+  vice_x64sc: 'Common: .d64 · .t64 · .prg',
+  vice_x128: 'Common: .d64 · .t64 · .prg',
+  vice_xvic: 'Common: .prg · .d64',
+  vice_xplus4: 'Common: .prg · .d64',
+  vice_xpet: 'Common: .prg · .d64',
+  puae: 'Common: .adf · .hdf · .ipf',
+  dosbox_pure: 'Common: .exe · .com · .bat · .iso — needs threads',
+  intv: 'Common: .int · .itv',
+}
+
 export function renderUpload(root: HTMLElement): void {
   root.innerHTML = `
     <section class="ro-view">
@@ -16,6 +57,7 @@ export function renderUpload(root: HTMLElement): void {
         <select id="ro-core" class="ro-input">
           ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
+        <p class="ro-muted ro-upload__hint" id="ro-core-hint">${CORE_EXT_HINTS.auto}</p>
         <div class="ro-drop" id="ro-drop" tabindex="0" data-ro-focusable="true">
           <span class="ro-drop__mark" aria-hidden="true">▼</span>
           <strong>Drop ROM here</strong>
@@ -30,8 +72,17 @@ export function renderUpload(root: HTMLElement): void {
 
   const input = root.querySelector<HTMLInputElement>('#ro-file')
   const coreSelect = root.querySelector<HTMLSelectElement>('#ro-core')
+  const hint = root.querySelector<HTMLElement>('#ro-core-hint')
   const status = root.querySelector<HTMLElement>('#ro-status')
   const drop = root.querySelector<HTMLElement>('#ro-drop')
+
+  const syncHint = () => {
+    if (!coreSelect || !hint) return
+    hint.textContent = CORE_EXT_HINTS[coreSelect.value] ?? 'Choose a core that matches your ROM.'
+  }
+
+  coreSelect?.addEventListener('change', syncHint)
+  syncHint()
 
   const launch = (file: File) => {
     if (!coreSelect) return

@@ -24,12 +24,14 @@ export function coverMarkup(
           loading="lazy"
           onerror="this.style.display='none'; this.parentElement && this.parentElement.classList.add('ro-cover--missing')"
         />
+        <span class="ro-cover__mark" aria-hidden="true"></span>
         <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(title)}</span>
       </div>
     `
   }
   return `
     <div class="ro-cover" style="--cover-accent: ${accentVar}">
+      <span class="ro-cover__mark" aria-hidden="true"></span>
       <span class="ro-cover__label">${escapeHtml(title)}</span>
     </div>
   `

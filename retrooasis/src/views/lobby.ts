@@ -17,6 +17,7 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
     .filter((g): g is NonNullable<typeof g> => !!g)
     .slice(0, 6)
   const recent = recents[0]
+  const recentPlatform = recent ? findPlatform(catalog, recent.platform) : undefined
 
   root.innerHTML = `
     <section class="ro-lobby ro-view" aria-label="RetroOasis lobby">
@@ -32,7 +33,9 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
         <div class="ro-btn-row">
           ${
             recent
-              ? `<a class="ro-btn ro-btn--primary" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true">Continue · ${escapeHtml(recent.title)}</a>`
+              ? `<a class="ro-btn ro-btn--primary" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true">Continue · ${escapeHtml(recent.title)}${
+                  recentPlatform ? ` · ${escapeHtml(recentPlatform.shortName)}` : ''
+                }</a>`
               : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>`
           }
           <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse Systems</a>

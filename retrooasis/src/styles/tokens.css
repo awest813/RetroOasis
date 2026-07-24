@@ -99,6 +99,40 @@ html[data-input='pad'] [data-ro-focusable='true']:focus {
   outline-offset: 3px;
 }
 
+html[data-input='key'] .ro-tile:focus .ro-cover,
+html[data-input='pad'] .ro-tile:focus .ro-cover,
+html[data-input='key'] .ro-tile[data-focus='true'] .ro-cover,
+html[data-input='pad'] .ro-tile[data-focus='true'] .ro-cover {
+  box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+html[data-input='key'] .ro-system:focus,
+html[data-input='pad'] .ro-system:focus {
+  border-color: var(--ro-focus);
+  background: var(--ro-accent-soft);
+}
+
+html[data-input='key'] .ro-search:focus-within,
+html[data-input='pad'] .ro-search:focus-within {
+  border-color: var(--ro-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ro-focus) 45%, transparent);
+}
+
+html[data-input='key'] .ro-drop:focus-visible,
+html[data-input='pad'] .ro-drop:focus-visible,
+html[data-input='key'] .ro-drop:focus,
+html[data-input='pad'] .ro-drop:focus {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+  border-color: var(--ro-accent);
+}
+
+html[data-input='key'] .ro-btn:focus-visible,
+html[data-input='pad'] .ro-btn:focus-visible {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
 html[data-input='mouse'] :focus,
 html[data-input='mouse'] :focus-visible {
   outline: none;

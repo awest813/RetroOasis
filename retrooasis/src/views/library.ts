@@ -70,6 +70,11 @@ export async function renderLibrary(
     }
 
     const heading = galleryHeading(sel, platform)
+    const sampleCount = games.filter((g) => g.demo).length
+    const sampleCue =
+      sampleCount > 0
+        ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} for UI walkthrough — hide in Settings if you only want real ROMs.</p>`
+        : ''
 
     root.innerHTML = `
       <section class="ro-view ro-library">
@@ -121,6 +126,7 @@ export async function renderLibrary(
               <p class="ro-kicker">${escapeHtml(heading.kicker)}</p>
               <h2 class="ro-title">${escapeHtml(heading.title)}</h2>
               <p class="ro-lede">${games.length} game${games.length === 1 ? '' : 's'}</p>
+              ${sampleCue}
             </div>
             <div class="ro-search">
               <input type="search" id="ro-q" placeholder="Search titles" value="${escapeAttr(query)}" />
@@ -137,6 +143,7 @@ export async function renderLibrary(
                       g,
                       findPlatform(catalog, g.platform)?.accent ?? 'sega',
                       useLibretro,
+                      favorites.includes(g.id),
                     ),
                   )
                   .join('')}</div>`
@@ -338,6 +345,7 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
       data-ro-focusable="true"
       ${active ? 'aria-current="page"' : ''}
       style="--cover-accent: ${platformAccentVar(platform.accent)}"
+      title="${escapeAttr(platform.name)}"
     >
       <span class="ro-system__glyph" aria-hidden="true">${escapeHtml(platform.shortName.slice(0, 3))}</span>
       <span class="ro-system__text">
@@ -348,7 +356,12 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
   `
 }
 
-function gameTile(game: Game, accent: string, useLibretro: boolean): string {
+function gameTile(
+  game: Game,
+  accent: string,
+  useLibretro: boolean,
+  favorited: boolean,
+): string {
   const cover = resolveCoverUrl(game.platform, game.title, game.cover, useLibretro)
   const sub =
     game.source === 'local'
@@ -361,11 +374,12 @@ function gameTile(game: Game, accent: string, useLibretro: boolean): string {
   const subClass = game.demo ? 'ro-tile__sub ro-tile__sub--sample' : 'ro-tile__sub'
   return `
     <a
-      class="ro-tile"
+      class="ro-tile${favorited ? ' ro-tile--fav' : ''}"
       href="${hrefFor(`/game/${game.id}`)}"
       data-ro-focusable="true"
     >
       ${coverMarkup(game.title, platformAccentVar(accent), cover)}
+      ${favorited ? '<span class="ro-tile__fav" aria-label="Favorited">★</span>' : ''}
       <div class="ro-tile__meta">
         <span class="ro-tile__title">${escapeHtml(game.title)}</span>
         <span class="${subClass}">${sub}</span>
