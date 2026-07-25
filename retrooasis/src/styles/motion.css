@@ -107,6 +107,33 @@
   letter-spacing: 0.02em;
 }
 
+.ro-lobby__continue {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  line-height: 1.25;
+  max-width: min(100%, 22rem);
+  text-align: left;
+}
+
+.ro-lobby__continue-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+
+.ro-lobby__continue-game {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  opacity: 0.9;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ro-view {
   animation: ro-fade-up 280ms ease both;
 }
@@ -126,6 +153,11 @@
   .ro-lobby__content .ro-btn-row > .ro-btn,
   .ro-lobby__content .ro-btn-row > a.ro-btn {
     width: 100%;
+    max-width: none;
+  }
+
+  .ro-lobby__continue {
+    max-width: none;
   }
 }
 

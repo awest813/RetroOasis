@@ -49,7 +49,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let fileLabel = game.file
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
-    fileLabel = record?.filename || 'Saved in this browser'
+    const name = record?.filename || 'Saved on this device'
+    fileLabel = name.replace(/\.[^.]+$/, '') || name
   }
 
   const paint = () => {
@@ -69,12 +70,12 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${platform ? `/ <a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>` : ''}
           </p>
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
-          <div>
+          <div class="ro-detail__badges">
             <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
-            ${game.source === 'upload' ? '<span class="ro-badge">Saved in browser</span>' : ''}
+            ${game.source === 'upload' ? '<span class="ro-badge ro-badge--saved">Saved</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
           </div>
@@ -96,7 +97,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.source === 'upload'
-              ? `<p class="ro-muted">Stored on this device until you remove it. Clearing site data also deletes saved ROMs.</p>`
+              ? `<p class="ro-muted">Stored on this device. Clearing site data also removes it.</p>`
               : ''
           }
           <p class="ro-muted" id="ro-play-status" hidden></p>
@@ -115,7 +116,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             </button>
             ${
               game.source === 'upload'
-                ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-remove-upload" data-ro-focusable="true">Remove from library</button>`
+                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-remove-upload" data-ro-focusable="true">Remove</button>`
                 : ''
             }
           </div>

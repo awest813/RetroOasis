@@ -4,7 +4,7 @@ import {
   loadCatalog,
   platformAccentVar,
 } from '../lib/catalog'
-import { coverMarkup, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
 import { getRecents } from '../lib/store'
 import { hrefFor } from '../lib/router'
@@ -33,9 +33,12 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
         <div class="ro-btn-row">
           ${
             recent
-              ? `<a class="ro-btn ro-btn--primary" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true">Continue · ${escapeHtml(recent.title)}${
-                  recentPlatform ? ` · ${escapeHtml(recentPlatform.shortName)}` : ''
-                }</a>`
+              ? `<a class="ro-btn ro-btn--primary ro-lobby__continue" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true" title="${escapeHtml(recent.title)}">
+                  <span class="ro-lobby__continue-label">Continue</span>
+                  <span class="ro-lobby__continue-game">${escapeHtml(recent.title)}${
+                    recentPlatform ? ` · ${escapeHtml(recentPlatform.shortName)}` : ''
+                  }</span>
+                </a>`
               : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>`
           }
           <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse Systems</a>
