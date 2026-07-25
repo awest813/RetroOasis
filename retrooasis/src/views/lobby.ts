@@ -33,7 +33,7 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
         <div class="ro-btn-row">
           ${
             recent
-              ? `<a class="ro-btn ro-btn--primary ro-lobby__continue" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true" title="${escapeHtml(recent.title)}">
+              ? `<a class="ro-btn ro-btn--primary ro-lobby__continue" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true" title="${escapeAttr(recent.title)}">
                   <span class="ro-lobby__continue-label">Continue</span>
                   <span class="ro-lobby__continue-game">${escapeHtml(recent.title)}${
                     recentPlatform ? ` · ${escapeHtml(recentPlatform.shortName)}` : ''
