@@ -131,16 +131,16 @@
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
         const back = params.get("back") || "./#/";
-        let channel = params.get("channel") || "nightly";
-        if (!PATHS[channel]) channel = "nightly";
+        let channel = params.get("channel") || "stable";
+        if (!PATHS[channel]) channel = "stable";
 
         if (core === "psp") core = "ppsspp";
         if (core === "dos") core = "dosbox_pure";
         if (core === "3ds") core = "azahar";
 
         const needsThreads = THREADED.has(core);
-        // Threaded cores (PSP/PPSSPP, DOS, 3DS) prefer nightly builds when local is unset.
-        if (needsThreads && !params.get("channel")) channel = "nightly";
+        // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
+        if (needsThreads && channel !== "local") channel = "nightly";
 
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
@@ -198,7 +198,7 @@
             "Could not load <code>" +
               dataPath +
               "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
-              "Or use Settings → EmulatorJS channel = nightly.",
+              "Or use Settings → EmulatorJS channel = stable (or nightly for PSP/3DS/DOS).",
           );
         };
         document.body.appendChild(script);

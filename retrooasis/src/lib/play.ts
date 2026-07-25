@@ -2,7 +2,7 @@ import type { Game } from './catalog'
 import { coreNeedsThreads, normalizePlayCore } from './cores'
 import { getLocalRomFile, hasLocalHandle } from './localLibrary'
 import { hrefFor } from './router'
-import { getEjsChannel, pushRecent } from './store'
+import { pushRecent, resolveEjsChannel } from './store'
 
 /** Build a static-friendly player URL (hash back-link preserved). */
 export function buildPlayerUrl(
@@ -11,7 +11,7 @@ export function buildPlayerUrl(
   backPath: string,
 ): string {
   const core = normalizePlayCore(game.core)
-  const channel = getEjsChannel()
+  const channel = resolveEjsChannel(core)
   const params = new URLSearchParams({
     rom: romUrl,
     core,

@@ -1,6 +1,6 @@
 import { UPLOAD_CORE_OPTIONS, coreFromExtension, coreNeedsThreads } from '../lib/cores'
 import { hrefFor } from '../lib/router'
-import { getEjsChannel } from '../lib/store'
+import { getEjsChannel, resolveEjsChannel } from '../lib/store'
 
 const CORE_EXT_HINTS: Record<string, string> = {
   auto: 'Auto picks a core from the file extension (.nes, .sfc, .gba, .zip, …).',
@@ -49,8 +49,9 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Upload ROM</h1>
       <p class="ro-lede">
-        Drop a file to play immediately via EmulatorJS. PSP / DOS / 3DS cores need threads
-        (COOP/COEP) and default to the <strong>nightly</strong> CDN channel.
+        Drop a file to play immediately via EmulatorJS. Most systems use the
+        <strong>stable</strong> CDN; PSP / DOS / 3DS need threads (COOP/COEP) and use
+        <strong>nightly</strong>.
       </p>
       <div class="ro-stack" style="margin-top: 1.5rem; max-width: 32rem;">
         <label class="ro-muted" for="ro-core">System core</label>
@@ -64,7 +65,7 @@ export function renderUpload(root: HTMLElement): void {
           <span class="ro-muted">or click to choose a file</span>
         </div>
         <input id="ro-file" type="file" hidden />
-        <p class="ro-muted" id="ro-status">Channel: ${getEjsChannel()}. Change in Settings.</p>
+        <p class="ro-muted" id="ro-status">Preferred channel: ${getEjsChannel()} (PSP / 3DS / DOS → nightly). Change in Settings.</p>
         <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
       </div>
     </section>
@@ -93,7 +94,7 @@ export function renderUpload(root: HTMLElement): void {
 
     const objectUrl = URL.createObjectURL(file)
     const name = file.name.replace(/\.[^.]+$/, '')
-    const channel = getEjsChannel()
+    const channel = resolveEjsChannel(core)
     const params = new URLSearchParams({
       rom: objectUrl,
       core,
