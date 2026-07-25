@@ -130,7 +130,7 @@ export async function renderLibrary(
               ${sampleCue}
             </div>
             <div class="ro-search">
-              <input type="search" id="ro-q" placeholder="Search titles" value="${escapeAttr(query)}" />
+              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(query)}" />
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort">
                 ${sel.kind === 'collection' && sel.id === 'recent' ? 'Recent' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
@@ -378,7 +378,12 @@ function gameTile(
           : game.demo
             ? 'Sample'
             : 'Catalog'
-  const subClass = game.demo ? 'ro-tile__sub ro-tile__sub--sample' : 'ro-tile__sub'
+  const subClass =
+    game.source === 'upload'
+      ? 'ro-tile__sub ro-tile__sub--saved'
+      : game.demo
+        ? 'ro-tile__sub ro-tile__sub--sample'
+        : 'ro-tile__sub'
   return `
     <a
       class="ro-tile${favorited ? ' ro-tile--fav' : ''}"

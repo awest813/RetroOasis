@@ -16,6 +16,7 @@ import {
   promptPwaInstall,
 } from '../lib/pwa'
 import { clearAllOverrides, exportOverridesJson } from '../lib/overrides'
+import { hrefFor } from '../lib/router'
 import {
   applyStoredCrt,
   applyStoredLayout,
@@ -157,7 +158,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div>
               <strong>Hide demo catalog</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only hosted / linked / saved ROMs in the library.</p>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only your hosted, linked, and saved ROMs.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-hide-demos" aria-pressed="${hideDemos}">${hideDemos ? 'On' : 'Off'}</button>
           </div>
@@ -177,18 +178,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row">
             <div>
-              <strong>Saved uploads</strong>
+              <strong>Saved ROMs</strong>
               <p class="ro-muted" style="margin: 0.25rem 0 0;">
                 ${
                   uploadedMeta.count
-                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device (IndexedDB).`
+                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device.
+                       <a href="${hrefFor('/library/@all')}">View in library</a>.`
                     : 'Add ROM keeps files on this device so they stay on your shelf across visits.'
                 }
               </p>
             </div>
             ${
               uploadedMeta.count
-                ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-uploads">Clear</button>`
+                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads">Clear</button>`
                 : ''
             }
           </div>
@@ -345,7 +347,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-uploads')?.addEventListener('click', async () => {
-    if (!window.confirm('Remove all uploaded ROMs saved in this browser?')) return
+    if (!window.confirm('Remove all saved ROMs from this device?')) return
     await clearUploadedCatalog()
     void renderSettings(root)
   })
