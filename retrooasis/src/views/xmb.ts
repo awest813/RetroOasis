@@ -310,40 +310,44 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const railInner = shell.querySelector<HTMLElement>('.ro-xmb__rail-inner')
   if (!catsEl || !railInner) return
 
+  let catShift = 0
+
   const syncTransforms = () => {
+    const desktop = window.matchMedia('(min-width: 901px)').matches
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
-    if (activeCat && window.matchMedia('(min-width: 901px)').matches) {
+
+    if (desktop && activeCat) {
+      // Measure without current shift so we can absolute-position the focused category.
+      catsEl.style.setProperty('--xmb-shift', '0px')
       const shellRect = shell.getBoundingClientRect()
       const catRect = activeCat.getBoundingClientRect()
       const targetX = shellRect.width * 0.18
       const currentCenter = catRect.left - shellRect.left + catRect.width / 2
-      const currentShift = Number.parseFloat(getComputedStyle(catsEl).getPropertyValue('--xmb-shift')) || 0
-      const nextShift = currentShift + (targetX - currentCenter)
-      catsEl.style.setProperty('--xmb-shift', `${nextShift}px`)
-      shell.style.setProperty('--xmb-rail-x', `${targetX - 24}px`)
+      catShift = targetX - currentCenter
+      catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
+      shell.style.setProperty('--xmb-rail-x', `${Math.max(24, targetX - activeCat.offsetWidth / 2)}px`)
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
-    if (activeItem && window.matchMedia('(min-width: 901px)').matches) {
+    if (desktop && activeItem) {
       const items = Array.from(railInner.querySelectorAll<HTMLElement>('.ro-xmb__item'))
       const idx = items.indexOf(activeItem)
       if (idx >= 0) {
-        const gap = 16
+        const styles = getComputedStyle(railInner)
+        const gap = Number.parseFloat(styles.rowGap || styles.gap) || 16
         let offset = 0
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Center active item roughly in the rail
-        const rail = shell.querySelector<HTMLElement>('.ro-xmb__rail')
-        const railH = rail?.clientHeight ?? 320
-        const shift = railH / 2 - offset - activeItem.offsetHeight / 2
+        // Place the active item near the top of the rail (under the category row).
+        const shift = 12 - offset
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
     } else {
       railInner.style.setProperty('--xmb-item-shift', '0px')
     }
 
-    if (window.matchMedia('(max-width: 900px)').matches && activeCat) {
+    if (!desktop && activeCat) {
       activeCat.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
     }
   }

@@ -182,7 +182,7 @@
 
 .ro-xmb__rail {
   position: absolute;
-  top: calc(var(--xmb-cat-y) + 5.5rem);
+  top: calc(var(--xmb-cat-y) + 5.25rem);
   bottom: 3.25rem;
   left: 0;
   right: 0;
@@ -194,9 +194,9 @@
 .ro-xmb__rail-inner {
   position: absolute;
   left: var(--xmb-rail-x, 12vw);
-  top: 50%;
+  top: 0;
   width: min(28rem, 72vw);
-  transform: translateY(calc(-50% + var(--xmb-item-shift, 0px)));
+  transform: translateY(var(--xmb-item-shift, 0px));
   transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
   display: grid;
   gap: var(--xmb-item-gap);
