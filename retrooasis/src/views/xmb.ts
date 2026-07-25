@@ -75,12 +75,16 @@ function writeSession(cat: number, item: number): void {
 }
 
 function gameBlurb(game: Game, platformName: string): string {
+  if (game.description?.trim()) return game.description.trim()
   const bits: string[] = []
   if (game.year) bits.push(String(game.year))
   if (game.developer) bits.push(game.developer)
   if (bits.length) return bits.join(' · ')
-  if (game.description) return game.description
-  return `${platformName} title`
+  const tags = (game.tags ?? []).filter((t) => t && t !== 'demo')
+  if (game.demo && tags.length) return `Sample · ${tags.join(' · ')}`
+  if (game.demo) return `Sample ${platformName} entry — open for details.`
+  if (tags.length) return tags.join(' · ')
+  return `Open for details and play on ${platformName}.`
 }
 
 function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
@@ -301,6 +305,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       data-ro-xmb-cat="${escapeAttr(cat.id)}"
       data-active="${active ? 'true' : 'false'}"
       style="--cat-accent: ${cat.accent}"
+      aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
@@ -310,7 +315,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
-    return `<p class="ro-xmb__empty">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+    return `<p class="ro-xmb__empty" aria-hidden="true"></p>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
 }
@@ -318,10 +323,11 @@ function railMarkup(cat: XmbCategory, itemIndex: number): string {
 function infoMarkup(cat: XmbCategory, itemIndex: number): string {
   const item = cat.items[itemIndex]
   if (!item) {
+    const empty = cat.empty ?? 'Nothing here yet.'
     return `
       <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-      <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
-      <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+      <h2 class="ro-xmb__info-title">Nothing here yet</h2>
+      <p class="ro-xmb__info-body">${escapeHtml(empty)}</p>`
   }
   return `
     <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
@@ -416,13 +422,26 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Align focused item with the category icon row (classic XMB cross).
+        // Sit the focused item just under the category label — avoids icon/label overlap.
         const shellRect = shell.getBoundingClientRect()
-        const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-        const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
-        const focusY = iconRect.top - shellRect.top + iconRect.height / 2
-        const shift = focusY - offset - activeItem.offsetHeight / 2
+        const label = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-label')
+        const anchor = label ?? activeCat
+        const anchorRect = anchor.getBoundingClientRect()
+        const focusTop = anchorRect.bottom - shellRect.top + 14
+        const shift = focusTop - offset
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
+      }
+    } else if (desktop) {
+      // Empty category: park the empty rail under the active category.
+      if (activeCat) {
+        const shellRect = shell.getBoundingClientRect()
+        const label = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-label')
+        const anchor = label ?? activeCat
+        const anchorRect = anchor.getBoundingClientRect()
+        const focusTop = anchorRect.bottom - shellRect.top + 14
+        railInner.style.setProperty('--xmb-item-shift', `${focusTop}px`)
+      } else {
+        railInner.style.setProperty('--xmb-item-shift', '0px')
       }
     } else {
       railInner.style.setProperty('--xmb-item-shift', '0px')

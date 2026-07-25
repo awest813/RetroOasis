@@ -31,7 +31,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       <section class="ro-view">
         <p class="ro-kicker">404</p>
         <h1 class="ro-title">Game not found</h1>
-        <p class="ro-lede"><a href="${hrefFor('/library')}">Back to library</a></p>
+        <p class="ro-lede"><a href="${hrefFor('/')}">Back home</a> · <a href="${hrefFor('/library')}">Library</a></p>
       </section>
     `
     return
@@ -67,7 +67,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         </div>
         <div class="ro-stack">
           <p class="ro-kicker">
-            <a href="${hrefFor('/library')}">Library</a>
+            <a href="${hrefFor('/')}">Home</a>
+            / <a href="${hrefFor('/library')}">Library</a>
             ${platform ? `/ <a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>` : ''}
           </p>
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>

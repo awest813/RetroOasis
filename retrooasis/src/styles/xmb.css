@@ -43,10 +43,17 @@
   border-bottom-color: transparent;
   background: transparent;
   backdrop-filter: none;
+  min-height: 0;
+  padding: 0.35rem var(--ro-space);
+  pointer-events: none;
 }
 
 .ro-shell--xmb .ro-brand {
   visibility: hidden;
+}
+
+.ro-shell--xmb .ro-install-btn {
+  display: none;
 }
 
 .ro-shell--xmb .ro-nav {
@@ -65,11 +72,11 @@
 }
 
 .ro-xmb {
-  --xmb-cat-y: 42%;
+  --xmb-cat-y: 34%;
   --xmb-item-gap: 0.75rem;
   position: relative;
-  min-height: calc(100dvh - var(--ro-topbar-h));
-  height: calc(100dvh - var(--ro-topbar-h));
+  min-height: calc(100dvh - 2.25rem);
+  height: calc(100dvh - 2.25rem);
   outline: none;
   user-select: none;
 }
@@ -137,7 +144,7 @@
   transform: translateX(var(--xmb-shift, 0px));
   transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
   will-change: transform;
-  z-index: 2;
+  z-index: 4;
 }
 
 .ro-xmb__cat {
@@ -212,6 +219,14 @@
   font-weight: 650;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.ro-xmb__cat[data-active='true'] .ro-xmb__cat-label {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .ro-xmb__rail {
@@ -343,17 +358,16 @@
 }
 
 .ro-xmb__empty {
-  padding: 0.5rem 0.65rem;
-  color: var(--ro-text-dim);
-  font-size: 0.95rem;
-  max-width: 18rem;
+  min-height: 0.5rem;
+  margin: 0;
+  padding: 0;
 }
 
 .ro-xmb__info {
   position: absolute;
-  top: 22%;
+  top: 18%;
   right: max(var(--ro-space), 5vw);
-  z-index: 2;
+  z-index: 3;
   width: min(22rem, 32vw);
   pointer-events: none;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
@@ -396,7 +410,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 }
 
 html[data-layout='tv'] .ro-xmb {
-  --xmb-cat-y: 40%;
+  --xmb-cat-y: 32%;
   --xmb-item-gap: 1rem;
 }
 
@@ -469,6 +483,12 @@ html[data-layout='tv'] .ro-xmb__info-title {
 }
 
 @media (max-width: 900px) {
+  .ro-shell--xmb .ro-topbar {
+    pointer-events: auto;
+    min-height: var(--ro-topbar-h);
+    padding: 0.7rem var(--ro-space);
+  }
+
   .ro-xmb {
     --xmb-cat-y: 18%;
     height: auto;
@@ -502,6 +522,15 @@ html[data-layout='tv'] .ro-xmb__info-title {
   .ro-xmb__cat[data-active='true'] {
     opacity: 1;
     transform: scale(1);
+  }
+
+  .ro-xmb__cat-label {
+    opacity: 0.75;
+    transform: none;
+  }
+
+  .ro-xmb__cat[data-active='true'] .ro-xmb__cat-label {
+    opacity: 1;
   }
 
   .ro-xmb__rail {

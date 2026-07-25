@@ -251,10 +251,6 @@ select.ro-input {
   padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
 }
 
-.ro-main:has(.ro-lobby) {
-  overflow: hidden;
-}
-
 .ro-footer {
   padding: 1rem var(--ro-space) 1.35rem;
   color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
@@ -841,10 +837,6 @@ html[data-layout='tv'] .ro-tile__title {
 
 html[data-layout='tv'] .ro-title {
   font-size: clamp(1.15rem, 3vw, 1.7rem);
-}
-
-html[data-layout='tv'] .ro-lobby__brand {
-  font-size: clamp(1.6rem, 6vw, 2.8rem);
 }
 
 html[data-layout='tv'] .ro-footer {

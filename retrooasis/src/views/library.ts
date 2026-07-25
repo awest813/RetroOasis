@@ -81,7 +81,7 @@ export async function renderLibrary(
       <section class="ro-view ro-library">
         <aside class="ro-systems" aria-label="Library navigation">
           <div class="ro-systems__head">
-            <p class="ro-kicker">Library</p>
+            <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a> / Library</p>
             <h1 class="ro-systems__title">Oasis</h1>
             <p class="ro-systems__meta">${libraryMeta(catalog)}</p>
           </div>

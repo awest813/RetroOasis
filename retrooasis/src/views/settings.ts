@@ -65,7 +65,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.innerHTML = `
     <section class="ro-view ro-settings-page">
-      <p class="ro-kicker">Cabinet prefs</p>
+      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a> / Settings</p>
       <h1 class="ro-title">Settings</h1>
       <p class="ro-lede">Tweaks stay on this device. Install the app when your browser offers it for a home-screen shortcut.</p>
 
