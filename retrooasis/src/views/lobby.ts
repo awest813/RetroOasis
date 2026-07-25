@@ -4,14 +4,16 @@ import {
   loadCatalog,
   platformAccentVar,
 } from '../lib/catalog'
+import { resolveCoverUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
-import { getRecents } from '../lib/store'
+import { getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor } from '../lib/router'
 
 export async function renderLobby(root: HTMLElement): Promise<void> {
   const catalog = await loadCatalog()
   const recentIds = getRecents()
+  const useLibretro = getLibretroCovers()
   const recents = recentIds
     .map((id) => findGame(catalog, id))
     .filter((g): g is NonNullable<typeof g> => !!g)
@@ -27,10 +29,10 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
         <p class="ro-kicker">Select game · Press start</p>
         <h1 class="ro-lobby__brand">RETRO OASIS</h1>
         <p class="ro-lobby__headline">Your ROM shelf. Your browser. Arcade soul.</p>
-        <p class="ro-lede">
-          Browse systems, pick a title, and launch EmulatorJS — a static oasis you can host anywhere.
+        <p class="ro-lede ro-lobby__lede">
+          Browse systems, pick a title, and play in EmulatorJS — a static oasis you can host anywhere.
         </p>
-        <div class="ro-btn-row">
+        <div class="ro-btn-row ro-lobby__actions">
           ${
             recent
               ? `<a class="ro-btn ro-btn--primary ro-lobby__continue" href="${hrefFor(`/game/${recent.id}`)}" data-ro-focusable="true" title="${escapeAttr(recent.title)}">
@@ -38,10 +40,11 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
                   <span class="ro-lobby__continue-game">${escapeHtml(recent.title)}${
                     recentPlatform ? ` · ${escapeHtml(recentPlatform.shortName)}` : ''
                   }</span>
-                </a>`
-              : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>`
+                </a>
+                <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse library</a>`
+              : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>
+                <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
           }
-          <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse Systems</a>
         </div>
       </div>
     </section>
@@ -53,15 +56,23 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
           <div>
             <p class="ro-kicker">Continue</p>
             <h2 class="ro-title">Recently played</h2>
+            <p class="ro-lede">${recents.length} recent title${recents.length === 1 ? '' : 's'}</p>
           </div>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library/@recent')}">All recent</a>
         </div>
-        <div class="ro-grid" data-ro-grid>
+        <div class="ro-grid ro-shelf__grid" data-ro-grid>
           ${recents
             .map((game) => {
               const platform = findPlatform(catalog, game.platform)
+              const cover = resolveCoverUrl(
+                game.platform,
+                game.title,
+                game.cover,
+                useLibretro,
+              )
               return `
               <a class="ro-tile" href="${hrefFor(`/game/${game.id}`)}" data-ro-focusable="true">
-                ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), game.cover)}
+                ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
                 <div class="ro-tile__meta">
                   <span class="ro-tile__title">${escapeHtml(game.title)}</span>
                   <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}</span>

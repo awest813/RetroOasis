@@ -44,6 +44,7 @@ import {
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
+import { friendlyError } from '../lib/userErrors'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
@@ -63,41 +64,41 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const installed = isPwaInstalled()
 
   root.innerHTML = `
-    <section class="ro-view">
+    <section class="ro-view ro-settings-page">
       <p class="ro-kicker">Cabinet prefs</p>
       <h1 class="ro-title">Settings</h1>
-      <p class="ro-lede">Local-only preferences. Install the app shell as a PWA when the browser offers it.</p>
+      <p class="ro-lede">Tweaks stay on this device. Install the app when your browser offers it for a home-screen shortcut.</p>
 
-      <div class="ro-settings" style="margin-top: 1.5rem; max-width: 40rem;">
+      <div class="ro-settings">
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
           <h2 class="ro-settings__heading" id="ro-set-look">Look</h2>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Accent</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Sega cyan or PlayStation amber.</p>
+              <p class="ro-muted">Sega cyan or PlayStation amber.</p>
             </div>
-            <div class="ro-toggle-group">
+            <div class="ro-toggle-group" role="group" aria-label="Accent color">
               <button type="button" class="ro-btn" data-accent="sega" aria-pressed="${accent === 'sega'}">Sega</button>
               <button type="button" class="ro-btn" data-accent="ps" aria-pressed="${accent === 'ps'}">PS</button>
             </div>
           </div>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Layout</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">TV mode enlarges focus targets for couch / gamepad use.</p>
+              <p class="ro-muted">TV mode enlarges targets for couch and gamepad use.</p>
             </div>
-            <div class="ro-toggle-group">
+            <div class="ro-toggle-group" role="group" aria-label="Layout mode">
               <button type="button" class="ro-btn" data-layout="standard" aria-pressed="${layout === 'standard'}">Standard</button>
               <button type="button" class="ro-btn" data-layout="tv" aria-pressed="${layout === 'tv'}">TV</button>
             </div>
           </div>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>CRT overlay</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Heavier scanlines + vignette on the shell.</p>
+              <p class="ro-muted">Heavier scanlines and edge darkening on the shell.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-crt" aria-pressed="${crt}">${crt ? 'On' : 'Off'}</button>
           </div>
@@ -107,35 +108,38 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <h2 class="ro-settings__heading" id="ro-set-playback">Playback</h2>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>UI sounds</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Menu blips on move / confirm. Off by default.</p>
+              <p class="ro-muted">Soft menu blips on move and confirm. Off by default.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-sounds" aria-pressed="${sounds}">${sounds ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Sound pack</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Soft sine tones or arcade square blips.</p>
+              <p class="ro-muted">Gentle tones or sharper arcade beeps.</p>
             </div>
-            <div class="ro-toggle-group">
+            <div class="ro-toggle-group" role="group" aria-label="Sound pack">
               <button type="button" class="ro-btn" data-pack="soft" aria-pressed="${pack === 'soft'}">Soft</button>
               <button type="button" class="ro-btn" data-pack="arcade" aria-pressed="${pack === 'arcade'}">Arcade</button>
             </div>
           </div>
 
-          <div class="ro-settings-row">
-            <div>
+          <div class="ro-settings-row ro-settings-row--stack">
+            <div class="ro-settings-row__copy">
               <strong>EmulatorJS channel</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
-                Preferred CDN for cores. Default <strong>stable</strong> for most systems;
-                PSP / 3DS / DOS always use <strong>nightly</strong> (unless Local).
-                Threads available here: <strong>${hasSab ? 'yes' : 'no'}</strong>
-                ${hasSab ? '' : '(serve with COOP/COEP headers for PSP/DOS/3DS).'}
+              <p class="ro-muted">
+                Where cores load from. Most systems use <strong>stable</strong>;
+                PSP, 3DS, and DOS always use <strong>nightly</strong> unless you pick Local.
+                ${
+                  hasSab
+                    ? 'Threaded cores can run in this browser.'
+                    : 'Threaded cores need special host headers — use the RetroOasis dev server, or see the README.'
+                }
               </p>
             </div>
-            <div class="ro-toggle-group" style="flex-wrap: wrap;">
+            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="EmulatorJS channel">
               <button type="button" class="ro-btn" data-ejs="stable" aria-pressed="${ejsChannel === 'stable'}">Stable</button>
               <button type="button" class="ro-btn" data-ejs="nightly" aria-pressed="${ejsChannel === 'nightly'}">Nightly</button>
               <button type="button" class="ro-btn" data-ejs="latest" aria-pressed="${ejsChannel === 'latest'}">Latest</button>
@@ -148,70 +152,70 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <h2 class="ro-settings__heading" id="ro-set-library">Library</h2>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Libretro covers</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Guess boxart from thumbnails.libretro.com when a game has no cover (on by default).</p>
+              <p class="ro-muted">Fill in missing box art from Libretro thumbnails when available.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-libretro" aria-pressed="${libretro}">${libretro ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Hide demo catalog</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only your hosted, linked, and saved ROMs.</p>
+              <p class="ro-muted">Show only ROMs you’ve hosted, linked, or saved.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-hide-demos" aria-pressed="${hideDemos}">${hideDemos ? 'On' : 'Off'}</button>
           </div>
 
-          <div class="ro-settings-row">
-            <div>
-              <strong>Hosted ROMs</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
-                ${
-                  catalog.hostedCount
-                    ? `Loaded <strong>${catalog.hostedCount}</strong> from <code>roms/manifest.json</code>.`
-                    : 'Optional <code>roms/manifest.json</code> works on every browser (see example + generate script).'
-                }
-              </p>
-            </div>
-          </div>
-
-          <div class="ro-settings-row">
-            <div>
+          <div class="ro-settings-row ro-settings-row--stack">
+            <div class="ro-settings-row__copy">
               <strong>Saved ROMs</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
-                ${
-                  uploadedMeta.count
-                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device.
-                       <a href="${hrefFor('/library/@all')}">View in library</a>.`
-                    : 'Add ROM keeps files on this device so they stay on your shelf across visits.'
-                }
-              </p>
+              ${
+                uploadedMeta.count
+                  ? `<p class="ro-muted">${uploadedMeta.count} ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device</p>`
+                  : `<p class="ro-muted">Files you add stay on this device between visits.</p>`
+              }
             </div>
-            ${
-              uploadedMeta.count
-                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads">Clear</button>`
-                : ''
-            }
+            <div class="ro-btn-row">
+              ${
+                uploadedMeta.count
+                  ? `<a class="ro-btn ro-btn--ghost" href="${hrefFor('/library/@all')}">View library</a>
+                     <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads">Clear</button>`
+                  : `<a class="ro-btn" href="${hrefFor('/upload')}">Add ROM</a>`
+              }
+            </div>
           </div>
 
-          <div class="ro-settings-row">
-            <div>
-              <strong>Local ROM folder</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
+          <div class="ro-settings-row ro-settings-row--stack">
+            <div class="ro-settings-row__copy">
+              <strong>Local folder</strong>
+              <p class="ro-muted">
                 ${
                   meta.linked
-                    ? `Linked: <strong>${meta.name ?? 'folder'}</strong>`
+                    ? `Linked to <strong>${meta.name ?? 'folder'}</strong>`
                     : canPick
-                      ? 'Use File System Access to scan <code>roms/&lt;platform&gt;/</code>.'
-                      : 'This browser cannot link folders. Use hosted manifest or Add ROM.'
+                      ? 'Link a <code>roms/&lt;system&gt;/</code> folder on this computer.'
+                      : 'This browser can’t link folders. Use Add ROM or a hosted manifest instead.'
                 }
               </p>
               <p class="ro-muted" id="ro-folder-status" hidden></p>
             </div>
             <div class="ro-btn-row">
-              ${canPick ? `<button type="button" class="ro-btn" id="ro-link">Link</button>` : ''}
+              ${canPick ? `<button type="button" class="ro-btn" id="ro-link">${meta.linked ? 'Relink' : 'Link folder'}</button>` : ''}
               ${meta.linked ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-unlink">Unlink</button>` : ''}
+            </div>
+          </div>
+
+          <div class="ro-settings-row ro-settings-row--note">
+            <div class="ro-settings-row__copy">
+              <strong>Hosted ROMs</strong>
+              <p class="ro-muted">
+                ${
+                  catalog.hostedCount
+                    ? `Loaded ${catalog.hostedCount} from your site’s <code>roms/manifest.json</code>.`
+                    : 'Optional for any browser: put games under <code>roms/</code> and generate a manifest (see the README).'
+                }
+              </p>
             </div>
           </div>
         </section>
@@ -220,15 +224,15 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <h2 class="ro-settings__heading" id="ro-set-data">Data</h2>
 
           <div class="ro-settings-row">
-            <div>
+            <div class="ro-settings-row__copy">
               <strong>Install app</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
+              <p class="ro-muted">
                 ${
                   installed
-                    ? 'Running as an installed PWA.'
+                    ? 'You’re running RetroOasis as an installed app.'
                     : installable
-                      ? 'Browser is ready to install RetroOasis.'
-                      : 'Install prompt appears on HTTPS after the shell is cached (production build).'
+                      ? 'Add it to your home screen for quicker launches.'
+                      : 'Install appears on HTTPS after the app shell is cached (production build).'
                 }
               </p>
             </div>
@@ -240,35 +244,29 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
 
           <div class="ro-settings-row">
-            <div>
-              <strong>Clear play data</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Recents and favorites stored in this browser.</p>
+            <div class="ro-settings-row__copy">
+              <strong>Clear play history</strong>
+              <p class="ro-muted">Removes recently played and favorites on this device.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-prefs">Clear</button>
+            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs">Clear</button>
           </div>
 
           <div class="ro-settings-row">
-            <div>
-              <strong>Metadata overrides</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Local edits from game detail pages. Export as JSON or clear.</p>
+            <div class="ro-settings-row__copy">
+              <strong>Metadata edits</strong>
+              <p class="ro-muted">Title and cover changes from game pages. Export as JSON or clear them.</p>
             </div>
             <div class="ro-btn-row">
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export</button>
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over">Clear</button>
-            </div>
-          </div>
-
-          <div class="ro-settings-row">
-            <div>
-              <strong>Hosting / scan</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">
-                <code>npm run oasis:build</code> → serve <code>dist/</code> beside <code>data/</code> + <code>roms/</code>.
-                Scan ROMs with <code>npm run oasis:scan</code>; probe Libretro covers with
-                <code>npm run oasis:scan -- --covers</code>.
-              </p>
+              <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over">Clear</button>
             </div>
           </div>
         </section>
+
+        <p class="ro-settings__footnote ro-muted">
+          Self-host tip: build with <code>npm run oasis:build</code>, serve <code>dist/</code> beside
+          <code>data/</code> and <code>roms/</code>. Scan with <code>npm run oasis:scan</code>.
+        </p>
       </div>
     </section>
   `
@@ -336,7 +334,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     } catch (err) {
       if (status) {
         status.hidden = false
-        status.textContent = err instanceof Error ? err.message : 'Cancelled.'
+        status.textContent = friendlyError(err, 'Cancelled.')
       }
     }
   })
@@ -347,7 +345,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-uploads')?.addEventListener('click', async () => {
-    if (!window.confirm('Remove all saved ROMs from this device?')) return
+    if (!window.confirm('Remove all saved ROMs from this device? This can’t be undone.')) return
     await clearUploadedCatalog()
     void renderSettings(root)
   })
@@ -358,6 +356,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-prefs')?.addEventListener('click', () => {
+    if (!window.confirm('Clear recently played and favorites on this device?')) return
     clearLocalPrefs()
     void renderSettings(root)
   })
@@ -373,6 +372,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
+    if (!window.confirm('Clear all local metadata edits on this device?')) return
     clearAllOverrides()
     refreshCatalogView()
     void renderSettings(root)

@@ -56,7 +56,7 @@ app.innerHTML = `
       </div>
     </header>
     <main class="ro-main" id="ro-main" tabindex="-1"></main>
-    <footer class="ro-footer">RetroOasis · static ROM shelf · powered by EmulatorJS</footer>
+    <footer class="ro-footer">RetroOasis · your static ROM shelf · powered by EmulatorJS</footer>
   </div>
 `
 
