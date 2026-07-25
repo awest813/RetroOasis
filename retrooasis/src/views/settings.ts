@@ -44,6 +44,7 @@ import {
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
+import { friendlyError } from '../lib/userErrors'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
@@ -66,7 +67,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     <section class="ro-view">
       <p class="ro-kicker">Cabinet prefs</p>
       <h1 class="ro-title">Settings</h1>
-      <p class="ro-lede">Local-only preferences. Install the app shell as a PWA when the browser offers it.</p>
+      <p class="ro-lede">Preferences stay on this device. You can also install RetroOasis as an app when your browser offers it.</p>
 
       <div class="ro-settings" style="margin-top: 1.5rem; max-width: 40rem;">
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
@@ -158,7 +159,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div>
               <strong>Hide demo catalog</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only your hosted, linked, and saved ROMs.</p>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only ROMs you’ve hosted, linked, or saved — hide the demo samples.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-hide-demos" aria-pressed="${hideDemos}">${hideDemos ? 'On' : 'Off'}</button>
           </div>
@@ -184,7 +185,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                   uploadedMeta.count
                     ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device.
                        <a href="${hrefFor('/library/@all')}">View in library</a>.`
-                    : 'Add ROM keeps files on this device so they stay on your shelf across visits.'
+                    : 'Use Add ROM to keep files on this device so they stay on your shelf between visits.'
                 }
               </p>
             </div>
@@ -203,8 +204,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                   meta.linked
                     ? `Linked: <strong>${meta.name ?? 'folder'}</strong>`
                     : canPick
-                      ? 'Use File System Access to scan <code>roms/&lt;platform&gt;/</code>.'
-                      : 'This browser cannot link folders. Use hosted manifest or Add ROM.'
+                      ? 'Pick a folder shaped like <code>roms/&lt;system&gt;/</code> to scan games on this computer.'
+                      : 'This browser can’t link folders. Use a hosted manifest or Add ROM instead.'
                 }
               </p>
               <p class="ro-muted" id="ro-folder-status" hidden></p>
@@ -242,7 +243,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div>
               <strong>Clear play data</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Recents and favorites stored in this browser.</p>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">Recently played and favorites kept on this device.</p>
             </div>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-prefs">Clear</button>
           </div>
@@ -250,7 +251,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div>
               <strong>Metadata overrides</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Local edits from game detail pages. Export as JSON or clear.</p>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">Title and cover edits from game pages. Export as JSON or clear them.</p>
             </div>
             <div class="ro-btn-row">
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export</button>
@@ -336,7 +337,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     } catch (err) {
       if (status) {
         status.hidden = false
-        status.textContent = err instanceof Error ? err.message : 'Cancelled.'
+        status.textContent = friendlyError(err, 'Cancelled.')
       }
     }
   })
@@ -347,7 +348,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-uploads')?.addEventListener('click', async () => {
-    if (!window.confirm('Remove all saved ROMs from this device?')) return
+    if (!window.confirm('Remove all saved ROMs from this device? This can’t be undone.')) return
     await clearUploadedCatalog()
     void renderSettings(root)
   })

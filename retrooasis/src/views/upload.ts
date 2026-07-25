@@ -1,11 +1,12 @@
 import { UPLOAD_CORE_OPTIONS, coreFromExtension } from '../lib/cores'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
-import { getEjsChannel, pushRecent, resolveEjsChannel } from '../lib/store'
+import { getEjsChannel, pushRecent } from '../lib/store'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
+import { friendlyError } from '../lib/userErrors'
 
 const CORE_EXT_HINTS: Record<string, string> = {
-  auto: 'Auto picks a core from the file extension (.nes, .sfc, .gba, .zip, …).',
+  auto: 'Auto picks a system from the file extension (.nes, .sfc, .gba, .zip, …).',
   nes: 'Common: .nes · .fds · .unif',
   snes: 'Common: .sfc · .smc',
   gb: 'Common: .gb · .gbc',
@@ -51,11 +52,11 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
-        Save a file to this device’s library, then play it in EmulatorJS.
-        Titles stay here until you remove them.
+        Drop in a ROM to save it on this device and start playing.
+        It stays in your library until you remove it.
       </p>
       <div class="ro-stack ro-upload__stack">
-        <label class="ro-muted" for="ro-core">System core</label>
+        <label class="ro-muted" for="ro-core">System</label>
         <select id="ro-core" class="ro-input">
           ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
@@ -74,7 +75,7 @@ export function renderUpload(root: HTMLElement): void {
         </div>
         <input id="ro-file" type="file" hidden />
         <p class="ro-muted ro-upload__status" id="ro-status">
-          Channel: ${getEjsChannel()} · PSP / 3DS / DOS use nightly. Change in Settings.
+          Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
         </p>
         <div class="ro-btn-row">
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
@@ -96,12 +97,12 @@ export function renderUpload(root: HTMLElement): void {
     if (!dropTitle || !dropSub) return
     if (mode === 'busy') {
       dropTitle.textContent = 'Saving…'
-      dropSub.textContent = 'Keep this tab open'
+      dropSub.textContent = 'Almost ready to play'
       return
     }
     if (mode === 'drag') {
-      dropTitle.textContent = 'Release to save'
-      dropSub.textContent = 'Adds to your library, then plays'
+      dropTitle.textContent = 'Release to add'
+      dropSub.textContent = 'Saves to your library, then plays'
       return
     }
     dropTitle.textContent = 'Drop ROM here'
@@ -119,7 +120,7 @@ export function renderUpload(root: HTMLElement): void {
 
   const syncHint = () => {
     if (!coreSelect || !hint) return
-    hint.textContent = CORE_EXT_HINTS[coreSelect.value] ?? 'Choose a core that matches your ROM.'
+    hint.textContent = CORE_EXT_HINTS[coreSelect.value] ?? 'Pick the system that matches your ROM.'
   }
 
   coreSelect?.addEventListener('change', syncHint)
@@ -132,7 +133,6 @@ export function renderUpload(root: HTMLElement): void {
       core = coreFromExtension(file.name) || 'nes'
     }
 
-    const channel = resolveEjsChannel(core)
     setBusy(true)
     if (status) {
       status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
@@ -142,15 +142,14 @@ export function renderUpload(root: HTMLElement): void {
       const game = await saveUploadedRom(file, file.name, core)
       pushRecent(game.id)
 
-      if (status) status.textContent = `Saved · launching ${file.name} (${core}, ${channel})…`
+      if (status) status.textContent = `Saved. Starting ${file.name}…`
       const back = hrefFor(`/game/${game.id}`)
       window.location.href = buildPlayerUrl(game, game.file, back)
     } catch (err) {
       setBusy(false)
       if (input) input.value = ''
       if (status) {
-        status.textContent =
-          err instanceof Error ? err.message : 'Could not save ROM to the library.'
+        status.textContent = friendlyError(err, 'Couldn’t save that ROM. Try another file.')
       }
     }
   }
