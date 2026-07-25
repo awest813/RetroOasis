@@ -201,7 +201,9 @@ export async function scanDirectory(root: FileSystemDirectoryHandle): Promise<Lo
 
 export async function pickLocalLibrary(): Promise<LocalScanResult> {
   if (!supportsDirectoryPicker()) {
-    throw new Error('File System Access API is not available in this browser.')
+    throw new Error(
+      'This browser can’t link folders. Use Add ROM instead, or host a roms/manifest.json file.',
+    )
   }
   const root = await window.showDirectoryPicker!({ id: 'retrooasis-library', mode: 'read' })
   await idbSet(ROOT_HANDLE_KEY, root)
@@ -225,7 +227,7 @@ export async function clearLocalLibrary(): Promise<void> {
 export async function getLocalRomFile(gameId: string): Promise<File> {
   const handle = fileHandles.get(gameId)
   if (!handle) {
-    throw new Error('Local ROM handle missing. Re-link your library folder.')
+    throw new Error('Lost access to that folder. Link your ROM folder again from Library or Settings.')
   }
   return handle.getFile()
 }

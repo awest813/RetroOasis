@@ -15,6 +15,7 @@ import { bindGridFocus } from '../lib/focus'
 import { pickLocalLibrary, supportsDirectoryPicker } from '../lib/localLibrary'
 import { hrefFor, type VirtualCollection } from '../lib/router'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
+import { friendlyError } from '../lib/userErrors'
 
 export type LibrarySelection =
   | { kind: 'platform'; id: string }
@@ -73,7 +74,7 @@ export async function renderLibrary(
     const sampleCount = games.filter((g) => g.demo).length
     const sampleCue =
       sampleCount > 0
-        ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} for UI walkthrough — hide in Settings if you only want real ROMs.</p>`
+        ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} so you can explore the UI — hide them in Settings if you only want real ROMs.</p>`
         : ''
 
     root.innerHTML = `
@@ -268,7 +269,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">Shelf is empty</p>
-        <p class="ro-empty__body">Link a ROM folder, host <code>roms/manifest.json</code>, or add a file — uploads stay in this browser.</p>
+        <p class="ro-empty__body">Link a ROM folder, host your games, or add a file — saved ROMs stay on this device.</p>
         <div class="ro-btn-row" style="justify-content:center">
           <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
@@ -278,7 +279,7 @@ function emptyState(sel: LibrarySelection): string {
   return `
     <div class="ro-empty">
       <p class="ro-empty__title">Library is empty</p>
-      <p class="ro-empty__body">Add a ROM to save it in this browser, host files, or link a folder.</p>
+      <p class="ro-empty__body">Add a ROM to save it on this device, host files on your site, or link a folder.</p>
       <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
     </div>`
 }
@@ -297,7 +298,7 @@ function bindLibraryChrome(root: HTMLElement, reload: () => void): void {
     } catch (err) {
       if (status) {
         status.hidden = false
-        status.textContent = err instanceof Error ? err.message : 'Folder link cancelled.'
+        status.textContent = friendlyError(err, 'Folder link cancelled.')
       }
     }
   })

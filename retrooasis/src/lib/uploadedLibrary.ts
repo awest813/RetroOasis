@@ -6,6 +6,7 @@ import {
   titleFromFilename,
 } from './cores'
 import { idbClear, idbDelete, idbGet, idbGetAll, idbSet, LIBRARY_ROM_STORE } from './idb'
+import { friendlyError, isQuotaError } from './userErrors'
 
 export const LIBRARY_ROM_PREFIX = 'library:'
 
@@ -72,22 +73,12 @@ function romByteLength(record: Pick<LibraryRomRecord, 'size' | 'bytes'>): number
   return 0
 }
 
-function isQuotaError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const e = err as { name?: string; message?: string }
-  return (
-    e.name === 'QuotaExceededError' ||
-    e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-    /quota/i.test(e.message ?? '')
-  )
-}
-
 export async function saveUploadedRom(file: Blob, filename: string, core: string): Promise<Game> {
   if (!filename.trim()) {
-    throw new Error('ROM file needs a name.')
+    throw new Error('That file doesn’t have a name. Try another file.')
   }
   if (file.size <= 0) {
-    throw new Error('That file is empty. Choose a real ROM.')
+    throw new Error('That file is empty. Pick a ROM file to continue.')
   }
 
   const playCore = normalizePlayCore(core)
@@ -99,8 +90,10 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
   let bytes: ArrayBuffer
   try {
     bytes = await file.arrayBuffer()
-  } catch {
-    throw new Error('Could not read that file into memory.')
+  } catch (err) {
+    throw new Error(
+      friendlyError(err, 'Couldn’t read that file. It may be too large or blocked by the browser.'),
+    )
   }
 
   const record: LibraryRomRecord = {
@@ -120,10 +113,12 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
   } catch (err) {
     if (isQuotaError(err)) {
       throw new Error(
-        'Browser storage is full. Remove saved ROMs in Settings, or free disk space, then try again.',
+        'This browser is out of storage space. Remove some saved ROMs in Settings, free up disk space, then try again.',
       )
     }
-    throw err instanceof Error ? err : new Error('Could not save ROM to the library.')
+    throw new Error(
+      friendlyError(err, 'Couldn’t save that ROM. Try again, or free up storage in Settings.'),
+    )
   }
 
   return recordToGame(record)
@@ -146,7 +141,7 @@ export async function getUploadedRomRecord(
 export async function getUploadedRomFile(gameId: string): Promise<File> {
   const record = await getUploadedRomRecord(gameId)
   if (!record || romByteLength(record) <= 0) {
-    throw new Error('Uploaded ROM missing from this browser library. Re-add the file.')
+    throw new Error('That saved ROM isn’t on this device anymore. Add it again from Add ROM.')
   }
   return new File([record.bytes], record.filename || 'game.bin', {
     type: record.type || 'application/octet-stream',

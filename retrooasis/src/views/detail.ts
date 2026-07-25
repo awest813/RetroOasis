@@ -20,6 +20,7 @@ import {
 import { sfxConfirm, sfxToggle } from '../lib/sfx'
 import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
 import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
+import { friendlyError } from '../lib/userErrors'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -92,12 +93,12 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.demo
-              ? `<p class="ro-muted">Sample catalog entry for UI walkthrough — demo ROM files are not shipped. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Library → Link folder to play real files.</p>`
+              ? `<p class="ro-muted">This is a sample shelf entry for browsing the UI — the demo ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Library → Link folder to play a real game.</p>`
               : ''
           }
           ${
             game.source === 'upload'
-              ? `<p class="ro-muted">Stored on this device. Clearing site data also removes it.</p>`
+              ? `<p class="ro-muted">Saved on this device. Clearing this site’s browser data will remove it too.</p>`
               : ''
           }
           <p class="ro-muted" id="ro-play-status" hidden></p>
@@ -134,7 +135,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over">Clear override</button>
                 <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export all</button>
               </div>
-              <p class="ro-muted">Overrides stay in this browser. Export JSON to turn them into sidecars / manifest fields.</p>
+              <p class="ro-muted">Edits stay on this device. Export JSON if you want to reuse them as sidecars or manifest fields.</p>
             </form>`
               : ''
           }
@@ -154,7 +155,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         const el = root.querySelector<HTMLElement>('#ro-play-status')
         if (el) {
           el.hidden = false
-          el.textContent = err instanceof Error ? err.message : 'Could not launch game.'
+          el.textContent = friendlyError(err, 'Couldn’t start that game. Try again.')
         }
       }
     })
@@ -166,7 +167,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
 
     root.querySelector('#ro-remove-upload')?.addEventListener('click', async () => {
-      if (!window.confirm(`Remove “${game.title}” from this browser’s library?`)) return
+      if (!window.confirm(`Remove “${game.title}” from your library on this device?`)) return
       try {
         await removeUploadedRom(game.id)
         forgetGameId(game.id)
@@ -176,7 +177,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         const el = root.querySelector<HTMLElement>('#ro-play-status')
         if (el) {
           el.hidden = false
-          el.textContent = err instanceof Error ? err.message : 'Could not remove ROM.'
+          el.textContent = friendlyError(err, 'Couldn’t remove that ROM. Try again.')
         }
       }
     })
