@@ -18,8 +18,8 @@ import {
   setOverride,
 } from '../lib/overrides'
 import { sfxConfirm, sfxToggle } from '../lib/sfx'
-import { getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
-import { removeUploadedRom } from '../lib/uploadedLibrary'
+import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
+import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -46,6 +46,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let favorited = isFavorite(game.id)
   let busy = false
   let editing = false
+  let fileLabel = game.file
+  if (game.source === 'upload') {
+    const record = await getUploadedRomRecord(game.id)
+    fileLabel = record?.filename || 'Saved in this browser'
+  }
 
   const paint = () => {
     const over = getOverride(game.id)
@@ -75,7 +80,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           </div>
           <p class="ro-lede">
             Core <strong>${escapeHtml(playCore)}</strong>
-            · File <code>${escapeHtml(game.file)}</code>
+            · File <code>${escapeHtml(fileLabel)}</code>
             ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
             ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
           </p>
@@ -91,7 +96,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.source === 'upload'
-              ? `<p class="ro-muted">ROM bytes are stored in this browser’s IndexedDB library and survive reloads until you remove them.</p>`
+              ? `<p class="ro-muted">Stored on this device until you remove it. Clearing site data also deletes saved ROMs.</p>`
               : ''
           }
           <p class="ro-muted" id="ro-play-status" hidden></p>
@@ -163,6 +168,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       if (!window.confirm(`Remove “${game.title}” from this browser’s library?`)) return
       try {
         await removeUploadedRom(game.id)
+        forgetGameId(game.id)
         await reloadUploadedLibrary()
         navigate('/library')
       } catch (err) {

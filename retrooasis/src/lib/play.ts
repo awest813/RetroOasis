@@ -4,7 +4,6 @@ import { getLocalRomFile, hasLocalHandle } from './localLibrary'
 import { hrefFor } from './router'
 import { stageRomForPlay } from './romBridge'
 import { pushRecent, resolveEjsChannel } from './store'
-import { isLibraryRomRef } from './uploadedLibrary'
 
 /** Build a static-friendly player URL (hash back-link preserved). */
 export function buildPlayerUrl(
@@ -33,14 +32,12 @@ export async function launchGame(
   pushRecent(game.id)
 
   let romUrl = game.file
-  if (game.source === 'upload' || isLibraryRomRef(game.file)) {
-    // Durable browser-library ref — player reads without consuming the copy.
-    romUrl = game.file
-  } else if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
+  if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
     const file = await getLocalRomFile(game.id)
     // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
     romUrl = await stageRomForPlay(file, file.name || `${game.title}.bin`)
   }
+  // Uploaded games already use durable library: refs — player reads without consuming.
 
   window.location.href = buildPlayerUrl(game, romUrl, backRoute)
 }

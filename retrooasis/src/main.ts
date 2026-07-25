@@ -50,7 +50,7 @@ app.innerHTML = `
         <nav class="ro-nav" aria-label="Primary">
           <a data-nav="lobby" href="${hrefFor('/')}">Lobby</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
-          <a data-nav="upload" href="${hrefFor('/upload')}">Upload</a>
+          <a data-nav="upload" href="${hrefFor('/upload')}">Add ROM</a>
           <a data-nav="settings" href="${hrefFor('/settings')}">Settings</a>
         </nav>
       </div>

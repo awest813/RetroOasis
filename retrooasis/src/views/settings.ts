@@ -181,8 +181,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted" style="margin: 0.25rem 0 0;">
                 ${
                   uploadedMeta.count
-                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} in IndexedDB on this device.`
-                    : 'Add ROM saves files in this browser so they stay on your shelf across visits.'
+                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} on this device (IndexedDB).`
+                    : 'Add ROM keeps files on this device so they stay on your shelf across visits.'
                 }
               </p>
             </div>

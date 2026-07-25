@@ -55,7 +55,7 @@ Merge order: demo catalog → `roms/manifest.json` (hosted) → **saved uploads*
 
 ### Saved uploads (all browsers)
 
-**Add ROM** (Upload) stores the file bytes in IndexedDB on this device and adds a shelf entry. Reloads and revisits keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key).
+**Add ROM** stores file bytes in IndexedDB on this device and adds a shelf entry. Reloads keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key). Re-adding the same filename replaces the bytes but keeps the original title/`addedAt` when possible.
 
 ### Hosted manifest (all browsers)
 

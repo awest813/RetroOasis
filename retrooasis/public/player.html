@@ -239,7 +239,7 @@
                 if (!record || !record.bytes) {
                   reject(
                     new Error(
-                      "Uploaded ROM is missing from this browser library. Re-add it from Upload.",
+                      "Uploaded ROM is missing from this browser library. Re-add it from Add ROM.",
                     ),
                   );
                   return;
@@ -266,7 +266,7 @@
           if (rom.indexOf("blob:") === 0) {
             return Promise.reject(
               new Error(
-                "This play link used a temporary blob URL that no longer exists. Launch again from Upload or the library.",
+                "This play link used a temporary blob URL that no longer exists. Launch again from Add ROM or the library.",
               ),
             );
           }

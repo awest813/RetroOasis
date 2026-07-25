@@ -1,9 +1,8 @@
 import { UPLOAD_CORE_OPTIONS, coreFromExtension } from '../lib/cores'
-import { reloadUploadedLibrary } from '../lib/catalog'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
 import { getEjsChannel, pushRecent, resolveEjsChannel } from '../lib/store'
-import { saveUploadedRom } from '../lib/uploadedLibrary'
+import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 
 const CORE_EXT_HINTS: Record<string, string> = {
   auto: 'Auto picks a core from the file extension (.nes, .sfc, .gba, .zip, …).',
@@ -52,8 +51,8 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
-        Drop a file to save it in this browser’s library and play via EmulatorJS.
-        Uploads stay on this device (IndexedDB) until you remove them. Most systems use the
+        Drop a file to save it on this device and play via EmulatorJS. Saved titles
+        stay in your library across visits until you remove them. Most systems use the
         <strong>stable</strong> CDN; PSP / DOS / 3DS need threads (COOP/COEP) and use
         <strong>nightly</strong>.
       </p>
@@ -66,7 +65,7 @@ export function renderUpload(root: HTMLElement): void {
         <div class="ro-drop" id="ro-drop" tabindex="0" data-ro-focusable="true">
           <span class="ro-drop__mark" aria-hidden="true">▼</span>
           <strong>Drop ROM here</strong>
-          <span class="ro-muted">or click to choose a file</span>
+          <span class="ro-muted">saves to library, then plays</span>
         </div>
         <input id="ro-file" type="file" hidden />
         <p class="ro-muted" id="ro-status">Preferred channel: ${getEjsChannel()} (PSP / 3DS / DOS → nightly). Change in Settings.</p>
@@ -82,6 +81,14 @@ export function renderUpload(root: HTMLElement): void {
   const hint = root.querySelector<HTMLElement>('#ro-core-hint')
   const status = root.querySelector<HTMLElement>('#ro-status')
   const drop = root.querySelector<HTMLElement>('#ro-drop')
+  let busy = false
+
+  const setBusy = (next: boolean) => {
+    busy = next
+    drop?.toggleAttribute('aria-busy', next)
+    if (coreSelect) coreSelect.disabled = next
+    if (drop) drop.tabIndex = next ? -1 : 0
+  }
 
   const syncHint = () => {
     if (!coreSelect || !hint) return
@@ -92,24 +99,30 @@ export function renderUpload(root: HTMLElement): void {
   syncHint()
 
   const launch = async (file: File) => {
-    if (!coreSelect) return
+    if (!coreSelect || busy) return
     let core = coreSelect.value
     if (core === 'auto') {
       core = coreFromExtension(file.name) || 'nes'
     }
 
     const channel = resolveEjsChannel(core)
-    if (status) status.textContent = `Saving ${file.name} to library…`
+    setBusy(true)
+    if (status) {
+      status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
+    }
 
     try {
+      // Persist first; full navigation to player.html follows.
+      // Do not emit catalog change here — it would re-render this view mid-launch.
       const game = await saveUploadedRom(file, file.name, core)
-      await reloadUploadedLibrary()
       pushRecent(game.id)
 
       if (status) status.textContent = `Saved. Launching ${file.name} (${core}, ${channel})…`
       const back = hrefFor(`/game/${game.id}`)
       window.location.href = buildPlayerUrl(game, game.file, back)
     } catch (err) {
+      setBusy(false)
+      if (input) input.value = ''
       if (status) {
         status.textContent =
           err instanceof Error ? err.message : 'Could not save ROM to the library.'
@@ -117,8 +130,11 @@ export function renderUpload(root: HTMLElement): void {
     }
   }
 
-  drop?.addEventListener('click', () => input?.click())
+  drop?.addEventListener('click', () => {
+    if (!busy) input?.click()
+  })
   drop?.addEventListener('keydown', (event) => {
+    if (busy) return
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       input?.click()
@@ -128,7 +144,7 @@ export function renderUpload(root: HTMLElement): void {
   ;['dragenter', 'dragover'].forEach((type) => {
     drop?.addEventListener(type, (event) => {
       event.preventDefault()
-      drop.setAttribute('data-drag', 'true')
+      if (!busy) drop.setAttribute('data-drag', 'true')
     })
   })
   ;['dragleave', 'drop'].forEach((type) => {
@@ -139,6 +155,7 @@ export function renderUpload(root: HTMLElement): void {
   })
 
   drop?.addEventListener('drop', (event) => {
+    if (busy) return
     const file = event.dataTransfer?.files?.[0]
     if (file) void launch(file)
   })

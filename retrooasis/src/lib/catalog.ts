@@ -5,8 +5,12 @@ import {
 } from './localLibrary'
 import { loadHostedManifest } from './hostedLibrary'
 import { applyOverridesToGames } from './overrides'
-import { getHideDemos } from './store'
-import { clearUploadedLibrary, listUploadedGames } from './uploadedLibrary'
+import { forgetGameIds, getHideDemos } from './store'
+import {
+  clearUploadedLibrary,
+  listUploadedGames,
+  listUploadedRomIds,
+} from './uploadedLibrary'
 
 export type PlatformAccent = string
 
@@ -129,7 +133,9 @@ export async function reloadUploadedLibrary(): Promise<Catalog> {
 }
 
 export async function clearUploadedCatalog(): Promise<void> {
+  const ids = await listUploadedRomIds().catch(() => uploadedGames.map((g) => g.id))
   await clearUploadedLibrary()
+  forgetGameIds(ids)
   uploadedGames = []
   emitCatalogChange()
 }
