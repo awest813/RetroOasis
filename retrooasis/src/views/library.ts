@@ -110,9 +110,10 @@ export async function renderLibrary(
           </div>
 
           <div class="ro-systems__actions">
+            <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             ${
               canPick
-                ? `<button type="button" class="ro-btn" id="ro-link-folder" data-ro-focusable="true">Link folder</button>`
+                ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-link-folder" data-ro-focusable="true">Link folder</button>`
                 : ''
             }
             <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
@@ -269,7 +270,7 @@ function emptyState(sel: LibrarySelection): string {
         <p class="ro-empty__title">Shelf is empty</p>
         <p class="ro-empty__body">Link a ROM folder, host <code>roms/manifest.json</code>, or add files under <code>roms/${escapeHtml(sel.id)}/</code>.</p>
         <div class="ro-btn-row" style="justify-content:center">
-          <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Upload a ROM</a>
+          <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
         </div>
       </div>`
@@ -278,7 +279,7 @@ function emptyState(sel: LibrarySelection): string {
     <div class="ro-empty">
       <p class="ro-empty__title">Library is empty</p>
       <p class="ro-empty__body">Add hosted ROMs or upload a file to start playing.</p>
-      <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Upload a ROM</a>
+      <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
     </div>`
 }
 
