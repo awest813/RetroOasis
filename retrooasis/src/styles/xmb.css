@@ -247,7 +247,7 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  opacity: calc(1 - (attr(data-distance type(<number>), 0) * 0.18));
+  opacity: 0.55;
   transform: scale(0.94);
   transform-origin: left center;
   transition:
@@ -257,7 +257,7 @@
     border-color 160ms ease;
 }
 
-/* attr() opacity fallback — browsers without typed attr */
+/* Distance fade (classic XMB neighbor dimming) */
 .ro-xmb__item[data-distance='0'] {
   opacity: 1;
 }
@@ -428,13 +428,28 @@ html[data-layout='tv'] .ro-xmb__info-title {
     transform: translateY(8px) scale(0.96);
   }
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    opacity: 0.55;
+    transform: translateY(0) scale(0.94);
   }
 }
 
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item {
   animation: ro-xmb-item-in 280ms ease both;
+}
+
+.ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item[data-active='true'] {
+  animation-name: ro-xmb-item-in-active;
+}
+
+@keyframes ro-xmb-item-in-active {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
 }
 
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item:nth-child(1) {
