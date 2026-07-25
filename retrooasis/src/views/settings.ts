@@ -1,5 +1,6 @@
 import {
   applyLocalScan,
+  clearUploadedCatalog,
   loadCatalog,
   refreshCatalogView,
   unlinkLocalCatalog,
@@ -41,6 +42,7 @@ import {
   type SoundPack,
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
+import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
@@ -52,6 +54,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const libretro = getLibretroCovers()
   const ejsChannel = getEjsChannel()
   const meta = await getLocalLibraryMeta()
+  const uploadedMeta = await getUploadedLibraryMeta()
   const hasSab = typeof SharedArrayBuffer !== 'undefined'
   const catalog = await loadCatalog()
   const canPick = supportsDirectoryPicker()
@@ -154,7 +157,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div>
               <strong>Hide demo catalog</strong>
-              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only hosted / linked ROMs in the library.</p>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">Show only hosted / linked / saved ROMs in the library.</p>
             </div>
             <button type="button" class="ro-btn" id="ro-hide-demos" aria-pressed="${hideDemos}">${hideDemos ? 'On' : 'Off'}</button>
           </div>
@@ -174,6 +177,24 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row">
             <div>
+              <strong>Saved uploads</strong>
+              <p class="ro-muted" style="margin: 0.25rem 0 0;">
+                ${
+                  uploadedMeta.count
+                    ? `<strong>${uploadedMeta.count}</strong> ROM${uploadedMeta.count === 1 ? '' : 's'} · ${formatBytes(uploadedMeta.bytes)} in IndexedDB on this device.`
+                    : 'Add ROM saves files in this browser so they stay on your shelf across visits.'
+                }
+              </p>
+            </div>
+            ${
+              uploadedMeta.count
+                ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-uploads">Clear</button>`
+                : ''
+            }
+          </div>
+
+          <div class="ro-settings-row">
+            <div>
               <strong>Local ROM folder</strong>
               <p class="ro-muted" style="margin: 0.25rem 0 0;">
                 ${
@@ -181,7 +202,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                     ? `Linked: <strong>${meta.name ?? 'folder'}</strong>`
                     : canPick
                       ? 'Use File System Access to scan <code>roms/&lt;platform&gt;/</code>.'
-                      : 'This browser cannot link folders. Use hosted manifest or Upload.'
+                      : 'This browser cannot link folders. Use hosted manifest or Add ROM.'
                 }
               </p>
               <p class="ro-muted" id="ro-folder-status" hidden></p>
@@ -320,6 +341,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelector('#ro-unlink')?.addEventListener('click', async () => {
     await unlinkLocalCatalog()
+    void renderSettings(root)
+  })
+
+  root.querySelector('#ro-clear-uploads')?.addEventListener('click', async () => {
+    if (!window.confirm('Remove all uploaded ROMs saved in this browser?')) return
+    await clearUploadedCatalog()
     void renderSettings(root)
   })
 

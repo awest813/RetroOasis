@@ -1,7 +1,10 @@
-import { UPLOAD_CORE_OPTIONS, coreFromExtension, coreNeedsThreads } from '../lib/cores'
+import { UPLOAD_CORE_OPTIONS, coreFromExtension } from '../lib/cores'
+import { reloadUploadedLibrary } from '../lib/catalog'
+import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
-import { stageRomForPlay } from '../lib/romBridge'
-import { getEjsChannel, resolveEjsChannel } from '../lib/store'
+import { getEjsChannel, pushRecent, resolveEjsChannel } from '../lib/store'
+import { saveUploadedRom } from '../lib/uploadedLibrary'
+
 const CORE_EXT_HINTS: Record<string, string> = {
   auto: 'Auto picks a core from the file extension (.nes, .sfc, .gba, .zip, …).',
   nes: 'Common: .nes · .fds · .unif',
@@ -47,9 +50,10 @@ export function renderUpload(root: HTMLElement): void {
   root.innerHTML = `
     <section class="ro-view">
       <p class="ro-kicker">Power path</p>
-      <h1 class="ro-title">Upload ROM</h1>
+      <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
-        Drop a file to play immediately via EmulatorJS. Most systems use the
+        Drop a file to save it in this browser’s library and play via EmulatorJS.
+        Uploads stay on this device (IndexedDB) until you remove them. Most systems use the
         <strong>stable</strong> CDN; PSP / DOS / 3DS need threads (COOP/COEP) and use
         <strong>nightly</strong>.
       </p>
@@ -66,7 +70,9 @@ export function renderUpload(root: HTMLElement): void {
         </div>
         <input id="ro-file" type="file" hidden />
         <p class="ro-muted" id="ro-status">Preferred channel: ${getEjsChannel()} (PSP / 3DS / DOS → nightly). Change in Settings.</p>
-        <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
+        <div class="ro-btn-row">
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
+        </div>
       </div>
     </section>
   `
@@ -92,28 +98,21 @@ export function renderUpload(root: HTMLElement): void {
       core = coreFromExtension(file.name) || 'nes'
     }
 
-    const name = file.name.replace(/\.[^.]+$/, '')
     const channel = resolveEjsChannel(core)
-    if (status) status.textContent = `Preparing ${file.name}…`
+    if (status) status.textContent = `Saving ${file.name} to library…`
 
     try {
-      // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
-      const romRef = await stageRomForPlay(file, file.name)
-      const params = new URLSearchParams({
-        rom: romRef,
-        core,
-        name,
-        channel,
-        back: './#/upload',
-      })
-      if (coreNeedsThreads(core)) params.set('threads', '1')
+      const game = await saveUploadedRom(file, file.name, core)
+      await reloadUploadedLibrary()
+      pushRecent(game.id)
 
-      if (status) status.textContent = `Launching ${file.name} (${core}, ${channel})…`
-      window.location.href = `./player.html?${params.toString()}`
+      if (status) status.textContent = `Saved. Launching ${file.name} (${core}, ${channel})…`
+      const back = hrefFor(`/game/${game.id}`)
+      window.location.href = buildPlayerUrl(game, game.file, back)
     } catch (err) {
       if (status) {
         status.textContent =
-          err instanceof Error ? err.message : 'Could not prepare ROM for play.'
+          err instanceof Error ? err.message : 'Could not save ROM to the library.'
       }
     }
   }
@@ -141,11 +140,11 @@ export function renderUpload(root: HTMLElement): void {
 
   drop?.addEventListener('drop', (event) => {
     const file = event.dataTransfer?.files?.[0]
-    if (file) launch(file)
+    if (file) void launch(file)
   })
 
   input?.addEventListener('change', () => {
     const file = input.files?.[0]
-    if (file) launch(file)
+    if (file) void launch(file)
   })
 }

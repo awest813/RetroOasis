@@ -125,9 +125,11 @@
           nightly: "https://cdn.emulatorjs.org/nightly/data/",
         };
         const DB_NAME = "retrooasis";
-        const DB_VERSION = 2;
+        const DB_VERSION = 3;
         const PENDING_ROM_STORE = "pendingRoms";
+        const LIBRARY_ROM_STORE = "libraryRoms";
         const IDB_ROM_PREFIX = "idb:";
+        const LIBRARY_ROM_PREFIX = "library:";
 
         const params = new URLSearchParams(window.location.search);
         const romParam = params.get("rom") || "";
@@ -182,6 +184,9 @@
               if (!db.objectStoreNames.contains(PENDING_ROM_STORE)) {
                 db.createObjectStore(PENDING_ROM_STORE);
               }
+              if (!db.objectStoreNames.contains(LIBRARY_ROM_STORE)) {
+                db.createObjectStore(LIBRARY_ROM_STORE);
+              }
             };
             req.onsuccess = function () {
               resolve(req.result);
@@ -222,6 +227,39 @@
           });
         }
 
+        function readLibraryRom(romRef) {
+          var key = romRef.slice(LIBRARY_ROM_PREFIX.length);
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              var tx = db.transaction(LIBRARY_ROM_STORE, "readonly");
+              var store = tx.objectStore(LIBRARY_ROM_STORE);
+              var getReq = store.get(key);
+              getReq.onsuccess = function () {
+                var record = getReq.result;
+                if (!record || !record.bytes) {
+                  reject(
+                    new Error(
+                      "Uploaded ROM is missing from this browser library. Re-add it from Upload.",
+                    ),
+                  );
+                  return;
+                }
+                resolve(
+                  new File([record.bytes], record.filename || "game.bin", {
+                    type: record.type || "application/octet-stream",
+                  }),
+                );
+              };
+              getReq.onerror = function () {
+                reject(getReq.error || new Error("IndexedDB read failed"));
+              };
+              tx.oncomplete = function () {
+                db.close();
+              };
+            });
+          });
+        }
+
         function resolveRom(rom) {
           if (!rom) return Promise.reject(new Error("missing rom"));
           // Dead blob URLs from a previous document cannot be fetched after navigation.
@@ -234,6 +272,9 @@
           }
           if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
             return takeStagedRom(rom);
+          }
+          if (rom.indexOf(LIBRARY_ROM_PREFIX) === 0) {
+            return readLibraryRom(rom);
           }
           // Hosted / relative paths: fail fast with a clear message instead of EmulatorJS "Network Error".
           return fetch(rom, { method: "GET", cache: "no-store" }).then(function (res) {

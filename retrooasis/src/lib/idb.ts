@@ -1,7 +1,8 @@
 const DB_NAME = 'retrooasis'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const HANDLE_STORE = 'handles'
 export const PENDING_ROM_STORE = 'pendingRoms'
+export const LIBRARY_ROM_STORE = 'libraryRoms'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -13,6 +14,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(PENDING_ROM_STORE)) {
         db.createObjectStore(PENDING_ROM_STORE)
+      }
+      if (!db.objectStoreNames.contains(LIBRARY_ROM_STORE)) {
+        db.createObjectStore(LIBRARY_ROM_STORE)
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -41,6 +45,18 @@ export async function idbGet<T>(key: string, storeName = HANDLE_STORE): Promise<
   })
   db.close()
   return value
+}
+
+export async function idbGetAll<T>(storeName: string): Promise<T[]> {
+  const db = await openDb()
+  const values = await new Promise<T[]>((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly')
+    const req = tx.objectStore(storeName).getAll()
+    req.onsuccess = () => resolve((req.result as T[]) ?? [])
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB getAll failed'))
+  })
+  db.close()
+  return values
 }
 
 export async function idbDelete(key: string, storeName = HANDLE_STORE): Promise<void> {

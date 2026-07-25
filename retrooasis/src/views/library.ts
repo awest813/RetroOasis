@@ -268,7 +268,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">Shelf is empty</p>
-        <p class="ro-empty__body">Link a ROM folder, host <code>roms/manifest.json</code>, or add files under <code>roms/${escapeHtml(sel.id)}/</code>.</p>
+        <p class="ro-empty__body">Link a ROM folder, host <code>roms/manifest.json</code>, or add a file — uploads stay in this browser.</p>
         <div class="ro-btn-row" style="justify-content:center">
           <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
@@ -278,7 +278,7 @@ function emptyState(sel: LibrarySelection): string {
   return `
     <div class="ro-empty">
       <p class="ro-empty__title">Library is empty</p>
-      <p class="ro-empty__body">Add hosted ROMs or upload a file to start playing.</p>
+      <p class="ro-empty__body">Add a ROM to save it in this browser, host files, or link a folder.</p>
       <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
     </div>`
 }
@@ -304,13 +304,17 @@ function bindLibraryChrome(root: HTMLElement, reload: () => void): void {
 }
 
 function libraryMeta(catalog: Catalog): string {
+  const parts: string[] = []
   if (catalog.local) {
-    return `${catalog.local.count} local · ${escapeHtml(catalog.local.folderName)}`
+    parts.push(`${catalog.local.count} local · ${escapeHtml(catalog.local.folderName)}`)
+  }
+  if (catalog.uploadedCount) {
+    parts.push(`${catalog.uploadedCount} saved`)
   }
   if (catalog.hostedCount) {
-    return `${catalog.hostedCount} hosted`
+    parts.push(`${catalog.hostedCount} hosted`)
   }
-  return 'Demo catalog'
+  return parts.length ? parts.join(' · ') : 'Demo catalog'
 }
 
 function collectionRow(
@@ -369,9 +373,11 @@ function gameTile(
       ? 'Local'
       : game.source === 'hosted'
         ? 'Hosted'
-        : game.demo
-          ? 'Sample'
-          : 'Catalog'
+        : game.source === 'upload'
+          ? 'Saved'
+          : game.demo
+            ? 'Sample'
+            : 'Catalog'
   const subClass = game.demo ? 'ro-tile__sub ro-tile__sub--sample' : 'ro-tile__sub'
   return `
     <a

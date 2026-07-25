@@ -303,6 +303,7 @@ Phase 3 polish items above are complete for the static SPA path.
 - [x] Libretro cover enrichment (runtime + `oasis:scan -- --covers`)
 - [x] Local metadata overrides + export JSON
 - [x] Thin scan CLI (`oasis:scan`) — no always-on server required
+- [x] Permanent browser ROM library (Upload → IndexedDB shelf across sessions)
 - Optional later: credentialed scrapers (IGDB / ScreenScraper) writing sidecars offline
 
 ---
