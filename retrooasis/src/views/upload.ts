@@ -52,8 +52,8 @@ export function renderUpload(root: HTMLElement): void {
       <p class="ro-kicker">Power path</p>
       <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
-        Drop in a ROM to save it on this device and start playing.
-        It stays in your library until you remove it.
+        Drop in a ROM to save it in this browser and start playing.
+        It stays on this device until you remove it — not synced elsewhere.
       </p>
       <div class="ro-stack ro-upload__stack">
         <label class="ro-muted" for="ro-core">System</label>
