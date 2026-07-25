@@ -4,11 +4,12 @@ import {
   loadCatalog,
   platformAccentVar,
   refreshCatalogView,
+  reloadUploadedLibrary,
 } from '../lib/catalog'
 import { coreNeedsThreads, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
-import { hrefFor } from '../lib/router'
+import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
 import {
   clearOverride,
@@ -17,7 +18,8 @@ import {
   setOverride,
 } from '../lib/overrides'
 import { sfxConfirm, sfxToggle } from '../lib/sfx'
-import { getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
+import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
+import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -44,6 +46,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let favorited = isFavorite(game.id)
   let busy = false
   let editing = false
+  let fileLabel = game.file
+  if (game.source === 'upload') {
+    const record = await getUploadedRomRecord(game.id)
+    fileLabel = record?.filename || 'Saved in this browser'
+  }
 
   const paint = () => {
     const over = getOverride(game.id)
@@ -67,12 +74,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
+            ${game.source === 'upload' ? '<span class="ro-badge">Saved in browser</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
           </div>
           <p class="ro-lede">
             Core <strong>${escapeHtml(playCore)}</strong>
-            · File <code>${escapeHtml(game.file)}</code>
+            · File <code>${escapeHtml(fileLabel)}</code>
             ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
             ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
           </p>
@@ -83,7 +91,12 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.demo
-              ? `<p class="ro-muted">Sample catalog entry for UI walkthrough — demo ROM files are not shipped. Use <a href="${hrefFor('/upload')}">Upload</a> or Library → Link folder to play real files.</p>`
+              ? `<p class="ro-muted">Sample catalog entry for UI walkthrough — demo ROM files are not shipped. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Library → Link folder to play real files.</p>`
+              : ''
+          }
+          ${
+            game.source === 'upload'
+              ? `<p class="ro-muted">Stored on this device until you remove it. Clearing site data also deletes saved ROMs.</p>`
               : ''
           }
           <p class="ro-muted" id="ro-play-status" hidden></p>
@@ -100,6 +113,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-edit" data-ro-focusable="true">
               ${editing ? 'Close editor' : 'Edit metadata'}
             </button>
+            ${
+              game.source === 'upload'
+                ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-remove-upload" data-ro-focusable="true">Remove from library</button>`
+                : ''
+            }
           </div>
           ${
             editing
@@ -144,6 +162,22 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       sfxToggle()
       favorited = toggleFavorite(game.id)
       paint()
+    })
+
+    root.querySelector('#ro-remove-upload')?.addEventListener('click', async () => {
+      if (!window.confirm(`Remove “${game.title}” from this browser’s library?`)) return
+      try {
+        await removeUploadedRom(game.id)
+        forgetGameId(game.id)
+        await reloadUploadedLibrary()
+        navigate('/library')
+      } catch (err) {
+        const el = root.querySelector<HTMLElement>('#ro-play-status')
+        if (el) {
+          el.hidden = false
+          el.textContent = err instanceof Error ? err.message : 'Could not remove ROM.'
+        }
+      }
     })
 
     root.querySelector('#ro-edit')?.addEventListener('click', () => {

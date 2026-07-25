@@ -5,7 +5,12 @@ import {
 } from './localLibrary'
 import { loadHostedManifest } from './hostedLibrary'
 import { applyOverridesToGames } from './overrides'
-import { getHideDemos } from './store'
+import { forgetGameIds, getHideDemos } from './store'
+import {
+  clearUploadedLibrary,
+  listUploadedGames,
+  listUploadedRomIds,
+} from './uploadedLibrary'
 
 export type PlatformAccent = string
 
@@ -27,7 +32,7 @@ export interface Game {
   tags?: string[]
   demo?: boolean
   bios?: string | null
-  source?: 'catalog' | 'hosted' | 'local'
+  source?: 'catalog' | 'hosted' | 'local' | 'upload'
   description?: string
   year?: string | number
   developer?: string
@@ -38,10 +43,12 @@ export interface Catalog {
   games: Game[]
   local?: { folderName: string; count: number } | null
   hostedCount?: number
+  uploadedCount?: number
 }
 
 let seedPromise: Promise<{ platforms: Platform[]; games: Game[] }> | null = null
 let hostedGames: Game[] = []
+let uploadedGames: Game[] = []
 let localGames: Game[] = []
 let localMeta: Catalog['local'] = null
 let listeners = new Set<() => void>()
@@ -73,6 +80,7 @@ function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
   const byId = new Map<string, Game>()
   for (const game of seedGames) byId.set(game.id, game)
   for (const game of hostedGames) byId.set(game.id, game)
+  for (const game of uploadedGames) byId.set(game.id, game)
   for (const game of localGames) byId.set(game.id, game)
   const games = applyOverridesToGames([...byId.values()])
   return {
@@ -80,6 +88,7 @@ function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
     games,
     local: localMeta,
     hostedCount: hostedGames.length,
+    uploadedCount: uploadedGames.length,
   }
 }
 
@@ -105,11 +114,43 @@ export async function applyLocalScan(result: LocalScanResult): Promise<Catalog> 
   return catalog
 }
 
+export async function applyUploadedLibrary(games: Game[]): Promise<Catalog> {
+  uploadedGames = games
+  const catalog = await loadCatalog()
+  emitCatalogChange()
+  return catalog
+}
+
+export async function reloadUploadedLibrary(): Promise<Catalog> {
+  try {
+    uploadedGames = await listUploadedGames()
+  } catch {
+    uploadedGames = []
+  }
+  const catalog = await loadCatalog()
+  emitCatalogChange()
+  return catalog
+}
+
+export async function clearUploadedCatalog(): Promise<void> {
+  const ids = await listUploadedRomIds().catch(() => uploadedGames.map((g) => g.id))
+  await clearUploadedLibrary()
+  forgetGameIds(ids)
+  uploadedGames = []
+  emitCatalogChange()
+}
+
 export async function initCatalogExtras(): Promise<void> {
   try {
     hostedGames = await loadHostedManifest()
   } catch {
     hostedGames = []
+  }
+
+  try {
+    uploadedGames = await listUploadedGames()
+  } catch {
+    uploadedGames = []
   }
 
   try {

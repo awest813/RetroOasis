@@ -51,7 +51,11 @@ Demo entries ship for UI walkthrough. Point `file` at real ROMs you host; do not
 
 ## ROM library sources
 
-Merge order: demo catalog → `roms/manifest.json` (hosted) → linked local folder (wins on id clash).
+Merge order: demo catalog → `roms/manifest.json` (hosted) → **saved uploads** (IndexedDB) → linked local folder (wins on id clash).
+
+### Saved uploads (all browsers)
+
+**Add ROM** stores file bytes in IndexedDB on this device and adds a shelf entry. Reloads keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key). Re-adding the same filename replaces the bytes but keeps the original title/`addedAt` when possible.
 
 ### Hosted manifest (all browsers)
 
@@ -77,7 +81,7 @@ roms/
   covers/nes/Game.png   # optional
 ```
 
-Handles are remembered in IndexedDB. Local / Upload ROMs are staged in IndexedDB before navigating to `player.html` (blob URLs do not survive that navigation).
+Handles are remembered in IndexedDB. Linked-folder ROMs are staged in IndexedDB before navigating to `player.html` (blob URLs do not survive that navigation). Saved uploads use a permanent library store instead.
 
 ### Sidecar metadata
 

@@ -15,5 +15,5 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 
 ### Non-obvious notes
 
-- The `retrooasis/public/catalog/games.json` demo entries point at ROM files under `roms/` that are **not committed** (gitignored) and do not exist. Clicking "Play" navigates to `player.html`, but the demo ROM will 404 — real play requires hosting real ROMs or using the Upload view. Core SPA flows (browse library, game detail, favorite, accent/theme in Settings, all persisted to localStorage) work fully without any ROMs.
+- The `retrooasis/public/catalog/games.json` demo entries point at ROM files under `roms/` that are **not committed** (gitignored) and do not exist. Clicking "Play" navigates to `player.html`, but the demo ROM will 404 — real play requires hosting real ROMs, using **Add ROM** (saved permanently in IndexedDB on that device), or linking a local folder. Core SPA flows (browse library, game detail, favorite, accent/theme in Settings, all persisted to localStorage) work fully without any ROMs.
 - Two independent npm projects: repo root (`package.json`) and `retrooasis/` (`retrooasis/package.json`). Each has its own lockfile and `node_modules`.

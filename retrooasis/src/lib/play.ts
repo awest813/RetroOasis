@@ -37,6 +37,7 @@ export async function launchGame(
     // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
     romUrl = await stageRomForPlay(file, file.name || `${game.title}.bin`)
   }
+  // Uploaded games already use durable library: refs — player reads without consuming.
 
   window.location.href = buildPlayerUrl(game, romUrl, backRoute)
 }

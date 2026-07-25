@@ -65,6 +65,31 @@ export function clearFavorites(): void {
   localStorage.removeItem(FAVORITES_KEY)
 }
 
+/** Drop a game id from recents + favorites (e.g. after removing a saved upload). */
+export function forgetGameId(gameId: string): void {
+  writeJson(
+    RECENTS_KEY,
+    getRecents().filter((id) => id !== gameId),
+  )
+  writeJson(
+    FAVORITES_KEY,
+    getFavorites().filter((id) => id !== gameId),
+  )
+}
+
+export function forgetGameIds(gameIds: string[]): void {
+  if (!gameIds.length) return
+  const drop = new Set(gameIds)
+  writeJson(
+    RECENTS_KEY,
+    getRecents().filter((id) => !drop.has(id)),
+  )
+  writeJson(
+    FAVORITES_KEY,
+    getFavorites().filter((id) => !drop.has(id)),
+  )
+}
+
 export function getAccent(): AccentMode {
   const value = localStorage.getItem(ACCENT_KEY)
   return value === 'ps' ? 'ps' : 'sega'
