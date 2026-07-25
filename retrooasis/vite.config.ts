@@ -23,8 +23,11 @@ function serveRepoStatic(route: string, absDir: string): Plugin {
         }
 
         fs.stat(filePath, (err, stat) => {
+          // Do not fall through to the SPA — EmulatorJS would download index.html as a "ROM".
           if (err || !stat.isFile()) {
-            next()
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end(`Not found: /${route}/${rel}`)
             return
           }
 

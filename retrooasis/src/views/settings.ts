@@ -125,14 +125,15 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <div>
               <strong>EmulatorJS channel</strong>
               <p class="ro-muted" style="margin: 0.25rem 0 0;">
-                Core/loader source. <strong>Nightly</strong> includes PPSSPP (PSP) and other threaded cores.
+                Preferred CDN for cores. Default <strong>stable</strong> for most systems;
+                PSP / 3DS / DOS always use <strong>nightly</strong> (unless Local).
                 Threads available here: <strong>${hasSab ? 'yes' : 'no'}</strong>
                 ${hasSab ? '' : '(serve with COOP/COEP headers for PSP/DOS/3DS).'}
               </p>
             </div>
             <div class="ro-toggle-group" style="flex-wrap: wrap;">
-              <button type="button" class="ro-btn" data-ejs="nightly" aria-pressed="${ejsChannel === 'nightly'}">Nightly</button>
               <button type="button" class="ro-btn" data-ejs="stable" aria-pressed="${ejsChannel === 'stable'}">Stable</button>
+              <button type="button" class="ro-btn" data-ejs="nightly" aria-pressed="${ejsChannel === 'nightly'}">Nightly</button>
               <button type="button" class="ro-btn" data-ejs="latest" aria-pressed="${ejsChannel === 'latest'}">Latest</button>
               <button type="button" class="ro-btn" data-ejs="local" aria-pressed="${ejsChannel === 'local'}">Local</button>
             </div>

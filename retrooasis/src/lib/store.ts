@@ -1,3 +1,5 @@
+import { coreNeedsThreads } from './cores'
+
 const RECENTS_KEY = 'retrooasis.recents'
 const FAVORITES_KEY = 'retrooasis.favorites'
 const ACCENT_KEY = 'retrooasis.accent'
@@ -13,7 +15,7 @@ const MAX_RECENTS = 12
 export type AccentMode = 'sega' | 'ps'
 export type LayoutMode = 'standard' | 'tv'
 export type SoundPack = 'soft' | 'arcade'
-/** Where EmulatorJS loader + cores are fetched from. Nightly includes PSP/PPSSPP. */
+/** Where EmulatorJS loader + cores are fetched from. Stable for most; nightly for PSP/3DS/DOS. */
 export type EjsChannel = 'local' | 'stable' | 'latest' | 'nightly'
 
 function readJson<T>(key: string, fallback: T): T {
@@ -140,8 +142,21 @@ export function getEjsChannel(): EjsChannel {
   if (value === 'local' || value === 'stable' || value === 'latest' || value === 'nightly') {
     return value
   }
-  // Default nightly so PPSSPP / threaded cores are available without a full local cores install.
-  return 'nightly'
+  // Stable CDN cores for most systems; PSP / 3DS / DOS still resolve to nightly at launch.
+  return 'stable'
+}
+
+/**
+ * Effective EmulatorJS CDN channel for a core.
+ * PSP / PPSSPP, 3DS, and DOS → nightly (unless Local).
+ * Everything else → stable (or Local / Latest when selected in Settings).
+ */
+export function resolveEjsChannel(core: string): EjsChannel {
+  const preferred = getEjsChannel()
+  if (preferred === 'local') return 'local'
+  if (coreNeedsThreads(core)) return 'nightly'
+  if (preferred === 'latest') return 'latest'
+  return 'stable'
 }
 
 export function setEjsChannel(channel: EjsChannel): void {
