@@ -1,6 +1,7 @@
 const DB_NAME = 'retrooasis'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const HANDLE_STORE = 'handles'
+export const PENDING_ROM_STORE = 'pendingRoms'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -10,28 +11,31 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(HANDLE_STORE)) {
         db.createObjectStore(HANDLE_STORE)
       }
+      if (!db.objectStoreNames.contains(PENDING_ROM_STORE)) {
+        db.createObjectStore(PENDING_ROM_STORE)
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'))
   })
 }
 
-export async function idbSet<T>(key: string, value: T): Promise<void> {
+export async function idbSet<T>(key: string, value: T, storeName = HANDLE_STORE): Promise<void> {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(HANDLE_STORE, 'readwrite')
-    tx.objectStore(HANDLE_STORE).put(value, key)
+    const tx = db.transaction(storeName, 'readwrite')
+    tx.objectStore(storeName).put(value, key)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed'))
   })
   db.close()
 }
 
-export async function idbGet<T>(key: string): Promise<T | undefined> {
+export async function idbGet<T>(key: string, storeName = HANDLE_STORE): Promise<T | undefined> {
   const db = await openDb()
   const value = await new Promise<T | undefined>((resolve, reject) => {
-    const tx = db.transaction(HANDLE_STORE, 'readonly')
-    const req = tx.objectStore(HANDLE_STORE).get(key)
+    const tx = db.transaction(storeName, 'readonly')
+    const req = tx.objectStore(storeName).get(key)
     req.onsuccess = () => resolve(req.result as T | undefined)
     req.onerror = () => reject(req.error ?? new Error('IndexedDB read failed'))
   })
@@ -39,22 +43,22 @@ export async function idbGet<T>(key: string): Promise<T | undefined> {
   return value
 }
 
-export async function idbDelete(key: string): Promise<void> {
+export async function idbDelete(key: string, storeName = HANDLE_STORE): Promise<void> {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(HANDLE_STORE, 'readwrite')
-    tx.objectStore(HANDLE_STORE).delete(key)
+    const tx = db.transaction(storeName, 'readwrite')
+    tx.objectStore(storeName).delete(key)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete failed'))
   })
   db.close()
 }
 
-export async function idbClear(): Promise<void> {
+export async function idbClear(storeName = HANDLE_STORE): Promise<void> {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(HANDLE_STORE, 'readwrite')
-    tx.objectStore(HANDLE_STORE).clear()
+    const tx = db.transaction(storeName, 'readwrite')
+    tx.objectStore(storeName).clear()
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB clear failed'))
   })

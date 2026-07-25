@@ -1,5 +1,6 @@
 import { UPLOAD_CORE_OPTIONS, coreFromExtension, coreNeedsThreads } from '../lib/cores'
 import { hrefFor } from '../lib/router'
+import { stageRomForPlay } from '../lib/romBridge'
 import { getEjsChannel } from '../lib/store'
 
 const CORE_EXT_HINTS: Record<string, string> = {
@@ -84,27 +85,37 @@ export function renderUpload(root: HTMLElement): void {
   coreSelect?.addEventListener('change', syncHint)
   syncHint()
 
-  const launch = (file: File) => {
+  const launch = async (file: File) => {
     if (!coreSelect) return
     let core = coreSelect.value
     if (core === 'auto') {
       core = coreFromExtension(file.name) || 'nes'
     }
 
-    const objectUrl = URL.createObjectURL(file)
     const name = file.name.replace(/\.[^.]+$/, '')
     const channel = getEjsChannel()
-    const params = new URLSearchParams({
-      rom: objectUrl,
-      core,
-      name,
-      channel,
-      back: './#/upload',
-    })
-    if (coreNeedsThreads(core)) params.set('threads', '1')
+    if (status) status.textContent = `Preparing ${file.name}…`
 
-    if (status) status.textContent = `Launching ${file.name} (${core}, ${channel})…`
-    window.location.href = `./player.html?${params.toString()}`
+    try {
+      // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
+      const romRef = await stageRomForPlay(file, file.name)
+      const params = new URLSearchParams({
+        rom: romRef,
+        core,
+        name,
+        channel,
+        back: './#/upload',
+      })
+      if (coreNeedsThreads(core)) params.set('threads', '1')
+
+      if (status) status.textContent = `Launching ${file.name} (${core}, ${channel})…`
+      window.location.href = `./player.html?${params.toString()}`
+    } catch (err) {
+      if (status) {
+        status.textContent =
+          err instanceof Error ? err.message : 'Could not prepare ROM for play.'
+      }
+    }
   }
 
   drop?.addEventListener('click', () => input?.click())

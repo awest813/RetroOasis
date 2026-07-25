@@ -2,6 +2,7 @@ import type { Game } from './catalog'
 import { coreNeedsThreads, normalizePlayCore } from './cores'
 import { getLocalRomFile, hasLocalHandle } from './localLibrary'
 import { hrefFor } from './router'
+import { stageRomForPlay } from './romBridge'
 import { getEjsChannel, pushRecent } from './store'
 
 /** Build a static-friendly player URL (hash back-link preserved). */
@@ -33,7 +34,8 @@ export async function launchGame(
   let romUrl = game.file
   if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
     const file = await getLocalRomFile(game.id)
-    romUrl = URL.createObjectURL(file)
+    // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
+    romUrl = await stageRomForPlay(file, file.name || `${game.title}.bin`)
   }
 
   window.location.href = buildPlayerUrl(game, romUrl, backRoute)

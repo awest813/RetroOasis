@@ -124,9 +124,13 @@
           latest: "https://cdn.emulatorjs.org/latest/data/",
           nightly: "https://cdn.emulatorjs.org/nightly/data/",
         };
+        const DB_NAME = "retrooasis";
+        const DB_VERSION = 2;
+        const PENDING_ROM_STORE = "pendingRoms";
+        const IDB_ROM_PREFIX = "idb:";
 
         const params = new URLSearchParams(window.location.search);
-        const gameUrl = params.get("rom") || "";
+        const romParam = params.get("rom") || "";
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
@@ -159,49 +163,134 @@
             '">Back to Oasis</a></div>';
         }
 
-        if (!gameUrl || !core) {
+        function openDb() {
+          return new Promise(function (resolve, reject) {
+            var req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = function () {
+              var db = req.result;
+              if (!db.objectStoreNames.contains("handles")) {
+                db.createObjectStore("handles");
+              }
+              if (!db.objectStoreNames.contains(PENDING_ROM_STORE)) {
+                db.createObjectStore(PENDING_ROM_STORE);
+              }
+            };
+            req.onsuccess = function () {
+              resolve(req.result);
+            };
+            req.onerror = function () {
+              reject(req.error || new Error("IndexedDB open failed"));
+            };
+          });
+        }
+
+        function takeStagedRom(romRef) {
+          var key = romRef.slice(IDB_ROM_PREFIX.length);
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              var tx = db.transaction(PENDING_ROM_STORE, "readwrite");
+              var store = tx.objectStore(PENDING_ROM_STORE);
+              var getReq = store.get(key);
+              getReq.onsuccess = function () {
+                var record = getReq.result;
+                if (!record || !record.bytes) {
+                  reject(new Error("ROM session expired. Return to the library and launch again."));
+                  return;
+                }
+                store.delete(key);
+                resolve(
+                  new File([record.bytes], record.filename || "game.bin", {
+                    type: record.type || "application/octet-stream",
+                  }),
+                );
+              };
+              getReq.onerror = function () {
+                reject(getReq.error || new Error("IndexedDB read failed"));
+              };
+              tx.oncomplete = function () {
+                db.close();
+              };
+            });
+          });
+        }
+
+        function resolveRom(rom) {
+          if (!rom) return Promise.reject(new Error("missing rom"));
+          // Dead blob URLs from a previous document cannot be fetched after navigation.
+          if (rom.indexOf("blob:") === 0) {
+            return Promise.reject(
+              new Error(
+                "This play link used a temporary blob URL that no longer exists. Launch again from Upload or the library.",
+              ),
+            );
+          }
+          if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
+            return takeStagedRom(rom);
+          }
+          return Promise.resolve(rom);
+        }
+
+        function startEmulator(gameUrl) {
+          if (needsThreads && typeof SharedArrayBuffer === "undefined") {
+            fail(
+              "THREADS REQUIRED",
+              "Core <code>" +
+                core +
+                "</code> needs <code>SharedArrayBuffer</code> (COOP/COEP headers). " +
+                "Dev server sets these automatically; for static hosts add " +
+                "<code>Cross-Origin-Opener-Policy: same-origin</code> and " +
+                "<code>Cross-Origin-Embedder-Policy: require-corp</code>.",
+            );
+            return;
+          }
+
+          window.EJS_player = "#game";
+          window.EJS_gameName = name;
+          // File objects keep the original filename (extension) for EmulatorJS.
+          window.EJS_gameUrl = gameUrl;
+          window.EJS_core = core;
+          window.EJS_biosUrl = bios;
+          window.EJS_pathtodata = dataPath;
+          window.EJS_startOnLoaded = true;
+          window.EJS_askBeforeExit = false;
+          window.EJS_threads = needsThreads;
+          window.EJS_onExit = function () {
+            window.location.href = back;
+          };
+
+          var script = document.createElement("script");
+          script.src = dataPath + "loader.js";
+          script.onerror = function () {
+            fail(
+              "EMULATOR DATA MISSING",
+              "Could not load <code>" +
+                dataPath +
+                "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
+                "Or use Settings → EmulatorJS channel = nightly.",
+            );
+          };
+          document.body.appendChild(script);
+        }
+
+        if (!romParam || !core) {
           fail("MISSING LOAD DATA", "Rom path and core are required to start EmulatorJS.");
           return;
         }
 
-        if (needsThreads && typeof SharedArrayBuffer === "undefined") {
-          fail(
-            "THREADS REQUIRED",
-            "Core <code>" +
-              core +
-              "</code> needs <code>SharedArrayBuffer</code> (COOP/COEP headers). " +
-              "Dev server sets these automatically; for static hosts add " +
-              "<code>Cross-Origin-Opener-Policy: same-origin</code> and " +
-              "<code>Cross-Origin-Embedder-Policy: require-corp</code>.",
-          );
-          return;
-        }
+        document.getElementById("meta").textContent = core + " · " + channel + " · loading rom…";
 
-        window.EJS_player = "#game";
-        window.EJS_gameName = name;
-        window.EJS_gameUrl = gameUrl;
-        window.EJS_core = core;
-        window.EJS_biosUrl = bios;
-        window.EJS_pathtodata = dataPath;
-        window.EJS_startOnLoaded = true;
-        window.EJS_askBeforeExit = false;
-        window.EJS_threads = needsThreads;
-        window.EJS_onExit = function () {
-          window.location.href = back;
-        };
-
-        const script = document.createElement("script");
-        script.src = dataPath + "loader.js";
-        script.onerror = function () {
-          fail(
-            "EMULATOR DATA MISSING",
-            "Could not load <code>" +
-              dataPath +
-              "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
-              "Or use Settings → EmulatorJS channel = nightly.",
-          );
-        };
-        document.body.appendChild(script);
+        resolveRom(romParam)
+          .then(function (gameUrl) {
+            document.getElementById("meta").textContent = core + " · " + channel;
+            startEmulator(gameUrl);
+          })
+          .catch(function (err) {
+            fail(
+              "ROM NOT AVAILABLE",
+              (err && err.message) ||
+                "Could not load ROM bytes for the emulator core.",
+            );
+          });
       })();
     </script>
   </body>

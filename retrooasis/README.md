@@ -77,7 +77,7 @@ roms/
   covers/nes/Game.png   # optional
 ```
 
-Handles are remembered in IndexedDB; ROMs play via blob URLs into `player.html`.
+Handles are remembered in IndexedDB. Local / Upload ROMs are staged in IndexedDB before navigating to `player.html` (blob URLs do not survive that navigation).
 
 ### Sidecar metadata
 
