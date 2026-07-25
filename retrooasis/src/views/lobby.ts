@@ -20,6 +20,8 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
     .slice(0, 6)
   const recent = recents[0]
   const recentPlatform = recent ? findPlatform(catalog, recent.platform) : undefined
+  const hasOwnRoms =
+    (catalog.uploadedCount ?? 0) > 0 || (catalog.hostedCount ?? 0) > 0 || !!catalog.local
 
   root.innerHTML = `
     <section class="ro-lobby ro-view" aria-label="RetroOasis lobby">
@@ -42,8 +44,11 @@ export async function renderLobby(root: HTMLElement): Promise<void> {
                   }</span>
                 </a>
                 <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse library</a>`
-              : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>
+              : hasOwnRoms
+                ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Press Start</a>
                 <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
+                : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+                <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Browse samples</a>`
           }
         </div>
       </div>

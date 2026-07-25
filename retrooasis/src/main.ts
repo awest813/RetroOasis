@@ -46,7 +46,7 @@ app.innerHTML = `
         <span class="ro-brand__sub">Arcade</span>
       </a>
       <div class="ro-topbar__right">
-        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" hidden>Install</button>
+        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" hidden>Install app</button>
         <nav class="ro-nav" aria-label="Primary">
           <a data-nav="lobby" href="${hrefFor('/')}">Lobby</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
