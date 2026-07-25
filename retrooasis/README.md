@@ -15,8 +15,8 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 ### EmulatorJS cores / PSP (PPSSPP)
 
 - The library lists **all EmulatorJS systems** (NES through PSP, 3DS, DOS, etc.).
-- Settings → **EmulatorJS channel** defaults to **nightly** so PPSSPP and other CDN cores are available without installing every npm core package locally.
-- Channels: `nightly` · `stable` · `latest` · `local` (`data/` beside the site).
+- Settings → **EmulatorJS channel** defaults to **stable** for most systems. **PSP / 3DS / DOS** always launch on **nightly** (unless Local).
+- Channels: `stable` · `nightly` · `latest` · `local` (`data/` beside the site).
 - PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` on a host that supports custom headers (for example, Netlify). GitHub Pages does not support custom header files.
 
 ## Scripts

@@ -135,16 +135,16 @@
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
         const back = params.get("back") || "./#/";
-        let channel = params.get("channel") || "nightly";
-        if (!PATHS[channel]) channel = "nightly";
+        let channel = params.get("channel") || "stable";
+        if (!PATHS[channel]) channel = "stable";
 
         if (core === "psp") core = "ppsspp";
         if (core === "dos") core = "dosbox_pure";
         if (core === "3ds") core = "azahar";
 
         const needsThreads = THREADED.has(core);
-        // Threaded cores (PSP/PPSSPP, DOS, 3DS) prefer nightly builds when local is unset.
-        if (needsThreads && !params.get("channel")) channel = "nightly";
+        // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
+        if (needsThreads && channel !== "local") channel = "nightly";
 
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
@@ -161,6 +161,14 @@
             '</p><a href="' +
             back +
             '">Back to Oasis</a></div>';
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
         }
 
         function openDb() {
@@ -227,7 +235,32 @@
           if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
             return takeStagedRom(rom);
           }
-          return Promise.resolve(rom);
+          // Hosted / relative paths: fail fast with a clear message instead of EmulatorJS "Network Error".
+          return fetch(rom, { method: "GET", cache: "no-store" }).then(function (res) {
+            if (!res.ok) {
+              throw new Error(
+                "ROM file not found at <code>" +
+                  escapeHtml(rom) +
+                  "</code> (HTTP " +
+                  res.status +
+                  "). Host the file under your site, link a ROM folder, or use Upload.",
+              );
+            }
+            var type = (res.headers.get("content-type") || "").toLowerCase();
+            if (type.indexOf("text/html") === 0) {
+              throw new Error(
+                "Path <code>" +
+                  escapeHtml(rom) +
+                  "</code> returned a web page instead of a ROM. The file is probably missing from your host.",
+              );
+            }
+            return res.arrayBuffer().then(function (bytes) {
+              var filename = rom.split("/").pop().split("?")[0] || "game.bin";
+              return new File([bytes], decodeURIComponent(filename), {
+                type: type || "application/octet-stream",
+              });
+            });
+          });
         }
 
         function startEmulator(gameUrl) {
@@ -266,7 +299,7 @@
               "Could not load <code>" +
                 dataPath +
                 "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
-                "Or use Settings → EmulatorJS channel = nightly.",
+                "Or use Settings → EmulatorJS channel = stable (or nightly for PSP/3DS/DOS).",
             );
           };
           document.body.appendChild(script);

@@ -83,12 +83,17 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.demo
-              ? `<p class="ro-muted">Sample entry for UI walkthrough. Link a ROM folder, point catalog <code>file</code> at a hosted ROM, or use Upload.</p>`
+              ? `<p class="ro-muted">Sample catalog entry for UI walkthrough — demo ROM files are not shipped. Use <a href="${hrefFor('/upload')}">Upload</a> or Library → Link folder to play real files.</p>`
               : ''
           }
           <p class="ro-muted" id="ro-play-status" hidden></p>
           <div class="ro-btn-row ro-detail__actions">
-            <button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>
+            ${
+              game.demo
+                ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Try path</button>`
+                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>`
+            }
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
               ${favorited ? '★ Favorited' : 'Favorite'}
             </button>
