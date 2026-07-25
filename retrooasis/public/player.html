@@ -207,7 +207,7 @@
               getReq.onsuccess = function () {
                 var record = getReq.result;
                 if (!record || !record.bytes) {
-                  reject(new Error("ROM session expired. Return to the library and launch again."));
+                  reject(new Error("This play session expired. Go back and press Play again."));
                   return;
                 }
                 store.delete(key);
@@ -239,7 +239,7 @@
                 if (!record || !record.bytes) {
                   reject(
                     new Error(
-                      "Uploaded ROM is missing from this browser library. Re-add it from Add ROM.",
+                      "That saved ROM isn’t on this device anymore. Go back and add it again from Add ROM.",
                     ),
                   );
                   return;
@@ -261,13 +261,11 @@
         }
 
         function resolveRom(rom) {
-          if (!rom) return Promise.reject(new Error("missing rom"));
+          if (!rom) return Promise.reject(new Error("Missing game file. Go back and try again."));
           // Dead blob URLs from a previous document cannot be fetched after navigation.
           if (rom.indexOf("blob:") === 0) {
             return Promise.reject(
-              new Error(
-                "This play link used a temporary blob URL that no longer exists. Launch again from Add ROM or the library.",
-              ),
+              new Error("This play link expired. Go back and press Play again."),
             );
           }
           if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
@@ -280,19 +278,17 @@
           return fetch(rom, { method: "GET", cache: "no-store" }).then(function (res) {
             if (!res.ok) {
               throw new Error(
-                "ROM file not found at <code>" +
-                  escapeHtml(rom) +
-                  "</code> (HTTP " +
-                  res.status +
-                  "). Host the file under your site, link a ROM folder, or use Add ROM.",
+                "Couldn’t find that ROM file" +
+                  (rom ? " at <code>" + escapeHtml(rom) + "</code>" : "") +
+                  ". Host it with your site, link a folder, or use Add ROM.",
               );
             }
             var type = (res.headers.get("content-type") || "").toLowerCase();
             if (type.indexOf("text/html") === 0) {
               throw new Error(
-                "Path <code>" +
-                  escapeHtml(rom) +
-                  "</code> returned a web page instead of a ROM. The file is probably missing from your host.",
+                "That path isn’t a ROM file — the server sent a web page instead" +
+                  (rom ? " (<code>" + escapeHtml(rom) + "</code>)" : "") +
+                  ". Check that the file is hosted in the right place.",
               );
             }
             return res.arrayBuffer().then(function (bytes) {
@@ -307,13 +303,10 @@
         function startEmulator(gameUrl) {
           if (needsThreads && typeof SharedArrayBuffer === "undefined") {
             fail(
-              "THREADS REQUIRED",
-              "Core <code>" +
-                core +
-                "</code> needs <code>SharedArrayBuffer</code> (COOP/COEP headers). " +
-                "Dev server sets these automatically; for static hosts add " +
-                "<code>Cross-Origin-Opener-Policy: same-origin</code> and " +
-                "<code>Cross-Origin-Embedder-Policy: require-corp</code>.",
+              "NEEDS EXTRA SETUP",
+              "This system (PSP, DOS, or 3DS) needs special browser security headers to run. " +
+                "The RetroOasis dev server turns them on for you. On a static host, enable COOP/COEP " +
+                "(see the README), or try a different game.",
             );
             return;
           }
@@ -336,18 +329,19 @@
           script.src = dataPath + "loader.js";
           script.onerror = function () {
             fail(
-              "EMULATOR DATA MISSING",
-              "Could not load <code>" +
+              "EMULATOR MISSING",
+              "Couldn’t load the emulator files from <code>" +
                 dataPath +
-                "loader.js</code>. For local channel, deploy EmulatorJS <code>data/</code> beside this site. " +
-                "Or use Settings → EmulatorJS channel = stable (or nightly for PSP/3DS/DOS).",
+                "</code>. " +
+                "If you’re using the Local channel, put EmulatorJS’s <code>data/</code> folder next to this site. " +
+                "Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS).",
             );
           };
           document.body.appendChild(script);
         }
 
         if (!romParam || !core) {
-          fail("MISSING LOAD DATA", "Rom path and core are required to start EmulatorJS.");
+          fail("CAN’T START", "Missing the game file or system. Go back and try Play again.");
           return;
         }
 
@@ -360,9 +354,9 @@
           })
           .catch(function (err) {
             fail(
-              "ROM NOT AVAILABLE",
+              "CAN’T LOAD ROM",
               (err && err.message) ||
-                "Could not load ROM bytes for the emulator core.",
+                "Couldn’t load that ROM. Go back and try Play again.",
             );
           });
       })();
