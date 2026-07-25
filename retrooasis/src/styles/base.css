@@ -215,6 +215,25 @@ select.ro-input {
   font-weight: 600;
 }
 
+@media (min-width: 641px) and (max-width: 1100px) {
+  .ro-nav {
+    gap: 0.15rem 0.55rem;
+  }
+
+  .ro-nav a {
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+  }
+
+  .ro-topbar__right {
+    flex-wrap: nowrap;
+  }
+
+  .ro-nav {
+    flex-wrap: nowrap;
+  }
+}
+
 .ro-main {
   flex: 1;
   width: min(100%, var(--ro-max));
@@ -241,7 +260,7 @@ select.ro-input {
   color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
   font-size: 0.84rem;
   text-align: center;
-  border-top: 1px solid var(--ro-line);
+  border-top: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
 }
 
 .ro-btn {
@@ -285,9 +304,9 @@ select.ro-input {
 }
 
 .ro-btn--danger {
-  border-color: color-mix(in srgb, var(--ro-danger) 70%, transparent);
+  border-color: var(--ro-danger);
   color: var(--ro-danger);
-  background: transparent;
+  background: color-mix(in srgb, var(--ro-danger) 14%, transparent);
 }
 
 .ro-btn--danger:hover {
@@ -554,9 +573,17 @@ html[data-crt='on'] .ro-shell::after {
 }
 
 .ro-shelf {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 1.15rem;
   border-top: 1px solid var(--ro-line);
+}
+
+.ro-shelf .ro-section-head {
+  margin-bottom: 0.85rem;
+}
+
+.ro-shelf__grid {
+  margin-top: 0.25rem;
 }
 
 /* RomM-style library: systems rail + gallery */
@@ -1030,18 +1057,23 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 .ro-settings {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.15rem;
+  margin-top: 1.5rem;
+  max-width: 42rem;
 }
 
 .ro-settings__group {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--ro-line);
-  padding-top: 0.35rem;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--ro-line) 75%, transparent);
+  background: color-mix(in srgb, var(--ro-bg-panel) 55%, transparent);
+  border-radius: var(--ro-radius);
 }
 
 .ro-settings__heading {
-  margin: 0 0 0.15rem;
+  margin: 0 0 0.55rem;
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1054,8 +1086,8 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem 1.25rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--ro-line);
+  padding: 0.9rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
 }
 
 .ro-settings__group > .ro-settings-row:last-child {
@@ -1066,13 +1098,40 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   border-bottom: 0;
 }
 
+.ro-settings-row__copy,
 .ro-settings-row > div:first-child {
   flex: 1 1 14rem;
   min-width: 0;
+  max-width: 28rem;
+}
+
+.ro-settings-row__copy p,
+.ro-settings-row > div:first-child p {
+  margin: 0.3rem 0 0;
+}
+
+.ro-settings-row--stack {
+  align-items: flex-start;
+}
+
+.ro-settings-row--stack .ro-btn-row,
+.ro-settings-row--stack .ro-toggle-group {
+  margin-top: 0.15rem;
+}
+
+.ro-settings-row--note {
+  padding-top: 0.65rem;
+  padding-bottom: 0.55rem;
 }
 
 .ro-settings-row strong {
   font-size: 0.98rem;
+}
+
+.ro-settings__footnote {
+  margin: 0.25rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 .ro-toggle-group {
@@ -1120,7 +1179,9 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   }
 
   .ro-brand__sub {
-    display: none;
+    display: inline;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
   }
 
   .ro-brand__mark {
@@ -1139,14 +1200,27 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   .ro-nav {
     grid-area: nav;
     justify-content: flex-start;
-    gap: 0.15rem 0.6rem;
+    gap: 0.25rem 0.35rem;
     width: 100%;
   }
 
   .ro-nav a {
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-    padding: 0.45rem 0.05rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    padding: 0.4rem 0.45rem;
+    border-bottom: 0;
+    border-radius: var(--ro-radius);
+  }
+
+  .ro-nav a[aria-current='page'] {
+    background: var(--ro-accent-soft);
+    border-bottom: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ro-accent) 35%, transparent);
+  }
+
+  .ro-nav a:hover {
+    border-bottom: 0;
+    background: color-mix(in srgb, var(--ro-accent) 10%, transparent);
   }
 
   .ro-btn {
@@ -1194,13 +1268,39 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   }
 
   .ro-settings-row {
-    padding: 0.7rem 0;
+    padding: 0.75rem 0;
     align-items: flex-start;
+  }
+
+  .ro-settings__group {
+    padding: 0.75rem 0.8rem 0.25rem;
   }
 
   .ro-settings-row .ro-toggle-group,
   .ro-settings-row .ro-btn-row {
     width: 100%;
+  }
+
+  .ro-toggle-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ro-toggle-group--channels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ro-toggle-group .ro-btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .ro-settings-row .ro-btn-row > .ro-btn,
+  .ro-settings-row .ro-btn-row > a.ro-btn {
+    flex: 1 1 calc(50% - 0.3rem);
+    min-width: 0;
+    text-align: center;
   }
 
   .ro-drop {
