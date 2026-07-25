@@ -65,8 +65,8 @@
 }
 
 .ro-xmb {
-  --xmb-cat-y: 28%;
-  --xmb-item-gap: 0.85rem;
+  --xmb-cat-y: 42%;
+  --xmb-item-gap: 0.75rem;
   position: relative;
   min-height: calc(100dvh - var(--ro-topbar-h));
   height: calc(100dvh - var(--ro-topbar-h));
@@ -100,6 +100,31 @@
   pointer-events: none;
 }
 
+.ro-xmb__clock {
+  position: absolute;
+  top: 1rem;
+  right: var(--ro-space);
+  z-index: 3;
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  pointer-events: none;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+}
+
+.ro-xmb__clock-time {
+  font-family: var(--ro-font-display);
+  font-size: clamp(0.55rem, 1.3vw, 0.7rem);
+  letter-spacing: 0.08em;
+  color: var(--ro-text);
+}
+
+.ro-xmb__clock-date {
+  font-size: 0.78rem;
+  color: var(--ro-text-dim);
+  letter-spacing: 0.04em;
+}
+
 .ro-xmb__cats {
   position: absolute;
   top: var(--xmb-cat-y);
@@ -126,8 +151,8 @@
   background: transparent;
   color: var(--ro-text-dim);
   cursor: pointer;
-  opacity: 0.42;
-  transform: scale(0.88);
+  opacity: 0.38;
+  transform: scale(0.86);
   transition:
     opacity 180ms ease,
     transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -136,7 +161,7 @@
 
 .ro-xmb__cat[data-active='true'] {
   opacity: 1;
-  transform: scale(1.08);
+  transform: scale(1.1);
   color: var(--ro-text);
 }
 
@@ -145,8 +170,8 @@
 }
 
 .ro-xmb__cat-icon {
-  width: 3.1rem;
-  height: 3.1rem;
+  width: 3.25rem;
+  height: 3.25rem;
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
@@ -157,13 +182,22 @@
       color-mix(in srgb, var(--ro-bg-panel-solid) 70%, transparent)
     );
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
-  font-family: var(--ro-font-display);
-  font-size: 0.52rem;
-  letter-spacing: 0.04em;
   color: var(--ro-text);
+}
+
+.ro-xmb__cat-icon svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  display: block;
+}
+
+.ro-xmb__cat-text {
+  font-family: var(--ro-font-display);
+  font-size: 0.48rem;
+  letter-spacing: 0.04em;
   line-height: 1.15;
   text-align: center;
-  padding: 0.25rem;
+  padding: 0.2rem;
 }
 
 .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
@@ -182,10 +216,7 @@
 
 .ro-xmb__rail {
   position: absolute;
-  top: calc(var(--xmb-cat-y) + 5.25rem);
-  bottom: 3.25rem;
-  left: 0;
-  right: 0;
+  inset: 0;
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
@@ -195,7 +226,7 @@
   position: absolute;
   left: var(--xmb-rail-x, 12vw);
   top: 0;
-  width: min(28rem, 72vw);
+  width: min(28rem, 58vw);
   transform: translateY(var(--xmb-item-shift, 0px));
   transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
   display: grid;
@@ -216,7 +247,7 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  opacity: 0.38;
+  opacity: calc(1 - (attr(data-distance type(<number>), 0) * 0.18));
   transform: scale(0.94);
   transform-origin: left center;
   transition:
@@ -226,10 +257,27 @@
     border-color 160ms ease;
 }
 
+/* attr() opacity fallback — browsers without typed attr */
+.ro-xmb__item[data-distance='0'] {
+  opacity: 1;
+}
+.ro-xmb__item[data-distance='1'] {
+  opacity: 0.55;
+}
+.ro-xmb__item[data-distance='2'] {
+  opacity: 0.36;
+}
+.ro-xmb__item[data-distance='3'] {
+  opacity: 0.24;
+}
+.ro-xmb__item[data-distance='4'] {
+  opacity: 0.14;
+}
+
 .ro-xmb__item[data-active='true'] {
   opacity: 1;
-  transform: scale(1.04);
-  background: color-mix(in srgb, var(--ro-bg-panel-solid) 55%, transparent);
+  transform: scale(1.05);
+  background: color-mix(in srgb, var(--ro-bg-panel-solid) 58%, transparent);
   border-color: color-mix(in srgb, var(--ro-accent) 55%, transparent);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
@@ -301,6 +349,40 @@
   max-width: 18rem;
 }
 
+.ro-xmb__info {
+  position: absolute;
+  top: 22%;
+  right: max(var(--ro-space), 5vw);
+  z-index: 2;
+  width: min(22rem, 32vw);
+  pointer-events: none;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+
+.ro-xmb__info-kicker {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ro-accent);
+}
+
+.ro-xmb__info-title {
+  margin: 0 0 0.55rem;
+  font-family: var(--ro-font-display);
+  font-size: clamp(0.7rem, 1.6vw, 0.95rem);
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--ro-text);
+}
+
+.ro-xmb__info-body {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ro-text-dim);
+  line-height: 1.45;
+}
+
 html[data-input='key'] .ro-xmb__item[data-active='true'],
 html[data-input='pad'] .ro-xmb__item[data-active='true'] {
   outline: 2px solid var(--ro-focus);
@@ -311,6 +393,33 @@ html[data-input='key'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon,
 html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   outline: 2px solid var(--ro-focus);
   outline-offset: 3px;
+}
+
+html[data-layout='tv'] .ro-xmb {
+  --xmb-cat-y: 40%;
+  --xmb-item-gap: 1rem;
+}
+
+html[data-layout='tv'] .ro-xmb__cat-icon {
+  width: 3.85rem;
+  height: 3.85rem;
+}
+
+html[data-layout='tv'] .ro-xmb__item {
+  min-height: 3.85rem;
+}
+
+html[data-layout='tv'] .ro-xmb__item-thumb {
+  width: 3.85rem;
+  height: 3.85rem;
+}
+
+html[data-layout='tv'] .ro-xmb__item-title {
+  font-size: 1.2rem;
+}
+
+html[data-layout='tv'] .ro-xmb__info-title {
+  font-size: clamp(0.85rem, 1.8vw, 1.1rem);
 }
 
 @keyframes ro-xmb-item-in {
@@ -352,6 +461,11 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
     padding-bottom: 4rem;
   }
 
+  .ro-xmb__clock {
+    top: 0.85rem;
+    right: var(--ro-space);
+  }
+
   .ro-xmb__cats {
     position: relative;
     top: auto;
@@ -377,12 +491,9 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
   .ro-xmb__rail {
     position: relative;
-    top: auto;
-    bottom: auto;
-    left: auto;
-    right: auto;
+    inset: auto;
     overflow: visible;
-    padding: 0.5rem var(--ro-space) 1.5rem;
+    padding: 0.5rem var(--ro-space) 1rem;
   }
 
   .ro-xmb__rail-inner {
@@ -402,6 +513,16 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
   .ro-xmb__item[data-active='true'] {
     opacity: 1;
+  }
+
+  .ro-xmb__info {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 0 var(--ro-space) 1rem;
   }
 
   .ro-xmb__hint {

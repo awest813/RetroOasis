@@ -26,6 +26,7 @@ type XmbItem =
       href: string
       accent: string
       cover: string | null
+      blurb: string
     }
   | {
       kind: 'action'
@@ -35,12 +36,13 @@ type XmbItem =
       href: string
       glyph: string
       accent: string
+      blurb: string
     }
 
 interface XmbCategory {
   id: string
   label: string
-  short: string
+  icon: string
   accent: string
   items: XmbItem[]
   empty?: string
@@ -72,18 +74,47 @@ function writeSession(cat: number, item: number): void {
   }
 }
 
+function gameBlurb(game: Game, platformName: string): string {
+  const bits: string[] = []
+  if (game.year) bits.push(String(game.year))
+  if (game.developer) bits.push(game.developer)
+  if (bits.length) return bits.join(' · ')
+  if (game.description) return game.description
+  return `${platformName} title`
+}
+
 function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
   const platform = findPlatform(catalog, game.platform)
   const accent = platformAccentVar(platform?.accent ?? 'sega')
   const cover = resolveCoverUrl(game.platform, game.title, game.cover, useLibretro)
+  const platformName = platform?.shortName ?? game.platform
   return {
     kind: 'game',
     id: game.id,
     title: game.title,
-    sub: platform?.shortName ?? game.platform,
+    sub: platformName,
     href: hrefFor(`/game/${game.id}`),
     accent,
     cover,
+    blurb: gameBlurb(game, platformName),
+  }
+}
+
+function iconSvg(kind: string, short: string): string {
+  const common = 'viewBox="0 0 32 32" aria-hidden="true" focusable="false"'
+  switch (kind) {
+    case 'home':
+      return `<svg ${common}><path fill="currentColor" d="M16 5 4 14v13h8v-8h8v8h8V14z"/></svg>`
+    case 'recent':
+      return `<svg ${common}><path fill="none" stroke="currentColor" stroke-width="2.2" d="M16 7a9 9 0 1 1-7.4 3.8"/><path fill="currentColor" d="M15 11h2v6l4 2-1 1.7-5-2.7z"/><path fill="currentColor" d="M7 10h5v2H8.2l1.6 1.6-1.4 1.4L5 11.6z"/></svg>`
+    case 'favorites':
+      return `<svg ${common}><path fill="currentColor" d="m16 5.5 2.9 6.2 6.8.7-5.1 4.5 1.5 6.6L16 20.3 9.9 23.5l1.5-6.6-5.1-4.5 6.8-.7z"/></svg>`
+    case 'add':
+      return `<svg ${common}><path fill="currentColor" d="M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z"/></svg>`
+    case 'settings':
+      return `<svg ${common}><path fill="currentColor" d="M13.2 4h5.6l.7 3.2 3-.9 2.8 4.8-2.3 2.1.9 2.8-2.8.9v3.2l2.8.9-.9 2.8 2.3 2.1-2.8 4.8-3-.9-.7 3.2h-5.6l-.7-3.2-3 .9-2.8-4.8 2.3-2.1-.9-2.8 2.8-.9v-3.2l-2.8-.9.9-2.8-2.3-2.1 2.8-4.8 3 .9zm2.8 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>`
+    default:
+      return `<span class="ro-xmb__cat-text">${escapeHtml(short)}</span>`
   }
 }
 
@@ -109,6 +140,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       id: `continue:${continueGame.id}`,
       title: continueGame.title,
       sub: 'Continue',
+      blurb: 'Pick up where you left off.',
     })
   }
   homeItems.push({
@@ -119,6 +151,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     href: hrefFor('/library'),
     glyph: 'ALL',
     accent: 'var(--ro-accent)',
+    blurb: 'Open the full grid by system, recent, and favorites.',
   })
   if (!continueGame) {
     homeItems.push({
@@ -129,6 +162,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       href: hrefFor('/upload'),
       glyph: 'ADD',
       accent: 'var(--ro-accent)',
+      blurb: 'Upload a file and keep it on this device.',
     })
   }
 
@@ -136,14 +170,14 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'home',
       label: 'Home',
-      short: 'HOME',
+      icon: iconSvg('home', 'HOME'),
       accent: 'var(--ro-accent)',
       items: homeItems,
     },
     {
       id: 'recent',
       label: 'Recent',
-      short: 'REC',
+      icon: iconSvg('recent', 'REC'),
       accent: 'var(--ro-accent)',
       items: recentGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'Nothing played yet. Open a game and it will show up here.',
@@ -151,7 +185,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'favorites',
       label: 'Favorites',
-      short: 'FAV',
+      icon: iconSvg('favorites', 'FAV'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'No favorites yet. Star a game from its details page.',
@@ -166,7 +200,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'add',
     label: 'Add',
-    short: 'ADD',
+    icon: iconSvg('add', 'ADD'),
     accent: 'var(--ro-accent)',
     items: [
       {
@@ -177,6 +211,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         href: hrefFor('/upload'),
         glyph: 'ADD',
         accent: 'var(--ro-accent)',
+        blurb: 'Files stay in this browser until you remove them.',
       },
     ],
   })
@@ -184,7 +219,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'settings',
     label: 'Settings',
-    short: 'SET',
+    icon: iconSvg('settings', 'SET'),
     accent: 'var(--ro-text-dim)',
     items: [
       {
@@ -195,6 +230,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         href: hrefFor('/settings'),
         glyph: 'SET',
         accent: 'var(--ro-text-dim)',
+        blurb: 'Cabinet prefs stay on this device.',
       },
     ],
   })
@@ -208,16 +244,18 @@ function platformCategory(
   useLibretro: boolean,
 ): XmbCategory {
   const games = gamesForPlatform(catalog, platform.id)
+  const short = platform.shortName.slice(0, 4).toUpperCase()
   return {
     id: `plat:${platform.id}`,
     label: platform.shortName,
-    short: platform.shortName.slice(0, 4).toUpperCase(),
+    icon: iconSvg('platform', short),
     accent: platformAccentVar(platform.accent),
     items: games.map((g) => gameItem(g, catalog, useLibretro)),
   }
 }
 
-function itemMarkup(item: XmbItem, active: boolean): string {
+function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
+  const dist = Math.min(4, Math.abs(distance))
   if (item.kind === 'game') {
     return `
       <a
@@ -225,6 +263,7 @@ function itemMarkup(item: XmbItem, active: boolean): string {
         href="${item.href}"
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
+        data-distance="${dist}"
         style="--item-accent: ${item.accent}"
       >
         <span class="ro-xmb__item-thumb">
@@ -243,6 +282,7 @@ function itemMarkup(item: XmbItem, active: boolean): string {
       href="${item.href}"
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
+      data-distance="${dist}"
       style="--item-accent: ${item.accent}"
     >
       <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph">${escapeHtml(item.glyph)}</span>
@@ -263,7 +303,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       style="--cat-accent: ${cat.accent}"
       aria-pressed="${active ? 'true' : 'false'}"
     >
-      <span class="ro-xmb__cat-icon">${escapeHtml(cat.short)}</span>
+      <span class="ro-xmb__cat-icon">${cat.icon}</span>
       <span class="ro-xmb__cat-label">${escapeHtml(cat.label)}</span>
     </button>`
 }
@@ -272,7 +312,29 @@ function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
     return `<p class="ro-xmb__empty">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
   }
-  return cat.items.map((item, i) => itemMarkup(item, i === itemIndex)).join('')
+  return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
+}
+
+function infoMarkup(cat: XmbCategory, itemIndex: number): string {
+  const item = cat.items[itemIndex]
+  if (!item) {
+    return `
+      <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
+      <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
+      <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+  }
+  return `
+    <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
+    <h2 class="ro-xmb__info-title">${escapeHtml(item.title)}</h2>
+    <p class="ro-xmb__info-body">${escapeHtml(item.blurb)}</p>`
+}
+
+function formatClock(date: Date): string {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatClockDate(date: Date): string {
+  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 export async function renderXmb(root: HTMLElement): Promise<void> {
@@ -283,14 +345,23 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const categories = buildCategories(catalog)
 
   let catIndex = readSessionIndex(SESSION_CAT, categories.length - 1)
-  let itemIndex = readSessionIndex(SESSION_ITEM, Math.max(0, (categories[catIndex]?.items.length ?? 1) - 1))
+  let itemIndex = readSessionIndex(
+    SESSION_ITEM,
+    Math.max(0, (categories[catIndex]?.items.length ?? 1) - 1),
+  )
   if (categories[catIndex] && itemIndex >= categories[catIndex].items.length) {
     itemIndex = 0
   }
 
+  const now = new Date()
+
   root.innerHTML = `
     <section class="ro-xmb" aria-label="Cross menu" tabindex="0">
       <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
+      <div class="ro-xmb__clock" aria-hidden="true">
+        <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
+        <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
+      </div>
       <div class="ro-xmb__cats" role="tablist" aria-label="Categories">
         ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
       </div>
@@ -299,6 +370,9 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
           ${railMarkup(categories[catIndex], itemIndex)}
         </div>
       </div>
+      <aside class="ro-xmb__info" aria-live="polite">
+        ${infoMarkup(categories[catIndex], itemIndex)}
+      </aside>
       <p class="ro-xmb__hint">← → categories · ↑ ↓ items · Enter open</p>
     </section>
   `
@@ -308,28 +382,31 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
   const catsEl = shell.querySelector<HTMLElement>('.ro-xmb__cats')
   const railInner = shell.querySelector<HTMLElement>('.ro-xmb__rail-inner')
-  if (!catsEl || !railInner) return
-
-  let catShift = 0
+  const infoEl = shell.querySelector<HTMLElement>('.ro-xmb__info')
+  const clockEl = shell.querySelector<HTMLElement>('[data-ro-xmb-clock]')
+  const dateEl = shell.querySelector<HTMLElement>('[data-ro-xmb-date]')
+  if (!catsEl || !railInner || !infoEl) return
 
   const syncTransforms = () => {
     const desktop = window.matchMedia('(min-width: 901px)').matches
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
 
     if (desktop && activeCat) {
-      // Measure without current shift so we can absolute-position the focused category.
       catsEl.style.setProperty('--xmb-shift', '0px')
       const shellRect = shell.getBoundingClientRect()
       const catRect = activeCat.getBoundingClientRect()
-      const targetX = shellRect.width * 0.18
+      const targetX = shellRect.width * 0.2
       const currentCenter = catRect.left - shellRect.left + catRect.width / 2
-      catShift = targetX - currentCenter
+      const catShift = targetX - currentCenter
       catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
-      shell.style.setProperty('--xmb-rail-x', `${Math.max(24, targetX - activeCat.offsetWidth / 2)}px`)
+      shell.style.setProperty(
+        '--xmb-rail-x',
+        `${Math.max(24, targetX - activeCat.offsetWidth / 2)}px`,
+      )
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
-    if (desktop && activeItem) {
+    if (desktop && activeItem && activeCat) {
       const items = Array.from(railInner.querySelectorAll<HTMLElement>('.ro-xmb__item'))
       const idx = items.indexOf(activeItem)
       if (idx >= 0) {
@@ -339,8 +416,12 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Place the active item near the top of the rail (under the category row).
-        const shift = 12 - offset
+        // Align focused item with the category icon row (classic XMB cross).
+        const shellRect = shell.getBoundingClientRect()
+        const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+        const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
+        const focusY = iconRect.top - shellRect.top + iconRect.height / 2
+        const shift = focusY - offset - activeItem.offsetHeight / 2
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
     } else {
@@ -364,12 +445,15 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
     if (opts?.animateRail) {
       railInner.dataset.anim = ''
-      // force reflow for restart
       void railInner.offsetWidth
       railInner.dataset.anim = 'in'
+      window.setTimeout(() => {
+        if (railInner.dataset.anim === 'in') railInner.dataset.anim = ''
+      }, 420)
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
+    infoEl.innerHTML = infoMarkup(cat, itemIndex)
     writeSession(catIndex, itemIndex)
     requestAnimationFrame(syncTransforms)
   }
@@ -420,6 +504,13 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     confirm: activate,
   })
 
+  const tickClock = () => {
+    const d = new Date()
+    if (clockEl) clockEl.textContent = formatClock(d)
+    if (dateEl) dateEl.textContent = formatClockDate(d)
+  }
+  const clockTimer = window.setInterval(tickClock, 30_000)
+
   const onResize = () => syncTransforms()
   window.addEventListener('resize', onResize)
 
@@ -428,6 +519,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
   cleanup = () => {
     unbind()
+    window.clearInterval(clockTimer)
     window.removeEventListener('resize', onResize)
   }
 }

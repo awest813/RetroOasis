@@ -17,6 +17,8 @@ export interface XmbFocusApi {
 
 type Cleanup = () => void
 
+const MOVE_DIRS = new Set<XmbDir>(['left', 'right', 'up', 'down'])
+
 export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   const move = (dir: XmbDir): void => {
     if (dir === 'back') {
@@ -37,8 +39,8 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const itemCount = api.getItemCount()
     if (!catCount) return
 
-    let cat = api.getCategoryIndex()
-    let item = api.getItemIndex()
+    const cat = api.getCategoryIndex()
+    const item = api.getItemIndex()
 
     if (dir === 'left' || dir === 'right') {
       const next = dir === 'right' ? Math.min(catCount - 1, cat + 1) : Math.max(0, cat - 1)
@@ -64,6 +66,29 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     }
   }
 
+  let holdTimer = 0
+  let holdInterval = 0
+  let heldDir: XmbDir | null = null
+
+  const clearHold = () => {
+    if (holdTimer) window.clearTimeout(holdTimer)
+    if (holdInterval) window.clearInterval(holdInterval)
+    holdTimer = 0
+    holdInterval = 0
+    heldDir = null
+  }
+
+  const startHold = (dir: XmbDir) => {
+    clearHold()
+    if (!MOVE_DIRS.has(dir)) return
+    heldDir = dir
+    holdTimer = window.setTimeout(() => {
+      holdInterval = window.setInterval(() => {
+        if (heldDir) move(heldDir)
+      }, 72)
+    }, 360)
+  }
+
   const onKeyDown = (event: KeyboardEvent) => {
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
@@ -79,14 +104,30 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const dir = map[event.key]
     if (!dir) return
     event.preventDefault()
+    if (event.repeat) return
     move(dir)
+    startHold(dir)
+  }
+
+  const onKeyUp = (event: KeyboardEvent) => {
+    if (
+      event.key === 'ArrowRight' ||
+      event.key === 'ArrowLeft' ||
+      event.key === 'ArrowDown' ||
+      event.key === 'ArrowUp'
+    ) {
+      clearHold()
+    }
   }
 
   root.addEventListener('keydown', onKeyDown)
+  window.addEventListener('keyup', onKeyUp)
 
   let raf = 0
   const prev = { x: 0, y: 0, a: false, b: false }
   let cool = 0
+  let holdStart = 0
+  let heldAxis: 'x' | 'y' | null = null
 
   const poll = () => {
     raf = requestAnimationFrame(poll)
@@ -107,26 +148,41 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
 
     if (x || y || a || b) setModalityFromPad()
 
-    if (now > cool) {
-      if (x === 1 && prev.x !== 1) {
-        move('right')
-        cool = now + 180
-      } else if (x === -1 && prev.x !== -1) {
-        move('left')
-        cool = now + 180
-      } else if (y === 1 && prev.y !== 1) {
-        move('down')
-        cool = now + 180
-      } else if (y === -1 && prev.y !== -1) {
-        move('up')
-        cool = now + 180
-      } else if (a && !prev.a) {
-        move('confirm')
-        cool = now + 220
-      } else if (b && !prev.b) {
-        move('back')
-        cool = now + 220
+    const stepAxis = (axis: 'x' | 'y', value: number, dirPos: XmbDir, dirNeg: XmbDir) => {
+      if (!value) {
+        if (heldAxis === axis) {
+          heldAxis = null
+          holdStart = 0
+        }
+        return
       }
+      const dir = value > 0 ? dirPos : dirNeg
+      const edge = axis === 'x' ? prev.x !== value : prev.y !== value
+      if (edge) {
+        move(dir)
+        cool = now + 220
+        holdStart = now
+        heldAxis = axis
+        return
+      }
+      if (heldAxis === axis && now > cool) {
+        move(dir)
+        const heldFor = now - holdStart
+        cool = now + (heldFor > 700 ? 68 : heldFor > 350 ? 110 : 160)
+      }
+    }
+
+    if (now > cool || x !== prev.x || y !== prev.y) {
+      if (x) stepAxis('x', x, 'right', 'left')
+      else if (y) stepAxis('y', y, 'down', 'up')
+    }
+
+    if (a && !prev.a) {
+      move('confirm')
+      cool = now + 220
+    } else if (b && !prev.b) {
+      move('back')
+      cool = now + 220
     }
 
     prev.x = x
@@ -138,7 +194,9 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   raf = requestAnimationFrame(poll)
 
   return () => {
+    clearHold()
     root.removeEventListener('keydown', onKeyDown)
+    window.removeEventListener('keyup', onKeyUp)
     cancelAnimationFrame(raf)
   }
 }
