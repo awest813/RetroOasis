@@ -136,7 +136,8 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        if (back.toLowerCase().startsWith('javascript:')) back = "./#/";
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -157,11 +158,11 @@
         function fail(title, message) {
           document.getElementById("display").innerHTML =
             '<div class="ro-play-error"><h1>' +
-            title +
+            escapeHtml(title) +
             "</h1><p>" +
-            message +
+            escapeHtml(message) +
             '</p><a href="' +
-            back +
+            escapeHtml(back) +
             '">Back to Oasis</a></div>';
         }
 
