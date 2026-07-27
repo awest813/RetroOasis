@@ -681,6 +681,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   paint({ animateRail: true })
   shell.focus({ preventScroll: true })
 
+  const onSelectStart = (event: Event) => {
+    event.preventDefault()
+  }
+  shell.addEventListener('selectstart', onSelectStart)
+
   cleanup = () => {
     unbind()
     stopClock()
@@ -689,6 +694,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     motionQuery.removeEventListener('change', onMotionChange)
     window.removeEventListener('resize', onResize)
     shell.removeEventListener('wheel', onWheel)
+    shell.removeEventListener('selectstart', onSelectStart)
   }
 }
 

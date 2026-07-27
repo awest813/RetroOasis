@@ -301,10 +301,12 @@
 
 .ro-xmb__item {
   display: grid;
-  grid-template-columns: 3.4rem 1fr;
+  grid-template-columns: 3.4rem auto;
   align-items: center;
   gap: 0.85rem;
   min-height: 3.35rem;
+  width: fit-content;
+  max-width: min(22rem, 100%);
   padding: 0.35rem 0.65rem 0.35rem 0.35rem;
   border: 1px solid transparent;
   background: transparent;
@@ -316,6 +318,8 @@
   position: relative;
   z-index: 1;
   pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     opacity 180ms ease,
     background 180ms ease,
@@ -597,10 +601,11 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro
     width: min(34rem, 56vw);
   }
 
-  html[data-layout='tv'] .ro-xmb__item {
-    grid-template-columns: 3.95rem 1fr;
+html[data-layout='tv'] .ro-xmb__item {
+    grid-template-columns: 3.95rem auto;
     min-height: 3.95rem;
     gap: 1rem;
+    max-width: min(26rem, 100%);
   }
 
   html[data-layout='tv'] .ro-xmb__item-thumb {
