@@ -2,6 +2,13 @@
 
 type Cleanup = () => void
 
+let waveActive = true
+
+/** Pause drawing when the XMB shell is not showing. */
+export function setWaveActive(on: boolean): void {
+  waveActive = on
+}
+
 export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   const ctx = canvas.getContext('2d')
   if (!ctx) return () => undefined
@@ -11,6 +18,7 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   let width = 0
   let height = 0
   let dpr = 1
+  let wasActive = true
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const resize = () => {
@@ -31,6 +39,15 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
     if (!running) return
     raf = requestAnimationFrame(draw)
     if (!width || !height) return
+
+    if (!waveActive) {
+      if (wasActive) {
+        ctx.clearRect(0, 0, width, height)
+        wasActive = false
+      }
+      return
+    }
+    wasActive = true
 
     const time = reduced ? 0 : t * 0.001
     ctx.clearRect(0, 0, width, height)
@@ -58,7 +75,6 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
       ctx.lineWidth = band.width
       ctx.stroke()
 
-      // soft fill under wave
       ctx.lineTo(width, height)
       ctx.lineTo(0, height)
       ctx.closePath()

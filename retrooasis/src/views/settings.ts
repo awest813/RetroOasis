@@ -263,6 +263,10 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
         </section>
 
+        <div class="ro-btn-row" style="margin-top: 1.25rem">
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}">Back home</a>
+        </div>
+
         <p class="ro-settings__footnote ro-muted">
           Self-host tip: build with <code>npm run oasis:build</code>, serve <code>dist/</code> beside
           <code>data/</code> and <code>roms/</code>. Scan with <code>npm run oasis:scan</code>.
