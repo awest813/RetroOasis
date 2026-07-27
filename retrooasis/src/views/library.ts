@@ -239,14 +239,14 @@ export async function renderLibrary(
     const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
     const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
     const empty = root.querySelector<HTMLElement>('.ro-empty')
-    const onboard = root.querySelector<HTMLElement>('.ro-onboard')
+    const onboardEl = root.querySelector<HTMLElement>('.ro-onboard')
     const actions = root.querySelector<HTMLElement>('.ro-systems__actions')
     const cleanups: Array<() => void> = []
     if (systems) cleanups.push(bindGridFocus(systems))
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
     if (empty) cleanups.push(bindGridFocus(empty))
-    if (onboard) cleanups.push(bindGridFocus(onboard))
+    if (onboardEl) cleanups.push(bindGridFocus(onboardEl))
     if (actions) cleanups.push(bindGridFocus(actions))
     cleanup = () => {
       window.clearTimeout(searchTimer)
