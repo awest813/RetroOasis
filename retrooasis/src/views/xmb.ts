@@ -878,7 +878,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }
 
   paint({ animateRail: true, railDir: 'right' })
-  shell.focus({ preventScroll: true })
+  requestAnimationFrame(() => {
+    if (document.activeElement?.classList.contains('ro-skip')) return
+    shell.focus({ preventScroll: true })
+  })
 
   const onSelectStart = (event: Event) => {
     event.preventDefault()
