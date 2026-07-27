@@ -24,6 +24,12 @@ function estimateColumns(list: HTMLElement[]): number {
   return Math.max(1, cols)
 }
 
+function focusTarget(el: HTMLElement | null | undefined): void {
+  if (!el) return
+  el.focus({ preventScroll: true })
+  el.closest('[data-ro-focus-row]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
 function moveFocus(root: HTMLElement, key: Dir): void {
   const list = focusables(root)
   if (!list.length) return
@@ -33,8 +39,10 @@ function moveFocus(root: HTMLElement, key: Dir): void {
   if (index < 0) index = 0
 
   if (key === 'confirm') {
+    const target = active && list.includes(active) ? active : list[0]
+    if (target.getAttribute('aria-disabled') === 'true') return
     sfxConfirm()
-    ;(active && list.includes(active) ? active : list[0]).click()
+    target.click()
     return
   }
 
@@ -46,7 +54,7 @@ function moveFocus(root: HTMLElement, key: Dir): void {
   if (key === 'up') next = Math.max(0, index - columns)
 
   if (next !== index) sfxMove()
-  list[next]?.focus()
+  focusTarget(list[next])
 }
 
 function moveRowFocus(root: HTMLElement, key: Dir): void {
@@ -58,8 +66,10 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
   if (index < 0) index = 0
 
   if (key === 'confirm') {
+    const target = active && list.includes(active) ? active : list[0]
+    if (target.getAttribute('aria-disabled') === 'true') return
     sfxConfirm()
-    ;(active && list.includes(active) ? active : list[0]).click()
+    target.click()
     return
   }
 
@@ -84,7 +94,7 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
       key === 'right' ? Math.min(inRow.length - 1, idxInRow + 1) : Math.max(0, idxInRow - 1)
     if (next === idxInRow) return
     sfxMove()
-    inRow[next]?.focus()
+    focusTarget(inRow[next])
     return
   }
 
@@ -98,7 +108,7 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
     nextControls[Math.min(idxInRow, nextControls.length - 1)] ??
     nextControls[0]
   sfxMove()
-  preferred?.focus()
+  focusTarget(preferred)
 }
 
 function bindPadAndKeys(
