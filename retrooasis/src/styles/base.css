@@ -6,6 +6,19 @@
   isolation: isolate;
 }
 
+html[data-display='standalone'] .ro-install-btn {
+  display: none !important;
+}
+
+html[data-display='standalone'] .ro-footer {
+  padding-bottom: max(1.35rem, env(safe-area-inset-bottom, 0px));
+}
+
+html[data-display='standalone'] .ro-shell {
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
 .ro-skip {
   position: fixed;
   left: max(var(--ro-space), env(safe-area-inset-left, 0px));

@@ -4,14 +4,17 @@ import {
   applyStoredAccent,
   applyStoredCrt,
   applyStoredLayout,
+  getAccent,
 } from './lib/store'
 import { initCatalogExtras, onCatalogChange } from './lib/catalog'
 import {
+  applyPwaDisplayMode,
   canInstallPwa,
   initPwaInstall,
   onPwaInstallChange,
   promptPwaInstall,
   registerServiceWorker,
+  syncThemeColor,
 } from './lib/pwa'
 import { installInputChrome } from './lib/input'
 import { mountWave, setWaveActive } from './lib/wave'
@@ -36,8 +39,10 @@ const app = appEl
 applyStoredAccent()
 applyStoredCrt()
 applyStoredLayout()
+syncThemeColor(getAccent())
 installInputChrome()
 initPwaInstall()
+applyPwaDisplayMode()
 registerServiceWorker()
 
 app.innerHTML = `

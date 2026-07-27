@@ -10,11 +10,7 @@ import {
   pickLocalLibrary,
   supportsDirectoryPicker,
 } from '../lib/localLibrary'
-import {
-  canInstallPwa,
-  isPwaInstalled,
-  promptPwaInstall,
-} from '../lib/pwa'
+import { getPwaInstallState, promptPwaInstall, syncThemeColor } from '../lib/pwa'
 import { clearAllOverrides, exportOverridesJson } from '../lib/overrides'
 import { hrefFor } from '../lib/router'
 import {
@@ -111,8 +107,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const hasSab = typeof SharedArrayBuffer !== 'undefined'
   const catalog = await loadCatalog()
   const canPick = supportsDirectoryPicker()
-  const installable = canInstallPwa()
-  const installed = isPwaInstalled()
+  const installState = getPwaInstallState()
   // Preserve row focus/scroll across catalog-driven rebuilds.
   const existing = root.querySelector<HTMLElement>('[data-ro-settings]')
   if (existing) {
@@ -302,23 +297,27 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Install app</strong>
+              <strong>Install as app</strong>
               <p class="ro-muted">
                 ${
-                  installed
-                    ? 'Running as an installed app.'
-                    : installable
-                      ? 'Add a home-screen shortcut.'
-                      : 'Install appears on HTTPS after the shell is cached.'
+                  installState === 'installed'
+                    ? 'Running in app mode — home-screen launch, fullscreen chrome.'
+                    : installState === 'prompt'
+                      ? 'Install RetroOasis on this device for a fullscreen shelf.'
+                      : installState === 'ios'
+                        ? 'On iPhone/iPad: tap Share, then Add to Home Screen.'
+                        : 'Available on HTTPS (or localhost) in a supported browser after the shell is cached.'
                 }
               </p>
             </div>
             ${
-              installed
-                ? ''
-                : installable
-                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
-                  : `<button type="button" class="ro-btn" data-focus-id="install" disabled title="Install appears on HTTPS after the shell is cached.">Unavailable here</button>`
+              installState === 'installed'
+                ? `<span class="ro-badge ro-badge--ok" role="status">Installed</span>`
+                : installState === 'prompt'
+                  ? `<button type="button" class="ro-btn ro-btn--primary" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
+                  : installState === 'ios'
+                    ? `<span class="ro-badge" role="status" title="Use Share → Add to Home Screen">iOS tip</span>`
+                    : `<button type="button" class="ro-btn" data-focus-id="install" data-ro-focusable="true" aria-disabled="true" title="Needs HTTPS and a supported browser after the shell is cached.">Unavailable here</button>`
             }
           </div>
 
@@ -361,7 +360,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelectorAll<HTMLButtonElement>('[data-accent]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setAccent(btn.dataset.accent as AccentMode)
+      const next = btn.dataset.accent as AccentMode
+      setAccent(next)
+      syncThemeColor(next)
       rerender(btn.dataset.focusId)
     })
   })
