@@ -65,7 +65,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.innerHTML = `
     <section class="ro-view ro-settings-page">
-      <p class="ro-kicker">Cabinet prefs</p>
+      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Settings</p>
       <h1 class="ro-title">Settings</h1>
       <p class="ro-lede">Tweaks stay on this device. Install the app when your browser offers it for a home-screen shortcut.</p>
 
@@ -118,10 +118,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div class="ro-settings-row__copy">
               <strong>Sound pack</strong>
-              <p class="ro-muted">Gentle tones or sharper arcade beeps.</p>
+              <p class="ro-muted">Gentle tones, quieter XMB clicks, or sharper arcade beeps.</p>
             </div>
             <div class="ro-toggle-group" role="group" aria-label="Sound pack">
               <button type="button" class="ro-btn" data-pack="soft" aria-pressed="${pack === 'soft'}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" aria-pressed="${pack === 'xmb'}">XMB</button>
               <button type="button" class="ro-btn" data-pack="arcade" aria-pressed="${pack === 'arcade'}">Arcade</button>
             </div>
           </div>
@@ -264,7 +265,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         </section>
 
         <p class="ro-settings__footnote ro-muted">
-          Self-host tip: build with <code>npm run oasis:build</code>, serve <code>dist/</code> beside
+          <a href="${hrefFor('/')}">Back home</a>
+          · Self-host tip: build with <code>npm run oasis:build</code>, serve <code>dist/</code> beside
           <code>data/</code> and <code>roms/</code>. Scan with <code>npm run oasis:scan</code>.
         </p>
       </div>

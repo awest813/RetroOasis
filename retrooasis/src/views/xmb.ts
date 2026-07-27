@@ -14,6 +14,9 @@ import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
+import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
+import { getInputModality } from '../lib/inputModality'
+import { sfxConfirm, sfxMove } from '../lib/sfx'
 
 type Cleanup = () => void
 
@@ -48,39 +51,53 @@ interface XmbCategory {
   empty?: string
 }
 
-const SESSION_CAT = 'retrooasis.xmb.cat'
-const SESSION_ITEM = 'retrooasis.xmb.item'
+const SESSION_CAT = 'retrooasis.xmb.catId'
+const SESSION_ITEM = 'retrooasis.xmb.itemId'
 
 let cleanup: Cleanup | null = null
+let renderGen = 0
 
-function readSessionIndex(key: string, max: number): number {
+function readSessionId(key: string): string | null {
   try {
-    const raw = sessionStorage.getItem(key)
-    if (raw == null) return 0
-    const n = Number.parseInt(raw, 10)
-    if (!Number.isFinite(n) || n < 0) return 0
-    return Math.min(n, Math.max(0, max))
+    return sessionStorage.getItem(key)
   } catch {
-    return 0
+    return null
   }
 }
 
-function writeSession(cat: number, item: number): void {
+function writeSession(catId: string, itemId: string | null): void {
   try {
-    sessionStorage.setItem(SESSION_CAT, String(cat))
-    sessionStorage.setItem(SESSION_ITEM, String(item))
+    sessionStorage.setItem(SESSION_CAT, catId)
+    if (itemId) sessionStorage.setItem(SESSION_ITEM, itemId)
+    else sessionStorage.removeItem(SESSION_ITEM)
   } catch {
     /* ignore */
   }
 }
 
+function resolveSessionFocus(categories: XmbCategory[]): { catIndex: number; itemIndex: number } {
+  const catId = readSessionId(SESSION_CAT)
+  let catIndex = catId ? categories.findIndex((c) => c.id === catId) : 0
+  if (catIndex < 0) catIndex = 0
+
+  const itemId = readSessionId(SESSION_ITEM)
+  const items = categories[catIndex]?.items ?? []
+  let itemIndex = itemId ? items.findIndex((i) => i.id === itemId) : 0
+  if (itemIndex < 0) itemIndex = 0
+  return { catIndex, itemIndex }
+}
+
 function gameBlurb(game: Game, platformName: string): string {
+  if (game.description?.trim()) return game.description.trim()
   const bits: string[] = []
   if (game.year) bits.push(String(game.year))
   if (game.developer) bits.push(game.developer)
   if (bits.length) return bits.join(' · ')
-  if (game.description) return game.description
-  return `${platformName} title`
+  const tags = (game.tags ?? []).filter((t) => t && t !== 'demo')
+  if (game.demo && tags.length) return `Sample · ${tags.join(' · ')}`
+  if (game.demo) return `Sample ${platformName} entry — open for details.`
+  if (tags.length) return tags.join(' · ')
+  return `Open for details and play on ${platformName}.`
 }
 
 function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
@@ -97,24 +114,6 @@ function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
     accent,
     cover,
     blurb: gameBlurb(game, platformName),
-  }
-}
-
-function iconSvg(kind: string, short: string): string {
-  const common = 'viewBox="0 0 32 32" aria-hidden="true" focusable="false"'
-  switch (kind) {
-    case 'home':
-      return `<svg ${common}><path fill="currentColor" d="M16 5 4 14v13h8v-8h8v8h8V14z"/></svg>`
-    case 'recent':
-      return `<svg ${common}><path fill="none" stroke="currentColor" stroke-width="2.2" d="M16 7a9 9 0 1 1-7.4 3.8"/><path fill="currentColor" d="M15 11h2v6l4 2-1 1.7-5-2.7z"/><path fill="currentColor" d="M7 10h5v2H8.2l1.6 1.6-1.4 1.4L5 11.6z"/></svg>`
-    case 'favorites':
-      return `<svg ${common}><path fill="currentColor" d="m16 5.5 2.9 6.2 6.8.7-5.1 4.5 1.5 6.6L16 20.3 9.9 23.5l1.5-6.6-5.1-4.5 6.8-.7z"/></svg>`
-    case 'add':
-      return `<svg ${common}><path fill="currentColor" d="M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z"/></svg>`
-    case 'settings':
-      return `<svg ${common}><path fill="currentColor" d="M13.2 4h5.6l.7 3.2 3-.9 2.8 4.8-2.3 2.1.9 2.8-2.8.9v3.2l2.8.9-.9 2.8 2.3 2.1-2.8 4.8-3-.9-.7 3.2h-5.6l-.7-3.2-3 .9-2.8-4.8 2.3-2.1-.9-2.8 2.8-.9v-3.2l-2.8-.9.9-2.8-2.3-2.1 2.8-4.8 3 .9zm2.8 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>`
-    default:
-      return `<span class="ro-xmb__cat-text">${escapeHtml(short)}</span>`
   }
 }
 
@@ -170,14 +169,14 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'home',
       label: 'Home',
-      icon: iconSvg('home', 'HOME'),
+      icon: xmbCategoryIcon('home'),
       accent: 'var(--ro-accent)',
       items: homeItems,
     },
     {
       id: 'recent',
       label: 'Recent',
-      icon: iconSvg('recent', 'REC'),
+      icon: xmbCategoryIcon('recent'),
       accent: 'var(--ro-accent)',
       items: recentGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'Nothing played yet. Open a game and it will show up here.',
@@ -185,7 +184,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'favorites',
       label: 'Favorites',
-      icon: iconSvg('favorites', 'FAV'),
+      icon: xmbCategoryIcon('favorites'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'No favorites yet. Star a game from its details page.',
@@ -200,7 +199,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'add',
     label: 'Add',
-    icon: iconSvg('add', 'ADD'),
+    icon: xmbCategoryIcon('add'),
     accent: 'var(--ro-accent)',
     items: [
       {
@@ -219,7 +218,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'settings',
     label: 'Settings',
-    icon: iconSvg('settings', 'SET'),
+    icon: xmbCategoryIcon('settings'),
     accent: 'var(--ro-text-dim)',
     items: [
       {
@@ -244,11 +243,10 @@ function platformCategory(
   useLibretro: boolean,
 ): XmbCategory {
   const games = gamesForPlatform(catalog, platform.id)
-  const short = platform.shortName.slice(0, 4).toUpperCase()
   return {
     id: `plat:${platform.id}`,
     label: platform.shortName,
-    icon: iconSvg('platform', short),
+    icon: xmbPlatformIcon(platform.id, platform.shortName),
     accent: platformAccentVar(platform.accent),
     items: games.map((g) => gameItem(g, catalog, useLibretro)),
   }
@@ -264,6 +262,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
         data-distance="${dist}"
+        tabindex="-1"
         style="--item-accent: ${item.accent}"
       >
         <span class="ro-xmb__item-thumb">
@@ -283,6 +282,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
       data-distance="${dist}"
+      tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
       <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph">${escapeHtml(item.glyph)}</span>
@@ -301,7 +301,9 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       data-ro-xmb-cat="${escapeAttr(cat.id)}"
       data-active="${active ? 'true' : 'false'}"
       style="--cat-accent: ${cat.accent}"
+      aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
+      tabindex="-1"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
       <span class="ro-xmb__cat-label">${escapeHtml(cat.label)}</span>
@@ -310,7 +312,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
-    return `<p class="ro-xmb__empty">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+    return `<p class="ro-xmb__empty" aria-hidden="true"></p>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
 }
@@ -319,63 +321,112 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
   const item = cat.items[itemIndex]
   if (!item) {
     return `
-      <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-      <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
-      <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+      <div class="ro-xmb__info-inner" data-ro-info>
+        <div class="ro-xmb__info-copy">
+          <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
+          <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
+          <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>
+        </div>
+      </div>`
   }
+
+  const stage =
+    item.kind === 'game'
+      ? `<div class="ro-xmb__stage" style="--item-accent: ${item.accent}">
+          ${coverMarkup(item.title, item.accent, item.cover)}
+        </div>`
+      : `<div class="ro-xmb__stage ro-xmb__stage--glyph" style="--item-accent: ${item.accent}">
+          <span class="ro-xmb__stage-glyph">${escapeHtml(item.glyph)}</span>
+        </div>`
+
+  const kicker =
+    item.kind === 'game' && item.sub && item.sub !== cat.label ? item.sub : cat.label
+
   return `
-    <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-    <h2 class="ro-xmb__info-title">${escapeHtml(item.title)}</h2>
-    <p class="ro-xmb__info-body">${escapeHtml(item.blurb)}</p>`
+    <div class="ro-xmb__info-inner" data-ro-info>
+      ${stage}
+      <div class="ro-xmb__info-copy">
+        <p class="ro-xmb__info-kicker">${escapeHtml(kicker)}</p>
+        <h2 class="ro-xmb__info-title">${escapeHtml(item.title)}</h2>
+        <p class="ro-xmb__info-body">${escapeHtml(item.blurb)}</p>
+      </div>
+    </div>`
 }
 
 function formatClock(date: Date): string {
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const h = date.getHours()
+  const m = date.getMinutes()
+  const hour12 = h % 12 || 12
+  return `${hour12}:${String(m).padStart(2, '0')}`
 }
 
 function formatClockDate(date: Date): string {
-  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`
+}
+
+function hintCopy(): string {
+  return getInputModality() === 'pad'
+    ? 'D-pad move · A / Start open · B back'
+    : '← → categories · ↑ ↓ items · Enter open'
+}
+
+function scheduleMinuteClock(tick: () => void): () => void {
+  let timeout = 0
+  let interval = 0
+  const arm = () => {
+    tick()
+    const now = Date.now()
+    const delay = 60_000 - (now % 60_000) + 50
+    timeout = window.setTimeout(() => {
+      tick()
+      interval = window.setInterval(tick, 60_000)
+    }, delay)
+  }
+  arm()
+  return () => {
+    window.clearTimeout(timeout)
+    window.clearInterval(interval)
+  }
 }
 
 export async function renderXmb(root: HTMLElement): Promise<void> {
+  const gen = ++renderGen
   cleanup?.()
   cleanup = null
 
   const catalog = await loadCatalog()
-  const categories = buildCategories(catalog)
+  if (gen !== renderGen) return
 
-  let catIndex = readSessionIndex(SESSION_CAT, categories.length - 1)
-  let itemIndex = readSessionIndex(
-    SESSION_ITEM,
-    Math.max(0, (categories[catIndex]?.items.length ?? 1) - 1),
-  )
-  if (categories[catIndex] && itemIndex >= categories[catIndex].items.length) {
-    itemIndex = 0
-  }
+  const categories = buildCategories(catalog)
+  let { catIndex, itemIndex } = resolveSessionFocus(categories)
 
   const now = new Date()
 
   root.innerHTML = `
-    <section class="ro-xmb" aria-label="Cross menu" tabindex="0">
+    <section class="ro-xmb" aria-label="Cross menu" role="application" tabindex="0">
       <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
       <div class="ro-xmb__clock" aria-hidden="true">
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
         <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
       </div>
-      <div class="ro-xmb__cats" role="tablist" aria-label="Categories">
+      <div class="ro-xmb__cats" role="toolbar" aria-label="Categories">
         ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
       </div>
       <div class="ro-xmb__rail">
-        <div class="ro-xmb__rail-inner" data-anim="in" role="list">
+        <div class="ro-xmb__rail-inner" role="list">
           ${railMarkup(categories[catIndex], itemIndex)}
         </div>
       </div>
-      <aside class="ro-xmb__info" aria-live="polite">
+      <aside class="ro-xmb__info ro-xmb__info--in" aria-live="polite">
         ${infoMarkup(categories[catIndex], itemIndex)}
       </aside>
-      <p class="ro-xmb__hint">← → categories · ↑ ↓ items · Enter open</p>
+      <p class="ro-xmb__hint" data-ro-xmb-hint>${escapeHtml(hintCopy())}</p>
     </section>
   `
+
+  if (gen !== renderGen) return
 
   const shell = root.querySelector<HTMLElement>('.ro-xmb')
   if (!shell) return
@@ -385,24 +436,49 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const infoEl = shell.querySelector<HTMLElement>('.ro-xmb__info')
   const clockEl = shell.querySelector<HTMLElement>('[data-ro-xmb-clock]')
   const dateEl = shell.querySelector<HTMLElement>('[data-ro-xmb-date]')
+  const hintEl = shell.querySelector<HTMLElement>('[data-ro-xmb-hint]')
   if (!catsEl || !railInner || !infoEl) return
+
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  let reducedMotion = motionQuery.matches
+  let animTimer = 0
+  let nudgeTimer = 0
+  let enterTimer = 0
+
+  const thumbInsetX = (item: HTMLElement | null): number => {
+    if (!item) return 28
+    const thumb = item.querySelector<HTMLElement>('.ro-xmb__item-thumb')
+    if (!thumb) return 28
+    const padL = Number.parseFloat(getComputedStyle(item).paddingLeft) || 0
+    return padL + thumb.offsetWidth / 2
+  }
+
+  const persist = () => {
+    const cat = categories[catIndex]
+    if (!cat) return
+    writeSession(cat.id, cat.items[itemIndex]?.id ?? null)
+  }
 
   const syncTransforms = () => {
     const desktop = window.matchMedia('(min-width: 901px)').matches
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
 
     if (desktop && activeCat) {
-      catsEl.style.setProperty('--xmb-shift', '0px')
-      const shellRect = shell.getBoundingClientRect()
-      const catRect = activeCat.getBoundingClientRect()
-      const targetX = shellRect.width * 0.2
-      const currentCenter = catRect.left - shellRect.left + catRect.width / 2
-      const catShift = targetX - currentCenter
+      // Pre-transform math — avoid locking rail to mid-transition geometry
+      const targetX = shell.clientWidth * 0.2
+      const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
       catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
-      shell.style.setProperty(
-        '--xmb-rail-x',
-        `${Math.max(24, targetX - activeCat.offsetWidth / 2)}px`,
-      )
+
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      const iconCenterInCat = catIcon
+        ? catIcon.offsetLeft + catIcon.offsetWidth / 2
+        : activeCat.offsetWidth / 2
+      const iconCenterX = activeCat.offsetLeft + iconCenterInCat + catShift
+      const sampleItem =
+        railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]') ??
+        railInner.querySelector<HTMLElement>('.ro-xmb__item')
+      const inset = thumbInsetX(sampleItem)
+      shell.style.setProperty('--xmb-rail-x', `${Math.max(8, iconCenterX - inset)}px`)
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
@@ -416,7 +492,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Align focused item with the category icon row (classic XMB cross).
+        // Y doesn't animate with category shift — getBoundingClientRect is stable.
         const shellRect = shell.getBoundingClientRect()
         const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
         const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
@@ -424,16 +500,48 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         const shift = focusY - offset - activeItem.offsetHeight / 2
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
+    } else if (desktop && activeCat) {
+      const shellRect = shell.getBoundingClientRect()
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
+      const focusY = iconRect.top - shellRect.top + iconRect.height / 2
+      railInner.style.setProperty('--xmb-item-shift', `${Math.max(0, focusY - 24)}px`)
     } else {
       railInner.style.setProperty('--xmb-item-shift', '0px')
     }
 
     if (!desktop && activeCat) {
-      activeCat.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+      activeCat.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      })
     }
   }
 
-  const paint = (opts?: { animateRail?: boolean }) => {
+  const dismissHint = () => {
+    hintEl?.classList.add('ro-xmb__hint--gone')
+  }
+
+  const syncHintCopy = () => {
+    if (!hintEl || hintEl.classList.contains('ro-xmb__hint--gone')) return
+    hintEl.textContent = hintCopy()
+  }
+
+  const paintInfo = (cat: XmbCategory, dir?: 'left' | 'right' | 'up' | 'down') => {
+    infoEl.classList.remove('ro-xmb__info--in', 'ro-xmb__info--from-left', 'ro-xmb__info--from-right')
+    if (dir === 'left') infoEl.classList.add('ro-xmb__info--from-left')
+    if (dir === 'right') infoEl.classList.add('ro-xmb__info--from-right')
+    infoEl.innerHTML = infoMarkup(cat, itemIndex)
+    void infoEl.offsetWidth
+    infoEl.classList.add('ro-xmb__info--in')
+  }
+
+  const paint = (opts?: {
+    animateRail?: boolean
+    railDir?: 'left' | 'right'
+    itemNudge?: 'up' | 'down'
+  }) => {
     const cat = categories[catIndex]
     if (!cat) return
 
@@ -441,21 +549,55 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const on = i === catIndex
       el.dataset.active = on ? 'true' : 'false'
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
+      if (on && opts?.animateRail && !reducedMotion) {
+        el.classList.remove('ro-xmb__cat--settle')
+        void el.offsetWidth
+        el.classList.add('ro-xmb__cat--settle')
+      } else {
+        el.classList.remove('ro-xmb__cat--settle')
+      }
     })
 
-    if (opts?.animateRail) {
+    window.clearTimeout(animTimer)
+    window.clearTimeout(nudgeTimer)
+    if (opts?.animateRail && !reducedMotion) {
       railInner.dataset.anim = ''
+      delete railInner.dataset.dir
       void railInner.offsetWidth
       railInner.dataset.anim = 'in'
-      window.setTimeout(() => {
-        if (railInner.dataset.anim === 'in') railInner.dataset.anim = ''
-      }, 420)
+      if (opts.railDir) railInner.dataset.dir = opts.railDir
+      animTimer = window.setTimeout(() => {
+        if (railInner.dataset.anim === 'in') {
+          railInner.dataset.anim = ''
+          delete railInner.dataset.dir
+        }
+      }, 480)
+    } else {
+      railInner.dataset.anim = ''
+      delete railInner.dataset.dir
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
-    infoEl.innerHTML = infoMarkup(cat, itemIndex)
-    writeSession(catIndex, itemIndex)
-    requestAnimationFrame(syncTransforms)
+
+    if (opts?.itemNudge && !reducedMotion) {
+      const active = railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]')
+      if (active) {
+        active.dataset.nudge = opts.itemNudge
+        nudgeTimer = window.setTimeout(() => {
+          delete active.dataset.nudge
+        }, 280)
+      }
+    }
+
+    const infoDir = opts?.railDir ?? opts?.itemNudge
+    paintInfo(cat, infoDir)
+    persist()
+    requestAnimationFrame(() => {
+      syncTransforms()
+      if (shell.contains(document.activeElement) || document.activeElement === shell) {
+        shell.focus({ preventScroll: true })
+      }
+    })
   }
 
   const activate = () => {
@@ -470,22 +612,67 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (!btn) return
     const id = btn.dataset.roXmbCat
     const next = categories.findIndex((c) => c.id === id)
-    if (next < 0 || next === catIndex) return
+    if (next < 0) return
+    dismissHint()
+    if (next === catIndex) return
+    sfxMove()
+    const railDir = next > catIndex ? 'right' : 'left'
     catIndex = next
     itemIndex = 0
-    paint({ animateRail: true })
+    paint({ animateRail: true, railDir })
   })
 
   railInner.addEventListener('click', (event) => {
     const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('.ro-xmb__item')
     if (!link) return
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
+    event.preventDefault()
     const id = link.dataset.roXmbItem
     const next = categories[catIndex]?.items.findIndex((i) => i.id === id) ?? -1
-    if (next >= 0) {
-      itemIndex = next
-      paint()
-    }
+    if (next < 0) return
+    itemIndex = next
+    persist()
+    dismissHint()
+    sfxConfirm()
+    activate()
   })
+
+  let wheelLock = 0
+  const onWheel = (event: WheelEvent) => {
+    const now = performance.now()
+    if (now < wheelLock) {
+      event.preventDefault()
+      return
+    }
+    const horiz = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey
+    const delta = horiz ? event.deltaX || event.deltaY : event.deltaY
+    if (Math.abs(delta) < 6) return
+    event.preventDefault()
+    wheelLock = now + 150
+    dismissHint()
+    if (horiz) {
+      const next =
+        delta > 0 ? Math.min(categories.length - 1, catIndex + 1) : Math.max(0, catIndex - 1)
+      if (next === catIndex) return
+      sfxMove()
+      const railDir = next > catIndex ? 'right' : 'left'
+      catIndex = next
+      itemIndex = 0
+      paint({ animateRail: true, railDir })
+      return
+    }
+    const count = categories[catIndex]?.items.length ?? 0
+    if (!count) return
+    const next = delta > 0 ? Math.min(count - 1, itemIndex + 1) : Math.max(0, itemIndex - 1)
+    if (next === itemIndex) return
+    sfxMove()
+    const itemNudge = next > itemIndex ? 'down' : 'up'
+    itemIndex = next
+    paint({ itemNudge })
+  }
+  shell.addEventListener('wheel', onWheel, { passive: false })
 
   const unbind = bindXmbFocus(shell, {
     getCategoryCount: () => categories.length,
@@ -493,38 +680,86 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     getCategoryIndex: () => catIndex,
     getItemIndex: () => itemIndex,
     setCategoryIndex: (index) => {
+      dismissHint()
+      if (index === catIndex) return
+      const railDir = index > catIndex ? 'right' : 'left'
       catIndex = index
       itemIndex = 0
-      paint({ animateRail: true })
+      paint({ animateRail: true, railDir })
     },
     setItemIndex: (index) => {
+      dismissHint()
+      if (index === itemIndex) return
+      const itemNudge = index > itemIndex ? 'down' : 'up'
       itemIndex = index
-      paint()
+      paint({ itemNudge })
     },
     confirm: activate,
   })
 
   const tickClock = () => {
     const d = new Date()
-    if (clockEl) clockEl.textContent = formatClock(d)
+    if (clockEl) {
+      const next = formatClock(d)
+      if (clockEl.textContent !== next) {
+        clockEl.textContent = next
+        if (!reducedMotion) {
+          clockEl.classList.remove('ro-xmb__clock-time--tick')
+          void clockEl.offsetWidth
+          clockEl.classList.add('ro-xmb__clock-time--tick')
+        }
+      }
+    }
     if (dateEl) dateEl.textContent = formatClockDate(d)
   }
-  const clockTimer = window.setInterval(tickClock, 30_000)
+  const stopClock = scheduleMinuteClock(tickClock)
 
   const onResize = () => syncTransforms()
   window.addEventListener('resize', onResize)
 
-  paint()
+  const onMotionChange = () => {
+    reducedMotion = motionQuery.matches
+  }
+  motionQuery.addEventListener('change', onMotionChange)
+
+  const modalityObserver = new MutationObserver(syncHintCopy)
+  modalityObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-input'],
+  })
+  syncHintCopy()
+
+  if (!reducedMotion) {
+    shell.dataset.enter = '1'
+    enterTimer = window.setTimeout(() => {
+      delete shell.dataset.enter
+    }, 900)
+  }
+
+  paint({ animateRail: true, railDir: 'right' })
   shell.focus({ preventScroll: true })
+
+  const onSelectStart = (event: Event) => {
+    event.preventDefault()
+  }
+  shell.addEventListener('selectstart', onSelectStart)
 
   cleanup = () => {
     unbind()
-    window.clearInterval(clockTimer)
+    stopClock()
+    window.clearTimeout(animTimer)
+    window.clearTimeout(nudgeTimer)
+    window.clearTimeout(enterTimer)
+    modalityObserver.disconnect()
+    motionQuery.removeEventListener('change', onMotionChange)
     window.removeEventListener('resize', onResize)
+    shell.removeEventListener('wheel', onWheel)
+    shell.removeEventListener('selectstart', onSelectStart)
   }
 }
 
 export function disposeXmb(): void {
+  renderGen += 1
   cleanup?.()
   cleanup = null
 }

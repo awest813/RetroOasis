@@ -2,6 +2,15 @@
 
 type Cleanup = () => void
 
+let waveActive = true
+let wakeWave: (() => void) | null = null
+
+/** Pause drawing when the XMB shell is not showing. */
+export function setWaveActive(on: boolean): void {
+  waveActive = on
+  if (on) wakeWave?.()
+}
+
 export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   const ctx = canvas.getContext('2d')
   if (!ctx) return () => undefined
@@ -11,6 +20,7 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   let width = 0
   let height = 0
   let dpr = 1
+  let wasActive = true
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const resize = () => {
@@ -27,8 +37,58 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
     return styles.getPropertyValue('--ro-accent').trim() || '#2ee6d6'
   }
 
+  const drawRibbon = (
+    t: number,
+    band: { amp: number; len: number; speed: number; y: number; alpha: number },
+    color: string,
+  ) => {
+    const points: { x: number; y: number }[] = []
+    for (let x = 0; x <= width; x += 3) {
+      const y =
+        band.y +
+        Math.sin(x * band.len + t * band.speed) * band.amp +
+        Math.sin(x * band.len * 0.42 - t * band.speed * 0.65) * (band.amp * 0.4) +
+        Math.sin(x * band.len * 1.7 + t * band.speed * 0.25) * (band.amp * 0.12)
+      points.push({ x, y })
+    }
+
+    // Soft filled ribbon body
+    ctx.beginPath()
+    ctx.moveTo(points[0].x, points[0].y)
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y)
+    for (let i = points.length - 1; i >= 0; i--) {
+      ctx.lineTo(points[i].x, points[i].y + 48)
+    }
+    ctx.closePath()
+    const fill = ctx.createLinearGradient(0, band.y - band.amp, 0, band.y + 70)
+    fill.addColorStop(0, color)
+    fill.addColorStop(0.45, color)
+    fill.addColorStop(1, 'transparent')
+    ctx.globalAlpha = band.alpha * 0.22
+    ctx.fillStyle = fill
+    ctx.fill()
+
+    // Bright crest stroke
+    ctx.beginPath()
+    ctx.moveTo(points[0].x, points[0].y)
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y)
+    ctx.strokeStyle = color
+    ctx.globalAlpha = band.alpha
+    ctx.lineWidth = 1.6
+    ctx.stroke()
+  }
+
   const draw = (t: number) => {
     if (!running) return
+    if (!waveActive) {
+      if (wasActive) {
+        ctx.clearRect(0, 0, width, height)
+        wasActive = false
+      }
+      raf = 0
+      return
+    }
+    wasActive = true
     raf = requestAnimationFrame(draw)
     if (!width || !height) return
 
@@ -37,37 +97,36 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
 
     const color = accent()
     const bands = [
-      { amp: 18, len: 0.008, speed: 0.55, y: height * 0.42, alpha: 0.16, width: 1.4 },
-      { amp: 28, len: 0.0065, speed: 0.38, y: height * 0.5, alpha: 0.22, width: 1.8 },
-      { amp: 36, len: 0.0052, speed: 0.28, y: height * 0.58, alpha: 0.18, width: 2.2 },
-      { amp: 22, len: 0.009, speed: 0.48, y: height * 0.66, alpha: 0.12, width: 1.2 },
+      { amp: 16, len: 0.0075, speed: 0.42, y: height * 0.4, alpha: 0.14 },
+      { amp: 26, len: 0.006, speed: 0.3, y: height * 0.48, alpha: 0.2 },
+      { amp: 34, len: 0.0048, speed: 0.22, y: height * 0.56, alpha: 0.17 },
+      { amp: 20, len: 0.0085, speed: 0.36, y: height * 0.64, alpha: 0.11 },
+      { amp: 14, len: 0.01, speed: 0.5, y: height * 0.72, alpha: 0.08 },
     ]
 
-    for (const band of bands) {
-      ctx.beginPath()
-      for (let x = 0; x <= width; x += 4) {
-        const y =
-          band.y +
-          Math.sin(x * band.len + time * band.speed) * band.amp +
-          Math.sin(x * band.len * 0.45 - time * band.speed * 0.7) * (band.amp * 0.35)
-        if (x === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.strokeStyle = color
-      ctx.globalAlpha = band.alpha
-      ctx.lineWidth = band.width
-      ctx.stroke()
+    for (const band of bands) drawRibbon(time, band, color)
 
-      // soft fill under wave
-      ctx.lineTo(width, height)
-      ctx.lineTo(0, height)
-      ctx.closePath()
-      ctx.globalAlpha = band.alpha * 0.25
-      ctx.fillStyle = color
-      ctx.fill()
-    }
+    // Soft ambient glow along the mid band
+    const glow = ctx.createRadialGradient(
+      width * 0.35,
+      height * 0.55,
+      20,
+      width * 0.45,
+      height * 0.58,
+      width * 0.55,
+    )
+    glow.addColorStop(0, color)
+    glow.addColorStop(1, 'transparent')
+    ctx.globalAlpha = 0.05
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, width, height)
 
     ctx.globalAlpha = 1
+  }
+
+  wakeWave = () => {
+    if (!running || raf) return
+    raf = requestAnimationFrame(draw)
   }
 
   resize()
@@ -76,6 +135,7 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
 
   return () => {
     running = false
+    wakeWave = null
     cancelAnimationFrame(raf)
     window.removeEventListener('resize', resize)
   }
