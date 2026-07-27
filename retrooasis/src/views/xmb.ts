@@ -14,6 +14,7 @@ import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
+import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
 
 type Cleanup = () => void
 
@@ -75,12 +76,16 @@ function writeSession(cat: number, item: number): void {
 }
 
 function gameBlurb(game: Game, platformName: string): string {
+  if (game.description?.trim()) return game.description.trim()
   const bits: string[] = []
   if (game.year) bits.push(String(game.year))
   if (game.developer) bits.push(game.developer)
   if (bits.length) return bits.join(' · ')
-  if (game.description) return game.description
-  return `${platformName} title`
+  const tags = (game.tags ?? []).filter((t) => t && t !== 'demo')
+  if (game.demo && tags.length) return `Sample · ${tags.join(' · ')}`
+  if (game.demo) return `Sample ${platformName} entry — open for details.`
+  if (tags.length) return tags.join(' · ')
+  return `Open for details and play on ${platformName}.`
 }
 
 function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
@@ -97,24 +102,6 @@ function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
     accent,
     cover,
     blurb: gameBlurb(game, platformName),
-  }
-}
-
-function iconSvg(kind: string, short: string): string {
-  const common = 'viewBox="0 0 32 32" aria-hidden="true" focusable="false"'
-  switch (kind) {
-    case 'home':
-      return `<svg ${common}><path fill="currentColor" d="M16 5 4 14v13h8v-8h8v8h8V14z"/></svg>`
-    case 'recent':
-      return `<svg ${common}><path fill="none" stroke="currentColor" stroke-width="2.2" d="M16 7a9 9 0 1 1-7.4 3.8"/><path fill="currentColor" d="M15 11h2v6l4 2-1 1.7-5-2.7z"/><path fill="currentColor" d="M7 10h5v2H8.2l1.6 1.6-1.4 1.4L5 11.6z"/></svg>`
-    case 'favorites':
-      return `<svg ${common}><path fill="currentColor" d="m16 5.5 2.9 6.2 6.8.7-5.1 4.5 1.5 6.6L16 20.3 9.9 23.5l1.5-6.6-5.1-4.5 6.8-.7z"/></svg>`
-    case 'add':
-      return `<svg ${common}><path fill="currentColor" d="M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z"/></svg>`
-    case 'settings':
-      return `<svg ${common}><path fill="currentColor" d="M13.2 4h5.6l.7 3.2 3-.9 2.8 4.8-2.3 2.1.9 2.8-2.8.9v3.2l2.8.9-.9 2.8 2.3 2.1-2.8 4.8-3-.9-.7 3.2h-5.6l-.7-3.2-3 .9-2.8-4.8 2.3-2.1-.9-2.8 2.8-.9v-3.2l-2.8-.9.9-2.8-2.3-2.1 2.8-4.8 3 .9zm2.8 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>`
-    default:
-      return `<span class="ro-xmb__cat-text">${escapeHtml(short)}</span>`
   }
 }
 
@@ -170,14 +157,14 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'home',
       label: 'Home',
-      icon: iconSvg('home', 'HOME'),
+      icon: xmbCategoryIcon('home'),
       accent: 'var(--ro-accent)',
       items: homeItems,
     },
     {
       id: 'recent',
       label: 'Recent',
-      icon: iconSvg('recent', 'REC'),
+      icon: xmbCategoryIcon('recent'),
       accent: 'var(--ro-accent)',
       items: recentGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'Nothing played yet. Open a game and it will show up here.',
@@ -185,7 +172,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     {
       id: 'favorites',
       label: 'Favorites',
-      icon: iconSvg('favorites', 'FAV'),
+      icon: xmbCategoryIcon('favorites'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
       empty: 'No favorites yet. Star a game from its details page.',
@@ -200,7 +187,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'add',
     label: 'Add',
-    icon: iconSvg('add', 'ADD'),
+    icon: xmbCategoryIcon('add'),
     accent: 'var(--ro-accent)',
     items: [
       {
@@ -219,7 +206,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
   categories.push({
     id: 'settings',
     label: 'Settings',
-    icon: iconSvg('settings', 'SET'),
+    icon: xmbCategoryIcon('settings'),
     accent: 'var(--ro-text-dim)',
     items: [
       {
@@ -244,11 +231,10 @@ function platformCategory(
   useLibretro: boolean,
 ): XmbCategory {
   const games = gamesForPlatform(catalog, platform.id)
-  const short = platform.shortName.slice(0, 4).toUpperCase()
   return {
     id: `plat:${platform.id}`,
     label: platform.shortName,
-    icon: iconSvg('platform', short),
+    icon: xmbPlatformIcon(platform.id, platform.shortName),
     accent: platformAccentVar(platform.accent),
     items: games.map((g) => gameItem(g, catalog, useLibretro)),
   }

@@ -17,8 +17,9 @@
   --ro-grid: rgba(46, 230, 214, 0.12);
   --ro-focus: var(--ro-accent-sega);
   --ro-radius: 2px;
-  --ro-font-display: "Press Start 2P", ui-monospace, monospace;
-  --ro-font-ui: "Chakra Petch", system-ui, sans-serif;
+  --ro-font-display: "Outfit", system-ui, sans-serif;
+  --ro-font-ui: "Sora", system-ui, sans-serif;
+  --ro-font-mono: ui-monospace, "Cascadia Code", monospace;
   --ro-space: clamp(0.9rem, 2.2vw, 1.75rem);
   --ro-max: 72rem;
   --ro-max-library: 96rem;

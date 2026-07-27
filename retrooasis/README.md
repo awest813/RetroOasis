@@ -1,6 +1,6 @@
 # RetroOasis
 
-Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Home is an XMB-style cross menu (horizontal categories, vertical titles) over a wave backdrop; the grid Library and Settings remain as leaf views. Designed to deploy as plain static files, with PWA install support.
+Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Home is an XMB-style cross menu (Outfit/Sora type, glass category icons, wave backdrop); the grid Library and Settings remain as leaf views. Designed to deploy as plain static files, with PWA install support.
 
 ## Quick start
 
