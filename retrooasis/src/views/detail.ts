@@ -31,9 +31,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   if (!game) {
     root.innerHTML = `
       <section class="ro-view">
-        <p class="ro-kicker">404</p>
-        <h1 class="ro-title">Game not found</h1>
-        <p class="ro-lede"><a href="${hrefFor('/')}">Back home</a> · <a href="${hrefFor('/library')}">Library</a></p>
+        <div class="ro-empty">
+          <p class="ro-empty__title">Game not found</p>
+          <p class="ro-empty__body">That title isn’t on this shelf anymore.</p>
+          <div class="ro-btn-row ro-btn-row--center">
+            <a class="ro-btn" href="${hrefFor('/')}">Home</a>
+            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+          </div>
+        </div>
       </section>
     `
     return
@@ -117,7 +122,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${
               game.demo
                 ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Try path</button>`
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">Test missing file</button>`
                 : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>`
             }
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">

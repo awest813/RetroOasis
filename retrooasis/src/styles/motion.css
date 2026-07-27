@@ -9,6 +9,15 @@
   }
 }
 
+@keyframes ro-loading-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+
 .ro-view {
   animation: ro-fade-up 280ms ease both;
 }
@@ -16,7 +25,8 @@
 @media (prefers-reduced-motion: reduce) {
   .ro-view,
   .ro-cover,
-  .ro-btn {
+  .ro-btn,
+  .ro-loading__bar::after {
     animation: none !important;
     transition: none !important;
   }

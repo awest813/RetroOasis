@@ -41,6 +41,7 @@ initPwaInstall()
 registerServiceWorker()
 
 app.innerHTML = `
+  <a class="ro-skip" href="#ro-main">Skip to shelf</a>
   <div class="ro-shell">
     <div class="ro-wave" aria-hidden="true">
       <canvas class="ro-wave__canvas" id="ro-wave-canvas"></canvas>
@@ -79,6 +80,7 @@ main.innerHTML = `
   <section class="ro-view ro-loading" aria-busy="true" aria-live="polite">
     <p class="ro-kicker">RetroOasis</p>
     <p class="ro-loading__label">Loading your shelf…</p>
+    <div class="ro-loading__bar" aria-hidden="true"></div>
   </section>
 `
 
@@ -179,9 +181,14 @@ async function render(route: Route): Promise<void> {
       main.focus({ preventScroll: true })
       main.innerHTML = `
         <section class="ro-view">
-          <p class="ro-kicker">Lost in the oasis</p>
-          <h1 class="ro-title">404</h1>
-          <p class="ro-lede"><a href="${hrefFor('/')}">Return home</a></p>
+          <div class="ro-empty">
+            <p class="ro-empty__title">Lost in the oasis</p>
+            <p class="ro-empty__body">That route isn’t on the shelf. Head home or browse the library.</p>
+            <div class="ro-btn-row ro-btn-row--center">
+              <a class="ro-btn ro-btn--primary" href="${hrefFor('/')}">Home</a>
+              <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+            </div>
+          </div>
         </section>
       `
   }
