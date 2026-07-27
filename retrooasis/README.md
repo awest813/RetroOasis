@@ -1,6 +1,6 @@
 # RetroOasis
 
-Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Themed like a 90s PlayStation / Sega arcade cabinet. Designed to deploy as plain static files, with PWA install support planned next.
+Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Home is an XMB-style cross menu (horizontal categories, vertical titles) over a wave backdrop; the grid Library and Settings remain as leaf views. Designed to deploy as plain static files, with PWA install support.
 
 ## Quick start
 
@@ -34,7 +34,7 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 3. Place EmulatorJS **`data/`** next to the built site (same origin path `/data/…`)
 4. Place your ROMs under **`roms/<platform>/…`** and list them in `catalog/games.json` (copied into `dist/catalog/` at build time)
 
-Hash routing (`#/library`, `#/game/…`) means no server rewrite rules are required (GitHub Pages, S3, nginx `try_files`, etc. all work).
+Hash routing (`#/`, `#/library`, `#/game/…`) means no server rewrite rules are required (GitHub Pages, S3, nginx `try_files`, etc. all work). `#/` is the XMB home shell; `#/library` is the classic grid browser.
 
 ### GitHub Pages
 

@@ -14,7 +14,8 @@ import {
   registerServiceWorker,
 } from './lib/pwa'
 import { installInputChrome } from './lib/input'
-import { renderLobby } from './views/lobby'
+import { mountWave } from './lib/wave'
+import { disposeXmb, renderXmb } from './views/xmb'
 import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
@@ -23,6 +24,7 @@ import { renderSettings } from './views/settings'
 import './styles/tokens.css'
 import './styles/base.css'
 import './styles/motion.css'
+import './styles/xmb.css'
 
 const appEl = document.querySelector<HTMLDivElement>('#app')
 if (!appEl) {
@@ -39,6 +41,10 @@ registerServiceWorker()
 
 app.innerHTML = `
   <div class="ro-shell">
+    <div class="ro-wave" aria-hidden="true">
+      <canvas class="ro-wave__canvas" id="ro-wave-canvas"></canvas>
+      <div class="ro-wave__fade"></div>
+    </div>
     <div class="ro-crt" aria-hidden="true"></div>
     <header class="ro-topbar">
       <a class="ro-brand" href="${hrefFor('/')}">
@@ -48,7 +54,7 @@ app.innerHTML = `
       <div class="ro-topbar__right">
         <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" hidden>Install</button>
         <nav class="ro-nav" aria-label="Primary">
-          <a data-nav="lobby" href="${hrefFor('/')}">Lobby</a>
+          <a data-nav="lobby" href="${hrefFor('/')}">Home</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
           <a data-nav="upload" href="${hrefFor('/upload')}">Add ROM</a>
           <a data-nav="settings" href="${hrefFor('/settings')}">Settings</a>
@@ -59,6 +65,10 @@ app.innerHTML = `
     <footer class="ro-footer">RetroOasis · your static ROM shelf · powered by EmulatorJS</footer>
   </div>
 `
+
+const shellEl = app.querySelector<HTMLElement>('.ro-shell')
+const waveCanvas = app.querySelector<HTMLCanvasElement>('#ro-wave-canvas')
+if (waveCanvas) mountWave(waveCanvas)
 
 const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
@@ -101,39 +111,52 @@ function syncNav(route: Route): void {
   })
 }
 
+function syncShellMode(route: Route): void {
+  const xmb = route.name === 'lobby'
+  shellEl?.classList.toggle('ro-shell--xmb', xmb)
+  if (!xmb) disposeXmb()
+}
+
 async function render(route: Route): Promise<void> {
   syncNav(route)
+  syncShellMode(route)
   syncInstallButton()
-  main.focus({ preventScroll: true })
 
   switch (route.name) {
     case 'lobby':
-      await renderLobby(main)
+      await renderXmb(main)
       break
     case 'library':
+      main.focus({ preventScroll: true })
       await renderLibrary(main)
       break
     case 'platform':
+      main.focus({ preventScroll: true })
       await renderLibrary(main, { kind: 'platform', id: route.platformId })
       break
     case 'collection':
+      main.focus({ preventScroll: true })
       await renderCollection(main, route.collection)
       break
     case 'game':
+      main.focus({ preventScroll: true })
       await renderGameDetail(main, route.gameId)
       break
     case 'upload':
+      main.focus({ preventScroll: true })
       renderUpload(main)
       break
     case 'settings':
+      main.focus({ preventScroll: true })
       await renderSettings(main)
       break
     default:
+      main.focus({ preventScroll: true })
       main.innerHTML = `
         <section class="ro-view">
           <p class="ro-kicker">Lost in the oasis</p>
           <h1 class="ro-title">404</h1>
-          <p class="ro-lede"><a href="${hrefFor('/')}">Return to lobby</a></p>
+          <p class="ro-lede"><a href="${hrefFor('/')}">Return home</a></p>
         </section>
       `
   }
