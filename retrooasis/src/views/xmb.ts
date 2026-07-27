@@ -15,6 +15,7 @@ import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
 import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
+import { getInputModality } from '../lib/inputModality'
 import { sfxConfirm } from '../lib/sfx'
 
 type Cleanup = () => void
@@ -343,11 +344,41 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
 }
 
 function formatClock(date: Date): string {
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const h = date.getHours()
+  const m = date.getMinutes()
+  const hour12 = h % 12 || 12
+  return `${hour12}:${String(m).padStart(2, '0')}`
 }
 
 function formatClockDate(date: Date): string {
-  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`
+}
+
+function hintCopy(): string {
+  return getInputModality() === 'pad'
+    ? 'D-pad move · A open · B back'
+    : '← → categories · ↑ ↓ items · Enter open'
+}
+
+function scheduleMinuteClock(tick: () => void): () => void {
+  let timeout = 0
+  let interval = 0
+  const arm = () => {
+    tick()
+    const now = Date.now()
+    const delay = 60_000 - (now % 60_000) + 50
+    timeout = window.setTimeout(() => {
+      tick()
+      interval = window.setInterval(tick, 60_000)
+    }, delay)
+  }
+  arm()
+  return () => {
+    window.clearTimeout(timeout)
+    window.clearInterval(interval)
+  }
 }
 
 export async function renderXmb(root: HTMLElement): Promise<void> {
@@ -386,7 +417,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       <aside class="ro-xmb__info" aria-live="polite">
         ${infoMarkup(categories[catIndex], itemIndex)}
       </aside>
-      <p class="ro-xmb__hint">← → categories · ↑ ↓ items · Enter open</p>
+      <p class="ro-xmb__hint" data-ro-xmb-hint>${escapeHtml(hintCopy())}</p>
     </section>
   `
 
@@ -398,7 +429,18 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const infoEl = shell.querySelector<HTMLElement>('.ro-xmb__info')
   const clockEl = shell.querySelector<HTMLElement>('[data-ro-xmb-clock]')
   const dateEl = shell.querySelector<HTMLElement>('[data-ro-xmb-date]')
+  const hintEl = shell.querySelector<HTMLElement>('[data-ro-xmb-hint]')
   if (!catsEl || !railInner || !infoEl) return
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const thumbInsetX = (item: HTMLElement | null): number => {
+    if (!item) return 28
+    const thumb = item.querySelector<HTMLElement>('.ro-xmb__item-thumb')
+    if (!thumb) return 28
+    const padL = Number.parseFloat(getComputedStyle(item).paddingLeft) || 0
+    return padL + thumb.offsetWidth / 2
+  }
 
   const syncTransforms = () => {
     const desktop = window.matchMedia('(min-width: 901px)').matches
@@ -409,7 +451,17 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const targetX = shell.clientWidth * 0.2
       const catCenter = activeCat.offsetLeft + activeCat.offsetWidth / 2
       catsEl.style.setProperty('--xmb-shift', `${targetX - catCenter}px`)
-      shell.style.setProperty('--xmb-rail-x', `${Math.max(16, targetX - 28)}px`)
+      void catsEl.offsetWidth
+
+      const shellRect = shell.getBoundingClientRect()
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
+      const iconCenterX = iconRect.left - shellRect.left + iconRect.width / 2
+      const sampleItem =
+        railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]') ??
+        railInner.querySelector<HTMLElement>('.ro-xmb__item')
+      const inset = thumbInsetX(sampleItem)
+      shell.style.setProperty('--xmb-rail-x', `${Math.max(8, iconCenterX - inset)}px`)
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
@@ -442,12 +494,21 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     if (!desktop && activeCat) {
-      activeCat.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+      activeCat.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      })
     }
   }
 
   const dismissHint = () => {
-    shell.querySelector('.ro-xmb__hint')?.classList.add('ro-xmb__hint--gone')
+    hintEl?.classList.add('ro-xmb__hint--gone')
+  }
+
+  const syncHintCopy = () => {
+    if (!hintEl || hintEl.classList.contains('ro-xmb__hint--gone')) return
+    hintEl.textContent = hintCopy()
   }
 
   const paintInfo = (cat: XmbCategory) => {
@@ -545,17 +606,25 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (clockEl) clockEl.textContent = formatClock(d)
     if (dateEl) dateEl.textContent = formatClockDate(d)
   }
-  const clockTimer = window.setInterval(tickClock, 30_000)
+  const stopClock = scheduleMinuteClock(tickClock)
 
   const onResize = () => syncTransforms()
   window.addEventListener('resize', onResize)
+
+  const modalityObserver = new MutationObserver(syncHintCopy)
+  modalityObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-input'],
+  })
+  syncHintCopy()
 
   paint()
   shell.focus({ preventScroll: true })
 
   cleanup = () => {
     unbind()
-    window.clearInterval(clockTimer)
+    stopClock()
+    modalityObserver.disconnect()
     window.removeEventListener('resize', onResize)
   }
 }
