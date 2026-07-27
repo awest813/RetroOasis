@@ -238,6 +238,11 @@ export function isCoverFile(filename: string): boolean {
   return !!ext && COVER_EXTENSIONS.has(ext)
 }
 
+/** Comma-separated accept list for `<input type="file">`. */
+export function romFileAccept(): string {
+  return [...ROM_EXTENSIONS].map((ext) => `.${ext}`).sort().join(',')
+}
+
 export function titleFromFilename(filename: string): string {
   const base = filename.replace(/\.[^.]+$/, '')
   return (

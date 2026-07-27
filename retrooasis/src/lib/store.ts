@@ -157,7 +157,9 @@ export function setSoundPack(pack: SoundPack): void {
 }
 
 export function getLibretroCovers(): boolean {
-  return localStorage.getItem(LIBRETRO_COVERS_KEY) !== '0'
+  // Opt-in: Libretro CDN images are blocked under COEP (SharedArrayBuffer),
+  // so defaulting on floods the console and never paints covers.
+  return localStorage.getItem(LIBRETRO_COVERS_KEY) === '1'
 }
 
 export function setLibretroCovers(enabled: boolean): void {

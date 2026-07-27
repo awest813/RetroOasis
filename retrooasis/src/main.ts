@@ -18,7 +18,8 @@ import {
 } from './lib/pwa'
 import { installInputChrome } from './lib/input'
 import { mountWave, setWaveActive } from './lib/wave'
-import { disposeActiveView } from './lib/viewLifecycle'
+import { disposeActiveView, registerViewCleanup } from './lib/viewLifecycle'
+import { bindGridFocus } from './lib/focus'
 import { disposeXmb, clearXmbSession, renderXmb } from './views/xmb'
 import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
@@ -167,6 +168,7 @@ async function render(route: Route): Promise<void> {
   syncNav(route)
   syncShellMode(route)
   syncInstallButton()
+  syncDocumentTitle(route)
 
   switch (route.name) {
     case 'lobby':
@@ -204,12 +206,44 @@ async function render(route: Route): Promise<void> {
             <p class="ro-empty__title">Lost in the oasis</p>
             <p class="ro-empty__body">That route isn’t on the shelf. Head home or browse the library.</p>
             <div class="ro-btn-row ro-btn-row--center">
-              <a class="ro-btn ro-btn--primary" href="${hrefFor('/')}">Home</a>
-              <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+              <a class="ro-btn ro-btn--primary" href="${hrefFor('/')}" data-ro-focusable="true">Home</a>
+              <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}" data-ro-focusable="true">Library</a>
             </div>
           </div>
         </section>
       `
+      {
+        const empty = main.querySelector<HTMLElement>('.ro-empty')
+        if (empty) registerViewCleanup(bindGridFocus(empty))
+        main.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
+      }
+  }
+}
+
+function syncDocumentTitle(route: Route): void {
+  const base = 'RetroOasis'
+  switch (route.name) {
+    case 'lobby':
+      document.title = `${base} · Home`
+      break
+    case 'library':
+    case 'collection':
+      document.title = `${base} · Library`
+      break
+    case 'platform':
+      document.title = `${base} · ${route.platformId}`
+      break
+    case 'game':
+      document.title = `${base} · Game`
+      break
+    case 'upload':
+      document.title = `${base} · Add ROM`
+      break
+    case 'settings':
+      document.title = `${base} · Settings`
+      break
+    default:
+      document.title = `${base} · Not found`
   }
 }
 

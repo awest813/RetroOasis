@@ -34,10 +34,13 @@ export async function renderLibrary(
   let favorites = getFavorites()
   const recents = getRecents()
 
-  const ordered = [...catalog.platforms].sort((a, b) => {
-    const diff = (counts[b.id] ?? 0) - (counts[a.id] ?? 0)
-    return diff !== 0 ? diff : a.name.localeCompare(b.name)
-  })
+  // Match Home: only list systems that currently have titles.
+  const ordered = [...catalog.platforms]
+    .filter((p) => (counts[p.id] ?? 0) > 0)
+    .sort((a, b) => {
+      const diff = (counts[b.id] ?? 0) - (counts[a.id] ?? 0)
+      return diff !== 0 ? diff : a.name.localeCompare(b.name)
+    })
 
   const sel = normalizeSelection(selection)
 
@@ -47,10 +50,13 @@ export async function renderLibrary(
         <div class="ro-empty">
           <p class="ro-empty__title">System not found</p>
           <p class="ro-empty__body">That platform isn’t in your catalog.</p>
-          <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Back to library</a>
+          <a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Back to library</a>
         </div>
       </section>
     `
+    const empty = root.querySelector<HTMLElement>('.ro-empty')
+    if (empty) registerViewCleanup(bindGridFocus(empty))
+    root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
     return
   }
 
@@ -233,11 +239,15 @@ export async function renderLibrary(
     const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
     const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
     const empty = root.querySelector<HTMLElement>('.ro-empty')
+    const onboard = root.querySelector<HTMLElement>('.ro-onboard')
+    const actions = root.querySelector<HTMLElement>('.ro-systems__actions')
     const cleanups: Array<() => void> = []
     if (systems) cleanups.push(bindGridFocus(systems))
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
     if (empty) cleanups.push(bindGridFocus(empty))
+    if (onboard) cleanups.push(bindGridFocus(onboard))
+    if (actions) cleanups.push(bindGridFocus(actions))
     cleanup = () => {
       window.clearTimeout(searchTimer)
       cleanups.forEach((fn) => fn())
@@ -319,8 +329,8 @@ function emptyState(sel: LibrarySelection): string {
   if (sel.kind === 'collection' && sel.id === 'recent') {
     return `
       <div class="ro-empty">
-        <p class="ro-empty__title">No recent plays</p>
-        <p class="ro-empty__body">Launch a title from any system shelf and it will show up here.</p>
+        <p class="ro-empty__title">Nothing played yet</p>
+        <p class="ro-empty__body">Open a game and it will show up here.</p>
         <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
@@ -328,7 +338,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
-        <p class="ro-empty__body">Open a game or tap ★ on a tile to pin it on this shelf.</p>
+        <p class="ro-empty__body">Star a game from the library grid or its details page.</p>
         <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }

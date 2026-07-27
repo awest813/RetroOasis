@@ -124,7 +124,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       <header class="ro-settings-page__head">
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Settings</p>
         <h1 class="ro-title">Settings</h1>
-        <p class="ro-lede">Cabinet prefs stay on this device.</p>
+        <p class="ro-lede">Look, sound, and library prefs stay on this device.</p>
       </header>
 
       <div class="ro-settings" data-ro-settings>
@@ -226,7 +226,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Online box art</strong>
-              <p class="ro-muted">Fill missing covers from Libretro when available.</p>
+              <p class="ro-muted">Try Libretro covers for missing art. Often blocked by the emulator’s isolation headers — local covers still work.</p>
             </div>
             <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Online box art">${libretro ? 'On' : 'Off'}</button>
           </div>
@@ -326,7 +326,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Clear recents &amp; favorites</strong>
               <p class="ro-muted">Recently played and favorites on this device.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear recents</button>
+            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear both</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -477,10 +477,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     const restore =
       (restoreId
         ? focusRoot.querySelector<HTMLElement>(
-            `[data-focus-id="${CSS.escape(restoreId)}"]:not([disabled])`,
+            `[data-focus-id="${CSS.escape(restoreId)}"]:not([disabled]):not([aria-disabled="true"])`,
           )
         : null) ??
-      focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]:not([disabled])')
+      focusRoot.querySelector<HTMLElement>(
+        '[data-ro-focusable="true"]:not([disabled]):not([aria-disabled="true"])',
+      )
     if (restore) {
       restore.focus({ preventScroll: true })
       if (restoreScroll != null) {

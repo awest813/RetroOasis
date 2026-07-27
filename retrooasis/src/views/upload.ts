@@ -1,4 +1,9 @@
-import { UPLOAD_CORE_OPTIONS, coreFromExtension } from '../lib/cores'
+import {
+  UPLOAD_CORE_OPTIONS,
+  coreFromExtension,
+  isRomFile,
+  romFileAccept,
+} from '../lib/cores'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
 import { getEjsChannel, pushRecent } from '../lib/store'
@@ -59,7 +64,7 @@ export function renderUpload(root: HTMLElement): void {
       </p>
       <div class="ro-stack ro-upload__stack">
         <label class="ro-muted" for="ro-core">System</label>
-        <select id="ro-core" class="ro-input">
+        <select id="ro-core" class="ro-input" data-ro-focusable="true">
           ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
         <p class="ro-muted ro-upload__hint" id="ro-core-hint">${CORE_EXT_HINTS.auto}</p>
@@ -75,8 +80,8 @@ export function renderUpload(root: HTMLElement): void {
           <strong class="ro-drop__title" id="ro-drop-title">Drop ROM here</strong>
           <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose a file</span>
         </div>
-        <input id="ro-file" type="file" hidden />
-        <p class="ro-muted ro-upload__status" id="ro-status">
+        <input id="ro-file" type="file" accept="${romFileAccept()}" hidden />
+        <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite">
           Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
         </p>
         <div class="ro-btn-row">
@@ -118,6 +123,7 @@ export function renderUpload(root: HTMLElement): void {
     busy = next
     drop?.classList.toggle('ro-drop--busy', next)
     drop?.toggleAttribute('aria-busy', next)
+    drop?.setAttribute('aria-disabled', next ? 'true' : 'false')
     if (coreSelect) coreSelect.disabled = next
     if (drop) drop.tabIndex = next ? -1 : 0
     setDropCopy(next ? 'busy' : 'idle')
@@ -135,7 +141,22 @@ export function renderUpload(root: HTMLElement): void {
     if (!coreSelect || busy) return
     let core = coreSelect.value
     if (core === 'auto') {
-      core = coreFromExtension(file.name) || 'nes'
+      if (!isRomFile(file.name)) {
+        if (status) {
+          status.textContent =
+            'That file type isn’t recognized. Pick a system above, or use a common ROM extension.'
+        }
+        return
+      }
+      const detected = coreFromExtension(file.name)
+      if (!detected) {
+        if (status) {
+          status.textContent =
+            'Couldn’t auto-detect that ROM. Choose a system from the list, then try again.'
+        }
+        return
+      }
+      core = detected
     }
 
     setBusy(true)

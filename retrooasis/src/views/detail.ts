@@ -17,11 +17,12 @@ import {
   getOverride,
   setOverride,
 } from '../lib/overrides'
-import { sfxConfirm, sfxToggle } from '../lib/sfx'
+import { sfxToggle } from '../lib/sfx'
 import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
 import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
+import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
@@ -35,12 +36,15 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <p class="ro-empty__title">Game not found</p>
           <p class="ro-empty__body">That title isn’t on this shelf anymore.</p>
           <div class="ro-btn-row ro-btn-row--center">
-            <a class="ro-btn" href="${hrefFor('/')}">Home</a>
-            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+            <a class="ro-btn ro-btn--primary" href="${hrefFor('/')}" data-ro-focusable="true">Home</a>
+            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}" data-ro-focusable="true">Library</a>
           </div>
         </div>
       </section>
     `
+    const empty = root.querySelector<HTMLElement>('.ro-empty')
+    if (empty) registerViewCleanup(bindGridFocus(empty))
+    root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
     return
   }
 
@@ -70,6 +74,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     const threadBadge = coreNeedsThreads(playCore)
       ? '<span class="ro-badge">Threads</span>'
       : ''
+    const libraryHref = platform
+      ? hrefFor(`/library/${platform.id}`)
+      : hrefFor('/library')
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
@@ -125,7 +132,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">See missing-ROM message</button>`
                 : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}" aria-label="${favorited ? 'Remove from favorites' : 'Add to favorites'}">
               ${favorited ? '★ Favorited' : 'Favorite'}
             </button>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-edit" data-ro-focusable="true">
@@ -136,6 +143,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-remove-upload" data-ro-focusable="true">Remove</button>`
                 : ''
             }
+            <a class="ro-btn ro-btn--ghost" href="${libraryHref}" data-ro-focusable="true">Back to shelf</a>
           </div>
           ${
             editing
@@ -147,9 +155,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               <label class="ro-muted">Cover URL <input class="ro-input" name="cover" value="${escapeAttr(over?.cover ?? game.cover ?? '')}" /></label>
               <label class="ro-muted">Description <textarea class="ro-input" name="description" rows="3">${escapeHtml(over?.description ?? game.description ?? '')}</textarea></label>
               <div class="ro-btn-row">
-                <button type="submit" class="ro-btn ro-btn--primary">Save locally</button>
-                <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over">Clear override</button>
-                <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over">Export all</button>
+                <button type="submit" class="ro-btn ro-btn--primary" data-ro-focusable="true">Save locally</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over" data-ro-focusable="true">Clear override</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-ro-focusable="true">Export all</button>
               </div>
               <p class="ro-muted">Edits stay on this device. Export JSON if you want to reuse them as sidecars or manifest fields.</p>
             </form>`
@@ -162,7 +170,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     hydrateCovers(root)
 
     root.querySelector('#ro-play')?.addEventListener('click', async () => {
-      sfxConfirm()
       busy = true
       paint()
       const status = root.querySelector<HTMLElement>('#ro-play-status')
@@ -190,7 +197,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
 
     root.querySelector('#ro-remove-upload')?.addEventListener('click', async () => {
-      if (!window.confirm(`Remove “${game.title}” from your library on this device?`)) return
+      if (!window.confirm(`Remove “${game.title}” from your library on this device?`)) {
+        suppressPadBackUntilRelease()
+        return
+      }
+      suppressPadBackUntilRelease()
       try {
         await removeUploadedRom(game.id)
         forgetGameId(game.id)
@@ -239,9 +250,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       URL.revokeObjectURL(url)
     })
 
-    const actions = root.querySelector<HTMLElement>('.ro-detail__actions')
-    if (actions) {
-      focusCleanup = bindGridFocus(actions)
+    const focusRoot =
+      root.querySelector<HTMLElement>('.ro-stack') ??
+      root.querySelector<HTMLElement>('.ro-detail__actions')
+    if (focusRoot) {
+      focusCleanup = bindGridFocus(focusRoot)
       registerViewCleanup(() => {
         focusCleanup?.()
         focusCleanup = null
@@ -249,7 +262,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     } else {
       registerViewCleanup(null)
     }
-    root.querySelector<HTMLElement>('#ro-play')?.focus()
+    const preferred = editing
+      ? root.querySelector<HTMLElement>('#ro-meta-form [data-ro-focusable="true"]')
+      : root.querySelector<HTMLElement>('#ro-play, .ro-detail__actions [data-ro-focusable="true"]')
+    preferred?.focus()
   }
 
   paint()
