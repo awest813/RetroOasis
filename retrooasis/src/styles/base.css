@@ -880,10 +880,26 @@ html[data-layout='tv'] [data-ro-focusable='true']:focus {
   outline-offset: 4px;
 }
 
-html[data-layout='tv'] .ro-tile:hover .ro-cover,
-html[data-layout='tv'] .ro-tile:focus .ro-cover,
-html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
-  transform: translateY(-4px) scale(1.04);
+html[data-layout='tv'] .ro-settings {
+  max-width: 48rem;
+  gap: 2rem;
+}
+
+html[data-layout='tv'] .ro-settings-row {
+  padding: 1.15rem 0.45rem;
+}
+
+html[data-layout='tv'] .ro-settings-row strong {
+  font-size: 1.12rem;
+}
+
+html[data-layout='tv'] .ro-settings__heading {
+  font-size: 0.82rem;
+}
+
+html[data-layout='tv'] .ro-btn--toggle {
+  min-width: 5rem;
+  padding: 0.85rem 1.15rem;
 }
 
 .ro-cover__label {
@@ -1065,29 +1081,39 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   min-width: 0;
 }
 
+.ro-settings-page__head {
+  max-width: 40rem;
+}
+
+.ro-settings-page__head .ro-lede {
+  margin-bottom: 0;
+}
+
 .ro-settings {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
-  margin-top: 1.5rem;
-  max-width: 42rem;
+  gap: 1.75rem;
+  margin-top: 1.75rem;
+  max-width: 44rem;
 }
 
 .ro-settings__group {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.85rem 1rem 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--ro-line) 75%, transparent);
-  background: color-mix(in srgb, var(--ro-bg-panel) 55%, transparent);
-  border-radius: var(--ro-radius);
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .ro-settings__heading {
-  margin: 0 0 0.85rem;
-  padding-bottom: 0.45rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+  margin: 0 0 0.35rem;
+  padding: 0 0 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
+  font-family: var(--ro-font-ui);
   font-size: 0.72rem;
+  font-weight: 650;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ro-accent);
@@ -1099,8 +1125,11 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem 1.25rem;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+  padding: 0.95rem 0.35rem;
+  margin: 0 -0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 45%, transparent);
+  border-radius: 2px;
+  transition: background 140ms ease;
 }
 
 .ro-settings__group > .ro-settings-row:last-child {
@@ -1109,6 +1138,10 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 
 .ro-settings-row:last-child {
   border-bottom: 0;
+}
+
+.ro-settings-row:focus-within {
+  background: color-mix(in srgb, var(--ro-accent) 8%, transparent);
 }
 
 .ro-settings-row__copy,
@@ -1133,29 +1166,50 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 }
 
 .ro-settings-row--note {
-  padding-top: 0.65rem;
-  padding-bottom: 0.55rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.35rem;
 }
 
 .ro-settings-row strong {
-  font-size: 0.98rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ro-settings__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+  padding-top: 0.35rem;
 }
 
 .ro-settings__footnote {
-  margin: 0.25rem 0 0;
-  font-size: 0.86rem;
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.84rem;
   line-height: 1.55;
+}
+
+.ro-btn--toggle {
+  min-width: 4.25rem;
+  justify-content: center;
+}
+
+.ro-btn--toggle[aria-pressed='true'] {
+  background: var(--ro-accent);
+  color: var(--ro-bg-void);
+  border-color: var(--ro-accent);
 }
 
 .ro-toggle-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex: 0 1 auto;
   max-width: 100%;
-  padding: 0.3rem;
+  padding: 0.25rem;
   border: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
-  background: color-mix(in srgb, var(--ro-bg-panel) 70%, transparent);
+  background: color-mix(in srgb, var(--ro-bg-panel) 55%, transparent);
 }
 
 .ro-toggle-group .ro-btn {
@@ -1165,11 +1219,16 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   background: transparent;
 }
 
-.ro-toggle-group .ro-btn:hover {
+.ro-toggle-group .ro-btn:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--ro-accent) 40%, transparent);
 }
 
-.ro-toggle-group button[aria-pressed="true"] {
+.ro-toggle-group .ro-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.ro-toggle-group button[aria-pressed='true']:not(:disabled) {
   background: var(--ro-accent);
   color: var(--ro-bg-void);
   border-color: var(--ro-accent);
@@ -1291,17 +1350,23 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
   }
 
   .ro-settings-row {
-    padding: 0.75rem 0;
+    padding: 0.85rem 0.15rem;
     align-items: flex-start;
   }
 
-  .ro-settings__group {
-    padding: 0.75rem 0.8rem 0.25rem;
+  .ro-settings {
+    gap: 1.45rem;
+    margin-top: 1.35rem;
   }
 
   .ro-settings-row .ro-toggle-group,
   .ro-settings-row .ro-btn-row {
     width: 100%;
+  }
+
+  .ro-settings__footer {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .ro-toggle-group {
