@@ -145,7 +145,7 @@
   right: 0;
   display: flex;
   align-items: flex-end;
-  gap: clamp(1.25rem, 3.5vw, 2.75rem);
+  gap: clamp(1.5rem, 3.2vw, 2.5rem);
   padding: 0 max(var(--ro-space), 8vw);
   transform: translateX(var(--xmb-shift, 0px));
   transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -158,14 +158,14 @@
   display: grid;
   justify-items: center;
   gap: 0.55rem;
-  min-width: 4.5rem;
+  min-width: 4.75rem;
   padding: 0.35rem;
   border: 0;
   background: transparent;
   color: var(--ro-text-dim);
   cursor: pointer;
-  opacity: 0.38;
-  transform: scale(0.86);
+  opacity: 0.55;
+  transform: scale(0.94);
   transition:
     opacity 180ms ease,
     transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -174,7 +174,7 @@
 
 .ro-xmb__cat[data-active='true'] {
   opacity: 1;
-  transform: scale(1.1);
+  transform: scale(1.06);
   color: var(--ro-text);
 }
 
@@ -387,17 +387,19 @@
 }
 
 .ro-xmb__info-kicker {
-  margin: 0 0 0.45rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ro-accent);
+  color: color-mix(in srgb, var(--ro-accent) 82%, var(--ro-text-dim));
+  opacity: 0.9;
 }
 
 .ro-xmb__info-title {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.7rem;
   font-family: var(--ro-font-display);
-  font-size: clamp(0.7rem, 1.6vw, 0.95rem);
+  font-size: clamp(0.72rem, 1.6vw, 0.98rem);
   line-height: 1.45;
   letter-spacing: 0.04em;
   color: var(--ro-text);
@@ -405,9 +407,10 @@
 
 .ro-xmb__info-body {
   margin: 0;
-  font-size: 0.95rem;
-  color: var(--ro-text-dim);
-  line-height: 1.45;
+  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--ro-text-dim) 92%, var(--ro-text));
+  line-height: 1.5;
+  max-width: 22em;
 }
 
 html[data-input='key'] .ro-xmb__item[data-active='true'],
@@ -533,8 +536,8 @@ html[data-layout='tv'] .ro-xmb__info-title {
 
   .ro-xmb__cat {
     scroll-snap-align: center;
-    opacity: 0.55;
-    transform: scale(0.92);
+    opacity: 0.62;
+    transform: scale(0.94);
   }
 
   .ro-xmb__cat[data-active='true'] {

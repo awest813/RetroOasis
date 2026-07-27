@@ -269,6 +269,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
         data-distance="${dist}"
+        tabindex="-1"
         style="--item-accent: ${item.accent}"
       >
         <span class="ro-xmb__item-thumb">
@@ -288,6 +289,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
       data-distance="${dist}"
+      tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
       <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph">${escapeHtml(item.glyph)}</span>
@@ -308,6 +310,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       style="--cat-accent: ${cat.accent}"
       aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
+      tabindex="-1"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
       <span class="ro-xmb__cat-label">${escapeHtml(cat.label)}</span>
@@ -365,7 +368,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const now = new Date()
 
   root.innerHTML = `
-    <section class="ro-xmb" aria-label="Cross menu" tabindex="0">
+    <section class="ro-xmb" aria-label="Cross menu" role="application" tabindex="0">
       <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
       <div class="ro-xmb__clock" aria-hidden="true">
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>

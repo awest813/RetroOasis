@@ -326,6 +326,14 @@ select.ro-input {
   text-shadow: 0 1px 10px var(--ro-accent-soft);
 }
 
+.ro-kicker a {
+  margin-inline: 0.15em;
+}
+
+.ro-kicker a:first-child {
+  margin-inline-start: 0;
+}
+
 .ro-title {
   margin: 0 0 0.75rem;
   font-family: var(--ro-font-display);
@@ -1036,7 +1044,12 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 }
 
 .ro-muted {
-  color: var(--ro-text-dim);
+  color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
+}
+
+.ro-upload__hint,
+.ro-upload__status {
+  color: color-mix(in srgb, var(--ro-text-dim) 78%, var(--ro-text));
 }
 
 .ro-stack {
@@ -1065,7 +1078,9 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 }
 
 .ro-settings__heading {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1129,19 +1144,29 @@ html[data-layout='tv'] .ro-tile[data-focus='true'] .ro-cover {
 .ro-toggle-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex: 0 1 auto;
   max-width: 100%;
+  padding: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+  background: color-mix(in srgb, var(--ro-bg-panel) 70%, transparent);
 }
 
 .ro-toggle-group .ro-btn {
   flex: 0 0 auto;
-  padding: 0.55rem 0.85rem;
+  padding: 0.5rem 0.8rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.ro-toggle-group .ro-btn:hover {
+  border-color: color-mix(in srgb, var(--ro-accent) 40%, transparent);
 }
 
 .ro-toggle-group button[aria-pressed="true"] {
   background: var(--ro-accent);
   color: var(--ro-bg-void);
+  border-color: var(--ro-accent);
 }
 
 /* —— Responsive polish: phone / tablet / laptop / desktop —— */

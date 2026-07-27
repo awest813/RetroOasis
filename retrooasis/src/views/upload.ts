@@ -49,7 +49,7 @@ const CORE_EXT_HINTS: Record<string, string> = {
 export function renderUpload(root: HTMLElement): void {
   root.innerHTML = `
     <section class="ro-view ro-upload">
-      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a> / Add ROM</p>
+      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add ROM</p>
       <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
         Drop in a ROM to save it on this device and start playing.

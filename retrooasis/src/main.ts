@@ -115,8 +115,19 @@ function syncShellMode(route: Route): void {
   const xmb = route.name === 'lobby'
   shellEl?.classList.toggle('ro-shell--xmb', xmb)
   setWaveActive(xmb)
+  syncTopbarInert(xmb)
   if (!xmb) disposeXmb()
 }
+
+function syncTopbarInert(xmb: boolean): void {
+  const topbar = shellEl?.querySelector('.ro-topbar')
+  const desktopXmb = xmb && window.matchMedia('(min-width: 901px)').matches
+  topbar?.toggleAttribute('inert', desktopXmb)
+}
+
+window.addEventListener('resize', () => {
+  if (getRoute().name === 'lobby') syncTopbarInert(true)
+})
 
 async function render(route: Route): Promise<void> {
   syncNav(route)

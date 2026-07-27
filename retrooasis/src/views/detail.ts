@@ -68,12 +68,17 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         <div class="ro-stack">
           <p class="ro-kicker">
             <a href="${hrefFor('/')}">Home</a>
-            / <a href="${hrefFor('/library')}">Library</a>
-            ${platform ? `/ <a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>` : ''}
+            <span aria-hidden="true"> / </span>
+            <a href="${hrefFor('/library')}">Library</a>
+            ${
+              platform
+                ? `<span aria-hidden="true"> / </span><a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>`
+                : ''
+            }
           </p>
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
           <div class="ro-detail__badges">
-            <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
+            <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
