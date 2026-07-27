@@ -41,7 +41,6 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     }
 
     if (dir === 'confirm') {
-      if (api.getItemCount() <= 0) return
       sfxConfirm()
       api.confirm()
       return
@@ -113,8 +112,11 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const focusInside = !active || active === root || root.contains(active)
 
     // Keep console-like focus inside the shell on desktop; allow Tab into
-    // the mobile topbar when it is interactive.
+    // the mobile topbar when it is interactive, and allow Shift+Tab / skip link.
     if (event.key === 'Tab') {
+      if (active?.classList.contains('ro-skip')) return
+      if (event.shiftKey) return
+
       const mobileChrome = window.matchMedia('(max-width: 900px)').matches
       const topbar = document.querySelector('.ro-shell--xmb .ro-topbar')
       const topbarLive = mobileChrome && topbar && !topbar.hasAttribute('inert')

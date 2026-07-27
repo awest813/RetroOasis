@@ -41,6 +41,7 @@ initPwaInstall()
 registerServiceWorker()
 
 app.innerHTML = `
+  <a class="ro-skip" href="#ro-main">Skip to shelf</a>
   <div class="ro-shell">
     <div class="ro-wave" aria-hidden="true">
       <canvas class="ro-wave__canvas" id="ro-wave-canvas"></canvas>
@@ -53,7 +54,7 @@ app.innerHTML = `
         <span class="ro-brand__sub">Arcade</span>
       </a>
       <div class="ro-topbar__right">
-        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" hidden>Install</button>
+        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis" hidden>Install app</button>
         <nav class="ro-nav" aria-label="Primary">
           <a data-nav="lobby" href="${hrefFor('/')}">Home</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
@@ -75,6 +76,14 @@ const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
 const main = mainEl
 
+main.innerHTML = `
+  <section class="ro-view ro-loading" aria-busy="true" aria-live="polite">
+    <p class="ro-kicker">RETRO OASIS</p>
+    <p class="ro-loading__label">Loading your shelf…</p>
+    <div class="ro-loading__bar" aria-hidden="true"></div>
+  </section>
+`
+
 const installTop = app.querySelector<HTMLButtonElement>('#ro-install-top')
 
 function syncInstallButton(): void {
@@ -84,8 +93,15 @@ function syncInstallButton(): void {
 }
 
 installTop?.addEventListener('click', async () => {
-  await promptPwaInstall()
-  syncInstallButton()
+  installTop.disabled = true
+  installTop.setAttribute('aria-busy', 'true')
+  try {
+    await promptPwaInstall()
+  } finally {
+    installTop.removeAttribute('aria-busy')
+    installTop.disabled = false
+    syncInstallButton()
+  }
 })
 
 onPwaInstallChange(() => {
@@ -102,12 +118,11 @@ function syncNav(route: Route): void {
     game: 'library',
     upload: 'upload',
     settings: 'settings',
-    notfound: 'lobby',
   }
-  const current = map[route.name] ?? 'lobby'
+  const current = map[route.name]
   app.querySelectorAll<HTMLAnchorElement>('.ro-nav a').forEach((link) => {
     const key = link.dataset.nav
-    if (key === current) link.setAttribute('aria-current', 'page')
+    if (current && key === current) link.setAttribute('aria-current', 'page')
     else link.removeAttribute('aria-current')
   })
 }
@@ -146,7 +161,7 @@ async function render(route: Route): Promise<void> {
       break
     case 'library':
       main.focus({ preventScroll: true })
-      await renderLibrary(main)
+      await renderCollection(main, 'all')
       break
     case 'platform':
       main.focus({ preventScroll: true })
@@ -172,9 +187,14 @@ async function render(route: Route): Promise<void> {
       main.focus({ preventScroll: true })
       main.innerHTML = `
         <section class="ro-view">
-          <p class="ro-kicker">Lost in the oasis</p>
-          <h1 class="ro-title">404</h1>
-          <p class="ro-lede"><a href="${hrefFor('/')}">Return home</a></p>
+          <div class="ro-empty">
+            <p class="ro-empty__title">Lost in the oasis</p>
+            <p class="ro-empty__body">That route isn’t on the shelf. Head home or browse the library.</p>
+            <div class="ro-btn-row ro-btn-row--center">
+              <a class="ro-btn ro-btn--primary" href="${hrefFor('/')}">Home</a>
+              <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+            </div>
+          </div>
         </section>
       `
   }

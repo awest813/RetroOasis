@@ -10,12 +10,13 @@ import {
   type Platform,
 } from '../lib/catalog'
 import { resolveCoverUrl } from '../lib/covers'
-import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { pickLocalLibrary, supportsDirectoryPicker } from '../lib/localLibrary'
 import { hrefFor, type VirtualCollection } from '../lib/router'
-import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
+import { getFavorites, getLibretroCovers, getRecents, toggleFavorite } from '../lib/store'
+import { sfxToggle } from '../lib/sfx'
 import { friendlyError } from '../lib/userErrors'
 
 export type LibrarySelection =
@@ -30,7 +31,7 @@ export async function renderLibrary(
   const counts = countByPlatform(catalog)
   const canPick = supportsDirectoryPicker()
   const useLibretro = getLibretroCovers()
-  const favorites = getFavorites()
+  let favorites = getFavorites()
   const recents = getRecents()
 
   const ordered = [...catalog.platforms].sort((a, b) => {
@@ -38,19 +39,16 @@ export async function renderLibrary(
     return diff !== 0 ? diff : a.name.localeCompare(b.name)
   })
 
-  const sel = normalizeSelection(selection, ordered, counts)
-
-  if (!selection && sel.kind === 'platform') {
-    window.location.replace(hrefFor(`/library/${sel.id}`))
-    return
-  }
+  const sel = normalizeSelection(selection)
 
   if (sel.kind === 'platform' && !findPlatform(catalog, sel.id)) {
     root.innerHTML = `
       <section class="ro-view">
-        <p class="ro-kicker">404</p>
-        <h1 class="ro-title">System not found</h1>
-        <p class="ro-lede"><a href="${hrefFor('/library')}">Back to library</a></p>
+        <div class="ro-empty">
+          <p class="ro-empty__title">System not found</p>
+          <p class="ro-empty__body">That platform isn’t in your catalog.</p>
+          <a class="ro-btn" href="${hrefFor('/library')}" data-ro-focusable="true">Back to library</a>
+        </div>
       </section>
     `
     return
@@ -58,14 +56,18 @@ export async function renderLibrary(
 
   const platform = sel.kind === 'platform' ? findPlatform(catalog, sel.id) : undefined
   let query = ''
+  let queryRaw = ''
   let sortDesc = false
   let cleanup: (() => void) | undefined
+  let searchTimer = 0
+  const isRecent = sel.kind === 'collection' && sel.id === 'recent'
 
-  const paint = () => {
+  const paint = (opts?: { restoreSearch?: boolean; restoreFavId?: string }) => {
     cleanup?.()
+    favorites = getFavorites()
     let games = selectGames(catalog, sel, favorites, recents)
     games = games.filter((g) => !query || g.title.toLowerCase().includes(query))
-    if (sel.kind !== 'collection' || sel.id !== 'recent') {
+    if (!isRecent) {
       games = [...games].sort((a, b) =>
         sortDesc ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title),
       )
@@ -73,9 +75,22 @@ export async function renderLibrary(
 
     const heading = galleryHeading(sel, platform)
     const sampleCount = games.filter((g) => g.demo).length
+    const demoOnly =
+      !catalog.local && !(catalog.uploadedCount ?? 0) && !(catalog.hostedCount ?? 0)
     const sampleCue =
-      sampleCount > 0
+      sampleCount > 0 && !demoOnly
         ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} so you can explore the UI — hide them in Settings if you only want real ROMs.</p>`
+        : ''
+    const onboard =
+      demoOnly
+        ? `<aside class="ro-onboard" aria-label="Getting started">
+            <p class="ro-onboard__title">Play needs a real ROM</p>
+            <p class="ro-onboard__body">Samples fill the shelf so you can look around. Add a file or link a folder to start playing.</p>
+            <div class="ro-btn-row">
+              <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+              <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Library settings</a>
+            </div>
+          </aside>`
         : ''
 
     root.innerHTML = `
@@ -83,32 +98,36 @@ export async function renderLibrary(
         <aside class="ro-systems" aria-label="Library navigation">
           <div class="ro-systems__head">
             <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Library</p>
-            <h1 class="ro-systems__title">Oasis</h1>
+            <h1 class="ro-systems__title">Library</h1>
             <p class="ro-systems__meta">${libraryMeta(catalog)}</p>
           </div>
 
           <div class="ro-systems__section">
             <p class="ro-systems__label">Collections</p>
-            <nav class="ro-systems__list" data-ro-systems>
-              ${collectionRow('recent', 'Recent', recents.filter((id) => !!catalog.games.find((g) => g.id === id)).length, sel)}
-              ${collectionRow('favorites', 'Favorites', favorites.filter((id) => !!catalog.games.find((g) => g.id === id)).length, sel)}
-              ${collectionRow('all', 'All games', catalog.games.length, sel)}
-            </nav>
+            <div class="ro-systems__scroller">
+              <nav class="ro-systems__list" data-ro-systems>
+                ${collectionRow('recent', 'Recent', recents.filter((id) => !!catalog.games.find((g) => g.id === id)).length, sel)}
+                ${collectionRow('favorites', 'Favorites', favorites.filter((id) => !!catalog.games.find((g) => g.id === id)).length, sel)}
+                ${collectionRow('all', 'All games', catalog.games.length, sel)}
+              </nav>
+            </div>
           </div>
 
           <div class="ro-systems__section">
             <p class="ro-systems__label">Systems</p>
-            <nav class="ro-systems__list" data-ro-platforms>
-              ${ordered
-                .map((p) =>
-                  systemRow(
-                    p,
-                    counts[p.id] ?? 0,
-                    sel.kind === 'platform' && sel.id === p.id,
-                  ),
-                )
-                .join('')}
-            </nav>
+            <div class="ro-systems__scroller">
+              <nav class="ro-systems__list" data-ro-platforms>
+                ${ordered
+                  .map((p) =>
+                    systemRow(
+                      p,
+                      counts[p.id] ?? 0,
+                      sel.kind === 'platform' && sel.id === p.id,
+                    ),
+                  )
+                  .join('')}
+              </nav>
+            </div>
           </div>
 
           <div class="ro-systems__actions">
@@ -124,6 +143,7 @@ export async function renderLibrary(
         </aside>
 
         <div class="ro-gallery">
+          ${onboard}
           <div class="ro-section-head">
             <div>
               <p class="ro-kicker">${escapeHtml(heading.kicker)}</p>
@@ -132,9 +152,9 @@ export async function renderLibrary(
               ${sampleCue}
             </div>
             <div class="ro-search">
-              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(query)}" />
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort">
-                ${sel.kind === 'collection' && sel.id === 'recent' ? 'Recent' : sortDesc ? 'Z–A' : 'A–Z'}
+              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" />
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
+                ${isRecent ? 'Play order' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
             </div>
           </div>
@@ -162,16 +182,43 @@ export async function renderLibrary(
 
     const input = root.querySelector<HTMLInputElement>('#ro-q')
     input?.addEventListener('input', () => {
-      query = input.value.trim().toLowerCase()
-      paint()
-      root.querySelector<HTMLInputElement>('#ro-q')?.focus()
+      queryRaw = input.value
+      query = queryRaw.trim().toLowerCase()
+      window.clearTimeout(searchTimer)
+      searchTimer = window.setTimeout(() => {
+        paint({ restoreSearch: true })
+      }, 160)
     })
 
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
-      if (sel.kind === 'collection' && sel.id === 'recent') return
+      if (isRecent) return
       sortDesc = !sortDesc
-      paint()
+      paint({ restoreSearch: true })
     })
+
+    root.querySelector('[data-ro-grid]')?.addEventListener('click', (event) => {
+      const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-fav-id]')
+      if (!btn) return
+      event.preventDefault()
+      event.stopPropagation()
+      const id = btn.dataset.favId
+      if (!id) return
+      sfxToggle()
+      toggleFavorite(id)
+      paint({ restoreFavId: id })
+    })
+
+    hydrateCovers(root)
+
+    if (opts?.restoreFavId) {
+      root
+        .querySelector<HTMLElement>(`[data-fav-id="${CSS.escape(opts.restoreFavId)}"]`)
+        ?.focus()
+    } else if (opts?.restoreSearch && input) {
+      input.focus()
+      const len = input.value.length
+      input.setSelectionRange(len, len)
+    }
 
     const systems = root.querySelector<HTMLElement>('[data-ro-systems]')
     const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
@@ -180,7 +227,10 @@ export async function renderLibrary(
     if (systems) cleanups.push(bindGridFocus(systems))
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
-    cleanup = () => cleanups.forEach((fn) => fn())
+    cleanup = () => {
+      window.clearTimeout(searchTimer)
+      cleanups.forEach((fn) => fn())
+    }
     registerViewCleanup(cleanup)
   }
 
@@ -201,17 +251,12 @@ export async function renderCollection(
   return renderLibrary(root, { kind: 'collection', id: collection })
 }
 
-function normalizeSelection(
-  selection: LibrarySelection | string | undefined,
-  ordered: Platform[],
-  counts: Record<string, number>,
-): LibrarySelection {
+function normalizeSelection(selection: LibrarySelection | string | undefined): LibrarySelection {
   if (typeof selection === 'string') {
     return { kind: 'platform', id: selection }
   }
   if (selection) return selection
-  const first = ordered.find((p) => (counts[p.id] ?? 0) > 0)?.id ?? ordered[0]?.id
-  return first ? { kind: 'platform', id: first } : { kind: 'collection', id: 'all' }
+  return { kind: 'collection', id: 'all' }
 }
 
 function selectGames(
@@ -256,15 +301,15 @@ function emptyState(sel: LibrarySelection): string {
       <div class="ro-empty">
         <p class="ro-empty__title">No recent plays</p>
         <p class="ro-empty__body">Launch a title from any system shelf and it will show up here.</p>
-        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
   if (sel.kind === 'collection' && sel.id === 'favorites') {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
-        <p class="ro-empty__body">Open a game and tap Favorite to pin it on this shelf.</p>
-        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+        <p class="ro-empty__body">Open a game or tap ★ on a tile to pin it on this shelf.</p>
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
   if (sel.kind === 'platform') {
@@ -272,8 +317,8 @@ function emptyState(sel: LibrarySelection): string {
       <div class="ro-empty">
         <p class="ro-empty__title">Shelf is empty</p>
         <p class="ro-empty__body">Link a ROM folder, host your games, or add a file — saved ROMs stay on this device.</p>
-        <div class="ro-btn-row" style="justify-content:center">
-          <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+        <div class="ro-btn-row ro-btn-row--center">
+          <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
         </div>
       </div>`
@@ -282,7 +327,7 @@ function emptyState(sel: LibrarySelection): string {
     <div class="ro-empty">
       <p class="ro-empty__title">Library is empty</p>
       <p class="ro-empty__body">Add a ROM to save it on this device, host files on your site, or link a folder.</p>
-      <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+      <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
     </div>`
 }
 
@@ -380,25 +425,36 @@ function gameTile(
           ? 'Saved'
           : game.demo
             ? 'Sample'
-            : 'Catalog'
+            : ''
   const subClass =
     game.source === 'upload'
       ? 'ro-tile__sub ro-tile__sub--saved'
       : game.demo
         ? 'ro-tile__sub ro-tile__sub--sample'
         : 'ro-tile__sub'
+  const pressed = favorited ? 'true' : 'false'
+  const favLabel = favorited ? 'Remove from favorites' : 'Add to favorites'
   return `
-    <a
-      class="ro-tile${favorited ? ' ro-tile--fav' : ''}"
-      href="${hrefFor(`/game/${game.id}`)}"
-      data-ro-focusable="true"
-    >
-      ${coverMarkup(game.title, platformAccentVar(accent), cover)}
-      ${favorited ? '<span class="ro-tile__fav" aria-label="Favorited">★</span>' : ''}
-      <div class="ro-tile__meta">
-        <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-        <span class="${subClass}">${sub}</span>
-      </div>
-    </a>
+    <div class="ro-tile${favorited ? ' ro-tile--fav' : ''}">
+      <a
+        class="ro-tile__link"
+        href="${hrefFor(`/game/${game.id}`)}"
+        data-ro-focusable="true"
+      >
+        ${coverMarkup(game.title, platformAccentVar(accent), cover)}
+        <div class="ro-tile__meta">
+          <span class="ro-tile__title">${escapeHtml(game.title)}</span>
+          ${sub ? `<span class="${subClass}">${sub}</span>` : ''}
+        </div>
+      </a>
+      <button
+        type="button"
+        class="ro-tile__fav"
+        data-fav-id="${escapeAttr(game.id)}"
+        aria-pressed="${pressed}"
+        aria-label="${escapeAttr(favLabel)}"
+        title="${escapeAttr(favLabel)}"
+      >★</button>
+    </div>
   `
 }

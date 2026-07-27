@@ -495,6 +495,20 @@
   line-height: 1.45;
   color: var(--ro-text-dim);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+
+.ro-xmb__empty p {
+  margin: 0;
+}
+
+.ro-xmb__empty .ro-btn-row {
+  margin-top: 0.75rem;
+}
+
+.ro-xmb__info-copy .ro-btn-row {
+  margin-top: 0.85rem;
+  pointer-events: auto;
 }
 
 .ro-xmb__info-title {
@@ -560,6 +574,10 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   width: min(18rem, 26vw);
   pointer-events: none;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+
+.ro-xmb__info .ro-btn {
+  pointer-events: auto;
 }
 
 .ro-xmb__info::before {

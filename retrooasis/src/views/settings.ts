@@ -184,9 +184,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">${sounds ? 'Soft tones, XMB clicks, or arcade beeps.' : 'Turn on UI sounds to choose a pack.'}</p>
             </div>
             <div class="ro-toggle-group ro-toggle-group--packs" role="group" aria-label="Sound pack">
-              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft" data-ro-focusable="true" aria-pressed="${pressed(pack === 'soft')}" aria-disabled="${pressed(!sounds)}">Soft</button>
-              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb" data-ro-focusable="true" aria-pressed="${pressed(pack === 'xmb')}" aria-disabled="${pressed(!sounds)}">XMB</button>
-              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}" aria-disabled="${pressed(!sounds)}">Arcade</button>
+              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'soft')}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'xmb')}">XMB</button>
+              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'arcade')}">Arcade</button>
             </div>
           </div>
 
@@ -300,15 +300,17 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               </p>
             </div>
             ${
-              installable
-                ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true">Install</button>`
-                : ''
+              installed
+                ? ''
+                : installable
+                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis">Install app</button>`
+                  : `<button type="button" class="ro-btn" data-focus-id="install" disabled title="Install appears on HTTPS after the shell is cached.">Unavailable here</button>`
             }
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Clear play history</strong>
+              <strong>Clear recents &amp; favorites</strong>
               <p class="ro-muted">Recently played and favorites on this device.</p>
             </div>
             <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear</button>
@@ -373,7 +375,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelectorAll<HTMLButtonElement>('[data-pack]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (btn.getAttribute('aria-disabled') === 'true') return
+      if (btn.disabled) return
       setSoundPack(btn.dataset.pack as SoundPack)
       if (getSoundsEnabled()) sfxToggle()
       rerender(btn.dataset.focusId)

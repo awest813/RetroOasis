@@ -1,22 +1,3 @@
-@keyframes ro-grid-drift {
-  from {
-    background-position: 0 0, 0 0, 50% 0;
-  }
-  to {
-    background-position: 0 48px, 48px 0, 50% 0;
-  }
-}
-
-@keyframes ro-scan-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
 @keyframes ro-fade-up {
   from {
     opacity: 0;
@@ -28,6 +9,15 @@
   }
 }
 
+@keyframes ro-loading-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+
 .ro-view {
   animation: ro-fade-up 280ms ease both;
 }
@@ -35,8 +25,16 @@
 @media (prefers-reduced-motion: reduce) {
   .ro-view,
   .ro-cover,
-  .ro-btn {
+  .ro-btn,
+  .ro-loading__bar::after,
+  .ro-cover__img,
+  .ro-cover--image img {
     animation: none !important;
     transition: none !important;
+  }
+
+  .ro-cover--ready img,
+  .ro-cover--ready .ro-cover__img {
+    opacity: 1;
   }
 }

@@ -10,7 +10,7 @@ import {
   type Platform,
 } from '../lib/catalog'
 import { resolveCoverUrl } from '../lib/covers'
-import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
@@ -147,7 +147,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     id: 'browse-library',
     title: 'Browse library',
     sub: `${catalog.games.length} title${catalog.games.length === 1 ? '' : 's'}`,
-    href: hrefFor('/library'),
+    href: hrefFor('/library/@all'),
     glyph: 'ALL',
     accent: 'var(--ro-accent)',
     blurb: 'Open the full grid by system, recent, and favorites.',
@@ -187,7 +187,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       icon: xmbCategoryIcon('favorites'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
-      empty: 'No favorites yet. Star a game from its details page.',
+      empty: 'No favorites yet. Star a game from the library grid or its details page.',
     },
   ]
 
@@ -262,6 +262,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
         data-distance="${dist}"
+        ${active ? 'aria-current="true"' : ''}
         tabindex="-1"
         style="--item-accent: ${item.accent}"
       >
@@ -282,6 +283,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
       data-distance="${dist}"
+      ${active ? 'aria-current="true"' : ''}
       tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
@@ -303,6 +305,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       style="--cat-accent: ${cat.accent}"
       aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
+      ${active ? 'aria-current="true"' : ''}
       tabindex="-1"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
@@ -313,9 +316,26 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
     const copy = cat.empty ?? 'Nothing here yet.'
-    return `<p class="ro-xmb__empty">${escapeHtml(copy)}</p>`
+    return `
+      <div class="ro-xmb__empty">
+        <p>${escapeHtml(copy)}</p>
+        ${emptyCtas(cat.id)}
+      </div>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
+}
+
+function emptyCtas(catId: string): string {
+  if (catId === 'recent' || catId === 'favorites') {
+    return `
+      <div class="ro-btn-row">
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}">Browse games</a>
+      </div>`
+  }
+  return `
+    <div class="ro-btn-row">
+      <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}">Add ROM</a>
+    </div>`
 }
 
 function infoMarkup(cat: XmbCategory, itemIndex: number): string {
@@ -613,6 +633,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (dir === 'left') infoEl.classList.add('ro-xmb__info--from-left')
     if (dir === 'right') infoEl.classList.add('ro-xmb__info--from-right')
     infoEl.innerHTML = infoMarkup(cat, itemIndex)
+    hydrateCovers(infoEl)
     void infoEl.offsetWidth
     infoEl.classList.add('ro-xmb__info--in')
   }
@@ -629,6 +650,8 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const on = i === catIndex
       el.dataset.active = on ? 'true' : 'false'
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
+      if (on) el.setAttribute('aria-current', 'true')
+      else el.removeAttribute('aria-current')
       if (on && opts?.animateRail && !reducedMotion) {
         el.classList.remove('ro-xmb__cat--settle')
         void el.offsetWidth
@@ -658,6 +681,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
+    hydrateCovers(railInner)
 
     if (opts?.itemNudge && !reducedMotion) {
       const active = railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]')
@@ -685,8 +709,16 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const activate = () => {
     const cat = categories[catIndex]
     const item = cat?.items[itemIndex]
-    if (!item) return
-    navigate(item.href)
+    if (item) {
+      navigate(item.href)
+      return
+    }
+    // Empty shelf: confirm follows the CTA instead of no-op.
+    if (cat?.id === 'recent' || cat?.id === 'favorites') {
+      navigate(hrefFor('/library/@all'))
+      return
+    }
+    navigate(hrefFor('/upload'))
   }
 
   catsEl.addEventListener('click', (event) => {
@@ -860,7 +892,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }
 
   paint({ animateRail: true, railDir: 'right' })
-  shell.focus({ preventScroll: true })
+  requestAnimationFrame(() => {
+    if (document.activeElement?.classList.contains('ro-skip')) return
+    shell.focus({ preventScroll: true })
+  })
 
   const onSelectStart = (event: Event) => {
     event.preventDefault()

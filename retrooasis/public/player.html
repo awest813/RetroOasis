@@ -5,7 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#071018" />
     <title>RetroOasis Play</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      :root {
+        color-scheme: dark;
+        --ro-bg-void: #071018;
+        --ro-bg-void-mid: #0c1c28;
+        --ro-accent-sega: #2ee6d6;
+        --ro-accent-ps: #f0b429;
+        --ro-accent: var(--ro-accent-sega);
+        --ro-text: #e8eef5;
+        --ro-text-dim: #9aabbc;
+        --ro-font-display: "Outfit", system-ui, sans-serif;
+        --ro-font-ui: "Sora", system-ui, sans-serif;
+        --ro-radius: 2px;
+      }
+
+      html[data-accent="ps"] {
+        --ro-accent: var(--ro-accent-ps);
+      }
+
       html,
       body {
         margin: 0;
@@ -13,7 +37,7 @@
         height: 100%;
         background: #000;
         overflow: hidden;
-        font-family: "Chakra Petch", system-ui, sans-serif;
+        font-family: var(--ro-font-ui);
       }
 
       #display {
@@ -35,9 +59,18 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.55rem 0.85rem;
-        background: linear-gradient(180deg, rgba(7, 16, 24, 0.92), rgba(7, 16, 24, 0.35) 70%, transparent);
-        color: #e8eef5;
+        padding:
+          max(0.55rem, env(safe-area-inset-top, 0px))
+          max(0.85rem, env(safe-area-inset-right, 0px))
+          0.55rem
+          max(0.85rem, env(safe-area-inset-left, 0px));
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--ro-bg-void) 92%, transparent),
+          color-mix(in srgb, var(--ro-bg-void) 35%, transparent) 70%,
+          transparent
+        );
+        color: var(--ro-text);
         pointer-events: none;
       }
 
@@ -46,20 +79,22 @@
         pointer-events: auto;
         font: inherit;
         cursor: pointer;
-        border: 1px solid #2ee6d6;
-        background: rgba(7, 16, 24, 0.85);
-        color: #2ee6d6;
+        border: 1px solid var(--ro-accent);
+        background: color-mix(in srgb, var(--ro-bg-void) 85%, transparent);
+        color: var(--ro-accent);
         padding: 0.35rem 0.7rem;
         text-decoration: none;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: var(--ro-radius);
       }
 
       .ro-play-bar a:hover,
       .ro-play-bar button:hover {
-        background: #2ee6d6;
-        color: #071018;
+        background: var(--ro-accent);
+        color: var(--ro-bg-void);
       }
 
       .ro-play-title {
@@ -83,28 +118,43 @@
         gap: 1rem;
         padding: 2rem;
         text-align: center;
-        color: #e8eef5;
+        color: var(--ro-text);
         background:
-          radial-gradient(ellipse at center, #0d2230 0%, #071018 70%),
-          #071018;
+          radial-gradient(ellipse at center, var(--ro-bg-void-mid) 0%, var(--ro-bg-void) 70%),
+          var(--ro-bg-void);
       }
 
       .ro-play-error h1 {
         margin: 0;
-        font-family: "Press Start 2P", monospace;
-        font-size: 0.9rem;
-        color: #f0b429;
-        line-height: 1.6;
+        font-family: var(--ro-font-display);
+        font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+        font-weight: 650;
+        color: var(--ro-accent);
+        line-height: 1.4;
+        letter-spacing: 0.04em;
       }
 
       .ro-play-error p {
         margin: 0;
         max-width: 32rem;
-        color: #9aabbc;
+        color: var(--ro-text-dim);
       }
 
       .ro-play-error code {
-        color: #2ee6d6;
+        color: var(--ro-accent);
+      }
+
+      .ro-play-error a {
+        color: var(--ro-accent);
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .ro-play-error a:hover {
+        text-decoration: underline;
       }
     </style>
   </head>
@@ -117,6 +167,13 @@
     <div id="display"><div id="game"></div></div>
     <script>
       (function () {
+        try {
+          var storedAccent = localStorage.getItem("retrooasis.accent");
+          document.documentElement.dataset.accent = storedAccent === "ps" ? "ps" : "sega";
+        } catch (_) {
+          document.documentElement.dataset.accent = "sega";
+        }
+
         const THREADED = new Set(["ppsspp", "psp", "dosbox_pure", "dos", "azahar", "3ds"]);
         const PATHS = {
           local: "data/",
@@ -162,7 +219,7 @@
             message +
             '</p><a href="' +
             back +
-            '">Back to Oasis</a></div>';
+            '">Back home</a></div>';
         }
 
         function escapeHtml(value) {

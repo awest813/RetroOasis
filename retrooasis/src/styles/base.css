@@ -6,6 +6,32 @@
   isolation: isolate;
 }
 
+.ro-skip {
+  position: fixed;
+  left: max(var(--ro-space), env(safe-area-inset-left, 0px));
+  top: max(0.65rem, env(safe-area-inset-top, 0px));
+  z-index: 200;
+  padding: 0.55rem 0.9rem;
+  background: var(--ro-accent);
+  color: var(--ro-bg-void);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 650;
+  border-radius: var(--ro-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-120%);
+  transition: transform 140ms ease;
+}
+
+.ro-skip:focus,
+.ro-skip:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
 .ro-shell::before {
   content: "";
   position: fixed;
@@ -39,7 +65,11 @@
   justify-content: space-between;
   gap: 0.75rem 1.25rem;
   min-height: var(--ro-topbar-h);
-  padding: 0.7rem var(--ro-space);
+  padding:
+    max(0.7rem, env(safe-area-inset-top, 0px))
+    max(var(--ro-space), env(safe-area-inset-right, 0px))
+    0.7rem
+    max(var(--ro-space), env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--ro-line);
   background: color-mix(in srgb, var(--ro-bg-void) 75%, transparent);
   backdrop-filter: blur(8px);
@@ -240,6 +270,8 @@ select.ro-input {
   width: min(100%, var(--ro-max));
   margin: 0 auto;
   padding: var(--ro-space);
+  padding-left: max(var(--ro-space), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--ro-space), env(safe-area-inset-right, 0px));
 }
 
 .ro-main:has(.ro-library) {
@@ -249,11 +281,15 @@ select.ro-input {
 }
 
 .ro-main:has(.ro-detail) {
-  padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
+  padding-bottom: max(clamp(1.25rem, 4vw, 2.5rem), env(safe-area-inset-bottom, 0px));
 }
 
 .ro-footer {
-  padding: 1rem var(--ro-space) 1.35rem;
+  padding:
+    1rem
+    max(var(--ro-space), env(safe-area-inset-right, 0px))
+    max(1.35rem, env(safe-area-inset-bottom, 0px))
+    max(var(--ro-space), env(safe-area-inset-left, 0px));
   color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
   font-size: 0.84rem;
   text-align: center;
@@ -285,14 +321,21 @@ select.ro-input {
 }
 
 .ro-btn--primary {
-  background: var(--ro-accent-ps);
-  border-color: var(--ro-accent-ps);
-  color: #1a1200;
+  background: var(--ro-accent);
+  border-color: var(--ro-accent);
+  color: var(--ro-bg-void);
 }
 
 .ro-btn--primary:hover {
-  background: color-mix(in srgb, var(--ro-accent-ps) 85%, white);
-  color: #1a1200;
+  background: color-mix(in srgb, var(--ro-accent) 85%, white);
+  color: var(--ro-bg-void);
+}
+
+.ro-btn:disabled,
+.ro-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .ro-btn--ghost {
@@ -426,6 +469,14 @@ select.ro-input {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  width: 100%;
+  position: relative;
+}
+
+.ro-tile__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
@@ -434,20 +485,19 @@ select.ro-input {
   padding: 0;
   text-align: left;
   width: 100%;
-  position: relative;
 }
 
-.ro-tile:hover {
+.ro-tile__link:hover {
   text-decoration: none;
 }
 
-.ro-tile:hover .ro-cover,
-.ro-tile[data-focus="true"] .ro-cover {
+.ro-tile:hover .ro-cover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 0 0 2px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .ro-tile__fav {
+  appearance: none;
   position: absolute;
   top: 0.45rem;
   right: 0.45rem;
@@ -459,10 +509,40 @@ select.ro-input {
   border-radius: var(--ro-radius);
   font-size: 0.78rem;
   line-height: 1;
-  color: var(--ro-accent);
+  color: var(--ro-text-dim);
   background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ro-accent) 55%, transparent);
-  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--ro-line) 80%, transparent);
+  cursor: pointer;
+  padding: 0;
+  opacity: 1;
+  transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ro-tile__fav {
+    opacity: 0;
+  }
+
+  .ro-tile:hover .ro-tile__fav,
+  .ro-tile:focus-within .ro-tile__fav,
+  .ro-tile__fav:focus-visible,
+  .ro-tile--fav .ro-tile__fav {
+    opacity: 1;
+  }
+}
+
+.ro-tile__fav[aria-pressed='true'],
+.ro-tile--fav .ro-tile__fav {
+  color: var(--ro-accent);
+  border-color: color-mix(in srgb, var(--ro-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
+  opacity: 1;
+}
+
+.ro-tile__fav:hover {
+  color: var(--ro-accent);
+  border-color: color-mix(in srgb, var(--ro-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--ro-accent-soft) 55%, var(--ro-bg-void));
 }
 
 .ro-crt {
@@ -521,12 +601,20 @@ html[data-crt='on'] .ro-shell::after {
   padding: 0;
 }
 
-.ro-cover--image img {
+.ro-cover--image img,
+.ro-cover__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   position: relative;
   z-index: 1;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.ro-cover--ready img,
+.ro-cover--ready .ro-cover__img {
+  opacity: 1;
 }
 
 .ro-cover__label--fallback {
@@ -534,6 +622,7 @@ html[data-crt='on'] .ro-shell::after {
 }
 
 .ro-cover--missing .ro-cover__label--fallback,
+.ro-cover--image:not(.ro-cover--ready):not(.ro-cover--missing) .ro-cover__label--fallback,
 .ro-cover:not(.ro-cover--image) .ro-cover__label {
   display: block;
 }
@@ -554,7 +643,8 @@ html[data-crt='on'] .ro-shell::after {
   min-height: 0;
 }
 
-.ro-systems__section:last-of-type .ro-systems__list {
+.ro-systems__section:last-of-type .ro-systems__list,
+.ro-systems__section:last-of-type .ro-systems__scroller {
   flex: 1;
 }
 
@@ -641,6 +731,14 @@ html[data-crt='on'] .ro-shell::after {
   overflow: auto;
   flex: 1;
   min-height: 0;
+}
+
+.ro-systems__scroller {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  position: relative;
 }
 
 .ro-meta-form {
@@ -755,6 +853,34 @@ html[data-crt='on'] .ro-shell::after {
   font-size: 0.88rem;
 }
 
+.ro-onboard {
+  margin: 0 0 1.15rem;
+  padding: 1rem 0 1.05rem;
+  border-bottom: 1px solid var(--ro-line);
+  display: grid;
+  gap: 0.55rem;
+  max-width: 36rem;
+}
+
+.ro-onboard__title {
+  margin: 0;
+  font-family: var(--ro-font-display);
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--ro-text);
+}
+
+.ro-onboard__body {
+  margin: 0;
+  color: var(--ro-text-dim);
+  font-size: 0.95rem;
+}
+
+.ro-onboard .ro-btn-row {
+  margin-top: 0.25rem;
+}
+
 .ro-upload__hint {
   margin: -0.35rem 0 0;
   font-size: 0.85rem;
@@ -795,6 +921,25 @@ html[data-crt='on'] .ro-shell::after {
     padding: 0.35rem var(--ro-space) 0.85rem;
     gap: 0.45rem;
     scrollbar-width: thin;
+  }
+
+  .ro-systems__scroller {
+    flex: 0 0 auto;
+  }
+
+  .ro-systems__scroller::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0.35rem;
+    width: 2.25rem;
+    pointer-events: none;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--ro-bg-panel-solid) 92%, transparent)
+    );
   }
 
   .ro-system {
@@ -959,7 +1104,8 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-tile__sub--sample {
-  color: color-mix(in srgb, var(--ro-accent) 70%, var(--ro-text-dim));
+  color: var(--ro-text-dim);
+  opacity: 0.9;
 }
 
 .ro-tile__sub--saved {
@@ -1006,8 +1152,10 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-empty__title {
   margin: 0;
   font-family: var(--ro-font-display);
-  font-size: 0.72rem;
-  line-height: 1.55;
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
   color: var(--ro-text);
 }
 
@@ -1019,6 +1167,41 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-empty .ro-btn-row {
   margin-top: 0.35rem;
+}
+
+.ro-btn-row--center {
+  justify-content: center;
+}
+
+.ro-loading {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding: calc(var(--ro-space) * 1.5) var(--ro-space);
+}
+
+.ro-loading__label {
+  margin: 0;
+  color: var(--ro-text-dim);
+  font-size: 0.95rem;
+}
+
+.ro-loading__bar {
+  width: min(12rem, 55vw);
+  height: 0.2rem;
+  border-radius: var(--ro-radius);
+  background: color-mix(in srgb, var(--ro-accent) 35%, transparent);
+  overflow: hidden;
+  position: relative;
+}
+
+.ro-loading__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--ro-accent);
+  animation: ro-loading-sweep 1.1s ease-in-out infinite;
 }
 
 .ro-detail {
@@ -1226,8 +1409,12 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-toggle-group .ro-btn:disabled,
 .ro-toggle-group .ro-btn[aria-disabled='true'] {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  background: transparent;
+  color: var(--ro-text-dim);
+  border-color: transparent;
+  pointer-events: none;
 }
 
 .ro-toggle-group button[aria-pressed='true'] {
@@ -1236,8 +1423,12 @@ html[data-layout='tv'] .ro-btn--toggle {
   border-color: var(--ro-accent);
 }
 
+.ro-toggle-group button[aria-pressed='true']:disabled,
 .ro-toggle-group button[aria-pressed='true'][aria-disabled='true'] {
-  opacity: 0.55;
+  opacity: 0.4;
+  background: color-mix(in srgb, var(--ro-text-dim) 22%, transparent);
+  color: var(--ro-text-dim);
+  border-color: transparent;
 }
 
 .ro-toggle-group--packs {
@@ -1270,7 +1461,11 @@ html[data-layout='tv'] .ro-btn--toggle {
     align-items: center;
     column-gap: 0.65rem;
     row-gap: 0.45rem;
-    padding: 0.65rem var(--ro-space) 0.55rem;
+    padding:
+      max(0.65rem, env(safe-area-inset-top, 0px))
+      max(var(--ro-space), env(safe-area-inset-right, 0px))
+      0.55rem
+      max(var(--ro-space), env(safe-area-inset-left, 0px));
   }
 
   .ro-brand {
@@ -1471,7 +1666,24 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-systems__actions {
-    display: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.55rem var(--ro-space) 0.75rem;
+  }
+
+  .ro-systems__actions .ro-btn {
+    width: auto;
+    flex: 1 1 calc(33% - 0.35rem);
+    min-width: 5.5rem;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  .ro-systems__actions .ro-muted {
+    flex: 1 1 100%;
   }
 
   .ro-gallery {
@@ -1490,7 +1702,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-brand__mark {
-    font-size: 0.64rem;
+    font-size: 1rem;
   }
 
   .ro-nav a {
