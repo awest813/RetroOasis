@@ -7,10 +7,10 @@
 }
 
 .ro-skip {
-  position: absolute;
-  left: var(--ro-space);
-  top: 0.65rem;
-  z-index: 100;
+  position: fixed;
+  left: max(var(--ro-space), env(safe-area-inset-left, 0px));
+  top: max(0.65rem, env(safe-area-inset-top, 0px));
+  z-index: 200;
   padding: 0.55rem 0.9rem;
   background: var(--ro-accent);
   color: var(--ro-bg-void);
@@ -20,12 +20,24 @@
   font-size: 0.75rem;
   font-weight: 650;
   border-radius: var(--ro-radius);
-  transform: translateY(-160%);
-  transition: transform 140ms ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-.ro-skip:focus {
-  transform: translateY(0);
+.ro-skip:not(:focus):not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
+}
+
+.ro-skip:focus,
+.ro-skip:focus-visible {
   outline: 2px solid var(--ro-focus);
   outline-offset: 3px;
 }
@@ -634,7 +646,8 @@ html[data-crt='on'] .ro-shell::after {
   min-height: 0;
 }
 
-.ro-systems__section:last-of-type .ro-systems__list {
+.ro-systems__section:last-of-type .ro-systems__list,
+.ro-systems__section:last-of-type .ro-systems__scroller {
   flex: 1;
 }
 
@@ -1398,8 +1411,12 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-toggle-group .ro-btn:disabled,
 .ro-toggle-group .ro-btn[aria-disabled='true'] {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  background: transparent;
+  color: var(--ro-text-dim);
+  border-color: transparent;
+  pointer-events: none;
 }
 
 .ro-toggle-group button[aria-pressed='true'] {
@@ -1408,8 +1425,12 @@ html[data-layout='tv'] .ro-btn--toggle {
   border-color: var(--ro-accent);
 }
 
+.ro-toggle-group button[aria-pressed='true']:disabled,
 .ro-toggle-group button[aria-pressed='true'][aria-disabled='true'] {
-  opacity: 0.55;
+  opacity: 0.4;
+  background: color-mix(in srgb, var(--ro-text-dim) 22%, transparent);
+  color: var(--ro-text-dim);
+  border-color: transparent;
 }
 
 .ro-toggle-group--packs {

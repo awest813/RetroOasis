@@ -21,17 +21,20 @@ function parseHash(hash: string): Route {
 
   if (parts.length === 0) return { name: 'lobby' }
   if (parts[0] === 'library' && parts.length === 1) return { name: 'library' }
-  if (parts[0] === 'library' && parts[1]) {
+  if (parts[0] === 'library' && parts.length === 2 && parts[1]) {
     const id = decodeURIComponent(parts[1])
     if (id.startsWith('@')) {
       const collection = id.slice(1) as VirtualCollection
       if (VIRTUAL.has(collection)) return { name: 'collection', collection }
+      return { name: 'notfound' }
     }
     return { name: 'platform', platformId: id }
   }
-  if (parts[0] === 'game' && parts[1]) return { name: 'game', gameId: decodeURIComponent(parts[1]) }
-  if (parts[0] === 'upload') return { name: 'upload' }
-  if (parts[0] === 'settings') return { name: 'settings' }
+  if (parts[0] === 'game' && parts.length === 2 && parts[1]) {
+    return { name: 'game', gameId: decodeURIComponent(parts[1]) }
+  }
+  if (parts[0] === 'upload' && parts.length === 1) return { name: 'upload' }
+  if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' }
   return { name: 'notfound' }
 }
 
