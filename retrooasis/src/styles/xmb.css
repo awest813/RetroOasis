@@ -472,10 +472,45 @@
   position: absolute;
   top: 14%;
   right: max(var(--ro-space), 4vw);
-  z-index: 3;
+  z-index: 6;
   width: min(18rem, 26vw);
   pointer-events: none;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+
+.ro-xmb__info::before {
+  content: '';
+  position: absolute;
+  inset: -1.5rem -2rem -3rem -4rem;
+  z-index: -1;
+  background:
+    radial-gradient(
+      ellipse 95% 85% at 78% 22%,
+      rgba(5, 12, 20, 0.94) 0%,
+      rgba(5, 12, 20, 0.78) 38%,
+      rgba(5, 12, 20, 0.4) 62%,
+      transparent 78%
+    );
+  pointer-events: none;
+}
+
+@media (min-width: 901px) {
+  .ro-xmb__cats {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 54%,
+      rgba(0, 0, 0, 0.45) 72%,
+      transparent 92%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 54%,
+      rgba(0, 0, 0, 0.45) 72%,
+      transparent 92%
+    );
+  }
 }
 
 .ro-xmb__info-inner {
@@ -745,11 +780,11 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro
 
   .ro-xmb__info {
     top: 12%;
-    width: min(13.5rem, 24vw);
+    width: min(12.5rem, 22vw);
   }
 
   .ro-xmb__stage {
-    width: min(8.5rem, 100%);
+    width: min(7.75rem, 100%);
   }
 
   .ro-xmb__stage--glyph {
@@ -785,11 +820,11 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro
   }
 
   html[data-layout='tv'] .ro-xmb__info {
-    width: min(14rem, 22vw);
+    width: min(12.75rem, 20vw);
   }
 
   html[data-layout='tv'] .ro-xmb__stage {
-    width: min(9rem, 100%);
+    width: min(8rem, 100%);
   }
 
   html[data-layout='tv'] .ro-xmb__info-title {
