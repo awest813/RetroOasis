@@ -368,7 +368,7 @@ function formatClockDate(date: Date): string {
 
 function hintCopy(): string {
   return getInputModality() === 'pad'
-    ? 'D-pad move · A open · B back'
+    ? 'D-pad move · A / Start open · B back'
     : '← → categories · ↑ ↓ items · Enter open'
 }
 

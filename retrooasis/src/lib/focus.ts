@@ -1,7 +1,8 @@
 /** Keyboard + gamepad focus for grids. */
 
 import { setModalityFromPad } from './inputModality'
-import { sfxBack, sfxConfirm, sfxMove } from './sfx'
+import { buttonPressed, readConnectedPad } from './gamepad'
+import { sfxConfirm, sfxMove } from './sfx'
 
 type Cleanup = () => void
 
@@ -49,71 +50,96 @@ function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'c
 
 export function bindGridFocus(root: HTMLElement): Cleanup {
   const onKeyDown = (event: KeyboardEvent) => {
+    if (!root.isConnected) return
+    const tag = (event.target as HTMLElement | null)?.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
     const map: Record<string, 'left' | 'right' | 'up' | 'down' | 'confirm'> = {
       ArrowRight: 'right',
       ArrowLeft: 'left',
       ArrowDown: 'down',
       ArrowUp: 'up',
       Enter: 'confirm',
+      ' ': 'confirm',
     }
     const dir = map[event.key]
     if (!dir) return
-    if (dir !== 'confirm') event.preventDefault()
+    event.preventDefault()
+    if (event.repeat) return
     moveFocus(root, dir)
   }
 
   root.addEventListener('keydown', onKeyDown)
 
   let raf = 0
-  const prev = { x: 0, y: 0, a: false, b: false }
+  const prev = { x: 0, y: 0, a: false, start: false }
   let cool = 0
+  let holdStart = 0
+  let heldAxis: 'x' | 'y' | null = null
 
   const poll = () => {
     raf = requestAnimationFrame(poll)
-    const pad = navigator.getGamepads?.()[0]
+    const pad = readConnectedPad()
     if (!pad) return
 
     const now = performance.now()
     const axisX = Math.abs(pad.axes[0] ?? 0) > 0.45 ? Math.sign(pad.axes[0]) : 0
     const axisY = Math.abs(pad.axes[1] ?? 0) > 0.45 ? Math.sign(pad.axes[1]) : 0
-    const dpadLeft = pad.buttons[14]?.pressed ? -1 : 0
-    const dpadRight = pad.buttons[15]?.pressed ? 1 : 0
-    const dpadUp = pad.buttons[12]?.pressed ? -1 : 0
-    const dpadDown = pad.buttons[13]?.pressed ? 1 : 0
+    const dpadLeft = buttonPressed(pad, 14) ? -1 : 0
+    const dpadRight = buttonPressed(pad, 15) ? 1 : 0
+    const dpadUp = buttonPressed(pad, 12) ? -1 : 0
+    const dpadDown = buttonPressed(pad, 13) ? 1 : 0
     const x = dpadLeft || dpadRight || axisX
     const y = dpadUp || dpadDown || axisY
-    const a = !!pad.buttons[0]?.pressed
-    const b = !!pad.buttons[1]?.pressed
+    const a = buttonPressed(pad, 0)
+    const start = buttonPressed(pad, 9)
 
-    if (x || y || a || b) setModalityFromPad()
+    if (x || y || a || start) setModalityFromPad()
 
-    if (now > cool) {
-      if (x === 1 && prev.x !== 1) {
-        moveFocus(root, 'right')
-        cool = now + 180
-      } else if (x === -1 && prev.x !== -1) {
-        moveFocus(root, 'left')
-        cool = now + 180
-      } else if (y === 1 && prev.y !== 1) {
-        moveFocus(root, 'down')
-        cool = now + 180
-      } else if (y === -1 && prev.y !== -1) {
-        moveFocus(root, 'up')
-        cool = now + 180
-      } else if (a && !prev.a) {
-        moveFocus(root, 'confirm')
-        cool = now + 220
-      } else if (b && !prev.b) {
-        sfxBack()
-        history.back()
-        cool = now + 220
+    const stepAxis = (
+      axis: 'x' | 'y',
+      value: number,
+      dirPos: 'left' | 'right' | 'up' | 'down',
+      dirNeg: 'left' | 'right' | 'up' | 'down',
+    ) => {
+      if (!value) {
+        if (heldAxis === axis) {
+          heldAxis = null
+          holdStart = 0
+        }
+        return
       }
+      const dir = value > 0 ? dirPos : dirNeg
+      const edge = axis === 'x' ? prev.x !== value : prev.y !== value
+      if (edge) {
+        moveFocus(root, dir)
+        cool = now + 220
+        holdStart = now
+        heldAxis = axis
+        return
+      }
+      if (heldAxis === axis && now > cool) {
+        moveFocus(root, dir)
+        const heldFor = now - holdStart
+        cool = now + (heldFor > 700 ? 68 : heldFor > 350 ? 110 : 160)
+      }
+    }
+
+    if (now > cool || x !== prev.x || y !== prev.y) {
+      if (x) stepAxis('x', x, 'right', 'left')
+      else if (y) stepAxis('y', y, 'down', 'up')
+    }
+
+    // Back is global in input.ts
+    if ((a && !prev.a) || (start && !prev.start)) {
+      moveFocus(root, 'confirm')
+      cool = now + 220
     }
 
     prev.x = x
     prev.y = y
     prev.a = a
-    prev.b = b
+    prev.start = start
   }
 
   raf = requestAnimationFrame(poll)

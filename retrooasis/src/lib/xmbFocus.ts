@@ -1,7 +1,8 @@
 /** Dual-axis XMB focus: Left/Right categories, Up/Down items. */
 
-import { setModalityFromPad } from './inputModality'
+import { setModality, setModalityFromPad } from './inputModality'
 import { sfxBack, sfxConfirm, sfxMove } from './sfx'
+import { buttonPressed, readConnectedPad } from './gamepad'
 
 export type XmbDir = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back'
 
@@ -19,13 +20,26 @@ type Cleanup = () => void
 
 const MOVE_DIRS = new Set<XmbDir>(['left', 'right', 'up', 'down'])
 
+function atHomeHash(): boolean {
+  const hash = window.location.hash
+  return !hash || hash === '#/' || hash === '#'
+}
+
+/** @deprecated Prefer importing from `./gamepad` */
+export { readConnectedPad } from './gamepad'
+
 export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
+  const ensureShellFocus = () => {
+    if (document.activeElement !== root) {
+      root.focus({ preventScroll: true })
+    }
+  }
+
   const move = (dir: XmbDir): void => {
     if (dir === 'back') {
+      if (atHomeHash()) return
       sfxBack()
-      if (window.location.hash && window.location.hash !== '#/' && window.location.hash !== '#') {
-        history.back()
-      }
+      history.back()
       return
     }
 
@@ -48,6 +62,7 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       if (next === cat) return
       sfxMove()
       api.setCategoryIndex(next)
+      ensureShellFocus()
       return
     }
 
@@ -57,6 +72,7 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       if (next === item) return
       sfxMove()
       api.setItemIndex(next)
+      ensureShellFocus()
       return
     }
     if (dir === 'up') {
@@ -64,6 +80,7 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       if (next === item) return
       sfxMove()
       api.setItemIndex(next)
+      ensureShellFocus()
     }
   }
 
@@ -91,8 +108,16 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (!root.isConnected) return
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+    // Keep console-like focus inside the shell
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      ensureShellFocus()
+      return
+    }
 
     const map: Record<string, XmbDir> = {
       ArrowRight: 'right',
@@ -101,10 +126,40 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       ArrowUp: 'up',
       Enter: 'confirm',
       ' ': 'confirm',
+      d: 'right',
+      a: 'left',
+      s: 'down',
+      w: 'up',
+      D: 'right',
+      A: 'left',
+      S: 'down',
+      W: 'up',
     }
+
+    if (event.key === 'Home') {
+      event.preventDefault()
+      setModality('key')
+      if (api.getCategoryIndex() === 0) return
+      sfxMove()
+      api.setCategoryIndex(0)
+      ensureShellFocus()
+      return
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      setModality('key')
+      const last = Math.max(0, api.getCategoryCount() - 1)
+      if (api.getCategoryIndex() === last) return
+      sfxMove()
+      api.setCategoryIndex(last)
+      ensureShellFocus()
+      return
+    }
+
     const dir = map[event.key]
     if (!dir) return
     event.preventDefault()
+    setModality('key')
     if (event.repeat) return
     move(dir)
     startHold(dir)
@@ -115,39 +170,48 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       event.key === 'ArrowRight' ||
       event.key === 'ArrowLeft' ||
       event.key === 'ArrowDown' ||
-      event.key === 'ArrowUp'
+      event.key === 'ArrowUp' ||
+      event.key === 'd' ||
+      event.key === 'a' ||
+      event.key === 's' ||
+      event.key === 'w' ||
+      event.key === 'D' ||
+      event.key === 'A' ||
+      event.key === 'S' ||
+      event.key === 'W'
     ) {
       clearHold()
     }
   }
 
-  root.addEventListener('keydown', onKeyDown)
+  // Window-level so arrows still work if a child briefly stole focus
+  window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
 
   let raf = 0
-  const prev = { x: 0, y: 0, a: false, b: false }
+  const prev = { x: 0, y: 0, a: false, start: false }
   let cool = 0
   let holdStart = 0
   let heldAxis: 'x' | 'y' | null = null
 
   const poll = () => {
     raf = requestAnimationFrame(poll)
-    const pad = navigator.getGamepads?.()[0]
+    const pad = readConnectedPad()
     if (!pad) return
 
     const now = performance.now()
     const axisX = Math.abs(pad.axes[0] ?? 0) > 0.45 ? Math.sign(pad.axes[0]) : 0
     const axisY = Math.abs(pad.axes[1] ?? 0) > 0.45 ? Math.sign(pad.axes[1]) : 0
-    const dpadLeft = pad.buttons[14]?.pressed ? -1 : 0
-    const dpadRight = pad.buttons[15]?.pressed ? 1 : 0
-    const dpadUp = pad.buttons[12]?.pressed ? -1 : 0
-    const dpadDown = pad.buttons[13]?.pressed ? 1 : 0
+    const dpadLeft = buttonPressed(pad, 14) ? -1 : 0
+    const dpadRight = buttonPressed(pad, 15) ? 1 : 0
+    const dpadUp = buttonPressed(pad, 12) ? -1 : 0
+    const dpadDown = buttonPressed(pad, 13) ? 1 : 0
     const x = dpadLeft || dpadRight || axisX
     const y = dpadUp || dpadDown || axisY
-    const a = !!pad.buttons[0]?.pressed
-    const b = !!pad.buttons[1]?.pressed
+    const a = buttonPressed(pad, 0)
+    const start = buttonPressed(pad, 9)
 
-    if (x || y || a || b) setModalityFromPad()
+    if (x || y || a || start) setModalityFromPad()
 
     const stepAxis = (axis: 'x' | 'y', value: number, dirPos: XmbDir, dirNeg: XmbDir) => {
       if (!value) {
@@ -178,26 +242,28 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       else if (y) stepAxis('y', y, 'down', 'up')
     }
 
-    if (a && !prev.a) {
+    // Back (B / Select) is handled globally in input.ts so leaf pages work too
+    if ((a && !prev.a) || (start && !prev.start)) {
       move('confirm')
-      cool = now + 220
-    } else if (b && !prev.b) {
-      move('back')
       cool = now + 220
     }
 
     prev.x = x
     prev.y = y
     prev.a = a
-    prev.b = b
+    prev.start = start
   }
 
   raf = requestAnimationFrame(poll)
 
+  const onPadConnect = () => setModalityFromPad()
+  window.addEventListener('gamepadconnected', onPadConnect)
+
   return () => {
     clearHold()
-    root.removeEventListener('keydown', onKeyDown)
+    window.removeEventListener('keydown', onKeyDown)
     window.removeEventListener('keyup', onKeyUp)
+    window.removeEventListener('gamepadconnected', onPadConnect)
     cancelAnimationFrame(raf)
   }
 }
