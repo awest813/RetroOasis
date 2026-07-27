@@ -30,6 +30,7 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     }
 
     if (dir === 'confirm') {
+      if (api.getItemCount() <= 0) return
       sfxConfirm()
       api.confirm()
       return

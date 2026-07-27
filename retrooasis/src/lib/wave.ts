@@ -3,10 +3,12 @@
 type Cleanup = () => void
 
 let waveActive = true
+let wakeWave: (() => void) | null = null
 
 /** Pause drawing when the XMB shell is not showing. */
 export function setWaveActive(on: boolean): void {
   waveActive = on
+  if (on) wakeWave?.()
 }
 
 export function mountWave(canvas: HTMLCanvasElement): Cleanup {
@@ -78,17 +80,17 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
 
   const draw = (t: number) => {
     if (!running) return
-    raf = requestAnimationFrame(draw)
-    if (!width || !height) return
-
     if (!waveActive) {
       if (wasActive) {
         ctx.clearRect(0, 0, width, height)
         wasActive = false
       }
+      raf = 0
       return
     }
     wasActive = true
+    raf = requestAnimationFrame(draw)
+    if (!width || !height) return
 
     const time = reduced ? 0 : t * 0.001
     ctx.clearRect(0, 0, width, height)
@@ -122,12 +124,18 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
     ctx.globalAlpha = 1
   }
 
+  wakeWave = () => {
+    if (!running || raf) return
+    raf = requestAnimationFrame(draw)
+  }
+
   resize()
   raf = requestAnimationFrame(draw)
   window.addEventListener('resize', resize)
 
   return () => {
     running = false
+    wakeWave = null
     cancelAnimationFrame(raf)
     window.removeEventListener('resize', resize)
   }

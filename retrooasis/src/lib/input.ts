@@ -14,12 +14,11 @@ export function installInputChrome(): () => void {
       const tag = (event.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       event.preventDefault()
+      const atHome =
+        !window.location.hash || window.location.hash === '#/' || window.location.hash === '#'
+      if (atHome) return
       sfxBack()
-      if (window.location.hash && window.location.hash !== '#/' && window.location.hash !== '#') {
-        history.back()
-      } else {
-        window.location.hash = '#/'
-      }
+      history.back()
     }
   }
 

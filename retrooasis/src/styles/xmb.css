@@ -49,7 +49,7 @@
 }
 
 .ro-shell--xmb .ro-brand {
-  visibility: hidden;
+  display: none;
 }
 
 .ro-shell--xmb .ro-install-btn {
@@ -156,6 +156,7 @@
   transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
   z-index: 4;
+  pointer-events: none;
 }
 
 .ro-xmb__cat {
@@ -172,6 +173,7 @@
   cursor: pointer;
   opacity: 0.55;
   transform: scale(0.94);
+  pointer-events: auto;
   transition:
     opacity 200ms ease,
     transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -337,14 +339,17 @@
 .ro-xmb__item[data-active='true'] .ro-xmb__item-thumb {
   transform: scale(1.12);
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--ro-accent) 55%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 55%, transparent),
     0 12px 28px rgba(0, 0, 0, 0.4),
-    0 0 28px color-mix(in srgb, var(--ro-accent) 28%, transparent);
+    0 0 28px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 28%, transparent);
 }
 
 .ro-xmb__item:hover {
-  opacity: 0.9;
   text-decoration: none;
+}
+
+.ro-xmb__item:hover .ro-xmb__item-thumb {
+  transform: scale(1.02);
 }
 
 .ro-xmb__item-thumb {
@@ -532,9 +537,9 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__item[data-active='true'] {
 html[data-input='key'] .ro-xmb:focus-within .ro-xmb__item[data-active='true'] .ro-xmb__item-thumb,
 html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__item[data-active='true'] .ro-xmb__item-thumb {
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--ro-accent) 70%, #fff),
+    0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 70%, #fff),
     0 14px 32px rgba(0, 0, 0, 0.42),
-    0 0 34px color-mix(in srgb, var(--ro-accent) 34%, transparent);
+    0 0 34px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 34%, transparent);
 }
 
 html[data-input='key'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon,
@@ -547,70 +552,81 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro
     0 0 32px color-mix(in srgb, var(--cat-accent, var(--ro-accent)) 32%, transparent);
 }
 
-html[data-layout='tv'] .ro-xmb {
-  --xmb-cat-y: 32%;
-  --xmb-item-gap: 1rem;
-}
+@media (min-width: 901px) {
+  html[data-layout='tv'] .ro-xmb {
+    --xmb-cat-y: 32%;
+    --xmb-item-gap: 1rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__brand {
-  font-size: clamp(1rem, 1.8vw, 1.25rem);
-}
+  html[data-layout='tv'] .ro-xmb__brand {
+    font-size: clamp(1rem, 1.8vw, 1.25rem);
+  }
 
-html[data-layout='tv'] .ro-xmb__clock-time {
-  font-size: clamp(1.1rem, 1.9vw, 1.35rem);
-}
+  html[data-layout='tv'] .ro-xmb__clock-time {
+    font-size: clamp(1.1rem, 1.9vw, 1.35rem);
+  }
 
-html[data-layout='tv'] .ro-xmb__cat-icon {
-  width: 4rem;
-  height: 4rem;
-}
+  html[data-layout='tv'] .ro-xmb__cat-icon {
+    width: 4rem;
+    height: 4rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__cat-icon svg,
-html[data-layout='tv'] .ro-xmb__glyph {
-  width: 1.85rem;
-  height: 1.85rem;
-}
+  html[data-layout='tv'] .ro-xmb__cat-icon svg,
+  html[data-layout='tv'] .ro-xmb__glyph {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__cat-label {
-  font-size: 1rem;
-}
+  html[data-layout='tv'] .ro-xmb__cat-label {
+    font-size: 1rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__item {
-  min-height: 3.95rem;
-  gap: 1rem;
-}
+  html[data-layout='tv'] .ro-xmb__rail-inner {
+    width: min(34rem, 56vw);
+  }
 
-html[data-layout='tv'] .ro-xmb__item-thumb {
-  width: 3.95rem;
-  height: 3.95rem;
-}
+  html[data-layout='tv'] .ro-xmb__item {
+    grid-template-columns: 3.95rem 1fr;
+    min-height: 3.95rem;
+    gap: 1rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__item-title {
-  font-size: 1.28rem;
-}
+  html[data-layout='tv'] .ro-xmb__item-thumb {
+    width: 3.95rem;
+    height: 3.95rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__stage {
-  width: min(14rem, 100%);
-}
+  html[data-layout='tv'] .ro-xmb__item-title {
+    font-size: 1.28rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__stage--glyph {
-  width: 6.5rem;
-}
+  html[data-layout='tv'] .ro-xmb__item-sub {
+    font-size: 0.92rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__info {
-  width: min(24rem, 34vw);
-}
+  html[data-layout='tv'] .ro-xmb__stage {
+    width: min(14rem, 100%);
+  }
 
-html[data-layout='tv'] .ro-xmb__info-title {
-  font-size: clamp(1.35rem, 2.8vw, 1.9rem);
-}
+  html[data-layout='tv'] .ro-xmb__stage--glyph {
+    width: 6.5rem;
+  }
 
-html[data-layout='tv'] .ro-xmb__info-body {
-  font-size: 1.05rem;
-}
+  html[data-layout='tv'] .ro-xmb__info {
+    width: min(22rem, 30vw);
+  }
 
-html[data-layout='tv'] .ro-xmb__hint {
-  font-size: 0.9rem;
+  html[data-layout='tv'] .ro-xmb__info-title {
+    font-size: clamp(1.35rem, 2.8vw, 1.9rem);
+  }
+
+  html[data-layout='tv'] .ro-xmb__info-body {
+    font-size: 1.05rem;
+  }
+
+  html[data-layout='tv'] .ro-xmb__hint {
+    font-size: 0.9rem;
+  }
 }
 
 @keyframes ro-xmb-item-in {
@@ -768,11 +784,20 @@ html[data-layout='tv'] .ro-xmb__hint {
   }
 
   .ro-xmb__item {
-    opacity: 0.72;
+    opacity: 0.78;
     pointer-events: auto;
   }
 
-  .ro-xmb__item[data-active='true'] {
+  .ro-xmb__item[data-distance],
+  .ro-xmb__item[data-distance='1'],
+  .ro-xmb__item[data-distance='2'],
+  .ro-xmb__item[data-distance='3'],
+  .ro-xmb__item[data-distance='4'] {
+    opacity: 0.78;
+  }
+
+  .ro-xmb__item[data-active='true'],
+  .ro-xmb__item[data-distance='0'] {
     opacity: 1;
   }
 

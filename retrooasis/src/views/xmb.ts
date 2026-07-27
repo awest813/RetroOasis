@@ -16,7 +16,7 @@ import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
 import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
 import { getInputModality } from '../lib/inputModality'
-import { sfxConfirm } from '../lib/sfx'
+import { sfxConfirm, sfxMove } from '../lib/sfx'
 
 type Cleanup = () => void
 
@@ -51,30 +51,40 @@ interface XmbCategory {
   empty?: string
 }
 
-const SESSION_CAT = 'retrooasis.xmb.cat'
-const SESSION_ITEM = 'retrooasis.xmb.item'
+const SESSION_CAT = 'retrooasis.xmb.catId'
+const SESSION_ITEM = 'retrooasis.xmb.itemId'
 
 let cleanup: Cleanup | null = null
+let renderGen = 0
 
-function readSessionIndex(key: string, max: number): number {
+function readSessionId(key: string): string | null {
   try {
-    const raw = sessionStorage.getItem(key)
-    if (raw == null) return 0
-    const n = Number.parseInt(raw, 10)
-    if (!Number.isFinite(n) || n < 0) return 0
-    return Math.min(n, Math.max(0, max))
+    return sessionStorage.getItem(key)
   } catch {
-    return 0
+    return null
   }
 }
 
-function writeSession(cat: number, item: number): void {
+function writeSession(catId: string, itemId: string | null): void {
   try {
-    sessionStorage.setItem(SESSION_CAT, String(cat))
-    sessionStorage.setItem(SESSION_ITEM, String(item))
+    sessionStorage.setItem(SESSION_CAT, catId)
+    if (itemId) sessionStorage.setItem(SESSION_ITEM, itemId)
+    else sessionStorage.removeItem(SESSION_ITEM)
   } catch {
     /* ignore */
   }
+}
+
+function resolveSessionFocus(categories: XmbCategory[]): { catIndex: number; itemIndex: number } {
+  const catId = readSessionId(SESSION_CAT)
+  let catIndex = catId ? categories.findIndex((c) => c.id === catId) : 0
+  if (catIndex < 0) catIndex = 0
+
+  const itemId = readSessionId(SESSION_ITEM)
+  const items = categories[catIndex]?.items ?? []
+  let itemIndex = itemId ? items.findIndex((i) => i.id === itemId) : 0
+  if (itemIndex < 0) itemIndex = 0
+  return { catIndex, itemIndex }
 }
 
 function gameBlurb(game: Game, platformName: string): string {
@@ -314,8 +324,8 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
       <div class="ro-xmb__info-inner" data-ro-info>
         <div class="ro-xmb__info-copy">
           <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-          <h2 class="ro-xmb__info-title">Nothing here yet</h2>
-          <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Pick another category or add a game.')}</p>
+          <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
+          <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>
         </div>
       </div>`
   }
@@ -382,20 +392,15 @@ function scheduleMinuteClock(tick: () => void): () => void {
 }
 
 export async function renderXmb(root: HTMLElement): Promise<void> {
+  const gen = ++renderGen
   cleanup?.()
   cleanup = null
 
   const catalog = await loadCatalog()
-  const categories = buildCategories(catalog)
+  if (gen !== renderGen) return
 
-  let catIndex = readSessionIndex(SESSION_CAT, categories.length - 1)
-  let itemIndex = readSessionIndex(
-    SESSION_ITEM,
-    Math.max(0, (categories[catIndex]?.items.length ?? 1) - 1),
-  )
-  if (categories[catIndex] && itemIndex >= categories[catIndex].items.length) {
-    itemIndex = 0
-  }
+  const categories = buildCategories(catalog)
+  let { catIndex, itemIndex } = resolveSessionFocus(categories)
 
   const now = new Date()
 
@@ -406,20 +411,22 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
         <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
       </div>
-      <div class="ro-xmb__cats" role="tablist" aria-label="Categories">
+      <div class="ro-xmb__cats" role="toolbar" aria-label="Categories">
         ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
       </div>
       <div class="ro-xmb__rail">
-        <div class="ro-xmb__rail-inner" data-anim="in" role="list">
+        <div class="ro-xmb__rail-inner" role="list">
           ${railMarkup(categories[catIndex], itemIndex)}
         </div>
       </div>
-      <aside class="ro-xmb__info" aria-live="polite">
+      <aside class="ro-xmb__info ro-xmb__info--in" aria-live="polite">
         ${infoMarkup(categories[catIndex], itemIndex)}
       </aside>
       <p class="ro-xmb__hint" data-ro-xmb-hint>${escapeHtml(hintCopy())}</p>
     </section>
   `
+
+  if (gen !== renderGen) return
 
   const shell = root.querySelector<HTMLElement>('.ro-xmb')
   if (!shell) return
@@ -432,7 +439,9 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const hintEl = shell.querySelector<HTMLElement>('[data-ro-xmb-hint]')
   if (!catsEl || !railInner || !infoEl) return
 
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  let reducedMotion = motionQuery.matches
+  let animTimer = 0
 
   const thumbInsetX = (item: HTMLElement | null): number => {
     if (!item) return 28
@@ -442,21 +451,27 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     return padL + thumb.offsetWidth / 2
   }
 
+  const persist = () => {
+    const cat = categories[catIndex]
+    if (!cat) return
+    writeSession(cat.id, cat.items[itemIndex]?.id ?? null)
+  }
+
   const syncTransforms = () => {
     const desktop = window.matchMedia('(min-width: 901px)').matches
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
 
     if (desktop && activeCat) {
-      // offsetLeft ignores current translateX — no reset flash
+      // Pre-transform math — avoid locking rail to mid-transition geometry
       const targetX = shell.clientWidth * 0.2
-      const catCenter = activeCat.offsetLeft + activeCat.offsetWidth / 2
-      catsEl.style.setProperty('--xmb-shift', `${targetX - catCenter}px`)
-      void catsEl.offsetWidth
+      const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
+      catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
 
-      const shellRect = shell.getBoundingClientRect()
       const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
-      const iconCenterX = iconRect.left - shellRect.left + iconRect.width / 2
+      const iconCenterInCat = catIcon
+        ? catIcon.offsetLeft + catIcon.offsetWidth / 2
+        : activeCat.offsetWidth / 2
+      const iconCenterX = activeCat.offsetLeft + iconCenterInCat + catShift
       const sampleItem =
         railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]') ??
         railInner.querySelector<HTMLElement>('.ro-xmb__item')
@@ -475,7 +490,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // True XMB cross: focused item center locks to category icon center.
+        // Y doesn't animate with category shift — getBoundingClientRect is stable.
         const shellRect = shell.getBoundingClientRect()
         const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
         const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
@@ -528,18 +543,21 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
     })
 
-    if (opts?.animateRail) {
+    window.clearTimeout(animTimer)
+    if (opts?.animateRail && !reducedMotion) {
       railInner.dataset.anim = ''
       void railInner.offsetWidth
       railInner.dataset.anim = 'in'
-      window.setTimeout(() => {
+      animTimer = window.setTimeout(() => {
         if (railInner.dataset.anim === 'in') railInner.dataset.anim = ''
       }, 420)
+    } else {
+      railInner.dataset.anim = ''
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
     paintInfo(cat)
-    writeSession(catIndex, itemIndex)
+    persist()
     requestAnimationFrame(() => {
       syncTransforms()
       if (shell.contains(document.activeElement) || document.activeElement === shell) {
@@ -563,6 +581,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (next < 0) return
     dismissHint()
     if (next === catIndex) return
+    sfxMove()
     catIndex = next
     itemIndex = 0
     paint({ animateRail: true })
@@ -571,12 +590,15 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   railInner.addEventListener('click', (event) => {
     const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('.ro-xmb__item')
     if (!link) return
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
     event.preventDefault()
     const id = link.dataset.roXmbItem
     const next = categories[catIndex]?.items.findIndex((i) => i.id === id) ?? -1
     if (next < 0) return
     itemIndex = next
-    writeSession(catIndex, itemIndex)
+    persist()
     dismissHint()
     sfxConfirm()
     activate()
@@ -611,6 +633,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const onResize = () => syncTransforms()
   window.addEventListener('resize', onResize)
 
+  const onMotionChange = () => {
+    reducedMotion = motionQuery.matches
+  }
+  motionQuery.addEventListener('change', onMotionChange)
+
   const modalityObserver = new MutationObserver(syncHintCopy)
   modalityObserver.observe(document.documentElement, {
     attributes: true,
@@ -618,18 +645,21 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   })
   syncHintCopy()
 
-  paint()
+  paint({ animateRail: true })
   shell.focus({ preventScroll: true })
 
   cleanup = () => {
     unbind()
     stopClock()
+    window.clearTimeout(animTimer)
     modalityObserver.disconnect()
+    motionQuery.removeEventListener('change', onMotionChange)
     window.removeEventListener('resize', onResize)
   }
 }
 
 export function disposeXmb(): void {
+  renderGen += 1
   cleanup?.()
   cleanup = null
 }
