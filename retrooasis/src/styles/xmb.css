@@ -413,8 +413,8 @@
   max-width: 22em;
 }
 
-html[data-input='key'] .ro-xmb__item[data-active='true'],
-html[data-input='pad'] .ro-xmb__item[data-active='true'] {
+html[data-input='key'] .ro-xmb:focus-within .ro-xmb__item[data-active='true'],
+html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__item[data-active='true'] {
   outline: none;
   border-color: var(--ro-focus);
   box-shadow:
@@ -422,8 +422,8 @@ html[data-input='pad'] .ro-xmb__item[data-active='true'] {
     0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-html[data-input='key'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon,
-html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
+html[data-input='key'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon,
+html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   outline: none;
   box-shadow:
     0 0 0 2px var(--ro-focus),

@@ -474,7 +474,12 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     railInner.innerHTML = railMarkup(cat, itemIndex)
     infoEl.innerHTML = infoMarkup(cat, itemIndex)
     writeSession(catIndex, itemIndex)
-    requestAnimationFrame(syncTransforms)
+    requestAnimationFrame(() => {
+      syncTransforms()
+      if (shell.contains(document.activeElement) || document.activeElement === shell) {
+        shell.focus({ preventScroll: true })
+      }
+    })
   }
 
   const activate = () => {
