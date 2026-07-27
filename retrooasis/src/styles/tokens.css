@@ -100,8 +100,8 @@ html[data-input='pad'] [data-ro-focusable='true']:focus {
   outline-offset: 3px;
 }
 
-html[data-input='key'] .ro-tile:focus .ro-cover,
-html[data-input='pad'] .ro-tile:focus .ro-cover,
+html[data-input='key'] .ro-tile:focus-within .ro-cover,
+html[data-input='pad'] .ro-tile:focus-within .ro-cover,
 html[data-input='key'] .ro-tile[data-focus='true'] .ro-cover,
 html[data-input='pad'] .ro-tile[data-focus='true'] .ro-cover {
   box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);

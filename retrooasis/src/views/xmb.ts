@@ -313,9 +313,26 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
     const copy = cat.empty ?? 'Nothing here yet.'
-    return `<p class="ro-xmb__empty">${escapeHtml(copy)}</p>`
+    return `
+      <div class="ro-xmb__empty">
+        <p>${escapeHtml(copy)}</p>
+        ${emptyCtas(cat.id)}
+      </div>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
+}
+
+function emptyCtas(catId: string): string {
+  if (catId === 'recent' || catId === 'favorites') {
+    return `
+      <div class="ro-btn-row">
+        <a class="ro-btn" href="${hrefFor('/library/@all')}">Browse games</a>
+      </div>`
+  }
+  return `
+    <div class="ro-btn-row">
+      <a class="ro-btn" href="${hrefFor('/upload')}">Add ROM</a>
+    </div>`
 }
 
 function infoMarkup(cat: XmbCategory, itemIndex: number): string {
@@ -327,6 +344,7 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
           <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
           <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
           <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>
+          ${emptyCtas(cat.id)}
         </div>
       </div>`
   }

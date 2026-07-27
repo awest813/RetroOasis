@@ -285,14 +285,21 @@ select.ro-input {
 }
 
 .ro-btn--primary {
-  background: var(--ro-accent-ps);
-  border-color: var(--ro-accent-ps);
-  color: #1a1200;
+  background: var(--ro-accent);
+  border-color: var(--ro-accent);
+  color: var(--ro-bg-void);
 }
 
 .ro-btn--primary:hover {
-  background: color-mix(in srgb, var(--ro-accent-ps) 85%, white);
-  color: #1a1200;
+  background: color-mix(in srgb, var(--ro-accent) 85%, white);
+  color: var(--ro-bg-void);
+}
+
+.ro-btn:disabled,
+.ro-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .ro-btn--ghost {
@@ -426,6 +433,14 @@ select.ro-input {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  width: 100%;
+  position: relative;
+}
+
+.ro-tile__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
@@ -434,20 +449,21 @@ select.ro-input {
   padding: 0;
   text-align: left;
   width: 100%;
-  position: relative;
 }
 
-.ro-tile:hover {
+.ro-tile__link:hover {
   text-decoration: none;
 }
 
 .ro-tile:hover .ro-cover,
+.ro-tile:focus-within .ro-cover,
 .ro-tile[data-focus="true"] .ro-cover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 0 0 2px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .ro-tile__fav {
+  appearance: none;
   position: absolute;
   top: 0.45rem;
   right: 0.45rem;
@@ -459,10 +475,40 @@ select.ro-input {
   border-radius: var(--ro-radius);
   font-size: 0.78rem;
   line-height: 1;
-  color: var(--ro-accent);
+  color: var(--ro-text-dim);
   background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ro-accent) 55%, transparent);
-  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--ro-line) 80%, transparent);
+  cursor: pointer;
+  padding: 0;
+  opacity: 1;
+  transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ro-tile__fav {
+    opacity: 0;
+  }
+
+  .ro-tile:hover .ro-tile__fav,
+  .ro-tile:focus-within .ro-tile__fav,
+  .ro-tile__fav:focus-visible,
+  .ro-tile--fav .ro-tile__fav {
+    opacity: 1;
+  }
+}
+
+.ro-tile__fav[aria-pressed='true'],
+.ro-tile--fav .ro-tile__fav {
+  color: var(--ro-accent);
+  border-color: color-mix(in srgb, var(--ro-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
+  opacity: 1;
+}
+
+.ro-tile__fav:hover {
+  color: var(--ro-accent);
+  border-color: color-mix(in srgb, var(--ro-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--ro-accent-soft) 55%, var(--ro-bg-void));
 }
 
 .ro-crt {
@@ -1006,8 +1052,10 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-empty__title {
   margin: 0;
   font-family: var(--ro-font-display);
-  font-size: 0.72rem;
-  line-height: 1.55;
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
   color: var(--ro-text);
 }
 
@@ -1019,6 +1067,23 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-empty .ro-btn-row {
   margin-top: 0.35rem;
+}
+
+.ro-btn-row--center {
+  justify-content: center;
+}
+
+.ro-loading {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding: calc(var(--ro-space) * 1.5) var(--ro-space);
+}
+
+.ro-loading__label {
+  margin: 0;
+  color: var(--ro-text-dim);
+  font-size: 0.95rem;
 }
 
 .ro-detail {
@@ -1471,7 +1536,24 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-systems__actions {
-    display: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.55rem var(--ro-space) 0.75rem;
+  }
+
+  .ro-systems__actions .ro-btn {
+    width: auto;
+    flex: 1 1 calc(33% - 0.35rem);
+    min-width: 5.5rem;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  .ro-systems__actions .ro-muted {
+    flex: 1 1 100%;
   }
 
   .ro-gallery {
@@ -1490,7 +1572,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-brand__mark {
-    font-size: 0.64rem;
+    font-size: 1rem;
   }
 
   .ro-nav a {

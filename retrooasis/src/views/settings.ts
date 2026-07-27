@@ -308,7 +308,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Clear play history</strong>
+              <strong>Clear recents &amp; favorites</strong>
               <p class="ro-muted">Recently played and favorites on this device.</p>
             </div>
             <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear</button>

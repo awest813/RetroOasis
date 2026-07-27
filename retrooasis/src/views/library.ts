@@ -15,7 +15,8 @@ import { bindGridFocus } from '../lib/focus'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { pickLocalLibrary, supportsDirectoryPicker } from '../lib/localLibrary'
 import { hrefFor, type VirtualCollection } from '../lib/router'
-import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
+import { getFavorites, getLibretroCovers, getRecents, toggleFavorite } from '../lib/store'
+import { sfxToggle } from '../lib/sfx'
 import { friendlyError } from '../lib/userErrors'
 
 export type LibrarySelection =
@@ -30,7 +31,7 @@ export async function renderLibrary(
   const counts = countByPlatform(catalog)
   const canPick = supportsDirectoryPicker()
   const useLibretro = getLibretroCovers()
-  const favorites = getFavorites()
+  let favorites = getFavorites()
   const recents = getRecents()
 
   const ordered = [...catalog.platforms].sort((a, b) => {
@@ -58,14 +59,18 @@ export async function renderLibrary(
 
   const platform = sel.kind === 'platform' ? findPlatform(catalog, sel.id) : undefined
   let query = ''
+  let queryRaw = ''
   let sortDesc = false
   let cleanup: (() => void) | undefined
+  let searchTimer = 0
+  const isRecent = sel.kind === 'collection' && sel.id === 'recent'
 
-  const paint = () => {
+  const paint = (opts?: { restoreSearch?: boolean }) => {
     cleanup?.()
+    favorites = getFavorites()
     let games = selectGames(catalog, sel, favorites, recents)
     games = games.filter((g) => !query || g.title.toLowerCase().includes(query))
-    if (sel.kind !== 'collection' || sel.id !== 'recent') {
+    if (!isRecent) {
       games = [...games].sort((a, b) =>
         sortDesc ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title),
       )
@@ -132,9 +137,9 @@ export async function renderLibrary(
               ${sampleCue}
             </div>
             <div class="ro-search">
-              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(query)}" />
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort">
-                ${sel.kind === 'collection' && sel.id === 'recent' ? 'Recent' : sortDesc ? 'Z–A' : 'A–Z'}
+              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" />
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
+                ${isRecent ? 'Play order' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
             </div>
           </div>
@@ -162,16 +167,37 @@ export async function renderLibrary(
 
     const input = root.querySelector<HTMLInputElement>('#ro-q')
     input?.addEventListener('input', () => {
-      query = input.value.trim().toLowerCase()
-      paint()
-      root.querySelector<HTMLInputElement>('#ro-q')?.focus()
+      queryRaw = input.value
+      query = queryRaw.trim().toLowerCase()
+      window.clearTimeout(searchTimer)
+      searchTimer = window.setTimeout(() => {
+        paint({ restoreSearch: true })
+      }, 160)
     })
 
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
-      if (sel.kind === 'collection' && sel.id === 'recent') return
+      if (isRecent) return
       sortDesc = !sortDesc
-      paint()
+      paint({ restoreSearch: true })
     })
+
+    root.querySelector('[data-ro-grid]')?.addEventListener('click', (event) => {
+      const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-fav-id]')
+      if (!btn) return
+      event.preventDefault()
+      event.stopPropagation()
+      const id = btn.dataset.favId
+      if (!id) return
+      sfxToggle()
+      toggleFavorite(id)
+      paint({ restoreSearch: true })
+    })
+
+    if (opts?.restoreSearch && input) {
+      input.focus()
+      const len = input.value.length
+      input.setSelectionRange(len, len)
+    }
 
     const systems = root.querySelector<HTMLElement>('[data-ro-systems]')
     const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
@@ -180,7 +206,10 @@ export async function renderLibrary(
     if (systems) cleanups.push(bindGridFocus(systems))
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
-    cleanup = () => cleanups.forEach((fn) => fn())
+    cleanup = () => {
+      window.clearTimeout(searchTimer)
+      cleanups.forEach((fn) => fn())
+    }
     registerViewCleanup(cleanup)
   }
 
@@ -272,7 +301,7 @@ function emptyState(sel: LibrarySelection): string {
       <div class="ro-empty">
         <p class="ro-empty__title">Shelf is empty</p>
         <p class="ro-empty__body">Link a ROM folder, host your games, or add a file — saved ROMs stay on this device.</p>
-        <div class="ro-btn-row" style="justify-content:center">
+        <div class="ro-btn-row ro-btn-row--center">
           <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
         </div>
@@ -387,18 +416,29 @@ function gameTile(
       : game.demo
         ? 'ro-tile__sub ro-tile__sub--sample'
         : 'ro-tile__sub'
+  const pressed = favorited ? 'true' : 'false'
+  const favLabel = favorited ? 'Remove from favorites' : 'Add to favorites'
   return `
-    <a
-      class="ro-tile${favorited ? ' ro-tile--fav' : ''}"
-      href="${hrefFor(`/game/${game.id}`)}"
-      data-ro-focusable="true"
-    >
-      ${coverMarkup(game.title, platformAccentVar(accent), cover)}
-      ${favorited ? '<span class="ro-tile__fav" aria-label="Favorited">★</span>' : ''}
-      <div class="ro-tile__meta">
-        <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-        <span class="${subClass}">${sub}</span>
-      </div>
-    </a>
+    <div class="ro-tile${favorited ? ' ro-tile--fav' : ''}">
+      <a
+        class="ro-tile__link"
+        href="${hrefFor(`/game/${game.id}`)}"
+        data-ro-focusable="true"
+      >
+        ${coverMarkup(game.title, platformAccentVar(accent), cover)}
+        <div class="ro-tile__meta">
+          <span class="ro-tile__title">${escapeHtml(game.title)}</span>
+          <span class="${subClass}">${sub}</span>
+        </div>
+      </a>
+      <button
+        type="button"
+        class="ro-tile__fav"
+        data-fav-id="${escapeAttr(game.id)}"
+        aria-pressed="${pressed}"
+        aria-label="${escapeAttr(favLabel)}"
+        title="${escapeAttr(favLabel)}"
+      >★</button>
+    </div>
   `
 }

@@ -75,6 +75,13 @@ const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
 const main = mainEl
 
+main.innerHTML = `
+  <section class="ro-view ro-loading" aria-busy="true" aria-live="polite">
+    <p class="ro-kicker">RetroOasis</p>
+    <p class="ro-loading__label">Loading your shelf…</p>
+  </section>
+`
+
 const installTop = app.querySelector<HTMLButtonElement>('#ro-install-top')
 
 function syncInstallButton(): void {
