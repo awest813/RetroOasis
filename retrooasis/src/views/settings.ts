@@ -46,16 +46,55 @@ import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
+import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
-let pendingFocusId: string | null = null
+const FOCUS_KEY = 'retrooasis.settings.focusId'
+const SCROLL_KEY = 'retrooasis.settings.scrollY'
 
 function rememberFocus(id: string): void {
-  pendingFocusId = id
+  try {
+    sessionStorage.setItem(FOCUS_KEY, id)
+  } catch {
+    /* ignore */
+  }
+}
+
+function rememberScroll(y = window.scrollY): void {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(Math.max(0, Math.round(y))))
+  } catch {
+    /* ignore */
+  }
+}
+
+function readFocus(): string | null {
+  try {
+    return sessionStorage.getItem(FOCUS_KEY)
+  } catch {
+    return null
+  }
+}
+
+function readScroll(): number | null {
+  try {
+    const raw = sessionStorage.getItem(SCROLL_KEY)
+    if (raw == null) return null
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : null
+  } catch {
+    return null
+  }
 }
 
 function pressed(on: boolean): string {
   return on ? 'true' : 'false'
+}
+
+function confirmAction(message: string): boolean {
+  const ok = window.confirm(message)
+  suppressPadBackUntilRelease()
+  return ok
 }
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
@@ -74,8 +113,16 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const canPick = supportsDirectoryPicker()
   const installable = canInstallPwa()
   const installed = isPwaInstalled()
-  const restoreId = pendingFocusId
-  pendingFocusId = null
+  // Preserve row focus/scroll across catalog-driven rebuilds.
+  const existing = root.querySelector<HTMLElement>('[data-ro-settings]')
+  if (existing) {
+    const active = document.activeElement as HTMLElement | null
+    if (active?.dataset.focusId && root.contains(active)) rememberFocus(active.dataset.focusId)
+    rememberScroll()
+  }
+
+  const restoreId = readFocus()
+  const restoreScroll = readScroll()
 
   root.innerHTML = `
     <section class="ro-view ro-settings-page">
@@ -116,7 +163,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>CRT overlay</strong>
               <p class="ro-muted">Heavier scanlines on the shell.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-crt" data-focus-id="crt" data-ro-focusable="true" aria-pressed="${pressed(crt)}">${crt ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-crt" data-focus-id="crt" data-ro-focusable="true" aria-pressed="${pressed(crt)}" aria-label="CRT overlay">${crt ? 'On' : 'Off'}</button>
           </div>
         </section>
 
@@ -128,7 +175,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>UI sounds</strong>
               <p class="ro-muted">Menu blips on move and confirm.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-sounds" data-focus-id="sounds" data-ro-focusable="true" aria-pressed="${pressed(sounds)}">${sounds ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-sounds" data-focus-id="sounds" data-ro-focusable="true" aria-pressed="${pressed(sounds)}" aria-label="UI sounds">${sounds ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -136,10 +183,10 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Sound pack</strong>
               <p class="ro-muted">${sounds ? 'Soft tones, XMB clicks, or arcade beeps.' : 'Turn on UI sounds to choose a pack.'}</p>
             </div>
-            <div class="ro-toggle-group" role="group" aria-label="Sound pack">
-              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft" data-ro-focusable="true" aria-pressed="${pressed(pack === 'soft')}"${sounds ? '' : ' disabled'}>Soft</button>
-              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb" data-ro-focusable="true" aria-pressed="${pressed(pack === 'xmb')}"${sounds ? '' : ' disabled'}>XMB</button>
-              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}"${sounds ? '' : ' disabled'}>Arcade</button>
+            <div class="ro-toggle-group ro-toggle-group--packs" role="group" aria-label="Sound pack">
+              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft" data-ro-focusable="true" aria-pressed="${pressed(pack === 'soft')}" aria-disabled="${pressed(!sounds)}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb" data-ro-focusable="true" aria-pressed="${pressed(pack === 'xmb')}" aria-disabled="${pressed(!sounds)}">XMB</button>
+              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}" aria-disabled="${pressed(!sounds)}">Arcade</button>
             </div>
           </div>
 
@@ -172,7 +219,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Libretro covers</strong>
               <p class="ro-muted">Fill missing box art when available.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}">${libretro ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Libretro covers">${libretro ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -180,7 +227,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Hide demos</strong>
               <p class="ro-muted">Show only ROMs you’ve hosted, linked, or saved.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}">${hideDemos ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}" aria-label="Hide demos">${hideDemos ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -292,6 +339,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   const rerender = (focusId?: string) => {
     if (focusId) rememberFocus(focusId)
+    rememberScroll()
     void renderSettings(root)
   }
 
@@ -325,7 +373,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelectorAll<HTMLButtonElement>('[data-pack]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (btn.disabled) return
+      if (btn.getAttribute('aria-disabled') === 'true') return
       setSoundPack(btn.dataset.pack as SoundPack)
       if (getSoundsEnabled()) sfxToggle()
       rerender(btn.dataset.focusId)
@@ -345,9 +393,10 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {
+    rememberFocus('hide-demos')
+    rememberScroll()
     setHideDemos(!getHideDemos())
     refreshCatalogView()
-    rerender('hide-demos')
   })
 
   root.querySelector('#ro-link')?.addEventListener('click', async () => {
@@ -365,12 +414,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-unlink')?.addEventListener('click', async () => {
+    if (!confirmAction('Unlink the local ROM folder on this device?')) return
     await unlinkLocalCatalog()
     rerender('unlink-folder')
   })
 
   root.querySelector('#ro-clear-uploads')?.addEventListener('click', async () => {
-    if (!window.confirm('Remove all saved ROMs from this device? This can’t be undone.')) return
+    if (!confirmAction('Remove all saved ROMs from this device? This can’t be undone.')) return
     await clearUploadedCatalog()
     rerender('clear-uploads')
   })
@@ -381,7 +431,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-prefs')?.addEventListener('click', () => {
-    if (!window.confirm('Clear recently played and favorites on this device?')) return
+    if (!confirmAction('Clear recently played and favorites on this device?')) return
     clearLocalPrefs()
     rerender('clear-prefs')
   })
@@ -397,10 +447,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
-    if (!window.confirm('Clear all local metadata edits on this device?')) return
+    if (!confirmAction('Clear all local metadata edits on this device?')) return
+    rememberFocus('clear-over')
+    rememberScroll()
     clearAllOverrides()
     refreshCatalogView()
-    rerender('clear-over')
   })
 
   const focusRoot = root.querySelector<HTMLElement>('[data-ro-settings]')
@@ -413,6 +464,15 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           )
         : null) ??
       focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]:not([disabled])')
-    restore?.focus({ preventScroll: true })
+    if (restore) {
+      restore.focus({ preventScroll: true })
+      if (restoreScroll != null) {
+        window.scrollTo(0, restoreScroll)
+        rememberScroll(restoreScroll)
+      } else {
+        restore.closest('[data-ro-focus-row]')?.scrollIntoView({ block: 'nearest' })
+      }
+      if (restore.dataset.focusId) rememberFocus(restore.dataset.focusId)
+    }
   }
 }

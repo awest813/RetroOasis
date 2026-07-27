@@ -1129,6 +1129,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   margin: 0 -0.35rem;
   border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 45%, transparent);
   border-radius: 2px;
+  scroll-margin-top: calc(var(--ro-topbar-h, 3.65rem) + 0.75rem);
   transition: background 140ms ease;
 }
 
@@ -1140,7 +1141,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   border-bottom: 0;
 }
 
-.ro-settings-row:focus-within {
+.ro-settings-row[data-ro-focus-row]:focus-within {
   background: color-mix(in srgb, var(--ro-accent) 8%, transparent);
 }
 
@@ -1219,19 +1220,35 @@ html[data-layout='tv'] .ro-btn--toggle {
   background: transparent;
 }
 
-.ro-toggle-group .ro-btn:hover:not(:disabled) {
+.ro-toggle-group .ro-btn:hover:not(:disabled):not([aria-disabled='true']) {
   border-color: color-mix(in srgb, var(--ro-accent) 40%, transparent);
 }
 
-.ro-toggle-group .ro-btn:disabled {
-  opacity: 0.38;
+.ro-toggle-group .ro-btn:disabled,
+.ro-toggle-group .ro-btn[aria-disabled='true'] {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.ro-toggle-group button[aria-pressed='true']:not(:disabled) {
+.ro-toggle-group button[aria-pressed='true'] {
   background: var(--ro-accent);
   color: var(--ro-bg-void);
   border-color: var(--ro-accent);
+}
+
+.ro-toggle-group button[aria-pressed='true'][aria-disabled='true'] {
+  opacity: 0.55;
+}
+
+.ro-toggle-group--packs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ro-toggle-group--packs .ro-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
 }
 
 /* —— Responsive polish: phone / tablet / laptop / desktop —— */
@@ -1376,6 +1393,10 @@ html[data-layout='tv'] .ro-btn--toggle {
 
   .ro-toggle-group--channels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ro-toggle-group--packs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .ro-toggle-group .ro-btn {
