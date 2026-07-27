@@ -49,7 +49,7 @@ const CORE_EXT_HINTS: Record<string, string> = {
 export function renderUpload(root: HTMLElement): void {
   root.innerHTML = `
     <section class="ro-view ro-upload">
-      <p class="ro-kicker">Power path</p>
+      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add ROM</p>
       <h1 class="ro-title">Add ROM</h1>
       <p class="ro-lede">
         Drop in a ROM to save it on this device and start playing.
@@ -78,7 +78,8 @@ export function renderUpload(root: HTMLElement): void {
           Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
         </p>
         <div class="ro-btn-row">
-          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Back to library</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}">Back home</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
         </div>
       </div>
     </section>

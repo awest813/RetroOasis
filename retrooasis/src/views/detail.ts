@@ -31,7 +31,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       <section class="ro-view">
         <p class="ro-kicker">404</p>
         <h1 class="ro-title">Game not found</h1>
-        <p class="ro-lede"><a href="${hrefFor('/library')}">Back to library</a></p>
+        <p class="ro-lede"><a href="${hrefFor('/')}">Back home</a> · <a href="${hrefFor('/library')}">Library</a></p>
       </section>
     `
     return
@@ -67,12 +67,18 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         </div>
         <div class="ro-stack">
           <p class="ro-kicker">
+            <a href="${hrefFor('/')}">Home</a>
+            <span aria-hidden="true"> / </span>
             <a href="${hrefFor('/library')}">Library</a>
-            ${platform ? `/ <a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>` : ''}
+            ${
+              platform
+                ? `<span aria-hidden="true"> / </span><a href="${hrefFor(`/library/${platform.id}`)}">${escapeHtml(platform.shortName)}</a>`
+                : ''
+            }
           </p>
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
           <div class="ro-detail__badges">
-            <span class="ro-badge">${escapeHtml(platform?.name ?? game.platform)}</span>
+            <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}

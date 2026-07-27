@@ -15,6 +15,7 @@ import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
 import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
+import { sfxConfirm } from '../lib/sfx'
 
 type Cleanup = () => void
 
@@ -250,6 +251,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
         data-distance="${dist}"
+        tabindex="-1"
         style="--item-accent: ${item.accent}"
       >
         <span class="ro-xmb__item-thumb">
@@ -269,6 +271,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
       data-distance="${dist}"
+      tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
       <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph">${escapeHtml(item.glyph)}</span>
@@ -287,7 +290,9 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       data-ro-xmb-cat="${escapeAttr(cat.id)}"
       data-active="${active ? 'true' : 'false'}"
       style="--cat-accent: ${cat.accent}"
+      aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
+      tabindex="-1"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
       <span class="ro-xmb__cat-label">${escapeHtml(cat.label)}</span>
@@ -296,7 +301,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
-    return `<p class="ro-xmb__empty">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+    return `<p class="ro-xmb__empty" aria-hidden="true"></p>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
 }
@@ -364,7 +369,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const now = new Date()
 
   root.innerHTML = `
-    <section class="ro-xmb" aria-label="Cross menu" tabindex="0">
+    <section class="ro-xmb" aria-label="Cross menu" role="application" tabindex="0">
       <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
       <div class="ro-xmb__clock" aria-hidden="true">
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
@@ -474,13 +479,19 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     railInner.innerHTML = railMarkup(cat, itemIndex)
     paintInfo(cat)
     writeSession(catIndex, itemIndex)
-    requestAnimationFrame(syncTransforms)
+    requestAnimationFrame(() => {
+      syncTransforms()
+      if (shell.contains(document.activeElement) || document.activeElement === shell) {
+        shell.focus({ preventScroll: true })
+      }
+    })
   }
 
   const activate = () => {
     const cat = categories[catIndex]
     const item = cat?.items[itemIndex]
     if (!item) return
+    sfxConfirm()
     navigate(item.href)
   }
 
