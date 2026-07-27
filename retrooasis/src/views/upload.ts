@@ -5,6 +5,7 @@ import { getEjsChannel, pushRecent } from '../lib/store'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
+import { registerViewCleanup } from '../lib/viewLifecycle'
 
 const CORE_EXT_HINTS: Record<string, string> = {
   auto: 'Auto picks a system from the file extension (.nes, .sfc, .gba, .zip, …).',
@@ -95,7 +96,7 @@ export function renderUpload(root: HTMLElement): void {
   const dropSub = root.querySelector<HTMLElement>('#ro-drop-sub')
   const stack = root.querySelector<HTMLElement>('.ro-upload__stack')
   let busy = false
-  if (stack) bindGridFocus(stack)
+  if (stack) registerViewCleanup(bindGridFocus(stack))
 
   const setDropCopy = (mode: 'idle' | 'drag' | 'busy') => {
     if (!dropTitle || !dropSub) return

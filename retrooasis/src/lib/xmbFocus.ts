@@ -109,6 +109,9 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
+    const active = document.activeElement as HTMLElement | null
+    const focusInside = !active || active === root || root.contains(active)
+
     // Keep console-like focus inside the shell on desktop; allow Tab into
     // the mobile topbar when it is interactive.
     if (event.key === 'Tab') {
@@ -121,6 +124,9 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
       }
       return
     }
+
+    // Focus is in the topbar (or elsewhere) — don't steal Enter/arrows.
+    if (!focusInside) return
 
     const map: Record<string, XmbDir> = {
       ArrowRight: 'right',

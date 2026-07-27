@@ -15,6 +15,7 @@ import {
 } from './lib/pwa'
 import { installInputChrome } from './lib/input'
 import { mountWave, setWaveActive } from './lib/wave'
+import { disposeActiveView } from './lib/viewLifecycle'
 import { disposeXmb, renderXmb } from './views/xmb'
 import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
@@ -134,6 +135,7 @@ window.matchMedia('(min-width: 901px)').addEventListener('change', () => {
 })
 
 async function render(route: Route): Promise<void> {
+  disposeActiveView()
   syncNav(route)
   syncShellMode(route)
   syncInstallButton()

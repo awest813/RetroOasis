@@ -22,6 +22,7 @@ import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../
 import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
+import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -227,7 +228,15 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
 
     const actions = root.querySelector<HTMLElement>('.ro-detail__actions')
-    if (actions) focusCleanup = bindGridFocus(actions)
+    if (actions) {
+      focusCleanup = bindGridFocus(actions)
+      registerViewCleanup(() => {
+        focusCleanup?.()
+        focusCleanup = null
+      })
+    } else {
+      registerViewCleanup(null)
+    }
     root.querySelector<HTMLElement>('#ro-play')?.focus()
   }
 

@@ -46,12 +46,9 @@ import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
-
-let settingsFocusCleanup: (() => void) | null = null
+import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
-  settingsFocusCleanup?.()
-  settingsFocusCleanup = null
   const accent = getAccent()
   const crt = getCrtEnabled()
   const hideDemos = getHideDemos()
@@ -390,7 +387,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     focusRoot
       .querySelectorAll<HTMLElement>('.ro-btn, a.ro-btn')
       .forEach((el) => el.setAttribute('data-ro-focusable', 'true'))
-    settingsFocusCleanup = bindGridFocus(focusRoot)
+    const unbind = bindGridFocus(focusRoot)
+    registerViewCleanup(unbind)
     focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus({ preventScroll: true })
   }
 }

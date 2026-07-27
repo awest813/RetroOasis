@@ -313,7 +313,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
     const copy = cat.empty ?? 'Nothing here yet.'
-    return `<p class="ro-xmb__empty" role="status">${escapeHtml(copy)}</p>`
+    return `<p class="ro-xmb__empty">${escapeHtml(copy)}</p>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
 }
