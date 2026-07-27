@@ -372,7 +372,7 @@
     0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 55%, transparent),
     0 12px 28px rgba(0, 0, 0, 0.4),
     0 0 28px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 28%, transparent);
-  animation: ro-xmb-thumb-breathe 2.8s ease-in-out infinite;
+  animation: ro-xmb-thumb-breathe 2.2s ease-in-out infinite;
 }
 
 .ro-xmb__item[data-nudge='up'] {
@@ -836,13 +836,13 @@ html[data-layout='tv'] .ro-xmb__item {
     box-shadow:
       0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 55%, transparent),
       0 12px 28px rgba(0, 0, 0, 0.4),
-      0 0 24px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 22%, transparent);
+      0 0 22px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 20%, transparent);
   }
   50% {
     box-shadow:
-      0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 70%, #fff),
-      0 14px 32px rgba(0, 0, 0, 0.45),
-      0 0 36px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 36%, transparent);
+      0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 78%, #fff),
+      0 16px 36px rgba(0, 0, 0, 0.48),
+      0 0 42px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 42%, transparent);
   }
 }
 
