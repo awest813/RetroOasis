@@ -604,6 +604,39 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     activate()
   })
 
+  let wheelLock = 0
+  const onWheel = (event: WheelEvent) => {
+    const now = performance.now()
+    if (now < wheelLock) {
+      event.preventDefault()
+      return
+    }
+    const horiz = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey
+    const delta = horiz ? event.deltaX || event.deltaY : event.deltaY
+    if (Math.abs(delta) < 6) return
+    event.preventDefault()
+    wheelLock = now + 150
+    dismissHint()
+    if (horiz) {
+      const next =
+        delta > 0 ? Math.min(categories.length - 1, catIndex + 1) : Math.max(0, catIndex - 1)
+      if (next === catIndex) return
+      sfxMove()
+      catIndex = next
+      itemIndex = 0
+      paint({ animateRail: true })
+      return
+    }
+    const count = categories[catIndex]?.items.length ?? 0
+    if (!count) return
+    const next = delta > 0 ? Math.min(count - 1, itemIndex + 1) : Math.max(0, itemIndex - 1)
+    if (next === itemIndex) return
+    sfxMove()
+    itemIndex = next
+    paint()
+  }
+  shell.addEventListener('wheel', onWheel, { passive: false })
+
   const unbind = bindXmbFocus(shell, {
     getCategoryCount: () => categories.length,
     getItemCount: () => categories[catIndex]?.items.length ?? 0,
@@ -655,6 +688,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     modalityObserver.disconnect()
     motionQuery.removeEventListener('change', onMotionChange)
     window.removeEventListener('resize', onResize)
+    shell.removeEventListener('wheel', onWheel)
   }
 }
 

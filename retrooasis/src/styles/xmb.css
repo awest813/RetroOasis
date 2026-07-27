@@ -79,6 +79,7 @@
   height: calc(100dvh - 2.25rem);
   outline: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .ro-xmb__hint {
@@ -173,11 +174,18 @@
   cursor: pointer;
   opacity: 0.55;
   transform: scale(0.94);
-  pointer-events: auto;
+  /* Hit icons/labels only — full button box was eating item clicks at the cross */
+  pointer-events: none;
   transition:
     opacity 200ms ease,
     transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
     color 160ms ease;
+}
+
+.ro-xmb__cat-icon,
+.ro-xmb__cat-label {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .ro-xmb__cat[data-active='true'] {
@@ -274,7 +282,7 @@
 .ro-xmb__rail {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   overflow: hidden;
   pointer-events: none;
 }
@@ -288,7 +296,7 @@
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   display: grid;
   gap: var(--xmb-item-gap);
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .ro-xmb__item {
@@ -305,11 +313,22 @@
   text-decoration: none;
   cursor: pointer;
   opacity: 0.55;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
   transition:
     opacity 180ms ease,
     background 180ms ease,
     border-color 180ms ease,
     box-shadow 180ms ease;
+}
+
+.ro-xmb__item[data-active='true'] {
+  z-index: 2;
+  opacity: 1;
+  background: color-mix(in srgb, var(--ro-bg-panel-solid) 42%, transparent);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Distance fade (classic XMB neighbor dimming) */
@@ -327,13 +346,6 @@
 }
 .ro-xmb__item[data-distance='4'] {
   opacity: 0.14;
-}
-
-.ro-xmb__item[data-active='true'] {
-  opacity: 1;
-  background: color-mix(in srgb, var(--ro-bg-panel-solid) 42%, transparent);
-  border-color: transparent;
-  box-shadow: none;
 }
 
 .ro-xmb__item[data-active='true'] .ro-xmb__item-thumb {
