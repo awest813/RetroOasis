@@ -225,7 +225,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         kind: 'action',
         id: 'settings',
         title: 'Settings',
-        sub: 'Accent, sound, covers, and more',
+        sub: 'Look, sound, library, and data',
         href: hrefFor('/settings'),
         glyph: 'SET',
         accent: 'var(--ro-text-dim)',

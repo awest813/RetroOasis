@@ -20,6 +20,13 @@ function goBack(): void {
   }, 40)
 }
 
+/** After a native confirm/alert, ignore pad B until release so Back doesn't fire. */
+let suppressBack = false
+
+export function suppressPadBackUntilRelease(): void {
+  suppressBack = true
+}
+
 /** Focus rings only for keyboard/gamepad; Escape / B go back. */
 export function installInputChrome(): () => void {
   document.documentElement.dataset.input = 'mouse'
@@ -48,6 +55,7 @@ export function installInputChrome(): () => void {
     const pad = readConnectedPad()
     if (!pad) {
       prevBack = false
+      suppressBack = false
       return
     }
     const back = buttonPressed(pad, 1) || buttonPressed(pad, 8)
@@ -62,7 +70,11 @@ export function installInputChrome(): () => void {
     ) {
       setModalityFromPad()
     }
-    if (back && !prevBack) goBack()
+    if (suppressBack) {
+      if (!back) suppressBack = false
+    } else if (back && !prevBack) {
+      goBack()
+    }
     prevBack = back
   }
   raf = requestAnimationFrame(pollPad)

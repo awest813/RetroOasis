@@ -1,10 +1,11 @@
-/** Keyboard + gamepad focus for grids. */
+/** Keyboard + gamepad focus for grids and settings-style rows. */
 
 import { setModalityFromPad } from './inputModality'
 import { buttonPressed, readConnectedPad } from './gamepad'
 import { sfxConfirm, sfxMove } from './sfx'
 
 type Cleanup = () => void
+type Dir = 'left' | 'right' | 'up' | 'down' | 'confirm'
 
 function focusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focusable="true"]')).filter(
@@ -23,7 +24,13 @@ function estimateColumns(list: HTMLElement[]): number {
   return Math.max(1, cols)
 }
 
-function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'confirm'): void {
+function focusTarget(el: HTMLElement | null | undefined): void {
+  if (!el) return
+  el.focus({ preventScroll: true })
+  el.closest('[data-ro-focus-row]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+function moveFocus(root: HTMLElement, key: Dir): void {
   const list = focusables(root)
   if (!list.length) return
 
@@ -32,8 +39,10 @@ function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'c
   if (index < 0) index = 0
 
   if (key === 'confirm') {
+    const target = active && list.includes(active) ? active : list[0]
+    if (target.getAttribute('aria-disabled') === 'true') return
     sfxConfirm()
-    ;(active && list.includes(active) ? active : list[0]).click()
+    target.click()
     return
   }
 
@@ -45,16 +54,73 @@ function moveFocus(root: HTMLElement, key: 'left' | 'right' | 'up' | 'down' | 'c
   if (key === 'up') next = Math.max(0, index - columns)
 
   if (next !== index) sfxMove()
-  list[next]?.focus()
+  focusTarget(list[next])
 }
 
-export function bindGridFocus(root: HTMLElement): Cleanup {
+function moveRowFocus(root: HTMLElement, key: Dir): void {
+  const list = focusables(root)
+  if (!list.length) return
+
+  const active = document.activeElement as HTMLElement | null
+  let index = active ? list.indexOf(active) : -1
+  if (index < 0) index = 0
+
+  if (key === 'confirm') {
+    const target = active && list.includes(active) ? active : list[0]
+    if (target.getAttribute('aria-disabled') === 'true') return
+    sfxConfirm()
+    target.click()
+    return
+  }
+
+  const rows = Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focus-row]')).filter(
+    (row) => focusables(row).length > 0,
+  )
+  if (!rows.length) {
+    moveFocus(root, key)
+    return
+  }
+
+  const current = (active && list.includes(active) ? active : list[0]).closest(
+    '[data-ro-focus-row]',
+  ) as HTMLElement | null
+  const rowIndex = current ? rows.indexOf(current) : 0
+  const row = rows[Math.max(0, rowIndex)] ?? rows[0]
+  const inRow = focusables(row)
+  const idxInRow = Math.max(0, inRow.indexOf(active && list.includes(active) ? active : inRow[0]))
+
+  if (key === 'left' || key === 'right') {
+    const next =
+      key === 'right' ? Math.min(inRow.length - 1, idxInRow + 1) : Math.max(0, idxInRow - 1)
+    if (next === idxInRow) return
+    sfxMove()
+    focusTarget(inRow[next])
+    return
+  }
+
+  const nextRowIndex =
+    key === 'down' ? Math.min(rows.length - 1, rowIndex + 1) : Math.max(0, rowIndex - 1)
+  if (nextRowIndex === rowIndex) return
+  const nextRow = rows[nextRowIndex]
+  const nextControls = focusables(nextRow)
+  const preferred =
+    nextControls.find((el) => el.getAttribute('aria-pressed') === 'true') ??
+    nextControls[Math.min(idxInRow, nextControls.length - 1)] ??
+    nextControls[0]
+  sfxMove()
+  focusTarget(preferred)
+}
+
+function bindPadAndKeys(
+  root: HTMLElement,
+  move: (root: HTMLElement, key: Dir) => void,
+): Cleanup {
   const onKeyDown = (event: KeyboardEvent) => {
     if (!root.isConnected) return
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
-    const map: Record<string, 'left' | 'right' | 'up' | 'down' | 'confirm'> = {
+    const map: Record<string, Dir> = {
       ArrowRight: 'right',
       ArrowLeft: 'left',
       ArrowDown: 'down',
@@ -66,7 +132,7 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
     if (!dir) return
     event.preventDefault()
     if (event.repeat) return
-    moveFocus(root, dir)
+    move(root, dir)
   }
 
   root.addEventListener('keydown', onKeyDown)
@@ -103,12 +169,7 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
 
     if (x || y || a || start) setModalityFromPad()
 
-    const stepAxis = (
-      axis: 'x' | 'y',
-      value: number,
-      dirPos: 'left' | 'right' | 'up' | 'down',
-      dirNeg: 'left' | 'right' | 'up' | 'down',
-    ) => {
+    const stepAxis = (axis: 'x' | 'y', value: number, dirPos: Dir, dirNeg: Dir) => {
       if (!value) {
         if (heldAxis === axis) {
           heldAxis = null
@@ -119,14 +180,14 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
       const dir = value > 0 ? dirPos : dirNeg
       const edge = axis === 'x' ? prev.x !== value : prev.y !== value
       if (edge) {
-        moveFocus(root, dir)
+        move(root, dir)
         cool = now + 220
         holdStart = now
         heldAxis = axis
         return
       }
       if (heldAxis === axis && now > cool) {
-        moveFocus(root, dir)
+        move(root, dir)
         const heldFor = now - holdStart
         cool = now + (heldFor > 700 ? 68 : heldFor > 350 ? 110 : 160)
       }
@@ -137,9 +198,8 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
       else if (y) stepAxis('y', y, 'down', 'up')
     }
 
-    // Back is global in input.ts
     if ((a && !prev.a) || (start && !prev.start)) {
-      moveFocus(root, 'confirm')
+      move(root, 'confirm')
       cool = now + 220
     }
 
@@ -155,4 +215,13 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
     root.removeEventListener('keydown', onKeyDown)
     cancelAnimationFrame(raf)
   }
+}
+
+export function bindGridFocus(root: HTMLElement): Cleanup {
+  return bindPadAndKeys(root, moveFocus)
+}
+
+/** Up/down between `[data-ro-focus-row]` groups; left/right within the row. */
+export function bindRowFocus(root: HTMLElement): Cleanup {
+  return bindPadAndKeys(root, moveRowFocus)
 }
