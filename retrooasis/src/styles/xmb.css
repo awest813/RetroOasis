@@ -662,7 +662,7 @@ html[data-layout='tv'] .ro-xmb__hint {
     --xmb-cat-y: 18%;
     height: auto;
     min-height: calc(100dvh - var(--ro-topbar-h));
-    padding-bottom: 4rem;
+    padding-bottom: max(4rem, env(safe-area-inset-bottom, 0px));
   }
 
   .ro-xmb__clock {
