@@ -132,11 +132,17 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   resize()
   raf = requestAnimationFrame(draw)
   window.addEventListener('resize', resize)
+  window.visualViewport?.addEventListener('resize', resize)
+  const ro =
+    typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => resize()) : null
+  ro?.observe(canvas)
 
   return () => {
     running = false
     wakeWave = null
     cancelAnimationFrame(raf)
     window.removeEventListener('resize', resize)
+    window.visualViewport?.removeEventListener('resize', resize)
+    ro?.disconnect()
   }
 }

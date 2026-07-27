@@ -80,6 +80,12 @@
   outline: none;
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.ro-xmb[data-resizing='1'] .ro-xmb__cats,
+.ro-xmb[data-resizing='1'] .ro-xmb__rail-inner {
+  transition: none !important;
 }
 
 .ro-xmb,
@@ -305,7 +311,7 @@
   position: absolute;
   left: var(--xmb-rail-x, 12vw);
   top: 0;
-  width: min(28rem, 58vw);
+  width: min(28rem, 52vw);
   transform: translateY(var(--xmb-item-shift, 0px));
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   display: grid;
@@ -461,9 +467,9 @@
 .ro-xmb__info {
   position: absolute;
   top: 14%;
-  right: max(var(--ro-space), 5vw);
+  right: max(var(--ro-space), 4vw);
   z-index: 3;
-  width: min(20rem, 30vw);
+  width: min(18rem, 26vw);
   pointer-events: none;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
@@ -666,10 +672,10 @@ html[data-input='pad'] .ro-xmb:focus-within .ro-xmb__cat[data-active='true'] .ro
   }
 
   html[data-layout='tv'] .ro-xmb__rail-inner {
-    width: min(34rem, 56vw);
+    width: min(34rem, 50vw);
   }
 
-html[data-layout='tv'] .ro-xmb__item {
+  html[data-layout='tv'] .ro-xmb__item {
     grid-template-columns: 3.95rem auto;
     min-height: 3.95rem;
     gap: 1rem;
@@ -698,7 +704,7 @@ html[data-layout='tv'] .ro-xmb__item {
   }
 
   html[data-layout='tv'] .ro-xmb__info {
-    width: min(22rem, 30vw);
+    width: min(20rem, 28vw);
   }
 
   html[data-layout='tv'] .ro-xmb__info-title {
@@ -711,6 +717,84 @@ html[data-layout='tv'] .ro-xmb__item {
 
   html[data-layout='tv'] .ro-xmb__hint {
     font-size: 0.9rem;
+  }
+}
+
+/* Narrow desktop — keep rail and info from colliding */
+@media (min-width: 901px) and (max-width: 1199px) {
+  .ro-xmb {
+    --xmb-cat-y: 32%;
+  }
+
+  .ro-xmb__cats {
+    gap: clamp(1.1rem, 2.4vw, 1.75rem);
+    padding: 0 max(var(--ro-space), 5vw);
+  }
+
+  .ro-xmb__rail-inner {
+    width: min(22rem, 46vw);
+  }
+
+  .ro-xmb__item {
+    max-width: min(18rem, 100%);
+  }
+
+  .ro-xmb__info {
+    top: 12%;
+    width: min(13.5rem, 24vw);
+  }
+
+  .ro-xmb__stage {
+    width: min(8.5rem, 100%);
+  }
+
+  .ro-xmb__stage--glyph {
+    width: 4.5rem;
+  }
+
+  .ro-xmb__info-title {
+    font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  }
+
+  .ro-xmb__info-body {
+    font-size: 0.88rem;
+  }
+}
+
+/* Short / landscape desktop — protect the cross from vertical crush */
+@media (min-width: 901px) and (max-height: 640px) {
+  .ro-xmb {
+    --xmb-cat-y: 30%;
+    --xmb-item-gap: 0.45rem;
+  }
+
+  .ro-xmb__info {
+    top: 8%;
+  }
+
+  .ro-xmb__stage {
+    width: min(7rem, 18vw);
+  }
+
+  .ro-xmb__stage--glyph {
+    width: 3.75rem;
+  }
+
+  .ro-xmb__info-body {
+    display: none;
+  }
+
+  .ro-xmb__hint {
+    display: none;
+  }
+
+  .ro-xmb__item {
+    min-height: 2.85rem;
+  }
+
+  .ro-xmb__item-thumb {
+    width: 2.85rem;
+    height: 2.85rem;
   }
 }
 
@@ -945,24 +1029,41 @@ html[data-layout='tv'] .ro-xmb__item {
     --xmb-cat-y: 18%;
     height: auto;
     min-height: calc(100dvh - var(--ro-topbar-h));
+    min-height: calc(100svh - var(--ro-topbar-h));
+    overflow: visible;
     padding-bottom: max(4rem, env(safe-area-inset-bottom, 0px));
   }
 
+  .ro-xmb__brand {
+    top: 0.65rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+  }
+
   .ro-xmb__clock {
-    top: 0.85rem;
+    top: 0.55rem;
     right: var(--ro-space);
+  }
+
+  .ro-xmb__clock-time {
+    font-size: 0.95rem;
   }
 
   .ro-xmb__cats {
     position: relative;
     top: auto;
-    padding: 3.5rem var(--ro-space) 0.75rem;
+    padding: 3.25rem var(--ro-space) 0.75rem;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     transform: none !important;
     gap: 1rem;
+    scrollbar-width: none;
+  }
+
+  .ro-xmb__cats::-webkit-scrollbar {
+    display: none;
   }
 
   .ro-xmb__cat {
@@ -1019,6 +1120,7 @@ html[data-layout='tv'] .ro-xmb__item {
   .ro-xmb__item {
     opacity: 0.78;
     pointer-events: auto;
+    max-width: 100%;
   }
 
   .ro-xmb__item[data-distance],
@@ -1034,36 +1136,8 @@ html[data-layout='tv'] .ro-xmb__item {
     opacity: 1;
   }
 
+  /* Rail already shows title/sub — drop duplicate info stack on small screens */
   .ro-xmb__info {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: auto;
-    max-width: 28rem;
-    margin: 0 auto;
-    padding: 0 var(--ro-space) 1rem;
-  }
-
-  .ro-xmb__info-inner {
-    grid-template-columns: auto 1fr;
-    align-items: end;
-    gap: 0.75rem;
-  }
-
-  .ro-xmb__stage {
-    width: 4.75rem;
-    margin-bottom: 0;
-  }
-
-  .ro-xmb__stage--glyph {
-    width: 3.5rem;
-  }
-
-  .ro-xmb__info-title {
-    font-size: 1.05rem;
-  }
-
-  .ro-xmb__info-body {
     display: none;
   }
 

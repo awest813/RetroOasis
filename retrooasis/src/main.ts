@@ -129,6 +129,10 @@ window.addEventListener('resize', () => {
   if (getRoute().name === 'lobby') syncTopbarInert(true)
 })
 
+window.matchMedia('(min-width: 901px)').addEventListener('change', () => {
+  if (getRoute().name === 'lobby') syncTopbarInert(true)
+})
+
 async function render(route: Route): Promise<void> {
   syncNav(route)
   syncShellMode(route)
