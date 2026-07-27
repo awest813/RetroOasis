@@ -130,6 +130,9 @@ function bindPadAndKeys(
     }
     const dir = map[event.key]
     if (!dir) return
+    // Favorite stars are real buttons — let Enter/Space activate them natively.
+    const target = event.target as HTMLElement | null
+    if (dir === 'confirm' && target?.closest('[data-fav-id]')) return
     event.preventDefault()
     if (event.repeat) return
     move(root, dir)

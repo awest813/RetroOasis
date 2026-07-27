@@ -10,7 +10,7 @@ import {
   type Platform,
 } from '../lib/catalog'
 import { resolveCoverUrl } from '../lib/covers'
-import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { pickLocalLibrary, supportsDirectoryPicker } from '../lib/localLibrary'
@@ -39,12 +39,7 @@ export async function renderLibrary(
     return diff !== 0 ? diff : a.name.localeCompare(b.name)
   })
 
-  const sel = normalizeSelection(selection, ordered, counts)
-
-  if (!selection) {
-    window.location.replace(hrefFor('/library/@all'))
-    return
-  }
+  const sel = normalizeSelection(selection)
 
   if (sel.kind === 'platform' && !findPlatform(catalog, sel.id)) {
     root.innerHTML = `
@@ -67,7 +62,7 @@ export async function renderLibrary(
   let searchTimer = 0
   const isRecent = sel.kind === 'collection' && sel.id === 'recent'
 
-  const paint = (opts?: { restoreSearch?: boolean }) => {
+  const paint = (opts?: { restoreSearch?: boolean; restoreFavId?: string }) => {
     cleanup?.()
     favorites = getFavorites()
     let games = selectGames(catalog, sel, favorites, recents)
@@ -210,10 +205,16 @@ export async function renderLibrary(
       if (!id) return
       sfxToggle()
       toggleFavorite(id)
-      paint({ restoreSearch: true })
+      paint({ restoreFavId: id })
     })
 
-    if (opts?.restoreSearch && input) {
+    hydrateCovers(root)
+
+    if (opts?.restoreFavId) {
+      root
+        .querySelector<HTMLElement>(`[data-fav-id="${CSS.escape(opts.restoreFavId)}"]`)
+        ?.focus()
+    } else if (opts?.restoreSearch && input) {
       input.focus()
       const len = input.value.length
       input.setSelectionRange(len, len)
@@ -250,11 +251,7 @@ export async function renderCollection(
   return renderLibrary(root, { kind: 'collection', id: collection })
 }
 
-function normalizeSelection(
-  selection: LibrarySelection | string | undefined,
-  _ordered: Platform[],
-  _counts: Record<string, number>,
-): LibrarySelection {
+function normalizeSelection(selection: LibrarySelection | string | undefined): LibrarySelection {
   if (typeof selection === 'string') {
     return { kind: 'platform', id: selection }
   }
@@ -304,7 +301,7 @@ function emptyState(sel: LibrarySelection): string {
       <div class="ro-empty">
         <p class="ro-empty__title">No recent plays</p>
         <p class="ro-empty__body">Launch a title from any system shelf and it will show up here.</p>
-        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
   if (sel.kind === 'collection' && sel.id === 'favorites') {
@@ -312,7 +309,7 @@ function emptyState(sel: LibrarySelection): string {
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
         <p class="ro-empty__body">Open a game or tap ★ on a tile to pin it on this shelf.</p>
-        <a class="ro-btn" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse all games</a>
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
   if (sel.kind === 'platform') {
@@ -321,7 +318,7 @@ function emptyState(sel: LibrarySelection): string {
         <p class="ro-empty__title">Shelf is empty</p>
         <p class="ro-empty__body">Link a ROM folder, host your games, or add a file — saved ROMs stay on this device.</p>
         <div class="ro-btn-row ro-btn-row--center">
-          <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+          <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
         </div>
       </div>`
@@ -330,7 +327,7 @@ function emptyState(sel: LibrarySelection): string {
     <div class="ro-empty">
       <p class="ro-empty__title">Library is empty</p>
       <p class="ro-empty__body">Add a ROM to save it on this device, host files on your site, or link a folder.</p>
-      <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+      <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
     </div>`
 }
 

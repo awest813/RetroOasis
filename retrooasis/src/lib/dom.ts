@@ -23,8 +23,6 @@ export function coverMarkup(
           src="${escapeAttr(coverUrl)}"
           alt=""
           loading="lazy"
-          onload="this.parentElement && this.parentElement.classList.add('ro-cover--ready')"
-          onerror="this.style.display='none'; this.parentElement && this.parentElement.classList.add('ro-cover--missing')"
         />
         <span class="ro-cover__mark" aria-hidden="true"></span>
         <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(title)}</span>
@@ -37,4 +35,41 @@ export function coverMarkup(
       <span class="ro-cover__label">${escapeHtml(title)}</span>
     </div>
   `
+}
+
+function markCoverReady(img: HTMLImageElement): void {
+  const parent = img.parentElement
+  if (!parent || parent.classList.contains('ro-cover--missing')) return
+  parent.classList.add('ro-cover--ready')
+}
+
+function markCoverMissing(img: HTMLImageElement): void {
+  const parent = img.parentElement
+  if (!parent) return
+  img.style.display = 'none'
+  parent.classList.add('ro-cover--missing')
+  parent.classList.remove('ro-cover--ready')
+}
+
+/**
+ * Bind load/error for covers after innerHTML inject.
+ * Inline onload/onerror attributes are not executed for innerHTML inserts.
+ */
+export function hydrateCovers(root: ParentNode): void {
+  root.querySelectorAll<HTMLImageElement>('.ro-cover--image img').forEach((img) => {
+    const parent = img.parentElement
+    if (!parent) return
+    if (parent.classList.contains('ro-cover--ready') || parent.classList.contains('ro-cover--missing')) {
+      return
+    }
+
+    if (img.complete) {
+      if (img.naturalWidth > 0) markCoverReady(img)
+      else markCoverMissing(img)
+      return
+    }
+
+    img.addEventListener('load', () => markCoverReady(img), { once: true })
+    img.addEventListener('error', () => markCoverMissing(img), { once: true })
+  })
 }

@@ -10,7 +10,7 @@ import {
   type Platform,
 } from '../lib/catalog'
 import { resolveCoverUrl } from '../lib/covers'
-import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
@@ -329,12 +329,12 @@ function emptyCtas(catId: string): string {
   if (catId === 'recent' || catId === 'favorites') {
     return `
       <div class="ro-btn-row">
-        <a class="ro-btn" href="${hrefFor('/library/@all')}">Browse games</a>
+        <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}">Browse games</a>
       </div>`
   }
   return `
     <div class="ro-btn-row">
-      <a class="ro-btn" href="${hrefFor('/upload')}">Add ROM</a>
+      <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}">Add ROM</a>
     </div>`
 }
 
@@ -347,7 +347,6 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
           <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
           <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
           <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>
-          ${emptyCtas(cat.id)}
         </div>
       </div>`
   }
@@ -428,7 +427,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
   root.innerHTML = `
     <section class="ro-xmb" aria-label="Cross menu" role="application" tabindex="0">
-      <p class="ro-xmb__brand">RETRO OASIS</p>
+      <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
       <div class="ro-xmb__clock" aria-hidden="true">
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
         <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
@@ -634,6 +633,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (dir === 'left') infoEl.classList.add('ro-xmb__info--from-left')
     if (dir === 'right') infoEl.classList.add('ro-xmb__info--from-right')
     infoEl.innerHTML = infoMarkup(cat, itemIndex)
+    hydrateCovers(infoEl)
     void infoEl.offsetWidth
     infoEl.classList.add('ro-xmb__info--in')
   }
@@ -650,6 +650,8 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const on = i === catIndex
       el.dataset.active = on ? 'true' : 'false'
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
+      if (on) el.setAttribute('aria-current', 'true')
+      else el.removeAttribute('aria-current')
       if (on && opts?.animateRail && !reducedMotion) {
         el.classList.remove('ro-xmb__cat--settle')
         void el.offsetWidth
@@ -679,6 +681,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
+    hydrateCovers(railInner)
 
     if (opts?.itemNudge && !reducedMotion) {
       const active = railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]')

@@ -118,12 +118,11 @@ function syncNav(route: Route): void {
     game: 'library',
     upload: 'upload',
     settings: 'settings',
-    notfound: 'lobby',
   }
-  const current = map[route.name] ?? 'lobby'
+  const current = map[route.name]
   app.querySelectorAll<HTMLAnchorElement>('.ro-nav a').forEach((link) => {
     const key = link.dataset.nav
-    if (key === current) link.setAttribute('aria-current', 'page')
+    if (current && key === current) link.setAttribute('aria-current', 'page')
     else link.removeAttribute('aria-current')
   })
 }
@@ -162,7 +161,7 @@ async function render(route: Route): Promise<void> {
       break
     case 'library':
       main.focus({ preventScroll: true })
-      await renderLibrary(main)
+      await renderCollection(main, 'all')
       break
     case 'platform':
       main.focus({ preventScroll: true })

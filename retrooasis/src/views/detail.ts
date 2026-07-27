@@ -8,7 +8,7 @@ import {
 } from '../lib/catalog'
 import { coreNeedsThreads, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrl } from '../lib/covers'
-import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
+import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
 import {
@@ -158,6 +158,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         </div>
       </section>
     `
+
+    hydrateCovers(root)
 
     root.querySelector('#ro-play')?.addEventListener('click', async () => {
       sfxConfirm()

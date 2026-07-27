@@ -101,9 +101,8 @@ html[data-input='pad'] [data-ro-focusable='true']:focus {
 }
 
 html[data-input='key'] .ro-tile:focus-within .ro-cover,
-html[data-input='pad'] .ro-tile:focus-within .ro-cover,
-html[data-input='key'] .ro-tile[data-focus='true'] .ro-cover,
-html[data-input='pad'] .ro-tile[data-focus='true'] .ro-cover {
+html[data-input='pad'] .ro-tile:focus-within .ro-cover {
+  transform: translateY(-3px) scale(1.02);
   box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 

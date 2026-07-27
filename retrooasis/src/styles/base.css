@@ -496,13 +496,6 @@ select.ro-input {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
-html[data-input='key'] .ro-tile:focus-within .ro-cover,
-html[data-input='pad'] .ro-tile:focus-within .ro-cover,
-.ro-tile[data-focus="true"] .ro-cover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 0 0 2px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
-}
-
 .ro-tile__fav {
   appearance: none;
   position: absolute;
@@ -636,10 +629,6 @@ html[data-crt='on'] .ro-shell::after {
 
 .ro-cover--missing {
   padding: 0.75rem;
-}
-
-.ro-cover--image:not(.ro-cover--ready):not(.ro-cover--missing) .ro-cover__mark {
-  opacity: 0.55;
 }
 
 .ro-systems__section {
@@ -949,7 +938,7 @@ html[data-crt='on'] .ro-shell::after {
     background: linear-gradient(
       to right,
       transparent,
-      color-mix(in srgb, var(--ro-bg-void-mid) 88%, transparent)
+      color-mix(in srgb, var(--ro-bg-panel-solid) 92%, transparent)
     );
   }
 
@@ -1472,7 +1461,11 @@ html[data-layout='tv'] .ro-btn--toggle {
     align-items: center;
     column-gap: 0.65rem;
     row-gap: 0.45rem;
-    padding: 0.65rem var(--ro-space) 0.55rem;
+    padding:
+      max(0.65rem, env(safe-area-inset-top, 0px))
+      max(var(--ro-space), env(safe-area-inset-right, 0px))
+      0.55rem
+      max(var(--ro-space), env(safe-area-inset-left, 0px));
   }
 
   .ro-brand {
