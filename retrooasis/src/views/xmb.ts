@@ -305,14 +305,36 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
   const item = cat.items[itemIndex]
   if (!item) {
     return `
-      <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-      <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
-      <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>`
+      <div class="ro-xmb__info-inner" data-ro-info>
+        <div class="ro-xmb__info-copy">
+          <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
+          <h2 class="ro-xmb__info-title">Nothing here yet</h2>
+          <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Pick another category or add a game.')}</p>
+        </div>
+      </div>`
   }
+
+  const stage =
+    item.kind === 'game'
+      ? `<div class="ro-xmb__stage" style="--item-accent: ${item.accent}">
+          ${coverMarkup(item.title, item.accent, item.cover)}
+        </div>`
+      : `<div class="ro-xmb__stage ro-xmb__stage--glyph" style="--item-accent: ${item.accent}">
+          <span class="ro-xmb__stage-glyph">${escapeHtml(item.glyph)}</span>
+        </div>`
+
+  const kicker =
+    item.kind === 'game' && item.sub && item.sub !== cat.label ? item.sub : cat.label
+
   return `
-    <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
-    <h2 class="ro-xmb__info-title">${escapeHtml(item.title)}</h2>
-    <p class="ro-xmb__info-body">${escapeHtml(item.blurb)}</p>`
+    <div class="ro-xmb__info-inner" data-ro-info>
+      ${stage}
+      <div class="ro-xmb__info-copy">
+        <p class="ro-xmb__info-kicker">${escapeHtml(kicker)}</p>
+        <h2 class="ro-xmb__info-title">${escapeHtml(item.title)}</h2>
+        <p class="ro-xmb__info-body">${escapeHtml(item.blurb)}</p>
+      </div>
+    </div>`
 }
 
 function formatClock(date: Date): string {
@@ -378,17 +400,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
 
     if (desktop && activeCat) {
-      catsEl.style.setProperty('--xmb-shift', '0px')
-      const shellRect = shell.getBoundingClientRect()
-      const catRect = activeCat.getBoundingClientRect()
-      const targetX = shellRect.width * 0.2
-      const currentCenter = catRect.left - shellRect.left + catRect.width / 2
-      const catShift = targetX - currentCenter
-      catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
-      shell.style.setProperty(
-        '--xmb-rail-x',
-        `${Math.max(24, targetX - activeCat.offsetWidth / 2)}px`,
-      )
+      // offsetLeft ignores current translateX — no reset flash
+      const targetX = shell.clientWidth * 0.2
+      const catCenter = activeCat.offsetLeft + activeCat.offsetWidth / 2
+      catsEl.style.setProperty('--xmb-shift', `${targetX - catCenter}px`)
+      shell.style.setProperty('--xmb-rail-x', `${Math.max(16, targetX - 28)}px`)
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
@@ -402,7 +418,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Align focused item with the category icon row (classic XMB cross).
+        // True XMB cross: focused item center locks to category icon center.
         const shellRect = shell.getBoundingClientRect()
         const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
         const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
@@ -410,6 +426,12 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         const shift = focusY - offset - activeItem.offsetHeight / 2
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
+    } else if (desktop && activeCat) {
+      const shellRect = shell.getBoundingClientRect()
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
+      const focusY = iconRect.top - shellRect.top + iconRect.height / 2
+      railInner.style.setProperty('--xmb-item-shift', `${Math.max(0, focusY - 24)}px`)
     } else {
       railInner.style.setProperty('--xmb-item-shift', '0px')
     }
@@ -417,6 +439,17 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (!desktop && activeCat) {
       activeCat.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
     }
+  }
+
+  const dismissHint = () => {
+    shell.querySelector('.ro-xmb__hint')?.classList.add('ro-xmb__hint--gone')
+  }
+
+  const paintInfo = (cat: XmbCategory) => {
+    infoEl.classList.remove('ro-xmb__info--in')
+    infoEl.innerHTML = infoMarkup(cat, itemIndex)
+    void infoEl.offsetWidth
+    infoEl.classList.add('ro-xmb__info--in')
   }
 
   const paint = (opts?: { animateRail?: boolean }) => {
@@ -439,7 +472,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
-    infoEl.innerHTML = infoMarkup(cat, itemIndex)
+    paintInfo(cat)
     writeSession(catIndex, itemIndex)
     requestAnimationFrame(syncTransforms)
   }
@@ -456,7 +489,9 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     if (!btn) return
     const id = btn.dataset.roXmbCat
     const next = categories.findIndex((c) => c.id === id)
-    if (next < 0 || next === catIndex) return
+    if (next < 0) return
+    dismissHint()
+    if (next === catIndex) return
     catIndex = next
     itemIndex = 0
     paint({ animateRail: true })
@@ -465,12 +500,14 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   railInner.addEventListener('click', (event) => {
     const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('.ro-xmb__item')
     if (!link) return
+    event.preventDefault()
     const id = link.dataset.roXmbItem
     const next = categories[catIndex]?.items.findIndex((i) => i.id === id) ?? -1
-    if (next >= 0) {
-      itemIndex = next
-      paint()
-    }
+    if (next < 0) return
+    itemIndex = next
+    writeSession(catIndex, itemIndex)
+    dismissHint()
+    activate()
   })
 
   const unbind = bindXmbFocus(shell, {
@@ -479,11 +516,13 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     getCategoryIndex: () => catIndex,
     getItemIndex: () => itemIndex,
     setCategoryIndex: (index) => {
+      dismissHint()
       catIndex = index
       itemIndex = 0
       paint({ animateRail: true })
     },
     setItemIndex: (index) => {
+      dismissHint()
       itemIndex = index
       paint()
     },
