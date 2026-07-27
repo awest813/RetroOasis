@@ -491,7 +491,6 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     const cat = categories[catIndex]
     const item = cat?.items[itemIndex]
     if (!item) return
-    sfxConfirm()
     navigate(item.href)
   }
 
@@ -518,6 +517,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     itemIndex = next
     writeSession(catIndex, itemIndex)
     dismissHint()
+    sfxConfirm()
     activate()
   })
 

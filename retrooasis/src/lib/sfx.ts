@@ -50,6 +50,15 @@ const packs: Record<
     back: () => tone(300, 0.07, 'sine', 0.02),
     toggle: () => tone(700, 0.045, 'triangle', 0.018),
   },
+  xmb: {
+    move: () => tone(440, 0.028, 'sine', 0.012),
+    confirm: () => {
+      tone(520, 0.035, 'sine', 0.014)
+      tone(690, 0.05, 'triangle', 0.01, 0.03)
+    },
+    back: () => tone(280, 0.05, 'sine', 0.012),
+    toggle: () => tone(560, 0.03, 'triangle', 0.012),
+  },
   arcade: {
     move: () => tone(880, 0.035, 'square', 0.016),
     confirm: () => {

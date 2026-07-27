@@ -544,26 +544,65 @@ html[data-layout='tv'] .ro-xmb {
   --xmb-item-gap: 1rem;
 }
 
+html[data-layout='tv'] .ro-xmb__brand {
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+}
+
+html[data-layout='tv'] .ro-xmb__clock-time {
+  font-size: clamp(1.1rem, 1.9vw, 1.35rem);
+}
+
 html[data-layout='tv'] .ro-xmb__cat-icon {
-  width: 3.85rem;
-  height: 3.85rem;
+  width: 4rem;
+  height: 4rem;
+}
+
+html[data-layout='tv'] .ro-xmb__cat-icon svg,
+html[data-layout='tv'] .ro-xmb__glyph {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+html[data-layout='tv'] .ro-xmb__cat-label {
+  font-size: 1rem;
 }
 
 html[data-layout='tv'] .ro-xmb__item {
-  min-height: 3.85rem;
+  min-height: 3.95rem;
+  gap: 1rem;
 }
 
 html[data-layout='tv'] .ro-xmb__item-thumb {
-  width: 3.85rem;
-  height: 3.85rem;
+  width: 3.95rem;
+  height: 3.95rem;
 }
 
 html[data-layout='tv'] .ro-xmb__item-title {
-  font-size: 1.2rem;
+  font-size: 1.28rem;
+}
+
+html[data-layout='tv'] .ro-xmb__stage {
+  width: min(14rem, 100%);
+}
+
+html[data-layout='tv'] .ro-xmb__stage--glyph {
+  width: 6.5rem;
+}
+
+html[data-layout='tv'] .ro-xmb__info {
+  width: min(24rem, 34vw);
 }
 
 html[data-layout='tv'] .ro-xmb__info-title {
-  font-size: clamp(0.85rem, 1.8vw, 1.1rem);
+  font-size: clamp(1.35rem, 2.8vw, 1.9rem);
+}
+
+html[data-layout='tv'] .ro-xmb__info-body {
+  font-size: 1.05rem;
+}
+
+html[data-layout='tv'] .ro-xmb__hint {
+  font-size: 0.9rem;
 }
 
 @keyframes ro-xmb-item-in {

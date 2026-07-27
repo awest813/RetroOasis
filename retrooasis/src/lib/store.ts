@@ -14,7 +14,7 @@ const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
 export type LayoutMode = 'standard' | 'tv'
-export type SoundPack = 'soft' | 'arcade'
+export type SoundPack = 'soft' | 'arcade' | 'xmb'
 /** Where EmulatorJS loader + cores are fetched from. Stable for most; nightly for PSP/3DS/DOS. */
 export type EjsChannel = 'local' | 'stable' | 'latest' | 'nightly'
 
@@ -147,7 +147,9 @@ export function setSoundsEnabled(enabled: boolean): void {
 }
 
 export function getSoundPack(): SoundPack {
-  return localStorage.getItem(SOUND_PACK_KEY) === 'arcade' ? 'arcade' : 'soft'
+  const raw = localStorage.getItem(SOUND_PACK_KEY)
+  if (raw === 'arcade' || raw === 'xmb' || raw === 'soft') return raw
+  return 'soft'
 }
 
 export function setSoundPack(pack: SoundPack): void {

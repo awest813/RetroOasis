@@ -118,10 +118,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row">
             <div class="ro-settings-row__copy">
               <strong>Sound pack</strong>
-              <p class="ro-muted">Gentle tones or sharper arcade beeps.</p>
+              <p class="ro-muted">Gentle tones, quieter XMB clicks, or sharper arcade beeps.</p>
             </div>
             <div class="ro-toggle-group" role="group" aria-label="Sound pack">
               <button type="button" class="ro-btn" data-pack="soft" aria-pressed="${pack === 'soft'}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" aria-pressed="${pack === 'xmb'}">XMB</button>
               <button type="button" class="ro-btn" data-pack="arcade" aria-pressed="${pack === 'arcade'}">Arcade</button>
             </div>
           </div>
