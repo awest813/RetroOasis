@@ -229,7 +229,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         href: hrefFor('/settings'),
         glyph: 'SET',
         accent: 'var(--ro-accent)',
-        blurb: 'Cabinet prefs stay on this device.',
+        blurb: 'Settings stay on this device.',
       },
     ],
   })
@@ -536,14 +536,14 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const w = shell.clientWidth
       const targetRatio = w < 1100 ? 0.16 : w >= 1600 ? 0.22 : 0.2
       const targetX = w * targetRatio
-      const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
+      const trackPad = Number.parseFloat(getComputedStyle(catsTrack).paddingLeft) || 0
+      const catShift = targetX - (trackPad + activeCat.offsetLeft + activeCat.offsetWidth / 2)
       catsTrack.style.setProperty('--xmb-shift', `${catShift}px`)
 
       const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-      const iconCenterInCat = catIcon
-        ? catIcon.offsetLeft + catIcon.offsetWidth / 2
-        : activeCat.offsetWidth / 2
-      const iconCenterX = activeCat.offsetLeft + iconCenterInCat + catShift
+      const shellRect = shell.getBoundingClientRect()
+      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
+      const iconCenterX = iconRect.left - shellRect.left + iconRect.width / 2
       const sampleItem =
         railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]') ??
         railInner.querySelector<HTMLElement>('.ro-xmb__item')
@@ -552,6 +552,15 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
+    const focusYFromCat = (): number | null => {
+      if (!activeCat) return null
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      const shellRect = shell.getBoundingClientRect()
+      const target = catIcon ?? activeCat
+      const rect = target.getBoundingClientRect()
+      return rect.top - shellRect.top + rect.height / 2
+    }
+
     if (activeItem && activeCat) {
       const items = Array.from(railInner.querySelectorAll<HTMLElement>('.ro-xmb__item'))
       const idx = items.indexOf(activeItem)
@@ -562,19 +571,13 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Layout offsets stay stable while cats translateX during resize.
-        const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-        const focusY = catIcon
-          ? catsEl.offsetTop + activeCat.offsetTop + catIcon.offsetTop + catIcon.offsetHeight / 2
-          : catsEl.offsetTop + activeCat.offsetTop + activeCat.offsetHeight / 2
+        const focusY = focusYFromCat() ?? 0
         const shift = focusY - offset - activeItem.offsetHeight / 2
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
     } else if (activeCat) {
       const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-      const focusY = catIcon
-        ? catsEl.offsetTop + activeCat.offsetTop + catIcon.offsetTop + catIcon.offsetHeight / 2
-        : catsEl.offsetTop + activeCat.offsetTop + activeCat.offsetHeight / 2
+      const focusY = focusYFromCat() ?? 0
       const iconHalf = (catIcon?.offsetHeight ?? 48) / 2
       // Park empty-state copy below the category icon, not through it.
       railInner.style.setProperty('--xmb-item-shift', `${Math.max(0, focusY + iconHalf + 18)}px`)
