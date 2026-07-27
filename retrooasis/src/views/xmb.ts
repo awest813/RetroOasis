@@ -219,7 +219,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     id: 'settings',
     label: 'Settings',
     icon: xmbCategoryIcon('settings'),
-    accent: 'var(--ro-text-dim)',
+    accent: 'var(--ro-accent)',
     items: [
       {
         kind: 'action',
@@ -228,7 +228,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         sub: 'Look, sound, library, and data',
         href: hrefFor('/settings'),
         glyph: 'SET',
-        accent: 'var(--ro-text-dim)',
+        accent: 'var(--ro-accent)',
         blurb: 'Cabinet prefs stay on this device.',
       },
     ],
@@ -434,7 +434,9 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       </div>
       <p class="ro-xmb__live" data-ro-xmb-live aria-live="polite"></p>
       <div class="ro-xmb__cats" role="toolbar" aria-label="Categories">
-        ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
+        <div class="ro-xmb__cats-track">
+          ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
+        </div>
       </div>
       <div class="ro-xmb__rail">
         <div class="ro-xmb__rail-inner">
@@ -454,13 +456,14 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   if (!shell) return
 
   const catsEl = shell.querySelector<HTMLElement>('.ro-xmb__cats')
+  const catsTrack = shell.querySelector<HTMLElement>('.ro-xmb__cats-track')
   const railInner = shell.querySelector<HTMLElement>('.ro-xmb__rail-inner')
   const infoEl = shell.querySelector<HTMLElement>('.ro-xmb__info')
   const liveEl = shell.querySelector<HTMLElement>('[data-ro-xmb-live]')
   const clockEl = shell.querySelector<HTMLElement>('[data-ro-xmb-clock]')
   const dateEl = shell.querySelector<HTMLElement>('[data-ro-xmb-date]')
   const hintEl = shell.querySelector<HTMLElement>('[data-ro-xmb-hint]')
-  if (!catsEl || !railInner || !infoEl) return
+  if (!catsEl || !catsTrack || !railInner || !infoEl) return
 
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   let reducedMotion = motionQuery.matches
@@ -490,7 +493,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   let resizing = false
 
   const clearLayoutVars = () => {
-    catsEl.style.removeProperty('--xmb-shift')
+    catsTrack.style.removeProperty('--xmb-shift')
     shell.style.removeProperty('--xmb-rail-x')
     railInner.style.removeProperty('--xmb-item-shift')
   }
@@ -528,11 +531,13 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
     if (activeCat) {
       // Keep the focus column left of mid so the info panel has room.
+      // Shift the track only — the cats mask stays viewport-fixed so end
+      // categories (Add / Settings) keep readable labels when focused.
       const w = shell.clientWidth
       const targetRatio = w < 1100 ? 0.16 : w >= 1600 ? 0.22 : 0.2
       const targetX = w * targetRatio
       const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
-      catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
+      catsTrack.style.setProperty('--xmb-shift', `${catShift}px`)
 
       const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
       const iconCenterInCat = catIcon
@@ -646,7 +651,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     const cat = categories[catIndex]
     if (!cat) return
 
-    catsEl.querySelectorAll<HTMLElement>('.ro-xmb__cat').forEach((el, i) => {
+    catsTrack.querySelectorAll<HTMLElement>('.ro-xmb__cat').forEach((el, i) => {
       const on = i === catIndex
       el.dataset.active = on ? 'true' : 'false'
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
