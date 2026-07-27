@@ -78,9 +78,16 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
   let heldAxis: 'x' | 'y' | null = null
 
   const poll = () => {
+    if (!root.isConnected) {
+      raf = 0
+      return
+    }
     raf = requestAnimationFrame(poll)
     const pad = readConnectedPad()
     if (!pad) return
+
+    const tag = (document.activeElement as HTMLElement | null)?.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
     const now = performance.now()
     const axisX = Math.abs(pad.axes[0] ?? 0) > 0.45 ? Math.sign(pad.axes[0]) : 0

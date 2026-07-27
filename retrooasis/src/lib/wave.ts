@@ -30,6 +30,7 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
     canvas.width = Math.max(1, Math.floor(width * dpr))
     canvas.height = Math.max(1, Math.floor(height * dpr))
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    if (reduced && waveActive && !raf) raf = requestAnimationFrame(draw)
   }
 
   const accent = () => {
@@ -89,7 +90,8 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
       return
     }
     wasActive = true
-    raf = requestAnimationFrame(draw)
+    if (!reduced) raf = requestAnimationFrame(draw)
+    else raf = 0
     if (!width || !height) return
 
     const time = reduced ? 0 : t * 0.001
@@ -132,11 +134,17 @@ export function mountWave(canvas: HTMLCanvasElement): Cleanup {
   resize()
   raf = requestAnimationFrame(draw)
   window.addEventListener('resize', resize)
+  window.visualViewport?.addEventListener('resize', resize)
+  const ro =
+    typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => resize()) : null
+  ro?.observe(canvas)
 
   return () => {
     running = false
     wakeWave = null
     cancelAnimationFrame(raf)
     window.removeEventListener('resize', resize)
+    window.visualViewport?.removeEventListener('resize', resize)
+    ro?.disconnect()
   }
 }

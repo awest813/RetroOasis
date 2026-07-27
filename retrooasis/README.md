@@ -102,7 +102,7 @@ In the UI, **Libretro covers** (Settings, on by default) fills missing boxart at
 
 - **Collections rail**: Recent / Favorites / All games beside systems
 - **TV layout** (Settings): larger tiles/focus for couch + gamepad
-- **UI sounds** (Settings): soft or arcade packs, off by default
+- **UI sounds** (Settings): soft, XMB, or arcade packs — off by default
 - **Install**: top-bar / Settings button when `beforeinstallprompt` fires
 - Escape / gamepad B goes back; focus rings only for keyboard/gamepad
 - `manifest.webmanifest` + `sw.js` cache the app shell and catalog (not cores/ROMs), production only

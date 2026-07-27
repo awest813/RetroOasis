@@ -312,7 +312,8 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
 
 function railMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!cat.items.length) {
-    return `<p class="ro-xmb__empty" aria-hidden="true"></p>`
+    const copy = cat.empty ?? 'Nothing here yet.'
+    return `<p class="ro-xmb__empty">${escapeHtml(copy)}</p>`
   }
   return cat.items.map((item, i) => itemMarkup(item, i === itemIndex, i - itemIndex)).join('')
 }
@@ -411,15 +412,16 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
         <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
       </div>
+      <p class="ro-xmb__live" data-ro-xmb-live aria-live="polite"></p>
       <div class="ro-xmb__cats" role="toolbar" aria-label="Categories">
         ${categories.map((cat, i) => catMarkup(cat, i === catIndex)).join('')}
       </div>
       <div class="ro-xmb__rail">
-        <div class="ro-xmb__rail-inner" role="list">
+        <div class="ro-xmb__rail-inner">
           ${railMarkup(categories[catIndex], itemIndex)}
         </div>
       </div>
-      <aside class="ro-xmb__info ro-xmb__info--in" aria-live="polite">
+      <aside class="ro-xmb__info ro-xmb__info--in" aria-hidden="true">
         ${infoMarkup(categories[catIndex], itemIndex)}
       </aside>
       <p class="ro-xmb__hint" data-ro-xmb-hint>${escapeHtml(hintCopy())}</p>
@@ -434,6 +436,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const catsEl = shell.querySelector<HTMLElement>('.ro-xmb__cats')
   const railInner = shell.querySelector<HTMLElement>('.ro-xmb__rail-inner')
   const infoEl = shell.querySelector<HTMLElement>('.ro-xmb__info')
+  const liveEl = shell.querySelector<HTMLElement>('[data-ro-xmb-live]')
   const clockEl = shell.querySelector<HTMLElement>('[data-ro-xmb-clock]')
   const dateEl = shell.querySelector<HTMLElement>('[data-ro-xmb-date]')
   const hintEl = shell.querySelector<HTMLElement>('[data-ro-xmb-hint]')
@@ -444,6 +447,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   let animTimer = 0
   let nudgeTimer = 0
   let enterTimer = 0
+  let alive = true
 
   const thumbInsetX = (item: HTMLElement | null): number => {
     if (!item) return 28
@@ -459,13 +463,54 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     writeSession(cat.id, cat.items[itemIndex]?.id ?? null)
   }
 
+  const DESKTOP_MQ = '(min-width: 901px)'
+  let wasDesktop = window.matchMedia(DESKTOP_MQ).matches
+  let resizeRaf = 0
+  let resizeIdle = 0
+  let resizing = false
+
+  const clearLayoutVars = () => {
+    catsEl.style.removeProperty('--xmb-shift')
+    shell.style.removeProperty('--xmb-rail-x')
+    railInner.style.removeProperty('--xmb-item-shift')
+  }
+
+  const setResizing = (on: boolean) => {
+    if (on === resizing) return
+    resizing = on
+    if (on) shell.dataset.resizing = '1'
+    else delete shell.dataset.resizing
+  }
+
   const syncTransforms = () => {
-    const desktop = window.matchMedia('(min-width: 901px)').matches
+    const desktop = window.matchMedia(DESKTOP_MQ).matches
     const activeCat = catsEl.querySelector<HTMLElement>('[data-active="true"]')
 
-    if (desktop && activeCat) {
-      // Pre-transform math — avoid locking rail to mid-transition geometry
-      const targetX = shell.clientWidth * 0.2
+    if (!desktop) {
+      clearLayoutVars()
+      if (activeCat) {
+        activeCat.scrollIntoView({
+          inline: 'center',
+          block: 'nearest',
+          behavior: reducedMotion || resizing ? 'auto' : 'smooth',
+        })
+      }
+      wasDesktop = false
+      return
+    }
+
+    if (!wasDesktop) {
+      // Crossing mobile → desktop: drop stale mobile scroll and re-measure cold.
+      clearLayoutVars()
+      void shell.offsetWidth
+    }
+    wasDesktop = true
+
+    if (activeCat) {
+      // Keep the focus column left of mid so the info panel has room.
+      const w = shell.clientWidth
+      const targetRatio = w < 1100 ? 0.16 : w >= 1600 ? 0.22 : 0.2
+      const targetX = w * targetRatio
       const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
       catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
 
@@ -482,7 +527,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     }
 
     const activeItem = railInner.querySelector<HTMLElement>('[data-active="true"]')
-    if (desktop && activeItem && activeCat) {
+    if (activeItem && activeCat) {
       const items = Array.from(railInner.querySelectorAll<HTMLElement>('.ro-xmb__item'))
       const idx = items.indexOf(activeItem)
       if (idx >= 0) {
@@ -492,31 +537,66 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         for (let i = 0; i < idx; i++) {
           offset += items[i].offsetHeight + gap
         }
-        // Y doesn't animate with category shift — getBoundingClientRect is stable.
-        const shellRect = shell.getBoundingClientRect()
+        // Layout offsets stay stable while cats translateX during resize.
         const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-        const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
-        const focusY = iconRect.top - shellRect.top + iconRect.height / 2
+        const focusY = catIcon
+          ? catsEl.offsetTop + activeCat.offsetTop + catIcon.offsetTop + catIcon.offsetHeight / 2
+          : catsEl.offsetTop + activeCat.offsetTop + activeCat.offsetHeight / 2
         const shift = focusY - offset - activeItem.offsetHeight / 2
         railInner.style.setProperty('--xmb-item-shift', `${shift}px`)
       }
-    } else if (desktop && activeCat) {
-      const shellRect = shell.getBoundingClientRect()
+    } else if (activeCat) {
       const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
-      const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
-      const focusY = iconRect.top - shellRect.top + iconRect.height / 2
-      railInner.style.setProperty('--xmb-item-shift', `${Math.max(0, focusY - 24)}px`)
+      const focusY = catIcon
+        ? catsEl.offsetTop + activeCat.offsetTop + catIcon.offsetTop + catIcon.offsetHeight / 2
+        : catsEl.offsetTop + activeCat.offsetTop + activeCat.offsetHeight / 2
+      const iconHalf = (catIcon?.offsetHeight ?? 48) / 2
+      // Park empty-state copy below the category icon, not through it.
+      railInner.style.setProperty('--xmb-item-shift', `${Math.max(0, focusY + iconHalf + 18)}px`)
     } else {
       railInner.style.setProperty('--xmb-item-shift', '0px')
     }
+  }
 
-    if (!desktop && activeCat) {
-      activeCat.scrollIntoView({
-        inline: 'center',
-        block: 'nearest',
-        behavior: reducedMotion ? 'auto' : 'smooth',
+  const scheduleSync = () => {
+    setResizing(true)
+    window.clearTimeout(resizeIdle)
+    if (resizeRaf) cancelAnimationFrame(resizeRaf)
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0
+        syncTransforms()
+        resizeIdle = window.setTimeout(() => {
+          setResizing(false)
+          syncTransforms()
+        }, 140)
       })
+    })
+  }
+
+  const syncViewportHeight = () => {
+    const h = window.visualViewport?.height ?? window.innerHeight
+    document.documentElement.style.setProperty('--ro-vvh', `${Math.round(h)}px`)
+  }
+
+  const syncChromeHeight = () => {
+    const topbar = document.querySelector<HTMLElement>('.ro-shell--xmb .ro-topbar')
+    if (!topbar) return
+    const desktop = window.matchMedia(DESKTOP_MQ).matches
+    if (desktop) {
+      shell.style.removeProperty('--ro-xmb-chrome')
+      return
     }
+    const h = Math.ceil(topbar.getBoundingClientRect().height)
+    if (h > 0) shell.style.setProperty('--ro-xmb-chrome', `${h}px`)
+  }
+
+  const announce = (cat: XmbCategory) => {
+    if (!liveEl) return
+    const item = cat.items[itemIndex]
+    liveEl.textContent = item
+      ? `${cat.label}. ${item.title}. ${item.sub}`
+      : `${cat.label}. ${cat.empty ?? 'Nothing here yet.'}`
   }
 
   const dismissHint = () => {
@@ -591,8 +671,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
     const infoDir = opts?.railDir ?? opts?.itemNudge
     paintInfo(cat, infoDir)
+    announce(cat)
     persist()
     requestAnimationFrame(() => {
+      syncChromeHeight()
       syncTransforms()
       if (shell.contains(document.activeElement) || document.activeElement === shell) {
         shell.focus({ preventScroll: true })
@@ -714,8 +796,49 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }
   const stopClock = scheduleMinuteClock(tickClock)
 
-  const onResize = () => syncTransforms()
+  const onResize = () => {
+    syncViewportHeight()
+    syncChromeHeight()
+    scheduleSync()
+  }
+  syncViewportHeight()
+  syncChromeHeight()
   window.addEventListener('resize', onResize)
+  window.visualViewport?.addEventListener('resize', onResize)
+  window.addEventListener('orientationchange', onResize)
+
+  const desktopMq = window.matchMedia(DESKTOP_MQ)
+  const onBreakpoint = () => {
+    syncChromeHeight()
+    scheduleSync()
+  }
+  desktopMq.addEventListener('change', onBreakpoint)
+
+  const shellRo =
+    typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => scheduleSync())
+      : null
+  shellRo?.observe(shell)
+
+  const topbar = document.querySelector('.ro-shell--xmb .ro-topbar')
+  const topbarRo =
+    typeof ResizeObserver !== 'undefined' && topbar
+      ? new ResizeObserver(() => {
+          syncChromeHeight()
+          scheduleSync()
+        })
+      : null
+  if (topbar) topbarRo?.observe(topbar)
+
+  const layoutObserver = new MutationObserver(() => scheduleSync())
+  layoutObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-layout'],
+  })
+
+  void document.fonts?.ready?.then(() => {
+    if (alive) scheduleSync()
+  })
 
   const onMotionChange = () => {
     reducedMotion = motionQuery.matches
@@ -745,14 +868,23 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   shell.addEventListener('selectstart', onSelectStart)
 
   cleanup = () => {
+    alive = false
     unbind()
     stopClock()
     window.clearTimeout(animTimer)
     window.clearTimeout(nudgeTimer)
     window.clearTimeout(enterTimer)
+    window.clearTimeout(resizeIdle)
+    if (resizeRaf) cancelAnimationFrame(resizeRaf)
+    shellRo?.disconnect()
+    topbarRo?.disconnect()
+    layoutObserver.disconnect()
     modalityObserver.disconnect()
     motionQuery.removeEventListener('change', onMotionChange)
+    desktopMq.removeEventListener('change', onBreakpoint)
     window.removeEventListener('resize', onResize)
+    window.visualViewport?.removeEventListener('resize', onResize)
+    window.removeEventListener('orientationchange', onResize)
     shell.removeEventListener('wheel', onWheel)
     shell.removeEventListener('selectstart', onSelectStart)
   }

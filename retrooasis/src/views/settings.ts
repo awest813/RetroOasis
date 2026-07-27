@@ -45,6 +45,8 @@ import {
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
+import { bindGridFocus } from '../lib/focus'
+import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const accent = getAccent()
@@ -379,4 +381,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     refreshCatalogView()
     void renderSettings(root)
   })
+
+  const focusRoot = root.querySelector<HTMLElement>('.ro-settings')
+  if (focusRoot) {
+    focusRoot
+      .querySelectorAll<HTMLElement>('.ro-btn, a.ro-btn')
+      .forEach((el) => el.setAttribute('data-ro-focusable', 'true'))
+    const unbind = bindGridFocus(focusRoot)
+    registerViewCleanup(unbind)
+    focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus({ preventScroll: true })
+  }
 }

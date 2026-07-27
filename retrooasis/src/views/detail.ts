@@ -21,6 +21,8 @@ import { sfxConfirm, sfxToggle } from '../lib/sfx'
 import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
 import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
+import { bindGridFocus } from '../lib/focus'
+import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   const catalog = await loadCatalog()
@@ -47,6 +49,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let favorited = isFavorite(game.id)
   let busy = false
   let editing = false
+  let focusCleanup: (() => void) | null = null
   let fileLabel = game.file
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
@@ -55,6 +58,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   }
 
   const paint = () => {
+    focusCleanup?.()
+    focusCleanup = null
     const over = getOverride(game.id)
     const playCore = normalizePlayCore(game.core)
     const threadBadge = coreNeedsThreads(playCore)
@@ -222,6 +227,16 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       URL.revokeObjectURL(url)
     })
 
+    const actions = root.querySelector<HTMLElement>('.ro-detail__actions')
+    if (actions) {
+      focusCleanup = bindGridFocus(actions)
+      registerViewCleanup(() => {
+        focusCleanup?.()
+        focusCleanup = null
+      })
+    } else {
+      registerViewCleanup(null)
+    }
     root.querySelector<HTMLElement>('#ro-play')?.focus()
   }
 

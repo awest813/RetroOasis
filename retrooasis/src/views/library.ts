@@ -12,6 +12,7 @@ import {
 import { resolveCoverUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
+import { registerViewCleanup } from '../lib/viewLifecycle'
 import { pickLocalLibrary, supportsDirectoryPicker } from '../lib/localLibrary'
 import { hrefFor, type VirtualCollection } from '../lib/router'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
@@ -180,6 +181,7 @@ export async function renderLibrary(
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
     cleanup = () => cleanups.forEach((fn) => fn())
+    registerViewCleanup(cleanup)
   }
 
   paint()
