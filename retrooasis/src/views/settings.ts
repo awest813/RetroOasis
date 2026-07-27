@@ -129,19 +129,27 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       <header class="ro-settings-page__head">
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Settings</p>
         <h1 class="ro-title">Settings</h1>
-        <p class="ro-lede">Cabinet prefs stay on this device.</p>
+        <p class="ro-lede">Prefs stay on this device. Use the section links to jump around.</p>
       </header>
 
       <div class="ro-settings" data-ro-settings>
+        <nav class="ro-settings-jump" aria-label="Settings sections" data-ro-focus-row>
+          <a href="#ro-set-look" data-ro-focusable="true" data-focus-id="jump-look">Look</a>
+          <a href="#ro-set-sound" data-ro-focusable="true" data-focus-id="jump-sound">Sound</a>
+          <a href="#ro-set-emulator" data-ro-focusable="true" data-focus-id="jump-emulator">Emulator</a>
+          <a href="#ro-set-library" data-ro-focusable="true" data-focus-id="jump-library">Library</a>
+          <a href="#ro-set-data" data-ro-focusable="true" data-focus-id="jump-data">Data</a>
+        </nav>
+
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
           <h2 class="ro-settings__heading" id="ro-set-look">Look</h2>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Accent</strong>
+              <strong id="ro-label-accent">Accent</strong>
               <p class="ro-muted">Sega cyan or PlayStation amber.</p>
             </div>
-            <div class="ro-toggle-group" role="group" aria-label="Accent color">
+            <div class="ro-toggle-group" role="group" aria-labelledby="ro-label-accent">
               <button type="button" class="ro-btn" data-accent="sega" data-focus-id="accent-sega" data-ro-focusable="true" aria-pressed="${pressed(accent === 'sega')}">Sega</button>
               <button type="button" class="ro-btn" data-accent="ps" data-focus-id="accent-ps" data-ro-focusable="true" aria-pressed="${pressed(accent === 'ps')}">PS</button>
             </div>
@@ -149,10 +157,10 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Layout</strong>
+              <strong id="ro-label-layout">Layout</strong>
               <p class="ro-muted">TV mode enlarges targets for couch play.</p>
             </div>
-            <div class="ro-toggle-group" role="group" aria-label="Layout mode">
+            <div class="ro-toggle-group" role="group" aria-labelledby="ro-label-layout">
               <button type="button" class="ro-btn" data-layout="standard" data-focus-id="layout-standard" data-ro-focusable="true" aria-pressed="${pressed(layout === 'standard')}">Standard</button>
               <button type="button" class="ro-btn" data-layout="tv" data-focus-id="layout-tv" data-ro-focusable="true" aria-pressed="${pressed(layout === 'tv')}">TV</button>
             </div>
@@ -167,8 +175,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
         </section>
 
-        <section class="ro-settings__group" aria-labelledby="ro-set-playback">
-          <h2 class="ro-settings__heading" id="ro-set-playback">Sound &amp; cores</h2>
+        <section class="ro-settings__group" aria-labelledby="ro-set-sound">
+          <h2 class="ro-settings__heading" id="ro-set-sound">Sound</h2>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
@@ -180,34 +188,58 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Sound pack</strong>
+              <strong id="ro-label-pack">Sound pack</strong>
               <p class="ro-muted">${sounds ? 'Soft tones, XMB clicks, or arcade beeps.' : 'Turn on UI sounds to choose a pack.'}</p>
             </div>
-            <div class="ro-toggle-group ro-toggle-group--packs" role="group" aria-label="Sound pack">
-              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'soft')}">Soft</button>
-              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'xmb')}">XMB</button>
-              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'arcade')}">Arcade</button>
+            <div class="ro-toggle-group ro-toggle-group--packs" role="group" aria-labelledby="ro-label-pack">
+              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft" data-ro-focusable="true" aria-pressed="${pressed(pack === 'soft')}" aria-disabled="${pressed(!sounds)}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb" data-ro-focusable="true" aria-pressed="${pressed(pack === 'xmb')}" aria-disabled="${pressed(!sounds)}">XMB</button>
+              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}" aria-disabled="${pressed(!sounds)}">Arcade</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ro-settings__group" aria-labelledby="ro-set-emulator">
+          <h2 class="ro-settings__heading" id="ro-set-emulator">Emulator</h2>
+
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong id="ro-label-ejs">Emulator files</strong>
+              <p class="ro-muted">
+                Where EmulatorJS loads cores from. Stable suits most systems.
+                PSP, DOS, and 3DS always use Nightly builds (unless Local) so those ROMs can reach their cores.
+              </p>
+            </div>
+            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-labelledby="ro-label-ejs">
+              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}" title="Official stable CDN builds">Stable</button>
+              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}" title="Newer CDN builds; required for PSP / DOS / 3DS">Nightly</button>
+              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}" title="Latest CDN channel">Latest</button>
+              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}" title="Load from a local data/ folder next to the site">Local</button>
             </div>
           </div>
 
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>EmulatorJS channel</strong>
+              <strong id="ro-label-threads">Thread support</strong>
               <p class="ro-muted">
-                Most systems use Stable. PSP, 3DS, and DOS stay on Nightly unless you pick Local.
+                PSP, DOS, and 3DS cores need browser threads
+                (<code>SharedArrayBuffer</code>) so multi-threaded ROMs can run.
+                This is separate from the Nightly CDN channel above.
+              </p>
+              <p class="ro-muted">
                 ${
                   hasSab
-                    ? 'Threaded cores can run here.'
-                    : 'Threaded cores need special host headers — see the README.'
+                    ? 'Ready on this page — those systems can start.'
+                    : 'Missing here. Serve RetroOasis with COOP/COEP isolation headers (the Vite dev server does). Static hosts can use <code>public/_headers</code>; GitHub Pages cannot.'
                 }
               </p>
             </div>
-            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="EmulatorJS channel">
-              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}">Stable</button>
-              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}">Nightly</button>
-              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}">Latest</button>
-              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}">Local</button>
-            </div>
+            <span
+              class="ro-badge ${hasSab ? 'ro-badge--ok' : 'ro-badge--threads'}"
+              role="status"
+              aria-labelledby="ro-label-threads"
+              title="${hasSab ? 'SharedArrayBuffer is available' : 'SharedArrayBuffer is unavailable'}"
+            >${hasSab ? 'Ready' : 'Missing'}</span>
           </div>
         </section>
 
@@ -216,18 +248,18 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Libretro covers</strong>
-              <p class="ro-muted">Fill missing box art when available.</p>
+              <strong>Online box art</strong>
+              <p class="ro-muted">Fill missing covers from Libretro when available.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Libretro covers">${libretro ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Online box art">${libretro ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Hide demos</strong>
+              <strong>Hide samples</strong>
               <p class="ro-muted">Show only ROMs you’ve hosted, linked, or saved.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}" aria-label="Hide demos">${hideDemos ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}" aria-label="Hide samples">${hideDemos ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -243,7 +275,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               ${
                 uploadedMeta.count
                   ? `<a class="ro-btn ro-btn--ghost" href="${hrefFor('/library/@all')}" data-focus-id="view-library" data-ro-focusable="true">View library</a>
-                     <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads" data-focus-id="clear-uploads" data-ro-focusable="true">Clear</button>`
+                     <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads" data-focus-id="clear-uploads" data-ro-focusable="true">Clear saved ROMs</button>`
                   : `<a class="ro-btn" href="${hrefFor('/upload')}" data-focus-id="add-rom" data-ro-focusable="true">Add ROM</a>`
               }
             </div>
@@ -264,8 +296,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted" id="ro-folder-status" hidden></p>
             </div>
             <div class="ro-btn-row">
-              ${canPick ? `<button type="button" class="ro-btn" id="ro-link" data-focus-id="link-folder" data-ro-focusable="true">${meta.linked ? 'Relink' : 'Link folder'}</button>` : ''}
-              ${meta.linked ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-unlink" data-focus-id="unlink-folder" data-ro-focusable="true">Unlink</button>` : ''}
+              ${canPick ? `<button type="button" class="ro-btn" id="ro-link" data-focus-id="link-folder" data-ro-focusable="true">${meta.linked ? 'Relink folder' : 'Link folder'}</button>` : ''}
+              ${meta.linked ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-unlink" data-focus-id="unlink-folder" data-ro-focusable="true">Unlink folder</button>` : ''}
             </div>
           </div>
 
@@ -288,14 +320,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Install app</strong>
+              <strong>Install RetroOasis</strong>
               <p class="ro-muted">
                 ${
                   installed
                     ? 'Running as an installed app.'
                     : installable
                       ? 'Add a home-screen shortcut.'
-                      : 'Install appears on HTTPS after the shell is cached.'
+                      : 'Needs HTTPS and a supported browser after the shell is cached.'
                 }
               </p>
             </div>
@@ -304,7 +336,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                 ? ''
                 : installable
                   ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis">Install app</button>`
-                  : `<button type="button" class="ro-btn" data-focus-id="install" disabled title="Install appears on HTTPS after the shell is cached.">Unavailable here</button>`
+                  : `<button type="button" class="ro-btn" data-focus-id="install" data-ro-focusable="true" aria-disabled="true" title="Needs HTTPS and a supported browser after the shell is cached.">Unavailable here</button>`
             }
           </div>
 
@@ -313,7 +345,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Clear recents &amp; favorites</strong>
               <p class="ro-muted">Recently played and favorites on this device.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear</button>
+            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear recents</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -322,8 +354,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">Title and cover changes from game pages.</p>
             </div>
             <div class="ro-btn-row">
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export</button>
-              <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over" data-focus-id="clear-over" data-ro-focusable="true">Clear</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export edits</button>
+              <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over" data-focus-id="clear-over" data-ro-focusable="true">Clear edits</button>
             </div>
           </div>
         </section>
@@ -375,7 +407,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelectorAll<HTMLButtonElement>('[data-pack]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (btn.disabled) return
+      if (btn.getAttribute('aria-disabled') === 'true') return
       setSoundPack(btn.dataset.pack as SoundPack)
       if (getSoundsEnabled()) sfxToggle()
       rerender(btn.dataset.focusId)

@@ -1,14 +1,18 @@
-import { UPLOAD_CORE_OPTIONS, coreFromExtension } from '../lib/cores'
+import {
+  UPLOAD_CORE_OPTIONS,
+  coreFromExtension,
+  isAmbiguousRomExtension,
+} from '../lib/cores'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
-import { getEjsChannel, pushRecent } from '../lib/store'
+import { getEjsChannel, pushRecent, resolveEjsChannel } from '../lib/store'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
 const CORE_EXT_HINTS: Record<string, string> = {
-  auto: 'Auto picks a system from the file extension (.nes, .sfc, .gba, .zip, …).',
+  auto: 'Auto picks a system from the file extension. For .iso / .bin / .cue, choose the system yourself.',
   nes: 'Common: .nes · .fds · .unif',
   snes: 'Common: .sfc · .smc',
   gb: 'Common: .gb · .gbc',
@@ -16,9 +20,9 @@ const CORE_EXT_HINTS: Record<string, string> = {
   nds: 'Common: .nds',
   n64: 'Common: .z64 · .n64 · .v64',
   vb: 'Common: .vb',
-  '3ds': 'Common: .3ds · .cia · .cci — needs threads',
+  '3ds': 'Common: .3ds · .cia · .cci — needs browser threads (SharedArrayBuffer)',
   psx: 'Common: .cue · .chd · .bin/.img',
-  ppsspp: 'Common: .iso · .cso · .pbp — needs threads',
+  ppsspp: 'Common: .iso · .cso · .pbp — needs browser threads (SharedArrayBuffer)',
   segaMD: 'Common: .md · .gen · .smd',
   segaMS: 'Common: .sms',
   segaGG: 'Common: .gg',
@@ -44,11 +48,12 @@ const CORE_EXT_HINTS: Record<string, string> = {
   vice_xplus4: 'Common: .prg · .d64',
   vice_xpet: 'Common: .prg · .d64',
   puae: 'Common: .adf · .hdf · .ipf',
-  dosbox_pure: 'Common: .exe · .com · .bat · .iso — needs threads',
+  dosbox_pure: 'Common: .exe · .com · .bat · .iso — needs browser threads (SharedArrayBuffer)',
   intv: 'Common: .int · .itv',
 }
 
 export function renderUpload(root: HTMLElement): void {
+  const channelPref = getEjsChannel()
   root.innerHTML = `
     <section class="ro-view ro-upload">
       <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add ROM</p>
@@ -59,7 +64,7 @@ export function renderUpload(root: HTMLElement): void {
       </p>
       <div class="ro-stack ro-upload__stack">
         <label class="ro-muted" for="ro-core">System</label>
-        <select id="ro-core" class="ro-input">
+        <select id="ro-core" class="ro-input" data-ro-focusable="true">
           ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
         </select>
         <p class="ro-muted ro-upload__hint" id="ro-core-hint">${CORE_EXT_HINTS.auto}</p>
@@ -76,8 +81,8 @@ export function renderUpload(root: HTMLElement): void {
           <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose a file</span>
         </div>
         <input id="ro-file" type="file" hidden />
-        <p class="ro-muted ro-upload__status" id="ro-status">
-          Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
+        <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite">
+          Emulator files: preference is ${channelPref}. PSP, DOS, and 3DS always use Nightly (unless Local) so ROMs reach those cores. Thread support is separate — see Settings → Emulator.
         </p>
         <div class="ro-btn-row">
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}" data-ro-focusable="true">Back home</a>
@@ -135,19 +140,35 @@ export function renderUpload(root: HTMLElement): void {
     if (!coreSelect || busy) return
     let core = coreSelect.value
     if (core === 'auto') {
-      core = coreFromExtension(file.name) || 'nes'
+      if (isAmbiguousRomExtension(file.name)) {
+        if (status) {
+          status.textContent =
+            'That file type can be several systems (.iso / .bin / .cue). Pick the system above, then add the file again.'
+        }
+        return
+      }
+      core = coreFromExtension(file.name) || ''
+      if (!core) {
+        if (status) {
+          status.textContent =
+            'Couldn’t detect the system from that file. Pick the system above, then add it again.'
+        }
+        return
+      }
     }
 
     setBusy(true)
     if (status) {
-      status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
+      status.textContent = `Saving ${file.name} (${formatBytes(file.size)}) for ${core}…`
     }
 
     try {
       const game = await saveUploadedRom(file, file.name, core)
       pushRecent(game.id)
-
-      if (status) status.textContent = `Saved. Starting ${file.name}…`
+      const channel = resolveEjsChannel(game.core)
+      if (status) {
+        status.textContent = `Saved. Starting ${file.name} (${channel})…`
+      }
       const back = hrefFor(`/game/${game.id}`)
       window.location.href = buildPlayerUrl(game, game.file, back)
     } catch (err) {

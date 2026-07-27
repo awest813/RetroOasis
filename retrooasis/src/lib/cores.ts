@@ -259,11 +259,67 @@ export function coreNeedsThreads(core: string): boolean {
   return REQUIRES_THREADS.has(core) || REQUIRES_THREADS.has(core.toLowerCase())
 }
 
+export function coreNeedsWebgl2(core: string): boolean {
+  const key = normalizePlayCore(core)
+  return REQUIRES_WEBGL2.has(key) || REQUIRES_WEBGL2.has(key.toLowerCase())
+}
+
 export function normalizePlayCore(core: string): string {
   if (core === 'psp') return 'ppsspp'
   if (core === 'dos') return 'dosbox_pure'
   if (core === '3ds') return 'azahar'
   return core
+}
+
+/** User-facing system/core label (engine id in parentheses when helpful). */
+export function coreDisplayName(core: string): string {
+  const key = normalizePlayCore(core)
+  const labels: Record<string, string> = {
+    nes: 'NES',
+    snes: 'SNES',
+    gb: 'Game Boy',
+    gba: 'Game Boy Advance',
+    nds: 'Nintendo DS',
+    n64: 'Nintendo 64',
+    vb: 'Virtual Boy',
+    azahar: 'Nintendo 3DS (Azahar)',
+    psx: 'PlayStation',
+    ppsspp: 'PSP (PPSSPP)',
+    segaMD: 'Mega Drive / Genesis',
+    segaMS: 'Master System',
+    segaGG: 'Game Gear',
+    segaCD: 'Sega CD',
+    sega32x: 'Sega 32X',
+    segaSaturn: 'Sega Saturn',
+    arcade: 'Arcade (FBNeo)',
+    mame2003: 'MAME 2003',
+    atari2600: 'Atari 2600',
+    atari7800: 'Atari 7800',
+    atari5200: 'Atari 5200',
+    lynx: 'Atari Lynx',
+    jaguar: 'Atari Jaguar',
+    '3do': '3DO',
+    pce: 'PC Engine',
+    pcfx: 'PC-FX',
+    ngp: 'Neo Geo Pocket',
+    ws: 'WonderSwan',
+    coleco: 'ColecoVision',
+    vice_x64sc: 'Commodore 64',
+    vice_x128: 'Commodore 128',
+    vice_xvic: 'VIC-20',
+    vice_xplus4: 'Plus/4',
+    vice_xpet: 'PET',
+    puae: 'Amiga',
+    dosbox_pure: 'DOS (DOSBox Pure)',
+    intv: 'Intellivision',
+  }
+  return labels[key] ?? key
+}
+
+/** Extensions that map to more than one plausible system — require an explicit pick. */
+export function isAmbiguousRomExtension(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ext === 'iso' || ext === 'bin' || ext === 'img' || ext === 'cue'
 }
 
 /** All EmulatorJS system keys users can pick in Upload. */
@@ -276,9 +332,9 @@ export const UPLOAD_CORE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Nintendo DS', value: 'nds' },
   { label: 'Nintendo 64', value: 'n64' },
   { label: 'Virtual Boy', value: 'vb' },
-  { label: 'Nintendo 3DS (threads)', value: '3ds' },
+  { label: 'Nintendo 3DS — needs browser threads', value: '3ds' },
   { label: 'PlayStation', value: 'psx' },
-  { label: 'PlayStation Portable / PPSSPP (threads)', value: 'ppsspp' },
+  { label: 'PSP / PPSSPP — needs browser threads', value: 'ppsspp' },
   { label: 'Sega Mega Drive / Genesis', value: 'segaMD' },
   { label: 'Sega Master System', value: 'segaMS' },
   { label: 'Sega Game Gear', value: 'segaGG' },
@@ -304,6 +360,6 @@ export const UPLOAD_CORE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Commodore Plus/4', value: 'vice_xplus4' },
   { label: 'Commodore PET', value: 'vice_xpet' },
   { label: 'Amiga', value: 'puae' },
-  { label: 'DOS (threads)', value: 'dosbox_pure' },
+  { label: 'DOS — needs browser threads', value: 'dosbox_pure' },
   { label: 'Intellivision', value: 'intv' },
 ]

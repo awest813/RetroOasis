@@ -175,6 +175,31 @@
         }
 
         const THREADED = new Set(["ppsspp", "psp", "dosbox_pure", "dos", "azahar", "3ds"]);
+        const NEEDS_WEBGL2 = new Set(["ppsspp", "psp", "azahar", "3ds"]);
+        const CORE_LABELS = {
+          ppsspp: "PSP (PPSSPP)",
+          dosbox_pure: "DOS (DOSBox Pure)",
+          azahar: "Nintendo 3DS (Azahar)",
+          nes: "NES",
+          snes: "SNES",
+          gb: "Game Boy",
+          gba: "Game Boy Advance",
+          nds: "Nintendo DS",
+          n64: "Nintendo 64",
+          psx: "PlayStation",
+          segaMD: "Mega Drive / Genesis",
+          segaMS: "Master System",
+          segaGG: "Game Gear",
+          segaCD: "Sega CD",
+          arcade: "Arcade (FBNeo)",
+          mame2003: "MAME 2003",
+        };
+        const CHANNEL_LABELS = {
+          local: "Local files",
+          stable: "Stable CDN",
+          latest: "Latest CDN",
+          nightly: "Nightly CDN",
+        };
         const PATHS = {
           local: "data/",
           stable: "https://cdn.emulatorjs.org/stable/data/",
@@ -201,13 +226,25 @@
         if (core === "dos") core = "dosbox_pure";
         if (core === "3ds") core = "azahar";
 
-        const needsThreads = THREADED.has(core);
+        // Prefer explicit threads=1 from the app; fall back to known threaded cores.
+        const needsThreads = params.get("threads") === "1" || THREADED.has(core);
+        const needsWebgl2 = NEEDS_WEBGL2.has(core);
         // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
         if (needsThreads && channel !== "local") channel = "nightly";
 
         const dataPath = PATHS[channel];
+        const coreLabel = CORE_LABELS[core] || core;
+        const channelLabel = CHANNEL_LABELS[channel] || channel;
+
+        function setMeta(extra) {
+          var bits = [coreLabel, channelLabel];
+          if (needsThreads) bits.push("threads");
+          if (extra) bits.push(extra);
+          document.getElementById("meta").textContent = bits.join(" · ");
+        }
+
         document.getElementById("title").textContent = name;
-        document.getElementById("meta").textContent = core + " · " + channel;
+        setMeta();
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
@@ -220,6 +257,15 @@
             '</p><a href="' +
             back +
             '">Back home</a></div>';
+        }
+
+        function hasWebgl2() {
+          try {
+            var canvas = document.createElement("canvas");
+            return !!(canvas.getContext && canvas.getContext("webgl2"));
+          } catch (_) {
+            return false;
+          }
         }
 
         function escapeHtml(value) {
@@ -360,17 +406,38 @@
         function startEmulator(gameUrl) {
           if (needsThreads && typeof SharedArrayBuffer === "undefined") {
             fail(
-              "NEEDS EXTRA SETUP",
-              "This system (PSP, DOS, or 3DS) needs special browser security headers to run. " +
-                "The RetroOasis dev server turns them on for you. On a static host, enable COOP/COEP " +
-                "(see the README), or try a different game.",
+              "THREAD SUPPORT MISSING",
+              "This system (<strong>" +
+                escapeHtml(coreLabel) +
+                "</strong>) needs <strong>browser thread support</strong> " +
+                "(<code>SharedArrayBuffer</code>) so the ROM can reach the emulator core. " +
+                "That only works when the site is served with isolation headers " +
+                "(<code>Cross-Origin-Opener-Policy: same-origin</code> and " +
+                "<code>Cross-Origin-Embedder-Policy: require-corp</code>). " +
+                "The RetroOasis dev server sets them. Static hosts can use <code>public/_headers</code> " +
+                "(not GitHub Pages). See Settings → Emulator → Thread support.",
             );
+            return;
+          }
+
+          if (needsWebgl2 && !hasWebgl2()) {
+            fail(
+              "WEBGL 2 REQUIRED",
+              "This system (<strong>" +
+                escapeHtml(coreLabel) +
+                "</strong>) needs WebGL 2. Update your browser or try another device.",
+            );
+            return;
+          }
+
+          if (!gameUrl) {
+            fail("CAN’T START", "The ROM file never arrived. Go back and press Play again.");
             return;
           }
 
           window.EJS_player = "#game";
           window.EJS_gameName = name;
-          // File objects keep the original filename (extension) for EmulatorJS.
+          // File objects keep the original filename (extension) for EmulatorJS core detection.
           window.EJS_gameUrl = gameUrl;
           window.EJS_core = core;
           window.EJS_biosUrl = bios;
@@ -386,12 +453,12 @@
           script.src = dataPath + "loader.js";
           script.onerror = function () {
             fail(
-              "EMULATOR MISSING",
-              "Couldn’t load the emulator files from <code>" +
-                dataPath +
+              "EMULATOR FILES MISSING",
+              "Couldn’t load emulator cores from <code>" +
+                escapeHtml(dataPath) +
                 "</code>. " +
-                "If you’re using the Local channel, put EmulatorJS’s <code>data/</code> folder next to this site. " +
-                "Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS).",
+                "If you’re on Local, put EmulatorJS’s <code>data/</code> folder next to this site. " +
+                "Otherwise open Settings → Emulator and pick Stable (or Nightly for PSP / DOS / 3DS).",
             );
           };
           document.body.appendChild(script);
@@ -402,18 +469,18 @@
           return;
         }
 
-        document.getElementById("meta").textContent = core + " · " + channel + " · loading rom…";
+        setMeta("loading ROM…");
 
         resolveRom(romParam)
           .then(function (gameUrl) {
-            document.getElementById("meta").textContent = core + " · " + channel;
+            setMeta("starting core…");
             startEmulator(gameUrl);
           })
           .catch(function (err) {
             fail(
               "CAN’T LOAD ROM",
               (err && err.message) ||
-                "Couldn’t load that ROM. Go back and try Play again.",
+                "Couldn’t load that ROM into the emulator. Go back and try Play again.",
             );
           });
       })();

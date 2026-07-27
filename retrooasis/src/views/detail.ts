@@ -6,7 +6,7 @@ import {
   refreshCatalogView,
   reloadUploadedLibrary,
 } from '../lib/catalog'
-import { coreNeedsThreads, normalizePlayCore } from '../lib/cores'
+import { coreDisplayName, coreNeedsThreads, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
@@ -67,8 +67,15 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     focusCleanup = null
     const over = getOverride(game.id)
     const playCore = normalizePlayCore(game.core)
-    const threadBadge = coreNeedsThreads(playCore)
-      ? '<span class="ro-badge">Threads</span>'
+    const needsThreads = coreNeedsThreads(playCore)
+    const hasSab = typeof SharedArrayBuffer !== 'undefined'
+    const threadBadge = needsThreads
+      ? '<span class="ro-badge ro-badge--threads" title="Needs browser thread support (SharedArrayBuffer) so the ROM can reach this core">Needs browser threads</span>'
+      : ''
+    const threadNote = needsThreads
+      ? hasSab
+        ? `<p class="ro-muted">Thread support: this system needs SharedArrayBuffer so the ROM can reach the core. Ready in this browser.</p>`
+        : `<p class="ro-muted ro-warn" role="status">Thread support missing: <strong>${escapeHtml(coreDisplayName(playCore))}</strong> needs SharedArrayBuffer. Use the RetroOasis dev server, or host with COOP/COEP isolation headers — see Settings → Emulator → Thread support.</p>`
       : ''
     root.innerHTML = `
       <section class="ro-view ro-detail">
@@ -97,7 +104,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${threadBadge}
           </div>
           <p class="ro-lede">
-            Core <strong>${escapeHtml(playCore)}</strong>
+            System <strong>${escapeHtml(coreDisplayName(playCore))}</strong>
             · File <code>${escapeHtml(fileLabel)}</code>
             ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
             ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
@@ -117,13 +124,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               ? `<p class="ro-muted">Saved on this device. Clearing this site’s browser data will remove it too.</p>`
               : ''
           }
-          <p class="ro-muted" id="ro-play-status" hidden></p>
+          ${threadNote}
+          <p class="ro-muted" id="ro-play-status" role="status" aria-live="polite" hidden></p>
           <div class="ro-btn-row ro-detail__actions">
             ${
               game.demo
                 ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">Test missing file</button>`
-                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>`
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">See missing-ROM message</button>`
+                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}${needsThreads && !hasSab ? ' title="May fail without SharedArrayBuffer — see the note above"' : ''}>Play</button>`
             }
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
               ${favorited ? '★ Favorited' : 'Favorite'}
@@ -133,7 +141,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             </button>
             ${
               game.source === 'upload'
-                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-remove-upload" data-ro-focusable="true">Remove</button>`
+                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-remove-upload" data-ro-focusable="true">Remove from this device</button>`
                 : ''
             }
           </div>

@@ -225,11 +225,11 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         kind: 'action',
         id: 'settings',
         title: 'Settings',
-        sub: 'Look, sound, library, and data',
+        sub: 'Look, sound, emulator, library, and data',
         href: hrefFor('/settings'),
         glyph: 'SET',
         accent: 'var(--ro-text-dim)',
-        blurb: 'Cabinet prefs stay on this device.',
+        blurb: 'Settings stay on this device — including thread support status for PSP / DOS / 3DS.',
       },
     ],
   })

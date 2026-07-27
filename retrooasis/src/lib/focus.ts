@@ -9,7 +9,7 @@ type Dir = 'left' | 'right' | 'up' | 'down' | 'confirm'
 
 function focusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focusable="true"]')).filter(
-    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-disabled') !== 'true',
+    (el) => !el.hasAttribute('disabled'),
   )
 }
 

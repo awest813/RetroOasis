@@ -1132,6 +1132,22 @@ html[data-layout='tv'] .ro-btn--toggle {
   background: color-mix(in srgb, var(--ro-accent-ps) 12%, transparent);
 }
 
+.ro-badge--threads {
+  border-color: color-mix(in srgb, var(--ro-accent-ps) 55%, transparent);
+  color: var(--ro-accent-ps);
+  background: color-mix(in srgb, var(--ro-accent-ps) 12%, transparent);
+}
+
+.ro-badge--ok {
+  border-color: color-mix(in srgb, var(--ro-accent) 55%, transparent);
+  color: var(--ro-accent);
+  background: color-mix(in srgb, var(--ro-accent) 12%, transparent);
+}
+
+.ro-warn {
+  color: color-mix(in srgb, var(--ro-accent-ps) 72%, var(--ro-text));
+}
+
 .ro-detail__badges {
   display: flex;
   flex-wrap: wrap;
@@ -1270,6 +1286,32 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-settings-page__head .ro-lede {
   margin-bottom: 0;
+}
+
+.ro-settings-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  padding: 0.15rem 0 0.35rem;
+  margin: 0 0 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+}
+
+.ro-settings-jump a {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ro-muted);
+  padding: 0.35rem 0.15rem;
+  border-radius: 2px;
+  scroll-margin-top: calc(var(--ro-topbar-h, 3.65rem) + 0.75rem);
+}
+
+.ro-settings-jump a:hover,
+.ro-settings-jump a:focus-visible {
+  color: var(--ro-accent);
 }
 
 .ro-settings {
