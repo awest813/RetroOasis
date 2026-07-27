@@ -300,9 +300,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               </p>
             </div>
             ${
-              installable
-                ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true">Install</button>`
-                : ''
+              installed
+                ? ''
+                : installable
+                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis">Install app</button>`
+                  : `<button type="button" class="ro-btn" data-focus-id="install" disabled title="Install appears on HTTPS after the shell is cached.">Unavailable here</button>`
             }
           </div>
 

@@ -54,7 +54,7 @@ app.innerHTML = `
         <span class="ro-brand__sub">Arcade</span>
       </a>
       <div class="ro-topbar__right">
-        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" hidden>Install</button>
+        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis" hidden>Install app</button>
         <nav class="ro-nav" aria-label="Primary">
           <a data-nav="lobby" href="${hrefFor('/')}">Home</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
@@ -78,7 +78,7 @@ const main = mainEl
 
 main.innerHTML = `
   <section class="ro-view ro-loading" aria-busy="true" aria-live="polite">
-    <p class="ro-kicker">RetroOasis</p>
+    <p class="ro-kicker">RETRO OASIS</p>
     <p class="ro-loading__label">Loading your shelf…</p>
     <div class="ro-loading__bar" aria-hidden="true"></div>
   </section>
@@ -93,8 +93,15 @@ function syncInstallButton(): void {
 }
 
 installTop?.addEventListener('click', async () => {
-  await promptPwaInstall()
-  syncInstallButton()
+  installTop.disabled = true
+  installTop.setAttribute('aria-busy', 'true')
+  try {
+    await promptPwaInstall()
+  } finally {
+    installTop.removeAttribute('aria-busy')
+    installTop.disabled = false
+    syncInstallButton()
+  }
 })
 
 onPwaInstallChange(() => {

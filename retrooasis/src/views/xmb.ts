@@ -147,7 +147,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     id: 'browse-library',
     title: 'Browse library',
     sub: `${catalog.games.length} title${catalog.games.length === 1 ? '' : 's'}`,
-    href: hrefFor('/library'),
+    href: hrefFor('/library/@all'),
     glyph: 'ALL',
     accent: 'var(--ro-accent)',
     blurb: 'Open the full grid by system, recent, and favorites.',
@@ -262,6 +262,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
         data-distance="${dist}"
+        ${active ? 'aria-current="true"' : ''}
         tabindex="-1"
         style="--item-accent: ${item.accent}"
       >
@@ -282,6 +283,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
       data-distance="${dist}"
+      ${active ? 'aria-current="true"' : ''}
       tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
@@ -303,6 +305,7 @@ function catMarkup(cat: XmbCategory, active: boolean): string {
       style="--cat-accent: ${cat.accent}"
       aria-label="${escapeAttr(cat.label)}"
       aria-pressed="${active ? 'true' : 'false'}"
+      ${active ? 'aria-current="true"' : ''}
       tabindex="-1"
     >
       <span class="ro-xmb__cat-icon">${cat.icon}</span>
@@ -425,7 +428,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
   root.innerHTML = `
     <section class="ro-xmb" aria-label="Cross menu" role="application" tabindex="0">
-      <p class="ro-xmb__brand" aria-hidden="true">RETRO OASIS</p>
+      <p class="ro-xmb__brand">RETRO OASIS</p>
       <div class="ro-xmb__clock" aria-hidden="true">
         <span class="ro-xmb__clock-time" data-ro-xmb-clock>${escapeHtml(formatClock(now))}</span>
         <span class="ro-xmb__clock-date" data-ro-xmb-date>${escapeHtml(formatClockDate(now))}</span>
@@ -703,8 +706,16 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const activate = () => {
     const cat = categories[catIndex]
     const item = cat?.items[itemIndex]
-    if (!item) return
-    navigate(item.href)
+    if (item) {
+      navigate(item.href)
+      return
+    }
+    // Empty shelf: confirm follows the CTA instead of no-op.
+    if (cat?.id === 'recent' || cat?.id === 'favorites') {
+      navigate(hrefFor('/library/@all'))
+      return
+    }
+    navigate(hrefFor('/upload'))
   }
 
   catsEl.addEventListener('click', (event) => {

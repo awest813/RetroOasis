@@ -41,8 +41,8 @@ export async function renderLibrary(
 
   const sel = normalizeSelection(selection, ordered, counts)
 
-  if (!selection && sel.kind === 'platform') {
-    window.location.replace(hrefFor(`/library/${sel.id}`))
+  if (!selection) {
+    window.location.replace(hrefFor('/library/@all'))
     return
   }
 
@@ -80,12 +80,12 @@ export async function renderLibrary(
 
     const heading = galleryHeading(sel, platform)
     const sampleCount = games.filter((g) => g.demo).length
-    const sampleCue =
-      sampleCount > 0
-        ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} so you can explore the UI — hide them in Settings if you only want real ROMs.</p>`
-        : ''
     const demoOnly =
       !catalog.local && !(catalog.uploadedCount ?? 0) && !(catalog.hostedCount ?? 0)
+    const sampleCue =
+      sampleCount > 0 && !demoOnly
+        ? `<p class="ro-gallery__cue">Includes ${sampleCount} sample entr${sampleCount === 1 ? 'y' : 'ies'} so you can explore the UI — hide them in Settings if you only want real ROMs.</p>`
+        : ''
     const onboard =
       demoOnly
         ? `<aside class="ro-onboard" aria-label="Getting started">
@@ -103,7 +103,7 @@ export async function renderLibrary(
         <aside class="ro-systems" aria-label="Library navigation">
           <div class="ro-systems__head">
             <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Library</p>
-            <h1 class="ro-systems__title">Oasis</h1>
+            <h1 class="ro-systems__title">Library</h1>
             <p class="ro-systems__meta">${libraryMeta(catalog)}</p>
           </div>
 
@@ -252,15 +252,14 @@ export async function renderCollection(
 
 function normalizeSelection(
   selection: LibrarySelection | string | undefined,
-  ordered: Platform[],
-  counts: Record<string, number>,
+  _ordered: Platform[],
+  _counts: Record<string, number>,
 ): LibrarySelection {
   if (typeof selection === 'string') {
     return { kind: 'platform', id: selection }
   }
   if (selection) return selection
-  const first = ordered.find((p) => (counts[p.id] ?? 0) > 0)?.id ?? ordered[0]?.id
-  return first ? { kind: 'platform', id: first } : { kind: 'collection', id: 'all' }
+  return { kind: 'collection', id: 'all' }
 }
 
 function selectGames(
@@ -429,7 +428,7 @@ function gameTile(
           ? 'Saved'
           : game.demo
             ? 'Sample'
-            : 'Catalog'
+            : ''
   const subClass =
     game.source === 'upload'
       ? 'ro-tile__sub ro-tile__sub--saved'
@@ -448,7 +447,7 @@ function gameTile(
         ${coverMarkup(game.title, platformAccentVar(accent), cover)}
         <div class="ro-tile__meta">
           <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-          <span class="${subClass}">${sub}</span>
+          ${sub ? `<span class="${subClass}">${sub}</span>` : ''}
         </div>
       </a>
       <button

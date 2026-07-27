@@ -26,8 +26,15 @@
   .ro-view,
   .ro-cover,
   .ro-btn,
-  .ro-loading__bar::after {
+  .ro-loading__bar::after,
+  .ro-cover__img,
+  .ro-cover--image img {
     animation: none !important;
     transition: none !important;
+  }
+
+  .ro-cover--ready img,
+  .ro-cover--ready .ro-cover__img {
+    opacity: 1;
   }
 }

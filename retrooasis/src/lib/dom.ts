@@ -19,9 +19,11 @@ export function coverMarkup(
     return `
       <div class="ro-cover ro-cover--image" style="--cover-accent: ${accentVar}">
         <img
+          class="ro-cover__img"
           src="${escapeAttr(coverUrl)}"
           alt=""
           loading="lazy"
+          onload="this.parentElement && this.parentElement.classList.add('ro-cover--ready')"
           onerror="this.style.display='none'; this.parentElement && this.parentElement.classList.add('ro-cover--missing')"
         />
         <span class="ro-cover__mark" aria-hidden="true"></span>

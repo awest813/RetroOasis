@@ -89,10 +89,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
           <div class="ro-detail__badges">
             <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
-            ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
             ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
             ${game.source === 'upload' ? '<span class="ro-badge ro-badge--saved">Saved</span>' : ''}
+            ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
           </div>
