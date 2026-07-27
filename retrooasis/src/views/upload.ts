@@ -4,6 +4,7 @@ import { hrefFor } from '../lib/router'
 import { getEjsChannel, pushRecent } from '../lib/store'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
+import { bindGridFocus } from '../lib/focus'
 
 const CORE_EXT_HINTS: Record<string, string> = {
   auto: 'Auto picks a system from the file extension (.nes, .sfc, .gba, .zip, …).',
@@ -78,8 +79,8 @@ export function renderUpload(root: HTMLElement): void {
           Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
         </p>
         <div class="ro-btn-row">
-          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}">Back home</a>
-          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}">Library</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}" data-ro-focusable="true">Back home</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}" data-ro-focusable="true">Library</a>
         </div>
       </div>
     </section>
@@ -92,7 +93,9 @@ export function renderUpload(root: HTMLElement): void {
   const drop = root.querySelector<HTMLElement>('#ro-drop')
   const dropTitle = root.querySelector<HTMLElement>('#ro-drop-title')
   const dropSub = root.querySelector<HTMLElement>('#ro-drop-sub')
+  const stack = root.querySelector<HTMLElement>('.ro-upload__stack')
   let busy = false
+  if (stack) bindGridFocus(stack)
 
   const setDropCopy = (mode: 'idle' | 'drag' | 'busy') => {
     if (!dropTitle || !dropSub) return

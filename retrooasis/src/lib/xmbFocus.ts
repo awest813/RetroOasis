@@ -25,9 +25,6 @@ function atHomeHash(): boolean {
   return !hash || hash === '#/' || hash === '#'
 }
 
-/** @deprecated Prefer importing from `./gamepad` */
-export { readConnectedPad } from './gamepad'
-
 export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   const ensureShellFocus = () => {
     if (document.activeElement !== root) {
@@ -112,10 +109,16 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
-    // Keep console-like focus inside the shell
+    // Keep console-like focus inside the shell on desktop; allow Tab into
+    // the mobile topbar when it is interactive.
     if (event.key === 'Tab') {
-      event.preventDefault()
-      ensureShellFocus()
+      const mobileChrome = window.matchMedia('(max-width: 900px)').matches
+      const topbar = document.querySelector('.ro-shell--xmb .ro-topbar')
+      const topbarLive = mobileChrome && topbar && !topbar.hasAttribute('inert')
+      if (!topbarLive) {
+        event.preventDefault()
+        ensureShellFocus()
+      }
       return
     }
 
