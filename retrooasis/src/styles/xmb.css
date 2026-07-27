@@ -83,6 +83,13 @@
   overflow: hidden;
 }
 
+/* Desktop default: chrome budget for brand/clock strip.
+   Without a defined value, height calc() is invalid and the
+   absolutely-positioned XMB collapses to 0 on fresh launch. */
+.ro-shell--xmb {
+  --ro-xmb-chrome: 2.25rem;
+}
+
 html[data-display='standalone'] .ro-shell--xmb {
   --ro-xmb-chrome: calc(2.25rem + env(safe-area-inset-top, 0px));
 }
@@ -91,8 +98,8 @@ html[data-display='standalone'] .ro-shell--xmb {
   --xmb-cat-y: 34%;
   --xmb-item-gap: 0.75rem;
   position: relative;
-  min-height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome));
-  height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome));
+  min-height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome, 2.25rem));
+  height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome, 2.25rem));
   outline: none;
   user-select: none;
   -webkit-user-select: none;
@@ -1276,7 +1283,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   .ro-xmb {
     --xmb-cat-y: 18%;
     height: auto;
-    min-height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome));
+    min-height: calc(var(--ro-vvh, 100dvh) - var(--ro-xmb-chrome, 5.75rem));
     overflow: visible;
     padding-bottom: max(4rem, env(safe-area-inset-bottom, 0px));
   }

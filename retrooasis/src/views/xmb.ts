@@ -613,7 +613,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }
 
   const syncViewportHeight = () => {
-    const h = window.visualViewport?.height ?? window.innerHeight
+    // Prefer visualViewport for mobile keyboard/URL-bar shrink, but never
+    // exceed layout viewport (some embedded browsers report a larger VV).
+    const layout = window.innerHeight || 0
+    const visual = window.visualViewport?.height ?? layout
+    const h = layout > 0 ? Math.min(visual, layout) : visual
     document.documentElement.style.setProperty('--ro-vvh', `${Math.round(h)}px`)
   }
 
