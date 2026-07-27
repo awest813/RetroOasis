@@ -117,11 +117,16 @@
   bottom: 1rem;
   z-index: 3;
   margin: 0;
+  padding: 0.35rem 0.65rem;
   font-size: 0.78rem;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--ro-text-dim) 85%, transparent);
-  opacity: 0.85;
+  color: color-mix(in srgb, var(--ro-text) 88%, var(--ro-text-dim));
+  background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+  border-radius: var(--ro-radius);
+  opacity: 0.95;
   transition: opacity 280ms ease;
 }
 

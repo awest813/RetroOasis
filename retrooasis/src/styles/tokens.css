@@ -91,7 +91,13 @@ img {
   outline: none;
 }
 
-/* Focus rings only when navigating with keyboard or gamepad */
+/* Keyboard / assistive focus — always show rings for :focus-visible */
+:focus-visible {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+/* Stronger rings when navigating with keyboard or gamepad */
 html[data-input='key'] :focus-visible,
 html[data-input='pad'] :focus-visible,
 html[data-input='key'] [data-ro-focusable='true']:focus,

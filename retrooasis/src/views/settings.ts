@@ -210,14 +210,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <div class="ro-settings-row__copy">
               <strong>Thread support</strong>
               <p class="ro-muted">
-                PSP, DOS, and 3DS need browser threads (<code>SharedArrayBuffer</code>) so those ROMs can reach their cores.
-                This is separate from the Nightly CDN channel above.
+                Lets PSP, DOS, and 3DS games run in the browser.
+                Separate from the Nightly CDN channel above.
               </p>
               <p class="ro-muted">
                 ${
                   hasSab
-                    ? 'Ready on this page — those systems can start.'
-                    : 'Missing here. Use the RetroOasis dev server, or host with COOP/COEP isolation headers (see README). GitHub Pages cannot set them.'
+                    ? 'Ready here — those systems can start.'
+                    : 'Missing here. Use the RetroOasis dev server, or host with isolation headers (see README). GitHub Pages can’t set them.'
                 }
               </p>
             </div>
@@ -257,8 +257,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               ${
                 uploadedMeta.count
                   ? `<a class="ro-btn ro-btn--ghost" href="${hrefFor('/library/@all')}" data-focus-id="view-library" data-ro-focusable="true">View library</a>
-                     <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads" data-focus-id="clear-uploads" data-ro-focusable="true">Clear</button>`
-                  : `<a class="ro-btn" href="${hrefFor('/upload')}" data-focus-id="add-rom" data-ro-focusable="true">Add ROM</a>`
+                     <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads" data-focus-id="clear-uploads" data-ro-focusable="true">Clear saved ROMs</button>`
+                  : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-focus-id="add-rom" data-ro-focusable="true">Add ROM</a>`
               }
             </div>
           </div>
@@ -317,7 +317,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               installed
                 ? ''
                 : installable
-                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis">Install app</button>`
+                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
                   : `<button type="button" class="ro-btn" data-focus-id="install" disabled title="Install appears on HTTPS after the shell is cached.">Unavailable here</button>`
             }
           </div>
@@ -327,7 +327,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Clear recents &amp; favorites</strong>
               <p class="ro-muted">Recently played and favorites on this device.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear</button>
+            <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-prefs" data-focus-id="clear-prefs" data-ro-focusable="true">Clear recents</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -336,8 +336,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">Title and cover changes from game pages.</p>
             </div>
             <div class="ro-btn-row">
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export</button>
-              <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over" data-focus-id="clear-over" data-ro-focusable="true">Clear</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export edits</button>
+              <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over" data-focus-id="clear-over" data-ro-focusable="true">Clear edits</button>
             </div>
           </div>
         </section>

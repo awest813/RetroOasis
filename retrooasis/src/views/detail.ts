@@ -117,13 +117,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               ? `<p class="ro-muted">Saved on this device. Clearing this site’s browser data will remove it too.</p>`
               : ''
           }
-          <p class="ro-muted" id="ro-play-status" hidden></p>
-          <div class="ro-btn-row ro-detail__actions">
+          <p class="ro-muted" id="ro-play-status" role="status" aria-live="polite" hidden></p>
+          <div class="ro-btn-row ro-detail__actions"${busy ? ' aria-busy="true"' : ''}>
             ${
               game.demo
                 ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">See missing-ROM message</button>`
-                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>Play</button>`
+                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
               ${favorited ? '★ Favorited' : 'Favorite'}
@@ -165,6 +165,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       sfxConfirm()
       busy = true
       paint()
+      const status = root.querySelector<HTMLElement>('#ro-play-status')
+      if (status && !game.demo) {
+        status.hidden = false
+        status.textContent = 'Starting emulator…'
+      }
       try {
         await launchGame(game)
       } catch (err) {

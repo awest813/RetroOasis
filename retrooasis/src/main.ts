@@ -54,7 +54,7 @@ app.innerHTML = `
         <span class="ro-brand__sub">Arcade</span>
       </a>
       <div class="ro-topbar__right">
-        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis" hidden>Install app</button>
+        <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis as an app" title="Install RetroOasis on this device" hidden>Install as app</button>
         <nav class="ro-nav" aria-label="Primary">
           <a data-nav="lobby" href="${hrefFor('/')}">Home</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>

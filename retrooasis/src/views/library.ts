@@ -84,8 +84,8 @@ export async function renderLibrary(
     const onboard =
       demoOnly
         ? `<aside class="ro-onboard" aria-label="Getting started">
-            <p class="ro-onboard__title">Play needs a real ROM</p>
-            <p class="ro-onboard__body">Samples fill the shelf so you can look around. Add a file or link a folder to start playing.</p>
+            <p class="ro-onboard__title">Add a ROM to start playing</p>
+            <p class="ro-onboard__body">Samples fill the shelf so you can look around. Drop in a file or link a folder when you’re ready.</p>
             <div class="ro-btn-row">
               <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
               <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Library settings</a>
@@ -131,7 +131,7 @@ export async function renderLibrary(
           </div>
 
           <div class="ro-systems__actions">
-            <a class="ro-btn" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
+            <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             ${
               canPick
                 ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-link-folder" data-ro-focusable="true">Link folder</button>`
@@ -152,8 +152,9 @@ export async function renderLibrary(
               ${sampleCue}
             </div>
             <div class="ro-search">
-              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" />
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
+              <label class="ro-sr-only" for="ro-q">Search your library</label>
+              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" autocomplete="off" />
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort" aria-label="${isRecent ? 'Sort pinned to play order' : sortDesc ? 'Sort Z to A' : 'Sort A to Z'}"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
                 ${isRecent ? 'Play order' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
             </div>
@@ -170,7 +171,9 @@ export async function renderLibrary(
                     ),
                   )
                   .join('')}</div>`
-              : emptyState(sel)
+              : query
+                ? searchEmptyState(queryRaw)
+                : emptyState(sel)
           }
         </div>
       </section>
@@ -193,6 +196,12 @@ export async function renderLibrary(
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
       if (isRecent) return
       sortDesc = !sortDesc
+      paint({ restoreSearch: true })
+    })
+
+    root.querySelector('#ro-clear-search')?.addEventListener('click', () => {
+      query = ''
+      queryRaw = ''
       paint({ restoreSearch: true })
     })
 
@@ -223,10 +232,12 @@ export async function renderLibrary(
     const systems = root.querySelector<HTMLElement>('[data-ro-systems]')
     const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
     const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
+    const empty = root.querySelector<HTMLElement>('.ro-empty')
     const cleanups: Array<() => void> = []
     if (systems) cleanups.push(bindGridFocus(systems))
     if (platforms) cleanups.push(bindGridFocus(platforms))
     if (grid) cleanups.push(bindGridFocus(grid))
+    if (empty) cleanups.push(bindGridFocus(empty))
     cleanup = () => {
       window.clearTimeout(searchTimer)
       cleanups.forEach((fn) => fn())
@@ -293,6 +304,15 @@ function galleryHeading(
     all: { kicker: 'Collection', title: 'All games' },
   }
   return map[sel.id]
+}
+
+function searchEmptyState(queryRaw: string): string {
+  return `
+    <div class="ro-empty">
+      <p class="ro-empty__title">No matches</p>
+      <p class="ro-empty__body">Nothing matched “${escapeHtml(queryRaw.trim())}”. Try another title, or clear the search.</p>
+      <button type="button" class="ro-btn ro-btn--primary" id="ro-clear-search" data-ro-focusable="true">Clear search</button>
+    </div>`
 }
 
 function emptyState(sel: LibrarySelection): string {
