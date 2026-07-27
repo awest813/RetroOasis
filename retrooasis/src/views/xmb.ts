@@ -444,6 +444,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   let animTimer = 0
   let nudgeTimer = 0
   let enterTimer = 0
+  let alive = true
 
   const thumbInsetX = (item: HTMLElement | null): number => {
     if (!item) return 28
@@ -503,9 +504,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     wasDesktop = true
 
     if (activeCat) {
-      // Keep the focus column left of mid so the info panel has room on narrow desktops.
-      const targetRatio = shell.clientWidth < 1100 ? 0.16 : 0.2
-      const targetX = shell.clientWidth * targetRatio
+      // Keep the focus column left of mid so the info panel has room.
+      const w = shell.clientWidth
+      const targetRatio = w < 1100 ? 0.16 : w >= 1600 ? 0.22 : 0.2
+      const targetX = w * targetRatio
       const catShift = targetX - (activeCat.offsetLeft + activeCat.offsetWidth / 2)
       catsEl.style.setProperty('--xmb-shift', `${catShift}px`)
 
@@ -565,6 +567,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         }, 140)
       })
     })
+  }
+
+  const syncViewportHeight = () => {
+    const h = window.visualViewport?.height ?? window.innerHeight
+    document.documentElement.style.setProperty('--ro-vvh', `${Math.round(h)}px`)
   }
 
   const dismissHint = () => {
@@ -762,7 +769,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }
   const stopClock = scheduleMinuteClock(tickClock)
 
-  const onResize = () => scheduleSync()
+  const onResize = () => {
+    syncViewportHeight()
+    scheduleSync()
+  }
+  syncViewportHeight()
   window.addEventListener('resize', onResize)
   window.visualViewport?.addEventListener('resize', onResize)
   window.addEventListener('orientationchange', onResize)
@@ -776,6 +787,16 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       ? new ResizeObserver(() => scheduleSync())
       : null
   shellRo?.observe(shell)
+
+  const layoutObserver = new MutationObserver(() => scheduleSync())
+  layoutObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-layout'],
+  })
+
+  void document.fonts?.ready?.then(() => {
+    if (alive) scheduleSync()
+  })
 
   const onMotionChange = () => {
     reducedMotion = motionQuery.matches
@@ -805,6 +826,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   shell.addEventListener('selectstart', onSelectStart)
 
   cleanup = () => {
+    alive = false
     unbind()
     stopClock()
     window.clearTimeout(animTimer)
@@ -813,6 +835,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     window.clearTimeout(resizeIdle)
     if (resizeRaf) cancelAnimationFrame(resizeRaf)
     shellRo?.disconnect()
+    layoutObserver.disconnect()
     modalityObserver.disconnect()
     motionQuery.removeEventListener('change', onMotionChange)
     desktopMq.removeEventListener('change', onBreakpoint)
