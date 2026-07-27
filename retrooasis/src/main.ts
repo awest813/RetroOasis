@@ -16,7 +16,7 @@ import {
 import { installInputChrome } from './lib/input'
 import { mountWave, setWaveActive } from './lib/wave'
 import { disposeActiveView } from './lib/viewLifecycle'
-import { disposeXmb, renderXmb } from './views/xmb'
+import { disposeXmb, clearXmbSession, renderXmb } from './views/xmb'
 import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
@@ -107,6 +107,14 @@ installTop?.addEventListener('click', async () => {
 onPwaInstallChange(() => {
   syncInstallButton()
   if (getRoute().name === 'settings') void render(getRoute())
+})
+
+/** Home links should open the Home category, not the last XMB platform. */
+app.addEventListener('click', (event) => {
+  const link = (event.target as Element | null)?.closest?.('a')
+  if (!link) return
+  const href = link.getAttribute('href')
+  if (href === '#/' || href === '#') clearXmbSession()
 })
 
 function syncNav(route: Route): void {

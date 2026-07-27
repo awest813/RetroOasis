@@ -75,6 +75,16 @@ function writeSession(catId: string, itemId: string | null): void {
   }
 }
 
+/** Reset XMB focus so Home opens on the Home category (not the last platform). */
+export function clearXmbSession(): void {
+  try {
+    sessionStorage.removeItem(SESSION_CAT)
+    sessionStorage.removeItem(SESSION_ITEM)
+  } catch {
+    /* ignore */
+  }
+}
+
 function resolveSessionFocus(categories: XmbCategory[]): { catIndex: number; itemIndex: number } {
   const catId = readSessionId(SESSION_CAT)
   let catIndex = catId ? categories.findIndex((c) => c.id === catId) : 0

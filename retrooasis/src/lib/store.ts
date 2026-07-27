@@ -175,14 +175,14 @@ export function getEjsChannel(): EjsChannel {
 
 /**
  * Effective EmulatorJS CDN channel for a core.
- * PSP / PPSSPP, 3DS, and DOS → nightly (unless Local).
- * Everything else → stable (or Local / Latest when selected in Settings).
+ * Local always wins. PSP / 3DS / DOS need Nightly builds (unless Local).
+ * Otherwise honor the Settings preference (Stable / Nightly / Latest).
  */
 export function resolveEjsChannel(core: string): EjsChannel {
   const preferred = getEjsChannel()
   if (preferred === 'local') return 'local'
   if (coreNeedsThreads(core)) return 'nightly'
-  if (preferred === 'latest') return 'latest'
+  if (preferred === 'nightly' || preferred === 'latest') return preferred
   return 'stable'
 }
 

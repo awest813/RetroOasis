@@ -184,30 +184,44 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">${sounds ? 'Soft tones, XMB clicks, or arcade beeps.' : 'Turn on UI sounds to choose a pack.'}</p>
             </div>
             <div class="ro-toggle-group ro-toggle-group--packs" role="group" aria-label="Sound pack">
-              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'soft')}">Soft</button>
-              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'xmb')}">XMB</button>
-              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade"${sounds ? ' data-ro-focusable="true"' : ' disabled'} aria-pressed="${pressed(pack === 'arcade')}">Arcade</button>
+              <button type="button" class="ro-btn" data-pack="soft" data-focus-id="pack-soft" data-ro-focusable="true" aria-pressed="${pressed(pack === 'soft')}" aria-disabled="${pressed(!sounds)}">Soft</button>
+              <button type="button" class="ro-btn" data-pack="xmb" data-focus-id="pack-xmb" data-ro-focusable="true" aria-pressed="${pressed(pack === 'xmb')}" aria-disabled="${pressed(!sounds)}">XMB</button>
+              <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}" aria-disabled="${pressed(!sounds)}">Arcade</button>
             </div>
           </div>
 
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>EmulatorJS channel</strong>
+              <strong>Emulator files</strong>
               <p class="ro-muted">
-                Most systems use Stable. PSP, 3DS, and DOS stay on Nightly unless you pick Local.
+                Where EmulatorJS loads cores from. Stable suits most systems.
+                PSP, DOS, and 3DS always use Nightly (unless Local).
+              </p>
+            </div>
+            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="Emulator files">
+              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}" title="Official stable CDN builds">Stable</button>
+              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}" title="Newer CDN builds; required for PSP / DOS / 3DS">Nightly</button>
+              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}" title="Latest CDN channel">Latest</button>
+              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}" title="Load from a local data/ folder next to the site">Local</button>
+            </div>
+          </div>
+
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Thread support</strong>
+              <p class="ro-muted">
+                PSP, DOS, and 3DS need browser threads (<code>SharedArrayBuffer</code>) so those ROMs can reach their cores.
+                This is separate from the Nightly CDN channel above.
+              </p>
+              <p class="ro-muted">
                 ${
                   hasSab
-                    ? 'Threaded cores can run here.'
-                    : 'Threaded cores need special host headers — see the README.'
+                    ? 'Ready on this page — those systems can start.'
+                    : 'Missing here. Use the RetroOasis dev server, or host with COOP/COEP isolation headers (see README). GitHub Pages cannot set them.'
                 }
               </p>
             </div>
-            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="EmulatorJS channel">
-              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}">Stable</button>
-              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}">Nightly</button>
-              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}">Latest</button>
-              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}">Local</button>
-            </div>
+            <span class="ro-badge ${hasSab ? 'ro-badge--ok' : 'ro-badge--threads'}" role="status">${hasSab ? 'Ready' : 'Missing'}</span>
           </div>
         </section>
 
@@ -216,18 +230,18 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Libretro covers</strong>
-              <p class="ro-muted">Fill missing box art when available.</p>
+              <strong>Online box art</strong>
+              <p class="ro-muted">Fill missing covers from Libretro when available.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Libretro covers">${libretro ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Online box art">${libretro ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Hide demos</strong>
+              <strong>Hide samples</strong>
               <p class="ro-muted">Show only ROMs you’ve hosted, linked, or saved.</p>
             </div>
-            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}" aria-label="Hide demos">${hideDemos ? 'On' : 'Off'}</button>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-hide-demos" data-focus-id="hide-demos" data-ro-focusable="true" aria-pressed="${pressed(hideDemos)}" aria-label="Hide samples">${hideDemos ? 'On' : 'Off'}</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -375,7 +389,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   root.querySelectorAll<HTMLButtonElement>('[data-pack]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (btn.disabled) return
+      if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return
       setSoundPack(btn.dataset.pack as SoundPack)
       if (getSoundsEnabled()) sfxToggle()
       rerender(btn.dataset.focusId)
