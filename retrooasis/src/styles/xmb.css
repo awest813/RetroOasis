@@ -71,15 +71,10 @@
   overflow: hidden;
 }
 
-.ro-xmb {
-  --xmb-cat-y: 34%;
-  --xmb-item-gap: 0.75rem;
-  position: relative;
-  min-height: calc(100dvh - 2.25rem);
-  height: calc(100dvh - 2.25rem);
-  outline: none;
-  user-select: none;
-  -webkit-user-select: none;
+.ro-xmb,
+.ro-xmb * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
 .ro-xmb__hint {
