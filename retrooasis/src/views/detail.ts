@@ -269,4 +269,5 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   }
 
   paint()
+  document.title = `RetroOasis · ${game.title}`
 }

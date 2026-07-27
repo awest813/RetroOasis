@@ -36,13 +36,23 @@ export function applyPwaDisplayMode(): void {
   if (standalone) installed = true
 }
 
+function bindDisplayModeListener(query: string): void {
+  try {
+    window.matchMedia(query).addEventListener('change', () => {
+      applyPwaDisplayMode()
+      emit()
+    })
+  } catch {
+    /* older Safari */
+  }
+}
+
 export function initPwaInstall(): void {
   applyPwaDisplayMode()
 
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
-    applyPwaDisplayMode()
-    emit()
-  })
+  bindDisplayModeListener('(display-mode: standalone)')
+  bindDisplayModeListener('(display-mode: fullscreen)')
+  bindDisplayModeListener('(display-mode: minimal-ui)')
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault()
@@ -81,15 +91,40 @@ export function getPwaInstallState(): PwaInstallState {
 export async function promptPwaInstall(): Promise<'accepted' | 'dismissed' | 'unavailable'> {
   if (!deferred) return 'unavailable'
   const event = deferred
-  deferred = null
   await event.prompt()
   const choice = await event.userChoice
   if (choice.outcome === 'accepted') {
     installed = true
+    deferred = null
     applyPwaDisplayMode()
   }
+  // Keep deferred on dismiss so the user can try Install again this session.
   emit()
   return choice.outcome
+}
+
+function showUpdateToast(): void {
+  if (document.getElementById('ro-sw-toast')) return
+  const toast = document.createElement('div')
+  toast.id = 'ro-sw-toast'
+  toast.className = 'ro-sw-toast'
+  toast.setAttribute('role', 'status')
+  toast.innerHTML = `
+    <span>Update ready</span>
+    <button type="button" class="ro-btn ro-btn--primary" id="ro-sw-reload">Refresh</button>
+  `
+  document.body.appendChild(toast)
+  toast.querySelector('#ro-sw-reload')?.addEventListener('click', () => {
+    const go = () => window.location.reload()
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        reg?.waiting?.postMessage('SKIP_WAITING')
+        go()
+      })
+      return
+    }
+    go()
+  })
 }
 
 export function registerServiceWorker(): void {
@@ -97,8 +132,31 @@ export function registerServiceWorker(): void {
   if (!import.meta.env.PROD) return
 
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('./sw.js').catch((err) => {
-      console.warn('[RetroOasis] SW registration failed', err)
+    void navigator.serviceWorker
+      .register('./sw.js')
+      .then((reg) => {
+        // A waiting worker means a new build is ready.
+        if (reg.waiting) showUpdateToast()
+        reg.addEventListener('updatefound', () => {
+          const worker = reg.installing
+          if (!worker) return
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdateToast()
+            }
+          })
+        })
+      })
+      .catch((err) => {
+        console.warn('[RetroOasis] SW registration failed', err)
+      })
+
+    let refreshing = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return
+      refreshing = true
+      // Soft hint only — toast already offers Refresh.
+      showUpdateToast()
     })
   })
 }

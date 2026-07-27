@@ -317,7 +317,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                   ? `<button type="button" class="ro-btn ro-btn--primary" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
                   : installState === 'ios'
                     ? `<span class="ro-badge" role="status" title="Use Share → Add to Home Screen">iOS tip</span>`
-                    : `<button type="button" class="ro-btn" data-focus-id="install" data-ro-focusable="true" aria-disabled="true" title="Needs HTTPS and a supported browser after the shell is cached.">Unavailable here</button>`
+                    : `<span class="ro-badge" role="status" title="Needs HTTPS and a supported browser after the shell is cached.">Unavailable here</span>`
             }
           </div>
 

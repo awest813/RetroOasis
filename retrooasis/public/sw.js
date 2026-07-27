@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v2'
+const CACHE = 'retrooasis-shell-v3'
 
 const PRECACHE = [
   './',
@@ -20,10 +20,17 @@ const PRECACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting()),
+    caches.open(CACHE).then(async (cache) => {
+      // Prefer settled adds so one missing URL doesn't block the whole SW.
+      await Promise.all(
+        PRECACHE.map((url) =>
+          cache.add(url).catch(() => {
+            /* ignore individual precache misses */
+          }),
+        ),
+      )
+      // Stay waiting until the page asks to activate (update toast → reload).
+    }),
   )
 })
 
@@ -34,6 +41,12 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 function isShellAsset(req, path) {
@@ -66,8 +79,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone()
-          void caches.open(CACHE).then((cache) => cache.put(req, copy))
+          if (res.ok) {
+            const copy = res.clone()
+            void caches.open(CACHE).then((cache) => cache.put(req, copy))
+          }
           return res
         })
         .catch(async () => {
@@ -83,7 +98,21 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // App shell assets: stale-while-revalidate.
+  // Hashed build assets: cache-first (filename changes on deploy).
+  if (path.includes('/assets/')) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        const cached = await cache.match(req, { ignoreSearch: true })
+        if (cached) return cached
+        const res = await fetch(req)
+        if (res.ok) void cache.put(req, res.clone())
+        return res
+      }),
+    )
+    return
+  }
+
+  // Other shell assets: stale-while-revalidate.
   if (isShellAsset(req, path)) {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => {

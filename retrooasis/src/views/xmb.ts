@@ -521,11 +521,12 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
 
     if (!desktop) {
       clearLayoutVars()
-      if (activeCat) {
+      // Avoid fighting the user while the viewport is still being dragged.
+      if (activeCat && !resizing) {
         activeCat.scrollIntoView({
           inline: 'center',
           block: 'nearest',
-          behavior: reducedMotion || resizing ? 'auto' : 'smooth',
+          behavior: reducedMotion ? 'auto' : 'smooth',
         })
       }
       wasDesktop = false
@@ -855,15 +856,24 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     syncChromeHeight()
     scheduleSync()
   }
+  let orientationTimer = 0
+  const onOrientation = () => {
+    // iOS often reports stale metrics until after the rotate settles.
+    window.clearTimeout(orientationTimer)
+    orientationTimer = window.setTimeout(onResize, 220)
+  }
   syncViewportHeight()
   syncChromeHeight()
   window.addEventListener('resize', onResize)
   window.visualViewport?.addEventListener('resize', onResize)
-  window.addEventListener('orientationchange', onResize)
+  window.addEventListener('orientationchange', onOrientation)
 
   const desktopMq = window.matchMedia(DESKTOP_MQ)
   const onBreakpoint = () => {
+    syncViewportHeight()
     syncChromeHeight()
+    // Leave wasDesktop as the prior side so syncTransforms detects the crossing.
+    clearLayoutVars()
     scheduleSync()
   }
   desktopMq.addEventListener('change', onBreakpoint)
@@ -932,6 +942,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     window.clearTimeout(nudgeTimer)
     window.clearTimeout(enterTimer)
     window.clearTimeout(resizeIdle)
+    window.clearTimeout(orientationTimer)
     if (resizeRaf) cancelAnimationFrame(resizeRaf)
     shellRo?.disconnect()
     topbarRo?.disconnect()
@@ -941,9 +952,11 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     desktopMq.removeEventListener('change', onBreakpoint)
     window.removeEventListener('resize', onResize)
     window.visualViewport?.removeEventListener('resize', onResize)
-    window.removeEventListener('orientationchange', onResize)
+    window.removeEventListener('orientationchange', onOrientation)
     shell.removeEventListener('wheel', onWheel)
     shell.removeEventListener('selectstart', onSelectStart)
+    document.documentElement.style.removeProperty('--ro-vvh')
+    shell.style.removeProperty('--ro-xmb-chrome')
   }
 }
 

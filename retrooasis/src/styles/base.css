@@ -19,6 +19,43 @@ html[data-display='standalone'] .ro-shell {
   min-height: 100svh;
 }
 
+.ro-sw-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--ro-bg-panel-solid) 92%, #000);
+  border: 1px solid color-mix(in srgb, var(--ro-accent) 45%, var(--ro-line));
+  border-radius: var(--ro-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--ro-text);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  animation: ro-sw-toast-in 280ms ease both;
+}
+
+@keyframes ro-sw-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-sw-toast {
+    animation: none;
+  }
+}
+
 .ro-skip {
   position: fixed;
   left: max(var(--ro-space), env(safe-area-inset-left, 0px));
@@ -992,8 +1029,13 @@ html[data-crt='on'] .ro-shell::after {
   }
 
   .ro-system {
-    min-width: 12rem;
+    min-width: 13.5rem;
     flex: 0 0 auto;
+  }
+
+  .ro-system__name {
+    -webkit-line-clamp: 2;
+    white-space: normal;
   }
 
   .ro-systems__actions {
@@ -1050,8 +1092,10 @@ html[data-layout='tv'] .ro-footer {
   display: none;
 }
 
-html[data-layout='tv'] .ro-library {
-  grid-template-columns: minmax(16rem, var(--ro-systems-w)) minmax(0, 1fr);
+@media (min-width: 901px) {
+  html[data-layout='tv'] .ro-library {
+    grid-template-columns: minmax(16rem, var(--ro-systems-w)) minmax(0, 1fr);
+  }
 }
 
 html[data-layout='tv'] .ro-system {
@@ -1518,6 +1562,12 @@ html[data-layout='tv'] .ro-btn--toggle {
     --ro-tile-min: 7.75rem;
     --ro-platform-min: 9rem;
     --ro-topbar-h: auto;
+    /* Numeric stand-in so scroll-margin calc() stays valid when topbar-h is auto. */
+    --ro-scroll-chrome: calc(5.5rem + env(safe-area-inset-top, 0px));
+  }
+
+  .ro-settings-row {
+    scroll-margin-top: calc(var(--ro-scroll-chrome) + 0.75rem);
   }
 
   .ro-topbar {
