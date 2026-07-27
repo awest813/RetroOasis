@@ -442,6 +442,8 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   let reducedMotion = motionQuery.matches
   let animTimer = 0
+  let nudgeTimer = 0
+  let enterTimer = 0
 
   const thumbInsetX = (item: HTMLElement | null): number => {
     if (!item) return 28
@@ -526,14 +528,20 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     hintEl.textContent = hintCopy()
   }
 
-  const paintInfo = (cat: XmbCategory) => {
-    infoEl.classList.remove('ro-xmb__info--in')
+  const paintInfo = (cat: XmbCategory, dir?: 'left' | 'right' | 'up' | 'down') => {
+    infoEl.classList.remove('ro-xmb__info--in', 'ro-xmb__info--from-left', 'ro-xmb__info--from-right')
+    if (dir === 'left') infoEl.classList.add('ro-xmb__info--from-left')
+    if (dir === 'right') infoEl.classList.add('ro-xmb__info--from-right')
     infoEl.innerHTML = infoMarkup(cat, itemIndex)
     void infoEl.offsetWidth
     infoEl.classList.add('ro-xmb__info--in')
   }
 
-  const paint = (opts?: { animateRail?: boolean }) => {
+  const paint = (opts?: {
+    animateRail?: boolean
+    railDir?: 'left' | 'right'
+    itemNudge?: 'up' | 'down'
+  }) => {
     const cat = categories[catIndex]
     if (!cat) return
 
@@ -541,22 +549,48 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const on = i === catIndex
       el.dataset.active = on ? 'true' : 'false'
       el.setAttribute('aria-pressed', on ? 'true' : 'false')
+      if (on && opts?.animateRail && !reducedMotion) {
+        el.classList.remove('ro-xmb__cat--settle')
+        void el.offsetWidth
+        el.classList.add('ro-xmb__cat--settle')
+      } else {
+        el.classList.remove('ro-xmb__cat--settle')
+      }
     })
 
     window.clearTimeout(animTimer)
+    window.clearTimeout(nudgeTimer)
     if (opts?.animateRail && !reducedMotion) {
       railInner.dataset.anim = ''
+      delete railInner.dataset.dir
       void railInner.offsetWidth
       railInner.dataset.anim = 'in'
+      if (opts.railDir) railInner.dataset.dir = opts.railDir
       animTimer = window.setTimeout(() => {
-        if (railInner.dataset.anim === 'in') railInner.dataset.anim = ''
-      }, 420)
+        if (railInner.dataset.anim === 'in') {
+          railInner.dataset.anim = ''
+          delete railInner.dataset.dir
+        }
+      }, 480)
     } else {
       railInner.dataset.anim = ''
+      delete railInner.dataset.dir
     }
 
     railInner.innerHTML = railMarkup(cat, itemIndex)
-    paintInfo(cat)
+
+    if (opts?.itemNudge && !reducedMotion) {
+      const active = railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]')
+      if (active) {
+        active.dataset.nudge = opts.itemNudge
+        nudgeTimer = window.setTimeout(() => {
+          delete active.dataset.nudge
+        }, 280)
+      }
+    }
+
+    const infoDir = opts?.railDir ?? opts?.itemNudge
+    paintInfo(cat, infoDir)
     persist()
     requestAnimationFrame(() => {
       syncTransforms()
@@ -582,9 +616,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     dismissHint()
     if (next === catIndex) return
     sfxMove()
+    const railDir = next > catIndex ? 'right' : 'left'
     catIndex = next
     itemIndex = 0
-    paint({ animateRail: true })
+    paint({ animateRail: true, railDir })
   })
 
   railInner.addEventListener('click', (event) => {
@@ -622,9 +657,10 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
         delta > 0 ? Math.min(categories.length - 1, catIndex + 1) : Math.max(0, catIndex - 1)
       if (next === catIndex) return
       sfxMove()
+      const railDir = next > catIndex ? 'right' : 'left'
       catIndex = next
       itemIndex = 0
-      paint({ animateRail: true })
+      paint({ animateRail: true, railDir })
       return
     }
     const count = categories[catIndex]?.items.length ?? 0
@@ -632,8 +668,9 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     const next = delta > 0 ? Math.min(count - 1, itemIndex + 1) : Math.max(0, itemIndex - 1)
     if (next === itemIndex) return
     sfxMove()
+    const itemNudge = next > itemIndex ? 'down' : 'up'
     itemIndex = next
-    paint()
+    paint({ itemNudge })
   }
   shell.addEventListener('wheel', onWheel, { passive: false })
 
@@ -644,21 +681,35 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     getItemIndex: () => itemIndex,
     setCategoryIndex: (index) => {
       dismissHint()
+      if (index === catIndex) return
+      const railDir = index > catIndex ? 'right' : 'left'
       catIndex = index
       itemIndex = 0
-      paint({ animateRail: true })
+      paint({ animateRail: true, railDir })
     },
     setItemIndex: (index) => {
       dismissHint()
+      if (index === itemIndex) return
+      const itemNudge = index > itemIndex ? 'down' : 'up'
       itemIndex = index
-      paint()
+      paint({ itemNudge })
     },
     confirm: activate,
   })
 
   const tickClock = () => {
     const d = new Date()
-    if (clockEl) clockEl.textContent = formatClock(d)
+    if (clockEl) {
+      const next = formatClock(d)
+      if (clockEl.textContent !== next) {
+        clockEl.textContent = next
+        if (!reducedMotion) {
+          clockEl.classList.remove('ro-xmb__clock-time--tick')
+          void clockEl.offsetWidth
+          clockEl.classList.add('ro-xmb__clock-time--tick')
+        }
+      }
+    }
     if (dateEl) dateEl.textContent = formatClockDate(d)
   }
   const stopClock = scheduleMinuteClock(tickClock)
@@ -678,7 +729,14 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   })
   syncHintCopy()
 
-  paint({ animateRail: true })
+  if (!reducedMotion) {
+    shell.dataset.enter = '1'
+    enterTimer = window.setTimeout(() => {
+      delete shell.dataset.enter
+    }, 900)
+  }
+
+  paint({ animateRail: true, railDir: 'right' })
   shell.focus({ preventScroll: true })
 
   const onSelectStart = (event: Event) => {
@@ -690,6 +748,8 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     unbind()
     stopClock()
     window.clearTimeout(animTimer)
+    window.clearTimeout(nudgeTimer)
+    window.clearTimeout(enterTimer)
     modalityObserver.disconnect()
     motionQuery.removeEventListener('change', onMotionChange)
     window.removeEventListener('resize', onResize)

@@ -142,6 +142,10 @@
   color: var(--ro-text);
 }
 
+.ro-xmb__clock-time--tick {
+  animation: ro-xmb-clock-tick 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .ro-xmb__clock-date {
   font-family: var(--ro-font-ui);
   font-size: 0.78rem;
@@ -266,6 +270,10 @@
   transform: translateY(-1px);
 }
 
+.ro-xmb__cat--settle .ro-xmb__cat-icon {
+  animation: ro-xmb-cat-settle 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .ro-xmb__cat-label {
   order: -1;
   font-family: var(--ro-font-ui);
@@ -364,6 +372,15 @@
     0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 55%, transparent),
     0 12px 28px rgba(0, 0, 0, 0.4),
     0 0 28px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 28%, transparent);
+  animation: ro-xmb-thumb-breathe 2.8s ease-in-out infinite;
+}
+
+.ro-xmb__item[data-nudge='up'] {
+  animation: ro-xmb-nudge-up 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ro-xmb__item[data-nudge='down'] {
+  animation: ro-xmb-nudge-down 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .ro-xmb__item:hover {
@@ -468,6 +485,18 @@
   animation: ro-xmb-info-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.ro-xmb__info--from-left.ro-xmb__info--in .ro-xmb__info-inner {
+  animation-name: ro-xmb-info-in-left;
+}
+
+.ro-xmb__info--from-right.ro-xmb__info--in .ro-xmb__info-inner {
+  animation-name: ro-xmb-info-in-right;
+}
+
+.ro-xmb__info--in .ro-xmb__stage {
+  animation: ro-xmb-stage-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes ro-xmb-info-in {
   from {
     opacity: 0;
@@ -476,6 +505,39 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes ro-xmb-info-in-left {
+  from {
+    opacity: 0;
+    transform: translate(-14px, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes ro-xmb-info-in-right {
+  from {
+    opacity: 0;
+    transform: translate(14px, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes ro-xmb-stage-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -663,12 +725,50 @@ html[data-layout='tv'] .ro-xmb__item {
   }
 }
 
+@keyframes ro-xmb-item-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 0.55;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ro-xmb-item-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 0.55;
+    transform: translateX(0);
+  }
+}
+
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item {
   animation: ro-xmb-item-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.ro-xmb__rail-inner[data-anim='in'][data-dir='left'] .ro-xmb__item {
+  animation-name: ro-xmb-item-in-left;
+}
+
+.ro-xmb__rail-inner[data-anim='in'][data-dir='right'] .ro-xmb__item {
+  animation-name: ro-xmb-item-in-right;
+}
+
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item[data-active='true'] {
   animation-name: ro-xmb-item-in-active;
+}
+
+.ro-xmb__rail-inner[data-anim='in'][data-dir='left'] .ro-xmb__item[data-active='true'] {
+  animation-name: ro-xmb-item-in-active-left;
+}
+
+.ro-xmb__rail-inner[data-anim='in'][data-dir='right'] .ro-xmb__item[data-active='true'] {
+  animation-name: ro-xmb-item-in-active-right;
 }
 
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item-thumb {
@@ -690,6 +790,28 @@ html[data-layout='tv'] .ro-xmb__item {
   }
 }
 
+@keyframes ro-xmb-item-in-active-left {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ro-xmb-item-in-active-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes ro-xmb-thumb-in {
   from {
     transform: scale(0.86);
@@ -706,6 +828,94 @@ html[data-layout='tv'] .ro-xmb__item {
   to {
     transform: scale(1.12);
   }
+}
+
+@keyframes ro-xmb-thumb-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 55%, transparent),
+      0 12px 28px rgba(0, 0, 0, 0.4),
+      0 0 24px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 22%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 70%, #fff),
+      0 14px 32px rgba(0, 0, 0, 0.45),
+      0 0 36px color-mix(in srgb, var(--item-accent, var(--ro-accent)) 36%, transparent);
+  }
+}
+
+@keyframes ro-xmb-cat-settle {
+  0% {
+    transform: translateY(-1px) scale(0.92);
+  }
+  55% {
+    transform: translateY(-2px) scale(1.08);
+  }
+  100% {
+    transform: translateY(-1px) scale(1);
+  }
+}
+
+@keyframes ro-xmb-nudge-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0.35;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ro-xmb-nudge-down {
+  from {
+    transform: translateY(-8px);
+    opacity: 0.35;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ro-xmb-clock-tick {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ro-xmb-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ro-xmb[data-enter='1'] .ro-xmb__brand {
+  animation: ro-xmb-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both;
+}
+
+.ro-xmb[data-enter='1'] .ro-xmb__clock {
+  animation: ro-xmb-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
+}
+
+.ro-xmb[data-enter='1'] .ro-xmb__hint {
+  animation: ro-xmb-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+
+.ro-xmb[data-enter='1'] .ro-xmb__info {
+  animation: ro-xmb-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
 }
 
 .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item:nth-child(1) {
@@ -875,14 +1085,22 @@ html[data-layout='tv'] .ro-xmb__item {
   .ro-xmb__item,
   .ro-xmb__item-thumb,
   .ro-xmb__info-inner,
-  .ro-xmb__hint {
+  .ro-xmb__hint,
+  .ro-xmb__brand,
+  .ro-xmb__clock,
+  .ro-xmb__stage,
+  .ro-xmb__clock-time {
     transition: none !important;
     animation: none !important;
   }
 
   .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item,
-  .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item-thumb {
-    animation: none;
+  .ro-xmb__rail-inner[data-anim='in'] .ro-xmb__item-thumb,
+  .ro-xmb__item[data-active='true'] .ro-xmb__item-thumb,
+  .ro-xmb__cat--settle .ro-xmb__cat-icon,
+  .ro-xmb__info--in .ro-xmb__info-inner,
+  .ro-xmb__info--in .ro-xmb__stage {
+    animation: none !important;
   }
 
   .ro-xmb__item-thumb {
