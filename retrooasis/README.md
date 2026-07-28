@@ -1,8 +1,16 @@
 # RetroOasis
 
-Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Home is an XMB-style cross menu (Outfit/Sora type, glass category icons, wave backdrop); the grid Library and Settings remain as leaf views. Designed to deploy as plain static files, with PWA install support.
+Static web frontend for browsing a ROM library and launching games with [EmulatorJS](https://emulatorjs.org/). Home is an XMB-style cross menu (Outfit/Sora type, glass category icons, wave backdrop); Library, Add ROM, and Settings are leaf views. Designed to deploy as plain static files, with an installable PWA shell.
 
 ## Quick start
+
+From the repo root:
+
+```sh
+npm run oasis:dev
+```
+
+Or from this folder:
 
 ```sh
 cd retrooasis
@@ -15,37 +23,58 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 ### EmulatorJS cores / PSP (PPSSPP)
 
 - The library lists **all EmulatorJS systems** (NES through PSP, 3DS, DOS, etc.).
-- Settings → **EmulatorJS channel** defaults to **stable** for most systems. **PSP / 3DS / DOS** always launch on **nightly** (unless Local).
+- Settings → **Emulator files** defaults to **stable** for most systems. **PSP / 3DS / DOS** always launch on **nightly** (unless Local).
 - Channels: `stable` · `nightly` · `latest` · `local` (`data/` beside the site).
 - PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` on a host that supports custom headers (for example, Netlify). GitHub Pages does not support custom header files.
 
 ## Scripts
 
-| Command | Purpose |
-| ------- | ------- |
+| Command (in `retrooasis/`) | Purpose |
+| -------------------------- | ------- |
 | `npm run dev` | Local SPA + EmulatorJS data proxy |
 | `npm run build` | Typecheck + production static build → `dist/` |
-| `npm run preview` | Preview the production build |
+| `npm run preview` | Preview the production build (with thread headers) |
+| `npm run typecheck` | TypeScript only, no emit |
+| `npm run manifest` | Generate `../roms/manifest.json` from `roms/` |
+| `npm run scan` | Scan `roms/` (+ optional sidecars / covers) |
+
+From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
+
+## Routes
+
+Hash routing — no server rewrite rules required.
+
+| Route | View |
+| ----- | ---- |
+| `#/` | XMB home (systems, Recent, Favorites, shortcuts) |
+| `#/library` | All games grid (same as `#/library/@all`) |
+| `#/library/@recent` | Recently played |
+| `#/library/@favorites` | Favorites |
+| `#/library/@all` | Full shelf |
+| `#/library/<platform>` | One system (for example `#/library/snes`) |
+| `#/game/<id>` | Game detail + Play |
+| `#/upload` | Add ROM (drag-drop or file picker) |
+| `#/settings` | Look, sound, emulator channel, library, data |
+
+Play opens `player.html` (EmulatorJS iframe host) with query params for the selected game.
 
 ## Static hosting
 
-1. Build: `npm run build`
-2. Publish the contents of the generated repo-root `dist/` folder
+1. Build: `npm run build` (repo root) or `npm run build` in `retrooasis/`
+2. Publish the contents of the generated repo-root `dist/` folder (or `retrooasis/dist/` if you skip the sync step)
 3. Place EmulatorJS **`data/`** next to the built site (same origin path `/data/…`)
-4. Place your ROMs under **`roms/<platform>/…`** and list them in `catalog/games.json` (copied into `dist/catalog/` at build time)
+4. Place your ROMs under **`roms/<platform>/…`** and list them in `catalog/games.json` or `roms/manifest.json`
 
-Hash routing (`#/`, `#/library`, `#/game/…`) means no server rewrite rules are required (GitHub Pages, S3, nginx `try_files`, etc. all work). `#/` is the XMB home shell; `#/library` is the classic grid browser.
+`player.html` loads EmulatorJS in a dedicated page (iframe-friendly / SPA-safe) via `data/loader.js`.
 
 ### GitHub Pages
 
 The repo includes a GitHub Actions workflow at `.github/workflows/github-pages.yml` that builds the app and deploys the generated `dist/` folder to GitHub Pages. The workflow runs on pushes to `main` and can also be triggered manually from the Actions tab.
 
-`player.html` loads EmulatorJS in a dedicated page (iframe-friendly / SPA-safe) via `data/loader.js`.
-
 ## Catalog
 
 - `public/catalog/platforms.json` — systems / cores
-- `public/catalog/games.json` — titles, file paths, optional covers
+- `public/catalog/games.json` — demo titles, file paths, optional covers
 
 Demo entries ship for UI walkthrough. Point `file` at real ROMs you host; do not commit copyrighted game binaries.
 
@@ -87,7 +116,7 @@ Handles are remembered in IndexedDB. Linked-folder ROMs are staged in IndexedDB 
 
 Optional JSON next to a ROM (`MyGame.json` or `game.json`) enriches title, core, cover, year, developer, description, and tags. The generate script merges sidecars into `roms/manifest.json`. See `game.sidecar.example.json`.
 
-Game detail → **Edit metadata** stores browser-local overrides (exportable JSON).
+Game detail → **Edit metadata** stores browser-local overrides (exportable JSON from Settings).
 
 ### Scan + Libretro covers
 
@@ -96,25 +125,44 @@ npm run oasis:scan              # write roms/manifest.json
 npm run oasis:scan -- --covers  # also HEAD-probe thumbnails.libretro.com
 ```
 
-In the UI, **Libretro covers** (Settings, on by default) fills missing boxart at browse time.
+In the UI, **Online box art** (Settings, on by default) fills missing boxart at browse time.
 
-## Layout & PWA
+## Settings
 
-- **Collections rail**: Recent / Favorites / All games beside systems
+All preferences persist in **localStorage** on this device (except ROM bytes and folder handles, which use IndexedDB).
+
+| Group | Options |
+| ----- | ------- |
+| **Look** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
+| **Sound & cores** | UI sounds (off by default), sound pack (Soft / XMB / Arcade), Emulator files channel, thread-support status |
+| **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
+| **Data** | Install as app (PWA), clear recents & favorites, export/clear metadata edits |
+
+Settings uses a console-style row menu with keyboard/gamepad focus (D-pad or arrows, Enter to confirm, Escape / B to go back).
+
+## Layout, PWA & accessibility
+
+- **XMB home**: cross-menu navigation with wave backdrop; desktop top bar is inert while focused on the menu
+- **Collections rail**: Recent / Favorites / All games beside systems in Library
 - **TV layout** (Settings): larger tiles/focus for couch + gamepad
 - **UI sounds** (Settings): soft, XMB, or arcade packs — off by default
 - **Install**: top-bar / Settings button when `beforeinstallprompt` fires; iOS uses Share → Add to Home Screen
-- Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`)
+- **Standalone mode**: home-screen launch uses `viewport-fit=cover`, safe-area padding, and hides install CTAs
+- **Skip link**: “Skip to shelf” for keyboard users (reachable from XMB and Library)
+- **Onboarding**: empty-library hint in the grid when only demo samples are visible
+- Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`); mouse/touch without sticky rings
 - `manifest.webmanifest` (icons + shortcuts) + `sw.js` cache the app shell and catalog (not cores/ROMs), production only
-- Standalone / home-screen launch uses `viewport-fit=cover` and safe-area padding
 
 ## Repo layout
 
 ```text
-retrooasis/          ← this app (static SPA)
+retrooasis/          ← this app (Vite + TypeScript SPA)
+  src/views/         ← xmb, library, detail, upload, settings
+  src/lib/           ← catalog, router, store, PWA, gamepad, etc.
   public/player.html ← EmulatorJS play host
   public/catalog/    ← sample library JSON
 data/                ← EmulatorJS (sibling, unchanged)
 roms/                ← your ROMs (gitignored)
+dist/                ← production build (synced from retrooasis/dist/)
 docs/plans/          ← product plan
 ```

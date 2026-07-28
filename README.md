@@ -24,12 +24,16 @@ Join our Discord server:
 
 ## RetroOasis (static library UI)
 
-This fork includes **RetroOasis**, a lightweight static SPA for browsing a ROM library and launching EmulatorJS. It is designed for plain static hosting (CDN / GitHub Pages / S3) with PWA support planned next.
+This fork includes **RetroOasis**, a Vite + TypeScript static SPA for browsing a ROM library and launching EmulatorJS. Home is an XMB-style cross menu; Library, Add ROM, and Settings are leaf views. It ships as plain static files (CDN / GitHub Pages / S3) with an installable PWA shell.
 
 ```sh
-npm run oasis:dev      # http://localhost:5173/
-npm run oasis:build    # → retrooasis/dist/
+npm run oasis:dev       # http://localhost:5173/ — dev server + EmulatorJS proxy
+npm run oasis:build     # typecheck + build → retrooasis/dist/
+npm run build           # oasis:build + sync to repo-root dist/ (GitHub Pages)
+npm run oasis:scan      # scan roms/ → roms/manifest.json
 ```
+
+Browse without ROMs (demo catalog, favorites, recents, theme/accent in Settings). Real play needs hosted ROMs, **Add ROM** (IndexedDB), or a linked local folder.
 
 See [`retrooasis/README.md`](retrooasis/README.md) and the [frontend plan](docs/plans/retrooasis-frontend.md).
 
