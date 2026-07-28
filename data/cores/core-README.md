@@ -2,7 +2,7 @@
 
 This package contains the stable EmulatorJS core: <!-- EJS_CORE_NAME -->
 
-Lean more about EmulatorJS at https://emulatorjs.org
+Learn more about EmulatorJS at https://emulatorjs.org
 
 Core repository:
 <!-- EJS_CORE_REPO -->

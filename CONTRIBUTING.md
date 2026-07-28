@@ -6,6 +6,8 @@ There are several ways to contribute, be it directly to helping develop features
 
 - Documentation [github page](https://github.com/EmulatorJS/emulatorjs.org).
 
+- **RetroOasis** (this fork’s static library UI in `retrooasis/`): browse the [frontend plan](docs/plans/retrooasis-frontend.md) and [`retrooasis/README.md`](retrooasis/README.md). Run `npm run oasis:dev` from the repo root, `npm run typecheck` in `retrooasis/` before submitting UI changes, and `npx eslint .` from the repo root.
+
 Just wanna donate? That'd help too!
 
 Donate to: [EmulatorJS](https://www.patreon.com/EmulatorJS)
@@ -34,6 +36,18 @@ npm run update -- --ejs_v=4.3.1 # Updates contributors list and sets version to 
 npm run update -- --deps=true # Updates contributors list and updates dependencies
 npm run update -- --dev=true # Updates contributors list and enables dev mode
 npm run update -- --dev=false # Updates contributors list and disables dev mode
+```
+
+### RetroOasis Scripts
+
+From the repo root (or run the equivalent in `retrooasis/`):
+
+```bash
+npm run oasis:dev       # Dev server at http://localhost:5173/
+npm run oasis:build     # Typecheck + production build → retrooasis/dist/
+npm run build           # oasis:build + sync to repo-root dist/
+npm run oasis:scan      # Scan roms/ into roms/manifest.json
+npm run typecheck       # TypeScript only (in retrooasis/)
 ```
 
 ## Attention Visual Studio Code Users

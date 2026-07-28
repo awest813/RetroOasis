@@ -8,12 +8,30 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 
 ### Services / commands
 
-- RetroOasis dev server: `npm run oasis:dev` (from repo root) or `npm run dev` in `retrooasis/`. Serves the SPA on `http://localhost:5173/`. Its Vite config proxies repo-root `data/` (EmulatorJS) and `roms/` so the player can load; no separate server is needed for RetroOasis itself.
-- EmulatorJS demo: `npm run start` (repo root) runs `http-server` on `http://localhost:8080/` and serves `index.html` (the classic EmulatorJS demo). This is separate from RetroOasis.
-- Lint: `npx eslint .` (repo root). Note eslint config only defines `warn`-level rules, so lint passes (exit 0) even though the bundled/minified `data/` files emit ~1600 warnings — that's expected, not a failure.
-- RetroOasis build/typecheck: `npm run build` in `retrooasis/` (runs `tsc` then `vite build`); `npm run typecheck` for types only.
+| Command | Purpose |
+| ------- | ------- |
+| `npm run oasis:dev` | RetroOasis dev server at `http://localhost:5173/` (or `npm run dev` in `retrooasis/`). Vite proxies repo-root `data/` and `roms/`; sets COOP/COEP for threaded cores. |
+| `npm run start` | Classic EmulatorJS demo via `http-server` at `http://localhost:8080/` (`index.html`). Separate from RetroOasis. |
+| `npm run oasis:build` | Typecheck + Vite build → `retrooasis/dist/` |
+| `npm run build` | `oasis:build` + `scripts/sync-pages-dist.mjs` → repo-root `dist/` (GitHub Pages artifact) |
+| `npm run oasis:preview` | Preview production build with thread headers |
+| `npm run oasis:manifest` | Generate `roms/manifest.json` from hosted ROM folders |
+| `npm run oasis:scan` | Scan `roms/` (+ optional `--covers`) into manifest |
+| `npx eslint .` | Lint (repo root). Rules are `warn`-only; ~1600 warnings from minified `data/` are expected and exit 0. |
+| `npm run typecheck` | TypeScript check only (`retrooasis/`) |
+| `npm run build` in `retrooasis/` | Same as `oasis:build` |
+
+### RetroOasis architecture (quick map)
+
+- **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/game/<id>`, `#/upload`, `#/settings`
+- **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (grid + collections rail), `detail.ts`, `upload.ts`, `settings.ts` (console-style row focus)
+- **Play**: navigates to `public/player.html` with EmulatorJS `EJS_*` globals (iframe isolation)
+- **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder
+- **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds, Libretro covers, EJS channel — all `localStorage`
 
 ### Non-obvious notes
 
 - The `retrooasis/public/catalog/games.json` demo entries point at ROM files under `roms/` that are **not committed** (gitignored) and do not exist. Clicking "Play" navigates to `player.html`, but the demo ROM will 404 — real play requires hosting real ROMs, using **Add ROM** (saved permanently in IndexedDB on that device), or linking a local folder. Core SPA flows (browse library, game detail, favorite, accent/theme in Settings, all persisted to localStorage) work fully without any ROMs.
+- PSP / 3DS / DOS need `SharedArrayBuffer` (COOP/COEP). Vite dev/preview and `public/_headers` provide this; GitHub Pages cannot.
+- PWA service worker (`public/sw.js`) registers in production builds only; caches app shell + catalog, not cores or ROMs.
 - Two independent npm projects: repo root (`package.json`) and `retrooasis/` (`retrooasis/package.json`). Each has its own lockfile and `node_modules`.
