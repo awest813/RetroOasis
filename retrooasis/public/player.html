@@ -250,7 +250,12 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        // Remove control characters (including newlines and tabs) and then check for unsafe schemes
+        const sanitizedBack = back.replace(/[\x00-\x20]/g, "").toLowerCase();
+        if (sanitizedBack.startsWith("javascript:") || sanitizedBack.startsWith("data:") || sanitizedBack.startsWith("vbscript:")) {
+          back = "./#/";
+        }
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -261,6 +266,14 @@
         const needsThreads = THREADED.has(core);
         // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
         if (needsThreads && channel !== "local") channel = "nightly";
+
+        function escapeHtml(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
 
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
@@ -275,7 +288,7 @@
             "</h1><p>" +
             message +
             '</p><a href="' +
-            back +
+            escapeHtml(back) +
             '">Back</a></div>';
         }
 
@@ -285,14 +298,6 @@
             "<p>" +
             message +
             '</p><div class="ro-play-loading__bar" aria-hidden="true"><span></span></div></div>';
-        }
-
-        function escapeHtml(value) {
-          return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
         }
 
         function openDb() {
