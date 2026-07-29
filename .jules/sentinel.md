@@ -1,0 +1,4 @@
+## 2024-07-29 - [Fix Reflected XSS in Player fail screen]
+**Vulnerability:** Reflected Cross-Site Scripting (XSS) in `retrooasis/public/player.html`. The `back` URL parameter was directly injected into the DOM via `innerHTML` inside an `<a>` tag, allowing malicious JS execution through both unescaped markup and unsafe URI schemes (`javascript:`).
+**Learning:** Legacy vanilla JS pages parsing URL params and immediately inserting them into error views via `innerHTML` are highly susceptible to XSS. Unsafe schemes (e.g. `java\tscript:`) can bypass naïve string checks.
+**Prevention:** In static HTML files, always strip control characters from URLs before checking protocols, explicitly reject unsafe schemas, and define a local `escapeHtml` utility function to sanitize text content concatenated into `innerHTML`.
