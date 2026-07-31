@@ -250,7 +250,10 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        if (back.replace(/[\x00-\x20]/g, "").toLowerCase().indexOf("javascript:") === 0) {
+          back = "./#/";
+        }
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -274,9 +277,8 @@
             title +
             "</h1><p>" +
             message +
-            '</p><a href="' +
-            back +
-            '">Back</a></div>';
+            '</p><a id="error-back-link">Back</a></div>';
+          document.getElementById("error-back-link").href = back;
         }
 
         function showLoading(message) {
