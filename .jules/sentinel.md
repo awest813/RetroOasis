@@ -1,0 +1,4 @@
+## 2025-05-18 - [XSS via URL Parameter in `player.html`]
+**Vulnerability:** The `back` URL parameter in `retrooasis/public/player.html` was susceptible to DOM-based XSS when used as a `href` attribute inside the `innerHTML` of the error message container, and could be exploited via `javascript:` scheme payload evasion (e.g., using tabs/spaces: `java\tscript:`).
+**Learning:** Even when a URL parameter is used for a navigation link (`href`), it must be validated against dangerous schemes and HTML-escaped. Simply checking for `javascript:` is insufficient if control characters are not stripped first.
+**Prevention:** Always strip control characters and spaces before checking for dangerous schemes. Also, ensure the URL parameter is HTML-escaped (`escapeHtml`) when concatenated into an `innerHTML` string to prevent quoting breakouts.
