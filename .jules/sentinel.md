@@ -1,0 +1,4 @@
+## 2025-02-18 - [XSS via javascript: URI in URL parameters]
+**Vulnerability:** Cross-Site Scripting (XSS) via unsafe URI schemes (`javascript:`) in URL parameters used for navigation (`href` attributes or `window.location.href`).
+**Learning:** URL parameters used for links or redirects are potential XSS vectors if they are not validated against malicious schemas like `javascript:`. Attackers can use control characters or spaces (e.g., `java script:`, `javascript%00:`) to bypass naive substring checks. Injecting these URLs via `innerHTML` or `setAttribute` exacerbates the risk.
+**Prevention:** Always validate URL parameters used for navigation to ensure they don't use unsafe schemas. Strip control characters and spaces before checking for the `javascript:` schema. Assign URLs via direct DOM properties (e.g., `element.href = url`) rather than string interpolation into `innerHTML`.
