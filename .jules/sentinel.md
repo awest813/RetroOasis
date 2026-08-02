@@ -1,0 +1,4 @@
+## 2024-05-18 - XSS in Player UI via `back` Parameter
+**Vulnerability:** DOM-based Cross-Site Scripting (XSS) in `retrooasis/public/player.html`. The `back` and `title` parameters were read directly from the URL and injected unsanitized into the DOM using `.innerHTML`, allowing for arbitrary JS execution.
+**Learning:** In static HTML files without a module bundler, relying on custom `escapeHtml` functions within error handlers can cause `ReferenceError`s if the function is not in scope. The application intentionally relies on HTML formatting for its error messages (e.g. `<br>`), meaning direct innerHTML sanitization is problematic.
+**Prevention:** Sanitize URL parameters used for navigation by stripping control characters and explicitly rejecting `javascript:` schemas. Use direct DOM creation methods (like `document.createElement`, `.textContent`, and direct `.href` assignment) instead of `innerHTML` string interpolation for untrusted data.
