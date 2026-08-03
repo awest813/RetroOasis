@@ -1,0 +1,4 @@
+## 2024-08-03 - [Prevent DOM-based XSS via unsafe URL schemes in URL parameters]
+**Vulnerability:** The application was extracting the `back` URL parameter and using it directly inside `innerHTML` interpolation and `setAttribute("href", ...)` to set link URLs. If an attacker provided a `javascript:` URL, it could execute arbitrary JavaScript.
+**Learning:** URL parameters intended for navigation or linking must be sanitized against unsafe URI schemes (like `javascript:`), stripping control characters/spaces first to prevent evasion.
+**Prevention:** Always validate `href` parameters to reject `javascript:` URLs after stripping `[\x00-\x20]`. When rendering URLs into the DOM, prefer setting the `.href` DOM property natively (`element.href = url`) instead of appending raw strings via `innerHTML` or `setAttribute`.
