@@ -250,7 +250,10 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        if (back.replace(/[\x00-\x20]/g, "").toLowerCase().indexOf("javascript:") === 0) {
+          back = "./#/";
+        }
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -265,18 +268,21 @@
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
         document.getElementById("meta").textContent = core + " · " + channel;
-        document.getElementById("back").setAttribute("href", back);
+        document.getElementById("back").href = back;
         document.title = name + " · RetroOasis";
 
         function fail(title, message) {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-error"><h1>' +
-            title +
-            "</h1><p>" +
-            message +
-            '</p><a href="' +
-            back +
-            '">Back</a></div>';
+          const display = document.getElementById("display");
+          display.innerHTML =
+            '<div class="ro-play-error"><h1></h1><p></p><a>Back</a></div>';
+
+          const errorDiv = display.querySelector(".ro-play-error");
+          errorDiv.querySelector("h1").textContent = title;
+
+          // Use innerHTML for message to support bold/code tags, but ensure inputs are escaped before being passed to `fail`
+          errorDiv.querySelector("p").innerHTML = message;
+
+          errorDiv.querySelector("a").href = back;
         }
 
         function showLoading(message) {
