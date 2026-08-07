@@ -250,7 +250,10 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        if (back.replace(/[\x00-\x20]/g, "").toLowerCase().indexOf("javascript:") === 0) {
+          back = "./#/";
+        }
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -268,31 +271,65 @@
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
-        function fail(title, message) {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-error"><h1>' +
-            title +
-            "</h1><p>" +
-            message +
-            '</p><a href="' +
-            back +
-            '">Back</a></div>';
-        }
-
-        function showLoading(message) {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-loading" role="status" aria-live="polite">' +
-            "<p>" +
-            message +
-            '</p><div class="ro-play-loading__bar" aria-hidden="true"><span></span></div></div>';
-        }
-
         function escapeHtml(value) {
           return String(value)
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
+        }
+
+        function fail(title, message) {
+          var container = document.createElement("div");
+          container.className = "ro-play-error";
+
+          var h1 = document.createElement("h1");
+          h1.textContent = title;
+          container.appendChild(h1);
+
+          var p = document.createElement("p");
+          var parts = message.split(/(<code>.*?<\/code>)/i);
+          for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            if (/^<code>(.*?)<\/code>$/i.test(part)) {
+              var code = document.createElement("code");
+              code.textContent = part.replace(/^<code>|<\/code>$/ig, "");
+              p.appendChild(code);
+            } else {
+              p.appendChild(document.createTextNode(part));
+            }
+          }
+          container.appendChild(p);
+
+          var a = document.createElement("a");
+          a.href = back;
+          a.textContent = "Back";
+          container.appendChild(a);
+
+          var display = document.getElementById("display");
+          display.innerHTML = "";
+          display.appendChild(container);
+        }
+
+        function showLoading(message) {
+          var container = document.createElement("div");
+          container.className = "ro-play-loading";
+          container.setAttribute("role", "status");
+          container.setAttribute("aria-live", "polite");
+
+          var p = document.createElement("p");
+          p.textContent = message;
+          container.appendChild(p);
+
+          var bar = document.createElement("div");
+          bar.className = "ro-play-loading__bar";
+          bar.setAttribute("aria-hidden", "true");
+          bar.appendChild(document.createElement("span"));
+          container.appendChild(bar);
+
+          var display = document.getElementById("display");
+          display.innerHTML = "";
+          display.appendChild(container);
         }
 
         function openDb() {
