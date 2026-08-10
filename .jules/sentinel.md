@@ -1,0 +1,4 @@
+## 2024-05-18 - Prevent XSS from Malicious URI Schemes in Attributes
+**Vulnerability:** DOM-based XSS was possible by passing a malicious URI (e.g., `javascript:alert(1)`) to URL parameters like `back`, which were directly interpolated into DOM elements (e.g., `<a href="${back}">`).
+**Learning:** `escapeHtml` is insufficient to protect attributes that interpret URIs. Browsers will execute Javascript within `href` or `src` attributes even if the attribute's HTML syntax is properly escaped.
+**Prevention:** Always validate URLs against malicious schemes (like `javascript:`, `vbscript:`, `data:`) using explicit string prefix checks. First, strip spaces and control characters (e.g., `url.replace(/[\x00-\x20]/g, "")`) to prevent filter evasion, then apply native DOM assignment (e.g., `a.href = url`) rather than string concatenation via `innerHTML`.
