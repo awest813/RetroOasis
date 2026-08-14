@@ -1,0 +1,150 @@
+:root {
+  color-scheme: dark;
+
+  --ro-bg-void: #071018;
+  --ro-bg-void-mid: #0c1c28;
+  --ro-bg-panel: rgba(12, 28, 40, 0.82);
+  --ro-bg-panel-solid: #102433;
+  --ro-accent-sega: #2ee6d6;
+  --ro-accent-ps: #f0b429;
+  --ro-accent: var(--ro-accent-sega);
+  --ro-accent-soft: color-mix(in srgb, var(--ro-accent) 22%, transparent);
+  --ro-danger: #ff4d6d;
+  --ro-text: #e8eef5;
+  --ro-text-dim: #9aabbc;
+  --ro-line: rgba(46, 230, 214, 0.28);
+  --ro-scanline: rgba(255, 255, 255, 0.035);
+  --ro-grid: rgba(46, 230, 214, 0.12);
+  --ro-focus: var(--ro-accent-sega);
+  --ro-radius: 2px;
+  --ro-font-display: "Outfit", system-ui, sans-serif;
+  --ro-font-ui: "Sora", system-ui, sans-serif;
+  --ro-font-mono: ui-monospace, "Cascadia Code", monospace;
+  --ro-space: clamp(0.9rem, 2.2vw, 1.75rem);
+  --ro-max: 72rem;
+  --ro-max-library: 96rem;
+  --ro-topbar-h: 3.65rem;
+  --ro-tile-min: 9.5rem;
+  --ro-platform-min: 11rem;
+  --ro-systems-w: 15.5rem;
+
+  /* Platform accent hints for placeholders */
+  --ro-plat-nes: #c43c3c;
+  --ro-plat-snes: #7b68c8;
+  --ro-plat-gb: #8fbc5a;
+  --ro-plat-gba: #5b7cfa;
+  --ro-plat-sega: #2ee6d6;
+  --ro-plat-ps: #f0b429;
+  --ro-plat-n64: #3ecf8e;
+  --ro-plat-arcade: #ff7a18;
+}
+
+html[data-accent="ps"] {
+  --ro-accent: var(--ro-accent-ps);
+  --ro-line: rgba(240, 180, 41, 0.3);
+  --ro-grid: rgba(240, 180, 41, 0.14);
+  --ro-focus: var(--ro-accent-ps);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ro-bg-void);
+  color: var(--ro-text);
+  font-family: var(--ro-font-ui);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+a {
+  color: var(--ro-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+:focus {
+  outline: none;
+}
+
+/* Keyboard / assistive focus — always show rings for :focus-visible */
+:focus-visible {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+/* Stronger rings when navigating with keyboard or gamepad */
+html[data-input='key'] :focus-visible,
+html[data-input='pad'] :focus-visible,
+html[data-input='key'] [data-ro-focusable='true']:focus,
+html[data-input='pad'] [data-ro-focusable='true']:focus {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+html[data-input='key'] .ro-tile:focus-within .ro-cover,
+html[data-input='pad'] .ro-tile:focus-within .ro-cover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+html[data-input='key'] .ro-system:focus,
+html[data-input='pad'] .ro-system:focus {
+  border-color: var(--ro-focus);
+  background: var(--ro-accent-soft);
+}
+
+html[data-input='key'] .ro-search:focus-within,
+html[data-input='pad'] .ro-search:focus-within {
+  border-color: var(--ro-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ro-focus) 45%, transparent);
+}
+
+html[data-input='key'] .ro-drop:focus-visible,
+html[data-input='pad'] .ro-drop:focus-visible,
+html[data-input='key'] .ro-drop:focus,
+html[data-input='pad'] .ro-drop:focus {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+  border-color: var(--ro-accent);
+}
+
+html[data-input='key'] .ro-btn:focus-visible,
+html[data-input='pad'] .ro-btn:focus-visible {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+html[data-input='mouse'] .ro-skip:focus,
+html[data-input='mouse'] .ro-skip:focus-visible {
+  outline: 2px solid var(--ro-focus);
+  outline-offset: 3px;
+}
+
+#app {
+  min-height: 100dvh;
+}

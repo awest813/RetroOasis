@@ -1,0 +1,11 @@
+{
+  "games": [
+    {
+      "title": "Example Adventure",
+      "platform": "nes",
+      "core": "nes",
+      "file": "roms/nes/example-adventure.nes",
+      "cover": "roms/covers/nes/example-adventure.png"
+    }
+  ]
+}

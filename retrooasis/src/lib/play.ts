@@ -1,0 +1,43 @@
+import type { Game } from './catalog'
+import { coreNeedsThreads, normalizePlayCore } from './cores'
+import { getLocalRomFile, hasLocalHandle } from './localLibrary'
+import { hrefFor } from './router'
+import { stageRomForPlay } from './romBridge'
+import { pushRecent, resolveEjsChannel } from './store'
+
+/** Build a static-friendly player URL (hash back-link preserved). */
+export function buildPlayerUrl(
+  game: Game,
+  romUrl: string,
+  backPath: string,
+): string {
+  const core = normalizePlayCore(game.core)
+  const channel = resolveEjsChannel(core)
+  const params = new URLSearchParams({
+    rom: romUrl,
+    core,
+    name: game.title,
+    channel,
+    back: backPath.startsWith('#') ? `./${backPath}` : `./#${backPath}`,
+  })
+  if (game.bios) params.set('bios', game.bios)
+  if (coreNeedsThreads(core)) params.set('threads', '1')
+  return `./player.html?${params.toString()}`
+}
+
+export async function launchGame(
+  game: Game,
+  backRoute = hrefFor(`/game/${game.id}`),
+): Promise<void> {
+  pushRecent(game.id)
+
+  let romUrl = game.file
+  if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
+    const file = await getLocalRomFile(game.id)
+    // Blob URLs die on full-page navigation — stage bytes in IndexedDB instead.
+    romUrl = await stageRomForPlay(file, file.name || `${game.title}.bin`)
+  }
+  // Uploaded games already use durable library: refs — player reads without consuming.
+
+  window.location.href = buildPlayerUrl(game, romUrl, backRoute)
+}

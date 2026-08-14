@@ -1,0 +1,40 @@
+@keyframes ro-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ro-loading-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+
+.ro-view {
+  animation: ro-fade-up 280ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-view,
+  .ro-cover,
+  .ro-btn,
+  .ro-loading__bar::after,
+  .ro-cover__img,
+  .ro-cover--image img {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .ro-cover--ready img,
+  .ro-cover--ready .ro-cover__img {
+    opacity: 1;
+  }
+}

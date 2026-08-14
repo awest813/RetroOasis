@@ -1,0 +1,19 @@
+{
+  "name": "retrooasis",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "description": "Static RetroOasis frontend for EmulatorJS ROM library browsing and play",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "manifest": "node scripts/generate-roms-manifest.mjs",
+    "scan": "node scripts/scan-roms.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}

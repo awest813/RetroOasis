@@ -1,0 +1,7 @@
+{
+  "title": "Pixel Quest",
+  "year": 1988,
+  "developer": "Oasis Soft",
+  "description": "Example sidecar metadata. Place this next to a ROM as <romBase>.json or game.json.",
+  "tags": ["demo", "action"]
+}

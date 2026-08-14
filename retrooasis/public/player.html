@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#071018" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RetroOasis" />
+  <title>RetroOasis Play</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ro-bg-void: #071018;
+        --ro-bg-void-mid: #0c1c28;
+        --ro-accent-sega: #2ee6d6;
+        --ro-accent-ps: #f0b429;
+        --ro-accent: var(--ro-accent-sega);
+        --ro-text: #e8eef5;
+        --ro-text-dim: #9aabbc;
+        --ro-font-display: "Outfit", system-ui, sans-serif;
+        --ro-font-ui: "Sora", system-ui, sans-serif;
+        --ro-radius: 2px;
+      }
+
+      html[data-accent="ps"] {
+        --ro-accent: var(--ro-accent-ps);
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        background: #000;
+        overflow: hidden;
+        font-family: var(--ro-font-ui);
+      }
+
+      #display {
+        width: 100%;
+        height: 100%;
+      }
+
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+
+      .ro-play-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding:
+          max(0.55rem, env(safe-area-inset-top, 0px))
+          max(0.85rem, env(safe-area-inset-right, 0px))
+          0.55rem
+          max(0.85rem, env(safe-area-inset-left, 0px));
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--ro-bg-void) 92%, transparent),
+          color-mix(in srgb, var(--ro-bg-void) 35%, transparent) 70%,
+          transparent
+        );
+        color: var(--ro-text);
+        pointer-events: none;
+      }
+
+      .ro-play-bar a,
+      .ro-play-bar button {
+        pointer-events: auto;
+        font: inherit;
+        cursor: pointer;
+        border: 1px solid var(--ro-accent);
+        background: color-mix(in srgb, var(--ro-bg-void) 85%, transparent);
+        color: var(--ro-accent);
+        padding: 0.35rem 0.7rem;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: var(--ro-radius);
+      }
+
+      .ro-play-bar a:hover,
+      .ro-play-bar button:hover {
+        background: var(--ro-accent);
+        color: var(--ro-bg-void);
+      }
+
+      .ro-play-title {
+        font-size: 0.8rem;
+        opacity: 0.85;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ro-play-meta {
+        font-size: 0.7rem;
+        opacity: 0.65;
+      }
+
+      .ro-play-error {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 1rem;
+        padding: 2rem;
+        text-align: center;
+        color: var(--ro-text);
+        background:
+          radial-gradient(ellipse at center, var(--ro-bg-void-mid) 0%, var(--ro-bg-void) 70%),
+          var(--ro-bg-void);
+      }
+
+      .ro-play-error h1 {
+        margin: 0;
+        font-family: var(--ro-font-display);
+        font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+        font-weight: 650;
+        color: var(--ro-accent);
+        line-height: 1.4;
+        letter-spacing: 0.04em;
+      }
+
+      .ro-play-error p {
+        margin: 0;
+        max-width: 32rem;
+        color: var(--ro-text-dim);
+      }
+
+      .ro-play-error code {
+        color: var(--ro-accent);
+      }
+
+      .ro-play-error a {
+        color: var(--ro-accent);
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .ro-play-error a:hover {
+        text-decoration: underline;
+      }
+
+      .ro-play-loading {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 0.85rem;
+        padding: 2rem;
+        text-align: center;
+        color: var(--ro-text);
+        background:
+          radial-gradient(ellipse at center, var(--ro-bg-void-mid) 0%, var(--ro-bg-void) 70%),
+          var(--ro-bg-void);
+      }
+
+      .ro-play-loading p {
+        margin: 0;
+        color: var(--ro-text-dim);
+        font-size: 0.92rem;
+      }
+
+      .ro-play-loading__bar {
+        width: min(12rem, 55vw);
+        height: 3px;
+        margin: 0 auto;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--ro-text) 12%, transparent);
+        overflow: hidden;
+      }
+
+      .ro-play-loading__bar > span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        background: var(--ro-accent);
+        animation: ro-play-load 1.1s ease-in-out infinite;
+      }
+
+      @keyframes ro-play-load {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(320%); }
+      }
+
+      .ro-play-bar a:focus-visible,
+      .ro-play-error a:focus-visible {
+        outline: 2px solid var(--ro-accent);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ro-play-bar">
+      <a id="back" href="./#/">Exit</a>
+      <span class="ro-play-title" id="title"></span>
+      <span class="ro-play-meta" id="meta"></span>
+    </div>
+    <div id="display"><div id="game"></div></div>
+    <script>
+      (function () {
+        try {
+          var storedAccent = localStorage.getItem("retrooasis.accent");
+          document.documentElement.dataset.accent = storedAccent === "ps" ? "ps" : "sega";
+        } catch (_) {
+          document.documentElement.dataset.accent = "sega";
+        }
+
+        const THREADED = new Set(["ppsspp", "psp", "dosbox_pure", "dos", "azahar", "3ds"]);
+        const PATHS = {
+          local: "data/",
+          stable: "https://cdn.emulatorjs.org/stable/data/",
+          latest: "https://cdn.emulatorjs.org/latest/data/",
+          nightly: "https://cdn.emulatorjs.org/nightly/data/",
+        };
+        const DB_NAME = "retrooasis";
+        const DB_VERSION = 3;
+        const PENDING_ROM_STORE = "pendingRoms";
+        const LIBRARY_ROM_STORE = "libraryRoms";
+        const IDB_ROM_PREFIX = "idb:";
+        const LIBRARY_ROM_PREFIX = "library:";
+
+        const params = new URLSearchParams(window.location.search);
+        const romParam = params.get("rom") || "";
+        let core = params.get("core") || "";
+        const name = params.get("name") || "Game";
+        const bios = params.get("bios") || "";
+        const back = params.get("back") || "./#/";
+        let channel = params.get("channel") || "stable";
+        if (!PATHS[channel]) channel = "stable";
+
+        if (core === "psp") core = "ppsspp";
+        if (core === "dos") core = "dosbox_pure";
+        if (core === "3ds") core = "azahar";
+
+        const needsThreads = THREADED.has(core);
+        // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
+        if (needsThreads && channel !== "local") channel = "nightly";
+
+        const dataPath = PATHS[channel];
+        document.getElementById("title").textContent = name;
+        document.getElementById("meta").textContent = core + " · " + channel;
+        document.getElementById("back").setAttribute("href", back);
+        document.title = name + " · RetroOasis";
+
+        function fail(title, message) {
+          document.getElementById("display").innerHTML =
+            '<div class="ro-play-error"><h1>' +
+            title +
+            "</h1><p>" +
+            message +
+            '</p><a href="' +
+            back +
+            '">Back</a></div>';
+        }
+
+        function showLoading(message) {
+          document.getElementById("display").innerHTML =
+            '<div class="ro-play-loading" role="status" aria-live="polite">' +
+            "<p>" +
+            message +
+            '</p><div class="ro-play-loading__bar" aria-hidden="true"><span></span></div></div>';
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+
+        function openDb() {
+          return new Promise(function (resolve, reject) {
+            var req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = function () {
+              var db = req.result;
+              if (!db.objectStoreNames.contains("handles")) {
+                db.createObjectStore("handles");
+              }
+              if (!db.objectStoreNames.contains(PENDING_ROM_STORE)) {
+                db.createObjectStore(PENDING_ROM_STORE);
+              }
+              if (!db.objectStoreNames.contains(LIBRARY_ROM_STORE)) {
+                db.createObjectStore(LIBRARY_ROM_STORE);
+              }
+            };
+            req.onsuccess = function () {
+              resolve(req.result);
+            };
+            req.onerror = function () {
+              reject(req.error || new Error("IndexedDB open failed"));
+            };
+          });
+        }
+
+        function takeStagedRom(romRef) {
+          var key = romRef.slice(IDB_ROM_PREFIX.length);
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              var tx = db.transaction(PENDING_ROM_STORE, "readwrite");
+              var store = tx.objectStore(PENDING_ROM_STORE);
+              var getReq = store.get(key);
+              getReq.onsuccess = function () {
+                var record = getReq.result;
+                if (!record || !record.bytes) {
+                  reject(new Error("This play session expired. Go back and press Play again."));
+                  return;
+                }
+                store.delete(key);
+                resolve(
+                  new File([record.bytes], record.filename || "game.bin", {
+                    type: record.type || "application/octet-stream",
+                  }),
+                );
+              };
+              getReq.onerror = function () {
+                reject(getReq.error || new Error("IndexedDB read failed"));
+              };
+              tx.oncomplete = function () {
+                db.close();
+              };
+            });
+          });
+        }
+
+        function readLibraryRom(romRef) {
+          var key = romRef.slice(LIBRARY_ROM_PREFIX.length);
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              var tx = db.transaction(LIBRARY_ROM_STORE, "readonly");
+              var store = tx.objectStore(LIBRARY_ROM_STORE);
+              var getReq = store.get(key);
+              getReq.onsuccess = function () {
+                var record = getReq.result;
+                if (!record || !record.bytes) {
+                  reject(
+                    new Error(
+                      "That saved ROM isn’t on this device anymore. Go back and add it again from Add ROM.",
+                    ),
+                  );
+                  return;
+                }
+                resolve(
+                  new File([record.bytes], record.filename || "game.bin", {
+                    type: record.type || "application/octet-stream",
+                  }),
+                );
+              };
+              getReq.onerror = function () {
+                reject(getReq.error || new Error("IndexedDB read failed"));
+              };
+              tx.oncomplete = function () {
+                db.close();
+              };
+            });
+          });
+        }
+
+        function resolveRom(rom) {
+          if (!rom) return Promise.reject(new Error("Missing game file. Go back and try again."));
+          // Dead blob URLs from a previous document cannot be fetched after navigation.
+          if (rom.indexOf("blob:") === 0) {
+            return Promise.reject(
+              new Error("This play link expired. Go back and press Play again."),
+            );
+          }
+          if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
+            return takeStagedRom(rom);
+          }
+          if (rom.indexOf(LIBRARY_ROM_PREFIX) === 0) {
+            return readLibraryRom(rom);
+          }
+          // Hosted / relative paths: fail fast with a clear message instead of EmulatorJS "Network Error".
+          return fetch(rom, { method: "GET", cache: "no-store" }).then(function (res) {
+            if (!res.ok) {
+              throw new Error(
+                "Couldn’t find that ROM file" +
+                  (rom ? " at <code>" + escapeHtml(rom) + "</code>" : "") +
+                  ". Host it with your site, link a folder, or use Add ROM.",
+              );
+            }
+            var type = (res.headers.get("content-type") || "").toLowerCase();
+            if (type.indexOf("text/html") === 0) {
+              throw new Error(
+                "That path isn’t a ROM file — the server sent a web page instead" +
+                  (rom ? " (<code>" + escapeHtml(rom) + "</code>)" : "") +
+                  ". Check that the file is hosted in the right place.",
+              );
+            }
+            return res.arrayBuffer().then(function (bytes) {
+              var filename = rom.split("/").pop().split("?")[0] || "game.bin";
+              return new File([bytes], decodeURIComponent(filename), {
+                type: type || "application/octet-stream",
+              });
+            });
+          });
+        }
+
+        function startEmulator(gameUrl) {
+          if (needsThreads && typeof SharedArrayBuffer === "undefined") {
+            fail(
+              "NEEDS EXTRA SETUP",
+              "This system (PSP, DOS, or 3DS) needs special browser security headers to run. " +
+                "The RetroOasis dev server turns them on for you. On a static host, enable COOP/COEP " +
+                "(see the README), or try a different game.",
+            );
+            return;
+          }
+
+          window.EJS_player = "#game";
+          window.EJS_gameName = name;
+          // File objects keep the original filename (extension) for EmulatorJS.
+          window.EJS_gameUrl = gameUrl;
+          window.EJS_core = core;
+          window.EJS_biosUrl = bios;
+          window.EJS_pathtodata = dataPath;
+          window.EJS_startOnLoaded = true;
+          window.EJS_askBeforeExit = false;
+          window.EJS_threads = needsThreads;
+          window.EJS_onExit = function () {
+            window.location.href = back;
+          };
+
+          document.getElementById("display").innerHTML = '<div id="game"></div>';
+
+          var script = document.createElement("script");
+          script.src = dataPath + "loader.js";
+          script.onerror = function () {
+            fail(
+              "EMULATOR MISSING",
+              "Couldn’t load the emulator files from <code>" +
+                dataPath +
+                "</code>. " +
+                "If you’re using the Local channel, put EmulatorJS’s <code>data/</code> folder next to this site. " +
+                "Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS).",
+            );
+          };
+          document.body.appendChild(script);
+        }
+
+        if (!romParam || !core) {
+          fail("CAN’T START", "Missing the game file or system. Go back and try Play again.");
+          return;
+        }
+
+        document.getElementById("meta").textContent = core + " · " + channel + " · loading…";
+        showLoading("Loading ROM…");
+
+        resolveRom(romParam)
+          .then(function (gameUrl) {
+            document.getElementById("meta").textContent = core + " · " + channel + " · starting…";
+            showLoading("Starting emulator…");
+            startEmulator(gameUrl);
+          })
+          .catch(function (err) {
+            fail(
+              "CAN’T LOAD ROM",
+              (err && err.message) ||
+                "Couldn’t load that ROM. Go back and try Play again.",
+            );
+          });
+      })();
+    </script>
+  </body>
+</html>
