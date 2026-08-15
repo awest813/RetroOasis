@@ -250,7 +250,11 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        const back = params.get("back") || "./#/";
+        let back = params.get("back") || "./#/";
+        back = back.replace(/[\x00-\x20]/g, "");
+        if (/^javascript:/i.test(back)) {
+          back = "./#/";
+        }
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
@@ -269,30 +273,53 @@
         document.title = name + " · RetroOasis";
 
         function fail(title, message) {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-error"><h1>' +
-            title +
-            "</h1><p>" +
-            message +
-            '</p><a href="' +
-            back +
-            '">Back</a></div>';
+          var display = document.getElementById("display");
+          display.innerHTML = "";
+
+          var container = document.createElement("div");
+          container.className = "ro-play-error";
+
+          var h1 = document.createElement("h1");
+          h1.textContent = title;
+          container.appendChild(h1);
+
+          var p = document.createElement("p");
+          if (message instanceof DocumentFragment || message instanceof Element) {
+            p.appendChild(message);
+          } else {
+            p.textContent = message;
+          }
+          container.appendChild(p);
+
+          var a = document.createElement("a");
+          a.href = back;
+          a.textContent = "Back";
+          container.appendChild(a);
+
+          display.appendChild(container);
         }
 
         function showLoading(message) {
-          document.getElementById("display").innerHTML =
-            '<div class="ro-play-loading" role="status" aria-live="polite">' +
-            "<p>" +
-            message +
-            '</p><div class="ro-play-loading__bar" aria-hidden="true"><span></span></div></div>';
-        }
+          var display = document.getElementById("display");
+          display.innerHTML = "";
 
-        function escapeHtml(value) {
-          return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
+          var container = document.createElement("div");
+          container.className = "ro-play-loading";
+          container.setAttribute("role", "status");
+          container.setAttribute("aria-live", "polite");
+
+          var p = document.createElement("p");
+          p.textContent = message;
+          container.appendChild(p);
+
+          var bar = document.createElement("div");
+          bar.className = "ro-play-loading__bar";
+          bar.setAttribute("aria-hidden", "true");
+          var span = document.createElement("span");
+          bar.appendChild(span);
+          container.appendChild(bar);
+
+          display.appendChild(container);
         }
 
         function openDb() {
@@ -399,19 +426,34 @@
           // Hosted / relative paths: fail fast with a clear message instead of EmulatorJS "Network Error".
           return fetch(rom, { method: "GET", cache: "no-store" }).then(function (res) {
             if (!res.ok) {
-              throw new Error(
-                "Couldn’t find that ROM file" +
-                  (rom ? " at <code>" + escapeHtml(rom) + "</code>" : "") +
-                  ". Host it with your site, link a folder, or use Add ROM.",
-              );
+              var err = new Error();
+              var frag = document.createDocumentFragment();
+              frag.appendChild(document.createTextNode("Couldn’t find that ROM file"));
+              if (rom) {
+                frag.appendChild(document.createTextNode(" at "));
+                var code = document.createElement("code");
+                code.textContent = rom;
+                frag.appendChild(code);
+              }
+              frag.appendChild(document.createTextNode(". Host it with your site, link a folder, or use Add ROM."));
+              err.domMessage = frag;
+              throw err;
             }
             var type = (res.headers.get("content-type") || "").toLowerCase();
             if (type.indexOf("text/html") === 0) {
-              throw new Error(
-                "That path isn’t a ROM file — the server sent a web page instead" +
-                  (rom ? " (<code>" + escapeHtml(rom) + "</code>)" : "") +
-                  ". Check that the file is hosted in the right place.",
-              );
+              var err2 = new Error();
+              var frag2 = document.createDocumentFragment();
+              frag2.appendChild(document.createTextNode("That path isn’t a ROM file — the server sent a web page instead"));
+              if (rom) {
+                frag2.appendChild(document.createTextNode(" ("));
+                var code2 = document.createElement("code");
+                code2.textContent = rom;
+                frag2.appendChild(code2);
+                frag2.appendChild(document.createTextNode(")"));
+              }
+              frag2.appendChild(document.createTextNode(". Check that the file is hosted in the right place."));
+              err2.domMessage = frag2;
+              throw err2;
             }
             return res.arrayBuffer().then(function (bytes) {
               var filename = rom.split("/").pop().split("?")[0] || "game.bin";
@@ -447,19 +489,26 @@
             window.location.href = back;
           };
 
-          document.getElementById("display").innerHTML = '<div id="game"></div>';
+          var display = document.getElementById("display");
+          display.innerHTML = "";
+          var gameDiv = document.createElement("div");
+          gameDiv.id = "game";
+          display.appendChild(gameDiv);
 
           var script = document.createElement("script");
           script.src = dataPath + "loader.js";
           script.onerror = function () {
-            fail(
-              "EMULATOR MISSING",
-              "Couldn’t load the emulator files from <code>" +
-                dataPath +
-                "</code>. " +
-                "If you’re using the Local channel, put EmulatorJS’s <code>data/</code> folder next to this site. " +
-                "Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS).",
-            );
+            var frag3 = document.createDocumentFragment();
+            frag3.appendChild(document.createTextNode("Couldn’t load the emulator files from "));
+            var code3 = document.createElement("code");
+            code3.textContent = dataPath;
+            frag3.appendChild(code3);
+            frag3.appendChild(document.createTextNode(". If you’re using the Local channel, put EmulatorJS’s "));
+            var code4 = document.createElement("code");
+            code4.textContent = "data/";
+            frag3.appendChild(code4);
+            frag3.appendChild(document.createTextNode(" folder next to this site. Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS)."));
+            fail("EMULATOR MISSING", frag3);
           };
           document.body.appendChild(script);
         }
@@ -481,7 +530,7 @@
           .catch(function (err) {
             fail(
               "CAN’T LOAD ROM",
-              (err && err.message) ||
+              (err && err.domMessage) || (err && err.message) ||
                 "Couldn’t load that ROM. Go back and try Play again.",
             );
           });
