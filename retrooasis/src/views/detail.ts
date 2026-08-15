@@ -157,10 +157,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                     let hasCurrent = false;
                     const opts = UPLOAD_CORE_OPTIONS.filter(o => o.value !== 'auto').map(o => {
                       if (o.value === current) hasCurrent = true;
-                      return \`<option value="\${o.value}"\${o.value === current ? ' selected' : ''}>\${escapeHtml(o.label)}</option>\`;
+                      return `<option value="${o.value}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`;
                     });
                     if (!hasCurrent) {
-                      opts.unshift(\`<option value="\${escapeAttr(current)}" selected>\${escapeHtml(current)}</option>\`);
+                      opts.unshift(`<option value="${escapeAttr(current)}" selected>${escapeHtml(current)}</option>`);
                     }
                     return opts.join('');
                   })()}

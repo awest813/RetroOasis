@@ -1,120 +1,77 @@
-<div align="center">
+# RetroOasis
 
-<img width="300" src="docs/Logo-light.png#gh-dark-mode-only" alt="EmulatorJS Dark Mode Logo">
-<img width="300" src="docs/Logo.png#gh-light-mode-only" alt="EmulatorJS Light Mode Logo">
+RetroOasis is a static, browser-based ROM library UI built on top of EmulatorJS.
 
-<br>
+- XMB-style home + library browsing
+- Game detail, favorites, recents, metadata overrides
+- Add ROM (IndexedDB) + optional hosted manifest + optional linked local folder
+- Static deploy target (GitHub Pages, Netlify, S3, etc.)
 
-Self-hosted **JavaScript** emulation for various systems.
+> This repository still contains upstream EmulatorJS assets in `data/`. The active product here is `retrooasis/`.
 
-[![License: GPLv3][Badge License]][Link License]
-[![Website][Badge Website]][Link Website]
-[![Usage Docs][Badge Usage]][Link Usage]
-[![Configurator][Badge Configurator]][Link Configurator]
-[![Live Demo][Badge Demo]][Link Demo]
-[![Contributors][Badge Contributors]][Link Contributors]
+## Quick start
 
-Join our Discord server:
-
-[![Discord Badge](https://invidget.switchblade.xyz/6akryGkETU)](https://discord.gg/6akryGkETU)
-
-</div>
-
----
-
-## RetroOasis (static library UI)
-
-This fork includes **RetroOasis**, a Vite + TypeScript static SPA for browsing a ROM library and launching EmulatorJS. Home is an XMB-style cross menu; Library, Add ROM, and Settings are leaf views. It ships as plain static files (CDN / GitHub Pages / S3) with an installable PWA shell.
+From repo root:
 
 ```sh
-npm run oasis:dev       # http://localhost:5173/ — dev server + EmulatorJS proxy
-npm run oasis:build     # typecheck + build → retrooasis/dist/
-npm run build           # oasis:build + sync to repo-root dist/ (GitHub Pages)
-npm run oasis:scan      # scan roms/ → roms/manifest.json
+npm run oasis:dev
 ```
 
-Browse without ROMs (demo catalog, favorites, recents, theme/accent in Settings). Real play needs hosted ROMs, **Add ROM** (IndexedDB), or a linked local folder.
+Open `http://localhost:5173/`.
 
-See [`retrooasis/README.md`](retrooasis/README.md) and the [frontend plan](docs/plans/retrooasis-frontend.md).
+Useful commands:
 
-## Getting Started
-
-### Supported Systems
-EmulatorJS supports a wide variety of legacy consoles and arcade machines. For the complete list of supported cores, please visit our [Cores Documentation](https://emulatorjs.org/docs4devs/cores).
-
-### Versioning Guide
-We use a specific versioning system to help you choose the right build for your needs:
-
-1.  **Stable** - The most current release. Both code and cores are tested before release. Updated when new versions are released on GitHub. This is the default version on the Demo.
-2.  **Latest** - Contains the latest code but uses stable cores. Updated whenever the `main` branch is updated. **This version will often be more broken than nightly**
-3.  **Nightly** - Contains the latest code and the latest cores. Cores are updated daily. **This version is not recommended for production use as it is the main development branch.**
-
-### CDN Integration
-EmulatorJS provides a public CDN at `https://cdn.emulatorjs.org/`. You can access any version by setting the data path and loader.js accordingly.
-
-```javascript
-// Example Configuration
-const EJS_pathToData = 'https://cdn.emulatorjs.org/<version>/data/';
-// Replace <version> with: stable, latest, nightly, etc.
+```sh
+npm run oasis:dev       # run Vite dev server
+npm run oasis:build     # typecheck + build retrooasis/dist
+npm run build           # build and sync to repo-root dist/ for Pages
+npm run oasis:preview   # preview production build locally
+npm run oasis:scan      # scan roms/ -> roms/manifest.json
+npm run oasis:manifest  # generate manifest from hosted rom folders
 ```
 
-### Development
-To run the project locally for development:
+## GitHub Pages
 
-1.  Open a terminal in the root directory.
-2.  Install dependencies:
-    ```sh
-    npm i
-    ```
-3.  Start the server/minification:
-    ```sh
-    npm run start
-    ```
-4.  Open `http://localhost:8080/` to view the demo.
+GitHub Pages deploys from `.github/workflows/github-pages.yml`.
 
-> **Note:** Minify your script files before deploying to a production server to optimize load times and bandwidth. See [Minification Docs](minify/README.md).
+- Trigger: push to `main` (or manual dispatch)
+- Build output: `retrooasis/dist/`
+- Published artifact: repo-root `dist/` (synced by `scripts/sync-pages-dist.mjs`)
 
----
+### Important limitations on GitHub Pages
 
-## Community & Support
+GitHub Pages cannot set custom COOP/COEP headers. That means threaded cores requiring `SharedArrayBuffer` (PSP/3DS/DOS) will not run there.
 
-### 3rd Party Integrations
-EmulatorJS is built as a library/plugin, not a standalone website (therefore, no Docker container). For projects that utilize EmulatorJS, check out our [3rd Party Integration List](https://emulatorjs.org/docs/3rd-party).
+- Supported on Pages: core SPA browsing flows and non-threaded systems
+- For PSP/3DS/DOS: use `npm run oasis:dev`, `npm run oasis:preview`, or a host that supports custom headers
 
-### Issues & Reporting
-If you encounter an issue, please open an [Issue](https://github.com/EmulatorJS/EmulatorJS/issues) on GitHub. Include as many details as possible, including your browser console logs.
+## ROM sources
 
-> **When reporting bugs, please specify the version you are using (Stable/Latest/Nightly).**
+Catalog merge order:
 
-### Support the Project
-This project is free and ad-free. The demo page may show occasional ads to help with hosting costs, but you can support development directly via [Patreon][Link Patreon].
+1. `retrooasis/public/catalog/games.json` (demo)
+2. `roms/manifest.json` (hosted)
+3. Saved uploads (IndexedDB)
+4. Linked local folder (Chromium)
 
----
+Demo entries are placeholders; real play requires real ROM files.
 
-## Star History
+## Project layout
 
-<a href="https://star-history.com/#EmulatorJS/EmulatorJS&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=EmulatorJS/EmulatorJS&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=EmulatorJS/EmulatorJS&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=EmulatorJS/EmulatorJS&type=Date" />
- </picture>
-</a>
+```text
+retrooasis/          # Vite + TypeScript app
+  src/views/         # xmb, library, detail, upload, settings
+  src/lib/           # router, catalog, store, pwa, input, etc.
+  public/player.html # EmulatorJS host page
+  public/catalog/    # sample catalog
 
-<!-- Link Definitions -->
-[Badge License]: https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge&logo=opensourceinitiative
-[Badge Website]: https://img.shields.io/badge/Website-736e9b?style=for-the-badge
-[Badge Usage]: https://img.shields.io/badge/Usage-2478b5?style=for-the-badge
-[Badge Configurator]: https://img.shields.io/badge/Config-992cb3?style=for-the-badge
-[Badge Demo]: https://img.shields.io/badge/Demo-528116?style=for-the-badge
-[Badge Contributors]: https://img.shields.io/badge/Contributors-54b7dd?style=for-the-badge
-[Discord Badge]: https://invidget.switchblade.xyz/6akryGkETU
+data/                # EmulatorJS runtime assets
+roms/                # local/hosted ROM files (gitignored)
+dist/                # Pages artifact synced from retrooasis/dist/
+```
 
-[Link License]: LICENSE
-[Link Website]: https://emulatorjs.org/
-[Link Usage]: https://emulatorjs.org/docs/
-[Link Configurator]: https://emulatorjs.org/editor
-[Link Demo]: https://demo.emulatorjs.org/
-[Link Contributors]: docs/contributors.md
-[Link Issue]: https://github.com/emulatorjs/emulatorjs/issues
-[Link Patreon]: https://patreon.com/EmulatorJS
+## More docs
+
+- App docs: [`/retrooasis/README.md`](/retrooasis/README.md)
+- Frontend plan: [`/docs/plans/retrooasis-frontend.md`](/docs/plans/retrooasis-frontend.md)
+- EmulatorJS upstream docs: <https://emulatorjs.org/docs/>
