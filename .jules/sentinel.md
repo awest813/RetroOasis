@@ -1,0 +1,6 @@
+## 2024-05-18 - Prevent DOM-based XSS in player.html
+**Vulnerability:** DOM-based XSS via unsafe URI schemes in the `back` parameter. The `back` URL parameter was inserted directly into an `innerHTML` assignment within the `fail` function, allowing an attacker to inject `javascript:` URIs (e.g., `?back=javascript:alert(1)`).
+**Learning:** In static HTML pages (like `player.html`), passing unvalidated URL parameters into `href` attributes or interpolating them into HTML strings used for `innerHTML` assignments poses a significant XSS risk. The lack of standard templating or robust sanitization functions in these unbundled contexts makes them particularly vulnerable. Control characters and spaces must also be stripped before validating the schema, as they can bypass basic prefix checks (e.g., `java\x09script:`).
+**Prevention:**
+1. Always construct DOM nodes natively (`document.createElement`) and set properties directly (e.g., `element.href = url`) to avoid HTML string injection contexts.
+2. Explicitly validate and reject unsafe URI schemes (like `javascript:`) for any user-controlled URL parameters used in links or navigation. Always strip control characters and spaces (e.g., `url.replace(/[\x00-\x20]/g, "")`) before performing the schema check.
