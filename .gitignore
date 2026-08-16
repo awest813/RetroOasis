@@ -1,19 +1,68 @@
+```
+# Dependencies
 node_modules/
-yarn.lock
-roms/
-data/emulator.min.*
-data/cores/*
-!data/cores/README.md
-!data/cores/core-README.md
-!data/cores/package.json
-!data/cores/.npmignore
-.DS_Store
-.hintrc
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-*.tgz
+
+# Build artifacts
 dist/
-retrooasis/dist/
-retrooasis/node_modules/
-jsdoc/
+build/
+target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py.class
+*.py.obj
+.Python
+env/
+venv/
+.venv/
+.ENV
+.env
+.env.*
+.env.local
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Compressed
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

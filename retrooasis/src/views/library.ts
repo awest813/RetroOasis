@@ -22,11 +22,54 @@ import { friendlyError } from '../lib/userErrors'
 export type LibrarySelection =
   | { kind: 'platform'; id: string }
   | { kind: 'collection'; id: VirtualCollection }
+  | { kind: 'tag'; id: string }
 
 export async function renderLibrary(
   root: HTMLElement,
   selection?: LibrarySelection | string,
 ): Promise<void> {
+  // Show skeleton loading state immediately
+  root.innerHTML = `
+    <section class="ro-view ro-library" aria-busy="true">
+      <aside class="ro-systems" aria-label="Library navigation">
+        <div class="ro-systems__head">
+          <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Library</p>
+          <h1 class="ro-title ro-skeleton ro-skeleton--title" style="width: 40%"></h1>
+          <p class="ro-lede ro-skeleton ro-skeleton--lede"></p>
+        </div>
+        <div class="ro-systems__section">
+          <p class="ro-systems__label ro-skeleton ro-skeleton--text" style="width: 30%"></p>
+          <div class="ro-systems__scroller">
+            <nav class="ro-systems__list">
+              <div class="ro-skeleton ro-skeleton--text" style="margin-bottom: 0.75rem"></div>
+              <div class="ro-skeleton ro-skeleton--text" style="margin-bottom: 0.75rem"></div>
+              <div class="ro-skeleton ro-skeleton--text" style="margin-bottom: 0.75rem"></div>
+            </nav>
+          </div>
+        </div>
+      </aside>
+      <div class="ro-gallery">
+        <div class="ro-section-head">
+          <div>
+            <p class="ro-kicker ro-skeleton ro-skeleton--text" style="width: 20%"></p>
+            <h2 class="ro-title ro-skeleton ro-skeleton--title" style="width: 60%"></h2>
+            <p class="ro-lede ro-skeleton ro-skeleton--lede"></p>
+          </div>
+          <div class="ro-search ro-skeleton" style="flex: 1; max-width: 24rem; height: 2.5rem;"></div>
+        </div>
+        <div class="ro-grid" data-ro-grid>
+          ${Array.from({ length: 8 }).map(() => `
+            <div class="ro-tile">
+              <div class="ro-cover ro-skeleton ro-skeleton--cover"></div>
+              <div class="ro-skeleton ro-skeleton--text" style="width: 85%"></div>
+              <div class="ro-skeleton ro-skeleton--text" style="width: 60%"></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+  `
+
   const catalog = await loadCatalog()
   const counts = countByPlatform(catalog)
   const canPick = supportsDirectoryPicker()
@@ -66,17 +109,42 @@ export async function renderLibrary(
   let sortDesc = false
   let cleanup: (() => void) | undefined
   let searchTimer = 0
+  let activePlatformFilter: string | null = sel.kind === 'platform' ? sel.id : null
+  let activeTagFilter: string | null = sel.kind === 'tag' ? sel.id : null
   const isRecent = sel.kind === 'collection' && sel.id === 'recent'
+  const DEBOUNCE_DELAY = 250 // ms
+  
+  // Collect unique tags from all games
+  const allTags = Array.from(new Set(catalog.games.flatMap((g) => g.tags ?? []))).sort()
 
   const paint = (opts?: { restoreSearch?: boolean; restoreFavId?: string }) => {
     cleanup?.()
     favorites = getFavorites()
     let games = selectGames(catalog, sel, favorites, recents)
+    
+    // Apply platform filter
+    if (activePlatformFilter) {
+      games = games.filter((g) => g.platform === activePlatformFilter)
+    }
+    
+    // Apply tag filter
+    if (activeTagFilter) {
+      games = games.filter((g) => g.tags?.includes(activeTagFilter!))
+    }
+    
+    // Apply search query filter
     games = games.filter((g) => !query || g.title.toLowerCase().includes(query))
+    
     if (!isRecent) {
       games = [...games].sort((a, b) =>
         sortDesc ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title),
       )
+    }
+
+    // Announce search results to screen readers
+    const statusEl = root.querySelector<HTMLElement>('#ro-search-status')
+    if (statusEl && queryRaw) {
+      statusEl.textContent = `${games.length} result${games.length === 1 ? '' : 's'} for "${queryRaw}"`
     }
 
     const heading = galleryHeading(sel, platform)
@@ -136,6 +204,17 @@ export async function renderLibrary(
             </div>
           </div>
 
+          ${allTags.length > 0 ? `
+          <div class="ro-systems__section">
+            <p class="ro-systems__label">Tags</p>
+            <div class="ro-systems__scroller">
+              <nav class="ro-systems__list" data-ro-tags>
+                ${allTags.map((tag) => tagRow(tag, sel.kind === 'tag' && sel.id === tag)).join('')}
+              </nav>
+            </div>
+          </div>
+          ` : ''}
+
           <div class="ro-systems__actions">
             <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             ${
@@ -159,7 +238,9 @@ export async function renderLibrary(
             </div>
             <div class="ro-search">
               <label class="ro-sr-only" for="ro-q">Search your library</label>
-              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" autocomplete="off" />
+              <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" autocomplete="off" aria-describedby="ro-search-status" aria-label="Search games by title" />
+              <span id="ro-search-status" class="ro-sr-only" aria-live="polite"></span>
+              ${activePlatformFilter || activeTagFilter ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-filters" aria-label="Clear platform and tag filters">Clear filters</button>` : ''}
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort" aria-label="${isRecent ? 'Sort pinned to play order' : sortDesc ? 'Sort Z to A' : 'Sort A to Z'}"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
                 ${isRecent ? 'Play order' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
@@ -196,7 +277,7 @@ export async function renderLibrary(
       window.clearTimeout(searchTimer)
       searchTimer = window.setTimeout(() => {
         paint({ restoreSearch: true })
-      }, 160)
+      }, DEBOUNCE_DELAY)
     })
 
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
@@ -211,6 +292,11 @@ export async function renderLibrary(
       paint({ restoreSearch: true })
     })
 
+    root.querySelector('#ro-clear-filters')?.addEventListener('click', () => {
+      activePlatformFilter = null
+      activeTagFilter = null
+      paint({ restoreSearch: true })
+    })
     root.querySelector('[data-ro-grid]')?.addEventListener('click', (event) => {
       const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-fav-id]')
       if (!btn) return
@@ -274,6 +360,11 @@ export async function renderCollection(
 
 function normalizeSelection(selection: LibrarySelection | string | undefined): LibrarySelection {
   if (typeof selection === 'string') {
+    // Check if it's a tag route (e.g., "tag/action")
+    if (selection.startsWith('tag/')) {
+      const tagId = selection.slice(4)
+      return { kind: 'tag', id: tagId }
+    }
     return { kind: 'platform', id: selection }
   }
   if (selection) return selection
@@ -287,6 +378,11 @@ function selectGames(
   recents: string[],
 ): Game[] {
   if (sel.kind === 'platform') return gamesForPlatform(catalog, sel.id)
+  if (sel.kind === 'tag') {
+    // Convert tag ID back to original case for matching
+    const tagId = sel.id.toLowerCase().replace(/\\s+/g, '-')
+    return catalog.games.filter((g) => g.tags?.some((t) => t.toLowerCase().replace(/\\s+/g, '-') === tagId))
+  }
   if (sel.id === 'all') return [...catalog.games]
   if (sel.id === 'favorites') {
     return favorites
@@ -308,7 +404,7 @@ function galleryHeading(
       title: platform?.name ?? sel.id,
     }
   }
-  const map = {
+  const map: Record<string, { kicker: string; title: string }> = {
     recent: { kicker: 'Collection', title: 'Recently played' },
     favorites: { kicker: 'Collection', title: 'Favorites' },
     all: { kicker: 'Collection', title: 'All games' },
@@ -409,6 +505,7 @@ function collectionRow(
       href="${hrefFor(`/library/@${id}`)}"
       data-ro-focusable="true"
       ${active ? 'aria-current="page"' : ''}
+      aria-label="${escapeHtml(label)} collection with ${count} game${count === 1 ? '' : 's'}"
       style="--cover-accent: var(--ro-accent)"
     >
       <span class="ro-system__glyph" aria-hidden="true">${glyph}</span>
@@ -427,13 +524,33 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
       href="${hrefFor(`/library/${platform.id}`)}"
       data-ro-focusable="true"
       ${active ? 'aria-current="page"' : ''}
-      style="--cover-accent: ${platformAccentVar(platform.accent)}"
+      aria-label="${escapeHtml(platform.name)} system with ${count} game${count === 1 ? '' : 's'}"
       title="${escapeAttr(platform.name)}"
+      style="--cover-accent: ${platformAccentVar(platform.accent)}"
     >
       <span class="ro-system__glyph" aria-hidden="true">${escapeHtml(platform.shortName.slice(0, 3))}</span>
       <span class="ro-system__text">
         <span class="ro-system__name">${escapeHtml(platform.name)}</span>
         <span class="ro-system__count">${count}</span>
+      </span>
+    </a>
+  `
+}
+
+function tagRow(tag: string, active: boolean): string {
+  const tagId = tag.toLowerCase().replace(/\\s+/g, '-')
+  return `
+    <a
+      class="ro-system${active ? ' ro-system--active' : ''}"
+      href="${hrefFor(`/library/tag/${tagId}`)}"
+      data-ro-focusable="true"
+      ${active ? 'aria-current="page"' : ''}
+      aria-label="${escapeHtml(tag)} tag"
+      title="${escapeAttr(tag)}"
+    >
+      <span class="ro-system__glyph" aria-hidden="true">#</span>
+      <span class="ro-system__text">
+        <span class="ro-system__name">${escapeHtml(tag)}</span>
       </span>
     </a>
   `
@@ -463,13 +580,14 @@ function gameTile(
         ? 'ro-tile__sub ro-tile__sub--sample'
         : 'ro-tile__sub'
   const pressed = favorited ? 'true' : 'false'
-  const favLabel = favorited ? 'Remove from favorites' : 'Add to favorites'
+  const favLabel = favorited ? `Remove ${escapeHtml(game.title)} from favorites` : `Add ${escapeHtml(game.title)} to favorites`
   return `
     <div class="ro-tile${favorited ? ' ro-tile--fav' : ''}">
       <a
         class="ro-tile__link"
         href="${hrefFor(`/game/${game.id}`)}"
         data-ro-focusable="true"
+        aria-label="Play ${escapeHtml(game.title)}"
       >
         ${coverMarkup(game.title, platformAccentVar(accent), cover)}
         <div class="ro-tile__meta">
@@ -482,8 +600,8 @@ function gameTile(
         class="ro-tile__fav"
         data-fav-id="${escapeAttr(game.id)}"
         aria-pressed="${pressed}"
-        aria-label="${escapeAttr(favLabel)}"
-        title="${escapeAttr(favLabel)}"
+        aria-label="${favLabel}"
+        title="${favLabel}"
       >★</button>
     </div>
   `

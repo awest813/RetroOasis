@@ -74,13 +74,13 @@ export function renderUpload(root: HTMLElement): void {
           tabindex="0"
           data-ro-focusable="true"
           role="button"
-          aria-label="Drop a ROM file here, or click to choose one"
+          aria-label="Drop ROM files here, or click to choose multiple files"
         >
           <span class="ro-drop__mark" aria-hidden="true">▼</span>
           <strong class="ro-drop__title" id="ro-drop-title">Drop ROM here</strong>
-          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose a file</span>
+          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose files (multiple supported)</span>
         </div>
-        <input id="ro-file" type="file" accept="${romFileAccept()}" hidden />
+        <input id="ro-file" type="file" accept="${romFileAccept()}" hidden multiple />
         <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite">
           Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
         </p>
@@ -144,46 +144,62 @@ export function renderUpload(root: HTMLElement): void {
   coreSelect?.addEventListener('change', syncHint)
   syncHint()
 
-  const launch = async (file: File) => {
-    if (!coreSelect || busy) return
-    let core = coreSelect.value
-    if (core === 'auto') {
-      if (!isRomFile(file.name)) {
-        if (status) {
-          status.textContent =
-            'That file type isn’t recognized. Pick a system above, or use a common ROM extension.'
+  const launch = async (files: File[]) => {
+    if (!coreSelect || busy || files.length === 0) return
+    
+    for (const file of files) {
+      let core = coreSelect.value
+      if (core === 'auto') {
+        if (!isRomFile(file.name)) {
+          if (status) {
+            status.textContent =
+              `Skipping ${file.name}: file type isn't recognized. Pick a system above, or use a common ROM extension.`
+          }
+          continue
         }
-        return
-      }
-      const detected = coreFromExtension(file.name)
-      if (!detected) {
-        if (status) {
-          status.textContent =
-            'Couldn’t auto-detect that ROM. Choose a system from the list, then try again.'
+        const detected = coreFromExtension(file.name)
+        if (!detected) {
+          if (status) {
+            status.textContent =
+              `Skipping ${file.name}: couldn't auto-detect. Choose a system from the list.`
+          }
+          continue
         }
-        return
+        core = detected
       }
-      core = detected
-    }
 
-    setBusy(true)
-    if (status) {
-      status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
-    }
-
-    try {
-      const game = await saveUploadedRom(file, file.name, core)
-      pushRecent(game.id)
-
-      if (status) status.textContent = `Saved. Starting ${file.name}…`
-      const back = hrefFor(`/game/${game.id}`)
-      window.location.href = buildPlayerUrl(game, game.file, back)
-    } catch (err) {
-      setBusy(false)
-      if (input) input.value = ''
+      setBusy(true)
       if (status) {
-        status.textContent = friendlyError(err, 'Couldn’t save that ROM. Try another file.')
+        status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
       }
+
+      try {
+        const game = await saveUploadedRom(file, file.name, core)
+        pushRecent(game.id)
+        
+        if (files.length === 1) {
+          // Single file: navigate to play it
+          if (status) status.textContent = `Saved. Starting ${file.name}…`
+          const back = hrefFor(`/game/${game.id}`)
+          window.location.href = buildPlayerUrl(game, game.file, back)
+          return
+        } else {
+          // Multiple files: continue batch upload
+          if (status) {
+            status.textContent = `Saved ${file.name}. Processing remaining files…`
+          }
+        }
+      } catch (err) {
+        if (status) {
+          status.textContent = `Error saving ${file.name}: ${friendlyError(err, 'Try another file.')}`
+        }
+      }
+    }
+    
+    setBusy(false)
+    if (input) input.value = ''
+    if (status && files.length > 1) {
+      status.textContent = `Batch complete! Check your library to see your new games.`
     }
   }
 
@@ -216,12 +232,18 @@ export function renderUpload(root: HTMLElement): void {
 
   drop?.addEventListener('drop', (event) => {
     if (busy) return
-    const file = event.dataTransfer?.files?.[0]
-    if (file) void launch(file)
+    const dtFiles = event.dataTransfer?.files
+    if (dtFiles && dtFiles.length > 0) {
+      const files = Array.from(dtFiles)
+      void launch(files)
+    }
   })
 
   input?.addEventListener('change', () => {
-    const file = input.files?.[0]
-    if (file) void launch(file)
+    const selectedFiles = input.files
+    if (selectedFiles && selectedFiles.length > 0) {
+      const files = Array.from(selectedFiles)
+      void launch(files)
+    }
   })
 }
