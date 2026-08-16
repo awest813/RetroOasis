@@ -61,7 +61,10 @@ app.innerHTML = `
       </a>
       <div class="ro-topbar__right">
         <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis as an app" title="Install RetroOasis on this device" hidden>Install as app</button>
-        <nav class="ro-nav" aria-label="Primary">
+        <button type="button" class="ro-nav-toggle" id="ro-nav-toggle" aria-expanded="false" aria-controls="ro-nav" aria-label="Toggle navigation menu">
+          <span class="ro-nav-toggle-icon"><span></span></span>
+        </button>
+        <nav class="ro-nav" id="ro-nav" aria-label="Primary navigation">
           <a data-nav="lobby" href="${hrefFor('/')}">Home</a>
           <a data-nav="library" href="${hrefFor('/library')}">Library</a>
           <a data-nav="upload" href="${hrefFor('/upload')}">Add ROM</a>
@@ -121,6 +124,32 @@ app.addEventListener('click', (event) => {
   if (!link) return
   const href = link.getAttribute('href')
   if (href === '#/' || href === '#') clearXmbSession()
+  
+  // Close mobile nav when a nav link is clicked
+  const navToggle = app.querySelector<HTMLButtonElement>('#ro-nav-toggle')
+  const nav = app.querySelector<HTMLElement>('#ro-nav')
+  if (navToggle && nav && navToggle.getAttribute('aria-expanded') === 'true') {
+    const isNavLink = link.closest('.ro-nav')
+    if (isNavLink) {
+      navToggle.setAttribute('aria-expanded', 'false')
+      nav.removeAttribute('data-open')
+    }
+  }
+})
+
+// Mobile nav toggle button handler
+app.querySelector<HTMLButtonElement>('#ro-nav-toggle')?.addEventListener('click', () => {
+  const navToggle = app.querySelector<HTMLButtonElement>('#ro-nav-toggle')
+  const nav = app.querySelector<HTMLElement>('#ro-nav')
+  if (!navToggle || !nav) return
+  
+  const isExpanded = navToggle.getAttribute('aria-expanded') === 'true'
+  navToggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true')
+  if (isExpanded) {
+    nav.removeAttribute('data-open')
+  } else {
+    nav.setAttribute('data-open', 'true')
+  }
 })
 
 function syncNav(route: Route): void {
