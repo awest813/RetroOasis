@@ -4,3 +4,7 @@
 **Prevention:**
 1. Always construct DOM nodes natively (`document.createElement`) and set properties directly (e.g., `element.href = url`) to avoid HTML string injection contexts.
 2. Explicitly validate and reject unsafe URI schemes (like `javascript:`) for any user-controlled URL parameters used in links or navigation. Always strip control characters and spaces (e.g., `url.replace(/[\x00-\x20]/g, "")`) before performing the schema check.
+## 2026-08-17 - Prevent DOM-based XSS via unsafe URI schemes in player.html
+**Vulnerability:** DOM-based XSS via unsafe URI schemes (`data:`, `vbscript:`) in the `back` parameter in `retrooasis/public/player.html`.
+**Learning:** Checking only for `javascript:` is insufficient to prevent XSS. Attackers can use other unsafe URI schemes like `data:text/html,<script>alert(1)</script>` or `vbscript:` when a URL is assigned to an `href` attribute or used in navigation.
+**Prevention:** Explicitly validate and block all unsafe URI schemes, or better, implement an allowlist of safe schemes (e.g., `http:`, `https:`) or ensure relative paths.
