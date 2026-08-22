@@ -42,6 +42,7 @@ import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
+import { escapeHtml } from '../lib/dom'
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
@@ -264,7 +265,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">
                 ${
                   meta.linked
-                    ? `Linked to <strong>${meta.name ?? 'folder'}</strong>`
+                    ? `Linked to <strong>${escapeHtml(meta.name ?? 'folder')}</strong>`
                     : canPick
                       ? 'Link a <code>roms/&lt;system&gt;/</code> folder on this computer.'
                       : 'This browser can’t link folders. Use Add ROM instead.'
