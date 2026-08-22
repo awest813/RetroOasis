@@ -4,3 +4,8 @@
 **Prevention:**
 1. Always construct DOM nodes natively (`document.createElement`) and set properties directly (e.g., `element.href = url`) to avoid HTML string injection contexts.
 2. Explicitly validate and reject unsafe URI schemes (like `javascript:`) for any user-controlled URL parameters used in links or navigation. Always strip control characters and spaces (e.g., `url.replace(/[\x00-\x20]/g, "")`) before performing the schema check.
+
+## 2026-08-22 - Prevent DOM-based XSS in linked folder names
+**Vulnerability:** DOM-based XSS in `retrooasis/src/views/settings.ts`. When a user linked a local folder containing ROMs, the name of the folder (`meta.name`) was interpolated directly into an `innerHTML` assignment without any escaping or sanitization. If an attacker could trick a user into linking a maliciously named folder, it would result in arbitrary JavaScript execution when the Settings page was loaded.
+**Learning:** Even local or seemingly "safe" metadata sources like folder names retrieved via the File System Access API must be treated as untrusted input. In applications that rely heavily on string interpolation for rendering views, it is critical to ensure that every dynamically inserted variable is passed through an HTML escaping function unless it is explicitly known to be safe markup.
+**Prevention:** Always use `escapeHtml()` (or equivalent sanitization) when interpolating any external or user-provided data into HTML template strings before assigning them to `innerHTML`.
