@@ -251,7 +251,8 @@
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
         let back = params.get("back") || "./#/";
-        if (back.replace(/[\x00-\x20]/g, "").toLowerCase().startsWith("javascript:")) {
+        const backClean = back.replace(/[\x00-\x20]/g, "").toLowerCase();
+        if (backClean.startsWith("javascript:") || backClean.startsWith("vbscript:") || backClean.startsWith("data:")) {
           back = "./#/";
         }
         let channel = params.get("channel") || "stable";
