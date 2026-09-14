@@ -19,6 +19,7 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 | `npm run oasis:scan` | Scan `roms/` (+ optional `--covers`) into manifest |
 | `npx eslint .` | Lint (repo root). Rules are `warn`-only; ~1600 warnings from minified `data/` are expected and exit 0. |
 | `npm run typecheck` | TypeScript check only (`retrooasis/`) |
+| `npm run test:archives` in `retrooasis/` | Fixture tests for the zip/7z/rar archive-peek parsers (`src/lib/archives.ts`) |
 | `npm run build` in `retrooasis/` | Same as `oasis:build` |
 
 ### RetroOasis architecture (quick map)
@@ -26,6 +27,7 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 - **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/game/<id>`, `#/upload`, `#/settings`
 - **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (grid + collections rail), `detail.ts`, `upload.ts`, `settings.ts` (console-style row focus)
 - **Play**: navigates to `public/player.html` with EmulatorJS `EJS_*` globals (iframe isolation)
+- **Archives** (`src/lib/archives.ts`): header-only peek into zip/7z/rar for Auto-detect (zip central directory, RAR4/5 block walk, 7z plain header; compressed 7z headers fall back to EmulatorJS's `data/compression/extract7z.js` worker — CDN in production, same-origin on the local channel). EmulatorJS itself extracts archives at play time.
 - **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder
 - **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds, Libretro covers, EJS channel — all `localStorage`
 

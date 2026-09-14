@@ -79,6 +79,8 @@ const EXT_TO_PLATFORM: Record<string, string> = {
   '32x': 'sega32x',
   cue: 'psx',
   chd: 'psx',
+  ccd: 'psx', // CloneCD descriptor shipped with .img PSX dumps
+  ecm: 'psx', // ECM-compressed .bin, common in PSX rips
   pbp: 'psp',
   cso: 'psp',
   prc: 'psp',
@@ -199,6 +201,13 @@ const FOLDER_TO_PLATFORM: Record<string, string> = {
 }
 
 const ROM_EXTENSIONS = new Set(Object.keys(EXT_TO_PLATFORM))
+
+/** Containers EmulatorJS can extract at play time; platform comes from their contents. */
+export const ARCHIVE_EXTENSIONS = new Set(['zip', '7z', 'rar'])
+
+/** ROM containers with no single-platform extension mapping (see peekArchive). */
+const EXTRA_ROM_EXTENSIONS = new Set(['rar'])
+
 const COVER_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
 
 export function normalizeFolderName(name: string): string {
@@ -228,9 +237,25 @@ export function platformFromExtension(filename: string): string | null {
   return EXT_TO_PLATFORM[ext] ?? null
 }
 
+export function isArchiveFile(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return !!ext && ARCHIVE_EXTENSIONS.has(ext)
+}
+
+/**
+ * Platform for one entry filename found inside an archive.
+ * Nested archives are skipped — a .zip inside a .zip says nothing about the game.
+ */
+export function platformForArchiveEntry(filename: string): string | null {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  if (!ext || ARCHIVE_EXTENSIONS.has(ext)) return null
+  return EXT_TO_PLATFORM[ext] ?? null
+}
+
 export function isRomFile(filename: string): boolean {
   const ext = filename.split('.').pop()?.toLowerCase()
-  return !!ext && ROM_EXTENSIONS.has(ext)
+  if (!ext) return false
+  return ROM_EXTENSIONS.has(ext) || EXTRA_ROM_EXTENSIONS.has(ext)
 }
 
 export function isCoverFile(filename: string): boolean {
