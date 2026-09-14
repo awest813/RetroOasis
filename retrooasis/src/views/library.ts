@@ -107,6 +107,7 @@ export async function renderLibrary(
   let query = ''
   let queryRaw = ''
   let sortDesc = false
+  let filtersExpanded = false
   let cleanup: (() => void) | undefined
   let searchTimer = 0
   let activePlatformFilter: string | null = sel.kind === 'platform' ? sel.id : null
@@ -187,6 +188,8 @@ export async function renderLibrary(
             </div>
           </div>
 
+          <button type="button" class="ro-btn ro-btn--ghost ro-systems__toggle" id="ro-browse-filters" aria-expanded="${filtersExpanded}" aria-controls="ro-browse-options">${filtersExpanded ? 'Hide systems & tags' : 'Browse systems & tags'}</button>
+          <div class="ro-systems__options" id="ro-browse-options" data-expanded="${filtersExpanded}">
           <div class="ro-systems__section">
             <p class="ro-systems__label">Systems</p>
             <div class="ro-systems__scroller">
@@ -215,6 +218,7 @@ export async function renderLibrary(
           </div>
           ` : ''}
 
+          </div>
           <div class="ro-systems__actions">
             <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             ${
@@ -270,6 +274,14 @@ export async function renderLibrary(
       void renderLibrary(root, sel)
     })
 
+    root.querySelector('#ro-browse-filters')?.addEventListener('click', () => {
+      filtersExpanded = !filtersExpanded
+      const toggle = root.querySelector<HTMLButtonElement>('#ro-browse-filters')!
+      toggle.setAttribute('aria-expanded', String(filtersExpanded))
+      toggle.textContent = filtersExpanded ? 'Hide systems & tags' : 'Browse systems & tags'
+      root.querySelector<HTMLElement>('#ro-browse-options')!.dataset.expanded = String(filtersExpanded)
+    })
+
     const input = root.querySelector<HTMLInputElement>('#ro-q')
     input?.addEventListener('input', () => {
       queryRaw = input.value
@@ -283,7 +295,8 @@ export async function renderLibrary(
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
       if (isRecent) return
       sortDesc = !sortDesc
-      paint({ restoreSearch: true })
+      paint()
+      root.querySelector<HTMLButtonElement>('#ro-sort')?.focus()
     })
 
     root.querySelector('#ro-clear-search')?.addEventListener('click', () => {
@@ -593,7 +606,7 @@ function gameTile(
         class="ro-tile__link"
         href="${hrefFor(`/game/${game.id}`)}"
         data-ro-focusable="true"
-        aria-label="Play ${escapeHtml(game.title)}"
+        aria-label="View ${escapeAttr(game.title)} details"
       >
         ${coverMarkup(game.title, platformAccentVar(accent), cover)}
         <div class="ro-tile__meta">

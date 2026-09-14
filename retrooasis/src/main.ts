@@ -25,6 +25,7 @@ import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
 import { renderSettings } from './views/settings'
+import { renderSaves } from './views/saves'
 
 import './styles/tokens.css'
 import './styles/base.css'
@@ -162,6 +163,7 @@ function syncNav(route: Route): void {
     game: 'library',
     upload: 'upload',
     settings: 'settings',
+    saves: 'settings',
   }
   const current = map[route.name]
   app.querySelectorAll<HTMLAnchorElement>('.ro-nav a').forEach((link) => {
@@ -248,6 +250,10 @@ async function renderRoute(route: Route): Promise<void> {
       main.focus({ preventScroll: true })
       await renderSettings(main)
       break
+    case 'saves':
+      main.focus({ preventScroll: true })
+      await renderSaves(main)
+      break
     default:
       main.focus({ preventScroll: true })
       main.innerHTML = `
@@ -295,6 +301,9 @@ function syncDocumentTitle(route: Route): void {
     case 'settings':
       document.title = `${base} · Settings`
       break
+    case 'saves':
+      document.title = `${base} · Local saves`
+      break
     default:
       document.title = `${base} · Not found`
   }
@@ -332,6 +341,9 @@ function syncBrandSub(route: Route): void {
       break
     case 'settings':
       label = 'Settings'
+      break
+    case 'saves':
+      label = 'Local saves'
       break
     default:
       label = ''
