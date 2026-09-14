@@ -56,11 +56,14 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   const summary = root.querySelector<HTMLElement>('#ro-save-summary')!
   const review = root.querySelector<HTMLElement>('#ro-save-review')!
   const input = root.querySelector<HTMLInputElement>('#ro-save-file')!
+  cleanupFocus = bindRowFocus(root)
   const say = (text: string) => { if (active) status.textContent = text }
   const setBusy = (value: boolean) => {
     if (value && !busy) busyFocus = root.contains(document.activeElement) ? document.activeElement as HTMLElement : null
     busy = value
     root.querySelectorAll<HTMLButtonElement>('button').forEach(b => { b.disabled = value })
+    root.querySelector<HTMLInputElement>('#ro-save-query')!.disabled = value
+    review.querySelector<HTMLInputElement>('#ro-save-replace')?.toggleAttribute('disabled', value)
     root.querySelector<HTMLButtonElement>('#ro-save-backup')!.disabled = value || failed || !entries.some(e => e.bytes)
     list.setAttribute('aria-busy', String(value))
     if (!value) {
@@ -69,7 +72,6 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     }
   }
   const draw = () => {
-    cleanupFocus?.()
     const files = entries.filter(e => e.bytes)
     const visible = files.filter(e => e.key.toLowerCase().includes(query.toLowerCase()))
     list.innerHTML = visible.length ? visible.map(entry => {
@@ -86,7 +88,6 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
         </div></article>`
     }).join('') : `<div class="ro-empty"><p class="ro-empty__title">${query ? 'No matching saves' : 'No saves here yet'}</p>
       <p class="ro-empty__body">${query ? 'Try another filename.' : kind === 'game' ? 'Save your progress inside a game, then return here. You can also restore a RetroOasis backup.' : 'In the player, choose Browser for Save State Location and create a save state. Downloaded states are not listed here.'}</p></div>`
-    cleanupFocus = bindRowFocus(list)
     summary.textContent = `${visible.length} of ${files.length} saves · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))} total`
   }
   const refresh = async (): Promise<boolean> => {
@@ -118,7 +119,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       : 'Save states capture an exact moment. Restore them with the same game and compatible emulator core.'
   }
   root.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(button => button.addEventListener('click', () => {
-    if (busy) return
+    if (busy || kind === button.dataset.kind) return
     kind = button.dataset.kind as SaveKind
     pending = null
     review.hidden = true
@@ -134,6 +135,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   root.querySelector('#ro-save-backup')!.addEventListener('click', () => void run(async () => {
     const latest = await listSaves(kind)
     if (!active) return
+    if (!latest.some(e => e.bytes)) throw new Error('There are no saves to back up. Refresh the list to see the latest changes.')
     download(new Blob([encodeBackup(kind, latest)], { type: 'application/json' }), `retrooasis-${kind}-saves-${new Date().toISOString().slice(0, 10)}.json`)
     say('Backup download started. Keep the file somewhere safe.')
   }))
@@ -155,12 +157,23 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     const existingKeys = new Set(current.filter(e => e.bytes).map(e => e.key))
     const conflicts = files.filter(e => existingKeys.has(e.key)).length
     review.hidden = false
-    review.innerHTML = `<h2 class="ro-onboard__title">Ready to restore ${count} ${parsed.kind === 'game' ? 'in-game saves' : 'save states'}</h2>
+    review.innerHTML = `<h2 class="ro-onboard__title">Ready to restore ${count} ${parsed.kind === 'game' ? 'in-game save' : 'save state'}${count === 1 ? '' : 's'}</h2>
       <p class="ro-onboard__body">${escapeHtml(file.name)} · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))}</p>
       <p class="ro-muted">${count - conflicts} new · ${conflicts} already on this device. Existing saves are kept by default.</p>
-      <ul class="ro-saves__preview">${files.slice(0, 5).map(e => `<li>${escapeHtml(e.key.split('/').pop()!)}${existingKeys.has(e.key) ? ' · already saved' : ''}</li>`).join('')}${count > 5 ? `<li>And ${count - 5} more…</li>` : ''}</ul>
-      <label class="ro-saves__replace"><input type="checkbox" id="ro-save-replace" /> Replace saves with the same names</label>
+      <ul class="ro-saves__preview">${files.slice(0, 5).map(e => `<li>${escapeHtml(parsed.kind === 'game' ? e.key.slice('/data/saves/'.length) : e.key)}${existingKeys.has(e.key) ? ' · already saved' : ''}</li>`).join('')}${count > 5 ? `<li>And ${count - 5} more…</li>` : ''}</ul>
+      <label class="ro-saves__replace"><input type="checkbox" id="ro-save-replace" /> Replace matching saves with backup copies</label>
+      <p class="ro-muted" id="ro-save-plan" aria-live="polite"></p>
       <div class="ro-btn-row"><button class="ro-btn ro-btn--primary" id="ro-save-confirm">Restore ${count} saves</button><button class="ro-btn ro-btn--ghost" id="ro-save-cancel">Cancel</button></div>`
+    const updatePlan = () => {
+      const replace = review.querySelector<HTMLInputElement>('#ro-save-replace')!.checked
+      const restoring = replace ? count : count - conflicts
+      review.querySelector('#ro-save-plan')!.textContent = replace
+        ? `Add ${count - conflicts} new saves and replace ${conflicts} matching saves. Counts are checked again when restoring.`
+        : `Add ${restoring} new saves and keep ${conflicts} existing saves. Counts are checked again when restoring.`
+      review.querySelector<HTMLButtonElement>('#ro-save-confirm')!.textContent = restoring ? `Restore ${restoring} save${restoring === 1 ? '' : 's'}` : 'Keep existing saves'
+    }
+    review.querySelector('#ro-save-replace')!.addEventListener('change', updatePlan)
+    updatePlan()
     review.querySelector('#ro-save-cancel')!.addEventListener('click', () => { pending = null; review.hidden = true; root.querySelector<HTMLButtonElement>('#ro-save-import')!.focus() })
     review.querySelector('#ro-save-confirm')!.addEventListener('click', () => void run(async () => {
       if (!pending) return

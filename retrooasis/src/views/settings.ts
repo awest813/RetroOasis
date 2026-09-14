@@ -45,6 +45,7 @@ import { bindRowFocus } from '../lib/focus'
 import { escapeHtml } from '../lib/dom'
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
+import { connectedPads } from '../lib/gamepad'
 
 const FOCUS_KEY = 'retrooasis.settings.focusId'
 const SCROLL_KEY = 'retrooasis.settings.scrollY'
@@ -129,6 +130,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       </header>
 
       <div class="ro-settings" data-ro-settings>
+        <section class="ro-settings__group" aria-labelledby="ro-set-controller">
+          <h2 class="ro-settings__heading" id="ro-set-controller">Controllers</h2>
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Bluetooth &amp; USB controllers</strong>
+              <p class="ro-muted">Pair in your device’s Bluetooth settings or plug in by USB. Return to this page, press a controller button, then release it.</p>
+              <p class="ro-muted">Menus use the D-pad or left stick to move, the bottom face button (A / Cross) to choose, and the right face button (B / Circle) to go back. Start also chooses; Select goes back.</p>
+              <p class="ro-muted">Chrome and Safari rely on your device’s controller support. Use HTTPS or localhost. If a controller stays unavailable, reconnect it and reopen the page. Set game-specific controls in the player.</p>
+              <p class="ro-muted" id="ro-controller-status" role="status">Press Check controller to see what this browser detects.</p>
+            </div>
+            <button type="button" class="ro-btn" id="ro-check-controller" data-focus-id="controller" data-ro-focusable="true">Check controller</button>
+          </div>
+        </section>
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
           <h2 class="ro-settings__heading" id="ro-set-look">Look</h2>
 
@@ -416,6 +430,18 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       setEjsChannel(btn.dataset.ejs as EjsChannel)
       rerender(btn.dataset.focusId)
     })
+  })
+
+  root.querySelector('#ro-check-controller')?.addEventListener('click', () => {
+    const pads = connectedPads()
+    const standard = pads.find(p => p.mapping === 'standard')
+    root.querySelector('#ro-controller-status')!.textContent = !window.isSecureContext
+      ? 'Open this site over HTTPS or localhost to use controllers.'
+      : typeof navigator.getGamepads !== 'function'
+        ? 'Controller access is unavailable in this browser. Keyboard and touch still work.'
+        : standard ? `Ready for menus: ${standard.id}. Release the buttons before navigating.`
+          : pads.length ? 'Controller detected, but its button layout is not recognized for menus. Use keyboard or touch here and configure controls in the player.'
+            : 'No controller visible yet. Press and release a controller button while this page is active, then check again. Browser or embedded-page permissions may also block access.'
   })
 
   root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {

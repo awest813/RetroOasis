@@ -1091,6 +1091,9 @@
 }
 
 .ejs_settings_main_bar {
+    font-family: inherit;
+    text-align: left;
+    min-height: 36px;
     align-items: center;
     color: #999;
     display: flex;
@@ -1120,6 +1123,9 @@
 }
 
 .ejs_settings_main_bar>span {
+    min-width: 0;
+    gap: 12px;
+    overflow-wrap: anywhere;
     align-items: inherit;
     display: flex;
     width: 100%;
@@ -1141,7 +1147,11 @@
     margin-left: auto;
     margin-right: -5px;
     overflow: hidden;
-    padding-left: 25px;
+    padding-left: 8px;
+    flex-shrink: 0;
+    max-width: 50%;
+    text-align: right;
+    white-space: normal;
     pointer-events: none;
 }
 
@@ -1149,6 +1159,33 @@
     padding: 7px;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+.ejs_core_option_help {
+    margin: 0 0 8px;
+    padding: 10px 8px;
+    max-width: 32ch;
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ejs_settings_main_bar:focus-visible,
+.ejs_option_row:focus-visible,
+.ejs_back_button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+    .ejs_settings_main_bar,
+    .ejs_option_row,
+    .ejs_back_button {
+        min-height: 44px;
+    }
 }
 
 .ejs_parent_option_div {

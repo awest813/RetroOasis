@@ -28,6 +28,9 @@ export async function renderLibrary(
   root: HTMLElement,
   selection?: LibrarySelection | string,
 ): Promise<void> {
+  let active = true
+  let cleanup: (() => void) | undefined
+  registerViewCleanup(() => { active = false; cleanup?.() })
   // Show skeleton loading state immediately
   root.innerHTML = `
     <section class="ro-view ro-library" aria-busy="true">
@@ -71,6 +74,7 @@ export async function renderLibrary(
   `
 
   const catalog = await loadCatalog()
+  if (!active) return
   const counts = countByPlatform(catalog)
   const canPick = supportsDirectoryPicker()
   const useLibretro = getLibretroCovers()
@@ -98,7 +102,7 @@ export async function renderLibrary(
       </section>
     `
     const empty = root.querySelector<HTMLElement>('.ro-empty')
-    if (empty) registerViewCleanup(bindGridFocus(empty))
+    if (empty) cleanup = bindGridFocus(empty)
     root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
     return
   }
@@ -108,10 +112,7 @@ export async function renderLibrary(
   let queryRaw = ''
   let sortDesc = false
   let filtersExpanded = false
-  let cleanup: (() => void) | undefined
   let searchTimer = 0
-  let activePlatformFilter: string | null = sel.kind === 'platform' ? sel.id : null
-  let activeTagFilter: string | null = sel.kind === 'tag' ? sel.id : null
   const isRecent = sel.kind === 'collection' && sel.id === 'recent'
   const DEBOUNCE_DELAY = 250 // ms
   
@@ -119,19 +120,10 @@ export async function renderLibrary(
   const allTags = Array.from(new Set(catalog.games.flatMap((g) => g.tags ?? []))).sort()
 
   const paint = (opts?: { restoreSearch?: boolean; restoreFavId?: string }) => {
+    if (!active) return
     cleanup?.()
     favorites = getFavorites()
     let games = selectGames(catalog, sel, favorites, recents)
-    
-    // Apply platform filter
-    if (activePlatformFilter) {
-      games = games.filter((g) => g.platform === activePlatformFilter)
-    }
-    
-    // Apply tag filter
-    if (activeTagFilter) {
-      games = games.filter((g) => g.tags?.includes(activeTagFilter!))
-    }
     
     // Apply search query filter
     games = games.filter((g) => !query || g.title.toLowerCase().includes(query))
@@ -140,12 +132,6 @@ export async function renderLibrary(
       games = [...games].sort((a, b) =>
         sortDesc ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title),
       )
-    }
-
-    // Announce search results to screen readers
-    const statusEl = root.querySelector<HTMLElement>('#ro-search-status')
-    if (statusEl && queryRaw) {
-      statusEl.textContent = `${games.length} result${games.length === 1 ? '' : 's'} for "${queryRaw}"`
     }
 
     const heading = galleryHeading(sel, platform)
@@ -212,7 +198,7 @@ export async function renderLibrary(
             <p class="ro-systems__label">Tags</p>
             <div class="ro-systems__scroller">
               <nav class="ro-systems__list" data-ro-tags>
-                ${allTags.map((tag) => tagRow(tag, sel.kind === 'tag' && sel.id === tag)).join('')}
+                ${allTags.map((tag) => tagRow(tag, sel.kind === 'tag' && sel.id.toLowerCase().replace(/\s+/g, '-') === tag.toLowerCase().replace(/\s+/g, '-'))).join('')}
               </nav>
             </div>
           </div>
@@ -238,13 +224,14 @@ export async function renderLibrary(
               <p class="ro-kicker">${escapeHtml(heading.kicker)}</p>
               <h2 class="ro-title">${escapeHtml(heading.title)}</h2>
               <p class="ro-lede">${games.length} game${games.length === 1 ? '' : 's'}</p>
+              ${sel.kind !== 'collection' ? `<a href="${hrefFor('/library/@all')}">Browse all games</a>` : ''}
               ${sampleCue}
             </div>
             <div class="ro-search">
               <label class="ro-sr-only" for="ro-q">Search your library</label>
               <input type="search" id="ro-q" placeholder="Search your library" value="${escapeAttr(queryRaw)}" autocomplete="off" aria-describedby="ro-search-status" aria-label="Search games by title" />
-              <span id="ro-search-status" class="ro-sr-only" aria-live="polite"></span>
-              ${activePlatformFilter || activeTagFilter ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-filters" aria-label="Clear platform and tag filters">Clear filters</button>` : ''}
+              <span id="ro-search-status" class="ro-sr-only" role="status">${games.length} result${games.length === 1 ? '' : 's'}</span>
+
               <button type="button" class="ro-btn ro-btn--ghost" id="ro-sort" aria-label="${isRecent ? 'Sort pinned to play order' : sortDesc ? 'Sort Z to A' : 'Sort A to Z'}"${isRecent ? ' disabled title="Pinned to play order"' : ''}>
                 ${isRecent ? 'Play order' : sortDesc ? 'Z–A' : 'A–Z'}
               </button>
@@ -271,7 +258,7 @@ export async function renderLibrary(
     `
 
     bindLibraryChrome(root, () => {
-      void renderLibrary(root, sel)
+      if (active) void renderLibrary(root, sel)
     })
 
     root.querySelector('#ro-browse-filters')?.addEventListener('click', () => {
@@ -305,11 +292,6 @@ export async function renderLibrary(
       paint({ restoreSearch: true })
     })
 
-    root.querySelector('#ro-clear-filters')?.addEventListener('click', () => {
-      activePlatformFilter = null
-      activeTagFilter = null
-      paint({ restoreSearch: true })
-    })
     root.querySelector('[data-ro-grid]')?.addEventListener('click', (event) => {
       const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-fav-id]')
       if (!btn) return
@@ -325,33 +307,19 @@ export async function renderLibrary(
     hydrateCovers(root)
 
     if (opts?.restoreFavId) {
-      root
+      const button = root
         .querySelector<HTMLElement>(`[data-fav-id="${CSS.escape(opts.restoreFavId)}"]`)
-        ?.focus()
+      const fallback = root.querySelector<HTMLElement>('[data-ro-grid] [data-ro-focusable], .ro-empty [data-ro-focusable]')
+      ;(button ?? fallback)?.focus()
     } else if (opts?.restoreSearch && input) {
       input.focus()
-      const len = input.value.length
-      input.setSelectionRange(len, len)
     }
 
-    const systems = root.querySelector<HTMLElement>('[data-ro-systems]')
-    const platforms = root.querySelector<HTMLElement>('[data-ro-platforms]')
-    const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
-    const empty = root.querySelector<HTMLElement>('.ro-empty')
-    const onboardEl = root.querySelector<HTMLElement>('.ro-onboard')
-    const actions = root.querySelector<HTMLElement>('.ro-systems__actions')
-    const cleanups: Array<() => void> = []
-    if (systems) cleanups.push(bindGridFocus(systems))
-    if (platforms) cleanups.push(bindGridFocus(platforms))
-    if (grid) cleanups.push(bindGridFocus(grid))
-    if (empty) cleanups.push(bindGridFocus(empty))
-    if (onboardEl) cleanups.push(bindGridFocus(onboardEl))
-    if (actions) cleanups.push(bindGridFocus(actions))
+    const cleanupNavigation = bindGridFocus(root)
     cleanup = () => {
       window.clearTimeout(searchTimer)
-      cleanups.forEach((fn) => fn())
+      cleanupNavigation()
     }
-    registerViewCleanup(cleanup)
   }
 
   paint()
@@ -441,6 +409,13 @@ function searchEmptyState(queryRaw: string): string {
 }
 
 function emptyState(sel: LibrarySelection): string {
+  if (sel.kind === 'tag') {
+    return `<div class="ro-empty">
+      <p class="ro-empty__title">No games with this tag</p>
+      <p class="ro-empty__body">Choose another tag or browse your full library.</p>
+      <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
+    </div>`
+  }
   if (sel.kind === 'collection' && sel.id === 'recent') {
     return `
       <div class="ro-empty">
@@ -561,7 +536,7 @@ function tagRow(tag: string, active: boolean): string {
   return `
     <a
       class="ro-system${active ? ' ro-system--active' : ''}"
-      href="${hrefFor(`/library/tag/${tagId}`)}"
+      href="${hrefFor(`/library/tag/${encodeURIComponent(tagId)}`)}"
       data-ro-focusable="true"
       ${active ? 'aria-current="page"' : ''}
       aria-label="${escapeHtml(tag)} tag"
@@ -604,7 +579,7 @@ function gameTile(
     <div class="ro-tile${favorited ? ' ro-tile--fav' : ''}">
       <a
         class="ro-tile__link"
-        href="${hrefFor(`/game/${game.id}`)}"
+        href="${hrefFor(`/game/${encodeURIComponent(game.id)}`)}"
         data-ro-focusable="true"
         aria-label="View ${escapeAttr(game.title)} details"
       >

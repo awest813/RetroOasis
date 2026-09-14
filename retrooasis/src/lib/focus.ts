@@ -1,36 +1,25 @@
 /** Keyboard + gamepad focus for grids and settings-style rows. */
 
-import { setModalityFromPad } from './inputModality'
-import { buttonPressed, readConnectedPad } from './gamepad'
+import { bindMenuPad } from './gamepad'
 import { sfxConfirm, sfxMove } from './sfx'
 
 type Cleanup = () => void
 type Dir = 'left' | 'right' | 'up' | 'down' | 'confirm'
 
 function focusables(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focusable="true"]')).filter(
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focusable="true"], a[href], button, input:not([type=hidden]), select, textarea')).filter(
     (el) =>
-      !el.hasAttribute('disabled') &&
+      el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden' &&
+      !el.closest('[inert], [hidden], [aria-hidden="true"]') && !el.matches(':disabled') &&
       el.getAttribute('aria-disabled') !== 'true' &&
       el.getAttribute('aria-hidden') !== 'true',
   )
 }
 
-function estimateColumns(list: HTMLElement[]): number {
-  if (list.length < 2) return 1
-  const top = list[0].offsetTop
-  let cols = 1
-  for (let i = 1; i < list.length; i++) {
-    if (list[i].offsetTop !== top) break
-    cols++
-  }
-  return Math.max(1, cols)
-}
-
 function focusTarget(el: HTMLElement | null | undefined): void {
   if (!el) return
   el.focus({ preventScroll: true })
-  el.closest('[data-ro-focus-row]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
 function moveFocus(root: HTMLElement, key: Dir): void {
@@ -38,26 +27,36 @@ function moveFocus(root: HTMLElement, key: Dir): void {
   if (!list.length) return
 
   const active = document.activeElement as HTMLElement | null
-  let index = active ? list.indexOf(active) : -1
-  if (index < 0) index = 0
-
   if (key === 'confirm') {
     const target = active && list.includes(active) ? active : list[0]
+    if (!active || !list.includes(active)) { focusTarget(target); return }
     if (target.getAttribute('aria-disabled') === 'true') return
+    if (target.matches('input:not([type=checkbox]):not([type=radio]), textarea, select')) { target.focus(); return }
     sfxConfirm()
     target.click()
     return
   }
 
-  const columns = estimateColumns(list)
-  let next = index
-  if (key === 'right') next = Math.min(list.length - 1, index + 1)
-  if (key === 'left') next = Math.max(0, index - 1)
-  if (key === 'down') next = Math.min(list.length - 1, index + columns)
-  if (key === 'up') next = Math.max(0, index - columns)
-
-  if (next !== index) sfxMove()
-  focusTarget(list[next])
+  if (!active || !list.includes(active)) { focusTarget(list[0]); return }
+  const box = active.getBoundingClientRect()
+  const horizontal = key === 'left' || key === 'right'
+  const sign = key === 'right' || key === 'down' ? 1 : -1
+  const cx = box.left + box.width / 2
+  const cy = box.top + box.height / 2
+  let best: HTMLElement | null = null
+  let score = Infinity
+  for (const el of list) {
+    if (el === active) continue
+    const rect = el.getBoundingClientRect()
+    const dx = rect.left + rect.width / 2 - cx
+    const dy = rect.top + rect.height / 2 - cy
+    const forward = (horizontal ? dx : dy) * sign
+    if (forward < 1) continue
+    const sideways = Math.abs(horizontal ? dy : dx)
+    const distance = forward + sideways * 3
+    if (distance < score) { score = distance; best = el }
+  }
+  if (best) { sfxMove(); focusTarget(best) }
 }
 
 function moveRowFocus(root: HTMLElement, key: Dir): void {
@@ -65,12 +64,11 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
   if (!list.length) return
 
   const active = document.activeElement as HTMLElement | null
-  let index = active ? list.indexOf(active) : -1
-  if (index < 0) index = 0
-
   if (key === 'confirm') {
     const target = active && list.includes(active) ? active : list[0]
+    if (!active || !list.includes(active)) { focusTarget(target); return }
     if (target.getAttribute('aria-disabled') === 'true') return
+    if (target.matches('input:not([type=checkbox]):not([type=radio]), textarea, select')) { target.focus(); return }
     sfxConfirm()
     target.click()
     return
@@ -79,7 +77,7 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
   const rows = Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focus-row]')).filter(
     (row) => focusables(row).length > 0,
   )
-  if (!rows.length) {
+  if (!rows.length || !active?.closest('[data-ro-focus-row]')) {
     moveFocus(root, key)
     return
   }
@@ -103,7 +101,7 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
 
   const nextRowIndex =
     key === 'down' ? Math.min(rows.length - 1, rowIndex + 1) : Math.max(0, rowIndex - 1)
-  if (nextRowIndex === rowIndex) return
+  if (nextRowIndex === rowIndex) { moveFocus(root, key); return }
   const nextRow = rows[nextRowIndex]
   const nextControls = focusables(nextRow)
   const preferred =
@@ -119,7 +117,8 @@ function bindPadAndKeys(
   move: (root: HTMLElement, key: Dir) => void,
 ): Cleanup {
   const onKeyDown = (event: KeyboardEvent) => {
-    if (!root.isConnected) return
+    if (!root.isConnected || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.isComposing || (event.target as HTMLElement | null)?.isContentEditable) return
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
@@ -143,83 +142,11 @@ function bindPadAndKeys(
 
   root.addEventListener('keydown', onKeyDown)
 
-  let raf = 0
-  const prev = { x: 0, y: 0, a: false, start: false }
-  let cool = 0
-  let holdStart = 0
-  let heldAxis: 'x' | 'y' | null = null
-
-  const poll = () => {
-    if (!root.isConnected) {
-      raf = 0
-      return
-    }
-    raf = requestAnimationFrame(poll)
-    const pad = readConnectedPad()
-    if (!pad) return
-
-    const tag = (document.activeElement as HTMLElement | null)?.tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-
-    const now = performance.now()
-    const axisX = Math.abs(pad.axes[0] ?? 0) > 0.45 ? Math.sign(pad.axes[0]) : 0
-    const axisY = Math.abs(pad.axes[1] ?? 0) > 0.45 ? Math.sign(pad.axes[1]) : 0
-    const dpadLeft = buttonPressed(pad, 14) ? -1 : 0
-    const dpadRight = buttonPressed(pad, 15) ? 1 : 0
-    const dpadUp = buttonPressed(pad, 12) ? -1 : 0
-    const dpadDown = buttonPressed(pad, 13) ? 1 : 0
-    const x = dpadLeft || dpadRight || axisX
-    const y = dpadUp || dpadDown || axisY
-    const a = buttonPressed(pad, 0)
-    const start = buttonPressed(pad, 9)
-
-    if (x || y || a || start) setModalityFromPad()
-
-    const stepAxis = (axis: 'x' | 'y', value: number, dirPos: Dir, dirNeg: Dir) => {
-      if (!value) {
-        if (heldAxis === axis) {
-          heldAxis = null
-          holdStart = 0
-        }
-        return
-      }
-      const dir = value > 0 ? dirPos : dirNeg
-      const edge = axis === 'x' ? prev.x !== value : prev.y !== value
-      if (edge) {
-        move(root, dir)
-        cool = now + 220
-        holdStart = now
-        heldAxis = axis
-        return
-      }
-      if (heldAxis === axis && now > cool) {
-        move(root, dir)
-        const heldFor = now - holdStart
-        cool = now + (heldFor > 700 ? 68 : heldFor > 350 ? 110 : 160)
-      }
-    }
-
-    if (now > cool || x !== prev.x || y !== prev.y) {
-      if (x) stepAxis('x', x, 'right', 'left')
-      else if (y) stepAxis('y', y, 'down', 'up')
-    }
-
-    if ((a && !prev.a) || (start && !prev.start)) {
-      move(root, 'confirm')
-      cool = now + 220
-    }
-
-    prev.x = x
-    prev.y = y
-    prev.a = a
-    prev.start = start
-  }
-
-  raf = requestAnimationFrame(poll)
+  const cleanupPad = bindMenuPad(root, dir => { if (dir !== 'back') move(root, dir) })
 
   return () => {
     root.removeEventListener('keydown', onKeyDown)
-    cancelAnimationFrame(raf)
+    cleanupPad()
   }
 }
 

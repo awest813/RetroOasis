@@ -27,7 +27,12 @@ class GamepadHandler {
         window.clearTimeout(this.timeout);
     }
     getGamepads() {
-        return navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+        try {
+            return (navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : [])) || [];
+        } catch {
+            // Access may be blocked by browser policy. Keep polling for recovery.
+            return [];
+        }
     }
     loop() {
         this.updateGamepadState();
@@ -45,7 +50,7 @@ class GamepadHandler {
         } else if (!Array.isArray(gamepads)) return;
 
         gamepads.forEach((gamepad, index) => {
-            if (!gamepad) return;
+            if (!gamepad || !gamepad.connected) return;
             let hasGamepad = false;
             this.gamepads.forEach((oldGamepad, oldIndex) => {
                 if (oldGamepad.index !== gamepad.index) return;
@@ -99,7 +104,13 @@ class GamepadHandler {
                 this.gamepads[oldIndex] = gamepadToSave;
             })
             if (!hasGamepad) {
-                this.gamepads.push(gamepads[index]);
+                // Safari and other browsers may reuse live Gamepad objects.
+                this.gamepads.push({
+                    index: gamepad.index,
+                    id: gamepad.id,
+                    axes: Array.from(gamepad.axes),
+                    buttons: Array.from(gamepad.buttons, button => ({pressed: typeof button === "number" ? button === 1 : button.pressed}))
+                });
                 this.gamepads.sort((a, b) => {
                     if (a == null && b == null) return 0;
                     if (a == null) return 1;
@@ -114,7 +125,7 @@ class GamepadHandler {
             if (!this.gamepads[j]) continue;
             let has = false;
             for (let i=0; i<gamepads.length; i++) {
-                if (!gamepads[i]) continue;
+                if (!gamepads[i] || !gamepads[i].connected) continue;
                 if (this.gamepads[j].index === gamepads[i].index) {
                     has = true;
                     break;

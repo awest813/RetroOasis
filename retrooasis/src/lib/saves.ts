@@ -103,7 +103,10 @@ export function encodeBackup(kind: SaveKind, entries: SaveEntry[]): string {
 
 export function decodeBackup(text: string): SaveBackup {
   if (new Blob([text]).size > MAX_BACKUP) throw new Error('Backups must be smaller than 128 MB.')
-  const raw = JSON.parse(text)
+  let raw
+  try { raw = JSON.parse(text) } catch {
+    throw new Error('This file is not a valid save backup. Choose a RetroOasis backup (.json).')
+  }
   if (raw?.format !== 'retrooasis-saves' || raw.version !== 1 || !['game', 'state'].includes(raw.kind) ||
       !Array.isArray(raw.entries) || raw.entries.length > 10000) throw new Error('Choose a RetroOasis save backup (.json).')
   const keys = new Set<string>()
@@ -160,22 +163,30 @@ export async function restoreBackup(backup: SaveBackup, replace: boolean): Promi
       let failure: unknown
       keysRequest.onsuccess = () => {
         const keys = new Set(keysRequest.result)
+        // Queue one index update after all reads and their writes have completed.
+        let remaining = backup.entries.length
+        const finishEntry = () => {
+          remaining--
+          if (remaining === 0 && backup.kind === 'state') {
+            store.put([...keys].filter(k => k !== INDEX_KEY), INDEX_KEY)
+          }
+        }
         for (const entry of backup.entries) {
           const read = store.get(entry.key)
           read.onsuccess = () => {
             try {
-              const exists = read.result !== undefined
+              const exists = keys.has(entry.key)
               if (exists && backup.kind === 'game' && (read.result.mode & 0xf000) !== (entry.mode! & 0xf000)) {
                 throw new Error('A save file conflicts with a folder. Nothing was restored.')
               }
-              if (exists && !replace) { if (entry.bytes) result.skipped++; return }
+              if (exists && !replace) { if (entry.bytes) result.skipped++; finishEntry(); return }
               const value = backup.kind === 'state' ? entry.bytes : {
                 mode: entry.mode, timestamp: new Date(entry.modified!), ...(entry.bytes ? { contents: entry.bytes } : {}),
               }
               store.put(value, entry.key)
               keys.add(entry.key)
-              if (backup.kind === 'state') store.put([...keys].filter(k => k !== INDEX_KEY), INDEX_KEY)
               if (entry.bytes) result.restored++
+              finishEntry()
             } catch (error) { failure = error; tx.abort() }
           }
         }

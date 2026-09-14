@@ -1,6 +1,7 @@
 import { EJS_Cache, EJS_CacheItem, EJS_FileItem, EJS_Download } from "./cache.js";
 import { EJS_COMPRESSION } from "./compression.js";
 import { EJS_GameManager } from "./GameManager.js";
+import { coreMenuOptions } from "./coreOptions.js";
 import { GamepadHandler } from "./gamepad.js";
 import { EJS_STORAGE, EJS_DUMMYSTORAGE } from "./storage.js";
 import { cyrb53 } from "./utils.js";
@@ -5105,7 +5106,8 @@ class EmulatorJS {
             rv.classList.add("ejs_setting_menu");
 
             if (child) {
-                const menuOption = this.createElement("div");
+                const menuOption = this.createElement("button");
+                menuOption.type = "button";
                 menuOption.classList.add("ejs_settings_main_bar");
                 const span = this.createElement("span");
                 span.innerText = title;
@@ -5126,6 +5128,7 @@ class EmulatorJS {
                     nested.style.height = homeSize.height + "px";
                     menu.setAttribute("hidden", "");
                     parentElement.removeAttribute("hidden");
+                    menuOption.focus({ preventScroll: true });
                 }
                 this.addEventListener(menuOption, "click", (e) => {
                     const targetSize = this.getElementSize(menu);
@@ -5134,6 +5137,7 @@ class EmulatorJS {
                     menu.removeAttribute("hidden");
                     rv.scrollTo(0, 0);
                     parentElement.setAttribute("hidden", "");
+                    button.focus({ preventScroll: true });
                 })
                 const observer = new MutationObserver((list) => {
                     for (const k of list) {
@@ -5233,13 +5237,14 @@ class EmulatorJS {
             }
             parentElement = parentElement || home;
             const transitionElement = useParentParent ? parentElement.parentElement.parentElement : parentElement;
-            const menuOption = this.createElement("div");
+            const menuOption = this.createElement("button");
+            menuOption.type = "button";
             menuOption.classList.add("ejs_settings_main_bar");
             if (info) menuOption.title = info;
             const span = this.createElement("span");
             span.innerText = title;
 
-            const current = this.createElement("div");
+            const current = this.createElement("span");
             current.innerText = "";
             current.classList.add("ejs_settings_main_bar_selected");
             span.appendChild(current);
@@ -5264,6 +5269,7 @@ class EmulatorJS {
                 nested.style.width = (homeSize.width + 20) + "px";
                 nested.style.height = homeSize.height + "px";
                 transitionElement.removeAttribute("hidden");
+                menuOption.focus({ preventScroll: true });
             }
             this.addEventListener(menuOption, "click", (e) => {
                 const targetSize = this.getElementSize(menu);
@@ -5272,9 +5278,15 @@ class EmulatorJS {
                 menu.removeAttribute("hidden");
                 optionsMenu.scrollTo(0, 0);
                 transitionElement.setAttribute("hidden", "");
-                transitionElement.setAttribute("hidden", "");
+                (buttons.find(option => option.classList.contains("ejs_option_row_selected")) || button).focus({ preventScroll: true });
             })
             this.addEventListener(button, "click", goToHome);
+            this.addEventListener(menu, "keydown", event => {
+                if (event.key !== "Escape") return;
+                event.preventDefault();
+                event.stopPropagation();
+                goToHome();
+            });
 
             button.type = "button";
             button.classList.add("ejs_back_button");
@@ -5283,6 +5295,14 @@ class EmulatorJS {
             pageTitle.innerText = title;
             pageTitle.classList.add("ejs_menu_text_a");
             button.appendChild(pageTitle);
+
+            if (info) {
+                const help = this.createElement("p");
+                help.classList.add("ejs_core_option_help");
+                help.textContent = info;
+                optionsMenu.appendChild(help);
+                optionsMenu.setAttribute("aria-label", title);
+            }
 
             let buttons = [];
             let opts = options;
@@ -5298,6 +5318,7 @@ class EmulatorJS {
                 if (id !== title) return;
                 for (let j = 0; j < buttons.length; j++) {
                     buttons[j].classList.toggle("ejs_option_row_selected", buttons[j].getAttribute("ejs_value") === settings[id]);
+                    buttons[j].setAttribute("aria-pressed", String(buttons[j].getAttribute("ejs_value") === settings[id]));
                 }
                 this.menuOptionChanged(id, settings[id]);
                 current.innerText = opts[settings[id]];
@@ -5311,13 +5332,16 @@ class EmulatorJS {
                 optionButton.value = opts[opt];
                 optionButton.classList.add("ejs_option_row");
                 optionButton.classList.add("ejs_button_style");
+                optionButton.setAttribute("aria-pressed", String(defaultOption === opt));
 
                 this.addEventListener(optionButton, "click", (e) => {
                     this.changeSettingOption(id, opt);
                     for (let j = 0; j < buttons.length; j++) {
                         buttons[j].classList.remove("ejs_option_row_selected");
+                        buttons[j].setAttribute("aria-pressed", "false");
                     }
                     optionButton.classList.add("ejs_option_row_selected");
+                    optionButton.setAttribute("aria-pressed", "true");
                     this.menuOptionChanged(id, opt);
                     current.innerText = opts[opt];
                     goToHome();
@@ -5648,41 +5672,18 @@ class EmulatorJS {
                 coreOpts = this.gameManager.getCoreOptions();
             } catch(e) {}
         }
-        if (coreOptsJSON) {
-            const coreOptions = createSettingParent(true, "Core Options", home);
-            coreOptsJSON.options.forEach(option => {
-                if (option.visible === false || option.values.length <= 1) return;
-                const availableOptions = {};
+        const normalizedCoreOptions = coreMenuOptions(coreOptsJSON, coreOpts);
+        if (normalizedCoreOptions.length) {
+            const coreOptions = createSettingParent(true, this.localization("Core Options"), home);
+            normalizedCoreOptions.forEach(option => {
+                const availableOptions = Object.create(null);
                 option.values.forEach(value => {
-                    availableOptions[value.value] = this.localization(value.label || value.value, this.config.settingsLanguage);
+                    availableOptions[value.value] = this.localization(value.label, this.config.settingsLanguage);
                 });
-                addToMenu(this.localization(option.desc || option.key, this.config.settingsLanguage),
-                    option.key, availableOptions,
-                    option.current || option.default,
-                    coreOptions,
-                    true,
+                addToMenu(this.localization(option.title, this.config.settingsLanguage),
+                    option.key, availableOptions, option.selected, coreOptions, true,
                     option.info ? this.localization(option.info, this.config.settingsLanguage) : null);
-            })
-            checkForEmptyMenu(coreOptions);
-        } else if (coreOpts) {
-            const coreOptions = createSettingParent(true, "Core Options", home);
-            coreOpts.split("\n").forEach((line, index) => {
-                let option = line.split("; ");
-                let name = option[0];
-                let options = option[1].split("|"),
-                    optionName = name.split("|")[0].replace(/_/g, " ").replace(/.+\-(.+)/, "$1");
-                options.slice(1, -1);
-                if (options.length === 1) return;
-                let availableOptions = {};
-                for (let i = 0; i < options.length; i++) {
-                    availableOptions[options[i]] = this.localization(options[i], this.config.settingsLanguage);
-                }
-                addToMenu(this.localization(optionName, this.config.settingsLanguage),
-                    name.split("|")[0], availableOptions,
-                    (name.split("|").length > 1) ? name.split("|")[1] : options[0].replace("(Default) ", ""),
-                    coreOptions,
-                    true);
-            })
+            });
             checkForEmptyMenu(coreOptions);
         }
 
