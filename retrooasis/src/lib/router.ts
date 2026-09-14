@@ -5,9 +5,11 @@ export type Route =
   | { name: 'library' }
   | { name: 'platform'; platformId: string }
   | { name: 'collection'; collection: VirtualCollection }
+  | { name: 'tag'; tagId: string }
   | { name: 'game'; gameId: string }
   | { name: 'upload' }
   | { name: 'settings' }
+  | { name: 'saves' }
   | { name: 'notfound' }
 
 type Listener = (route: Route) => void
@@ -24,6 +26,9 @@ function parseHash(hash: string): Route {
   if (parts[0] === 'library' && parts.length === 1) {
     return { name: 'collection', collection: 'all' }
   }
+  if (parts[0] === 'library' && parts[1] === 'tag' && parts[2]) {
+    return { name: 'tag', tagId: decodeURIComponent(parts[2]) }
+  }
   if (parts[0] === 'library' && parts.length === 2 && parts[1]) {
     const id = decodeURIComponent(parts[1])
     if (id.startsWith('@')) {
@@ -38,6 +43,7 @@ function parseHash(hash: string): Route {
   }
   if (parts[0] === 'upload' && parts.length === 1) return { name: 'upload' }
   if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' }
+  if (parts[0] === 'saves' && parts.length === 1) return { name: 'saves' }
   return { name: 'notfound' }
 }
 
@@ -87,12 +93,16 @@ export function routePath(route: Route): string {
       return `#/library/${encodeURIComponent(route.platformId)}`
     case 'collection':
       return `#/library/@${route.collection}`
+    case 'tag':
+      return `#/library/tag/${encodeURIComponent(route.tagId)}`
     case 'game':
       return `#/game/${encodeURIComponent(route.gameId)}`
     case 'upload':
       return '#/upload'
     case 'settings':
       return '#/settings'
+    case 'saves':
+      return '#/saves'
     default:
       return '#/'
   }

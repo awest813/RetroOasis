@@ -1,19 +1,21 @@
 import {
   UPLOAD_CORE_OPTIONS,
-  coreFromExtension,
+  coreForPlatform,
   isRomFile,
   romFileAccept,
 } from '../lib/cores'
+import { detectRomPlatform } from '../lib/archives'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
 import { getEjsChannel, pushRecent } from '../lib/store'
+import { reloadUploadedLibrary } from '../lib/catalog'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
 const CORE_EXT_HINTS: Record<string, string> = {
-  auto: 'Auto picks a system from the file extension (.nes, .sfc, .gba, .zip, …).',
+  auto: 'Auto picks a system from the extension, and looks inside .zip / .7z / .rar to find one.',
   nes: 'Common: .nes · .fds · .unif',
   snes: 'Common: .sfc · .smc',
   gb: 'Common: .gb · .gbc',
@@ -22,7 +24,7 @@ const CORE_EXT_HINTS: Record<string, string> = {
   n64: 'Common: .z64 · .n64 · .v64',
   vb: 'Common: .vb',
   '3ds': 'Common: .3ds · .cia · .cci — needs threads',
-  psx: 'Common: .cue · .chd · .bin/.img',
+  psx: 'Common: .cue · .chd · .bin/.img — zips/7z/rar of these work in Auto',
   ppsspp: 'Common: .iso · .cso · .pbp — needs threads',
   segaMD: 'Common: .md · .gen · .smd',
   segaMS: 'Common: .sms',
@@ -146,7 +148,7 @@ export function renderUpload(root: HTMLElement): void {
 
   const launch = async (files: File[]) => {
     if (!coreSelect || busy || files.length === 0) return
-    
+
     for (const file of files) {
       let core = coreSelect.value
       if (core === 'auto') {
@@ -157,15 +159,20 @@ export function renderUpload(root: HTMLElement): void {
           }
           continue
         }
-        const detected = coreFromExtension(file.name)
+        setBusy(true)
+        if (status) {
+          status.textContent = `Checking ${file.name} (${formatBytes(file.size)})…`
+        }
+        const detected = await detectRomPlatform(file)
         if (!detected) {
+          setBusy(false)
           if (status) {
             status.textContent =
               `Skipping ${file.name}: couldn't auto-detect. Choose a system from the list.`
           }
           continue
         }
-        core = detected
+        core = coreForPlatform(detected)
       }
 
       setBusy(true)
@@ -176,7 +183,10 @@ export function renderUpload(root: HTMLElement): void {
       try {
         const game = await saveUploadedRom(file, file.name, core)
         pushRecent(game.id)
-        
+        // Refresh the in-memory catalog so Library reflects the new ROM
+        // without a page reload (emits a catalog change → view re-render).
+        await reloadUploadedLibrary()
+
         if (files.length === 1) {
           // Single file: navigate to play it
           if (status) status.textContent = `Saved. Starting ${file.name}…`
@@ -195,7 +205,7 @@ export function renderUpload(root: HTMLElement): void {
         }
       }
     }
-    
+
     setBusy(false)
     if (input) input.value = ''
     if (status && files.length > 1) {

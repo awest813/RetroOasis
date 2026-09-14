@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "manifest": "node scripts/generate-roms-manifest.mjs",
-    "scan": "node scripts/scan-roms.mjs"
+    "scan": "node scripts/scan-roms.mjs",
+    "test:archives": "node scripts/test-archives.mjs",
+    "test:saves": "node scripts/test-saves.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

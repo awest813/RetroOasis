@@ -66,7 +66,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     fileLabel = name.replace(/\.[^.]+$/, '') || name
   }
 
-  const paint = () => {
+  const paint = (restoreFocusId?: string) => {
     focusCleanup?.()
     focusCleanup = null
     const over = getOverride(game.id)
@@ -144,6 +144,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 : ''
             }
             <a class="ro-btn ro-btn--ghost" href="${libraryHref}" data-ro-focusable="true">Back to shelf</a>
+            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/saves')}" data-ro-focusable="true">Local saves</a>
           </div>
           ${
             editing
@@ -209,7 +210,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     root.querySelector('#ro-favorite')?.addEventListener('click', () => {
       sfxToggle()
       favorited = toggleFavorite(game.id)
-      paint()
+      paint('ro-favorite')
     })
 
     root.querySelector('#ro-remove-upload')?.addEventListener('click', async () => {
@@ -234,7 +235,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
     root.querySelector('#ro-edit')?.addEventListener('click', () => {
       editing = !editing
-      paint()
+      paint(editing ? undefined : 'ro-edit')
     })
 
     root.querySelector('#ro-meta-form')?.addEventListener('submit', (event) => {
@@ -279,8 +280,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     } else {
       registerViewCleanup(null)
     }
-    const preferred = editing
-      ? root.querySelector<HTMLElement>('#ro-meta-form [data-ro-focusable="true"]')
+    const preferred = restoreFocusId
+      ? root.querySelector<HTMLElement>(`#${restoreFocusId}`)
+      : editing
+      ? root.querySelector<HTMLElement>('#ro-meta-form input')
       : root.querySelector<HTMLElement>('#ro-play, .ro-detail__actions [data-ro-focusable="true"]')
     preferred?.focus()
   }

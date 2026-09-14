@@ -71,7 +71,7 @@ html[data-display='standalone'] .ro-shell {
   font-weight: 650;
   border-radius: var(--ro-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transform: translateY(-120%);
+  transform: translateY(calc(-100% - 1.25rem));
   transition: transform 140ms ease;
 }
 
@@ -118,7 +118,7 @@ html[data-display='standalone'] .ro-shell {
     var(--ro-scanline) 2px,
     var(--ro-scanline) 3px
   );
-  opacity: 0.7;
+  opacity: 0.35;
 }
 
 .ro-topbar {
@@ -426,6 +426,11 @@ select.ro-input {
 }
 
 .ro-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  text-align: center;
   appearance: none;
   border: 1px solid var(--ro-accent);
   background: transparent;
@@ -441,6 +446,7 @@ select.ro-input {
 }
 
 .ro-btn:hover {
+  text-decoration: none;
   background: var(--ro-accent);
   color: var(--ro-bg-void);
 }
@@ -579,6 +585,8 @@ select.ro-input {
   border-radius: 0;
   padding-inline: 0.85rem;
   background: transparent;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .ro-search .ro-btn:hover {
@@ -1007,11 +1015,13 @@ html[data-crt='on'] .ro-shell::after {
 
 .ro-onboard {
   margin: 0 0 1.15rem;
-  padding: 1rem 0 1.05rem;
-  border-bottom: 1px solid var(--ro-line);
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--ro-line);
+  border-radius: var(--ro-radius);
+  background: linear-gradient(120deg, var(--ro-accent-soft), transparent);
   display: grid;
   gap: 0.55rem;
-  max-width: 36rem;
+  max-width: none;
 }
 
 .ro-onboard__title {
@@ -1997,5 +2007,174 @@ html[data-layout='tv'] .ro-btn--toggle {
   .ro-skeleton {
     animation: none;
     background: var(--ro-bg-panel);
+  }
+}
+
+/* Keep navigation readable without competing nested scroll areas. */
+.ro-saves__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+
+.ro-saves__search {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 30rem;
+  color: var(--ro-text-dim);
+}
+
+.ro-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--ro-line);
+}
+
+.ro-save-row__copy {
+  min-width: 0;
+  flex: 1 1 18rem;
+  overflow-wrap: anywhere;
+}
+
+.ro-save-row h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.ro-save-row p {
+  margin: 0.25rem 0;
+}
+
+.ro-save-row__path {
+  font: 0.75rem var(--ro-font-mono);
+  color: var(--ro-text-dim);
+}
+
+.ro-saves__replace {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.75rem;
+}
+
+.ro-saves__replace input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--ro-accent);
+}
+
+.ro-systems__toggle {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .ro-systems {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ro-line) transparent;
+  }
+
+  .ro-systems__head,
+  .ro-systems__section,
+  .ro-systems__section + .ro-systems__section,
+  .ro-systems__options,
+  .ro-systems__actions {
+    flex: 0 0 auto;
+  }
+
+  .ro-systems__scroller {
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+}
+
+.ro-tile__title,
+.ro-detail .ro-lede {
+  overflow-wrap: anywhere;
+}
+
+.ro-system__glyph,
+.ro-badge {
+  border-radius: var(--ro-radius);
+}
+
+@media (max-width: 900px) {
+  .ro-main:has(.ro-library) {
+    padding-inline: 0;
+  }
+
+  .ro-systems__toggle {
+    display: flex;
+    margin: 0.25rem var(--ro-space) 0.65rem;
+  }
+
+  .ro-systems__options[data-expanded='false'] {
+    display: none;
+  }
+
+  .ro-systems > .ro-systems__section .ro-system {
+    min-width: 0;
+    flex: 1 0 0;
+    grid-template-columns: 1fr;
+    text-align: center;
+    padding: 0.6rem 0.35rem;
+  }
+
+  .ro-systems > .ro-systems__section .ro-system__glyph {
+    display: none;
+  }
+
+  .ro-systems > .ro-systems__section .ro-system__name {
+    font-size: 0.8rem;
+  }
+
+  .ro-onboard {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .ro-topbar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'brand install toggle' 'nav nav nav';
+  }
+
+  .ro-nav-toggle {
+    grid-area: toggle;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    place-items: center;
+    display: grid;
+  }
+
+  .ro-nav:not([data-open='true']) {
+    display: none;
+  }
+
+  .ro-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .ro-brand__sub {
+    display: none;
+  }
+
+  .ro-tile__fav {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .ro-input,
+  .ro-search input {
+    font-size: 1rem;
+    min-height: 2.75rem;
   }
 }

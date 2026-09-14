@@ -107,6 +107,7 @@ export async function renderLibrary(
   let query = ''
   let queryRaw = ''
   let sortDesc = false
+  let filtersExpanded = false
   let cleanup: (() => void) | undefined
   let searchTimer = 0
   let activePlatformFilter: string | null = sel.kind === 'platform' ? sel.id : null
@@ -187,6 +188,8 @@ export async function renderLibrary(
             </div>
           </div>
 
+          <button type="button" class="ro-btn ro-btn--ghost ro-systems__toggle" id="ro-browse-filters" aria-expanded="${filtersExpanded}" aria-controls="ro-browse-options">${filtersExpanded ? 'Hide systems & tags' : 'Browse systems & tags'}</button>
+          <div class="ro-systems__options" id="ro-browse-options" data-expanded="${filtersExpanded}">
           <div class="ro-systems__section">
             <p class="ro-systems__label">Systems</p>
             <div class="ro-systems__scroller">
@@ -215,6 +218,7 @@ export async function renderLibrary(
           </div>
           ` : ''}
 
+          </div>
           <div class="ro-systems__actions">
             <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
             ${
@@ -270,6 +274,14 @@ export async function renderLibrary(
       void renderLibrary(root, sel)
     })
 
+    root.querySelector('#ro-browse-filters')?.addEventListener('click', () => {
+      filtersExpanded = !filtersExpanded
+      const toggle = root.querySelector<HTMLButtonElement>('#ro-browse-filters')!
+      toggle.setAttribute('aria-expanded', String(filtersExpanded))
+      toggle.textContent = filtersExpanded ? 'Hide systems & tags' : 'Browse systems & tags'
+      root.querySelector<HTMLElement>('#ro-browse-options')!.dataset.expanded = String(filtersExpanded)
+    })
+
     const input = root.querySelector<HTMLInputElement>('#ro-q')
     input?.addEventListener('input', () => {
       queryRaw = input.value
@@ -283,7 +295,8 @@ export async function renderLibrary(
     root.querySelector('#ro-sort')?.addEventListener('click', () => {
       if (isRecent) return
       sortDesc = !sortDesc
-      paint({ restoreSearch: true })
+      paint()
+      root.querySelector<HTMLButtonElement>('#ro-sort')?.focus()
     })
 
     root.querySelector('#ro-clear-search')?.addEventListener('click', () => {
@@ -380,8 +393,8 @@ function selectGames(
   if (sel.kind === 'platform') return gamesForPlatform(catalog, sel.id)
   if (sel.kind === 'tag') {
     // Convert tag ID back to original case for matching
-    const tagId = sel.id.toLowerCase().replace(/\\s+/g, '-')
-    return catalog.games.filter((g) => g.tags?.some((t) => t.toLowerCase().replace(/\\s+/g, '-') === tagId))
+    const tagId = sel.id.toLowerCase().replace(/\s+/g, '-')
+    return catalog.games.filter((g) => g.tags?.some((t) => t.toLowerCase().replace(/\s+/g, '-') === tagId))
   }
   if (sel.id === 'all') return [...catalog.games]
   if (sel.id === 'favorites') {
@@ -402,6 +415,12 @@ function galleryHeading(
     return {
       kicker: platform?.shortName ?? 'System',
       title: platform?.name ?? sel.id,
+    }
+  }
+  if (sel.kind === 'tag') {
+    return {
+      kicker: 'Tag',
+      title: `#${sel.id}`,
     }
   }
   const map: Record<string, { kicker: string; title: string }> = {
@@ -538,7 +557,7 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
 }
 
 function tagRow(tag: string, active: boolean): string {
-  const tagId = tag.toLowerCase().replace(/\\s+/g, '-')
+  const tagId = tag.toLowerCase().replace(/\s+/g, '-')
   return `
     <a
       class="ro-system${active ? ' ro-system--active' : ''}"
@@ -587,7 +606,7 @@ function gameTile(
         class="ro-tile__link"
         href="${hrefFor(`/game/${game.id}`)}"
         data-ro-focusable="true"
-        aria-label="Play ${escapeHtml(game.title)}"
+        aria-label="View ${escapeAttr(game.title)} details"
       >
         ${coverMarkup(game.title, platformAccentVar(accent), cover)}
         <div class="ro-tile__meta">

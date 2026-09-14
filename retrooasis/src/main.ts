@@ -25,6 +25,7 @@ import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
 import { renderSettings } from './views/settings'
+import { renderSaves } from './views/saves'
 
 import './styles/tokens.css'
 import './styles/base.css'
@@ -57,7 +58,7 @@ app.innerHTML = `
     <header class="ro-topbar">
       <a class="ro-brand" href="${hrefFor('/')}">
         <span class="ro-brand__mark">RETRO OASIS</span>
-        <span class="ro-brand__sub">Arcade</span>
+        <span class="ro-brand__sub">Home</span>
       </a>
       <div class="ro-topbar__right">
         <button type="button" class="ro-btn ro-btn--ghost ro-install-btn" id="ro-install-top" aria-label="Install RetroOasis as an app" title="Install RetroOasis on this device" hidden>Install as app</button>
@@ -158,9 +159,11 @@ function syncNav(route: Route): void {
     library: 'library',
     platform: 'library',
     collection: 'library',
+    tag: 'library',
     game: 'library',
     upload: 'upload',
     settings: 'settings',
+    saves: 'settings',
   }
   const current = map[route.name]
   app.querySelectorAll<HTMLAnchorElement>('.ro-nav a').forEach((link) => {
@@ -192,12 +195,28 @@ window.matchMedia('(min-width: 901px)').addEventListener('change', () => {
   if (getRoute().name === 'lobby') syncTopbarInert(true)
 })
 
-async function render(route: Route): Promise<void> {
+/** Route renders are serialized: views await catalogs internally, so rapid
+ *  hash navigation could otherwise let a stale async render paint over the
+ *  newer route. The newest requested route always wins. */
+let renderSeq = 0
+let renderChain: Promise<void> = Promise.resolve()
+
+function render(route: Route): Promise<void> {
+  const seq = ++renderSeq
+  renderChain = renderChain.then(async () => {
+    if (seq !== renderSeq) return
+    await renderRoute(route)
+  })
+  return renderChain
+}
+
+async function renderRoute(route: Route): Promise<void> {
   disposeActiveView()
   syncNav(route)
   syncShellMode(route)
   syncInstallButton()
   syncDocumentTitle(route)
+  syncBrandSub(route)
 
   switch (route.name) {
     case 'lobby':
@@ -215,6 +234,10 @@ async function render(route: Route): Promise<void> {
       main.focus({ preventScroll: true })
       await renderCollection(main, route.collection)
       break
+    case 'tag':
+      main.focus({ preventScroll: true })
+      await renderLibrary(main, { kind: 'tag', id: route.tagId })
+      break
     case 'game':
       main.focus({ preventScroll: true })
       await renderGameDetail(main, route.gameId)
@@ -226,6 +249,10 @@ async function render(route: Route): Promise<void> {
     case 'settings':
       main.focus({ preventScroll: true })
       await renderSettings(main)
+      break
+    case 'saves':
+      main.focus({ preventScroll: true })
+      await renderSaves(main)
       break
     default:
       main.focus({ preventScroll: true })
@@ -259,6 +286,9 @@ function syncDocumentTitle(route: Route): void {
     case 'collection':
       document.title = `${base} · Library`
       break
+    case 'tag':
+      document.title = `${base} · #${route.tagId}`
+      break
     case 'platform':
       document.title = `${base} · ${route.platformId}`
       break
@@ -271,9 +301,54 @@ function syncDocumentTitle(route: Route): void {
     case 'settings':
       document.title = `${base} · Settings`
       break
+    case 'saves':
+      document.title = `${base} · Local saves`
+      break
     default:
       document.title = `${base} · Not found`
   }
+}
+
+const BRAND_SUBS: Record<string, string> = {
+  recent: 'Recent',
+  favorites: 'Favorites',
+  all: 'All games',
+}
+
+function syncBrandSub(route: Route): void {
+  const el = app.querySelector<HTMLElement>('.ro-brand__sub')
+  if (!el) return
+  let label = ''
+  switch (route.name) {
+    case 'lobby':
+      label = 'Home'
+      break
+    case 'library':
+    case 'collection':
+      label = route.name === 'library' ? 'All games' : BRAND_SUBS[route.collection] ?? 'Library'
+      break
+    case 'tag':
+      label = `#${route.tagId}`
+      break
+    case 'platform':
+      label = route.platformId
+      break
+    case 'game':
+      label = 'Game'
+      break
+    case 'upload':
+      label = 'Add ROM'
+      break
+    case 'settings':
+      label = 'Settings'
+      break
+    case 'saves':
+      label = 'Local saves'
+      break
+    default:
+      label = ''
+  }
+  el.textContent = label
 }
 
 onRoute((route) => {
@@ -281,6 +356,9 @@ onRoute((route) => {
 })
 
 onCatalogChange(() => {
+  // The Add ROM view manages its own status line mid-batch and triggers this
+  // refresh itself — re-rendering it would wipe in-flight progress.
+  if (getRoute().name === 'upload') return
   void render(getRoute())
 })
 

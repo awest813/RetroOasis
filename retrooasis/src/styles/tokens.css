@@ -16,7 +16,7 @@
   --ro-scanline: rgba(255, 255, 255, 0.035);
   --ro-grid: rgba(46, 230, 214, 0.12);
   --ro-focus: var(--ro-accent-sega);
-  --ro-radius: 2px;
+  --ro-radius: 6px;
   --ro-font-display: "Outfit", system-ui, sans-serif;
   --ro-font-ui: "Sora", system-ui, sans-serif;
   --ro-font-mono: ui-monospace, "Cascadia Code", monospace;
@@ -78,13 +78,18 @@ a:hover {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 img {
   max-width: 100%;
   display: block;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 :focus {

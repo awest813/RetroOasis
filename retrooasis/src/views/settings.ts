@@ -298,6 +298,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
+              <strong>Local saves</strong>
+              <p class="ro-muted">Download, back up, and restore in-game progress and browser save states.</p>
+            </div>
+            <a class="ro-btn ro-btn--primary" href="${hrefFor('/saves')}" data-focus-id="saves" data-ro-focusable="true">Manage saves</a>
+          </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
               <strong>Install as app</strong>
               <p class="ro-muted">
                 ${
