@@ -2026,6 +2026,50 @@ html[data-layout='tv'] .ro-btn--toggle {
   color: var(--ro-text-dim);
 }
 
+.ro-saves__summary {
+  margin: 1rem 0 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ro-saves__status:empty {
+  display: none;
+}
+
+.ro-saves__status:not(:empty) {
+  padding: 0.8rem 1rem;
+  border-left: 3px solid var(--ro-accent);
+  background: var(--ro-bg-panel);
+  color: var(--ro-text);
+}
+
+.ro-saves__preview {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--ro-text-dim);
+  overflow-wrap: anywhere;
+}
+
+.ro-saves .ro-onboard {
+  margin-top: 1rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .ro-saves__toolbar > .ro-toggle-group,
+  .ro-saves__toolbar > .ro-btn-row {
+    width: 100%;
+  }
+
+  .ro-saves__toolbar > .ro-btn-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ro-saves__toolbar #ro-save-refresh {
+    grid-column: 1 / -1;
+  }
+}
+
 .ro-save-row {
   display: flex;
   flex-wrap: wrap;

@@ -38,7 +38,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
           <button class="ro-btn" data-kind="state" aria-pressed="false">Save states</button>
         </div>
         <div class="ro-btn-row">
-          <button class="ro-btn ro-btn--primary" id="ro-save-backup">Back up this type</button>
+          <button class="ro-btn ro-btn--primary" id="ro-save-backup">Back up saves</button>
           <button class="ro-btn ro-btn--ghost" id="ro-save-import">Restore backup</button>
           <button class="ro-btn ro-btn--ghost" id="ro-save-refresh">Refresh</button>
         </div>
@@ -47,11 +47,13 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       <input type="file" id="ro-save-file" accept=".json,application/json" hidden />
       <div id="ro-save-review" class="ro-onboard" hidden></div>
       <label class="ro-saves__search">Find a save<input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
-      <p class="ro-muted" id="ro-save-status" role="status" aria-live="polite"></p>
+      <p class="ro-muted ro-saves__summary" id="ro-save-summary"></p>
+      <p class="ro-muted ro-saves__status" id="ro-save-status" role="status" aria-live="polite"></p>
       <div id="ro-save-list"></div>
     </section>`
   const list = root.querySelector<HTMLElement>('#ro-save-list')!
   const status = root.querySelector<HTMLElement>('#ro-save-status')!
+  const summary = root.querySelector<HTMLElement>('#ro-save-summary')!
   const review = root.querySelector<HTMLElement>('#ro-save-review')!
   const input = root.querySelector<HTMLInputElement>('#ro-save-file')!
   const say = (text: string) => { if (active) status.textContent = text }
@@ -85,20 +87,23 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     }).join('') : `<div class="ro-empty"><p class="ro-empty__title">${query ? 'No matching saves' : 'No saves here yet'}</p>
       <p class="ro-empty__body">${query ? 'Try another filename.' : kind === 'game' ? 'Save your progress inside a game, then return here. You can also restore a RetroOasis backup.' : 'In the player, choose Browser for Save State Location and create a save state. Downloaded states are not listed here.'}</p></div>`
     cleanupFocus = bindRowFocus(list)
-    say(`${visible.length} of ${files.length} saves · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))} total`)
+    summary.textContent = `${visible.length} of ${files.length} saves · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))} total`
   }
-  const refresh = async () => {
+  const refresh = async (): Promise<boolean> => {
     failed = false
     setBusy(true)
     say('Reading local saves…')
     try {
       entries = await listSaves(kind)
-      if (active) draw()
+      if (active) { draw(); say('') }
+      return true
     } catch (error) {
       failed = true
       entries = []
+      if (active) summary.textContent = ''
       if (active) list.innerHTML = '<div class="ro-empty"><p class="ro-empty__title">Saves could not be read</p><p class="ro-empty__body">Your progress has not been changed. Try Refresh.</p></div>'
       say(error instanceof Error ? error.message : 'Local save storage is unavailable.')
+      return false
     } finally { if (active) setBusy(false) }
   }
   const run = async (work: () => Promise<void>) => {
@@ -122,8 +127,8 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     void refresh()
   }))
   root.querySelector('#ro-save-query')!.addEventListener('input', event => {
-    query = (event.target as HTMLInputElement).value
-    if (!busy && !failed) draw()
+    query = (event.target as HTMLInputElement).value.trim()
+    if (!busy && !failed) { draw(); say(summary.textContent ?? '') }
   })
   root.querySelector('#ro-save-refresh')!.addEventListener('click', () => { void refresh() })
   root.querySelector('#ro-save-backup')!.addEventListener('click', () => void run(async () => {
@@ -141,11 +146,19 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     if (file.size > MAX_BACKUP_BYTES) throw new Error('Backups must be smaller than 128 MB.')
     const parsed = decodeBackup(await file.text())
     if (!active) return
+    const files = parsed.entries.filter(e => e.bytes)
+    if (!files.length) throw new Error('This backup contains no save files.')
+    const current = await listSaves(parsed.kind)
+    if (!active) return
     pending = parsed
-    const count = parsed.entries.filter(e => e.bytes).length
+    const count = files.length
+    const existingKeys = new Set(current.filter(e => e.bytes).map(e => e.key))
+    const conflicts = files.filter(e => existingKeys.has(e.key)).length
     review.hidden = false
     review.innerHTML = `<h2 class="ro-onboard__title">Ready to restore ${count} ${parsed.kind === 'game' ? 'in-game saves' : 'save states'}</h2>
-      <p class="ro-onboard__body">${escapeHtml(file.name)} · Existing saves will be kept unless you choose to replace them.</p>
+      <p class="ro-onboard__body">${escapeHtml(file.name)} · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))}</p>
+      <p class="ro-muted">${count - conflicts} new · ${conflicts} already on this device. Existing saves are kept by default.</p>
+      <ul class="ro-saves__preview">${files.slice(0, 5).map(e => `<li>${escapeHtml(e.key.split('/').pop()!)}${existingKeys.has(e.key) ? ' · already saved' : ''}</li>`).join('')}${count > 5 ? `<li>And ${count - 5} more…</li>` : ''}</ul>
       <label class="ro-saves__replace"><input type="checkbox" id="ro-save-replace" /> Replace saves with the same names</label>
       <div class="ro-btn-row"><button class="ro-btn ro-btn--primary" id="ro-save-confirm">Restore ${count} saves</button><button class="ro-btn ro-btn--ghost" id="ro-save-cancel">Cancel</button></div>`
     review.querySelector('#ro-save-cancel')!.addEventListener('click', () => { pending = null; review.hidden = true; root.querySelector<HTMLButtonElement>('#ro-save-import')!.focus() })
@@ -164,8 +177,12 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       explain()
       pending = null
       review.hidden = true
-      await refresh()
-      say(`Restored ${result.restored} saves; kept ${result.skipped} existing saves. Restart the game to load restored progress.`)
+      query = ''
+      root.querySelector<HTMLInputElement>('#ro-save-query')!.value = ''
+      const refreshed = await refresh()
+      if (!active) return
+      if (refreshed) say(`Restored ${result.restored} saves; kept ${result.skipped} existing saves. Restart the game to load restored progress.`)
+      else say(`Restored ${result.restored} saves; kept ${result.skipped}. The list could not be refreshed. Try Refresh.`)
       root.querySelector<HTMLButtonElement>('#ro-save-import')!.focus()
     }))
     review.querySelector<HTMLButtonElement>('#ro-save-confirm')!.focus()
@@ -186,8 +203,9 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       if (ok) void run(async () => {
         await deleteSave(kind, entry.key)
         if (!active) return
-        await refresh()
-        say('Save deleted from this browser.')
+        const refreshed = await refresh()
+        if (!active) return
+        say(refreshed ? 'Save deleted from this browser.' : 'Save deleted, but the list could not be refreshed. Try Refresh.')
         root.querySelector<HTMLButtonElement>('#ro-save-refresh')!.focus()
       })
     }

@@ -5654,7 +5654,7 @@ class EmulatorJS {
                 if (option.visible === false || option.values.length <= 1) return;
                 const availableOptions = {};
                 option.values.forEach(value => {
-                    availableOptions[value.value] = this.localization(value.label, this.config.settingsLanguage);
+                    availableOptions[value.value] = this.localization(value.label || value.value, this.config.settingsLanguage);
                 });
                 addToMenu(this.localization(option.desc || option.key, this.config.settingsLanguage),
                     option.key, availableOptions,

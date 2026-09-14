@@ -123,7 +123,13 @@ export function decodeBackup(text: string): SaveBackup {
     }
     const isFile = raw.kind === 'state' || (entry.mode! & 0xf000) === 0x8000
     if (isFile) {
-      if (typeof item.data !== 'string' || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(item.data)) throw new Error('Invalid save contents.')
+      // Avoid a repeated-group regexp: multi-megabyte states overflow its stack.
+      if (typeof item.data !== 'string' || item.data.length % 4 !== 0 || /[^A-Za-z0-9+/=]/.test(item.data)) throw new Error('Invalid save contents.')
+      const padding = item.data.indexOf('=')
+      if (padding !== -1 && !(
+        (padding === item.data.length - 1) ||
+        (padding === item.data.length - 2 && item.data.endsWith('=='))
+      )) throw new Error('Invalid save contents.')
       entry.bytes = Uint8Array.from(atob(item.data), c => c.charCodeAt(0))
     } else if (item.data !== undefined) throw new Error('A save folder cannot contain file bytes.')
     return entry

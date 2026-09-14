@@ -44,6 +44,17 @@ try {
     rejects(() => decodeBackup(JSON.stringify({ ...raw, entries: [...raw.entries, ...raw.entries] })))
     rejects(() => decodeBackup(JSON.stringify({ ...raw, version: 2 })))
     rejects(() => backup('game', [file('/data/saves/missing/game.srm')]))
+    for (const data of ['A===', 'AA=A', 'AAAA=', 'AA?=', '=AAA']) {
+      rejects(() => decodeBackup(JSON.stringify({ ...raw, entries: [{ ...raw.entries[0], data }] })))
+    }
+  })
+  await test('Large save states restore without a regexp stack overflow', () => {
+    const bytes = new Uint8Array(8 * 1024 * 1024)
+    bytes[0] = 7
+    bytes[bytes.length - 1] = 255
+    const decoded = backup('state', [{ key: 'Large.state', bytes }])
+    assert(decoded.entries[0].bytes.length === bytes.length, 'Large state truncated')
+    assert(decoded.entries[0].bytes[0] === 7 && decoded.entries[0].bytes.at(-1) === 255, 'Large state corrupted')
   })
   await test('Game backup restores into a fresh IDBFS database', async () => {
     const result = await restoreBackup(backup('game', [folder('/data/saves/nested'), file('/data/saves/nested/game.srm')]), false)

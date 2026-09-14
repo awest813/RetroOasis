@@ -407,7 +407,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
         if (!this.Module["_get_core_options_json"]) return null;
         try {
             const data = JSON.parse(this.functions.getCoreOptionsJSON());
-            return (data && Array.isArray(data.options) && data.options.length) ? data : null;
+            if (!data || !Array.isArray(data.options) || !data.options.length) return null;
+            // Treat malformed v2 output like an older core and use legacy options.
+            const valid = data.options.every(option => option && typeof option.key === "string" &&
+                ["desc", "info", "current", "default"].every(key => option[key] == null || typeof option[key] === "string") &&
+                Array.isArray(option.values) && option.values.every(value => value &&
+                    typeof value.value === "string" && (value.label == null || typeof value.label === "string")));
+            return valid ? data : null;
         } catch(e) {
             if (this.EJS.debug) console.warn("Failed to read core options:", e);
             return null;
