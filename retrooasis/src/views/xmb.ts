@@ -398,6 +398,12 @@ function formatClockDate(date: Date): string {
 }
 
 function hintCopy(): string {
+  if (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+  ) {
+    return 'Swipe to move · tap to open'
+  }
   return getInputModality() === 'pad'
     ? 'D-pad move · A / Start open'
     : '← → categories · ↑ ↓ items · Enter open'

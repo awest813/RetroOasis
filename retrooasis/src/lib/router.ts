@@ -5,6 +5,7 @@ export type Route =
   | { name: 'library' }
   | { name: 'platform'; platformId: string }
   | { name: 'collection'; collection: VirtualCollection }
+  | { name: 'tag'; tagId: string }
   | { name: 'game'; gameId: string }
   | { name: 'upload' }
   | { name: 'settings' }
@@ -23,6 +24,9 @@ function parseHash(hash: string): Route {
   // Bare #/library is the All-games shelf (same as #/library/@all).
   if (parts[0] === 'library' && parts.length === 1) {
     return { name: 'collection', collection: 'all' }
+  }
+  if (parts[0] === 'library' && parts[1] === 'tag' && parts[2]) {
+    return { name: 'tag', tagId: decodeURIComponent(parts[2]) }
   }
   if (parts[0] === 'library' && parts.length === 2 && parts[1]) {
     const id = decodeURIComponent(parts[1])
@@ -87,6 +91,8 @@ export function routePath(route: Route): string {
       return `#/library/${encodeURIComponent(route.platformId)}`
     case 'collection':
       return `#/library/@${route.collection}`
+    case 'tag':
+      return `#/library/tag/${encodeURIComponent(route.tagId)}`
     case 'game':
       return `#/game/${encodeURIComponent(route.gameId)}`
     case 'upload':

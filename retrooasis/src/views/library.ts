@@ -380,8 +380,8 @@ function selectGames(
   if (sel.kind === 'platform') return gamesForPlatform(catalog, sel.id)
   if (sel.kind === 'tag') {
     // Convert tag ID back to original case for matching
-    const tagId = sel.id.toLowerCase().replace(/\\s+/g, '-')
-    return catalog.games.filter((g) => g.tags?.some((t) => t.toLowerCase().replace(/\\s+/g, '-') === tagId))
+    const tagId = sel.id.toLowerCase().replace(/\s+/g, '-')
+    return catalog.games.filter((g) => g.tags?.some((t) => t.toLowerCase().replace(/\s+/g, '-') === tagId))
   }
   if (sel.id === 'all') return [...catalog.games]
   if (sel.id === 'favorites') {
@@ -402,6 +402,12 @@ function galleryHeading(
     return {
       kicker: platform?.shortName ?? 'System',
       title: platform?.name ?? sel.id,
+    }
+  }
+  if (sel.kind === 'tag') {
+    return {
+      kicker: 'Tag',
+      title: `#${sel.id}`,
     }
   }
   const map: Record<string, { kicker: string; title: string }> = {
@@ -538,7 +544,7 @@ function systemRow(platform: Platform, count: number, active: boolean): string {
 }
 
 function tagRow(tag: string, active: boolean): string {
-  const tagId = tag.toLowerCase().replace(/\\s+/g, '-')
+  const tagId = tag.toLowerCase().replace(/\s+/g, '-')
   return `
     <a
       class="ro-system${active ? ' ro-system--active' : ''}"
