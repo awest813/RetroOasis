@@ -120,7 +120,7 @@ function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
     id: game.id,
     title: game.title,
     sub: platformName,
-    href: hrefFor(`/game/${game.id}`),
+    href: hrefFor(`/game/${encodeURIComponent(game.id)}`),
     accent,
     cover,
     blurb: gameBlurb(game, platformName),
@@ -674,6 +674,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
   }) => {
     const cat = categories[catIndex]
     if (!cat) return
+    const hadFocus = shell.contains(document.activeElement)
 
     catsTrack.querySelectorAll<HTMLElement>('.ro-xmb__cat').forEach((el, i) => {
       const on = i === catIndex
@@ -729,7 +730,7 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     requestAnimationFrame(() => {
       syncChromeHeight()
       syncTransforms()
-      if (shell.contains(document.activeElement) || document.activeElement === shell) {
+      if (hadFocus && (document.activeElement === document.body || shell.contains(document.activeElement))) {
         shell.focus({ preventScroll: true })
       }
     })

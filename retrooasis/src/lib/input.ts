@@ -1,6 +1,6 @@
 import { sfxBack } from './sfx'
-import { setModality, setModalityFromPad } from './inputModality'
-import { buttonPressed, readConnectedPad } from './gamepad'
+import { setModality } from './inputModality'
+import { bindMenuBack, resetMenuPad } from './gamepad'
 
 function atHomeHash(): boolean {
   const hash = window.location.hash
@@ -20,11 +20,9 @@ function goBack(): void {
   }, 40)
 }
 
-/** After a native confirm/alert, ignore pad B until release so Back doesn't fire. */
-let suppressBack = false
-
+/** After a native dialog, require release so its held buttons cannot navigate. */
 export function suppressPadBackUntilRelease(): void {
-  suppressBack = true
+  resetMenuPad()
 }
 
 /** Focus rings only for keyboard/gamepad; Escape / B go back. */
@@ -35,8 +33,10 @@ export function installInputChrome(): () => void {
   const onKey = (event: KeyboardEvent) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return
     setModality('key')
+    if (event.defaultPrevented) return
 
     if (event.key === 'Escape') {
+      if (event.repeat || event.isComposing || (event.target as HTMLElement | null)?.isContentEditable) return
       const tag = (event.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       event.preventDefault()
@@ -45,47 +45,17 @@ export function installInputChrome(): () => void {
   }
 
   window.addEventListener('pointerdown', onPointer, true)
-  window.addEventListener('keydown', onKey, true)
+  window.addEventListener('keydown', onKey)
 
-  // Global pad Back (B / Select) so leaf pages without a local binder still work
-  let raf = 0
-  let prevBack = false
-  const pollPad = () => {
-    raf = requestAnimationFrame(pollPad)
-    const pad = readConnectedPad()
-    if (!pad) {
-      prevBack = false
-      suppressBack = false
-      return
-    }
-    const back = buttonPressed(pad, 1) || buttonPressed(pad, 8)
-    if (
-      back ||
-      buttonPressed(pad, 0) ||
-      buttonPressed(pad, 9) ||
-      buttonPressed(pad, 12) ||
-      buttonPressed(pad, 13) ||
-      buttonPressed(pad, 14) ||
-      buttonPressed(pad, 15)
-    ) {
-      setModalityFromPad()
-    }
-    if (suppressBack) {
-      if (!back) suppressBack = false
-    } else if (back && !prevBack) {
-      goBack()
-    }
-    prevBack = back
-  }
-  raf = requestAnimationFrame(pollPad)
-
-  const onPadConnect = () => setModalityFromPad()
-  window.addEventListener('gamepadconnected', onPadConnect)
+  const cleanupPad = bindMenuBack(goBack)
+  window.addEventListener('blur', resetMenuPad)
+  document.addEventListener('visibilitychange', resetMenuPad)
 
   return () => {
     window.removeEventListener('pointerdown', onPointer, true)
-    window.removeEventListener('keydown', onKey, true)
-    window.removeEventListener('gamepadconnected', onPadConnect)
-    cancelAnimationFrame(raf)
+    window.removeEventListener('keydown', onKey)
+    cleanupPad()
+    window.removeEventListener('blur', resetMenuPad)
+    document.removeEventListener('visibilitychange', resetMenuPad)
   }
 }

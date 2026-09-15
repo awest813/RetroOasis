@@ -1,8 +1,8 @@
 /** Dual-axis XMB focus: Left/Right categories, Up/Down items. */
 
-import { setModality, setModalityFromPad } from './inputModality'
+import { setModality } from './inputModality'
 import { sfxBack, sfxConfirm, sfxMove } from './sfx'
-import { buttonPressed, readConnectedPad } from './gamepad'
+import { bindMenuPad } from './gamepad'
 
 export type XmbDir = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back'
 
@@ -104,7 +104,8 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
-    if (!root.isConnected) return
+    if (!root.isConnected || event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.defaultPrevented || event.isComposing || (event.target as HTMLElement | null)?.isContentEditable) return
     const tag = (event.target as HTMLElement | null)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
@@ -199,82 +200,16 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
 
-  let raf = 0
-  const prev = { x: 0, y: 0, a: false, start: false }
-  let cool = 0
-  let holdStart = 0
-  let heldAxis: 'x' | 'y' | null = null
-
-  const poll = () => {
-    raf = requestAnimationFrame(poll)
-    const pad = readConnectedPad()
-    if (!pad) return
-
-    const now = performance.now()
-    const axisX = Math.abs(pad.axes[0] ?? 0) > 0.45 ? Math.sign(pad.axes[0]) : 0
-    const axisY = Math.abs(pad.axes[1] ?? 0) > 0.45 ? Math.sign(pad.axes[1]) : 0
-    const dpadLeft = buttonPressed(pad, 14) ? -1 : 0
-    const dpadRight = buttonPressed(pad, 15) ? 1 : 0
-    const dpadUp = buttonPressed(pad, 12) ? -1 : 0
-    const dpadDown = buttonPressed(pad, 13) ? 1 : 0
-    const x = dpadLeft || dpadRight || axisX
-    const y = dpadUp || dpadDown || axisY
-    const a = buttonPressed(pad, 0)
-    const start = buttonPressed(pad, 9)
-
-    if (x || y || a || start) setModalityFromPad()
-
-    const stepAxis = (axis: 'x' | 'y', value: number, dirPos: XmbDir, dirNeg: XmbDir) => {
-      if (!value) {
-        if (heldAxis === axis) {
-          heldAxis = null
-          holdStart = 0
-        }
-        return
-      }
-      const dir = value > 0 ? dirPos : dirNeg
-      const edge = axis === 'x' ? prev.x !== value : prev.y !== value
-      if (edge) {
-        move(dir)
-        cool = now + 220
-        holdStart = now
-        heldAxis = axis
-        return
-      }
-      if (heldAxis === axis && now > cool) {
-        move(dir)
-        const heldFor = now - holdStart
-        cool = now + (heldFor > 700 ? 68 : heldFor > 350 ? 110 : 160)
-      }
-    }
-
-    if (now > cool || x !== prev.x || y !== prev.y) {
-      if (x) stepAxis('x', x, 'right', 'left')
-      else if (y) stepAxis('y', y, 'down', 'up')
-    }
-
-    // Back (B / Select) is handled globally in input.ts so leaf pages work too
-    if ((a && !prev.a) || (start && !prev.start)) {
-      move('confirm')
-      cool = now + 220
-    }
-
-    prev.x = x
-    prev.y = y
-    prev.a = a
-    prev.start = start
-  }
-
-  raf = requestAnimationFrame(poll)
-
-  const onPadConnect = () => setModalityFromPad()
-  window.addEventListener('gamepadconnected', onPadConnect)
+  const cleanupPad = bindMenuPad(root, move)
+  window.addEventListener('blur', clearHold)
+  document.addEventListener('visibilitychange', clearHold)
 
   return () => {
     clearHold()
     window.removeEventListener('keydown', onKeyDown)
     window.removeEventListener('keyup', onKeyUp)
-    window.removeEventListener('gamepadconnected', onPadConnect)
-    cancelAnimationFrame(raf)
+    window.removeEventListener('blur', clearHold)
+    document.removeEventListener('visibilitychange', clearHold)
+    cleanupPad()
   }
 }

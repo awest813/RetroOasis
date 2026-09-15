@@ -111,9 +111,13 @@ html[data-input='pad'] [data-ro-focusable='true']:focus {
   outline-offset: 3px;
 }
 
+html[data-input='key'] .ro-tile:focus-within .ro-tile__link,
+html[data-input='pad'] .ro-tile:focus-within .ro-tile__link {
+  transform: translateY(-3px);
+}
+
 html[data-input='key'] .ro-tile:focus-within .ro-cover,
 html[data-input='pad'] .ro-tile:focus-within .ro-cover {
-  transform: translateY(-3px) scale(1.02);
   box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
@@ -123,8 +127,8 @@ html[data-input='pad'] .ro-system:focus {
   background: var(--ro-accent-soft);
 }
 
-html[data-input='key'] .ro-search:focus-within,
-html[data-input='pad'] .ro-search:focus-within {
+html[data-input='key'] .ro-librarybar__search:focus-within,
+html[data-input='pad'] .ro-librarybar__search:focus-within {
   border-color: var(--ro-focus);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ro-focus) 45%, transparent);
 }
