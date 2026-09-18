@@ -89,6 +89,23 @@ export async function renderLibrary(
   let searchTimer = 0
   const DEBOUNCE_DELAY = 250 // ms
 
+  // Unknown platform deep-link: dedicated empty screen, not an empty shelf.
+  if (sel.kind === 'platform' && !findPlatform(catalog, sel.id)) {
+    root.innerHTML = `
+      <section class="ro-view">
+        <div class="ro-empty">
+          <p class="ro-empty__title">System not found</p>
+          <p class="ro-empty__body">That platform isn’t in your catalog.</p>
+          <a class="ro-btn ro-btn--primary" href="${hrefFor('/library')}" data-ro-focusable="true">Back to library</a>
+        </div>
+      </section>
+    `
+    const empty = root.querySelector<HTMLElement>('.ro-empty')
+    if (empty) cleanup = bindGridFocus(empty)
+    root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
+    return
+  }
+
   // Legacy tag routes resolve to the All shelf with the tag prefilled as search.
   if (sel.kind === 'tag') {
     const slug = sel.id.toLowerCase().replace(/\s+/g, '-')
