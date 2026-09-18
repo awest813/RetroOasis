@@ -152,7 +152,7 @@ export async function renderLibrary(
           <p class="ro-onboard__body">Samples fill the shelf so you can look around. Drop in a file or link a folder when you’re ready.</p>
           <div class="ro-btn-row">
             <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Library settings</a>
+            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
           </div>
         </aside>`
       : ''
@@ -359,7 +359,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
-        <p class="ro-empty__body">Star a game from its details page.</p>
+        <p class="ro-empty__body">Star a game from the library grid or its details page.</p>
         <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }

@@ -227,7 +227,7 @@ export async function clearLocalLibrary(): Promise<void> {
 export async function getLocalRomFile(gameId: string): Promise<File> {
   const handle = fileHandles.get(gameId)
   if (!handle) {
-    throw new Error('Lost access to that folder. Link your ROM folder again from Library or Settings.')
+    throw new Error('Lost access to that folder. Link your ROM folder again in Settings.')
   }
   return handle.getFile()
 }

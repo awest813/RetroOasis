@@ -155,7 +155,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.demo
-              ? `<p class="ro-muted">This is a sample shelf entry for browsing the UI — the demo ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Settings → Link folder to play a real game.</p>`
+              ? `<p class="ro-muted">This is a sample entry for exploring the UI — the ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or link a folder in <a href="${hrefFor('/settings')}">Settings</a> to play a real game.</p>`
               : ''
           }
           ${
@@ -191,10 +191,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               <span>Edit metadata</span>
             </button>
             <a class="ro-options__item" href="${hrefFor('/saves')}" data-ro-focusable="true"><span>Local saves</span></a>
-            <a class="ro-options__item" href="${libraryHref}" data-ro-focusable="true"><span>Back to shelf</span></a>
+            <a class="ro-options__item" href="${libraryHref}" data-ro-focusable="true"><span>Back to library</span></a>
             ${
               game.demo
-                ? `<button type="button" class="ro-options__item" id="ro-demo-play" data-ro-focusable="true"${busy ? ' disabled' : ''}><span>Open missing-ROM demo</span></button>`
+                ? `<button type="button" class="ro-options__item" id="ro-demo-play" data-ro-focusable="true"${busy ? ' disabled' : ''}><span>Try sample anyway</span></button>`
                 : ''
             }
             ${
@@ -232,10 +232,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               <label class="ro-muted">Description <textarea class="ro-input" name="description" rows="3">${escapeHtml(over?.description ?? game.description ?? '')}</textarea></label>
               <div class="ro-btn-row">
                 <button type="submit" class="ro-btn ro-btn--primary" data-ro-focusable="true">Save locally</button>
-                <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over" data-ro-focusable="true">Clear override</button>
-                <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-ro-focusable="true">Export all</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over" data-ro-focusable="true">Clear edits</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-ro-focusable="true">Export edits</button>
               </div>
-              <p class="ro-muted">Edits stay on this device. Export JSON if you want to reuse them as sidecars or manifest fields.</p>
+              <p class="ro-muted">Edits stay on this device. Export JSON to back them up or reuse them on another build.</p>
             </form>`
               : ''
           }
