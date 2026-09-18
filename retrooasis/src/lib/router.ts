@@ -82,28 +82,3 @@ export function startRouter(): void {
     emit()
   }
 }
-
-export function routePath(route: Route): string {
-  switch (route.name) {
-    case 'lobby':
-      return '#/'
-    case 'library':
-      return '#/library/@all'
-    case 'platform':
-      return `#/library/${encodeURIComponent(route.platformId)}`
-    case 'collection':
-      return `#/library/@${route.collection}`
-    case 'tag':
-      return `#/library/tag/${encodeURIComponent(route.tagId)}`
-    case 'game':
-      return `#/game/${encodeURIComponent(route.gameId)}`
-    case 'upload':
-      return '#/upload'
-    case 'settings':
-      return '#/settings'
-    case 'saves':
-      return '#/saves'
-    default:
-      return '#/'
-  }
-}

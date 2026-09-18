@@ -24,8 +24,8 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 
 ### RetroOasis architecture (quick map)
 
-- **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/game/<id>`, `#/upload`, `#/settings`
-- **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (grid + collections rail), `detail.ts`, `upload.ts`, `settings.ts` (console-style row focus)
+- **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/library/tag/<t>` (legacy: opens All games with the tag prefilled as search), `#/game/<id>`, `#/upload`, `#/settings`, `#/saves`
+- **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (Switch-style flat cover grid: one filter chip row, A–Z sort, search), `detail.ts` (Play + “＋ Options” vertical menu for favorite/edit/remove), `upload.ts`, `settings.ts` (console-style row focus)
 - **Play**: navigates to `public/player.html` with EmulatorJS `EJS_*` globals (iframe isolation)
 - **Archives** (`src/lib/archives.ts`): header-only peek into zip/7z/rar for Auto-detect (zip central directory, RAR4/5 block walk, 7z plain header; compressed 7z headers fall back to EmulatorJS's `data/compression/extract7z.js` worker — CDN in production, same-origin on the local channel). EmulatorJS itself extracts archives at play time.
 - **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder

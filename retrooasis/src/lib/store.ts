@@ -10,8 +10,6 @@ const SOUNDS_KEY = 'retrooasis.sounds'
 const SOUND_PACK_KEY = 'retrooasis.soundPack'
 const LIBRETRO_COVERS_KEY = 'retrooasis.libretroCovers'
 const EJS_CHANNEL_KEY = 'retrooasis.ejsChannel'
-const LIBRARY_VIEW_KEY = 'retrooasis.libraryView'
-const LIBRARY_SORT_KEY = 'retrooasis.librarySort'
 const MAX_RECENTS = 12
 
 export type AccentMode = 'sega' | 'ps'
@@ -19,9 +17,6 @@ export type LayoutMode = 'standard' | 'tv'
 export type SoundPack = 'soft' | 'arcade' | 'xmb'
 /** Where EmulatorJS loader + cores are fetched from. Stable for most; nightly for PSP/3DS/DOS. */
 export type EjsChannel = 'local' | 'stable' | 'latest' | 'nightly'
-/** Library gallery density: cover grid or metadata rows. */
-export type LibraryViewMode = 'grid' | 'list'
-export type LibrarySort = 'az' | 'za' | 'recent' | 'platform' | 'year'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -195,26 +190,6 @@ export function resolveEjsChannel(core: string): EjsChannel {
 
 export function setEjsChannel(channel: EjsChannel): void {
   localStorage.setItem(EJS_CHANNEL_KEY, channel)
-}
-
-export function getLibraryView(): LibraryViewMode {
-  return localStorage.getItem(LIBRARY_VIEW_KEY) === 'list' ? 'list' : 'grid'
-}
-
-export function setLibraryView(mode: LibraryViewMode): void {
-  localStorage.setItem(LIBRARY_VIEW_KEY, mode)
-}
-
-export function getLibrarySort(): LibrarySort {
-  const raw = localStorage.getItem(LIBRARY_SORT_KEY)
-  if (raw === 'az' || raw === 'za' || raw === 'recent' || raw === 'platform' || raw === 'year') {
-    return raw
-  }
-  return 'az'
-}
-
-export function setLibrarySort(sort: LibrarySort): void {
-  localStorage.setItem(LIBRARY_SORT_KEY, sort)
 }
 
 export function clearLocalPrefs(): void {

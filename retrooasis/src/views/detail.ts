@@ -57,6 +57,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   )
   let favorited = isFavorite(game.id)
   let busy = false
+  let menuOpen = false
   let editing = false
   let focusCleanup: (() => void) | null = null
   let fileLabel = game.file
@@ -64,6 +65,46 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     const record = await getUploadedRomRecord(game.id)
     const name = record?.filename || 'Saved on this device'
     fileLabel = name.replace(/\.[^.]+$/, '') || name
+  }
+
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || editing || !menuOpen) return
+    // Close the menu without triggering the global Escape/back shortcut.
+    event.stopPropagation()
+    menuOpen = false
+    paint('ro-options-btn')
+  }
+  document.addEventListener('keydown', onKey)
+  // One registration for the whole view — re-registering would run this
+  // cleanup immediately (registerViewCleanup holds a single slot) and
+  // detach the Escape handler. detachView reads focusCleanup at call time.
+  const detachView = () => {
+    document.removeEventListener('keydown', onKey)
+    focusCleanup?.()
+    focusCleanup = null
+  }
+  registerViewCleanup(detachView)
+
+  const startPlay = async (focusId: string): Promise<void> => {
+    if (busy) return
+    busy = true
+    paint(focusId)
+    const status = root.querySelector<HTMLElement>('#ro-play-status')
+    if (status && !game.demo) {
+      status.hidden = false
+      status.textContent = 'Starting emulator…'
+    }
+    try {
+      await launchGame(game)
+    } catch (err) {
+      busy = false
+      paint(focusId)
+      const el = root.querySelector<HTMLElement>('#ro-play-status')
+      if (el) {
+        el.hidden = false
+        el.textContent = friendlyError(err, 'Couldn’t start that game. Try again.')
+      }
+    }
   }
 
   const paint = (restoreFocusId?: string) => {
@@ -77,6 +118,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     const libraryHref = platform
       ? hrefFor(`/library/${platform.id}`)
       : hrefFor('/library')
+    const showMenu = menuOpen && !editing
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
@@ -96,9 +138,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
           <div class="ro-detail__badges">
             <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
-            ${game.source === 'local' ? '<span class="ro-badge">Local folder</span>' : ''}
-            ${game.source === 'hosted' ? '<span class="ro-badge">Hosted</span>' : ''}
-            ${game.source === 'upload' ? '<span class="ro-badge ro-badge--saved">Saved</span>' : ''}
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
@@ -116,7 +155,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           }
           ${
             game.demo
-              ? `<p class="ro-muted">This is a sample shelf entry for browsing the UI — the demo ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Library → Link folder to play a real game.</p>`
+              ? `<p class="ro-muted">This is a sample shelf entry for browsing the UI — the demo ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or Settings → Link folder to play a real game.</p>`
               : ''
           }
           ${
@@ -128,30 +167,50 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <div class="ro-btn-row ro-detail__actions"${busy ? ' aria-busy="true"' : ''}>
             ${
               game.demo
-                ? `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''} title="Opens the player to show the missing-ROM error for this sample entry">See missing-ROM message</button>`
-                : `<button type="button" class="ro-btn ro-btn--primary" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
+                ? `<a class="ro-btn ro-btn--primary ro-btn--lg" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
+                : `<button type="button" class="ro-btn ro-btn--primary ro-btn--lg" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-favorite" data-ro-focusable="true" aria-pressed="${favorited}" aria-label="${favorited ? 'Remove from favorites' : 'Add to favorites'}">
-              ${favorited ? '★ Favorited' : 'Favorite'}
+            <button
+              type="button"
+              class="ro-btn ro-btn--ghost"
+              id="ro-options-btn"
+              data-ro-focusable="true"
+              aria-expanded="${showMenu}"
+              aria-controls="ro-options-menu"
+            >＋ Options</button>
+          </div>
+          ${
+            showMenu
+              ? `
+          <div class="ro-options" id="ro-options-menu" role="group" aria-label="Game options">
+            <p class="ro-options__label" aria-hidden="true">Options</p>
+            <button type="button" class="ro-options__item" id="ro-menu-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
+              <span>${favorited ? '★ Favorited' : '☆ Favorite'}</span>
             </button>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-edit" data-ro-focusable="true">
-              ${editing ? 'Close editor' : 'Edit metadata'}
+            <button type="button" class="ro-options__item" id="ro-edit" data-ro-focusable="true">
+              <span>Edit metadata</span>
             </button>
+            <a class="ro-options__item" href="${hrefFor('/saves')}" data-ro-focusable="true"><span>Local saves</span></a>
+            <a class="ro-options__item" href="${libraryHref}" data-ro-focusable="true"><span>Back to shelf</span></a>
             ${
-              game.source === 'upload'
-                ? `<button type="button" class="ro-btn ro-btn--danger" id="ro-remove-upload" data-ro-focusable="true">Remove</button>`
+              game.demo
+                ? `<button type="button" class="ro-options__item" id="ro-demo-play" data-ro-focusable="true"${busy ? ' disabled' : ''}><span>Open missing-ROM demo</span></button>`
                 : ''
             }
-            <a class="ro-btn ro-btn--ghost" href="${libraryHref}" data-ro-focusable="true">Back to shelf</a>
-            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/saves')}" data-ro-focusable="true">Local saves</a>
-          </div>
+            ${
+              game.source === 'upload'
+                ? `<button type="button" class="ro-options__item ro-options__item--danger" id="ro-remove-upload" data-ro-focusable="true"><span>Remove from library</span></button>`
+                : ''
+            }
+          </div>`
+              : ''
+          }
           ${
             editing
               ? `
             <form class="ro-stack ro-meta-form" id="ro-meta-form">
               <label class="ro-muted">Title <input class="ro-input" name="title" value="${escapeAttr(over?.title ?? game.title)}" /></label>
-              <label class="ro-muted">Core 
+              <label class="ro-muted">Core
                 <select class="ro-input" name="core">
                   ${(() => {
                     const current = over?.core ?? game.core;
@@ -186,31 +245,26 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
     hydrateCovers(root)
 
-    root.querySelector('#ro-play')?.addEventListener('click', async () => {
-      busy = true
-      paint()
-      const status = root.querySelector<HTMLElement>('#ro-play-status')
-      if (status && !game.demo) {
-        status.hidden = false
-        status.textContent = 'Starting emulator…'
-      }
-      try {
-        await launchGame(game)
-      } catch (err) {
-        busy = false
-        paint()
-        const el = root.querySelector<HTMLElement>('#ro-play-status')
-        if (el) {
-          el.hidden = false
-          el.textContent = friendlyError(err, 'Couldn’t start that game. Try again.')
-        }
-      }
+    root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('#ro-play'))
+
+    root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('#ro-demo-play'))
+
+    root.querySelector('#ro-options-btn')?.addEventListener('click', () => {
+      menuOpen = !menuOpen
+      sfxToggle()
+      paint(menuOpen ? 'ro-menu-favorite' : 'ro-options-btn')
     })
 
-    root.querySelector('#ro-favorite')?.addEventListener('click', () => {
+    root.querySelector('#ro-menu-favorite')?.addEventListener('click', () => {
       sfxToggle()
       favorited = toggleFavorite(game.id)
-      paint('ro-favorite')
+      paint('ro-menu-favorite')
+    })
+
+    root.querySelector('#ro-edit')?.addEventListener('click', () => {
+      editing = true
+      menuOpen = false
+      paint()
     })
 
     root.querySelector('#ro-remove-upload')?.addEventListener('click', async () => {
@@ -231,11 +285,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           el.textContent = friendlyError(err, 'Couldn’t remove that ROM. Try again.')
         }
       }
-    })
-
-    root.querySelector('#ro-edit')?.addEventListener('click', () => {
-      editing = !editing
-      paint(editing ? undefined : 'ro-edit')
     })
 
     root.querySelector('#ro-meta-form')?.addEventListener('submit', (event) => {
@@ -271,15 +320,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     const focusRoot =
       root.querySelector<HTMLElement>('.ro-stack') ??
       root.querySelector<HTMLElement>('.ro-detail__actions')
-    if (focusRoot) {
-      focusCleanup = bindGridFocus(focusRoot)
-      registerViewCleanup(() => {
-        focusCleanup?.()
-        focusCleanup = null
-      })
-    } else {
-      registerViewCleanup(null)
-    }
+    if (focusRoot) focusCleanup = bindGridFocus(focusRoot)
     const preferred = restoreFocusId
       ? root.querySelector<HTMLElement>(`#${restoreFocusId}`)
       : editing
