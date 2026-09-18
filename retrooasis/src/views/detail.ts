@@ -245,9 +245,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
     hydrateCovers(root)
 
-    root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('#ro-play'))
+    root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('ro-play'))
 
-    root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('#ro-demo-play'))
+    root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
 
     root.querySelector('#ro-options-btn')?.addEventListener('click', () => {
       menuOpen = !menuOpen
