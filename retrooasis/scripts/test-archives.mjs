@@ -25,8 +25,16 @@ for (const name of ['archives.ts', 'cores.ts', 'store.ts']) {
 }
 
 if (!process.features.typescript) {
-  console.error('This Node lacks native TypeScript stripping (needs Node >= 22.18).')
-  process.exit(2)
+  if (process.env.RO_TS_STRIP === '1') {
+    console.error('This Node lacks native TypeScript stripping (needs Node >= 22.6).')
+    process.exit(2)
+  }
+  const { spawnSync } = await import('node:child_process')
+  const result = spawnSync(process.execPath, ['--experimental-strip-types', fileURLToPath(import.meta.url)], {
+    stdio: 'inherit',
+    env: { ...process.env, RO_TS_STRIP: '1' },
+  })
+  process.exit(result.status ?? 1)
 }
 
 const { peekArchive, platformFromArchiveEntries, detectRomPlatform, archiveFormatFromBytes } =
@@ -218,7 +226,56 @@ function make7zPlain(names) {
   return concat(sig, header)
 }
 
-/** 7z whose header is an encoded (compressed) header — worker fallback path. */
+/** 7z with a plain header plus PackInfo/UnpackInfo CRC digests (exercises skipDigests). */
+function make7zWithPackCrc(names, allDefined = true) {
+  const namesBlob = concat(...names.map((n) => concat(utf16le(n), u8(0, 0))))
+  const crcBlock = allDefined
+    ? concat(u8(1), u32(0))
+    : concat(u8(0), u8(0x80), u32(0)) // bit0 defined (MSB-first), then CRC
+  const packInfo = concat(
+    vint(0x06),
+    vint(0),
+    vint(1),
+    vint(0x09),
+    vint(10),
+    vint(0x0a),
+    crcBlock,
+    vint(0),
+  )
+  const folder = concat(vint(1), u8(0x01), u8(0x00))
+  const unpackInfo = concat(
+    vint(0x07),
+    vint(0x0b),
+    vint(1),
+    u8(0),
+    folder,
+    vint(0x0c),
+    vint(10),
+    vint(0x0a),
+    crcBlock,
+    vint(0),
+  )
+  const streams = concat(vint(0x04), packInfo, unpackInfo, vint(0))
+  const filesInfo = concat(
+    vint(0x05),
+    vint(names.length),
+    vint(0x11),
+    vint(1 + namesBlob.length),
+    u8(0),
+    namesBlob,
+    u8(0),
+  )
+  const header = concat(u8(0x01), streams, filesInfo)
+  const sig = concat(
+    ascii('7z\xbc\xaf\x27\x1c'),
+    u8(0, 4),
+    u32(0),
+    u64(0),
+    u64(header.length),
+    u32(0),
+  )
+  return concat(sig, header)
+}
 function make7zEncoded() {
   const encoded = u8(0x17, 0x06, 0x00, 0x01, 0x02, 0x03, 0x04)
   const sig = concat(
@@ -279,6 +336,17 @@ console.log('7z listing')
   const peekEncoded = await peekArchive(toFile(make7zEncoded(), 'big.7z'))
   // Worker fetch will fail offline / in node — must report incomplete, not throw.
   check('7z encoded reported', { c: peekEncoded?.complete, f: peekEncoded?.format }, { c: false, f: '7z' })
+
+  const peekCrc = await peekArchive(toFile(make7zWithPackCrc(['disc/game.cue', 'disc/game.bin']), 'crc.7z'))
+  check('7z pack crc names', peekCrc?.names, ['disc/game.cue', 'disc/game.bin'])
+  check('7z pack crc complete', peekCrc?.complete, true)
+  check('7z pack crc detects psx', peekCrc ? platformFromArchiveEntries(peekCrc.names) : null, 'psx')
+
+  const peekCrcBits = await peekArchive(
+    toFile(make7zWithPackCrc(['only/game.nes'], false), 'crc-bits.7z'),
+  )
+  check('7z digest bit-vector names', peekCrcBits?.names, ['only/game.nes'])
+  check('7z digest bit-vector complete', peekCrcBits?.complete, true)
 }
 
 console.log('detectRomPlatform')

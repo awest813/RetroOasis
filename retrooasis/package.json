@@ -13,6 +13,8 @@
     "scan": "node scripts/scan-roms.mjs",
     "test:archives": "node scripts/test-archives.mjs",
     "test:upload-flow": "node scripts/test-upload-flow.mjs",
+    "test:router": "node scripts/test-router.mjs",
+    "test:overrides": "node scripts/test-overrides.mjs",
     "test:saves": "node scripts/test-saves.mjs",
     "test:gamepad": "node scripts/test-gamepad.mjs"
   },
