@@ -7,6 +7,7 @@ import {
 } from '../lib/catalog'
 import {
   getLocalLibraryMeta,
+  grantLocalLibraryAccess,
   pickLocalLibrary,
   supportsDirectoryPicker,
 } from '../lib/localLibrary'
@@ -96,6 +97,14 @@ function confirmAction(message: string): boolean {
 }
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
+  let active = true
+  let focusCleanup: (() => void) | undefined
+  registerViewCleanup(() => {
+    active = false
+    focusCleanup?.()
+    focusCleanup = undefined
+  })
+
   const accent = getAccent()
   const crt = getCrtEnabled()
   const hideDemos = getHideDemos()
@@ -105,16 +114,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const libretro = getLibretroCovers()
   const ejsChannel = getEjsChannel()
   const meta = await getLocalLibraryMeta()
+  if (!active) return
   const uploadedMeta = await getUploadedLibraryMeta()
+  if (!active) return
   const hasSab = typeof SharedArrayBuffer !== 'undefined'
   const catalog = await loadCatalog()
+  if (!active) return
   const canPick = supportsDirectoryPicker()
   const installState = getPwaInstallState()
   // Preserve row focus/scroll across catalog-driven rebuilds.
   const existing = root.querySelector<HTMLElement>('[data-ro-settings]')
   if (existing) {
-    const active = document.activeElement as HTMLElement | null
-    if (active?.dataset.focusId && root.contains(active)) rememberFocus(active.dataset.focusId)
+    const focused = document.activeElement as HTMLElement | null
+    if (focused?.dataset.focusId && root.contains(focused)) rememberFocus(focused.dataset.focusId)
     rememberScroll()
   }
 
@@ -278,17 +290,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Local folder</strong>
               <p class="ro-muted">
                 ${
-                  meta.linked
-                    ? `Linked to <strong>${escapeHtml(meta.name ?? 'folder')}</strong>`
-                    : canPick
-                      ? 'Link a <code>roms/&lt;system&gt;/</code> folder on this computer.'
-                      : 'This browser can’t link folders. Use Add ROM instead.'
+                  meta.needsPermission
+                    ? `Linked to <strong>${escapeHtml(meta.name ?? 'folder')}</strong>, but this browser needs permission again.`
+                    : meta.linked
+                      ? `Linked to <strong>${escapeHtml(meta.name ?? 'folder')}</strong>`
+                      : canPick
+                        ? 'Link a <code>roms/&lt;system&gt;/</code> folder on this computer.'
+                        : 'This browser can’t link folders. Use Add ROM instead.'
                 }
               </p>
               <p class="ro-muted" id="ro-folder-status" hidden></p>
             </div>
             <div class="ro-btn-row">
-              ${canPick ? `<button type="button" class="ro-btn" id="ro-link" data-focus-id="link-folder" data-ro-focusable="true">${meta.linked ? 'Relink' : 'Link folder'}</button>` : ''}
+              ${canPick ? `<button type="button" class="ro-btn" id="ro-link" data-focus-id="link-folder" data-ro-focusable="true">${meta.needsPermission ? 'Allow access' : meta.linked ? 'Relink' : 'Link folder'}</button>` : ''}
               ${meta.linked ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-unlink" data-focus-id="unlink-folder" data-ro-focusable="true">Unlink</button>` : ''}
             </div>
           </div>
@@ -376,6 +390,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   `
 
   const rerender = (focusId?: string) => {
+    if (!active) return
     if (focusId) rememberFocus(focusId)
     rememberScroll()
     void renderSettings(root)
@@ -454,10 +469,23 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   root.querySelector('#ro-link')?.addEventListener('click', async () => {
     const status = root.querySelector<HTMLElement>('#ro-folder-status')
     try {
+      if (meta.needsPermission) {
+        const granted = await grantLocalLibraryAccess()
+        if (!active) return
+        if (granted) {
+          await applyLocalScan(granted)
+          if (!active) return
+          rerender('link-folder')
+          return
+        }
+      }
       const result = await pickLocalLibrary()
+      if (!active) return
       await applyLocalScan(result)
+      if (!active) return
       rerender('link-folder')
     } catch (err) {
+      if (!active) return
       if (status) {
         status.hidden = false
         status.textContent = friendlyError(err, 'Cancelled.')
@@ -495,7 +523,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     a.href = url
     a.download = 'retrooasis-overrides.json'
     a.click()
-    URL.revokeObjectURL(url)
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
   })
 
   root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
@@ -508,7 +536,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   const focusRoot = root.querySelector<HTMLElement>('[data-ro-settings]')
   if (focusRoot) {
-    registerViewCleanup(bindRowFocus(focusRoot))
+    focusCleanup = bindRowFocus(focusRoot)
     const restore =
       (restoreId
         ? focusRoot.querySelector<HTMLElement>(

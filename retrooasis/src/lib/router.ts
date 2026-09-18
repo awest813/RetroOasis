@@ -26,8 +26,9 @@ function parseHash(hash: string): Route {
   if (parts[0] === 'library' && parts.length === 1) {
     return { name: 'collection', collection: 'all' }
   }
-  if (parts[0] === 'library' && parts[1] === 'tag' && parts[2]) {
-    return { name: 'tag', tagId: decodeURIComponent(parts[2]) }
+  if (parts[0] === 'library' && parts[1] === 'tag') {
+    if (parts[2]) return { name: 'tag', tagId: decodeURIComponent(parts[2]) }
+    return { name: 'notfound' }
   }
   if (parts[0] === 'library' && parts.length === 2 && parts[1]) {
     const id = decodeURIComponent(parts[1])
@@ -45,6 +46,11 @@ function parseHash(hash: string): Route {
   if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' }
   if (parts[0] === 'saves' && parts.length === 1) return { name: 'saves' }
   return { name: 'notfound' }
+}
+
+/** Parse a location hash into a route. Exported for tests. */
+export function parseRouteHash(hash: string): Route {
+  return parseHash(hash)
 }
 
 export function getRoute(): Route {

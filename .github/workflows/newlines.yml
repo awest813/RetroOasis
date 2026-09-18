@@ -22,6 +22,10 @@ jobs:
           newline_error=0
 
           for file in $files; do
+            # Minified bundles and source maps are generated without a trailing newline.
+            case "$file" in
+              *.min.css|*.min.js|*.min.js.map|*.map) continue ;;
+            esac
             if file --mime "$file" | grep -q "binary"; then
               #echo "Skipping binary file: $file"
               continue

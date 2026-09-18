@@ -250,11 +250,27 @@
         let core = params.get("core") || "";
         const name = params.get("name") || "Game";
         const bios = params.get("bios") || "";
-        let back = params.get("back") || "./#/";
-        const backClean = back.replace(/[\x00-\x20]/g, "").toLowerCase();
-        if (backClean.startsWith("javascript:") || backClean.startsWith("vbscript:") || backClean.startsWith("data:")) {
-          back = "./#/";
+        function sanitizeBack(raw) {
+          if (!raw) return "./#/";
+          var cleaned = String(raw).replace(/[\x00-\x20\x7f]/g, "");
+          var lower = cleaned.toLowerCase();
+          if (
+            lower.indexOf("javascript:") === 0 ||
+            lower.indexOf("vbscript:") === 0 ||
+            lower.indexOf("data:") === 0 ||
+            lower.indexOf("file:") === 0 ||
+            lower.indexOf("blob:") === 0
+          ) {
+            return "./#/";
+          }
+          if (cleaned.indexOf("//") === 0 || /^[a-z][a-z0-9+.-]*:/i.test(cleaned)) {
+            return "./#/";
+          }
+          if (cleaned.charAt(0) === "#") return "./" + cleaned;
+          if (cleaned.indexOf("./#") === 0 || cleaned.indexOf("/#") === 0) return cleaned;
+          return "./#/";
         }
+        var back = sanitizeBack(params.get("back"));
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 

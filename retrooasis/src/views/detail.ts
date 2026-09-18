@@ -14,6 +14,7 @@ import { launchGame } from '../lib/play'
 import {
   clearOverride,
   exportOverridesJson,
+  formFieldsToPatch,
   getOverride,
   setOverride,
 } from '../lib/overrides'
@@ -26,7 +27,39 @@ import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
+  let active = true
+  let focusCleanup: (() => void) | null = null
+  let editing = false
+  let menuOpen = false
+  let paint: (restoreFocusId?: string) => void = () => {}
+
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return
+    if (editing) {
+      // Cancel the metadata form instead of leaving the page.
+      event.preventDefault()
+      event.stopPropagation()
+      editing = false
+      paint('ro-options-btn')
+      return
+    }
+    if (!menuOpen) return
+    // Close the menu without triggering the global Escape/back shortcut.
+    event.preventDefault()
+    event.stopPropagation()
+    menuOpen = false
+    paint('ro-options-btn')
+  }
+
+  registerViewCleanup(() => {
+    active = false
+    document.removeEventListener('keydown', onKey)
+    focusCleanup?.()
+    focusCleanup = null
+  })
+
   const catalog = await loadCatalog()
+  if (!active) return
   const game = findGame(catalog, gameId)
 
   if (!game) {
@@ -43,7 +76,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       </section>
     `
     const empty = root.querySelector<HTMLElement>('.ro-empty')
-    if (empty) registerViewCleanup(bindGridFocus(empty))
+    if (empty) focusCleanup = bindGridFocus(empty)
     root.querySelector<HTMLElement>('[data-ro-focusable="true"]')?.focus()
     return
   }
@@ -57,36 +90,16 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   )
   let favorited = isFavorite(game.id)
   let busy = false
-  let menuOpen = false
-  let editing = false
-  let focusCleanup: (() => void) | null = null
   let fileLabel = game.file
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
+    if (!active) return
     const name = record?.filename || 'Saved on this device'
     fileLabel = name.replace(/\.[^.]+$/, '') || name
   }
 
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape' || editing || !menuOpen) return
-    // Close the menu without triggering the global Escape/back shortcut.
-    event.stopPropagation()
-    menuOpen = false
-    paint('ro-options-btn')
-  }
-  document.addEventListener('keydown', onKey)
-  // One registration for the whole view — re-registering would run this
-  // cleanup immediately (registerViewCleanup holds a single slot) and
-  // detach the Escape handler. detachView reads focusCleanup at call time.
-  const detachView = () => {
-    document.removeEventListener('keydown', onKey)
-    focusCleanup?.()
-    focusCleanup = null
-  }
-  registerViewCleanup(detachView)
-
   const startPlay = async (focusId: string): Promise<void> => {
-    if (busy) return
+    if (busy || !active) return
     busy = true
     paint(focusId)
     const status = root.querySelector<HTMLElement>('#ro-play-status')
@@ -97,6 +110,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     try {
       await launchGame(game)
     } catch (err) {
+      if (!active) return
       busy = false
       paint(focusId)
       const el = root.querySelector<HTMLElement>('#ro-play-status')
@@ -107,7 +121,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     }
   }
 
-  const paint = (restoreFocusId?: string) => {
+  paint = (restoreFocusId?: string) => {
+    if (!active) return
     focusCleanup?.()
     focusCleanup = null
     const over = getOverride(game.id)
@@ -232,6 +247,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               <label class="ro-muted">Description <textarea class="ro-input" name="description" rows="3">${escapeHtml(over?.description ?? game.description ?? '')}</textarea></label>
               <div class="ro-btn-row">
                 <button type="submit" class="ro-btn ro-btn--primary" data-ro-focusable="true">Save locally</button>
+                <button type="button" class="ro-btn ro-btn--ghost" id="ro-cancel-edit" data-ro-focusable="true">Cancel</button>
                 <button type="button" class="ro-btn ro-btn--ghost" id="ro-clear-over" data-ro-focusable="true">Clear edits</button>
                 <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-ro-focusable="true">Export edits</button>
               </div>
@@ -275,10 +291,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       suppressPadBackUntilRelease()
       try {
         await removeUploadedRom(game.id)
+        if (!active) return
         forgetGameId(game.id)
         await reloadUploadedLibrary()
+        if (!active) return
         navigate('/library')
       } catch (err) {
+        if (!active) return
         const el = root.querySelector<HTMLElement>('#ro-play-status')
         if (el) {
           el.hidden = false
@@ -291,15 +310,32 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       event.preventDefault()
       const form = event.target as HTMLFormElement
       const data = new FormData(form)
-      setOverride(game.id, {
-        title: String(data.get('title') || ''),
-        core: String(data.get('core') || '') || undefined,
-        year: String(data.get('year') || '') || undefined,
-        developer: String(data.get('developer') || '') || undefined,
-        cover: String(data.get('cover') || '') || undefined,
-        description: String(data.get('description') || '') || undefined,
-      })
-      refreshCatalogView()
+      try {
+        setOverride(
+          game.id,
+          formFieldsToPatch(game, {
+            title: String(data.get('title') || ''),
+            core: String(data.get('core') || ''),
+            year: String(data.get('year') || ''),
+            developer: String(data.get('developer') || ''),
+            cover: String(data.get('cover') || ''),
+            description: String(data.get('description') || ''),
+          }),
+        )
+        editing = false
+        refreshCatalogView()
+      } catch (err) {
+        const el = root.querySelector<HTMLElement>('#ro-play-status')
+        if (el) {
+          el.hidden = false
+          el.textContent = friendlyError(err, 'Couldn’t save those edits.')
+        }
+      }
+    })
+
+    root.querySelector('#ro-cancel-edit')?.addEventListener('click', () => {
+      editing = false
+      paint('ro-options-btn')
     })
 
     root.querySelector('#ro-clear-over')?.addEventListener('click', () => {
@@ -314,7 +350,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       a.href = url
       a.download = 'retrooasis-overrides.json'
       a.click()
-      URL.revokeObjectURL(url)
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
     })
 
     const focusRoot =
@@ -329,6 +365,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     preferred?.focus()
   }
 
+  document.addEventListener('keydown', onKey)
   paint()
   document.title = `RetroOasis · ${game.title}`
 }
