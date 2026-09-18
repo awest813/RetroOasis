@@ -25,8 +25,6 @@
   --ro-max-library: 96rem;
   --ro-topbar-h: 3.65rem;
   --ro-tile-min: 9.5rem;
-  --ro-platform-min: 11rem;
-  --ro-systems-w: 15.5rem;
 
   /* Platform accent hints for placeholders */
   --ro-plat-nes: #c43c3c;
@@ -121,8 +119,8 @@ html[data-input='pad'] .ro-tile:focus-within .ro-cover {
   box-shadow: 0 0 0 3px var(--ro-focus), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
-html[data-input='key'] .ro-system:focus,
-html[data-input='pad'] .ro-system:focus {
+html[data-input='key'] .ro-chip:focus,
+html[data-input='pad'] .ro-chip:focus {
   border-color: var(--ro-focus);
   background: var(--ro-accent-soft);
 }
