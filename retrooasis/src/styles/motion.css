@@ -18,6 +18,18 @@
   }
 }
 
+@keyframes ro-drop-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 .ro-view {
   animation: ro-fade-up 280ms ease both;
 }
@@ -28,7 +40,8 @@
   .ro-btn,
   .ro-loading__bar::after,
   .ro-cover__img,
-  .ro-cover--image img {
+  .ro-cover--image img,
+  .ro-drop--busy .ro-drop__mark {
     animation: none !important;
     transition: none !important;
   }

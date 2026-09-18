@@ -178,8 +178,8 @@ select.ro-input {
   display: grid;
   place-items: center;
   gap: 0.45rem;
-  min-height: 11rem;
-  padding: 1.5rem 1.25rem;
+  min-height: 12rem;
+  padding: 1.6rem 1.35rem;
   border: 2px dashed color-mix(in srgb, var(--ro-accent) 62%, var(--ro-line));
   background:
     linear-gradient(
@@ -190,6 +190,7 @@ select.ro-input {
     var(--ro-bg-panel);
   text-align: center;
   cursor: pointer;
+  border-radius: var(--ro-radius);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -198,7 +199,7 @@ select.ro-input {
 }
 
 .ro-drop__mark {
-  font-size: 1.45rem;
+  font-size: 1.55rem;
   color: var(--ro-accent);
   line-height: 1;
   opacity: 0.9;
@@ -206,13 +207,14 @@ select.ro-input {
 }
 
 .ro-drop__title {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 650;
   color: var(--ro-text);
 }
 
 .ro-drop__sub {
   font-size: 0.9rem;
+  max-width: 22rem;
 }
 
 .ro-drop:hover,
@@ -237,13 +239,116 @@ select.ro-input {
   cursor: wait;
 }
 
-.ro-upload__stack {
-  margin-top: 1.35rem;
-  max-width: 34rem;
+.ro-drop--busy .ro-drop__mark {
+  animation: ro-drop-pulse 1s ease-in-out infinite;
 }
 
-.ro-upload__status {
+.ro-upload {
+  max-width: 40rem;
+}
+
+.ro-upload__head {
+  max-width: 40rem;
+}
+
+.ro-upload__head .ro-lede {
+  margin-bottom: 0;
+}
+
+.ro-upload__stack {
+  margin-top: 1.6rem;
+  max-width: 36rem;
+  gap: 1rem;
+}
+
+.ro-upload__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ro-upload__label {
   margin: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ro-accent);
+}
+
+.ro-upload__status,
+.ro-upload__meta,
+.ro-upload__footnote {
+  margin: 0;
+}
+
+.ro-upload__footnote {
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.ro-upload__meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.ro-upload__log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ro-upload__log-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem 0.85rem;
+  align-items: baseline;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
+  border-radius: var(--ro-radius);
+  background: var(--ro-bg-panel);
+}
+
+.ro-upload__log-mark {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ro-accent);
+}
+
+.ro-upload__log-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ro-upload__log-copy > span:first-child,
+.ro-upload__log-copy > a:first-child {
+  color: var(--ro-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ro-upload__log-item--skipped .ro-upload__log-mark,
+.ro-upload__log-item--error .ro-upload__log-mark {
+  color: var(--ro-text-dim);
+}
+
+.ro-upload__log-item--error {
+  border-color: color-mix(in srgb, var(--ro-danger) 45%, transparent);
+}
+
+.ro-upload__log-item--error .ro-upload__log-mark {
+  color: var(--ro-danger);
+}
+
+.ro-upload__log-item--saved {
+  border-color: color-mix(in srgb, var(--ro-accent) 38%, transparent);
+}
+
+.ro-upload__actions {
+  margin-top: 0.15rem;
 }
 
 .ro-brand {
@@ -873,8 +978,13 @@ html[data-crt='on'] .ro-shell::after {
 }
 
 .ro-upload__hint {
-  margin: -0.35rem 0 0;
+  margin: 0;
   font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.ro-upload__hint--warn {
+  color: color-mix(in srgb, var(--ro-danger) 62%, var(--ro-text));
 }
 
 html[data-layout='tv'] {
@@ -1595,7 +1705,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-drop {
-    min-height: 9.5rem;
+    min-height: 10rem;
     padding: 1.15rem 1rem;
     width: 100%;
   }
@@ -1604,6 +1714,8 @@ html[data-layout='tv'] .ro-btn--toggle {
     font-size: 1rem;
   }
 
+  .ro-upload,
+  .ro-upload__head,
   .ro-upload__stack {
     max-width: none;
   }

@@ -265,7 +265,10 @@ export function isCoverFile(filename: string): boolean {
 
 /** Comma-separated accept list for `<input type="file">`. */
 export function romFileAccept(): string {
-  return [...ROM_EXTENSIONS].map((ext) => `.${ext}`).sort().join(',')
+  return [...new Set([...ROM_EXTENSIONS, ...EXTRA_ROM_EXTENSIONS])]
+    .map((ext) => `.${ext}`)
+    .sort()
+    .join(',')
 }
 
 export function titleFromFilename(filename: string): string {

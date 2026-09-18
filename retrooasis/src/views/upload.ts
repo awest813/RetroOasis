@@ -1,17 +1,33 @@
 import {
   UPLOAD_CORE_OPTIONS,
   coreForPlatform,
+  coreNeedsThreads,
   isRomFile,
   romFileAccept,
 } from '../lib/cores'
 import { detectRomPlatform } from '../lib/archives'
+import { escapeHtml } from '../lib/dom'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
 import { formatEjsChannelLabel, pushRecent } from '../lib/store'
-import { reloadUploadedLibrary } from '../lib/catalog'
-import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
+import { reloadUploadedLibrary, type Game } from '../lib/catalog'
+import { formatBytes, getUploadedLibraryMeta, saveUploadedRom } from '../lib/uploadedLibrary'
+import {
+  dataTransferHasDirectory,
+  dataTransferIsDirectoryOnly,
+  emptyDropMessage,
+  filesFromList,
+  folderDropMessage,
+  formatUploadProgress,
+  shouldLaunchAfterUpload,
+  summarizeUpload,
+  threadSupportHint,
+  type UploadOutcome,
+} from '../lib/uploadFlow'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
+import { sfxConfirm } from '../lib/sfx'
+import { supportsDirectoryPicker } from '../lib/localLibrary'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 
 const CORE_EXT_HINTS: Record<string, string> = {
@@ -55,40 +71,66 @@ const CORE_EXT_HINTS: Record<string, string> = {
   intv: 'Common: .int · .itv',
 }
 
+function hasThreadSupport(): boolean {
+  return typeof SharedArrayBuffer !== 'undefined'
+}
+
+function coreHintText(core: string): string {
+  const base = CORE_EXT_HINTS[core] ?? 'Pick the system that matches your ROM.'
+  const warn = threadSupportHint(core, hasThreadSupport())
+  return warn ? `${base} ${warn}` : base
+}
+
+function channelFootnote(): string {
+  return `Using the ${formatEjsChannelLabel()} channel. PSP, 3DS, and DOS always use Nightly — change the rest in Settings.`
+}
+
 export function renderUpload(root: HTMLElement): void {
+  const canPickFolder = supportsDirectoryPicker()
   root.innerHTML = `
     <section class="ro-view ro-upload">
-      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add ROM</p>
-      <h1 class="ro-title">Add ROM</h1>
-      <p class="ro-lede">
-        Drop in a ROM to save it on this device and start playing.
-        It stays in your library until you remove it.
-      </p>
+      <header class="ro-upload__head">
+        <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add a ROM</p>
+        <h1 class="ro-title">Add a ROM</h1>
+        <p class="ro-lede">
+          Drop in a ROM to save it on this device and start playing.
+          It stays in your library until you remove it.
+        </p>
+      </header>
       <div class="ro-stack ro-upload__stack">
-        <label class="ro-muted" for="ro-core">System</label>
-        <select id="ro-core" class="ro-input" data-ro-focusable="true">
-          ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
-        </select>
-        <p class="ro-muted ro-upload__hint" id="ro-core-hint">${CORE_EXT_HINTS.auto}</p>
+        <div class="ro-upload__field">
+          <label class="ro-upload__label" for="ro-core">System</label>
+          <select id="ro-core" class="ro-input" data-ro-focusable="true" aria-describedby="ro-core-hint">
+            ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+          </select>
+          <p class="ro-muted ro-upload__hint" id="ro-core-hint">${coreHintText('auto')}</p>
+        </div>
         <div
           class="ro-drop"
           id="ro-drop"
           tabindex="0"
           data-ro-focusable="true"
           role="button"
-          aria-label="Drop ROM files here, or click to choose multiple files"
+          aria-labelledby="ro-drop-title"
+          aria-describedby="ro-drop-sub ro-core-hint"
         >
-          <span class="ro-drop__mark" aria-hidden="true">▼</span>
-          <strong class="ro-drop__title" id="ro-drop-title">Drop ROM here</strong>
-          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose files (multiple supported)</span>
+          <span class="ro-drop__mark" aria-hidden="true">＋</span>
+          <strong class="ro-drop__title" id="ro-drop-title">Drop ROM files here</strong>
+          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose — you can add more than one</span>
         </div>
         <input id="ro-file" type="file" accept="${romFileAccept()}" hidden multiple />
-        <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite">
-          Using the ${formatEjsChannelLabel()} channel. PSP, 3DS, and DOS always use Nightly — change the rest in Settings.
-        </p>
-        <div class="ro-btn-row">
+        <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite" hidden></p>
+        <ol class="ro-upload__log" id="ro-upload-log" hidden></ol>
+        <p class="ro-muted ro-upload__meta" id="ro-upload-meta"></p>
+        <p class="ro-muted ro-upload__footnote" id="ro-upload-footnote">${channelFootnote()}</p>
+        ${
+          canPickFolder
+            ? `<p class="ro-muted ro-upload__footnote">To add a whole <code>roms/&lt;system&gt;/</code> folder without copying it, <a href="${hrefFor('/settings')}">link it in Settings</a>.</p>`
+            : ''
+        }
+        <div class="ro-btn-row ro-upload__actions">
+          <a class="ro-btn ro-btn--ghost" id="ro-upload-library" href="${hrefFor('/library')}" data-ro-focusable="true">View library</a>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}" data-ro-focusable="true">Back home</a>
-          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/library')}" data-ro-focusable="true">Library</a>
         </div>
       </div>
     </section>
@@ -101,24 +143,38 @@ export function renderUpload(root: HTMLElement): void {
   const drop = root.querySelector<HTMLElement>('#ro-drop')
   const dropTitle = root.querySelector<HTMLElement>('#ro-drop-title')
   const dropSub = root.querySelector<HTMLElement>('#ro-drop-sub')
+  const log = root.querySelector<HTMLOListElement>('#ro-upload-log')
+  const meta = root.querySelector<HTMLElement>('#ro-upload-meta')
+  const libraryBtn = root.querySelector<HTMLAnchorElement>('#ro-upload-library')
   const stack = root.querySelector<HTMLElement>('.ro-upload__stack')
   let busy = false
-  if (stack) registerViewCleanup(bindGridFocus(stack))
+  let active = true
+  const cleanupFocus = stack ? bindGridFocus(stack) : undefined
+  registerViewCleanup(() => {
+    active = false
+    cleanupFocus?.()
+  })
+
+  const say = (text: string) => {
+    if (!status) return
+    status.textContent = text
+    status.hidden = !text
+  }
 
   const setDropCopy = (mode: 'idle' | 'drag' | 'busy') => {
     if (!dropTitle || !dropSub) return
     if (mode === 'busy') {
       dropTitle.textContent = 'Saving…'
-      dropSub.textContent = 'Almost ready to play'
+      dropSub.textContent = 'Keep this tab open'
       return
     }
     if (mode === 'drag') {
       dropTitle.textContent = 'Release to add'
-      dropSub.textContent = 'Saves to your library, then plays'
+      dropSub.textContent = 'Saves to this device — one file starts playing'
       return
     }
-    dropTitle.textContent = 'Drop ROM here'
-    dropSub.textContent = 'or click to choose files (multiple supported)'
+    dropTitle.textContent = 'Drop ROM files here'
+    dropSub.textContent = 'or click to choose — you can add more than one'
   }
 
   const setBusy = (next: boolean) => {
@@ -133,9 +189,11 @@ export function renderUpload(root: HTMLElement): void {
 
   const syncHint = () => {
     if (!coreSelect || !hint) return
-    hint.textContent = CORE_EXT_HINTS[coreSelect.value] ?? 'Pick the system that matches your ROM.'
+    const core = coreSelect.value
+    hint.textContent = coreHintText(core)
+    hint.classList.toggle('ro-upload__hint--warn', Boolean(threadSupportHint(core, hasThreadSupport())))
     if (input) {
-      if (coreSelect.value === 'auto') {
+      if (core === 'auto') {
         input.setAttribute('accept', romFileAccept())
       } else {
         input.removeAttribute('accept')
@@ -143,73 +201,151 @@ export function renderUpload(root: HTMLElement): void {
     }
   }
 
+  const paintMeta = async () => {
+    if (!meta || !active) return
+    try {
+      const uploaded = await getUploadedLibraryMeta()
+      if (!active) return
+      meta.textContent = uploaded.count
+        ? `${uploaded.count} saved ROM${uploaded.count === 1 ? '' : 's'} · ${formatBytes(uploaded.bytes)} on this device`
+        : 'Nothing saved on this device yet.'
+    } catch {
+      if (active) meta.textContent = ''
+    }
+  }
+
+  const paintLog = (outcomes: UploadOutcome[]) => {
+    if (!log) return
+    if (!outcomes.length) {
+      log.innerHTML = ''
+      log.hidden = true
+      return
+    }
+    log.hidden = false
+    log.innerHTML = outcomes
+      .map((outcome) => {
+        const mark = outcome.kind === 'saved' ? 'Saved' : outcome.kind === 'skipped' ? 'Skipped' : 'Error'
+        const body =
+          outcome.kind === 'saved' && outcome.gameId
+            ? `<a href="${hrefFor(`/game/${outcome.gameId}`)}" data-ro-focusable="true">${escapeHtml(outcome.filename)}</a>
+               <span class="ro-muted">${escapeHtml(outcome.detail)}</span>`
+            : `<span>${escapeHtml(outcome.filename)}</span>
+               <span class="ro-muted">${escapeHtml(outcome.detail)}</span>`
+        return `<li class="ro-upload__log-item ro-upload__log-item--${outcome.kind}">
+          <span class="ro-upload__log-mark">${mark}</span>
+          <div class="ro-upload__log-copy">${body}</div>
+        </li>`
+      })
+      .join('')
+  }
+
+  const highlightLibrary = (saved: boolean) => {
+    if (!libraryBtn) return
+    libraryBtn.classList.toggle('ro-btn--primary', saved)
+    libraryBtn.classList.toggle('ro-btn--ghost', !saved)
+  }
+
   coreSelect?.addEventListener('change', syncHint)
   syncHint()
+  void paintMeta()
 
-  const launch = async (files: File[]) => {
+  const launch = async (files: File[], note?: string) => {
     if (!coreSelect || busy || files.length === 0) return
+    sfxConfirm()
+    paintLog([])
+    highlightLibrary(false)
+    setBusy(true)
 
-    for (const file of files) {
-      let core = coreSelect.value
-      if (core === 'auto') {
-        if (!isRomFile(file.name)) {
-          if (status) {
-            status.textContent =
-              `Skipping ${file.name}: file type isn't recognized. Pick a system above, or use a common ROM extension.`
+    const outcomes: UploadOutcome[] = []
+    let playable: Game | undefined
+    let navigating = false
+
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        if (!active) return
+        const file = files[index]
+        let core = coreSelect.value
+
+        if (core === 'auto') {
+          if (!isRomFile(file.name)) {
+            const detail = `File type isn’t recognized. Pick a system above, or use a common ROM extension.`
+            outcomes.push({ kind: 'skipped', filename: file.name, detail })
+            say(formatUploadProgress(index, files.length, 'Skipping', file.name))
+            continue
           }
-          continue
-        }
-        setBusy(true)
-        if (status) {
-          status.textContent = `Checking ${file.name} (${formatBytes(file.size)})…`
-        }
-        const detected = await detectRomPlatform(file)
-        if (!detected) {
-          setBusy(false)
-          if (status) {
-            status.textContent =
-              `Skipping ${file.name}: couldn't auto-detect. Choose a system from the list.`
+          say(formatUploadProgress(index, files.length, 'Checking', file.name, formatBytes(file.size)))
+          let detected: string | null = null
+          try {
+            detected = await detectRomPlatform(file)
+          } catch (err) {
+            outcomes.push({
+              kind: 'error',
+              filename: file.name,
+              detail: friendlyError(err, 'Couldn’t read that file.'),
+            })
+            continue
           }
-          continue
+          if (!detected) {
+            outcomes.push({
+              kind: 'skipped',
+              filename: file.name,
+              detail: 'Couldn’t auto-detect. Choose a system from the list.',
+            })
+            continue
+          }
+          core = coreForPlatform(detected)
         }
-        core = coreForPlatform(detected)
+
+        say(formatUploadProgress(index, files.length, 'Saving', file.name, formatBytes(file.size)))
+
+        try {
+          const { game, replaced } = await saveUploadedRom(file, file.name, core)
+          pushRecent(game.id)
+          await reloadUploadedLibrary()
+          const needsThreads = coreNeedsThreads(core)
+          const threadNote =
+            needsThreads && !hasThreadSupport()
+              ? ' Saved, but this page is missing thread support so it may not start.'
+              : ''
+          outcomes.push({
+            kind: 'saved',
+            filename: file.name,
+            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${threadNote}`,
+            gameId: game.id,
+          })
+          playable = game
+        } catch (err) {
+          outcomes.push({
+            kind: 'error',
+            filename: file.name,
+            detail: friendlyError(err, 'Try another file.'),
+          })
+        }
       }
 
-      setBusy(true)
-      if (status) {
-        status.textContent = `Saving ${file.name} (${formatBytes(file.size)})…`
+      if (!active) return
+
+      if (shouldLaunchAfterUpload(outcomes) && playable) {
+        say(`Saved. Starting ${playable.title}…`)
+        navigating = true
+        window.location.href = buildPlayerUrl(
+          playable,
+          playable.file,
+          hrefFor(`/game/${playable.id}`),
+        )
+        return
       }
 
-      try {
-        const game = await saveUploadedRom(file, file.name, core)
-        pushRecent(game.id)
-        // Refresh the in-memory catalog so Library reflects the new ROM
-        // without a page reload (emits a catalog change → view re-render).
-        await reloadUploadedLibrary()
-
-        if (files.length === 1) {
-          // Single file: navigate to play it
-          if (status) status.textContent = `Saved. Starting ${file.name}…`
-          const back = hrefFor(`/game/${game.id}`)
-          window.location.href = buildPlayerUrl(game, game.file, back)
-          return
-        } else {
-          // Multiple files: continue batch upload
-          if (status) {
-            status.textContent = `Saved ${file.name}. Processing remaining files…`
-          }
-        }
-      } catch (err) {
-        if (status) {
-          status.textContent = `Error saving ${file.name}: ${friendlyError(err, 'Try another file.')}`
-        }
-      }
-    }
-
-    setBusy(false)
-    if (input) input.value = ''
-    if (status && files.length > 1) {
-      status.textContent = 'Batch complete. Check your library for your new games.'
+      paintLog(outcomes)
+      const savedCount = outcomes.filter((o) => o.kind === 'saved').length
+      highlightLibrary(savedCount > 0)
+      const summary = summarizeUpload(outcomes)
+      say(note ? `${summary} ${note}` : summary)
+      if (savedCount > 0) libraryBtn?.focus({ preventScroll: true })
+      await paintMeta()
+    } finally {
+      if (input) input.value = ''
+      if (active && !navigating) setBusy(false)
     }
   }
 
@@ -224,36 +360,55 @@ export function renderUpload(root: HTMLElement): void {
     }
   })
 
-  ;['dragenter', 'dragover'].forEach((type) => {
-    drop?.addEventListener(type, (event) => {
-      event.preventDefault()
-      if (busy) return
-      drop.setAttribute('data-drag', 'true')
-      setDropCopy('drag')
-    })
-  })
-  ;['dragleave', 'drop'].forEach((type) => {
-    drop?.addEventListener(type, (event) => {
-      event.preventDefault()
-      drop.removeAttribute('data-drag')
-      if (!busy) setDropCopy('idle')
-    })
-  })
-
-  drop?.addEventListener('drop', (event) => {
+  drop?.addEventListener('dragenter', (event) => {
+    event.preventDefault()
     if (busy) return
-    const dtFiles = event.dataTransfer?.files
-    if (dtFiles && dtFiles.length > 0) {
-      const files = Array.from(dtFiles)
-      void launch(files)
+    drop.setAttribute('data-drag', 'true')
+    setDropCopy('drag')
+  })
+  drop?.addEventListener('dragover', (event) => {
+    event.preventDefault()
+    if (busy) return
+    drop.setAttribute('data-drag', 'true')
+  })
+  drop?.addEventListener('dragleave', (event) => {
+    event.preventDefault()
+    const next = event.relatedTarget
+    if (next instanceof Node && drop.contains(next)) return
+    drop.removeAttribute('data-drag')
+    if (!busy) setDropCopy('idle')
+  })
+  drop?.addEventListener('drop', (event) => {
+    event.preventDefault()
+    drop.removeAttribute('data-drag')
+    if (!busy) setDropCopy('idle')
+    if (busy) return
+
+    const dt = event.dataTransfer
+    if (dataTransferIsDirectoryOnly(dt)) {
+      paintLog([])
+      highlightLibrary(false)
+      say(folderDropMessage())
+      return
     }
+
+    const files = filesFromList(dt?.files)
+    if (files.length === 0) {
+      paintLog([])
+      highlightLibrary(false)
+      say(emptyDropMessage())
+      return
+    }
+
+    if (dataTransferHasDirectory(dt)) {
+      void launch(files, 'Folders were ignored — link a folder in Settings to add a whole library.')
+      return
+    }
+    void launch(files)
   })
 
   input?.addEventListener('change', () => {
-    const selectedFiles = input.files
-    if (selectedFiles && selectedFiles.length > 0) {
-      const files = Array.from(selectedFiles)
-      void launch(files)
-    }
+    const files = filesFromList(input.files)
+    if (files.length > 0) void launch(files)
   })
 }
