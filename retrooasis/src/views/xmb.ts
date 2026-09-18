@@ -197,7 +197,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       icon: xmbCategoryIcon('favorites'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
-      empty: 'No favorites yet. Star a game from the library grid or its details page.',
+      empty: 'No favorites yet. Open a game, then choose Favorite from Options.',
     },
   ]
 

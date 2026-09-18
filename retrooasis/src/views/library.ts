@@ -359,7 +359,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
-        <p class="ro-empty__body">Star a game from the library grid or its details page.</p>
+        <p class="ro-empty__body">Open a game, then choose Favorite from Options.</p>
         <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }

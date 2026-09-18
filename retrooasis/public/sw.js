@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v3'
+const CACHE = 'retrooasis-shell-v4'
 
 const PRECACHE = [
   './',
@@ -81,7 +81,13 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res.ok) {
             const copy = res.clone()
-            void caches.open(CACHE).then((cache) => cache.put(req, copy))
+            void caches.open(CACHE).then((cache) => {
+              // player.html?rom=… would otherwise cache one entry per Play visit.
+              const cacheReq = url.search
+                ? new Request(`${url.origin}${url.pathname}`, { credentials: req.credentials })
+                : req
+              return cache.put(cacheReq, copy)
+            })
           }
           return res
         })

@@ -38,6 +38,15 @@ export function supportsDirectoryPicker(): boolean {
   return typeof window.showDirectoryPicker === 'function'
 }
 
+async function queryReadGranted(handle: FileSystemDirectoryHandle): Promise<boolean> {
+  if (!handle.queryPermission) return true
+  try {
+    return (await handle.queryPermission({ mode: 'read' })) === 'granted'
+  } catch {
+    return false
+  }
+}
+
 async function ensurePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
   const mode = { mode: 'read' as const }
   if (handle.queryPermission) {
@@ -218,6 +227,15 @@ export async function restoreLocalLibrary(): Promise<LocalScanResult | null> {
   return scanDirectory(root)
 }
 
+/** Re-prompt for an existing linked folder without opening a new picker. */
+export async function grantLocalLibraryAccess(): Promise<LocalScanResult | null> {
+  const root = await idbGet<FileSystemDirectoryHandle>(ROOT_HANDLE_KEY)
+  if (!root) return null
+  const ok = await ensurePermission(root)
+  if (!ok) return null
+  return scanDirectory(root)
+}
+
 export async function clearLocalLibrary(): Promise<void> {
   revokeCovers()
   fileHandles.clear()
@@ -236,8 +254,13 @@ export function hasLocalHandle(gameId: string): boolean {
   return fileHandles.has(gameId)
 }
 
-export async function getLocalLibraryMeta(): Promise<{ linked: boolean; name?: string }> {
+export async function getLocalLibraryMeta(): Promise<{
+  linked: boolean
+  name?: string
+  needsPermission?: boolean
+}> {
   const root = await idbGet<FileSystemDirectoryHandle>(ROOT_HANDLE_KEY)
   if (!root) return { linked: false }
-  return { linked: true, name: root.name }
+  const granted = await queryReadGranted(root)
+  return { linked: true, name: root.name, needsPermission: !granted }
 }

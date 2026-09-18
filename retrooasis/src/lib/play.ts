@@ -27,7 +27,7 @@ export function buildPlayerUrl(
 
 export async function launchGame(
   game: Game,
-  backRoute = hrefFor(`/game/${game.id}`),
+  backRoute = hrefFor(`/game/${encodeURIComponent(game.id)}`),
 ): Promise<void> {
   pushRecent(game.id)
 

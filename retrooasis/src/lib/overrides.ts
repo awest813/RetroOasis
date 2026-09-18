@@ -1,5 +1,6 @@
 import type { Game } from './catalog'
 import { parseSidecar, type GameSidecar } from './sidecar'
+import { isQuotaError } from './userErrors'
 
 const OVERRIDES_KEY = 'retrooasis.overrides'
 
@@ -17,14 +18,29 @@ function readAll(): Record<string, GameOverride> {
 }
 
 function writeAll(map: Record<string, GameOverride>): void {
-  localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map))
+  try {
+    if (Object.keys(map).length === 0) {
+      localStorage.removeItem(OVERRIDES_KEY)
+      return
+    }
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map))
+  } catch (err) {
+    if (isQuotaError(err)) {
+      throw new Error(
+        'This browser is out of storage space. Remove some saved ROMs in Settings, free up disk space, then try again.',
+      )
+    }
+    throw err instanceof Error ? err : new Error('Couldn’t save those edits.')
+  }
 }
 
 export function getOverride(gameId: string): GameOverride | undefined {
-  return readAll()[gameId]
+  const over = readAll()[gameId]
+  if (!over || !parseSidecar(over)) return undefined
+  return over
 }
 
-export function setOverride(gameId: string, patch: GameSidecar): GameOverride {
+export function setOverride(gameId: string, patch: GameSidecar): GameOverride | undefined {
   const map = readAll()
   const next: GameOverride = { ...map[gameId], ...patch, id: gameId }
   // Drop empty fields
@@ -32,6 +48,11 @@ export function setOverride(gameId: string, patch: GameSidecar): GameOverride {
     if (key === 'id') continue
     const value = next[key]
     if (value === '' || value === undefined) delete next[key]
+  }
+  if (!parseSidecar(next)) {
+    delete map[gameId]
+    writeAll(map)
+    return undefined
   }
   map[gameId] = next
   writeAll(map)
@@ -45,7 +66,11 @@ export function clearOverride(gameId: string): void {
 }
 
 export function clearAllOverrides(): void {
-  localStorage.removeItem(OVERRIDES_KEY)
+  try {
+    localStorage.removeItem(OVERRIDES_KEY)
+  } catch {
+    /* ignore */
+  }
 }
 
 export function exportOverridesJson(): string {

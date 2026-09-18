@@ -28,8 +28,29 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function writeJson(key: string, value: unknown): void {
-  localStorage.setItem(key, JSON.stringify(value))
+function writeJson(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function writeRaw(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* quota / private mode — keep the in-session change */
+  }
+}
+
+function removeRaw(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getRecents(): string[] {
@@ -42,7 +63,7 @@ export function pushRecent(gameId: string): void {
 }
 
 export function clearRecents(): void {
-  localStorage.removeItem(RECENTS_KEY)
+  removeRaw(RECENTS_KEY)
 }
 
 export function getFavorites(): string[] {
@@ -57,12 +78,12 @@ export function toggleFavorite(gameId: string): boolean {
   const current = getFavorites()
   const exists = current.includes(gameId)
   const next = exists ? current.filter((id) => id !== gameId) : [...current, gameId]
-  writeJson(FAVORITES_KEY, next)
+  if (!writeJson(FAVORITES_KEY, next)) return exists
   return !exists
 }
 
 export function clearFavorites(): void {
-  localStorage.removeItem(FAVORITES_KEY)
+  removeRaw(FAVORITES_KEY)
 }
 
 /** Drop a game id from recents + favorites (e.g. after removing a saved upload). */
@@ -91,12 +112,16 @@ export function forgetGameIds(gameIds: string[]): void {
 }
 
 export function getAccent(): AccentMode {
-  const value = localStorage.getItem(ACCENT_KEY)
-  return value === 'ps' ? 'ps' : 'sega'
+  try {
+    const value = localStorage.getItem(ACCENT_KEY)
+    return value === 'ps' ? 'ps' : 'sega'
+  } catch {
+    return 'sega'
+  }
 }
 
 export function setAccent(mode: AccentMode): void {
-  localStorage.setItem(ACCENT_KEY, mode)
+  writeRaw(ACCENT_KEY, mode)
   document.documentElement.dataset.accent = mode
 }
 
@@ -105,11 +130,15 @@ export function applyStoredAccent(): void {
 }
 
 export function getCrtEnabled(): boolean {
-  return localStorage.getItem(CRT_KEY) === '1'
+  try {
+    return localStorage.getItem(CRT_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export function setCrtEnabled(enabled: boolean): void {
-  localStorage.setItem(CRT_KEY, enabled ? '1' : '0')
+  writeRaw(CRT_KEY, enabled ? '1' : '0')
   document.documentElement.dataset.crt = enabled ? 'on' : 'off'
 }
 
@@ -118,19 +147,27 @@ export function applyStoredCrt(): void {
 }
 
 export function getHideDemos(): boolean {
-  return localStorage.getItem(HIDE_DEMOS_KEY) === '1'
+  try {
+    return localStorage.getItem(HIDE_DEMOS_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export function setHideDemos(hide: boolean): void {
-  localStorage.setItem(HIDE_DEMOS_KEY, hide ? '1' : '0')
+  writeRaw(HIDE_DEMOS_KEY, hide ? '1' : '0')
 }
 
 export function getLayout(): LayoutMode {
-  return localStorage.getItem(LAYOUT_KEY) === 'tv' ? 'tv' : 'standard'
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === 'tv' ? 'tv' : 'standard'
+  } catch {
+    return 'standard'
+  }
 }
 
 export function setLayout(mode: LayoutMode): void {
-  localStorage.setItem(LAYOUT_KEY, mode)
+  writeRaw(LAYOUT_KEY, mode)
   document.documentElement.dataset.layout = mode
 }
 
@@ -139,31 +176,43 @@ export function applyStoredLayout(): void {
 }
 
 export function getSoundsEnabled(): boolean {
-  return localStorage.getItem(SOUNDS_KEY) === '1'
+  try {
+    return localStorage.getItem(SOUNDS_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export function setSoundsEnabled(enabled: boolean): void {
-  localStorage.setItem(SOUNDS_KEY, enabled ? '1' : '0')
+  writeRaw(SOUNDS_KEY, enabled ? '1' : '0')
 }
 
 export function getSoundPack(): SoundPack {
-  const raw = localStorage.getItem(SOUND_PACK_KEY)
-  if (raw === 'arcade' || raw === 'xmb' || raw === 'soft') return raw
+  try {
+    const raw = localStorage.getItem(SOUND_PACK_KEY)
+    if (raw === 'arcade' || raw === 'xmb' || raw === 'soft') return raw
+  } catch {
+    /* ignore */
+  }
   return 'soft'
 }
 
 export function setSoundPack(pack: SoundPack): void {
-  localStorage.setItem(SOUND_PACK_KEY, pack)
+  writeRaw(SOUND_PACK_KEY, pack)
 }
 
 export function getLibretroCovers(): boolean {
   // Opt-in: Libretro CDN images are blocked under COEP (SharedArrayBuffer),
   // so defaulting on floods the console and never paints covers.
-  return localStorage.getItem(LIBRETRO_COVERS_KEY) === '1'
+  try {
+    return localStorage.getItem(LIBRETRO_COVERS_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export function setLibretroCovers(enabled: boolean): void {
-  localStorage.setItem(LIBRETRO_COVERS_KEY, enabled ? '1' : '0')
+  writeRaw(LIBRETRO_COVERS_KEY, enabled ? '1' : '0')
 }
 
 const EJS_CHANNEL_LABELS: Record<EjsChannel, string> = {
@@ -174,9 +223,13 @@ const EJS_CHANNEL_LABELS: Record<EjsChannel, string> = {
 }
 
 export function getEjsChannel(): EjsChannel {
-  const value = localStorage.getItem(EJS_CHANNEL_KEY)
-  if (value === 'local' || value === 'stable' || value === 'latest' || value === 'nightly') {
-    return value
+  try {
+    const value = localStorage.getItem(EJS_CHANNEL_KEY)
+    if (value === 'local' || value === 'stable' || value === 'latest' || value === 'nightly') {
+      return value
+    }
+  } catch {
+    /* ignore */
   }
   // Stable CDN cores for most systems; PSP / 3DS / DOS still resolve to nightly at launch.
   return 'stable'
@@ -201,7 +254,7 @@ export function resolveEjsChannel(core: string): EjsChannel {
 }
 
 export function setEjsChannel(channel: EjsChannel): void {
-  localStorage.setItem(EJS_CHANNEL_KEY, channel)
+  writeRaw(EJS_CHANNEL_KEY, channel)
 }
 
 export function clearLocalPrefs(): void {

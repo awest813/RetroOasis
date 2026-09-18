@@ -227,7 +227,7 @@ export function renderUpload(root: HTMLElement): void {
         const mark = outcome.kind === 'saved' ? 'Saved' : outcome.kind === 'skipped' ? 'Skipped' : 'Error'
         const body =
           outcome.kind === 'saved' && outcome.gameId
-            ? `<a href="${hrefFor(`/game/${outcome.gameId}`)}" data-ro-focusable="true">${escapeHtml(outcome.filename)}</a>
+            ? `<a href="${hrefFor(`/game/${encodeURIComponent(outcome.gameId)}`)}" data-ro-focusable="true">${escapeHtml(outcome.filename)}</a>
                <span class="ro-muted">${escapeHtml(outcome.detail)}</span>`
             : `<span>${escapeHtml(outcome.filename)}</span>
                <span class="ro-muted">${escapeHtml(outcome.detail)}</span>`
@@ -331,7 +331,7 @@ export function renderUpload(root: HTMLElement): void {
         window.location.href = buildPlayerUrl(
           playable,
           playable.file,
-          hrefFor(`/game/${playable.id}`),
+          hrefFor(`/game/${encodeURIComponent(playable.id)}`),
         )
         return
       }

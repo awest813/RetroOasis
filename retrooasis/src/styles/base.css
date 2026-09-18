@@ -198,6 +198,10 @@ select.ro-input {
     transform 160ms ease;
 }
 
+.ro-drop > * {
+  pointer-events: none;
+}
+
 .ro-drop__mark {
   font-size: 1.55rem;
   color: var(--ro-accent);

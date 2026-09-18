@@ -528,30 +528,35 @@ function skipStreamsInfo(h: Uint8Array, p: number): number | null {
       if (!t) return null
     }
     if (t.value === 0x0a || t.value !== 0) return null
-    pos = t.next
+    return t.next
   }
 
-  // pos now points at the next header property (kFilesInfo / kEnd) — unread.
-  return pos
+  // Consume StreamsInfo kEnd so the caller sees kFilesInfo / header kEnd.
+  if (id.value === 0) return id.next
+  return null
 }
 
 function skipDigests(h: Uint8Array, pos: number, count: number): number | null {
+  // 7z Digests: BYTE AllAreDefined; if 0, a MSB-first bit vector; then UINT32 CRC
+  // for each defined item. AllAreDefined != 0 means every CRC is present.
+  if (pos >= h.length || count < 0) return null
   const allDefined = h[pos]
-  if (allDefined === undefined) return null
   let p = pos + 1
   const defined: boolean[] = []
-  let bits = 0
-  for (let i = 0; i < count; i++) {
-    if (allDefined === 0) {
-      defined.push(false)
-    } else {
-      if (bits === 0) {
+  if (allDefined !== 0) {
+    for (let i = 0; i < count; i++) defined.push(true)
+  } else {
+    let mask = 0
+    let bits = 0
+    for (let i = 0; i < count; i++) {
+      if (mask === 0) {
         if (p >= h.length) return null
         bits = h[p]
         p += 1
+        mask = 0x80
       }
-      defined.push((bits & 1) === 1)
-      bits >>= 1
+      defined.push((bits & mask) !== 0)
+      mask >>= 1
     }
   }
   for (const isDefined of defined) {
@@ -615,14 +620,17 @@ function skipFolder(h: Uint8Array, p: number): { next: number; outStreams: numbe
 // 7z compressed headers — reuse EmulatorJS's extract worker (data/compression)
 // ---------------------------------------------------------------------------
 
-let workerUrlCache: string | null | undefined
+let workerUrlCache: { channel: string; url: string } | null = null
 
 function extract7zWorkerUrl(): string | null {
-  if (workerUrlCache !== undefined) return workerUrlCache
   const channel = getEjsChannel()
-  if (channel === 'local') workerUrlCache = 'data/compression/extract7z.js'
-  else workerUrlCache = `https://cdn.emulatorjs.org/${channel}/data/compression/extract7z.js`
-  return workerUrlCache
+  if (workerUrlCache?.channel === channel) return workerUrlCache.url
+  const url =
+    channel === 'local'
+      ? 'data/compression/extract7z.js'
+      : `https://cdn.emulatorjs.org/${channel}/data/compression/extract7z.js`
+  workerUrlCache = { channel, url }
+  return url
 }
 
 async function list7zViaWorker(blob: Blob): Promise<string[] | null> {
@@ -635,23 +643,34 @@ async function list7zViaWorker(blob: Blob): Promise<string[] | null> {
   if (!base) return null
 
   let worker: Worker
+  let blobUrl: string | null = null
   try {
     if (base.startsWith('http')) {
       // Cross-origin CDN script: classic workers can importScripts() it.
       const shim = `importScripts(${JSON.stringify(base)});`
-      worker = new Worker(URL.createObjectURL(new Blob([shim], { type: 'text/javascript' })))
+      blobUrl = URL.createObjectURL(new Blob([shim], { type: 'text/javascript' }))
+      worker = new Worker(blobUrl)
     } else {
       worker = new Worker(base)
     }
   } catch {
+    if (blobUrl) URL.revokeObjectURL(blobUrl)
     return null
+  }
+
+  const release = () => {
+    worker.terminate()
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl)
+      blobUrl = null
+    }
   }
 
   let bytes: ArrayBuffer
   try {
     bytes = await blob.arrayBuffer()
   } catch {
-    worker.terminate()
+    release()
     return null
   }
 
@@ -662,7 +681,7 @@ async function list7zViaWorker(blob: Blob): Promise<string[] | null> {
       if (settled) return
       settled = true
       window.clearTimeout(timer)
-      worker.terminate()
+      release()
       resolve(ok ? names : null)
     }
     const timer = window.setTimeout(() => finish(names.length > 0), 30_000)
