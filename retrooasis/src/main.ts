@@ -296,7 +296,7 @@ function syncDocumentTitle(route: Route): void {
       document.title = `${base} · Game`
       break
     case 'upload':
-      document.title = `${base} · Add ROM`
+      document.title = `${base} · Add a ROM`
       break
     case 'settings':
       document.title = `${base} · Settings`
@@ -337,7 +337,7 @@ function syncBrandSub(route: Route): void {
       label = 'Game'
       break
     case 'upload':
-      label = 'Add ROM'
+      label = 'Add a ROM'
       break
     case 'settings':
       label = 'Settings'

@@ -73,7 +73,12 @@ function romByteLength(record: Pick<LibraryRomRecord, 'size' | 'bytes'>): number
   return 0
 }
 
-export async function saveUploadedRom(file: Blob, filename: string, core: string): Promise<Game> {
+export interface SavedUpload {
+  game: Game
+  replaced: boolean
+}
+
+export async function saveUploadedRom(file: Blob, filename: string, core: string): Promise<SavedUpload> {
   if (!filename.trim()) {
     throw new Error('That file doesn’t have a name. Try another file.')
   }
@@ -87,6 +92,7 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
   const id = uploadSlugId(platform, filename)
 
   const existing = await idbGet<LibraryRomRecord>(id, LIBRARY_ROM_STORE)
+  const replaced = Boolean(existing && romByteLength(existing) > 0)
   let bytes: ArrayBuffer
   try {
     bytes = await file.arrayBuffer()
@@ -121,7 +127,7 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
     )
   }
 
-  return recordToGame(record)
+  return { game: recordToGame(record), replaced }
 }
 
 export async function listUploadedGames(): Promise<Game[]> {
