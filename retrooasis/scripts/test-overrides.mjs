@@ -47,7 +47,7 @@ globalThis.localStorage = {
   },
 }
 
-const { getOverride, setOverride, clearOverride } = await import(
+const { getOverride, setOverride, clearOverride, formFieldsToPatch } = await import(
   `file://${path.join(cacheDir, 'overrides.ts').replace(/\\/g, '/')}`
 )
 
@@ -81,6 +81,38 @@ check('empty patch not persisted', store.has('retrooasis.overrides'), false)
 setOverride('demo-2', { title: 'Keep me' })
 clearOverride('demo-2')
 check('clear removes', getOverride('demo-2'), undefined)
+
+const catalog = {
+  title: 'Pixel Quest',
+  core: 'nes',
+  cover: null,
+  description: undefined,
+  year: undefined,
+  developer: undefined,
+}
+const noop = formFieldsToPatch(catalog, {
+  title: 'Pixel Quest',
+  core: 'nes',
+  year: '',
+  developer: '',
+  cover: '',
+  description: '',
+})
+check('noop form is empty strings', Object.values(noop).every((v) => v === ''), true)
+check('noop form drops override', setOverride('demo-3', noop), undefined)
+check('noop form not readable', getOverride('demo-3'), undefined)
+
+const renamed = formFieldsToPatch(catalog, {
+  title: 'Pixel Quest+',
+  core: 'nes',
+  year: '',
+  developer: '',
+  cover: '',
+  description: '',
+})
+check('title-only patch keeps title', renamed.title, 'Pixel Quest+')
+check('title-only patch drops matching core', renamed.core, '')
+check('title-only persists', setOverride('demo-3', renamed)?.title, 'Pixel Quest+')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

@@ -14,6 +14,7 @@ import { launchGame } from '../lib/play'
 import {
   clearOverride,
   exportOverridesJson,
+  formFieldsToPatch,
   getOverride,
   setOverride,
 } from '../lib/overrides'
@@ -310,14 +311,17 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       const form = event.target as HTMLFormElement
       const data = new FormData(form)
       try {
-        setOverride(game.id, {
-          title: String(data.get('title') || ''),
-          core: String(data.get('core') || '') || undefined,
-          year: String(data.get('year') || '') || undefined,
-          developer: String(data.get('developer') || '') || undefined,
-          cover: String(data.get('cover') || '') || undefined,
-          description: String(data.get('description') || '') || undefined,
-        })
+        setOverride(
+          game.id,
+          formFieldsToPatch(game, {
+            title: String(data.get('title') || ''),
+            core: String(data.get('core') || ''),
+            year: String(data.get('year') || ''),
+            developer: String(data.get('developer') || ''),
+            cover: String(data.get('cover') || ''),
+            description: String(data.get('description') || ''),
+          }),
+        )
         editing = false
         refreshCatalogView()
       } catch (err) {

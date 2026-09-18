@@ -40,6 +40,29 @@ export function getOverride(gameId: string): GameOverride | undefined {
   return over
 }
 
+/** Map the metadata form to a patch. Unchanged / empty fields become '' so they drop. */
+export function formFieldsToPatch(
+  game: Pick<Game, 'title' | 'core' | 'cover' | 'description' | 'year' | 'developer'>,
+  fields: {
+    title: string
+    core: string
+    year: string
+    developer: string
+    cover: string
+    description: string
+  },
+): GameSidecar {
+  const origYear = game.year == null ? '' : String(game.year)
+  return {
+    title: fields.title !== game.title ? fields.title : '',
+    core: fields.core !== game.core ? fields.core : '',
+    year: fields.year !== origYear ? fields.year : '',
+    developer: fields.developer !== (game.developer ?? '') ? fields.developer : '',
+    cover: fields.cover !== (game.cover ?? '') ? fields.cover : '',
+    description: fields.description !== (game.description ?? '') ? fields.description : '',
+  }
+}
+
 export function setOverride(gameId: string, patch: GameSidecar): GameOverride | undefined {
   const map = readAll()
   const next: GameOverride = { ...map[gameId], ...patch, id: gameId }
