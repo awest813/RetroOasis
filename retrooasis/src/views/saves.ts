@@ -46,7 +46,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       <p class="ro-muted" id="ro-save-explainer"></p>
       <input type="file" id="ro-save-file" accept=".json,application/json" hidden />
       <div id="ro-save-review" class="ro-onboard" hidden></div>
-      <label class="ro-saves__search">Find a save<input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
+      <label class="ro-saves__search">Find a save <input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
       <p class="ro-muted ro-saves__summary" id="ro-save-summary"></p>
       <p class="ro-muted ro-saves__status" id="ro-save-status" role="status" aria-live="polite"></p>
       <div id="ro-save-list"></div>

@@ -166,6 +166,13 @@ export function setLibretroCovers(enabled: boolean): void {
   localStorage.setItem(LIBRETRO_COVERS_KEY, enabled ? '1' : '0')
 }
 
+const EJS_CHANNEL_LABELS: Record<EjsChannel, string> = {
+  local: 'Local',
+  stable: 'Stable',
+  latest: 'Latest',
+  nightly: 'Nightly',
+}
+
 export function getEjsChannel(): EjsChannel {
   const value = localStorage.getItem(EJS_CHANNEL_KEY)
   if (value === 'local' || value === 'stable' || value === 'latest' || value === 'nightly') {
@@ -173,6 +180,11 @@ export function getEjsChannel(): EjsChannel {
   }
   // Stable CDN cores for most systems; PSP / 3DS / DOS still resolve to nightly at launch.
   return 'stable'
+}
+
+/** User-facing label for the Emulator files channel (Settings / upload status). */
+export function formatEjsChannelLabel(channel: EjsChannel = getEjsChannel()): string {
+  return EJS_CHANNEL_LABELS[channel]
 }
 
 /**

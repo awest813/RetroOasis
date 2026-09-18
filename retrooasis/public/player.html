@@ -266,9 +266,17 @@
         // PSP / PPSSPP, DOS, and 3DS need nightly CDN builds (stable lacks these cores).
         if (needsThreads && channel !== "local") channel = "nightly";
 
+        const CHANNEL_LABELS = {
+          local: "Local",
+          stable: "Stable",
+          latest: "Latest",
+          nightly: "Nightly",
+        };
+        const channelLabel = CHANNEL_LABELS[channel] || channel;
+
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
-        document.getElementById("meta").textContent = core + " · " + channel;
+        document.getElementById("meta").textContent = core + " · " + channelLabel;
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
@@ -415,7 +423,7 @@
           // Dead blob URLs from a previous document cannot be fetched after navigation.
           if (rom.indexOf("blob:") === 0) {
             return Promise.reject(
-              new Error("This play link expired. Go back and press Play again."),
+              new Error("This play session expired. Go back and press Play again."),
             );
           }
           if (rom.indexOf(IDB_ROM_PREFIX) === 0) {
@@ -468,7 +476,7 @@
         function startEmulator(gameUrl) {
           if (needsThreads && typeof SharedArrayBuffer === "undefined") {
             fail(
-              "NEEDS EXTRA SETUP",
+              "Needs extra setup",
               "This system (PSP, DOS, or 3DS) needs special browser security headers to run. " +
                 "The RetroOasis dev server turns them on for you. On a static host, enable COOP/COEP " +
                 "(see the README), or try a different game.",
@@ -508,9 +516,9 @@
             var code2 = document.createElement("code");
             code2.textContent = "data/";
             frag.appendChild(code2);
-            frag.appendChild(document.createTextNode(" folder next to this site. Otherwise open Settings and switch EmulatorJS channel to Stable (or Nightly for PSP / 3DS / DOS)."));
+            frag.appendChild(document.createTextNode(" folder next to this site. Otherwise open Settings and set Emulator files to Stable (or Nightly for PSP / 3DS / DOS)."));
             fail(
-              "EMULATOR MISSING",
+              "Emulator missing",
               "Couldn’t load the emulator files.",
               frag
             );
@@ -519,22 +527,22 @@
         }
 
         if (!romParam || !core) {
-          fail("CAN’T START", "Missing the game file or system. Go back and try Play again.");
+          fail("Can’t start", "Missing the game file or system. Go back and try Play again.");
           return;
         }
 
-        document.getElementById("meta").textContent = core + " · " + channel + " · loading…";
+        document.getElementById("meta").textContent = core + " · " + channelLabel + " · loading…";
         showLoading("Loading ROM…");
 
         resolveRom(romParam)
           .then(function (gameUrl) {
-            document.getElementById("meta").textContent = core + " · " + channel + " · starting…";
+            document.getElementById("meta").textContent = core + " · " + channelLabel + " · starting…";
             showLoading("Starting emulator…");
             startEmulator(gameUrl);
           })
           .catch(function (err) {
             fail(
-              "CAN’T LOAD ROM",
+              "Can’t load ROM",
               (err && err.message) || "Couldn’t load that ROM. Go back and try Play again.",
               err && err.domMessage
             );

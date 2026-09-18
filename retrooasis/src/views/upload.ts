@@ -7,7 +7,7 @@ import {
 import { detectRomPlatform } from '../lib/archives'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
-import { getEjsChannel, pushRecent } from '../lib/store'
+import { formatEjsChannelLabel, pushRecent } from '../lib/store'
 import { reloadUploadedLibrary } from '../lib/catalog'
 import { formatBytes, saveUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
@@ -84,7 +84,7 @@ export function renderUpload(root: HTMLElement): void {
         </div>
         <input id="ro-file" type="file" accept="${romFileAccept()}" hidden multiple />
         <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite">
-          Using the ${getEjsChannel()} channel. PSP, 3DS, and DOS always use nightly — change the rest in Settings.
+          Using the ${formatEjsChannelLabel()} channel. PSP, 3DS, and DOS always use Nightly — change the rest in Settings.
         </p>
         <div class="ro-btn-row">
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}" data-ro-focusable="true">Back home</a>
@@ -118,7 +118,7 @@ export function renderUpload(root: HTMLElement): void {
       return
     }
     dropTitle.textContent = 'Drop ROM here'
-    dropSub.textContent = 'or click to choose a file'
+    dropSub.textContent = 'or click to choose files (multiple supported)'
   }
 
   const setBusy = (next: boolean) => {
@@ -209,7 +209,7 @@ export function renderUpload(root: HTMLElement): void {
     setBusy(false)
     if (input) input.value = ''
     if (status && files.length > 1) {
-      status.textContent = `Batch complete! Check your library to see your new games.`
+      status.textContent = 'Batch complete. Check your library for your new games.'
     }
   }
 
