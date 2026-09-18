@@ -95,3 +95,8 @@ export function folderDropMessage(): string {
 export function emptyDropMessage(): string {
   return 'That drop didn’t include a ROM file. Choose files, or link a folder in Settings.'
 }
+
+export function discSetLabel(filenames: string[]): string {
+  if (filenames.length <= 1) return filenames[0] || 'ROM'
+  return `${filenames[0]} + ${filenames.length - 1} more`
+}

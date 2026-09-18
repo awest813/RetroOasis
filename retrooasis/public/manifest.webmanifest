@@ -45,6 +45,25 @@
       "purpose": "any"
     }
   ],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "./#/upload",
+      "accept": {
+        "application/octet-stream": [
+          ".nes", ".sfc", ".smc", ".gb", ".gbc", ".gba", ".nds", ".z64", ".n64",
+          ".iso", ".cso", ".pbp", ".cue", ".bin", ".img", ".chd", ".ccd", ".m3u",
+          ".md", ".gen", ".smd", ".sms", ".gg", ".32x", ".zip", ".7z", ".rar",
+          ".cia", ".3ds", ".cci", ".pce", ".adf", ".d64", ".exe"
+        ]
+      },
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }],
+      "launch_type": "single-client"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Library",

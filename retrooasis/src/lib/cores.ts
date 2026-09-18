@@ -242,12 +242,26 @@ export function isArchiveFile(filename: string): boolean {
   return !!ext && ARCHIVE_EXTENSIONS.has(ext)
 }
 
+const ARCHIVE_NAME_HINTS: Array<{ platform: string; test: (name: string, path: string) => boolean }> = [
+  { platform: 'psp', test: (name, path) => name === 'UMD_DATA.BIN' || name === 'EBOOT.PBP' || path.includes('/PSP_GAME/') || path.startsWith('PSP_GAME/') },
+  { platform: 'psx', test: (name) => name === 'SYSTEM.CNF' || name === 'PSX.EXE' || /^[A-Z]{4}_\d{3}\.\d{2}$/.test(name) },
+  { platform: 'segaCD', test: (name) => name === 'IP.BIN' || name === 'ABS.TXT' || name === 'BIB.TXT' || name === 'CPY.TXT' },
+  { platform: '3do', test: (name) => name === 'LAUNCHME' || name === 'LAUNCH.ME' },
+]
+
 /**
  * Platform for one entry filename found inside an archive.
  * Nested archives are skipped — a .zip inside a .zip says nothing about the game.
  */
 export function platformForArchiveEntry(filename: string): string | null {
-  const ext = filename.split('.').pop()?.toLowerCase()
+  const normalized = filename.replace(/\\/g, '/')
+  const leaf = normalized.split('/').pop() ?? normalized
+  const name = leaf.toUpperCase()
+  const path = `/${normalized}/`.toUpperCase()
+  for (const hint of ARCHIVE_NAME_HINTS) {
+    if (hint.test(name, path)) return hint.platform
+  }
+  const ext = leaf.split('.').pop()?.toLowerCase()
   if (!ext || ARCHIVE_EXTENSIONS.has(ext)) return null
   return EXT_TO_PLATFORM[ext] ?? null
 }

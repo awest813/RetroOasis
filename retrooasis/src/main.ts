@@ -10,12 +10,16 @@ import { initCatalogExtras, onCatalogChange } from './lib/catalog'
 import {
   applyPwaDisplayMode,
   canInstallPwa,
+  initFileHandling,
+  initNetworkStatus,
   initPwaInstall,
   onPwaInstallChange,
   promptPwaInstall,
   registerServiceWorker,
   syncThemeColor,
 } from './lib/pwa'
+import { queuePendingUploads } from './lib/pendingUploads'
+import { navigate } from './lib/router'
 import { installInputChrome } from './lib/input'
 import { mountWave, setWaveActive } from './lib/wave'
 import { disposeActiveView, registerViewCleanup } from './lib/viewLifecycle'
@@ -45,7 +49,16 @@ syncThemeColor(getAccent())
 installInputChrome()
 initPwaInstall()
 applyPwaDisplayMode()
+initNetworkStatus()
 registerServiceWorker()
+initFileHandling((files) => {
+  queuePendingUploads(files)
+  if (getRoute().name === 'upload') {
+    void render(getRoute())
+    return
+  }
+  navigate('/upload')
+})
 
 app.innerHTML = `
   <a class="ro-skip" href="#ro-main">Skip to shelf</a>

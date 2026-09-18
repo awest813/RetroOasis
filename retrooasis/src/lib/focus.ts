@@ -4,7 +4,7 @@ import { bindMenuPad } from './gamepad'
 import { sfxConfirm, sfxMove } from './sfx'
 
 type Cleanup = () => void
-type Dir = 'left' | 'right' | 'up' | 'down' | 'confirm'
+type Dir = 'left' | 'right' | 'up' | 'down' | 'pageleft' | 'pageright' | 'confirm'
 
 function focusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>('[data-ro-focusable="true"], a[href], button, input:not([type=hidden]), select, textarea')).filter(
@@ -23,11 +23,12 @@ function focusTarget(el: HTMLElement | null | undefined): void {
 }
 
 function moveFocus(root: HTMLElement, key: Dir): void {
+  const dir: Dir = key === 'pageleft' ? 'left' : key === 'pageright' ? 'right' : key
   const list = focusables(root)
   if (!list.length) return
 
   const active = document.activeElement as HTMLElement | null
-  if (key === 'confirm') {
+  if (dir === 'confirm') {
     const target = active && list.includes(active) ? active : list[0]
     if (!active || !list.includes(active)) { focusTarget(target); return }
     if (target.getAttribute('aria-disabled') === 'true') return
@@ -39,8 +40,8 @@ function moveFocus(root: HTMLElement, key: Dir): void {
 
   if (!active || !list.includes(active)) { focusTarget(list[0]); return }
   const box = active.getBoundingClientRect()
-  const horizontal = key === 'left' || key === 'right'
-  const sign = key === 'right' || key === 'down' ? 1 : -1
+  const horizontal = dir === 'left' || dir === 'right'
+  const sign = dir === 'right' || dir === 'down' ? 1 : -1
   const cx = box.left + box.width / 2
   const cy = box.top + box.height / 2
   let best: HTMLElement | null = null
@@ -60,11 +61,12 @@ function moveFocus(root: HTMLElement, key: Dir): void {
 }
 
 function moveRowFocus(root: HTMLElement, key: Dir): void {
+  const dir: Dir = key === 'pageleft' ? 'left' : key === 'pageright' ? 'right' : key
   const list = focusables(root)
   if (!list.length) return
 
   const active = document.activeElement as HTMLElement | null
-  if (key === 'confirm') {
+  if (dir === 'confirm') {
     const target = active && list.includes(active) ? active : list[0]
     if (!active || !list.includes(active)) { focusTarget(target); return }
     if (target.getAttribute('aria-disabled') === 'true') return
@@ -78,7 +80,7 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
     (row) => focusables(row).length > 0,
   )
   if (!rows.length || !active?.closest('[data-ro-focus-row]')) {
-    moveFocus(root, key)
+    moveFocus(root, dir)
     return
   }
 
@@ -90,9 +92,9 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
   const inRow = focusables(row)
   const idxInRow = Math.max(0, inRow.indexOf(active && list.includes(active) ? active : inRow[0]))
 
-  if (key === 'left' || key === 'right') {
+  if (dir === 'left' || dir === 'right') {
     const next =
-      key === 'right' ? Math.min(inRow.length - 1, idxInRow + 1) : Math.max(0, idxInRow - 1)
+      dir === 'right' ? Math.min(inRow.length - 1, idxInRow + 1) : Math.max(0, idxInRow - 1)
     if (next === idxInRow) return
     sfxMove()
     focusTarget(inRow[next])
@@ -100,8 +102,8 @@ function moveRowFocus(root: HTMLElement, key: Dir): void {
   }
 
   const nextRowIndex =
-    key === 'down' ? Math.min(rows.length - 1, rowIndex + 1) : Math.max(0, rowIndex - 1)
-  if (nextRowIndex === rowIndex) { moveFocus(root, key); return }
+    dir === 'down' ? Math.min(rows.length - 1, rowIndex + 1) : Math.max(0, rowIndex - 1)
+  if (nextRowIndex === rowIndex) { moveFocus(root, dir); return }
   const nextRow = rows[nextRowIndex]
   const nextControls = focusables(nextRow)
   const preferred =

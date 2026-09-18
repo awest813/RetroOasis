@@ -7,11 +7,17 @@ import {
   slugId,
   titleFromFilename,
 } from './cores'
+import {
+  groupDiscSetNames,
+  isDiscCompanion,
+  isDiscDescriptor,
+} from './discSets'
 import { idbDelete, idbGet, idbSet } from './idb'
 import { parseSidecar, type GameSidecar } from './sidecar'
 
 const ROOT_HANDLE_KEY = 'libraryRoot'
 const fileHandles = new Map<string, FileSystemFileHandle>()
+const companionHandles = new Map<string, FileSystemFileHandle[]>()
 const coverUrls = new Map<string, string>()
 
 export interface LocalScanResult {
@@ -104,14 +110,36 @@ async function scanPlatformDir(
   const romEntries: Array<[string, FileSystemFileHandle]> = []
 
   for await (const [name, handle] of dir.entries()) {
-    if (handle.kind === 'file' && isRomFile(name)) {
+    if (handle.kind === 'file' && (isRomFile(name) || isDiscCompanion(name))) {
       romEntries.push([name, handle as FileSystemFileHandle])
     }
   }
 
-  const sharedMeta = romEntries.length === 1 ? await readJsonSidecar(dir, 'game.json') : null
+  const handleByName = new Map(romEntries)
+  const texts: Record<string, string> = {}
+  await Promise.all(
+    romEntries
+      .filter(([name]) => isDiscDescriptor(name))
+      .map(async ([name, handle]) => {
+        try {
+          const file = await handle.getFile()
+          if (file.size < 2_000_000) texts[name] = await file.text()
+        } catch {
+          /* ignore */
+        }
+      }),
+  )
 
-  for (const [name, handle] of romEntries) {
+  const plans = groupDiscSetNames(
+    romEntries.map(([name]) => name),
+    { texts },
+  )
+  const sharedMeta = plans.length === 1 ? await readJsonSidecar(dir, 'game.json') : null
+
+  for (const plan of plans) {
+    const name = plan.primary.name
+    const handle = handleByName.get(name)
+    if (!handle) continue
     const id = slugId(platformId, name)
     const romBase = name.replace(/\.[^.]+$/, '')
     const meta = (await readJsonSidecar(dir, `${romBase}.json`)) || sharedMeta
@@ -130,8 +158,15 @@ async function scanPlatformDir(
       }
     }
 
-    fileHandles.set(id, handle as FileSystemFileHandle)
+    fileHandles.set(id, handle)
+    const extras = plan.files
+      .map((entry) => handleByName.get(entry.name))
+      .filter((h): h is FileSystemFileHandle => !!h && h !== handle)
+    if (extras.length) companionHandles.set(id, extras)
     if (cover) coverUrls.set(id, cover)
+
+    const tags = meta?.tags?.length ? [...meta.tags] : ['local']
+    if (plan.kind === 'disc-set' && !tags.includes('disc-set')) tags.push('disc-set')
 
     games.push({
       id,
@@ -145,7 +180,7 @@ async function scanPlatformDir(
       year: meta?.year,
       developer: meta?.developer,
       source: 'local',
-      tags: meta?.tags?.length ? meta.tags : ['local'],
+      tags,
     })
   }
 }
@@ -180,6 +215,7 @@ async function scanCoversBucket(
 export async function scanDirectory(root: FileSystemDirectoryHandle): Promise<LocalScanResult> {
   revokeCovers()
   fileHandles.clear()
+  companionHandles.clear()
 
   const games: Game[] = []
   let start: FileSystemDirectoryHandle = root
@@ -239,15 +275,24 @@ export async function grantLocalLibraryAccess(): Promise<LocalScanResult | null>
 export async function clearLocalLibrary(): Promise<void> {
   revokeCovers()
   fileHandles.clear()
+  companionHandles.clear()
   await idbDelete(ROOT_HANDLE_KEY)
 }
 
 export async function getLocalRomFile(gameId: string): Promise<File> {
+  const files = await getLocalRomFiles(gameId)
+  return files[0]
+}
+
+export async function getLocalRomFiles(gameId: string): Promise<File[]> {
   const handle = fileHandles.get(gameId)
   if (!handle) {
     throw new Error('Lost access to that folder. Link your ROM folder again in Settings.')
   }
-  return handle.getFile()
+  const primary = await handle.getFile()
+  const extras = companionHandles.get(gameId) ?? []
+  const companions = await Promise.all(extras.map((extra) => extra.getFile()))
+  return [primary, ...companions]
 }
 
 export function hasLocalHandle(gameId: string): boolean {

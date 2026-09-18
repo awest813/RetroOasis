@@ -86,6 +86,8 @@ Merge order: demo catalog → `roms/manifest.json` (hosted) → **saved uploads*
 
 **Add ROM** stores file bytes in IndexedDB on this device and adds a shelf entry. Reloads keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key). Re-adding the same filename replaces the bytes but keeps the original title/`addedAt` when possible.
 
+Disc dumps dropped together (`.cue` + `.bin` / `.img` / `.iso`, `.ccd` + `.img`, `.m3u` playlists) are packed into one library entry so EmulatorJS sees every file. Auto-detect peeks ISO 9660 headers so a `.iso` can resolve to PSP, PlayStation, Sega CD, 3DO, or DOS instead of always assuming PSP. Settings shows browser storage use and can ask the browser to keep saved ROMs.
+
 ### Hosted manifest (all browsers)
 
 Place ROMs under `roms/<platform>/` next to the built site, then either write `roms/manifest.json` by hand or generate it:
@@ -134,9 +136,10 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | Group | Options |
 | ----- | ------- |
 | **Look** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
+| **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right |
 | **Sound & cores** | UI sounds (off by default), sound pack (Soft / XMB / Arcade), Emulator files channel, thread-support status |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
-| **Data** | Install as app (PWA), clear recents & favorites, export/clear metadata edits |
+| **Data** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
 
 Settings uses a console-style row menu with keyboard/gamepad focus (D-pad or arrows, Enter to confirm, Escape / B to go back).
 
@@ -148,6 +151,8 @@ Settings uses a console-style row menu with keyboard/gamepad focus (D-pad or arr
 - **UI sounds** (Settings): soft, XMB, or arcade packs — off by default
 - **Install**: top-bar / Settings button when `beforeinstallprompt` fires; iOS uses Share → Add to Home Screen
 - **Standalone mode**: home-screen launch uses `viewport-fit=cover`, safe-area padding, and hides install CTAs
+- **Offline**: a banner appears when the network drops; the cached app shell and IndexedDB ROMs still open
+- **File handlers**: an installed PWA can receive ROM/ISO files from the OS and send them to Add ROM
 - **Skip link**: “Skip to shelf” for keyboard users (reachable from XMB and Library)
 - **Onboarding**: empty-library hint in the grid when only demo samples are visible
 - Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`); mouse/touch without sticky rings

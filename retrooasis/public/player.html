@@ -434,7 +434,173 @@
           });
         }
 
-        function resolveRom(rom) {
+        function parseDiscRefs(filename, text) {
+          var ext = (filename.split(".").pop() || "").toLowerCase();
+          var names = [];
+          if (ext === "m3u") {
+            text.split(/\r?\n/).forEach(function (raw) {
+              var line = raw.trim();
+              if (line && line.charAt(0) !== "#") names.push(line.replace(/\\/g, "/"));
+            });
+            return names;
+          }
+          if (ext !== "cue" && ext !== "ccd" && ext !== "toc") return names;
+          var re = /^\s*FILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+/gim;
+          var match;
+          while ((match = re.exec(text))) {
+            var name = (match[1] || match[2] || match[3] || "").trim();
+            if (name) names.push(name.replace(/\\/g, "/"));
+          }
+          return names;
+        }
+
+        function crc32(data) {
+          var table = crc32.table;
+          if (!table) {
+            table = new Uint32Array(256);
+            for (var i = 0; i < 256; i++) {
+              var c = i;
+              for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+              table[i] = c >>> 0;
+            }
+            crc32.table = table;
+          }
+          var crc = 0xffffffff;
+          for (var n = 0; n < data.length; n++) crc = table[(crc ^ data[n]) & 0xff] ^ (crc >>> 8);
+          return (crc ^ 0xffffffff) >>> 0;
+        }
+
+        function u16(n) {
+          return new Uint8Array([n & 0xff, (n >>> 8) & 0xff]);
+        }
+        function u32(n) {
+          return new Uint8Array([n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff]);
+        }
+        function concatBytes(parts) {
+          var total = 0;
+          for (var i = 0; i < parts.length; i++) total += parts[i].length;
+          var out = new Uint8Array(total);
+          var at = 0;
+          for (var j = 0; j < parts.length; j++) {
+            out.set(parts[j], at);
+            at += parts[j].length;
+          }
+          return out;
+        }
+
+        function buildStoreZip(entries) {
+          var encoder = new TextEncoder();
+          var locals = [];
+          var centrals = [];
+          var offset = 0;
+          var now = new Date();
+          var time = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+          var date = ((Math.max(1980, now.getFullYear()) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+          for (var i = 0; i < entries.length; i++) {
+            var nameBytes = encoder.encode(entries[i].name);
+            var bytes = entries[i].bytes;
+            var crc = crc32(bytes);
+            var size = bytes.byteLength;
+            var local = concatBytes([
+              encoder.encode("PK\x03\x04"),
+              u16(20),
+              u16(0),
+              u16(0),
+              u16(time),
+              u16(date),
+              u32(crc),
+              u32(size),
+              u32(size),
+              u16(nameBytes.length),
+              u16(0),
+              nameBytes,
+              bytes,
+            ]);
+            var central = concatBytes([
+              encoder.encode("PK\x01\x02"),
+              u16(20),
+              u16(20),
+              u16(0),
+              u16(0),
+              u16(time),
+              u16(date),
+              u32(crc),
+              u32(size),
+              u32(size),
+              u16(nameBytes.length),
+              u16(0),
+              u16(0),
+              u16(0),
+              u16(0),
+              u32(0),
+              u32(offset),
+              nameBytes,
+            ]);
+            locals.push(local);
+            centrals.push(central);
+            offset += local.byteLength;
+          }
+          var centralDir = concatBytes(centrals);
+          var eocd = concatBytes([
+            encoder.encode("PK\x05\x06"),
+            u16(0),
+            u16(0),
+            u16(entries.length),
+            u16(entries.length),
+            u32(centralDir.byteLength),
+            u32(offset),
+            u16(0),
+          ]);
+          return concatBytes(locals.concat([centralDir, eocd]));
+        }
+
+        function fetchAsFile(url) {
+          return fetch(url, { method: "GET", cache: "no-store" }).then(function (res) {
+            if (!res.ok) return null;
+            var type = (res.headers.get("content-type") || "").toLowerCase();
+            if (type.indexOf("text/html") === 0) return null;
+            return res.arrayBuffer().then(function (bytes) {
+              var filename = decodeURIComponent(url.split("/").pop().split("?")[0] || "track.bin");
+              return new File([bytes], filename, { type: type || "application/octet-stream" });
+            });
+          }).catch(function () {
+            return null;
+          });
+        }
+
+        function maybeBundleHostedDisc(rom, primary) {
+          var ext = (primary.name.split(".").pop() || "").toLowerCase();
+          if (ext !== "cue" && ext !== "ccd" && ext !== "m3u" && ext !== "toc") {
+            return Promise.resolve(primary);
+          }
+          return primary.text().then(function (text) {
+            var refs = parseDiscRefs(primary.name, text);
+            if (!refs.length) return primary;
+            var dir = rom.split("?")[0];
+            var slash = dir.lastIndexOf("/");
+            dir = slash >= 0 ? dir.slice(0, slash + 1) : "./";
+            var jobs = refs.map(function (ref) {
+              var leaf = ref.replace(/\\/g, "/").split("/").pop();
+              if (!leaf || leaf.toLowerCase() === primary.name.toLowerCase()) return Promise.resolve(null);
+              return fetchAsFile(dir + encodeURIComponent(leaf));
+            });
+            return Promise.all(jobs).then(function (files) {
+              var extras = files.filter(Boolean);
+              if (!extras.length) return primary;
+              return Promise.all(
+                [primary].concat(extras).map(function (file) {
+                  return file.arrayBuffer().then(function (buf) {
+                    return { name: file.name, bytes: new Uint8Array(buf) };
+                  });
+                }),
+              ).then(function (zipEntries) {
+                var zip = buildStoreZip(zipEntries);
+                var zipName = primary.name.replace(/\.[^.]+$/, "") + ".zip";
+                return new File([zip], zipName, { type: "application/zip" });
+              });
+            });
+          });
+        }
           if (!rom) return Promise.reject(new Error("Missing game file. Go back and try again."));
           // Dead blob URLs from a previous document cannot be fetched after navigation.
           if (rom.indexOf("blob:") === 0) {
@@ -482,9 +648,10 @@
             }
             return res.arrayBuffer().then(function (bytes) {
               var filename = rom.split("/").pop().split("?")[0] || "game.bin";
-              return new File([bytes], decodeURIComponent(filename), {
+              var file = new File([bytes], decodeURIComponent(filename), {
                 type: type || "application/octet-stream",
               });
+              return maybeBundleHostedDisc(rom, file);
             });
           });
         }

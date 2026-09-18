@@ -96,6 +96,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     if (!active) return
     const name = record?.filename || 'Saved on this device'
     fileLabel = name.replace(/\.[^.]+$/, '') || name
+    if (record?.parts && record.parts.length > 1) {
+      fileLabel = `${record.parts[0]} + ${record.parts.length - 1} more`
+    }
   }
 
   const startPlay = async (focusId: string): Promise<void> => {
@@ -154,6 +157,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           <div class="ro-detail__badges">
             <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
+            ${game.tags?.includes('disc-set') ? '<span class="ro-badge">Disc set</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
           </div>

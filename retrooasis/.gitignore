@@ -27,5 +27,6 @@ dist-ssr
 .scripts-test-cache
 scripts/.archives-test-cache
 scripts/.upload-flow-test-cache
+scripts/.disc-sets-test-cache
 scripts/.router-test-cache
 scripts/.overrides-test-cache

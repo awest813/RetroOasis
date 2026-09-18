@@ -125,9 +125,19 @@ for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
     const ext = file.split('.').pop()?.toLowerCase()
     return !!ext && ROM_EXT.has(ext)
   })
-  const allowShared = romFiles.length === 1
+  const DESCRIPTOR = new Set(['cue', 'ccd', 'm3u', 'toc'])
+  const COMPANION = new Set(['bin', 'img', 'iso', 'wav', 'chd', 'sub'])
+  const basesWithDescriptor = new Set(
+    romFiles.filter((file) => DESCRIPTOR.has(file.split('.').pop()?.toLowerCase() || '')).map((file) => file.replace(/\.[^.]+$/, '').toLowerCase()),
+  )
+  const listed = romFiles.filter((file) => {
+    const ext = file.split('.').pop()?.toLowerCase() || ''
+    if (!COMPANION.has(ext) || DESCRIPTOR.has(ext)) return true
+    return !basesWithDescriptor.has(file.replace(/\.[^.]+$/, '').toLowerCase())
+  })
+  const allowShared = listed.length === 1
 
-  for (const file of romFiles) {
+  for (const file of listed) {
     const base = file.replace(/\.[^.]+$/, '')
     const meta = readSidecar(platformDir, base, allowShared) || {}
     const game = {
