@@ -9,6 +9,7 @@ export interface UploadOutcome {
   filename: string
   detail: string
   gameId?: string
+  holdLaunch?: boolean
 }
 
 export function filesFromList(list: ArrayLike<File> | null | undefined): File[] {
@@ -80,7 +81,12 @@ export function summarizeUpload(outcomes: UploadOutcome[]): string {
 }
 
 export function shouldLaunchAfterUpload(outcomes: UploadOutcome[]): boolean {
-  return outcomes.length === 1 && outcomes[0]?.kind === 'saved' && Boolean(outcomes[0].gameId)
+  return (
+    outcomes.length === 1 &&
+    outcomes[0]?.kind === 'saved' &&
+    Boolean(outcomes[0].gameId) &&
+    !outcomes[0].holdLaunch
+  )
 }
 
 export function threadSupportHint(core: string, hasThreads: boolean): string | null {

@@ -142,6 +142,11 @@ check(
   shouldLaunchAfterUpload([{ kind: 'skipped', filename: 'notes.txt', detail: 'nope' }]),
   false,
 )
+check(
+  'missing companions hold launch',
+  shouldLaunchAfterUpload([{ kind: 'saved', filename: 'a.cue', detail: 'needs bin', gameId: 'a', holdLaunch: true }]),
+  false,
+)
 
 console.log('threadSupportHint')
 check('auto never warns', threadSupportHint('auto', false), null)

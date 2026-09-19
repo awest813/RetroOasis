@@ -330,6 +330,7 @@ export function renderUpload(root: HTMLElement): void {
             filename: label,
             detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}`,
             gameId: game.id,
+            holdLaunch: Boolean(missingNote),
           })
           playable = game
         } catch (err) {

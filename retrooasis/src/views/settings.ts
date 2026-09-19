@@ -339,7 +339,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                     : 'This browser doesn’t report how much space is left.'
                 }
               </p>
-              <p class="ro-muted">
+              <p class="ro-muted" id="ro-persist-status">
                 ${
                   storage.persistent
                     ? 'This browser promised to keep saved ROMs when storage is tight.'
@@ -496,7 +496,15 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
 
   root.querySelector('#ro-persist')?.addEventListener('click', async () => {
-    await requestPersistentStorage()
+    const ok = await requestPersistentStorage()
+    if (!ok) {
+      const status = root.querySelector('#ro-persist-status')
+      if (status) {
+        status.textContent =
+          'This browser didn’t promise to keep data. Install as an app or try again after using RetroOasis more.'
+      }
+      return
+    }
     rerender('persist')
   })
 
