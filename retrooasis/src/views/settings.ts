@@ -41,12 +41,13 @@ import {
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
+import { getStorageSnapshot, requestPersistentStorage } from '../lib/storageQuota'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
 import { escapeHtml } from '../lib/dom'
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
-import { connectedPads } from '../lib/gamepad'
+import { describeConnectedPads, onPadPresenceChange } from '../lib/gamepad'
 
 const FOCUS_KEY = 'retrooasis.settings.focusId'
 const SCROLL_KEY = 'retrooasis.settings.scrollY'
@@ -117,6 +118,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   if (!active) return
   const uploadedMeta = await getUploadedLibraryMeta()
   if (!active) return
+  const storage = await getStorageSnapshot()
+  if (!active) return
   const hasSab = typeof SharedArrayBuffer !== 'undefined'
   const catalog = await loadCatalog()
   if (!active) return
@@ -148,9 +151,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <div class="ro-settings-row__copy">
               <strong>Bluetooth &amp; USB controllers</strong>
               <p class="ro-muted">Pair in your device’s Bluetooth settings or plug in by USB. Return to this page, press a controller button, then release it.</p>
-              <p class="ro-muted">Menus use the D-pad or left stick to move, the bottom face button (A / Cross) to choose, and the right face button (B / Circle) to go back. Start also chooses; Select goes back.</p>
+              <p class="ro-muted">Menus use the D-pad or left stick to move, the bottom face button (A / Cross) to choose, and the right face button (B / Circle) to go back. Start also chooses; Select goes back. L/R shoulders move like left and right.</p>
               <p class="ro-muted">Chrome and Safari rely on your device’s controller support. Use HTTPS or localhost. If a controller stays unavailable, reconnect it and reopen the page. Set game-specific controls in the player.</p>
-              <p class="ro-muted" id="ro-controller-status" role="status">Press Check controller to see what this browser detects.</p>
+              <p class="ro-muted" id="ro-controller-status" role="status">${escapeHtml(describeConnectedPads().message)}</p>
             </div>
             <button type="button" class="ro-btn" id="ro-check-controller" data-focus-id="controller" data-ro-focusable="true">Check controller</button>
           </div>
@@ -324,6 +327,40 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         <section class="ro-settings__group" aria-labelledby="ro-set-data">
           <h2 class="ro-settings__heading" id="ro-set-data">Data</h2>
 
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Browser storage</strong>
+              <p class="ro-muted">
+                ${
+                  storage.supported && storage.quota > 0
+                    ? `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used (${Math.round(storage.percent)}%).${
+                        storage.percent >= 80 ? ' Free space before adding large ISOs.' : ''
+                      }`
+                    : 'This browser doesn’t report how much space is left.'
+                }
+              </p>
+              <p class="ro-muted" id="ro-persist-status">
+                ${
+                  storage.persistent
+                    ? 'This browser promised to keep saved ROMs when storage is tight.'
+                    : 'Ask the browser to keep saved ROMs instead of clearing them when space is low.'
+                }
+              </p>
+              ${
+                storage.supported && storage.quota > 0
+                  ? `<div class="ro-storage-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(storage.percent)}" aria-label="Browser storage used">
+                      <span style="width:${Math.min(100, storage.percent).toFixed(1)}%"></span>
+                    </div>`
+                  : ''
+              }
+            </div>
+            ${
+              storage.persistent
+                ? `<span class="ro-badge ro-badge--ok" role="status">Kept</span>`
+                : `<button type="button" class="ro-btn" id="ro-persist" data-focus-id="persist" data-ro-focusable="true">Keep ROMs</button>`
+            }
+          </div>
+
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Local saves</strong>
@@ -447,16 +484,28 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     })
   })
 
+  const paintControllerStatus = () => {
+    const status = root.querySelector('#ro-controller-status')
+    if (status) status.textContent = describeConnectedPads().message
+  }
+  paintControllerStatus()
+  const stopPads = onPadPresenceChange(paintControllerStatus)
+
   root.querySelector('#ro-check-controller')?.addEventListener('click', () => {
-    const pads = connectedPads()
-    const standard = pads.find(p => p.mapping === 'standard')
-    root.querySelector('#ro-controller-status')!.textContent = !window.isSecureContext
-      ? 'Open this site over HTTPS or localhost to use controllers.'
-      : typeof navigator.getGamepads !== 'function'
-        ? 'Controller access is unavailable in this browser. Keyboard and touch still work.'
-        : standard ? `Ready for menus: ${standard.id}. Release the buttons before navigating.`
-          : pads.length ? 'Controller detected, but its button layout is not recognized for menus. Use keyboard or touch here and configure controls in the player.'
-            : 'No controller visible yet. Press and release a controller button while this page is active, then check again. Browser or embedded-page permissions may also block access.'
+    paintControllerStatus()
+  })
+
+  root.querySelector('#ro-persist')?.addEventListener('click', async () => {
+    const ok = await requestPersistentStorage()
+    if (!ok) {
+      const status = root.querySelector('#ro-persist-status')
+      if (status) {
+        status.textContent =
+          'This browser didn’t promise to keep data. Install as an app or try again after using RetroOasis more.'
+      }
+      return
+    }
+    rerender('persist')
   })
 
   root.querySelector('#ro-hide-demos')?.addEventListener('click', () => {
@@ -556,5 +605,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       }
       if (restore.dataset.focusId) rememberFocus(restore.dataset.focusId)
     }
+  }
+
+  const rowCleanup = focusCleanup
+  focusCleanup = () => {
+    stopPads()
+    rowCleanup?.()
   }
 }

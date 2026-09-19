@@ -17,10 +17,11 @@ const cacheDir = path.join(here, '.archives-test-cache')
 fs.rmSync(cacheDir, { recursive: true, force: true })
 fs.mkdirSync(cacheDir, { recursive: true })
 
-for (const name of ['archives.ts', 'cores.ts', 'store.ts']) {
+for (const name of ['archives.ts', 'cores.ts', 'store.ts', 'iso.ts']) {
   let source = fs.readFileSync(path.join(srcDir, name), 'utf8')
   source = source.replace(/from '\.\/cores'/g, "from './cores.ts'")
   source = source.replace(/from '\.\/store'/g, "from './store.ts'")
+  source = source.replace(/from '\.\/iso'/g, "from './iso.ts'")
   fs.writeFileSync(path.join(cacheDir, name), source)
 }
 
@@ -310,7 +311,9 @@ console.log('zip listing')
 check('psx from zip entries', platformFromArchiveEntries(['game/game.cue', 'game/game.bin', 'game/readme.nfo']), 'psx')
 check('ecm rip detected as psx', platformFromArchiveEntries(['rip/game.bin.ecm', 'rip/notes.txt']), 'psx')
 check('ccd dump detected as psx', platformFromArchiveEntries(['dump/game.ccd', 'dump/game.img']), 'psx')
-check('psp vote for lone iso', platformFromArchiveEntries(['disc.iso', 'readme.txt']), 'psp')
+check('lone iso stays unknown', platformFromArchiveEntries(['disc.iso', 'readme.txt']), null)
+check('system.cnf votes psx', platformFromArchiveEntries(['SYSTEM.CNF', 'SLUS_000.01']), 'psx')
+check('umd data votes psp', platformFromArchiveEntries(['UMD_DATA.BIN', 'PSP_GAME/SYSDIR/EBOOT.BIN']), 'psp')
 check('nested archive ignored', platformFromArchiveEntries(['pack.zip', 'pack.7z']), null)
 check('empty votes', platformFromArchiveEntries(['notes.txt']), null)
 
@@ -320,8 +323,8 @@ console.log('rar listing')
   check('rar5 names', peek5?.names, ['Gex (Europe).cue', 'Gex (Europe).bin', 'gex.nfo'])
   check('rar5 detects psx', peek5 ? platformFromArchiveEntries(peek5.names) : null, 'psx')
 
-  const peek4 = await peekArchive(toFile(makeRar4(['Rayman (USA).img', 'Rayman.txt']), 'rayman.rar'))
-  check('rar4 names', peek4?.names, ['Rayman (USA).img', 'Rayman.txt'])
+  const peek4 = await peekArchive(toFile(makeRar4(['Rayman (USA).cue', 'Rayman (USA).img', 'Rayman.txt']), 'rayman.rar'))
+  check('rar4 names', peek4?.names, ['Rayman (USA).cue', 'Rayman (USA).img', 'Rayman.txt'])
   check('rar4 detects psx', peek4 ? platformFromArchiveEntries(peek4.names) : null, 'psx')
 }
 
@@ -356,6 +359,74 @@ check('rar peeks to psx', await detectRomPlatform(toFile(makeRar5(['gb/Gex (Euro
 check('7z plain peeks to psx', await detectRomPlatform(toFile(make7zPlain(['d/d.cue', 'd/d.bin']), 'd.7z')), 'psx')
 check('arcade zip stays arcade', await detectRomPlatform(toFile(makeZip(['mslug/fbneo.rom']), 'mslug.zip')), 'arcade')
 check('unknown falls back', await detectRomPlatform(toFile(makeZip(['stuff.txt'], ), 'thing.zip')), 'arcade')
+check('bare iso stays unknown', await detectRomPlatform(toFile(u8(0, 1, 2, 3), 'mystery.iso')), null)
+
+function writeU32(buf, offset, value) {
+  buf[offset] = value & 0xff
+  buf[offset + 1] = (value >>> 8) & 0xff
+  buf[offset + 2] = (value >>> 16) & 0xff
+  buf[offset + 3] = (value >>> 24) & 0xff
+}
+
+function writeDirRecord(buf, offset, name, flags, lba, size) {
+  const nameBytes = typeof name === 'number' ? Uint8Array.of(name) : new TextEncoder().encode(name)
+  let recLen = 33 + nameBytes.length
+  if (recLen % 2) recLen += 1
+  buf[offset] = recLen
+  writeU32(buf, offset + 2, lba)
+  writeU32(buf, offset + 10, size)
+  buf[offset + 25] = flags
+  buf[offset + 32] = nameBytes.length
+  buf.set(nameBytes, offset + 33)
+  return recLen
+}
+
+function makeIso(names, volumeId = 'CDROM') {
+  const SECTOR = 2048
+  const buf = new Uint8Array(24 * SECTOR)
+  const pvd = 16 * SECTOR
+  buf[pvd] = 1
+  buf.set([0x43, 0x44, 0x30, 0x30, 0x31], pvd + 1)
+  buf[pvd + 6] = 1
+  const vol = volumeId.toUpperCase().padEnd(32, ' ')
+  for (let i = 0; i < 32; i++) buf[pvd + 40 + i] = vol.charCodeAt(i)
+  const rootLba = 20
+  buf[pvd + 156] = 34
+  writeU32(buf, pvd + 158, rootLba)
+  writeU32(buf, pvd + 166, SECTOR)
+  buf[pvd + 181] = 2
+  buf[pvd + 188] = 1
+  buf[pvd + 189] = 0
+  let p = rootLba * SECTOR
+  p += writeDirRecord(buf, p, 0, 2, rootLba, SECTOR)
+  p += writeDirRecord(buf, p, 1, 2, rootLba, SECTOR)
+  for (const name of names) {
+    const dir = name.endsWith('/')
+    const leaf = dir ? name.slice(0, -1) : name
+    p += writeDirRecord(buf, p, leaf, dir ? 2 : 0, 21, SECTOR)
+  }
+  return buf
+}
+
+check('iso system.cnf is psx', await detectRomPlatform(toFile(makeIso(['SYSTEM.CNF']), 'final.iso')), 'psx')
+check('iso psp_game is psp', await detectRomPlatform(toFile(makeIso(['PSP_GAME/'], 'PSP GAME'), 'god.iso')), 'psp')
+check('iso ip.bin is sega cd', await detectRomPlatform(toFile(makeIso(['IP.BIN']), 'sonic.iso')), 'segaCD')
+check('iso volume playstation', await detectRomPlatform(toFile(makeIso(['README.TXT'], 'PLAYSTATION'), 'ps.iso')), 'psx')
+
+function makeRawIso(names, volumeId = 'CDROM') {
+  const cooked = makeIso(names, volumeId)
+  const SECTOR = 2048
+  const RAW = 2352
+  const sectors = cooked.length / SECTOR
+  const out = new Uint8Array(sectors * RAW)
+  for (let s = 0; s < sectors; s++) {
+    out.set(cooked.subarray(s * SECTOR, (s + 1) * SECTOR), s * RAW + 16)
+  }
+  return out
+}
+
+check('raw 2352 iso system.cnf is psx', await detectRomPlatform(toFile(makeRawIso(['SYSTEM.CNF']), 'final.iso')), 'psx')
+check('zipped lone iso stays unknown', await detectRomPlatform(toFile(makeZip(['disc.iso']), 'disc.zip')), null)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

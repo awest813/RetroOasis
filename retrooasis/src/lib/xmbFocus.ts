@@ -4,7 +4,7 @@ import { setModality } from './inputModality'
 import { sfxBack, sfxConfirm, sfxMove } from './sfx'
 import { bindMenuPad } from './gamepad'
 
-export type XmbDir = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back'
+export type XmbDir = 'left' | 'right' | 'up' | 'down' | 'pageleft' | 'pageright' | 'confirm' | 'back'
 
 export interface XmbFocusApi {
   getCategoryCount: () => number
@@ -53,8 +53,11 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
     const cat = api.getCategoryIndex()
     const item = api.getItemIndex()
 
-    if (dir === 'left' || dir === 'right') {
-      const next = dir === 'right' ? Math.min(catCount - 1, cat + 1) : Math.max(0, cat - 1)
+    if (dir === 'left' || dir === 'right' || dir === 'pageleft' || dir === 'pageright') {
+      const next =
+        dir === 'right' || dir === 'pageright'
+          ? Math.min(catCount - 1, cat + 1)
+          : Math.max(0, cat - 1)
       if (next === cat) return
       sfxMove()
       api.setCategoryIndex(next)

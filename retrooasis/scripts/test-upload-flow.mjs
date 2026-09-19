@@ -44,6 +44,7 @@ const {
   threadSupportHint,
   folderDropMessage,
   emptyDropMessage,
+  discSetLabel,
 } = await import(`file://${path.join(cacheDir, 'uploadFlow.ts').replace(/\\/g, '/')}`)
 
 const { romFileAccept, coreNeedsThreads } = await import(
@@ -141,6 +142,11 @@ check(
   shouldLaunchAfterUpload([{ kind: 'skipped', filename: 'notes.txt', detail: 'nope' }]),
   false,
 )
+check(
+  'missing companions hold launch',
+  shouldLaunchAfterUpload([{ kind: 'saved', filename: 'a.cue', detail: 'needs bin', gameId: 'a', holdLaunch: true }]),
+  false,
+)
 
 console.log('threadSupportHint')
 check('auto never warns', threadSupportHint('auto', false), null)
@@ -152,11 +158,14 @@ checkTrue('3ds is a thread core', coreNeedsThreads('3ds'))
 console.log('copy')
 checkTrue('folder message mentions Settings', folderDropMessage().includes('Settings'))
 checkTrue('empty drop mentions ROM', emptyDropMessage().includes('ROM'))
+check('disc set label', discSetLabel(['game.cue', 'game.bin']), 'game.cue + 1 more')
 
 console.log('romFileAccept')
 checkTrue('includes zip', romFileAccept().includes('.zip'))
 checkTrue('includes rar', romFileAccept().includes('.rar'))
-checkTrue('includes 7z', romFileAccept().includes('.7z'))
+checkTrue('includes iso', romFileAccept().includes('.iso'))
+checkTrue('includes cue', romFileAccept().includes('.cue'))
+checkTrue('includes toc', romFileAccept().includes('.toc'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

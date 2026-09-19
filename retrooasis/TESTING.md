@@ -4,10 +4,11 @@ Run these commands from the repository root:
 
 | Command | Coverage |
 | --- | --- |
-| `npm test` | Core-option normalization, archive parsing, controller input and player controller snapshots |
+| `npm test` | Core-option normalization, archive parsing, disc-set grouping, controller input and player controller snapshots |
 | `node scripts/test-core-options.mjs --browser` | Core-option selection, focus, Escape and external setting updates |
 | `node retrooasis/scripts/test-gamepad.mjs --browser` | Controller focus, activation, release guards, background recovery, row navigation and cleanup |
-| `npm --prefix retrooasis run test:saves` | IndexedDB backups, restore, deletion, validation and restore preview |
+| `npm --prefix retrooasis run test:disc-sets` | CUE/BIN grouping, M3U playlists, STORE zip packing |
+| `npm --prefix retrooasis run test:saves` | Save-slot listing, import/export, and database isolation |
 | `npx eslint . --quiet` | Lint errors; existing warnings are omitted |
 | `npm run build` | TypeScript, SPA production build and Pages artifact |
 | `npm run minify` | Emulator JavaScript and CSS bundles |

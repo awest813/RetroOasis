@@ -55,13 +55,60 @@ const PLATFORM_TO_CORE = {
 const ROM_EXT = new Set([
   'nes', 'fds', 'unif', 'unf', 'smc', 'fig', 'sfc', 'gb', 'gbc', 'gba',
   'nds', 'z64', 'n64', 'v64', 'vb', '3ds', 'cci', 'cia', 'cxi', 'app',
-  'md', 'smd', 'gen', 'bin', 'iso', 'cue', 'img', 'pbp', 'cso', 'chd', 'm3u',
+  'md', 'smd', 'gen', 'bin', 'iso', 'cue', 'img', 'pbp', 'cso', 'chd', 'm3u', 'ccd', 'toc',
   'sms', 'gg', 'zip', '7z', 'a26', 'a78', 'a52', 'lnx', 'j64', 'jag',
   'pce', 'ngp', 'ngc', 'ws', 'wsc', 'col', 'cv', 'd64', 't64', 'adf', 'hdf',
   'exe', 'com', 'int', 'itv',
 ])
 
 const COVER_EXT = ['png', 'jpg', 'jpeg', 'webp']
+const DESCRIPTOR_EXT = new Set(['cue', 'ccd', 'm3u', 'toc'])
+const COMPANION_EXT = new Set(['bin', 'img', 'iso', 'wav', 'chd', 'sub', 'ape', 'flac', 'cdg', 'scm', 'mdf', 'mds'])
+
+function parseCueFileReferences(text) {
+  const names = []
+  const re = /^\s*FILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+/gim
+  let match
+  while ((match = re.exec(text))) {
+    const name = (match[1] || match[2] || match[3] || '').trim()
+    if (name) names.push(path.basename(name.replace(/\\/g, '/')))
+  }
+  return names
+}
+
+function parseM3uEntries(text) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => path.basename(line.replace(/\\/g, '/')))
+}
+
+function companionLeaves(platformDir, romFiles) {
+  const byLower = new Map(romFiles.map((file) => [file.toLowerCase(), file]))
+  const consumed = new Set()
+  const walk = (filename, depth = 0) => {
+    if (depth > 8) return
+    const ext = filename.split('.').pop()?.toLowerCase()
+    if (!DESCRIPTOR_EXT.has(ext || '')) return
+    let text = ''
+    try {
+      text = fs.readFileSync(path.join(platformDir, filename), 'utf8')
+    } catch {
+      return
+    }
+    const refs = ext === 'm3u' ? parseM3uEntries(text) : parseCueFileReferences(text)
+    for (const ref of refs) {
+      const match = byLower.get(ref.toLowerCase())
+      if (match && match !== filename) {
+        consumed.add(match)
+        walk(match, depth + 1)
+      }
+    }
+  }
+  for (const file of romFiles) walk(file)
+  return consumed
+}
 
 function titleFromFilename(filename) {
   return filename
@@ -125,11 +172,28 @@ for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
     const ext = file.split('.').pop()?.toLowerCase()
     return !!ext && ROM_EXT.has(ext)
   })
-  const allowShared = romFiles.length === 1
+  const basesWithDescriptor = new Set(
+    romFiles
+      .filter((file) => DESCRIPTOR_EXT.has(file.split('.').pop()?.toLowerCase() || ''))
+      .map((file) => file.replace(/\.[^.]+$/, '').toLowerCase()),
+  )
+  const referenced = companionLeaves(platformDir, romFiles)
+  const listed = romFiles.filter((file) => {
+    const ext = file.split('.').pop()?.toLowerCase() || ''
+    if (referenced.has(file)) return false
+    if (!COMPANION_EXT.has(ext) || DESCRIPTOR_EXT.has(ext)) return true
+    return !basesWithDescriptor.has(file.replace(/\.[^.]+$/, '').toLowerCase())
+  })
+  const allowShared = listed.length === 1
 
-  for (const file of romFiles) {
+  for (const file of listed) {
     const base = file.replace(/\.[^.]+$/, '')
     const meta = readSidecar(platformDir, base, allowShared) || {}
+    const ext = file.split('.').pop()?.toLowerCase() || ''
+    const ownRefs = DESCRIPTOR_EXT.has(ext) ? companionLeaves(platformDir, [file]) : new Set()
+    const sameBase = romFiles.filter(
+      (other) => other !== file && other.replace(/\.[^.]+$/, '').toLowerCase() === base.toLowerCase(),
+    )
     const game = {
       id: slugId(platform, file),
       title: meta.title || titleFromFilename(file),
@@ -138,11 +202,17 @@ for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
       file: `roms/${entry.name}/${file}`,
       cover: meta.cover || findCover(platformDir, entry.name, base),
     }
+    const tags = Array.isArray(meta.tags) ? [...meta.tags] : []
+    const hasCompanions = ownRefs.size > 0 || sameBase.some((name) => {
+      const otherExt = name.split('.').pop()?.toLowerCase() || ''
+      return COMPANION_EXT.has(otherExt) || DESCRIPTOR_EXT.has(otherExt)
+    })
+    if (hasCompanions && !tags.includes('disc-set')) tags.push('disc-set')
+    if (tags.length) game.tags = tags
     if (meta.bios != null) game.bios = meta.bios
     if (meta.description) game.description = meta.description
     if (meta.year != null) game.year = meta.year
     if (meta.developer) game.developer = meta.developer
-    if (Array.isArray(meta.tags)) game.tags = meta.tags
     games.push(game)
   }
 }

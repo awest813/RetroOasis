@@ -5,7 +5,9 @@ import {
   platformFromExtension,
   titleFromFilename,
 } from './cores'
+import { bundleFilesAsZip, discSetTitle, discSetZipName } from './discSets'
 import { idbClear, idbDelete, idbGet, idbGetAll, idbSet, LIBRARY_ROM_STORE } from './idb'
+import { requestPersistentStorage } from './storageQuota'
 import { friendlyError, isQuotaError } from './userErrors'
 
 export const LIBRARY_ROM_PREFIX = 'library:'
@@ -20,6 +22,7 @@ export interface LibraryRomRecord {
   bytes: ArrayBuffer
   size: number
   addedAt: number
+  parts?: string[]
 }
 
 /** Map an EmulatorJS core / system key to a platforms.json id. */
@@ -55,6 +58,8 @@ export function libraryRomRef(id: string): string {
 }
 
 function recordToGame(record: LibraryRomRecord): Game {
+  const tags = ['upload']
+  if ((record.parts?.length ?? 0) > 1) tags.push('disc-set')
   return {
     id: record.id,
     title: record.title,
@@ -63,7 +68,7 @@ function recordToGame(record: LibraryRomRecord): Game {
     file: libraryRomRef(record.id),
     cover: null,
     source: 'upload',
-    tags: ['upload'],
+    tags,
   }
 }
 
@@ -79,17 +84,27 @@ export interface SavedUpload {
 }
 
 export async function saveUploadedRom(file: Blob, filename: string, core: string): Promise<SavedUpload> {
-  if (!filename.trim()) {
+  return saveUploadedRomSet([new File([file], filename, { type: file.type })], core)
+}
+
+export async function saveUploadedRomSet(files: File[], core: string): Promise<SavedUpload> {
+  const usable = files.filter((file) => file?.name?.trim() && file.size > 0)
+  if (!usable.length) {
     throw new Error('That file doesn’t have a name. Try another file.')
   }
+  const primary = usable[0]
+  const parts = usable.map((file) => file.name)
+  const bundled = usable.length > 1
+  const filename = bundled ? discSetZipName(primary.name) : primary.name
+  const file = bundled ? await bundleFilesAsZip(usable, filename) : primary
   if (file.size <= 0) {
     throw new Error('That file is empty. Pick a ROM file to continue.')
   }
 
   const playCore = normalizePlayCore(core)
   // Explicit core wins over extension (e.g. .iso can be PSP / PSX / Sega CD).
-  const platform = coreToPlatform(core) || platformFromExtension(filename) || 'nes'
-  const id = uploadSlugId(platform, filename)
+  const platform = coreToPlatform(core) || platformFromExtension(primary.name) || 'nes'
+  const id = uploadSlugId(platform, primary.name)
 
   const existing = await idbGet<LibraryRomRecord>(id, LIBRARY_ROM_STORE)
   const replaced = Boolean(existing && romByteLength(existing) > 0)
@@ -104,7 +119,7 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
 
   const record: LibraryRomRecord = {
     id,
-    title: existing?.title || titleFromFilename(filename),
+    title: existing?.title || discSetTitle(primary.name) || titleFromFilename(primary.name),
     platform,
     core: playCore,
     filename,
@@ -112,6 +127,7 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
     bytes,
     size: bytes.byteLength,
     addedAt: existing?.addedAt ?? Date.now(),
+    parts,
   }
 
   try {
@@ -127,6 +143,7 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
     )
   }
 
+  void requestPersistentStorage()
   return { game: recordToGame(record), replaced }
 }
 

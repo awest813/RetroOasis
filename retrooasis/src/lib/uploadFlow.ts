@@ -9,6 +9,7 @@ export interface UploadOutcome {
   filename: string
   detail: string
   gameId?: string
+  holdLaunch?: boolean
 }
 
 export function filesFromList(list: ArrayLike<File> | null | undefined): File[] {
@@ -80,7 +81,12 @@ export function summarizeUpload(outcomes: UploadOutcome[]): string {
 }
 
 export function shouldLaunchAfterUpload(outcomes: UploadOutcome[]): boolean {
-  return outcomes.length === 1 && outcomes[0]?.kind === 'saved' && Boolean(outcomes[0].gameId)
+  return (
+    outcomes.length === 1 &&
+    outcomes[0]?.kind === 'saved' &&
+    Boolean(outcomes[0].gameId) &&
+    !outcomes[0].holdLaunch
+  )
 }
 
 export function threadSupportHint(core: string, hasThreads: boolean): string | null {
@@ -94,4 +100,9 @@ export function folderDropMessage(): string {
 
 export function emptyDropMessage(): string {
   return 'That drop didn’t include a ROM file. Choose files, or link a folder in Settings.'
+}
+
+export function discSetLabel(filenames: string[]): string {
+  if (filenames.length <= 1) return filenames[0] || 'ROM'
+  return `${filenames[0]} + ${filenames.length - 1} more`
 }

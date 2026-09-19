@@ -1,6 +1,6 @@
 import { sfxBack } from './sfx'
 import { setModality } from './inputModality'
-import { bindMenuBack, resetMenuPad } from './gamepad'
+import { bindMenuBack, installGamepadPresence, resetMenuPad } from './gamepad'
 
 function atHomeHash(): boolean {
   const hash = window.location.hash
@@ -48,6 +48,7 @@ export function installInputChrome(): () => void {
   window.addEventListener('keydown', onKey)
 
   const cleanupPad = bindMenuBack(goBack)
+  const cleanupPresence = installGamepadPresence()
   window.addEventListener('blur', resetMenuPad)
   document.addEventListener('visibilitychange', resetMenuPad)
 
@@ -55,6 +56,7 @@ export function installInputChrome(): () => void {
     window.removeEventListener('pointerdown', onPointer, true)
     window.removeEventListener('keydown', onKey)
     cleanupPad()
+    cleanupPresence()
     window.removeEventListener('blur', resetMenuPad)
     document.removeEventListener('visibilitychange', resetMenuPad)
   }

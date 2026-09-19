@@ -19,7 +19,12 @@ html[data-display='standalone'] .ro-shell {
   min-height: 100svh;
 }
 
-.ro-sw-toast {
+html[data-online='false'] .ro-shell {
+  padding-top: calc(2.4rem + env(safe-area-inset-top, 0px));
+}
+
+.ro-sw-toast,
+.ro-toast {
   position: fixed;
   left: 50%;
   bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
@@ -37,6 +42,40 @@ html[data-display='standalone'] .ro-shell {
   font-size: 0.85rem;
   letter-spacing: 0.04em;
   animation: ro-sw-toast-in 280ms ease both;
+}
+
+.ro-offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 210;
+  padding:
+    max(0.45rem, env(safe-area-inset-top, 0px))
+    max(0.85rem, env(safe-area-inset-right, 0px))
+    0.45rem
+    max(0.85rem, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--ro-bg-void) 88%, #7a3b00);
+  border-bottom: 1px solid color-mix(in srgb, var(--ro-accent) 35%, var(--ro-line));
+  color: var(--ro-text);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.ro-storage-bar {
+  margin-top: 0.55rem;
+  height: 6px;
+  max-width: 16rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ro-text) 12%, transparent);
+  overflow: hidden;
+}
+
+.ro-storage-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ro-accent);
 }
 
 @keyframes ro-sw-toast-in {

@@ -6,15 +6,23 @@ import {
   romFileAccept,
 } from '../lib/cores'
 import { detectRomPlatform } from '../lib/archives'
+import {
+  groupDiscSetFiles,
+  missingCompanionsMessage,
+  readDescriptorTexts,
+} from '../lib/discSets'
 import { escapeHtml } from '../lib/dom'
+import { takePendingUploads } from '../lib/pendingUploads'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
 import { formatEjsChannelLabel, pushRecent } from '../lib/store'
 import { reloadUploadedLibrary, type Game } from '../lib/catalog'
-import { formatBytes, getUploadedLibraryMeta, saveUploadedRom } from '../lib/uploadedLibrary'
+import { formatBytes, getUploadedLibraryMeta, saveUploadedRomSet } from '../lib/uploadedLibrary'
+import { getStorageSnapshot, storageWarning } from '../lib/storageQuota'
 import {
   dataTransferHasDirectory,
   dataTransferIsDirectoryOnly,
+  discSetLabel,
   emptyDropMessage,
   filesFromList,
   folderDropMessage,
@@ -93,8 +101,8 @@ export function renderUpload(root: HTMLElement): void {
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add a ROM</p>
         <h1 class="ro-title">Add a ROM</h1>
         <p class="ro-lede">
-          Drop in a ROM to save it on this device and start playing.
-          It stays in your library until you remove it.
+          Drop in ROM or ISO files to save them on this device and start playing.
+          Disc dumps (.cue + .bin, playlists) are kept together. They stay in your library until you remove them.
         </p>
       </header>
       <div class="ro-stack ro-upload__stack">
@@ -205,10 +213,13 @@ export function renderUpload(root: HTMLElement): void {
     if (!meta || !active) return
     try {
       const uploaded = await getUploadedLibraryMeta()
+      const storage = await getStorageSnapshot()
       if (!active) return
-      meta.textContent = uploaded.count
+      const saved = uploaded.count
         ? `${uploaded.count} saved ROM${uploaded.count === 1 ? '' : 's'} · ${formatBytes(uploaded.bytes)} on this device`
         : 'Nothing saved on this device yet.'
+      const warn = storageWarning(storage)
+      meta.textContent = warn ? `${saved} ${warn}` : saved
     } catch {
       if (active) meta.textContent = ''
     }
@@ -261,26 +272,31 @@ export function renderUpload(root: HTMLElement): void {
     let navigating = false
 
     try {
-      for (let index = 0; index < files.length; index += 1) {
+      const texts = await readDescriptorTexts(files)
+      if (!active) return
+      const plans = groupDiscSetFiles(files, texts)
+
+      for (let index = 0; index < plans.length; index += 1) {
         if (!active) return
-        const file = files[index]
+        const plan = plans[index]
+        const label = discSetLabel(plan.files.map((file) => file.name))
         let core = coreSelect.value
 
         if (core === 'auto') {
-          if (!isRomFile(file.name)) {
+          if (!isRomFile(plan.primary.name)) {
             const detail = `File type isn’t recognized. Pick a system above, or use a common ROM extension.`
-            outcomes.push({ kind: 'skipped', filename: file.name, detail })
-            say(formatUploadProgress(index, files.length, 'Skipping', file.name))
+            outcomes.push({ kind: 'skipped', filename: label, detail })
+            say(formatUploadProgress(index, plans.length, 'Skipping', label))
             continue
           }
-          say(formatUploadProgress(index, files.length, 'Checking', file.name, formatBytes(file.size)))
+          say(formatUploadProgress(index, plans.length, 'Checking', label, formatBytes(plan.files.reduce((n, f) => n + f.size, 0))))
           let detected: string | null = null
           try {
-            detected = await detectRomPlatform(file)
+            detected = await detectRomPlatform(plan.primary)
           } catch (err) {
             outcomes.push({
               kind: 'error',
-              filename: file.name,
+              filename: label,
               detail: friendlyError(err, 'Couldn’t read that file.'),
             })
             continue
@@ -288,7 +304,7 @@ export function renderUpload(root: HTMLElement): void {
           if (!detected) {
             outcomes.push({
               kind: 'skipped',
-              filename: file.name,
+              filename: label,
               detail: 'Couldn’t auto-detect. Choose a system from the list.',
             })
             continue
@@ -296,10 +312,25 @@ export function renderUpload(root: HTMLElement): void {
           core = coreForPlatform(detected)
         }
 
-        say(formatUploadProgress(index, files.length, 'Saving', file.name, formatBytes(file.size)))
+        const missingNote = missingCompanionsMessage(plan.primary.name, plan.missing)
+        if (missingNote && plan.files.length === 1) {
+          outcomes.push({ kind: 'skipped', filename: label, detail: missingNote })
+          continue
+        }
+
+        const batchBytes = plan.files.reduce((n, f) => n + f.size, 0)
+        say(formatUploadProgress(index, plans.length, 'Saving', label, formatBytes(batchBytes)))
 
         try {
-          const { game, replaced } = await saveUploadedRom(file, file.name, core)
+          const snapshot = await getStorageSnapshot()
+          if (!active) return
+          const spaceNote = storageWarning(snapshot, batchBytes)
+          const nextPercent = snapshot.quota > 0 ? ((snapshot.usage + batchBytes) / snapshot.quota) * 100 : 0
+          if (spaceNote && nextPercent >= 95) {
+            outcomes.push({ kind: 'error', filename: label, detail: spaceNote })
+            continue
+          }
+          const { game, replaced } = await saveUploadedRomSet(plan.files, core)
           pushRecent(game.id)
           await reloadUploadedLibrary()
           const needsThreads = coreNeedsThreads(core)
@@ -307,17 +338,20 @@ export function renderUpload(root: HTMLElement): void {
             needsThreads && !hasThreadSupport()
               ? ' Saved, but this page is missing thread support so it may not start.'
               : ''
+          const setNote = plan.kind === 'disc-set' ? ` Packed ${plan.files.length} files.` : ''
+          const spaceWarn = spaceNote ? ` ${spaceNote}` : ''
           outcomes.push({
             kind: 'saved',
-            filename: file.name,
-            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${threadNote}`,
+            filename: label,
+            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}${spaceWarn}`,
             gameId: game.id,
+            holdLaunch: Boolean(missingNote),
           })
           playable = game
         } catch (err) {
           outcomes.push({
             kind: 'error',
-            filename: file.name,
+            filename: label,
             detail: friendlyError(err, 'Try another file.'),
           })
         }
@@ -411,4 +445,7 @@ export function renderUpload(root: HTMLElement): void {
     const files = filesFromList(input.files)
     if (files.length > 0) void launch(files)
   })
+
+  const pending = takePendingUploads()
+  if (pending.length) void launch(pending)
 }

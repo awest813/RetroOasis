@@ -48,6 +48,30 @@ assert.equal(reader.read(pad, 2100), null, 'Releasing Back must not activate hel
 pad.buttons[0].pressed = false; reader.read(pad, 2200)
 pad.buttons[0].pressed = true
 assert.equal(reader.read(pad, 2300), 'confirm', 'Actions resume after full release')
+pad.buttons[0].pressed = false
+reader.read(pad, 2400)
+pad.buttons[4].pressed = true
+assert.equal(menuDirection(pad), 'pageleft', 'Left shoulder pages')
+assert.equal(reader.read(pad, 2500), 'pageleft')
+pad.buttons[4].pressed = false
+pad.buttons[5].pressed = true
+assert.equal(menuDirection(pad), 'pageright', 'Right shoulder pages')
+pad.buttons[5].pressed = false
+pad.buttons[6].pressed = true
+pad.buttons[6].value = 0.8
+assert.equal(menuDirection(pad), null, 'Analog L2 must not page menus')
+pad.buttons[6].pressed = false
+pad.buttons[6].value = 0
+pad.buttons[7].pressed = true
+pad.buttons[7].value = 0.8
+assert.equal(menuDirection(pad), null, 'Analog R2 must not page menus')
+pad.buttons[7].pressed = false
+pad.buttons[7].value = 0
+const other = { connected: true, index: 4, id: 'Second controller', mapping: 'standard', axes: [0, 0], buttons: Array.from({length:17}, () => ({pressed:false, value:0})) }
+pads = [pad, other]
+other.buttons[0].pressed = true
+reader.read(other, 2600)
+assert.equal(readConnectedPad(), other, 'Last active standard pad is preferred')
 const { GamepadHandler } = await import('../../data/src/gamepad.js')
 globalThis.window = { clearTimeout }
 const handler = Object.create(GamepadHandler.prototype)

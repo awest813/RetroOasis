@@ -20,6 +20,7 @@ import {
   platformForArchiveEntry,
   platformFromExtension,
 } from './cores'
+import { detectIsoPlatform } from './iso'
 import { getEjsChannel } from './store'
 
 export type ArchiveFormat = 'zip' | '7z' | 'rar'
@@ -106,7 +107,7 @@ export function platformFromArchiveEntries(names: string[]): string | null {
     const segments = name.split('/')
     if (!segments[segments.length - 1]) continue // directory entry
     if (segments.some((s) => s === '__MACOSX' || s.startsWith('.'))) continue
-    const platform = platformForArchiveEntry(segments[segments.length - 1])
+    const platform = platformForArchiveEntry(name)
     if (platform) votes.set(platform, (votes.get(platform) ?? 0) + 1)
   }
   if (votes.size === 0) return null
@@ -154,19 +155,44 @@ const PLATFORM_PRIORITY = [
   'mame',
 ]
 
+function isIsoLikeFilename(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ext === 'iso' || ext === 'img'
+}
+
 /**
  * Detect the platform for a picked ROM file: extension first, then the
  * archive contents for .zip/.7z/.rar. When an archive lists nothing
  * recognizable (FBNeo/MAME sets use dump extensions of their own) the outer
  * extension default applies (.zip/.7z → arcade).
+ *
+ * `.iso` / `.img` are shared by PSP, PSX, Sega CD, 3DO, and DOS — peek the
+ * ISO 9660 root when Auto-detect needs a real answer. A generic ISO with no
+ * fingerprint returns null so the user can pick a system.
  */
 export async function detectRomPlatform(file: File): Promise<string | null> {
   const extPlatform = platformFromExtension(file.name)
-  if (!isArchiveFile(file.name)) return extPlatform
+  if (isArchiveFile(file.name)) {
+    const peek = await peekArchive(file)
+    const fromEntries = peek ? platformFromArchiveEntries(peek.names) : null
+    if (fromEntries) return fromEntries
+    const names = peek?.names ?? []
+    if (names.some((name) => isIsoLikeFilename(name))) return null
+    return extPlatform
+  }
 
-  const peek = await peekArchive(file)
-  const fromEntries = peek ? platformFromArchiveEntries(peek.names) : null
-  return fromEntries ?? extPlatform
+  if (isIsoLikeFilename(file.name)) {
+    try {
+      const iso = await detectIsoPlatform(file)
+      if (iso) return iso
+    } catch {
+      /* fall through */
+    }
+    // Bare .iso is too ambiguous to assume PSP.
+    if (file.name.split('.').pop()?.toLowerCase() === 'iso') return null
+  }
+
+  return extPlatform
 }
 
 // ---------------------------------------------------------------------------

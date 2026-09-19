@@ -24,7 +24,6 @@ function isIosDevice(): boolean {
 export function isStandaloneDisplay(): boolean {
   if (window.matchMedia('(display-mode: standalone)').matches) return true
   if (window.matchMedia('(display-mode: fullscreen)').matches) return true
-  if (window.matchMedia('(display-mode: minimal-ui)').matches) return true
   const nav = navigator as Navigator & { standalone?: boolean }
   return nav.standalone === true
 }
@@ -150,14 +149,6 @@ export function registerServiceWorker(): void {
       .catch((err) => {
         console.warn('[RetroOasis] SW registration failed', err)
       })
-
-    let refreshing = false
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return
-      refreshing = true
-      // Soft hint only — toast already offers Refresh.
-      showUpdateToast()
-    })
   })
 }
 
@@ -171,4 +162,53 @@ export function syncThemeColor(accent: 'sega' | 'ps'): void {
     document.head.appendChild(meta)
   }
   meta.content = color
+}
+
+function setOnlineFlag(online: boolean): void {
+  document.documentElement.dataset.online = online ? 'true' : 'false'
+  const banner = document.getElementById('ro-offline-banner')
+  if (online) {
+    banner?.remove()
+    return
+  }
+  if (banner) return
+  const el = document.createElement('div')
+  el.id = 'ro-offline-banner'
+  el.className = 'ro-offline-banner'
+  el.setAttribute('role', 'status')
+  el.textContent = 'You’re offline. Saved ROMs and the app shell still work; emulator cores need a network unless you use Local files.'
+  document.body.appendChild(el)
+}
+
+export function isAppOnline(): boolean {
+  return navigator.onLine !== false
+}
+
+export function initNetworkStatus(): void {
+  setOnlineFlag(isAppOnline())
+  window.addEventListener('online', () => setOnlineFlag(true))
+  window.addEventListener('offline', () => setOnlineFlag(false))
+}
+
+type LaunchQueue = {
+  setConsumer: (cb: (params: { files?: Array<{ getFile: () => Promise<File> }> }) => void | Promise<void>) => void
+}
+
+/** Accept ROM files opened with the installed PWA. */
+export function initFileHandling(onFiles: (files: File[]) => void): void {
+  const launchQueue = (window as Window & { launchQueue?: LaunchQueue }).launchQueue
+  if (!launchQueue?.setConsumer) return
+  launchQueue.setConsumer(async (params) => {
+    const handles = params.files ?? []
+    if (!handles.length) return
+    const files: File[] = []
+    for (const handle of handles) {
+      try {
+        files.push(await handle.getFile())
+      } catch {
+        /* ignore a single bad handle */
+      }
+    }
+    if (files.length) onFiles(files)
+  })
 }

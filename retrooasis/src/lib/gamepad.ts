@@ -7,8 +7,20 @@ export function connectedPads(): Gamepad[] {
   } catch { return [] } // Permissions Policy or browser access restrictions.
 }
 
+let lastActiveIndex: number | null = null
+
+function rememberActivePad(pad: Gamepad): void {
+  lastActiveIndex = pad.index
+}
+
 export function readConnectedPad(): Gamepad | null {
-  return connectedPads().find(pad => pad.mapping === 'standard') ?? null
+  const pads = connectedPads()
+  const standard = pads.filter(pad => pad.mapping === 'standard')
+  if (lastActiveIndex != null) {
+    const preferred = standard.find(pad => pad.index === lastActiveIndex)
+    if (preferred) return preferred
+  }
+  return standard[0] ?? null
 }
 
 export function buttonPressed(pad: Gamepad, index: number): boolean {
@@ -16,7 +28,7 @@ export function buttonPressed(pad: Gamepad, index: number): boolean {
   return !!btn && (btn.pressed || btn.value > 0.5)
 }
 
-export type MenuDirection = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back'
+export type MenuDirection = 'left' | 'right' | 'up' | 'down' | 'pageleft' | 'pageright' | 'confirm' | 'back'
 export function menuDirection(pad: Gamepad): MenuDirection | null {
   if (buttonPressed(pad, 1) || buttonPressed(pad, 8)) return 'back'
   if (buttonPressed(pad, 0) || buttonPressed(pad, 9)) return 'confirm'
@@ -24,11 +36,18 @@ export function menuDirection(pad: Gamepad): MenuDirection | null {
   const y = Number(buttonPressed(pad, 13)) - Number(buttonPressed(pad, 12))
   if (x) return x > 0 ? 'right' : 'left'
   if (y) return y > 0 ? 'down' : 'up'
+  if (buttonPressed(pad, 4)) return 'pageleft'
+  if (buttonPressed(pad, 5)) return 'pageright'
   const ax = pad.axes[0] ?? 0
   const ay = pad.axes[1] ?? 0
   if (Math.max(Math.abs(ax), Math.abs(ay)) < 0.55) return null
   if (Math.abs(ax) > Math.abs(ay)) return ax > 0 ? 'right' : 'left'
   return ay > 0 ? 'down' : 'up'
+}
+
+function padHasInput(pad: Gamepad): boolean {
+  if (pad.buttons.some((btn) => btn.pressed || btn.value > 0.5)) return true
+  return pad.axes.some((axis) => Math.abs(axis) >= 0.55)
 }
 
 /** Require release after connecting, switching pages or returning to the tab. */
@@ -43,6 +62,7 @@ export class MenuRepeater {
     if (!pad) { this.reset(); return null }
     const identity = `${pad.index}:${pad.id}`
     if (identity !== this.identity) { this.reset(); this.identity = identity }
+    if (padHasInput(pad)) rememberActivePad(pad)
     const dir = menuDirection(pad)
     if (!this.armed) { if (!dir) this.armed = true; return null }
     const action = dir === 'confirm' || dir === 'back'
@@ -68,6 +88,44 @@ const bindings = new Set<MenuBinding>()
 let raf = 0
 const repeater = new MenuRepeater()
 let backHandler: (() => void) | null = null
+const presenceListeners = new Set<() => void>()
+
+function emitPresence(): void {
+  for (const listener of presenceListeners) listener()
+}
+
+export function onPadPresenceChange(listener: () => void): () => void {
+  presenceListeners.add(listener)
+  return () => presenceListeners.delete(listener)
+}
+
+export function describeConnectedPads(): {
+  secure: boolean
+  available: boolean
+  pads: Gamepad[]
+  standard: Gamepad | null
+  message: string
+} {
+  const pads = connectedPads()
+  const standard = readConnectedPad()
+  const secure = window.isSecureContext
+  const available = typeof navigator.getGamepads === 'function'
+  let message: string
+  if (!secure) {
+    message = 'Open this site over HTTPS or localhost to use controllers.'
+  } else if (!available) {
+    message = 'Controller access is unavailable in this browser. Keyboard and touch still work.'
+  } else if (standard) {
+    const extra = pads.length > 1 ? ` ${pads.length} controllers connected.` : ''
+    message = `Ready for menus: ${standard.id}.${extra} Shoulders (L/R) also move. Release buttons before navigating.`
+  } else if (pads.length) {
+    message = 'Controller detected, but its button layout is not recognized for menus. Use keyboard or touch here and configure controls in the player.'
+  } else {
+    message = 'No controller visible yet. Press and release a controller button while this page is active, then check again. Browser or embedded-page permissions may also block access.'
+  }
+  return { secure, available, pads, standard, message }
+}
+
 export function resetMenuPad(): void { repeater.reset() }
 function poll(): void {
   raf = requestAnimationFrame(poll)
@@ -82,8 +140,44 @@ function poll(): void {
 }
 function start(): void { if (!raf) raf = requestAnimationFrame(poll) }
 function stopIfUnused(): void {
-  if (!bindings.size && !backHandler) { cancelAnimationFrame(raf); raf = 0; repeater.reset() }
+  if (!bindings.size && !backHandler && !presenceListeners.size) { cancelAnimationFrame(raf); raf = 0; repeater.reset() }
 }
+
+function showPadToast(text: string): void {
+  const existing = document.getElementById('ro-pad-toast')
+  existing?.remove()
+  const toast = document.createElement('div')
+  toast.id = 'ro-pad-toast'
+  toast.className = 'ro-toast'
+  toast.setAttribute('role', 'status')
+  toast.textContent = text
+  document.body.appendChild(toast)
+  window.setTimeout(() => toast.remove(), 3200)
+}
+
+export function installGamepadPresence(): () => void {
+  const onConnect = (event: GamepadEvent) => {
+    if (event.gamepad.mapping === 'standard') lastActiveIndex = event.gamepad.index
+    emitPresence()
+    showPadToast(`Controller connected: ${event.gamepad.id}`)
+    start()
+  }
+  const onDisconnect = (event: GamepadEvent) => {
+    if (lastActiveIndex === event.gamepad.index) lastActiveIndex = null
+    repeater.reset()
+    emitPresence()
+    showPadToast('Controller disconnected')
+  }
+  window.addEventListener('gamepadconnected', onConnect)
+  window.addEventListener('gamepaddisconnected', onDisconnect)
+  start()
+  return () => {
+    window.removeEventListener('gamepadconnected', onConnect)
+    window.removeEventListener('gamepaddisconnected', onDisconnect)
+    stopIfUnused()
+  }
+}
+
 export function bindMenuPad(root: HTMLElement, move: MenuBinding['move']): () => void {
   const binding = { root, move }
   bindings.add(binding)
