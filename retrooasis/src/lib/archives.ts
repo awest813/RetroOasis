@@ -175,7 +175,10 @@ export async function detectRomPlatform(file: File): Promise<string | null> {
   if (isArchiveFile(file.name)) {
     const peek = await peekArchive(file)
     const fromEntries = peek ? platformFromArchiveEntries(peek.names) : null
-    return fromEntries ?? extPlatform
+    if (fromEntries) return fromEntries
+    const names = peek?.names ?? []
+    if (names.some((name) => isIsoLikeFilename(name))) return null
+    return extPlatform
   }
 
   if (isIsoLikeFilename(file.name)) {

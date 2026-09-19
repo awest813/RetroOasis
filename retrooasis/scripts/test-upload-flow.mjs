@@ -165,6 +165,7 @@ checkTrue('includes zip', romFileAccept().includes('.zip'))
 checkTrue('includes rar', romFileAccept().includes('.rar'))
 checkTrue('includes iso', romFileAccept().includes('.iso'))
 checkTrue('includes cue', romFileAccept().includes('.cue'))
+checkTrue('includes toc', romFileAccept().includes('.toc'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

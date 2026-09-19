@@ -311,7 +311,7 @@ console.log('zip listing')
 check('psx from zip entries', platformFromArchiveEntries(['game/game.cue', 'game/game.bin', 'game/readme.nfo']), 'psx')
 check('ecm rip detected as psx', platformFromArchiveEntries(['rip/game.bin.ecm', 'rip/notes.txt']), 'psx')
 check('ccd dump detected as psx', platformFromArchiveEntries(['dump/game.ccd', 'dump/game.img']), 'psx')
-check('psp vote for lone iso', platformFromArchiveEntries(['disc.iso', 'readme.txt']), 'psp')
+check('lone iso stays unknown', platformFromArchiveEntries(['disc.iso', 'readme.txt']), null)
 check('system.cnf votes psx', platformFromArchiveEntries(['SYSTEM.CNF', 'SLUS_000.01']), 'psx')
 check('umd data votes psp', platformFromArchiveEntries(['UMD_DATA.BIN', 'PSP_GAME/SYSDIR/EBOOT.BIN']), 'psp')
 check('nested archive ignored', platformFromArchiveEntries(['pack.zip', 'pack.7z']), null)
@@ -323,8 +323,8 @@ console.log('rar listing')
   check('rar5 names', peek5?.names, ['Gex (Europe).cue', 'Gex (Europe).bin', 'gex.nfo'])
   check('rar5 detects psx', peek5 ? platformFromArchiveEntries(peek5.names) : null, 'psx')
 
-  const peek4 = await peekArchive(toFile(makeRar4(['Rayman (USA).img', 'Rayman.txt']), 'rayman.rar'))
-  check('rar4 names', peek4?.names, ['Rayman (USA).img', 'Rayman.txt'])
+  const peek4 = await peekArchive(toFile(makeRar4(['Rayman (USA).cue', 'Rayman (USA).img', 'Rayman.txt']), 'rayman.rar'))
+  check('rar4 names', peek4?.names, ['Rayman (USA).cue', 'Rayman (USA).img', 'Rayman.txt'])
   check('rar4 detects psx', peek4 ? platformFromArchiveEntries(peek4.names) : null, 'psx')
 }
 
@@ -412,6 +412,21 @@ check('iso system.cnf is psx', await detectRomPlatform(toFile(makeIso(['SYSTEM.C
 check('iso psp_game is psp', await detectRomPlatform(toFile(makeIso(['PSP_GAME/'], 'PSP GAME'), 'god.iso')), 'psp')
 check('iso ip.bin is sega cd', await detectRomPlatform(toFile(makeIso(['IP.BIN']), 'sonic.iso')), 'segaCD')
 check('iso volume playstation', await detectRomPlatform(toFile(makeIso(['README.TXT'], 'PLAYSTATION'), 'ps.iso')), 'psx')
+
+function makeRawIso(names, volumeId = 'CDROM') {
+  const cooked = makeIso(names, volumeId)
+  const SECTOR = 2048
+  const RAW = 2352
+  const sectors = cooked.length / SECTOR
+  const out = new Uint8Array(sectors * RAW)
+  for (let s = 0; s < sectors; s++) {
+    out.set(cooked.subarray(s * SECTOR, (s + 1) * SECTOR), s * RAW + 16)
+  }
+  return out
+}
+
+check('raw 2352 iso system.cnf is psx', await detectRomPlatform(toFile(makeRawIso(['SYSTEM.CNF']), 'final.iso')), 'psx')
+check('zipped lone iso stays unknown', await detectRomPlatform(toFile(makeZip(['disc.iso']), 'disc.zip')), null)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

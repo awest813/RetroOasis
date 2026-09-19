@@ -24,7 +24,6 @@ function isIosDevice(): boolean {
 export function isStandaloneDisplay(): boolean {
   if (window.matchMedia('(display-mode: standalone)').matches) return true
   if (window.matchMedia('(display-mode: fullscreen)').matches) return true
-  if (window.matchMedia('(display-mode: minimal-ui)').matches) return true
   const nav = navigator as Navigator & { standalone?: boolean }
   return nav.standalone === true
 }
@@ -150,14 +149,6 @@ export function registerServiceWorker(): void {
       .catch((err) => {
         console.warn('[RetroOasis] SW registration failed', err)
       })
-
-    let refreshing = false
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return
-      refreshing = true
-      // Soft hint only — toast already offers Refresh.
-      showUpdateToast()
-    })
   })
 }
 

@@ -97,6 +97,26 @@ const missing = groupDiscSetNames(['game.cue'], { texts: { 'game.cue': 'FILE "ga
 check('missing companion listed', missing[0]?.missing, ['game.bin'])
 check('orphan wav ignored', groupDiscSetNames(['song.wav']).length, 0)
 
+const playlist = groupDiscSetNames(
+  ['game.m3u', 'Disc 1.cue', 'track01.bin', 'Disc 2.cue', 'track02.bin'],
+  {
+    texts: {
+      'game.m3u': 'Disc 1.cue\nDisc 2.cue\n',
+      'Disc 1.cue': 'FILE "track01.bin" BINARY\n',
+      'Disc 2.cue': 'FILE "track02.bin" BINARY\n',
+    },
+  },
+)
+check(
+  'm3u walks cue file lines',
+  playlist.map((p) => ({ primary: p.primary.name, files: p.files.map((f) => f.name).sort(), missing: p.missing })),
+  [{
+    primary: 'game.m3u',
+    files: ['Disc 1.cue', 'Disc 2.cue', 'game.m3u', 'track01.bin', 'track02.bin'],
+    missing: [],
+  }],
+)
+
 console.log('zip')
 const payload = new TextEncoder().encode('hello')
 const zip = buildStoreZip([{ name: 'hello.txt', bytes: payload }])
@@ -109,6 +129,17 @@ check(
   missingCompanionsMessage('game.cue', ['game.bin']),
   'game.cue also needs game.bin. Add those files with this one.',
 )
+
+console.log('player.html')
+const playerHtml = fs.readFileSync(path.resolve(here, '..', 'public', 'player.html'), 'utf8')
+const scriptMatch = playerHtml.match(/<script>\s*\(function \(\) \{([\s\S]*)\}\)\(\);\s*<\/script>/)
+try {
+  if (!scriptMatch) throw new Error('missing IIFE')
+  new Function(scriptMatch[1])
+  check('player script parses', true, true)
+} catch (err) {
+  check('player script parses', String(err?.message || err), 'ok')
+}
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

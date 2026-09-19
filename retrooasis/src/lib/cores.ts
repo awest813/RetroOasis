@@ -80,6 +80,7 @@ const EXT_TO_PLATFORM: Record<string, string> = {
   cue: 'psx',
   chd: 'psx',
   ccd: 'psx', // CloneCD descriptor shipped with .img PSX dumps
+  toc: 'psx',
   ecm: 'psx', // ECM-compressed .bin, common in PSX rips
   pbp: 'psp',
   cso: 'psp',
@@ -263,6 +264,9 @@ export function platformForArchiveEntry(filename: string): string | null {
   }
   const ext = leaf.split('.').pop()?.toLowerCase()
   if (!ext || ARCHIVE_EXTENSIONS.has(ext)) return null
+  // Loose .iso/.img are shared by PSP, PSX, Sega CD, 3DO, and DOS — path
+  // hints above must decide, otherwise Auto-detect asks the user.
+  if (ext === 'iso' || ext === 'img') return null
   return EXT_TO_PLATFORM[ext] ?? null
 }
 

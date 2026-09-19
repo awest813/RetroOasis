@@ -1,4 +1,4 @@
-/** Files handed to the PWA (file handlers / share) before Add ROM is open. */
+/** Files handed to the PWA via OS file handlers before Add ROM is open. */
 
 let pending: File[] = []
 

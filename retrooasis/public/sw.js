@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v5'
+const CACHE = 'retrooasis-shell-v6'
 
 const PRECACHE = [
   './',

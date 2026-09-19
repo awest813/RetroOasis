@@ -14,8 +14,13 @@ html[data-display='standalone'] .ro-footer {
   padding-bottom: max(1.35rem, env(safe-area-inset-bottom, 0px));
 }
 
+html[data-display='standalone'] .ro-shell {
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
 html[data-online='false'] .ro-shell {
-  padding-top: 2.4rem;
+  padding-top: calc(2.4rem + env(safe-area-inset-top, 0px));
 }
 
 .ro-sw-toast,

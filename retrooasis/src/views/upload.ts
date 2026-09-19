@@ -312,9 +312,24 @@ export function renderUpload(root: HTMLElement): void {
           core = coreForPlatform(detected)
         }
 
-        say(formatUploadProgress(index, plans.length, 'Saving', label, formatBytes(plan.files.reduce((n, f) => n + f.size, 0))))
+        const missingNote = missingCompanionsMessage(plan.primary.name, plan.missing)
+        if (missingNote && plan.files.length === 1) {
+          outcomes.push({ kind: 'skipped', filename: label, detail: missingNote })
+          continue
+        }
+
+        const batchBytes = plan.files.reduce((n, f) => n + f.size, 0)
+        say(formatUploadProgress(index, plans.length, 'Saving', label, formatBytes(batchBytes)))
 
         try {
+          const snapshot = await getStorageSnapshot()
+          if (!active) return
+          const spaceNote = storageWarning(snapshot, batchBytes)
+          const nextPercent = snapshot.quota > 0 ? ((snapshot.usage + batchBytes) / snapshot.quota) * 100 : 0
+          if (spaceNote && nextPercent >= 95) {
+            outcomes.push({ kind: 'error', filename: label, detail: spaceNote })
+            continue
+          }
           const { game, replaced } = await saveUploadedRomSet(plan.files, core)
           pushRecent(game.id)
           await reloadUploadedLibrary()
@@ -323,12 +338,12 @@ export function renderUpload(root: HTMLElement): void {
             needsThreads && !hasThreadSupport()
               ? ' Saved, but this page is missing thread support so it may not start.'
               : ''
-          const missingNote = missingCompanionsMessage(plan.primary.name, plan.missing)
           const setNote = plan.kind === 'disc-set' ? ` Packed ${plan.files.length} files.` : ''
+          const spaceWarn = spaceNote ? ` ${spaceNote}` : ''
           outcomes.push({
             kind: 'saved',
             filename: label,
-            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}`,
+            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}${spaceWarn}`,
             gameId: game.id,
             holdLaunch: Boolean(missingNote),
           })

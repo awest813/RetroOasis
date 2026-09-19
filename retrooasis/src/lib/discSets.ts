@@ -20,6 +20,12 @@ export const DISC_COMPANION_EXTS = new Set([
 
 export interface NamedFile {
   name: string
+  webkitRelativePath?: string
+}
+
+export function fileKey(file: NamedFile): string {
+  const relative = file.webkitRelativePath?.trim()
+  return (relative || file.name).replace(/\\/g, '/')
 }
 
 export interface DiscSetPlan<T extends NamedFile> {
@@ -138,14 +144,31 @@ export function groupDiscSetNames(names: string[], options: GroupDiscSetOptions 
     if (consumed.has(primary)) continue
     const files = new Set<string>([primary])
     const missing: string[] = []
-    const text = options.texts?.[primary]
-    const refs = text ? parseDiscReferences(primary, text) : []
-    for (const ref of refs) {
-      const match = lookupName(index, ref)
-      if (match) files.add(match)
-      else missing.push(ref.replace(/\\/g, '/').split('/').pop() || ref)
+    const pending = [primary]
+    const seenText = new Set<string>()
+    while (pending.length) {
+      const current = pending.pop()!
+      if (seenText.has(current)) continue
+      seenText.add(current)
+      const text = options.texts?.[current] ?? options.texts?.[current.replace(/\\/g, '/').split('/').pop() || current]
+      const refs = text ? parseDiscReferences(current, text) : []
+      for (const ref of refs) {
+        const match = lookupName(index, ref)
+        if (match) {
+          if (!files.has(match)) {
+            files.add(match)
+            if (isDiscDescriptor(match)) pending.push(match)
+          }
+        } else {
+          const leaf = ref.replace(/\\/g, '/').split('/').pop() || ref
+          if (!missing.includes(leaf)) missing.push(leaf)
+        }
+      }
     }
-    for (const extra of sameBasenameCompanions(primary, unique)) files.add(extra)
+    for (const name of [...files]) {
+      if (!isDiscDescriptor(name)) continue
+      for (const extra of sameBasenameCompanions(name, unique)) files.add(extra)
+    }
     for (const name of files) consumed.add(name)
     const list = [...files]
     plans.push({
@@ -173,11 +196,15 @@ export function groupDiscSetNames(names: string[], options: GroupDiscSetOptions 
 
 export function groupDiscSetFiles(files: File[], texts?: Record<string, string>): DiscSetPlan<File>[] {
   const byName = new Map<string, File>()
+  const names: string[] = []
   for (const file of files) {
     if (!file?.name?.trim()) continue
-    byName.set(file.name, file)
+    const key = fileKey(file)
+    if (!byName.has(key)) names.push(key)
+    byName.set(key, file)
+    if (!byName.has(file.name)) byName.set(file.name, file)
   }
-  const plans = groupDiscSetNames([...byName.keys()], { texts })
+  const plans = groupDiscSetNames(names, { texts })
   return plans.map((plan) => ({
     primary: byName.get(plan.primary.name)!,
     files: plan.files.map((entry) => byName.get(entry.name)!).filter(Boolean),
@@ -193,7 +220,9 @@ export async function readDescriptorTexts(files: File[]): Promise<Record<string,
       .filter((file) => isDiscDescriptor(file.name) && file.size < 2_000_000)
       .map(async (file) => {
         try {
-          texts[file.name] = await file.text()
+          const text = await file.text()
+          texts[fileKey(file)] = text
+          texts[file.name] = text
         } catch {
           /* ignore unreadable descriptors */
         }
@@ -242,8 +271,15 @@ function u32(n: number): Uint8Array {
   return b
 }
 
+/** Stay under typical ArrayBuffer limits and classic ZIP 32-bit sizes. */
+const MAX_STORE_ZIP_BYTES = 1_800_000_000
+
 /** Uncompressed ZIP so EmulatorJS can extract CUE + BIN together at play time. */
 export function buildStoreZip(entries: Array<{ name: string; bytes: Uint8Array }>): Uint8Array {
+  const payload = entries.reduce((n, entry) => n + entry.bytes.byteLength, 0)
+  if (payload > MAX_STORE_ZIP_BYTES || payload > 0xffffffff - 1024) {
+    throw new Error('That disc set is too large to pack in this browser. Link the folder in Settings instead of copying it here.')
+  }
   const encoder = new TextEncoder()
   const now = dosDateTime(new Date())
   const locals: Uint8Array[] = []

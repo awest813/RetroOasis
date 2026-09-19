@@ -86,14 +86,29 @@ export async function fetchHostedDiscSet(romUrl: string): Promise<File> {
 
   const companions: File[] = []
   const missing: string[] = []
-  for (const ref of refs) {
+  const queued = [...refs]
+  const seen = new Set<string>([filename.toLowerCase()])
+  while (queued.length) {
+    const ref = queued.pop()!
     const leaf = ref.replace(/\\/g, '/').split('/').pop() || ref
-    if (leaf.toLowerCase() === filename.toLowerCase()) continue
+    const key = leaf.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
     const file = await fetchHostedCompanion(siblingUrl(romUrl, leaf))
-    if (file) companions.push(file)
-    else missing.push(leaf)
+    if (!file) {
+      missing.push(leaf)
+      continue
+    }
+    companions.push(file)
+    if (isDiscDescriptor(file.name) && file.size < 2_000_000) {
+      try {
+        queued.push(...parseDiscReferences(file.name, await file.text()))
+      } catch {
+        /* ignore unreadable nested descriptors */
+      }
+    }
   }
-  if (missing.length && companions.length === 0) {
+  if (missing.length) {
     throw new Error(missingCompanionsMessage(filename, missing) || 'Missing disc files.')
   }
   if (!companions.length) return primary

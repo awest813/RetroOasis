@@ -2,17 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#071018" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="RetroOasis" />
-  <title>RetroOasis Play</title>
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-  <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#071018" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="RetroOasis" />
+    <title>RetroOasis Play</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -568,24 +568,73 @@
           });
         }
 
+        function discLeaf(name) {
+          return (name || "").replace(/\\/g, "/").split("/").pop() || name;
+        }
+
         function maybeBundleHostedDisc(rom, primary) {
           var ext = (primary.name.split(".").pop() || "").toLowerCase();
           if (ext !== "cue" && ext !== "ccd" && ext !== "m3u" && ext !== "toc") {
             return Promise.resolve(primary);
           }
-          return primary.text().then(function (text) {
-            var refs = parseDiscRefs(primary.name, text);
-            if (!refs.length) return primary;
-            var dir = rom.split("?")[0];
-            var slash = dir.lastIndexOf("/");
-            dir = slash >= 0 ? dir.slice(0, slash + 1) : "./";
-            var jobs = refs.map(function (ref) {
-              var leaf = ref.replace(/\\/g, "/").split("/").pop();
-              if (!leaf || leaf.toLowerCase() === primary.name.toLowerCase()) return Promise.resolve(null);
-              return fetchAsFile(dir + encodeURIComponent(leaf));
+          var dir = rom.split("?")[0];
+          var slash = dir.lastIndexOf("/");
+          dir = slash >= 0 ? dir.slice(0, slash + 1) : "./";
+          var seen = {};
+          var extras = [];
+          var missing = [];
+
+          function walk(filename, text) {
+            var refs = parseDiscRefs(filename, text);
+            var next = [];
+            refs.forEach(function (ref) {
+              var leaf = discLeaf(ref);
+              if (!leaf) return;
+              var key = leaf.toLowerCase();
+              if (key === primary.name.toLowerCase() || seen[key]) return;
+              seen[key] = true;
+              next.push(leaf);
             });
-            return Promise.all(jobs).then(function (files) {
-              var extras = files.filter(Boolean);
+            if (!next.length) return Promise.resolve();
+            return Promise.all(
+              next.map(function (leaf) {
+                return fetchAsFile(dir + encodeURIComponent(leaf)).then(function (file) {
+                  return { leaf: leaf, file: file };
+                });
+              }),
+            ).then(function (results) {
+              var nested = [];
+              results.forEach(function (result) {
+                if (!result.file) {
+                  missing.push(result.leaf);
+                  return;
+                }
+                extras.push(result.file);
+                var childExt = (result.file.name.split(".").pop() || "").toLowerCase();
+                if (childExt === "cue" || childExt === "ccd" || childExt === "m3u" || childExt === "toc") {
+                  nested.push(result.file);
+                }
+              });
+              return nested.reduce(function (chain, file) {
+                return chain.then(function () {
+                  if (file.size > 2000000) return;
+                  return file.text().then(function (text) {
+                    return walk(file.name, text);
+                  });
+                });
+              }, Promise.resolve());
+            });
+          }
+
+          return primary.text().then(function (text) {
+            return walk(primary.name, text).then(function () {
+              if (missing.length) {
+                var list = missing.slice(0, 4).join(", ");
+                var extra = missing.length > 4 ? " (+" + (missing.length - 4) + " more)" : "";
+                return Promise.reject(
+                  new Error(primary.name + " also needs " + list + extra + ". Host those files next to this one."),
+                );
+              }
               if (!extras.length) return primary;
               return Promise.all(
                 [primary].concat(extras).map(function (file) {
@@ -601,6 +650,8 @@
             });
           });
         }
+
+        function resolveRom(rom) {
           if (!rom) return Promise.reject(new Error("Missing game file. Go back and try again."));
           // Dead blob URLs from a previous document cannot be fetched after navigation.
           if (rom.indexOf("blob:") === 0) {

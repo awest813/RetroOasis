@@ -54,10 +54,13 @@
       "action": "./#/upload",
       "accept": {
         "application/octet-stream": [
-          ".nes", ".sfc", ".smc", ".gb", ".gbc", ".gba", ".nds", ".z64", ".n64",
-          ".iso", ".cso", ".pbp", ".cue", ".bin", ".img", ".chd", ".ccd", ".m3u",
-          ".md", ".gen", ".smd", ".sms", ".gg", ".32x", ".zip", ".7z", ".rar",
-          ".cia", ".3ds", ".cci", ".pce", ".adf", ".d64", ".exe"
+          ".nes", ".fds", ".unif", ".unf", ".sfc", ".smc", ".gb", ".gbc", ".gba",
+          ".nds", ".z64", ".n64", ".v64", ".vb", ".iso", ".cso", ".pbp", ".cue",
+          ".bin", ".img", ".chd", ".ccd", ".toc", ".m3u", ".md", ".gen", ".smd",
+          ".sms", ".gg", ".32x", ".zip", ".7z", ".rar", ".cia", ".3ds", ".cci",
+          ".pce", ".adf", ".d64", ".exe", ".a26", ".a78", ".a52", ".lnx", ".j64",
+          ".jag", ".ngp", ".ws", ".wsc", ".col", ".dsk", ".hdf", ".conf", ".int",
+          ".itv"
         ]
       },
       "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }],

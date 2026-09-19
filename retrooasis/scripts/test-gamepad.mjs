@@ -56,6 +56,17 @@ assert.equal(reader.read(pad, 2500), 'pageleft')
 pad.buttons[4].pressed = false
 pad.buttons[5].pressed = true
 assert.equal(menuDirection(pad), 'pageright', 'Right shoulder pages')
+pad.buttons[5].pressed = false
+pad.buttons[6].pressed = true
+pad.buttons[6].value = 0.8
+assert.equal(menuDirection(pad), null, 'Analog L2 must not page menus')
+pad.buttons[6].pressed = false
+pad.buttons[6].value = 0
+pad.buttons[7].pressed = true
+pad.buttons[7].value = 0.8
+assert.equal(menuDirection(pad), null, 'Analog R2 must not page menus')
+pad.buttons[7].pressed = false
+pad.buttons[7].value = 0
 const other = { connected: true, index: 4, id: 'Second controller', mapping: 'standard', axes: [0, 0], buttons: Array.from({length:17}, () => ({pressed:false, value:0})) }
 pads = [pad, other]
 other.buttons[0].pressed = true

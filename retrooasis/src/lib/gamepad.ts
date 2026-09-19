@@ -36,8 +36,8 @@ export function menuDirection(pad: Gamepad): MenuDirection | null {
   const y = Number(buttonPressed(pad, 13)) - Number(buttonPressed(pad, 12))
   if (x) return x > 0 ? 'right' : 'left'
   if (y) return y > 0 ? 'down' : 'up'
-  if (buttonPressed(pad, 4) || buttonPressed(pad, 6)) return 'pageleft'
-  if (buttonPressed(pad, 5) || buttonPressed(pad, 7)) return 'pageright'
+  if (buttonPressed(pad, 4)) return 'pageleft'
+  if (buttonPressed(pad, 5)) return 'pageright'
   const ax = pad.axes[0] ?? 0
   const ay = pad.axes[1] ?? 0
   if (Math.max(Math.abs(ax), Math.abs(ay)) < 0.55) return null

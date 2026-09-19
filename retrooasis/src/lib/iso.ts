@@ -1,8 +1,8 @@
 /** Header-only ISO 9660 peek so Auto-detect can tell PSP / PSX / Sega CD / 3DO / DOS apart. */
 
-const SECTOR = 2048
-const PVD_OFFSET = 16 * SECTOR
-const PVD_SIZE = SECTOR
+const LOGICAL = 2048
+const RAW = 2352
+const RAW_USER = 16
 
 export interface IsoPeek {
   volumeId: string
@@ -25,13 +25,13 @@ function decodeIsoName(raw: string): string {
   return cut.replace(/\.$/, '').trim()
 }
 
-function readRootNames(dir: Uint8Array, limit = 80): string[] {
+function readRootNames(dir: Uint8Array, sectorSize: number, limit = 80): string[] {
   const names: string[] = []
   let p = 0
   while (p + 33 < dir.length && names.length < limit) {
     const recLen = dir[p]
     if (recLen === 0) {
-      p = Math.ceil((p + 1) / SECTOR) * SECTOR
+      p = Math.ceil((p + 1) / sectorSize) * sectorSize
       continue
     }
     if (p + recLen > dir.length) break
@@ -49,11 +49,11 @@ function readRootNames(dir: Uint8Array, limit = 80): string[] {
   return names
 }
 
-export async function peekIso9660(blob: Blob): Promise<IsoPeek | null> {
-  if (blob.size < PVD_OFFSET + PVD_SIZE) return null
+async function readPvd(blob: Blob, offset: number): Promise<DataView | null> {
+  if (blob.size < offset + LOGICAL) return null
   let pvd: DataView
   try {
-    pvd = new DataView(await blob.slice(PVD_OFFSET, PVD_OFFSET + PVD_SIZE).arrayBuffer())
+    pvd = new DataView(await blob.slice(offset, offset + LOGICAL).arrayBuffer())
   } catch {
     return null
   }
@@ -61,6 +61,12 @@ export async function peekIso9660(blob: Blob): Promise<IsoPeek | null> {
   if (pvd.getUint8(0) !== 1) return null
   const id = String.fromCharCode(pvd.getUint8(1), pvd.getUint8(2), pvd.getUint8(3), pvd.getUint8(4), pvd.getUint8(5))
   if (id !== 'CD001') return null
+  return pvd
+}
+
+async function peekLayout(blob: Blob, sectorSize: number, userOffset: number): Promise<IsoPeek | null> {
+  const pvd = await readPvd(blob, 16 * sectorSize + userOffset)
+  if (!pvd) return null
 
   const volumeId = ascii(new Uint8Array(pvd.buffer, pvd.byteOffset + 40, 32))
   const recLen = pvd.getUint8(156)
@@ -68,16 +74,20 @@ export async function peekIso9660(blob: Blob): Promise<IsoPeek | null> {
 
   const extent = pvd.getUint32(158, true)
   const dataLen = pvd.getUint32(166, true)
-  const start = extent * SECTOR
-  const size = Math.min(Math.max(dataLen, SECTOR), 64 * SECTOR)
+  const start = extent * sectorSize + userOffset
+  const size = Math.min(Math.max(dataLen, LOGICAL), 64 * LOGICAL)
   if (start < 0 || start + 34 > blob.size) return { volumeId, names: [], complete: false }
 
   try {
     const dir = new Uint8Array(await blob.slice(start, start + size).arrayBuffer())
-    return { volumeId, names: readRootNames(dir), complete: true }
+    return { volumeId, names: readRootNames(dir, LOGICAL), complete: true }
   } catch {
     return { volumeId, names: [], complete: false }
   }
+}
+
+export async function peekIso9660(blob: Blob): Promise<IsoPeek | null> {
+  return (await peekLayout(blob, LOGICAL, 0)) ?? (await peekLayout(blob, RAW, RAW_USER))
 }
 
 const ISO_HINTS: Array<{ platform: string; test: (name: string) => boolean }> = [
