@@ -124,10 +124,14 @@ Game detail → **Edit metadata** stores browser-local overrides (exportable JSO
 
 ```sh
 npm run oasis:scan              # write roms/manifest.json
-npm run oasis:scan -- --covers  # also HEAD-probe thumbnails.libretro.com
+npm run oasis:scan -- --covers  # also HEAD-probe Libretro's GitHub image host
 ```
 
-In the UI, **Online box art** (Settings, on by default) fills missing boxart at browse time.
+In the UI, **Online box art** (Settings, on by default) fills missing boxart at browse time. Local/custom art is tried first. Matching preserves original ROM punctuation, region and language tags, then removes recognized dump/revision/disc metadata before trying common regions and leading/trailing article variants. Meaningful subtitles and sequel numbers stay intact. A renamed title takes priority over an unrelated ROM filename. Lookups are capped at 18 names per system; Game Boy/Color can try both systems. Images come from Libretro's GitHub repositories, which work with the emulator's isolation headers. Successful matches are reused across views during the session, and removed views stop retries. Samples and unmatched games keep their placeholders. Turning the setting off disables automatic lookups.
+
+Generated manifests retain a literal `romFilename` beside the encoded `file` URL, so filenames containing `%` or `#` are matched without accidental URL decoding. The `--covers` scan uses the same matcher as the UI and probes each image with a five-second timeout.
+
+Linked-folder cover buckets match full ROM names. An untagged cover such as `Game.png` can serve regional versions of that title; a tagged cover such as `Game (Europe).png` stays with its exact ROM name. Short prefixes cannot assign art to sequels, and existing covers take priority.
 
 ## Settings
 

@@ -65,6 +65,8 @@ const COVER_EXT = ['png', 'jpg', 'jpeg', 'webp']
 const DESCRIPTOR_EXT = new Set(['cue', 'ccd', 'm3u', 'toc'])
 const COMPANION_EXT = new Set(['bin', 'img', 'iso', 'wav', 'chd', 'sub', 'ape', 'flac', 'cdg', 'scm', 'mdf', 'mds'])
 
+const hostedPath = (...parts) => parts.map(encodeURIComponent).join('/')
+
 function parseCueFileReferences(text) {
   const names = []
   const re = /^\s*FILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+/gim
@@ -128,11 +130,11 @@ function slugId(platform, filename) {
 function findCover(platformDir, platform, base) {
   for (const ext of COVER_EXT) {
     const sidecar = path.join(platformDir, `${base}.${ext}`)
-    if (fs.existsSync(sidecar)) return `roms/${platform}/${base}.${ext}`
+    if (fs.existsSync(sidecar)) return hostedPath('roms', platform, `${base}.${ext}`)
   }
   for (const ext of COVER_EXT) {
     const bucket = path.join(romsRoot, 'covers', platform, `${base}.${ext}`)
-    if (fs.existsSync(bucket)) return `roms/covers/${platform}/${base}.${ext}`
+    if (fs.existsSync(bucket)) return hostedPath('roms', 'covers', platform, `${base}.${ext}`)
   }
   return null
 }
@@ -199,7 +201,8 @@ for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
       title: meta.title || titleFromFilename(file),
       platform,
       core: meta.core || PLATFORM_TO_CORE[platform] || platform,
-      file: `roms/${entry.name}/${file}`,
+      file: hostedPath('roms', entry.name, file),
+      romFilename: file,
       cover: meta.cover || findCover(platformDir, entry.name, base),
     }
     const tags = Array.isArray(meta.tags) ? [...meta.tags] : []

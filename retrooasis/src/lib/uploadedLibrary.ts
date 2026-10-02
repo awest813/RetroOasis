@@ -66,6 +66,7 @@ function recordToGame(record: LibraryRomRecord): Game {
     platform: record.platform,
     core: record.core,
     file: libraryRomRef(record.id),
+    romFilename: record.parts?.[0] || record.filename,
     cover: null,
     source: 'upload',
     tags,

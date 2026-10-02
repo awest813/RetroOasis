@@ -256,7 +256,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Online box art</strong>
-              <p class="ro-muted">Try Libretro covers for missing art. Often blocked by the emulator’s isolation headers — local covers still work.</p>
+              <p class="ro-muted">Load missing box art from Libretro. Local and custom covers are tried first.</p>
             </div>
             <button type="button" class="ro-btn ro-btn--toggle" id="ro-libretro" data-focus-id="libretro" data-ro-focusable="true" aria-pressed="${pressed(libretro)}" aria-label="Online box art">${libretro ? 'On' : 'Off'}</button>
           </div>

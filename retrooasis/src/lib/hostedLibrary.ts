@@ -6,6 +6,7 @@ import {
   titleFromFilename,
 } from './cores'
 import type { Game } from './catalog'
+import { romFilenameFromUrl } from './covers'
 
 export interface HostedManifest {
   games?: Array<{
@@ -14,6 +15,7 @@ export interface HostedManifest {
     platform?: string
     core?: string
     file: string
+    romFilename?: string
     cover?: string | null
     bios?: string | null
     tags?: string[]
@@ -40,7 +42,7 @@ export function normalizeHostedGames(manifest: HostedManifest): Game[] {
   const games: Game[] = []
   for (const entry of manifest.games ?? []) {
     if (!entry.file) continue
-    const filename = entry.file.split('/').pop() || entry.file
+    const filename = entry.romFilename || romFilenameFromUrl(entry.file)
     const platform =
       entry.platform ||
       platformFromFilePath(entry.file) ||
@@ -57,6 +59,7 @@ export function normalizeHostedGames(manifest: HostedManifest): Game[] {
       platform,
       core,
       file: entry.file,
+      romFilename: filename,
       cover: entry.cover ?? null,
       bios: entry.bios ?? null,
       description: entry.description,

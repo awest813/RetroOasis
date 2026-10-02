@@ -9,47 +9,12 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '../..')
 const manifestPath = path.join(repoRoot, 'roms', 'manifest.json')
 const wantCovers = process.argv.includes('--covers')
-
-const SYSTEM_FOLDERS = {
-  nes: 'Nintendo - Nintendo Entertainment System',
-  snes: 'Nintendo - Super Nintendo Entertainment System',
-  gb: 'Nintendo - Game Boy',
-  gba: 'Nintendo - Game Boy Advance',
-  n64: 'Nintendo - Nintendo 64',
-  nds: 'Nintendo - Nintendo DS',
-  vb: 'Nintendo - Virtual Boy',
-  '3ds': 'Nintendo - Nintendo 3DS',
-  segaMD: 'Sega - Mega Drive - Genesis',
-  segaMS: 'Sega - Master System - Mark III',
-  segaGG: 'Sega - Game Gear',
-  segaCD: 'Sega - Mega-CD - Sega CD',
-  sega32x: 'Sega - 32X',
-  segaSaturn: 'Sega - Saturn',
-  psx: 'Sony - PlayStation',
-  psp: 'Sony - PlayStation Portable',
-  arcade: 'MAME',
-  mame: 'MAME',
-  atari2600: 'Atari - 2600',
-  atari7800: 'Atari - 7800',
-  atari5200: 'Atari - 5200',
-  lynx: 'Atari - Lynx',
-  jaguar: 'Atari - Jaguar',
-  '3do': 'The 3DO Company - 3DO',
-  pce: 'NEC - PC Engine - TurboGrafx 16',
-  pcfx: 'NEC - PC-FX',
-  ngp: 'SNK - Neo Geo Pocket',
-  ws: 'Bandai - WonderSwan',
-  coleco: 'Coleco - ColecoVision',
-  c64: 'Commodore - 64',
-  amiga: 'Commodore - Amiga',
-  dos: 'DOS',
-  intv: 'Mattel - Intellivision',
-}
 
 console.log('Scanning roms/ …')
 const gen = spawnSync(process.execPath, [path.join(here, 'generate-roms-manifest.mjs')], {
@@ -72,14 +37,21 @@ const games = Array.isArray(manifest.games) ? manifest.games : []
 let filled = 0
 let checked = 0
 
-function thumbName(title) {
-  return String(title).replace(/[&*/:`<>?\\|"]/g, '_').trim()
-}
+// Reuse the browser matcher so scan results retain identical filename/region rules.
+const source = fs.readFileSync(path.join(here, '../src/lib/covers.ts'), 'utf8')
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
+}).outputText
+const { resolveCoverUrls, romFilenameFromUrl } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'))
+const probed = new Map()
 
 async function probe(url) {
+  if (probed.has(url)) return probed.get(url)
   try {
-    const res = await fetch(url, { method: 'HEAD' })
-    return res.ok
+    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+    const ok = res.ok && (res.headers.get('content-type') ?? '').startsWith('image/')
+    probed.set(url, ok)
+    return ok
   } catch {
     return false
   }
@@ -89,16 +61,16 @@ console.log(`Probing Libretro covers for ${games.length} game(s)…`)
 
 for (const game of games) {
   if (game.cover) continue
-  const system = SYSTEM_FOLDERS[game.platform]
-  if (!system || !game.title) continue
+  const urls = resolveCoverUrls(game.platform, game.title ?? '', null, true, game.romFilename ?? romFilenameFromUrl(game.file))
+  if (!urls.length) continue
   checked++
-  const file = `${thumbName(game.title)}.png`
-  const url = `https://thumbnails.libretro.com/${encodeURIComponent(system)}/Named_Boxarts/${encodeURIComponent(file)}`
-  const ok = await probe(url)
-  if (ok) {
-    game.cover = url
-    filled++
-    console.log(`  + ${game.title}`)
+  for (const url of urls) {
+    if (await probe(url)) {
+      game.cover = url
+      filled++
+      console.log(`  + ${game.title}`)
+      break
+    }
   }
 }
 

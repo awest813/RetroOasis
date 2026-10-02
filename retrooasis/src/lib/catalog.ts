@@ -28,6 +28,8 @@ export interface Game {
   platform: string
   core: string
   file: string
+  /** Original ROM name, including region/revision tags used by thumbnail databases. */
+  romFilename?: string
   cover: string | null
   tags?: string[]
   demo?: boolean
