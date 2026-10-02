@@ -8,6 +8,7 @@ import {
 } from '../lib/catalog'
 import { UPLOAD_CORE_OPTIONS, coreNeedsThreads, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
+import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
@@ -248,7 +249,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               </label>
               <label class="ro-muted">Year <input class="ro-input" name="year" value="${escapeAttr(String(over?.year ?? game.year ?? ''))}" /></label>
               <label class="ro-muted">Developer <input class="ro-input" name="developer" value="${escapeAttr(over?.developer ?? game.developer ?? '')}" /></label>
-              <label class="ro-muted">Cover URL <input class="ro-input" name="cover" value="${escapeAttr(over?.cover ?? game.cover ?? '')}" /></label>
+              <label class="ro-muted">Cover URL <input class="ro-input" name="cover" aria-describedby="ro-cover-help" placeholder="https://example.com/cover.png" value="${escapeAttr(over?.cover ?? game.cover ?? '')}" /></label>
+              <p class="ro-muted" id="ro-cover-help">Paste a direct image URL, rather than a game page. If external art won’t load, use an image hosted with your ROM library or a matching cover in your linked folder.</p>
+              ${coverResourceLinks()}
               <label class="ro-muted">Description <textarea class="ro-input" name="description" rows="3">${escapeHtml(over?.description ?? game.description ?? '')}</textarea></label>
               <div class="ro-btn-row">
                 <button type="submit" class="ro-btn ro-btn--primary" data-ro-focusable="true">Save locally</button>

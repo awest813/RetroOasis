@@ -9,8 +9,8 @@ Run these commands from the repository root:
 | `node retrooasis/scripts/test-gamepad.mjs --browser` | Controller focus, activation, release guards, background recovery, row navigation and cleanup |
 | `npm --prefix retrooasis run test:disc-sets` | CUE/BIN grouping, M3U playlists, STORE zip packing |
 | `npm --prefix retrooasis run test:saves` | Save-slot listing, import/export, and database isolation |
-| `npm --prefix retrooasis run test:covers` | Literal/URL filenames, metadata/region/article fallbacks, subtitles/sequels, isolated manifest generation and shared scanner matching |
-| `npm --prefix retrooasis run test:covers -- --browser` | Cached/corrupt art, recovery, retries after navigation, placeholders and cross-origin art under COEP; add `?live` to the printed URL to check real Libretro art |
+| `npm --prefix retrooasis run test:covers` | Literal/URL filenames, metadata/region/article fallbacks, subtitles/sequels, linked-folder cover priority, manifest generation, scanner matching and service-worker refresh/offline behavior |
+| `npm --prefix retrooasis run test:covers -- --browser` | Cached/corrupt art, recovery, refresh races, signed URLs, retries after navigation, placeholders and cross-origin art under COEP; add `?live` to the printed URL to check real Libretro art |
 | `npx eslint . --quiet` | Lint errors; existing warnings are omitted |
 | `npm run build` | TypeScript, SPA production build and Pages artifact |
 | `npm run minify` | Emulator JavaScript and CSS bundles |

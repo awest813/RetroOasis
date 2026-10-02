@@ -44,7 +44,8 @@ import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { getStorageSnapshot, requestPersistentStorage } from '../lib/storageQuota'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
-import { escapeHtml } from '../lib/dom'
+import { escapeHtml, refreshCoverArt } from '../lib/dom'
+import { coverResourceLinks } from '../lib/coverResources'
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { describeConnectedPads, onPadPresenceChange } from '../lib/gamepad'
@@ -263,6 +264,23 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
+              <strong>Refresh cover art</strong>
+              <p class="ro-muted">Retry cover matching and reload artwork as you browse.</p>
+              <p class="ro-muted ro-cover-refresh-status" id="ro-cover-refresh-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+            <button type="button" class="ro-btn ro-btn--ghost" id="ro-refresh-covers" data-focus-id="refresh-covers" data-ro-focusable="true" aria-label="Refresh cover art" aria-describedby="ro-cover-refresh-status">Refresh</button>
+          </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Cover art resources</strong>
+              <p class="ro-muted">Browse artwork, then add a direct image URL from a game’s metadata editor.</p>
+              ${coverResourceLinks()}
+            </div>
+          </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
               <strong>Hide samples</strong>
               <p class="ro-muted">Show only ROMs you’ve hosted, linked, or saved.</p>
             </div>
@@ -475,6 +493,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   root.querySelector('#ro-libretro')?.addEventListener('click', () => {
     setLibretroCovers(!getLibretroCovers())
     rerender('libretro')
+  })
+
+  root.querySelector('#ro-refresh-covers')?.addEventListener('click', () => {
+    refreshCoverArt()
+    const status = root.querySelector('#ro-cover-refresh-status')
+    if (status) status.textContent = getLibretroCovers()
+      ? 'Cover matches reset. Artwork will be retried as you browse.'
+      : 'Cover matches reset. Saved covers will be retried as you browse. Turn on Online box art for automatic matches.'
   })
 
   root.querySelectorAll<HTMLButtonElement>('[data-ejs]').forEach((btn) => {

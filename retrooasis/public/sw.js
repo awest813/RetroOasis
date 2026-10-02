@@ -72,6 +72,27 @@ self.addEventListener('fetch', (event) => {
 
   const path = url.pathname
   if (path.includes('/data/') || path.includes('/roms/')) return
+  // Explicit artwork refresh bypasses ignoreSearch app-shell image caches.
+  if (req.destination === 'image' && url.searchParams.has('_ro_cover_refresh')) {
+    const cacheUrl = new URL(url)
+    cacheUrl.searchParams.delete('_ro_cover_refresh')
+    const cacheReq = new Request(cacheUrl.href, { credentials: req.credentials })
+    event.respondWith(
+      fetch(req, { cache: 'reload' })
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone()
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put(cacheReq, copy)).catch(() => {}))
+          }
+          return res
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE)
+          return (await cache.match(cacheReq)) || Response.error()
+        }),
+    )
+    return
+  }
 
   // Navigations / HTML: network-first so deploys update, offline falls back to shell.
   const isNav = req.mode === 'navigate' || req.destination === 'document'

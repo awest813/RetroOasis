@@ -131,7 +131,11 @@ In the UI, **Online box art** (Settings, on by default) fills missing boxart at 
 
 Generated manifests retain a literal `romFilename` beside the encoded `file` URL, so filenames containing `%` or `#` are matched without accidental URL decoding. The `--covers` scan uses the same matcher as the UI and probes each image with a five-second timeout.
 
-Linked-folder cover buckets match full ROM names. An untagged cover such as `Game.png` can serve regional versions of that title; a tagged cover such as `Game (Europe).png` stays with its exact ROM name. Short prefixes cannot assign art to sequels, and existing covers take priority.
+Linked-folder cover buckets match full ROM names. An untagged cover such as `Game.png` can serve regional versions of that title; a tagged cover such as `Game (Europe).png` stays with its exact ROM name and takes priority over generic artwork, regardless of folder order. Short prefixes cannot assign art to sequels, and existing covers take priority.
+
+For manually chosen artwork, open a game's **Options → Edit metadata** and use **Cover URL**. The editor and Settings link to [The Cover Project](https://www.thecoverproject.net/), [LaunchBox Games Database](https://gamesdb.launchbox-app.com/), [MobyGames](https://www.mobygames.com/), [GameTDB](https://www.gametdb.com/), and [Libretro thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails). Use a direct image URL rather than a cover-detail webpage. When externally hosted art cannot load, host the image with your ROM library or save a matching image in your linked folder. Automatic lookups continue to use Libretro.
+
+**Settings → Library → Refresh cover art** clears remembered matches and retries artwork as you browse during the current session. Fresh image requests bypass the browser/app image cache; same-origin app-cached artwork remains available if the network is offline. Blob/data images and custom URLs with existing query parameters remain intact; query parameters may contain signatures required by the image host. The action preserves your cover edits and Online box art preference.
 
 ## Settings
 

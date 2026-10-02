@@ -5,6 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import ts from 'typescript'
+import vm from 'node:vm'
 
 const compile = name => ts.transpileModule(fs.readFileSync(new URL(`../src/lib/${name}.ts`, import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
@@ -69,6 +70,7 @@ const localGames = [
   { title: 'Game', platform: 'nes', romFilename: 'Game (Japan).nes', cover: 'custom.png', id: 'custom' },
 ]
 assert.deepEqual(gamesForLocalCover(localGames, 'nes', 'Game.png').map(game => game.id), ['us', 'eu'], 'Generic local cover matches full title and preserves custom art')
+assert.deepEqual(gamesForLocalCover([...localGames, { title: 'Game', platform: 'nes', romFilename: 'Game.nes', id: 'untagged' }], 'nes', 'Game.png').map(game => game.id), ['us', 'eu', 'untagged'], 'Generic art fills both untagged and regional games')
 assert.deepEqual(gamesForLocalCover(localGames, 'nes', 'Game (Europe).png').map(game => game.id), ['eu'], 'Tagged local cover stays in its region')
 assert.deepEqual(gamesForLocalCover(localGames, 'nes', 'Game (World).png'), [], 'Unknown tagged cover does not cross regions')
 assert.deepEqual(gamesForLocalCover(localGames, 'nes', 'Gam.png'), [], 'Local cover never matches a title prefix')
@@ -76,6 +78,94 @@ assert.deepEqual(gamesForLocalCover([{title: '星のカービィ', platform: 'gb
 assert.deepEqual(gamesForLocalCover(localGames, 'nes', '.png'), [], 'An empty local cover name matches nothing')
 assert.deepEqual(gamesForLocalCover([{title: 'A+B', platform: 'nes', romFilename: 'A+B (USA).nes'}], 'nes', 'AB.png'), [], 'Generic local matching preserves significant punctuation')
 console.log('PASS: cover filename parsing, metadata, region/article fallbacks, legacy migration and markup')
+
+// Exercise the real linked-folder scan with ordered file-system handle fixtures.
+const moduleUrls = new Map()
+function moduleUrl(name) {
+  if (moduleUrls.has(name)) return moduleUrls.get(name)
+  const script = compile(name).replace(/from ['"]\.\/([^'"]+)['"]/g, (_, dependency) => `from ${JSON.stringify(moduleUrl(dependency))}`)
+  const url = 'data:text/javascript;base64,' + Buffer.from(script).toString('base64')
+  moduleUrls.set(name, url)
+  return url
+}
+const { scanDirectory } = await import(moduleUrl('localLibrary'))
+const fileHandle = (name, contents) => ({ name, kind: 'file', getFile: async () => new Blob([contents]) })
+function directory(name, handles) {
+  const entries = handles.map(handle => [handle.name, handle])
+  const find = (name, kind) => {
+    const handle = handles.find(handle => handle.name === name && handle.kind === kind)
+    if (!handle) throw new Error('Missing fixture entry')
+    return handle
+  }
+  return {
+    name, kind: 'directory',
+    getDirectoryHandle: async name => find(name, 'directory'),
+    getFileHandle: async name => find(name, 'file'),
+    entries: async function* () { yield* entries },
+  }
+}
+const romHandles = [
+  ...['Game.nes', 'Game (USA).nes', 'Game (Europe).nes', 'Game (Japan).nes', 'Game 2.nes'].map(name => fileHandle(name, 'rom')),
+  fileHandle('Game (Japan).png', 'existing-sidecar'),
+]
+const bucketHandles = [fileHandle('Game.png', 'generic'), fileHandle('Game (Europe).png', 'europe'), fileHandle('Gam.png', 'wrong-prefix')]
+try {
+  for (const covers of [bucketHandles, [...bucketHandles].reverse()]) {
+    const rootHandle = directory('fixture', [directory('nes', romHandles), directory('covers', [directory('nes', covers)])])
+    const { games } = await scanDirectory(rootHandle)
+    const actual = Object.fromEntries(await Promise.all(games.map(async game => [game.romFilename, game.cover ? await (await fetch(game.cover)).text() : null])))
+    assert.deepEqual(actual, {
+      'Game.nes': 'generic', 'Game (USA).nes': 'generic', 'Game (Europe).nes': 'europe',
+      'Game (Japan).nes': 'existing-sidecar', 'Game 2.nes': null,
+    }, 'Exact bucket art wins, generic art fills remaining variants, and sidecars survive in either directory order')
+  }
+  console.log('PASS: linked-folder cover matching and deterministic exact-before-generic priority')
+} finally {
+  await scanDirectory(directory('empty-fixture', [])) // Revoke only fixture blob URLs.
+}
+
+const swHandlers = new Map()
+let refreshedRequest
+let networkMode = 'online'
+const cachedImages = new Map()
+const cachedImage = {
+  put: async (request, response) => cachedImages.set(request.url, response),
+  match: async request => cachedImages.get(request.url)?.clone(),
+}
+vm.runInNewContext(fs.readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), {
+  URL, Request, Response,
+  self: { location: { origin: 'https://retrooasis.test' }, addEventListener: (name, handler) => swHandlers.set(name, handler) },
+  fetch: async (request, options) => {
+    refreshedRequest = { request, options }
+    if (networkMode === 'offline') throw new Error('Offline')
+    return new Response('fresh-image', { status: networkMode === 'missing' ? 404 : 200 })
+  },
+  caches: { open: async () => cachedImage },
+})
+async function swFetch(request) {
+  let response
+  const pending = []
+  swHandlers.get('fetch')({ request, respondWith: value => { response = value }, waitUntil: value => pending.push(value) })
+  const result = await response
+  await Promise.all(pending)
+  return result
+}
+const imageRequest = { method: 'GET', destination: 'image', credentials: 'same-origin', url: 'https://retrooasis.test/covers/art.png?edition=usa&_ro_cover_refresh=1' }
+cachedImages.set('https://retrooasis.test/covers/art.png?edition=usa', new Response('stale-image'))
+assert.equal(await (await swFetch(imageRequest)).text(), 'fresh-image')
+assert.equal(refreshedRequest.request, imageRequest)
+assert.equal(refreshedRequest.options.cache, 'reload')
+assert.deepEqual([...cachedImages.keys()], ['https://retrooasis.test/covers/art.png?edition=usa'], 'Refresh stores one canonical URL and preserves other query parameters')
+networkMode = 'offline'
+assert.equal(await (await swFetch(imageRequest)).text(), 'fresh-image', 'Offline refresh keeps previously cached artwork')
+assert.equal((await swFetch({ ...imageRequest, url: 'https://retrooasis.test/uncached.png?_ro_cover_refresh=2' })).type, 'error', 'Uncached offline art fails so the UI can try fallbacks')
+networkMode = 'missing'
+assert.equal((await swFetch(imageRequest)).status, 404, 'HTTP failures advance fallbacks instead of serving outdated art')
+assert.equal(await swFetch({ ...imageRequest, url: 'https://other.test/art.png?_ro_cover_refresh=1' }), undefined, 'External hosts bypass app caches')
+for (const folder of ['roms', 'data']) {
+  assert.equal(await swFetch({ ...imageRequest, url: `https://retrooasis.test/${folder}/art.png?_ro_cover_refresh=1` }), undefined, `${folder} stays outside app caches`)
+}
+console.log('PASS: cover refresh bypasses stale caches, saves fresh art and retains offline fallback')
 
 // Run the real manifest generator and --covers scanner against disposable files.
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -116,6 +206,7 @@ try {
 
 if (process.argv.includes('--browser')) {
   const counts = new Map()
+  let firstRaceVersion
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="48"><rect width="32" height="48" fill="cyan"/></svg>'
   const images = http.createServer((req, res) => {
     counts.set(req.url, (counts.get(req.url) ?? 0) + 1)
@@ -124,15 +215,27 @@ if (process.argv.includes('--browser')) {
     const requestUrl = new URL(req.url, 'http://127.0.0.1')
     const transientArt = (requestUrl.pathname === '/flaky.svg' && !requestUrl.searchParams.has('expired'))
       || (requestUrl.pathname === '/recovering.svg' && attempt > 1)
-    if (req.url === '/art.svg' || transientArt) {
+    if (requestUrl.pathname === '/art.svg' || transientArt) {
       res.setHeader('Cache-Control', req.url === '/art.svg' ? 'public, max-age=3600' : 'no-store')
       res.setHeader('Content-Type', 'image/svg+xml'); res.end(svg)
     } else if (req.url === '/bad-image.svg') {
       res.setHeader('Cache-Control', 'no-store')
       res.setHeader('Content-Type', 'image/svg+xml'); res.end('invalid image')
-    } else if (req.url === '/slow-missing.svg') {
+    } else if (requestUrl.pathname === '/slow-missing.svg') {
       res.setHeader('Cache-Control', 'no-store')
       setTimeout(() => { res.statusCode = 404; res.end('Missing') }, 100)
+    } else if (requestUrl.pathname === '/slow-art.svg') {
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Content-Type', 'image/svg+xml')
+      setTimeout(() => res.end(svg), 100)
+    } else if (requestUrl.pathname === '/refresh-race.svg') {
+      firstRaceVersion ??= requestUrl.searchParams.get('_ro_cover_refresh')
+      res.setHeader('Cache-Control', 'no-store')
+      if (requestUrl.searchParams.get('_ro_cover_refresh') === firstRaceVersion) {
+        setTimeout(() => { res.statusCode = 404; res.end('Old failure') }, 300)
+      } else {
+        res.setHeader('Content-Type', 'image/svg+xml'); res.end(svg)
+      }
     } else {
       res.setHeader('Cache-Control', 'no-store')
       res.statusCode = 404; res.end('Missing')

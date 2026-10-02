@@ -1458,6 +1458,27 @@ html[data-layout='tv'] .ro-btn--toggle {
   margin: 0.3rem 0 0;
 }
 
+.ro-cover-refresh-status:empty {
+  display: none;
+}
+
+.ro-cover-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.ro-cover-resources a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+}
+
 .ro-settings-row--stack {
   align-items: flex-start;
 }
