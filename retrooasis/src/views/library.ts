@@ -8,7 +8,7 @@ import {
   type Game,
   type Platform,
 } from '../lib/catalog'
-import { resolveCoverUrl } from '../lib/covers'
+import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
 import { hrefFor, type VirtualCollection } from '../lib/router'
@@ -387,7 +387,7 @@ function gameTile(
   platform: Platform | undefined,
   useLibretro: boolean,
 ): string {
-  const cover = resolveCoverUrl(game.platform, game.title, game.cover, useLibretro)
+  const cover = resolveCoverUrls(game.platform, game.title, game.cover, useLibretro && !game.demo, game.romFilename ?? romFilenameFromUrl(game.file))
   const gameHref = hrefFor(`/game/${encodeURIComponent(game.id)}`)
   return `
     <div class="ro-tile">

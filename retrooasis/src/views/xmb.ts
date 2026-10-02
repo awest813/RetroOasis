@@ -9,7 +9,7 @@ import {
   type Game,
   type Platform,
 } from '../lib/catalog'
-import { resolveCoverUrl } from '../lib/covers'
+import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
@@ -28,7 +28,7 @@ type XmbItem =
       sub: string
       href: string
       accent: string
-      cover: string | null
+      cover: string[]
       blurb: string
     }
   | {
@@ -113,7 +113,7 @@ function gameBlurb(game: Game, platformName: string): string {
 function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
   const platform = findPlatform(catalog, game.platform)
   const accent = platformAccentVar(platform?.accent ?? 'sega')
-  const cover = resolveCoverUrl(game.platform, game.title, game.cover, useLibretro)
+  const cover = resolveCoverUrls(game.platform, game.title, game.cover, useLibretro && !game.demo, game.romFilename ?? romFilenameFromUrl(game.file))
   const platformName = platform?.shortName ?? game.platform
   return {
     kind: 'game',

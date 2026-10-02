@@ -10,19 +10,33 @@ export function escapeAttr(value: string): string {
   return escapeHtml(value).replaceAll("'", '&#39;')
 }
 
+// Reuse successful matches when switching between the library, home and detail.
+const loadedCovers = new Map<string, string>()
+const hydratedCovers = new WeakSet<HTMLImageElement>()
+
 export function coverMarkup(
   title: string,
   accentVar: string,
-  coverUrl: string | null | undefined,
+  coverUrl: string | readonly string[] | null | undefined,
 ): string {
-  if (coverUrl) {
+  const candidates = [...new Set((typeof coverUrl === 'string' ? [coverUrl] : [...(coverUrl ?? [])]).map((url) => url.trim()).filter(Boolean))]
+  const key = JSON.stringify(candidates)
+  const remembered = loadedCovers.get(key)
+  if (remembered && candidates.includes(remembered)) {
+    candidates.splice(candidates.indexOf(remembered), 1)
+    candidates.unshift(remembered)
+  }
+  if (candidates.length) {
     return `
       <div class="ro-cover ro-cover--image" style="--cover-accent: ${accentVar}">
         <img
           class="ro-cover__img"
-          src="${escapeAttr(coverUrl)}"
+          src="${escapeAttr(candidates[0])}"
+          data-cover-candidates="${escapeAttr(JSON.stringify(candidates))}"
+          data-cover-key="${escapeAttr(key)}"
           alt=""
           loading="lazy"
+          decoding="async"
         />
         <span class="ro-cover__mark" aria-hidden="true"></span>
         <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(title)}</span>
@@ -53,23 +67,64 @@ function markCoverMissing(img: HTMLImageElement): void {
 
 /**
  * Bind load/error for covers after innerHTML inject.
- * Inline onload/onerror attributes are not executed for innerHTML inserts.
+ * Bind once, including cached images that completed before hydration.
+ * Keep the placeholder visible until an attempt succeeds or all attempts fail.
  */
 export function hydrateCovers(root: ParentNode): void {
   root.querySelectorAll<HTMLImageElement>('.ro-cover--image img').forEach((img) => {
     const parent = img.parentElement
     if (!parent) return
+    if (hydratedCovers.has(img)) return
+    hydratedCovers.add(img)
     if (parent.classList.contains('ro-cover--ready') || parent.classList.contains('ro-cover--missing')) {
       return
     }
 
-    if (img.complete) {
-      if (img.naturalWidth > 0) markCoverReady(img)
-      else markCoverMissing(img)
-      return
+    let candidates: string[] = []
+    try {
+      const parsed: unknown = JSON.parse(img.dataset.coverCandidates ?? '[]')
+      if (Array.isArray(parsed)) candidates = parsed.filter((url): url is string => typeof url === 'string')
+    } catch { /* Older markup may have just one source. */ }
+    let attempt = 0
+    const finish = () => {
+      img.removeEventListener('load', onLoad)
+      img.removeEventListener('error', onError)
+    }
+    const onLoad = () => {
+      if (img.naturalWidth === 0) {
+        onError()
+        return
+      }
+      markCoverReady(img)
+      if (img.dataset.coverKey && candidates[attempt]) {
+        // Bound session memory for very large libraries.
+        if (loadedCovers.size >= 1000) loadedCovers.delete(loadedCovers.keys().next().value!)
+        loadedCovers.set(img.dataset.coverKey, candidates[attempt])
+      }
+      finish()
+    }
+    const onError = () => {
+      // A removed grid/detail view should not launch its remaining guesses.
+      if (!img.isConnected) {
+        finish()
+        return
+      }
+      attempt++
+      if (attempt < candidates.length) {
+        img.src = candidates[attempt]
+      } else {
+        if (img.dataset.coverKey) loadedCovers.delete(img.dataset.coverKey)
+        markCoverMissing(img)
+        finish()
+      }
     }
 
-    img.addEventListener('load', () => markCoverReady(img), { once: true })
-    img.addEventListener('error', () => markCoverMissing(img), { once: true })
+    img.addEventListener('load', onLoad)
+    img.addEventListener('error', onError)
+
+    if (img.complete) {
+      if (img.naturalWidth > 0) onLoad()
+      else onError()
+    }
   })
 }

@@ -7,7 +7,7 @@ import {
   reloadUploadedLibrary,
 } from '../lib/catalog'
 import { UPLOAD_CORE_OPTIONS, coreNeedsThreads, normalizePlayCore } from '../lib/cores'
-import { resolveCoverUrl } from '../lib/covers'
+import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
@@ -82,11 +82,12 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   }
 
   const platform = findPlatform(catalog, game.platform)
-  const cover = resolveCoverUrl(
+  const cover = resolveCoverUrls(
     game.platform,
     game.title,
     game.cover,
-    getLibretroCovers(),
+    getLibretroCovers() && !game.demo,
+    game.romFilename ?? romFilenameFromUrl(game.file),
   )
   let favorited = isFavorite(game.id)
   let busy = false

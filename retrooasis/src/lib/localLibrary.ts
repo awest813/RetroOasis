@@ -1,4 +1,5 @@
 import type { Game } from './catalog'
+import { gamesForLocalCover } from './covers'
 import {
   coreForPlatform,
   isCoverFile,
@@ -174,6 +175,7 @@ async function scanPlatformDir(
       platform: platformId,
       core: meta?.core || defaultCore,
       file: `local://${id}`,
+      romFilename: name,
       cover,
       bios: meta?.bios ?? null,
       description: meta?.description,
@@ -200,15 +202,14 @@ async function scanCoversBucket(
 
   for await (const [name, handle] of coversDir.entries()) {
     if (handle.kind !== 'file' || !isCoverFile(name)) continue
-    const base = name.replace(/\.[^.]+$/, '')
-    const match = games.find(
-      (g) => g.platform === platformId && g.id.includes(base.toLowerCase().replace(/[^a-z0-9]+/g, '-')),
-    )
-    if (!match || match.cover) continue
+    const matches = gamesForLocalCover(games, platformId, name)
+    if (!matches.length) continue
     const file = await (handle as FileSystemFileHandle).getFile()
-    const url = URL.createObjectURL(file)
-    coverUrls.set(match.id, url)
-    match.cover = url
+    for (const match of matches) {
+      const url = URL.createObjectURL(file)
+      coverUrls.set(match.id, url)
+      match.cover = url
+    }
   }
 }
 
