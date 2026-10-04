@@ -49,7 +49,8 @@ const sandbox = {
   },
 }
 vm.createContext(sandbox)
-const source=fs.readFileSync(new URL('../public/lan-host.js',import.meta.url),'utf8').replace(/^import .*\n/gm,'').replace(/export /g,'')
+// Git may check out Windows CRLF even when the committed source uses LF.
+const source=fs.readFileSync(new URL('../public/lan-host.js',import.meta.url),'utf8').replace(/^import [^\r\n]*\r?\n/gm,'').replace(/export /g,'')
 vm.runInContext(source+'\nglobalThis.mountHost = mountHost;',sandbox)
 const {cleanup}=await sandbox.mountHost(emu)
 await panel.nodes.form.onsubmit({preventDefault(){}})
