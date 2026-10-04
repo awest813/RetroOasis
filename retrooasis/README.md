@@ -139,6 +139,20 @@ For manually chosen artwork, open a game's **Options → Edit metadata** and use
 
 ## Settings
 
+**Settings → Controllers** reports controller access, lists connected devices and marks
+the controller used for menus. Press and release a button on another standard-layout
+controller to take over menu navigation. **Test buttons & sticks** shows button presses
+and both stick axes; while open, it pauses controller menu actions (including Back),
+so keyboard and touch remain available. Close the test and release the buttons to resume.
+Custom layouts can be configured in the player's Controls menu. Each player's in-game
+controller assignment is separate from the menu controller. Controllers connected before
+game startup are assigned normally; disconnect, focus loss and pause release held input.
+After reconnecting or returning to play, release buttons and center standard-layout sticks.
+RetroOasis bundles its patched EmulatorJS frontend for every channel; the selected
+Stable/Nightly/Latest/Local channel still determines core and support-file downloads.
+Player frontend files are refreshed before use online and keep their last successful
+offline copy. Rebuild the frontend bundle with `npm run minify` after editing `data/src/`.
+
 All preferences persist in **localStorage** on this device (except ROM bytes and folder handles, which use IndexedDB).
 
 | Group | Options |
@@ -149,7 +163,7 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
 | **Data** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
 
-Settings uses a console-style row menu with keyboard/gamepad focus (D-pad or arrows, Enter to confirm, Escape / B to go back).
+Settings includes section shortcuts and remembers your focused control and scroll position when you return. Its console-style row menu supports D-pad or arrows, Enter to confirm, and Escape / B to go back. Controller troubleshooting and host setup are expandable. **Online play** explains same-Wi-Fi/LAN limits, supported systems, and separate host and guest flows. **Check again** checks the local room service, distinguishes setup, timeout, update and invalid-response failures, and enables **Choose a game** and **Enter room code** only when the service and browser support are available. The player verifies core files before creating a room. Saved ROMs belong to the browser address where they were added; the host setup explains how to add or link them at the LAN address.
 
 ## Layout, PWA & accessibility
 
@@ -165,6 +179,41 @@ Settings uses a console-style row menu with keyboard/gamepad focus (D-pad or arr
 - **Onboarding**: empty-library hint in the grid when only demo samples are visible
 - Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`); mouse/touch without sticky rings
 - `manifest.webmanifest` (icons + shortcuts) + `sw.js` cache the app shell and catalog (not cores/ROMs), production only
+
+## Same Wi-Fi / LAN multiplayer
+
+Two players can share NES, SNES and Mega Drive / Genesis games. Experimental N64 rooms offer two or four players, including analog stick, Z and C-button controls. The host runs the emulator as Player 1 and streams video and audio over WebRTC; guests control separate controller ports. Guests need no ROM or emulator download. Rooms use the local server for signaling, with no public signaling service, STUN or TURN relay.
+
+On the host computer, prepare the default cores once while online, then start the server:
+
+```sh
+npm run oasis:lan:prepare
+npm run oasis:lan
+```
+
+Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host multiplayer** on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and room-service status. Demo placeholders cannot host.
+
+Keyboard and touch work in HTTP mode. Guest gamepads require trusted HTTPS in browsers that restrict the Gamepad API. To generate certificates without installing trust automatically:
+
+```sh
+npm run oasis:lan:cert
+npm run oasis:build
+node retrooasis/scripts/lan-server.mjs --cert retrooasis/.lan-certs/server.pem --key retrooasis/.lan-certs/server-key.pem
+```
+
+Install the generated `ca.crt` as a trusted certificate on the devices you control, following their operating system's instructions. Keep `server-key.pem` private. Regenerate certificates if your LAN address changes. Certificate files are gitignored. A certificate from your own trusted issuer also works through `--cert` and `--key`.
+
+The host can pause, lock, remove individual guests or end the room. Each disconnected guest has 15 seconds to reconnect in the same tab and recover their controller port; host exit ends the room. Keyboard, touch and standard gamepads are supported; guest save states and host migration are outside this release. N64 defaults to two players to reduce encoder load; four players remain experimental until tested on separate LAN devices.
+
+For four-player N64, select **4 players · host + 3 guests** before creating the room. The controller-seat list shows open seats, reconnect reservations and each guest's game-connection readiness. Expand **Invite players** to choose the Wi-Fi address and view the link/QR code, or use **Copy invite**. Wait for all three guests to show **Ready to play**, then select a four-player mode inside the game. Removing one guest frees only that seat; other players keep their ports and controls. Joined-room status on a guest's roster does not imply that every other guest's stream is ready.
+
+Hosting selects local, non-threaded cores and verifies their pinned SHA-256 hashes and reports before enabling a room. Preparation includes FCEUmm, Snes9x, Genesis Plus GX and Mupen64Plus-Next. The verified N64 alternate can be prepared with `npm run oasis:lan:prepare -- --core parallel_n64`. Other alternate cores need a reviewed asset pin before LAN hosting. `--refresh` re-downloads the pinned assets; it does not accept a changed upstream build silently. Missing or changed files produce a preparation error. The selected N64 build requires WebGL2.
+
+GB/GBC and GBA link play require multiple emulated consoles and remain unavailable in the room UI. Pinned WASM [feasibility prototypes](scripts/handheld/README.md) demonstrate GB/GBC serial exchange with separate save reloads and GBA local packet routing; real linked gameplay and the session UI are remaining work. See the [implementation plan and acceptance gates](../docs/plans/n64-gbc-gba-multiplayer.md).
+
+Allow Node through the host's private-network firewall if necessary, and avoid guest Wi-Fi with client isolation. Internet multiplayer and port forwarding are not supported.
+
+The server serves the app, EmulatorJS assets and your hosted `roms/` folder to the LAN. Device-local IndexedDB ROMs stay on the host. Rooms and reconnect credentials live in memory and disappear when the server stops.
 
 ## Repo layout
 

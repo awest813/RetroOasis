@@ -1,0 +1,45 @@
+:root { color-scheme: dark; --lan-bg: #071018; --lan-panel: #102330; --lan-accent: #2ee6d6; --lan-text: #e8eef5; --lan-muted: #9aabbc; }
+* { box-sizing: border-box; }
+.ro-lan-page { margin: 0; background: var(--lan-bg); color: var(--lan-text); font: 16px/1.5 system-ui, sans-serif; }
+.ro-lan-header { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem max(1rem, env(safe-area-inset-left)); border-bottom: 1px solid #24404d; }
+.ro-lan-header a { font-weight: 750; letter-spacing: .12em; }
+.ro-lan-main { max-width: 960px; margin: auto; padding: 1.5rem max(1rem, env(safe-area-inset-left)); }
+.ro-lan-page a, .ro-lan-panel a { color: var(--lan-accent); }
+.ro-lan-page h1 { font-size: clamp(1.3rem, 4vw, 2rem); }
+.ro-lan-page p, .ro-lan-panel p { color: var(--lan-muted); }
+.ro-lan-page label, .ro-lan-panel label { display: grid; gap: .4rem; margin: .7rem 0; }
+.ro-lan-page input, .ro-lan-page select, .ro-lan-panel input, .ro-lan-panel select { width: 100%; min-width: 0; padding: .7rem; background: var(--lan-bg); color: var(--lan-text); border: 1px solid #456270; font: inherit; border-radius: 3px; }
+.ro-lan-page button, .ro-lan-panel button { cursor: pointer; padding: .65rem .9rem; min-height: 44px; background: var(--lan-panel); color: var(--lan-accent); border: 1px solid var(--lan-accent); font: inherit; border-radius: 3px; }
+.ro-lan-page button:disabled, .ro-lan-panel button:disabled { opacity: .5; cursor: wait; }
+.ro-lan-page button:hover, .ro-lan-page button[aria-pressed=true], .ro-lan-panel button:hover { background: var(--lan-accent); color: var(--lan-bg); }
+.ro-lan-page :focus-visible, .ro-lan-panel :focus-visible { outline: 3px solid #f0b429; outline-offset: 3px; }
+.ro-lan-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
+.ro-lan-stage { position: relative; background: #000; aspect-ratio: 4 / 3; max-height: 65vh; }
+.ro-lan-stage video { width: 100%; height: 100%; object-fit: contain; }
+.ro-lan-stage [data-lan-overlay] { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; padding: 1rem; text-align: center; pointer-events: none; }
+.ro-lan-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; touch-action: none; user-select: none; }
+.ro-lan-controls button { min-width: 48px; min-height: 48px; touch-action: none; }
+.ro-lan-dpad, .ro-lan-buttons { display: grid; grid-template-columns: repeat(3, minmax(48px, 1fr)); gap: .45rem; }
+.ro-lan-dpad button:first-child { grid-column: 2; }
+.ro-lan-dpad button:nth-child(2) { grid-column: 1; }
+.ro-lan-system { display: flex; gap: .5rem; align-items: center; }
+.ro-lan-panel { position: fixed; z-index: 9999; right: max(.65rem, env(safe-area-inset-right)); top: 3.6rem; width: min(340px, calc(100vw - 1.3rem)); max-height: calc(100dvh - 4.5rem); overflow: auto; padding: .8rem; background: var(--lan-panel, #102330); color: var(--lan-text, #e8eef5); border: 1px solid var(--lan-accent, #2ee6d6); font: 14px/1.45 system-ui, sans-serif; box-shadow: 0 8px 25px #0009; }
+.ro-lan-panel summary { cursor: pointer; font-weight: 700; min-height: 44px; display: list-item; align-content: center; }
+.ro-lan-panel ul, .ro-lan-page ul { padding: 0; list-style: none; }
+.ro-lan-panel li, .ro-lan-page li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .5rem 0; }
+.ro-lan-panel li span, .ro-lan-page li span { min-width: 0; overflow-wrap: anywhere; }
+.ro-lan-panel li button { flex: 0 0 auto; }
+[data-lan-capacity] { font-weight: 650; }
+.ro-lan-qr { width: 150px; height: 150px; background: white; margin-top: .5rem; }
+[data-lan-status] { overflow-wrap: anywhere; }
+.ro-lan-note { font-size: .85rem; }
+.ro-lan-stick { position: relative; width: 130px; height: 130px; flex: 0 0 130px; border: 2px solid #456270; border-radius: 50%; background: #071018; touch-action: none; }
+.ro-lan-stick span { position: absolute; bottom: .3rem; width: 100%; text-align: center; font-size: .8rem; color: var(--lan-muted); }
+.ro-lan-stick i { position: absolute; width: 44px; height: 44px; left: calc(50% - 22px); top: calc(50% - 22px); border-radius: 50%; background: var(--lan-accent); pointer-events: none; }
+.ro-lan-page #join-form { max-width: 480px; padding: 1rem; background: var(--lan-panel); border: 1px solid #24404d; border-radius: 6px; }
+.ro-lan-page #room-code { text-transform: uppercase; letter-spacing: .15em; font-family: ui-monospace, monospace; }
+.ro-lan-page #code-help { font-size: .85rem; margin-top: 0; }
+.ro-lan-page [data-lan-status] { padding: .75rem 1rem; border-left: 3px solid var(--lan-accent); background: var(--lan-panel); }
+.ro-lan-panel [data-lan-end], .ro-lan-page #leave { border-color: #ef9a9a; color: #ef9a9a; }
+[hidden] { display: none !important; }
+[data-lan-play]:fullscreen { background: var(--lan-bg); padding: 1rem; overflow: auto; }

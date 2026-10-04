@@ -12,6 +12,7 @@ import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
+import { checkLanService, LAN_CORES } from '../lib/lan'
 import {
   clearOverride,
   exportOverridesJson,
@@ -26,12 +27,14 @@ import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
+import { icon } from '../lib/icons'
 
 export async function renderGameDetail(root: HTMLElement, gameId: string): Promise<void> {
   let active = true
   let focusCleanup: (() => void) | null = null
   let editing = false
   let menuOpen = false
+  const lanAbort = new AbortController()
   let paint: (restoreFocusId?: string) => void = () => {}
 
   const onKey = (event: KeyboardEvent) => {
@@ -54,6 +57,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
   registerViewCleanup(() => {
     active = false
+    lanAbort.abort()
     document.removeEventListener('keydown', onKey)
     focusCleanup?.()
     focusCleanup = null
@@ -92,6 +96,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   )
   let favorited = isFavorite(game.id)
   let busy = false
+  const lanCandidate = LAN_CORES.has(normalizePlayCore(game.core)) && !game.demo
+  const lanCheck = lanCandidate ? checkLanService(lanAbort.signal) : null
+  let lan = false
   let fileLabel = game.file
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
@@ -103,7 +110,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     }
   }
 
-  const startPlay = async (focusId: string): Promise<void> => {
+  const startPlay = async (focusId: string, lanHost = false): Promise<void> => {
     if (busy || !active) return
     busy = true
     paint(focusId)
@@ -113,7 +120,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       status.textContent = 'Starting emulator…'
     }
     try {
-      await launchGame(game)
+      await launchGame(game, undefined, lanHost)
     } catch (err) {
       if (!active) return
       busy = false
@@ -191,6 +198,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 ? `<a class="ro-btn ro-btn--primary ro-btn--lg" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
                 : `<button type="button" class="ro-btn ro-btn--primary ro-btn--lg" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
+            ${lanCandidate ? `<button type="button" class="ro-btn ro-btn--ghost ro-btn--lg" id="ro-host-lan" data-ro-focusable="true"${lan ? '' : ' hidden'}${busy || !lan ? ' disabled' : ''}>Host multiplayer</button>` : ''}
             <button
               type="button"
               class="ro-btn ro-btn--ghost"
@@ -198,29 +206,31 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               data-ro-focusable="true"
               aria-expanded="${showMenu}"
               aria-controls="ro-options-menu"
-            >＋ Options</button>
+            >${icon('add')} Options</button>
           </div>
+          ${!game.demo && !LAN_CORES.has(normalizePlayCore(game.core)) ? '<p class="ro-muted">LAN multiplayer supports NES, SNES, Mega Drive, and experimental N64 play. Game Boy / Color and GBA need link emulation that is not available yet. This game is available for local play.</p>' : ''}
+          ${normalizePlayCore(game.core) === 'n64' && lanCandidate ? `<p class="ro-muted" id="ro-lan-n64-note"${lan ? '' : ' hidden'}>Experimental N64 rooms support two to four players. Use a game with a multiplayer mode; all players share the host’s game screen.</p>` : ''}
           ${
             showMenu
               ? `
           <div class="ro-options" id="ro-options-menu" role="group" aria-label="Game options">
             <p class="ro-options__label" aria-hidden="true">Options</p>
             <button type="button" class="ro-options__item" id="ro-menu-favorite" data-ro-focusable="true" aria-pressed="${favorited}">
-              <span>${favorited ? '★ Favorited' : '☆ Favorite'}</span>
+              ${icon('favorite', favorited)}<span>${favorited ? 'Favorited' : 'Favorite'}</span>
             </button>
             <button type="button" class="ro-options__item" id="ro-edit" data-ro-focusable="true">
-              <span>Edit metadata</span>
+              ${icon('edit')}<span>Edit metadata</span>
             </button>
-            <a class="ro-options__item" href="${hrefFor('/saves')}" data-ro-focusable="true"><span>Local saves</span></a>
-            <a class="ro-options__item" href="${libraryHref}" data-ro-focusable="true"><span>Back to library</span></a>
+            <a class="ro-options__item" href="${hrefFor('/saves')}" data-ro-focusable="true">${icon('saves')}<span>Local saves</span></a>
+            <a class="ro-options__item" href="${libraryHref}" data-ro-focusable="true">${icon('back')}<span>Back to library</span></a>
             ${
               game.demo
-                ? `<button type="button" class="ro-options__item" id="ro-demo-play" data-ro-focusable="true"${busy ? ' disabled' : ''}><span>Try sample anyway</span></button>`
+                ? `<button type="button" class="ro-options__item" id="ro-demo-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${icon('play')}<span>Try sample anyway</span></button>`
                 : ''
             }
             ${
               game.source === 'upload'
-                ? `<button type="button" class="ro-options__item ro-options__item--danger" id="ro-remove-upload" data-ro-focusable="true"><span>Remove from library</span></button>`
+                ? `<button type="button" class="ro-options__item ro-options__item--danger" id="ro-remove-upload" data-ro-focusable="true">${icon('remove')}<span>Remove from library</span></button>`
                 : ''
             }
           </div>`
@@ -270,6 +280,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     hydrateCovers(root)
 
     root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('ro-play'))
+    root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', true))
 
     root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
 
@@ -375,5 +386,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
   document.addEventListener('keydown', onKey)
   paint()
+  if (lanCheck) void lanCheck.then(result => {
+    if (!active) return
+    lan = result.state === 'ready' && result.info.cores.includes(normalizePlayCore(game.core))
+    const button = root.querySelector<HTMLButtonElement>('#ro-host-lan')
+    if (button) { button.hidden = !lan; button.disabled = busy || !lan }
+    const note = root.querySelector<HTMLElement>('#ro-lan-n64-note')
+    if (note) note.hidden = !lan
+  })
   document.title = `RetroOasis · ${game.title}`
 }

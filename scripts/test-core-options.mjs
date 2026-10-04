@@ -3,6 +3,14 @@ import fs from 'node:fs';
 import http from 'node:http';
 import { coreMenuOptions } from '../data/src/coreOptions.js';
 import { EJS_GameManager } from '../data/src/GameManager.js';
+import { parseCoreReport } from '../data/src/coreReport.js';
+
+const report = { buildStart: '2025-06-14T18:12:53+00:00', options: { defaultWebGL2: true } };
+const reportBytes = new TextEncoder().encode(JSON.stringify(report));
+for (const data of [report, JSON.stringify(report), {files:[{bytes:reportBytes}]}]) {
+    assert.deepEqual(parseCoreReport({data}), report, 'Core report decoding preserves rendering requirements');
+}
+for (const data of [-1, null, {}, 'invalid', 'null', {files:[]}]) assert.deepEqual(parseCoreReport(data), {});
 
 const modern = (overrides = {}) => ({ options: [{ key: 'quality', desc: 'Graphics quality', info: 'Quality help',
     current: 'fast', default: 'normal', values: [{ value: 'normal', label: 'Normal quality' }, { value: 'fast', label: 'Fast rendering' }], ...overrides }] });

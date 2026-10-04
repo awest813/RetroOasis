@@ -18,7 +18,9 @@
     "test:router": "node scripts/test-router.mjs",
     "test:overrides": "node scripts/test-overrides.mjs",
     "test:saves": "node scripts/test-saves.mjs",
-    "test:gamepad": "node scripts/test-gamepad.mjs"
+    "test:gamepad": "node scripts/test-gamepad.mjs",
+    "test:lan-service": "node scripts/test-lan-service.mjs",
+    "test:static": "node scripts/test-static.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

@@ -1,5 +1,6 @@
 import { bindGridFocus, bindRowFocus } from '/focus.js'
-import { bindMenuBack } from '/gamepad.js'
+import { bindMenuBack, onPadInputChange } from '/gamepad.js'
+import { GamepadHandler } from '/emulator-gamepad.js'
 const output = document.querySelector('#results')
 const lines = []
 const assert = (ok, message) => { if (!ok) throw new Error(message); lines.push('PASS ' + message) }
@@ -10,8 +11,11 @@ window.cancelAnimationFrame = id => frames.delete(id)
 let pageFocused = true
 Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => pageFocused })
 const pad = {connected:true, mapping:'standard', index:0, id:'Browser fixture', axes:[0,0], buttons:Array.from({length:17},()=>({pressed:false,value:0}))}
-Object.defineProperty(navigator, 'getGamepads', {configurable:true, value:()=>[null,pad]})
-const tick = () => { const current = [...frames.values()]; frames.clear(); current.forEach(cb=>cb(performance.now())) }
+let pads = [null, pad]
+Object.defineProperty(navigator, 'getGamepads', {configurable:true, value:()=>pads})
+let fixtureTime = 1000
+Object.defineProperty(performance, 'now', {configurable:true, value:()=>fixtureTime})
+const tick = () => { fixtureTime += 60; const current = [...frames.values()]; frames.clear(); current.forEach(cb=>cb(performance.now())) }
 const press = index => { pad.buttons[index].pressed = true; tick(); pad.buttons[index].pressed = false; tick() }
 try {
   const left = document.createElement('section')
@@ -52,6 +56,24 @@ try {
   assert(secondClicks === 3, 'Returning to a tab ignores a button held in the background')
   pad.buttons[0].pressed = false; tick(); press(0)
   assert(secondClicks === 4, 'Controller resumes after returning and releasing buttons')
+  const secondPad = { ...pad, index:3, id:'Second fixture', buttons:Array.from({length:17},()=>({pressed:false,value:0})) }
+  pads = [pad, secondPad]
+  secondPad.buttons[0].pressed = true; tick()
+  secondPad.buttons[0].pressed = false; tick()
+  secondPad.buttons[0].pressed = true; tick()
+  assert(secondClicks === 5, 'A second connected controller can take over menu input after release')
+  secondPad.buttons[0].pressed = false; tick()
+  let testPad = null
+  const stopTest = onPadInputChange(pad => { testPad = pad })
+  secondPad.buttons[0].pressed = true; tick()
+  secondPad.buttons[1].pressed = true; tick()
+  assert(testPad === secondPad && secondClicks === 5 && backClicks === 1, 'Controller tester reads buttons without activating menus or Back')
+  stopTest(); tick()
+  assert(secondClicks === 5 && backClicks === 1, 'Closing the tester ignores its held buttons')
+  secondPad.buttons[0].pressed = false; secondPad.buttons[1].pressed = false; tick()
+  secondPad.buttons[0].pressed = true; tick()
+  assert(secondClicks === 6, 'Menu controls resume after closing the tester and releasing')
+  secondPad.buttons[0].pressed = false; pads = [null, pad]; tick()
   cleanBack(); cleanLeft(); cleanRight(); left.remove(); right.remove()
   assert(frames.size === 0, 'Removing all menu bindings stops controller polling')
   const rows = document.createElement('section')
@@ -74,5 +96,15 @@ try {
   selected.dispatchEvent(composingKey)
   assert(!composingKey.defaultPrevented, 'Text composition does not activate menu shortcuts')
   cleanRows(); rows.remove()
+  const handler = Object.create(GamepadHandler.prototype)
+  handler.gamepads = []; handler.listeners = {}; handler.buttonLabels = {}
+  pads = [pad]; pad.axes = [0, 0]; pad.buttons.forEach(button=>button.pressed=false)
+  handler.updateGamepadState()
+  const events = []
+  handler.on('buttonup', event=>events.push(event))
+  handler.on('axischanged', event=>events.push(event))
+  pad.buttons[0].pressed = true; pad.axes[0] = 0.8; handler.updateGamepadState()
+  pads = []; handler.updateGamepadState()
+  assert(events.some(event=>event.type==='buttonup' && event.release) && events.some(event=>event.type==='axischanged' && event.value===0 && event.release), 'Emulator disconnect releases held buttons and axes in a browser')
   output.textContent = lines.join('\n') + '\nAll controller navigation checks passed.'
 } catch (error) { output.textContent = lines.join('\n') + '\nFAIL ' + error.stack }

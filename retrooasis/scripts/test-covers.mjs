@@ -127,26 +127,38 @@ try {
 const swHandlers = new Map()
 let refreshedRequest
 let networkMode = 'online'
+let delayCacheWrite = false
+let completeCacheWrite
+let lastLifetimeCount = 0
 const cachedImages = new Map()
+const cacheNames = new Set(['retrooasis-shell-old', 'other-app-shell'])
 const cachedImage = {
-  put: async (request, response) => cachedImages.set(request.url, response),
+  put: async (request, response) => {
+    if (delayCacheWrite) await new Promise(resolve => { completeCacheWrite = resolve })
+    cachedImages.set(request.url, response)
+  },
   match: async request => cachedImages.get(request.url)?.clone(),
 }
 vm.runInNewContext(fs.readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), {
   URL, Request, Response,
-  self: { location: { origin: 'https://retrooasis.test' }, addEventListener: (name, handler) => swHandlers.set(name, handler) },
+  self: { location: { origin: 'https://retrooasis.test' }, clients: { claim: async () => {} }, addEventListener: (name, handler) => swHandlers.set(name, handler) },
   fetch: async (request, options) => {
     refreshedRequest = { request, options }
     if (networkMode === 'offline') throw new Error('Offline')
     return new Response('fresh-image', { status: networkMode === 'missing' ? 404 : 200 })
   },
-  caches: { open: async () => cachedImage },
+  caches: {
+    open: async name => { cacheNames.add(name); return cachedImage },
+    keys: async () => [...cacheNames],
+    delete: async name => cacheNames.delete(name),
+  },
 })
 async function swFetch(request) {
   let response
   const pending = []
   swHandlers.get('fetch')({ request, respondWith: value => { response = value }, waitUntil: value => pending.push(value) })
   const result = await response
+  lastLifetimeCount = pending.length
   await Promise.all(pending)
   return result
 }
@@ -166,6 +178,41 @@ for (const folder of ['roms', 'data']) {
   assert.equal(await swFetch({ ...imageRequest, url: `https://retrooasis.test/${folder}/art.png?_ro_cover_refresh=1` }), undefined, `${folder} stays outside app caches`)
 }
 console.log('PASS: cover refresh bypasses stale caches, saves fresh art and retains offline fallback')
+
+// The fixed-name player frontend must receive controller fixes on the next online launch.
+const frontendRequest = { method:'GET', destination:'script', credentials:'same-origin', url:'https://retrooasis.test/emulator/emulator.min.js' }
+cachedImages.set(frontendRequest.url, new Response('old-controller-code'))
+networkMode = 'online'
+assert.equal(await (await swFetch(frontendRequest)).text(), 'fresh-image', 'Bundled player updates before using cached controller code')
+assert.equal(refreshedRequest.options.cache, 'no-cache')
+assert(lastLifetimeCount > 0, 'Player cache writes extend the service worker lifetime')
+networkMode = 'offline'
+assert.equal(await (await swFetch(frontendRequest)).text(), 'fresh-image', 'Offline player retains the last successful frontend')
+networkMode = 'missing'
+assert.equal((await swFetch(frontendRequest)).status, 404, 'An incomplete online deployment surfaces a missing frontend')
+console.log('PASS: bundled player updates first and retains its offline copy')
+
+// A cache hit must still finish its background revalidation before the worker exits.
+networkMode = 'online'
+delayCacheWrite = true
+const shellRequest = { ...imageRequest, url: 'https://retrooasis.test/favicon.svg' }
+cachedImages.set(shellRequest.url, new Response('old-icon'))
+let shellComplete = false
+const shellFetch = swFetch(shellRequest).then(response => { shellComplete = true; return response })
+await new Promise(resolve => setImmediate(resolve))
+assert.equal(shellComplete, false, 'Background cache writes keep the fetch event alive')
+assert(lastLifetimeCount > 0)
+completeCacheWrite()
+assert.equal(await (await shellFetch).text(), 'old-icon', 'Existing artwork remains immediately available')
+assert.equal(await cachedImages.get(shellRequest.url).clone().text(), 'fresh-image')
+delayCacheWrite = false
+console.log('PASS: service worker retains background revalidation until cache writes finish')
+const activation = []
+swHandlers.get('activate')({ waitUntil: value => activation.push(value) })
+await Promise.all(activation)
+assert(!cacheNames.has('retrooasis-shell-old'), 'Activation removes obsolete app caches')
+assert(cacheNames.has('other-app-shell'), 'Activation preserves unrelated applications on the same origin')
+assert.equal(cacheNames.size, 2, 'The current app cache survives activation')
 
 // Run the real manifest generator and --covers scanner against disposable files.
 const here = path.dirname(fileURLToPath(import.meta.url))

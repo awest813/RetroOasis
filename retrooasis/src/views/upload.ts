@@ -12,6 +12,7 @@ import {
   readDescriptorTexts,
 } from '../lib/discSets'
 import { escapeHtml } from '../lib/dom'
+import { icon } from '../lib/icons'
 import { takePendingUploads } from '../lib/pendingUploads'
 import { buildPlayerUrl } from '../lib/play'
 import { hrefFor } from '../lib/router'
@@ -122,7 +123,7 @@ export function renderUpload(root: HTMLElement): void {
           aria-labelledby="ro-drop-title"
           aria-describedby="ro-drop-sub ro-core-hint"
         >
-          <span class="ro-drop__mark" aria-hidden="true">＋</span>
+          <span class="ro-drop__mark" aria-hidden="true">${icon('add')}</span>
           <strong class="ro-drop__title" id="ro-drop-title">Drop ROM files here</strong>
           <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose — you can add more than one</span>
         </div>

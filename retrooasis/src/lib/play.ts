@@ -17,9 +17,10 @@ export function buildPlayerUrl(
   game: Game,
   romUrl: string,
   backPath: string,
+  lanHost = false,
 ): string {
   const core = normalizePlayCore(game.core)
-  const channel = resolveEjsChannel(core)
+  const channel = lanHost ? 'local' : resolveEjsChannel(core)
   const params = new URLSearchParams({
     rom: romUrl,
     core,
@@ -29,6 +30,7 @@ export function buildPlayerUrl(
   })
   if (game.bios) params.set('bios', game.bios)
   if (coreNeedsThreads(core)) params.set('threads', '1')
+  if (lanHost) params.set('lanhost', '1')
   return `./player.html?${params.toString()}`
 }
 
@@ -118,6 +120,7 @@ export async function fetchHostedDiscSet(romUrl: string): Promise<File> {
 export async function launchGame(
   game: Game,
   backRoute = hrefFor(`/game/${encodeURIComponent(game.id)}`),
+  lanHost = false,
 ): Promise<void> {
   pushRecent(game.id)
 
@@ -138,5 +141,5 @@ export async function launchGame(
   }
   // Uploaded games already use durable library: refs — player reads without consuming.
 
-  window.location.href = buildPlayerUrl(game, romUrl, backRoute)
+  window.location.href = buildPlayerUrl(game, romUrl, backRoute, lanHost)
 }

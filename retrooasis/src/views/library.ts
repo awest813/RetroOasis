@@ -14,6 +14,7 @@ import { bindGridFocus } from '../lib/focus'
 import { hrefFor, type VirtualCollection } from '../lib/router'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { registerViewCleanup } from '../lib/viewLifecycle'
+import { icon } from '../lib/icons'
 
 export type LibrarySelection =
   | { kind: 'platform'; id: string }
@@ -22,11 +23,6 @@ export type LibrarySelection =
 
 type PaintOpts = {
   restoreSearch?: boolean
-}
-
-const ICONS = {
-  search:
-    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>',
 }
 
 export async function renderLibrary(
@@ -215,7 +211,7 @@ export async function renderLibrary(
           <nav class="ro-chips" aria-label="Library filters">${chips.join('')}</nav>
           <div class="ro-librarybar" data-ro-librarybar>
             <div class="ro-librarybar__search">
-              <span class="ro-librarybar__icon" aria-hidden="true">${ICONS.search}</span>
+              <span class="ro-librarybar__icon" aria-hidden="true">${icon('search')}</span>
               <label class="ro-sr-only" for="ro-q">Search your library</label>
               <input type="search" id="ro-q" placeholder="Search games…" value="${escapeAttr(queryRaw)}" autocomplete="off" aria-describedby="ro-search-status" title="Search by title, system or tag — press / to focus" />
               ${

@@ -1,6 +1,12 @@
 ```
 # Dependencies
 node_modules/
+data/cores/*-wasm.data
+data/cores/reports/
+data/cores/*.download
+roms/.lan-audit/
+roms/.static-test-*/
+roms-static-test-*/
 
 # Build artifacts
 dist/

@@ -1,0 +1,65 @@
+{
+  "source": "https://cdn.emulatorjs.org/stable/data/cores/",
+  "files": {
+    "reports/fceumm.json": {
+      "sha256": "13dbbfba0ea1bea087c97c38f47dd49c3fb8f16c3f5ed5678dd75d352b737132",
+      "size": 120
+    },
+    "fceumm-wasm.data": {
+      "sha256": "8c449fd5c36646fb0769423ed6ffa9efbdfc21fbfdc9bac7952b559d34d5b493",
+      "size": 1054015
+    },
+    "fceumm-legacy-wasm.data": {
+      "sha256": "f1054b094e7149fd6278485bc1b2e51ff75c5259048ddb1134171e53d651f239",
+      "size": 1053006
+    },
+    "reports/snes9x.json": {
+      "sha256": "dc7ac963eb7935a7ac78956235ac0b8912ec785c57026336825aa2ed8031b3ad",
+      "size": 120
+    },
+    "snes9x-wasm.data": {
+      "sha256": "eaa0bcfce67673809886e50387a80a616b719502175db64c090d04c9d75958ee",
+      "size": 1093765
+    },
+    "snes9x-legacy-wasm.data": {
+      "sha256": "7d427a575cefad98ff400493fa1d7e892da63fe7bab68979babd9cea0bfaaf3b",
+      "size": 1092437
+    },
+    "reports/genesis_plus_gx.json": {
+      "sha256": "5936a8ce8d7f010d5bfdd8c3bba2b2414f103b3a703121e56f2724b24dbe7ff3",
+      "size": 129
+    },
+    "genesis_plus_gx-wasm.data": {
+      "sha256": "190297a6f86757405090f1a2266f67dfe1a570a528c583434ed3641a5664f768",
+      "size": 1203661
+    },
+    "genesis_plus_gx-legacy-wasm.data": {
+      "sha256": "2a1edeb68d7ec882149ed3cd5d3aa95a6ac231ebabaf82cdb56175a8b62967cc",
+      "size": 1204803
+    },
+    "reports/mupen64plus_next.json": {
+      "sha256": "270105553cec57fd1058c50e0541b8b89dbd30b2323fd70682036f6919b805cc",
+      "size": 153
+    },
+    "mupen64plus_next-wasm.data": {
+      "sha256": "2da1cbce9fda395e3ae83ca5787353baa159142d45ef3ea90f108b92524f76cc",
+      "size": 1451795
+    },
+    "mupen64plus_next-legacy-wasm.data": {
+      "sha256": "425072f4bf94eec02633cbe9b84f47d6803dc0ec1b3c3b8de3ebbd2eb5617c3f",
+      "size": 1451870
+    },
+    "reports/parallel_n64.json": {
+      "sha256": "fc72e6320ba1225b041dfedf3e62406c0dc954696cc91a13b7d71303de349f24",
+      "size": 126
+    },
+    "parallel_n64-wasm.data": {
+      "sha256": "873755608d41a604f3eee11b631f1cbe7e4d8c4d10c92859c27941299c8ef6a6",
+      "size": 1028134
+    },
+    "parallel_n64-legacy-wasm.data": {
+      "sha256": "de0db87bb2d99c8aa6c9d70e9a101025cecf8dcd83d1c5a7ade25ac919b20485",
+      "size": 1027660
+    }
+  }
+}
