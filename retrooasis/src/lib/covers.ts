@@ -141,21 +141,22 @@ export function gamesForLocalCover<T extends { platform: string; title: string; 
   games: T[],
   platformId: string,
   coverFilename: string,
+  mode: 'all' | 'exact' = 'all',
 ): T[] {
   const stem = coverFilename.replace(/\.[^.]+$/, '').trim()
   if (!stem) return []
   const key = (value: string) => value.normalize('NFC').trim().toLowerCase()
   const eligible = games.filter((game) => game.platform === platformId && !game.cover)
   const exact = eligible.filter((game) => key((game.romFilename ?? '').replace(/\.[^.]+$/, '')) === key(stem))
-  if (exact.length) return exact
+  if (mode === 'exact') return exact
   // A generic, untagged cover can serve regional variants of the same full title.
   // Tagged covers must not cross region/revision boundaries after exact matching.
   const coverParts = nameParts(stem)
-  if (coverParts.base !== stem || !comparableName(stem)) return []
+  if (coverParts.base !== stem || !comparableName(stem)) return exact
   const baseKey = (value: string) => key(value.replaceAll('_', ' ').replace(/\s+/g, ' '))
   return eligible.filter((game) => {
     const gameStem = game.romFilename ? game.romFilename.replace(/\.[^.]+$/, '') : game.title
-    return baseKey(nameParts(gameStem).base) === baseKey(stem)
+    return exact.includes(game) || baseKey(nameParts(gameStem).base) === baseKey(stem)
   })
 }
 

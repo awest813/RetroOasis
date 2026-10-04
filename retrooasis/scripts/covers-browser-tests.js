@@ -1,4 +1,4 @@
-import { coverMarkup, hydrateCovers } from '/dom.js'
+import { coverMarkup, hydrateCovers, refreshCoverArt } from '/dom.js'
 import { libretroBoxartUrl } from '/covers.js'
 
 const results = document.querySelector('#results')
@@ -98,6 +98,52 @@ try {
     await waitFor(() => cover.classList.contains('ro-cover--ready') || cover.classList.contains('ro-cover--missing'))
     check(cover.classList.contains('ro-cover--ready'), 'Real Libretro art loads under isolation')
   }
+  refreshCoverArt()
+  root.innerHTML = coverMarkup('Refresh', 'cyan', urls)
+  const refreshed = root.querySelector('img')
+  check(new URL(refreshed.src).pathname.endsWith('/missing.svg'), 'Refresh resets remembered fallback order')
+  check(new URL(refreshed.src).searchParams.has('_ro_cover_refresh'), 'Refresh requests a new image URL')
+  // The fixture image server responds based on pathname for refreshed requests.
+  hydrateCovers(root)
+  await waitFor(() => refreshed.parentElement.classList.contains('ro-cover--ready'))
+  check(new URL(refreshed.src).pathname.endsWith('/art.svg'), 'Refresh also applies to fallback requests')
+  const firstRefresh = new URL(refreshed.src).searchParams.get('_ro_cover_refresh')
+  refreshCoverArt()
+  root.innerHTML = coverMarkup('Again', 'cyan', `${imageOrigin}/art.svg`)
+  check(new URL(root.querySelector('img').src).searchParams.get('_ro_cover_refresh') !== firstRefresh, 'Repeated refresh gets a new request version')
+  root.innerHTML = coverMarkup('Signed', 'cyan', `${imageOrigin}/art.svg?signature=keep`)
+  check(root.querySelector('img').getAttribute('src') === `${imageOrigin}/art.svg?signature=keep`, 'Refresh preserves query-bearing custom URLs')
+  root.innerHTML = coverMarkup('Local', 'cyan', 'blob:fixture')
+  check(root.querySelector('img').getAttribute('src') === 'blob:fixture', 'Refresh preserves local blob URLs')
+  const pendingUrls = [`${imageOrigin}/pending-missing.svg`, `${imageOrigin}/slow-art.svg`]
+  cover = paint(pendingUrls)
+  const pending = cover.querySelector('img')
+  await waitFor(() => new URL(pending.src).pathname.endsWith('/slow-art.svg'))
+  refreshCoverArt()
+  await waitFor(() => cover.classList.contains('ro-cover--ready'))
+  root.innerHTML = coverMarkup('New generation', 'cyan', pendingUrls)
+  check(new URL(root.querySelector('img').src).pathname.endsWith('/pending-missing.svg'), 'In-flight old requests cannot undo refresh')
+  root.innerHTML = coverMarkup('Late hydration', 'cyan', [`${imageOrigin}/slow-missing.svg`, `${imageOrigin}/art.svg`])
+  const late = root.querySelector('img')
+  refreshCoverArt()
+  hydrateCovers(root)
+  await waitFor(() => late.parentElement.classList.contains('ro-cover--missing'))
+  check(new URL(late.src).pathname.endsWith('/slow-missing.svg'), 'Markup created before refresh cannot launch stale fallback requests')
+
+  const raceUrls = [`${imageOrigin}/race-missing.svg`, `${imageOrigin}/refresh-race.svg`]
+  const oldCover = paint(raceUrls)
+  await waitFor(() => new URL(oldCover.querySelector('img').src).pathname.endsWith('/refresh-race.svg'))
+  // Keep the old view connected while a newer generation learns the same key.
+  const oldHost = document.createElement('div')
+  oldHost.append(oldCover)
+  document.body.append(oldHost)
+  refreshCoverArt()
+  cover = paint(raceUrls)
+  await waitFor(() => cover.classList.contains('ro-cover--ready'))
+  await waitFor(() => oldCover.classList.contains('ro-cover--missing'))
+  root.innerHTML = coverMarkup('Remember new match', 'cyan', raceUrls)
+  check(new URL(root.querySelector('img').src).pathname.endsWith('/refresh-race.svg'), 'An old failed request cannot erase a newly learned match')
+  oldHost.remove()
   results.textContent += `\nPASS: ${passed} cover loading checks`
 } catch (error) {
   results.textContent += `\nFAIL: ${error.message}`

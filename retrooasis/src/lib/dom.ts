@@ -13,6 +13,28 @@ export function escapeAttr(value: string): string {
 // Reuse successful matches when switching between the library, home and detail.
 const loadedCovers = new Map<string, string>()
 const hydratedCovers = new WeakSet<HTMLImageElement>()
+let coverRefreshVersion = 0
+
+/** Forget learned matches and request fresh HTTP artwork on subsequent views. */
+export function refreshCoverArt(): void {
+  loadedCovers.clear()
+  coverRefreshVersion = Math.max(Date.now(), coverRefreshVersion + 1)
+}
+
+function coverRequestUrl(value: string, version = coverRefreshVersion): string {
+  if (!version || typeof document === 'undefined') return value
+  try {
+    const url = new URL(value, document.baseURI)
+    if (!['http:', 'https:'].includes(url.protocol)) return value
+    const libretro = url.hostname === 'raw.githubusercontent.com' && url.pathname.startsWith('/libretro-thumbnails/')
+    // Preserve query-bearing custom URLs, which may be signed by their host.
+    if (url.search && !libretro) return value
+    url.searchParams.set('_ro_cover_refresh', String(version))
+    return url.href
+  } catch {
+    return value
+  }
+}
 
 export function coverMarkup(
   title: string,
@@ -31,9 +53,10 @@ export function coverMarkup(
       <div class="ro-cover ro-cover--image" style="--cover-accent: ${accentVar}">
         <img
           class="ro-cover__img"
-          src="${escapeAttr(candidates[0])}"
+          src="${escapeAttr(coverRequestUrl(candidates[0]))}"
           data-cover-candidates="${escapeAttr(JSON.stringify(candidates))}"
           data-cover-key="${escapeAttr(key)}"
+          data-cover-version="${coverRefreshVersion}"
           alt=""
           loading="lazy"
           decoding="async"
@@ -86,6 +109,8 @@ export function hydrateCovers(root: ParentNode): void {
       if (Array.isArray(parsed)) candidates = parsed.filter((url): url is string => typeof url === 'string')
     } catch { /* Older markup may have just one source. */ }
     let attempt = 0
+    // Markup can be injected before refresh and hydrated afterwards.
+    const requestVersion = Number(img.dataset.coverVersion ?? coverRefreshVersion)
     const finish = () => {
       img.removeEventListener('load', onLoad)
       img.removeEventListener('error', onError)
@@ -96,7 +121,7 @@ export function hydrateCovers(root: ParentNode): void {
         return
       }
       markCoverReady(img)
-      if (img.dataset.coverKey && candidates[attempt]) {
+      if (requestVersion === coverRefreshVersion && img.isConnected && img.dataset.coverKey && candidates[attempt]) {
         // Bound session memory for very large libraries.
         if (loadedCovers.size >= 1000) loadedCovers.delete(loadedCovers.keys().next().value!)
         loadedCovers.set(img.dataset.coverKey, candidates[attempt])
@@ -109,9 +134,15 @@ export function hydrateCovers(root: ParentNode): void {
         finish()
         return
       }
+      // A stale view must not start new guesses or erase a fresh learned match.
+      if (requestVersion !== coverRefreshVersion) {
+        markCoverMissing(img)
+        finish()
+        return
+      }
       attempt++
       if (attempt < candidates.length) {
-        img.src = candidates[attempt]
+        img.src = coverRequestUrl(candidates[attempt], requestVersion)
       } else {
         if (img.dataset.coverKey) loadedCovers.delete(img.dataset.coverKey)
         markCoverMissing(img)

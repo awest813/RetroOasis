@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="theme-color" content="#071018"><title>RetroOasis · LAN multiplayer</title>
+    <link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./lan.css">
+  </head>
+  <body class="ro-lan-page">
+    <header class="ro-lan-header"><a href="./#/">RETRO OASIS</a><span>LAN multiplayer</span></header>
+    <main class="ro-lan-main">
+      <section data-lan-join>
+        <h1>Join a local room</h1>
+        <p>Connect to the host’s Wi-Fi or LAN, then open their invite. The host runs the game; you only need this browser.</p>
+        <form id="join-form">
+          <label>Room code <input name="code" id="room-code" maxlength="10" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help"></label>
+          <p id="code-help">Use the code from the host’s invite on this LAN server.</p>
+          <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" placeholder="Your player name" required></label>
+          <button type="submit" disabled>Join room</button>
+        </form>
+        <p>To host: open a real NES, SNES, Mega Drive or N64 game in RetroOasis and choose <strong>Host multiplayer</strong>. N64 supports two to four players and is experimental.</p>
+        <a href="./#/library">Browse your library</a>
+      </section>
+      <section data-lan-play tabindex="-1" hidden>
+        <h1 data-lan-title>Connecting…</h1><p data-lan-slot></p>
+        <div class="ro-lan-stage"><video id="lan-video" autoplay playsinline muted aria-label="Host game stream"></video><p data-lan-overlay>Waiting for the host’s game…</p></div>
+        <div class="ro-lan-actions"><button type="button" id="sound">Enable sound</button><button type="button" id="fullscreen">Fullscreen</button><button type="button" id="reconnect">Reconnect</button><button type="button" id="leave">Leave room</button></div>
+        <div class="ro-lan-controls" aria-label="Touch game controls"></div>
+        <p data-lan-input-hint></p><p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul data-lan-players aria-label="Controller seats"></ul>
+      </section>
+      <p data-lan-status role="status" aria-live="polite" aria-atomic="true">Checking LAN room service…</p>
+      <button type="button" id="retry-service" hidden>Retry connection</button>
+      <p class="ro-lan-note">Use a trusted HTTPS server for guest gamepads. Keyboard and touch are available in HTTP mode. Host and guest must stay on the same LAN.</p>
+    </main>
+    <script type="module" src="./lan-guest.js"></script>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v6'
+const CACHE = 'retrooasis-shell-v9'
 
 const PRECACHE = [
   './',
@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('retrooasis-shell-') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   )
 })
@@ -71,7 +71,43 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   const path = url.pathname
+  // Room traffic and invite responses must always reach the LAN service.
+  if (path.startsWith('/api/lan') || path.startsWith('/socket.io/') || path.endsWith('/controller-input.js') || /\/lan(?:-[^/]+)?\.(?:html|js|css)$/.test(path)) return
   if (path.includes('/data/') || path.includes('/roms/')) return
+  // These player files keep fixed names. Fetch updates first, retain an offline copy.
+  if (path.includes('/emulator/')) {
+    event.respondWith(
+      caches.open(CACHE).then(async cache => {
+        try {
+          const response = await fetch(req, { cache: 'no-cache' })
+          if (response.ok) event.waitUntil(cache.put(req, response.clone()).catch(() => {}))
+          return response
+        } catch { return (await cache.match(req)) || Response.error() }
+      }),
+    )
+    return
+  }
+  // Explicit artwork refresh bypasses ignoreSearch app-shell image caches.
+  if (req.destination === 'image' && url.searchParams.has('_ro_cover_refresh')) {
+    const cacheUrl = new URL(url)
+    cacheUrl.searchParams.delete('_ro_cover_refresh')
+    const cacheReq = new Request(cacheUrl.href, { credentials: req.credentials })
+    event.respondWith(
+      fetch(req, { cache: 'reload' })
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone()
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put(cacheReq, copy)).catch(() => {}))
+          }
+          return res
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE)
+          return (await cache.match(cacheReq)) || Response.error()
+        }),
+    )
+    return
+  }
 
   // Navigations / HTML: network-first so deploys update, offline falls back to shell.
   const isNav = req.mode === 'navigate' || req.destination === 'document'
@@ -81,13 +117,13 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res.ok) {
             const copy = res.clone()
-            void caches.open(CACHE).then((cache) => {
+            event.waitUntil(caches.open(CACHE).then((cache) => {
               // player.html?rom=… would otherwise cache one entry per Play visit.
               const cacheReq = url.search
                 ? new Request(`${url.origin}${url.pathname}`, { credentials: req.credentials })
                 : req
               return cache.put(cacheReq, copy)
-            })
+            }).catch(() => {}))
           }
           return res
         })
@@ -111,7 +147,7 @@ self.addEventListener('fetch', (event) => {
         const cached = await cache.match(req, { ignoreSearch: true })
         if (cached) return cached
         const res = await fetch(req)
-        if (res.ok) void cache.put(req, res.clone())
+        if (res.ok) event.waitUntil(cache.put(req, res.clone()).catch(() => {}))
         return res
       }),
     )
@@ -125,10 +161,11 @@ self.addEventListener('fetch', (event) => {
         const cached = await cache.match(req, { ignoreSearch: true })
         const network = fetch(req)
           .then((res) => {
-            if (res.ok) void cache.put(req, res.clone())
+            if (res.ok) return cache.put(req, res.clone()).catch(() => {}).then(() => res)
             return res
           })
           .catch(() => cached)
+        event.waitUntil(network.then(() => {}))
         return cached || network
       }),
     )

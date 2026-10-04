@@ -9,6 +9,7 @@ import { EJS_SETUP } from "./setup.js";
 import { Netplay } from "./netplay.js";
 import { EJS_license } from "./license.js";
 import * as CONSTS from "./consts.js";
+import { parseCoreReport } from "./coreReport.js";
 
 import "./vendor/nipplejs.js";
 import "./vendor/socket.io.min.js";
@@ -698,11 +699,7 @@ class EmulatorJS {
         const reportUrl = `${report}?v=${cacheBustParam}`;
 
         this.downloadFile(reportUrl, this.downloadType.reports.name, null, false, { responseType: "text", method: "GET" }, false, this.downloadType.reports.dontCache).then(async rep => {
-            if (rep === -1 || typeof rep === "string" || typeof rep.data === "string") {
-                rep = {};
-            } else {
-                rep = rep.data;
-            }
+            rep = parseCoreReport(rep);
             if (!rep.buildStart) {
                 console.warn("Could not fetch core report JSON at " + reportUrl + "! Core caching will be disabled!");
                 rep.buildStart = Math.random() * 100;
@@ -2143,6 +2140,7 @@ class EmulatorJS {
         playButton.style.display = "none";
         this.togglePlaying = (dontUpdate) => {
             this.paused = !this.paused;
+            if (this.paused) this.gamepad?.resetInput();
             if (!dontUpdate) {
                 if (this.paused) {
                     pauseButton.style.display = "none";
@@ -3895,7 +3893,7 @@ class EmulatorJS {
         const oldValue = toIntValue(e.oldValue || 0);
         const skippedZero = (value !== 0) && (value + oldValue === 0);
 
-        if (this.controlPopup.parentElement.parentElement.getAttribute("hidden") === null) {
+        if (!e.release && this.controlPopup.parentElement.parentElement.getAttribute("hidden") === null) {
             if ("buttonup" === e.type || (e.type === "axischanged" && value === 0)) return;
             const num = this.controlPopup.getAttribute("button-num");
             const player = parseInt(this.controlPopup.getAttribute("player-num"));
@@ -3909,7 +3907,8 @@ class EmulatorJS {
             this.saveSettings();
             return;
         }
-        if (this.settingsMenu.style.display !== "none" || this.isPopupOpen()) return;
+        const neutral = e.type === "buttonup" || (e.type === "axischanged" && e.value === 0);
+        if ((this.paused || this.settingsMenu.style.display !== "none" || this.isPopupOpen()) && !neutral) return;
         for (let i = 0; i < 4; i++) {
             if (gamepadIndex !== i) continue;
             for (let j = 0; j < 30; j++) {

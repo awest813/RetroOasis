@@ -31,3 +31,6 @@ scripts/.disc-sets-test-cache
 scripts/.router-test-cache
 scripts/.overrides-test-cache
 scripts/.covers-test-cache-*
+.lan-certs/
+scripts/.lan-test-cache-*/
+.handheld-cache/

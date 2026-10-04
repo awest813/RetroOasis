@@ -575,6 +575,7 @@ select.ro-input {
 
 .ro-btn {
   display: inline-flex;
+  gap: 0.5rem;
   align-items: center;
   justify-content: center;
   min-height: 2.75rem;
@@ -1324,7 +1325,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   appearance: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.6rem;
   width: 100%;
   min-height: 2.6rem;
@@ -1408,7 +1409,58 @@ html[data-layout='tv'] .ro-btn--toggle {
   border-radius: 0;
 }
 
+.ro-icon {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+.ro-drop__mark .ro-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.ro-settings__nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ro-settings__nav .ro-btn {
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+}
+
+.ro-settings .ro-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
+.ro-settings__help { margin-top: 0.65rem; }
+.ro-settings__help summary { cursor: pointer; color: var(--ro-accent); padding: 0.55rem 0; min-height: 44px; }
+
+.ro-settings__online .ro-settings__online-intro > .ro-settings-row__copy,
+.ro-settings__online .ro-settings-row--note .ro-settings-row__copy { flex-basis: 100%; max-width: none; }
+.ro-settings__online-systems { margin: 0.85rem 0 0.65rem; padding: 0; list-style: none; }
+.ro-settings__online-systems li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.35rem 0; font-size: 0.85rem; }
+.ro-settings__online-systems li > span:last-child { color: var(--ro-accent); white-space: nowrap; }
+.ro-settings__online-systems em { display: inline-block; margin-left: 0.3rem; font-size: 0.72rem; font-style: normal; color: var(--ro-text-dim); }
+.ro-settings__online-state { display: inline-block; margin: 0.2rem 0 0.2rem 0.4rem; padding: 0.2rem 0.5rem; border: 1px solid var(--ro-line); border-radius: 4px; font-size: 0.72rem; font-weight: 500; vertical-align: middle; }
+.ro-settings__online-state[data-state='ready'] { color: var(--ro-accent); border-color: color-mix(in srgb, var(--ro-accent) 50%, transparent); background: color-mix(in srgb, var(--ro-accent) 8%, transparent); }
+.ro-settings__online #ro-check-lan { min-width: 8rem; justify-content: center; }
+.ro-settings__online-steps { margin: 0.6rem 0 0.85rem; padding-left: 1.4rem; }
+.ro-settings__online-steps li { padding: 0.25rem 0 0.55rem 0.2rem; }
+.ro-settings__online-steps code { display: block; width: fit-content; max-width: 100%; margin-top: 0.5rem; padding: 0.45rem 0.65rem; border: 1px solid var(--ro-line); overflow-wrap: anywhere; }
+.ro-settings__controller-list { margin: 0.65rem 0 0; padding-left: 1.15rem; font-size: 0.84rem; overflow-wrap: anywhere; }
+.ro-settings__controller-list li { padding: 0.25rem 0; }
+.ro-settings__controller-list span { display: block; color: var(--ro-accent); font-size: 0.75rem; }
+.ro-controller-test__buttons { min-height: 1.6rem; color: var(--ro-accent); }
+.ro-controller-test__sticks { display: flex; flex-wrap: wrap; gap: 0.7rem 1.5rem; font-size: 0.84rem; }
+.ro-controller-test__sticks output { display: block; font-family: var(--ro-font-mono); color: var(--ro-text-dim); }
+
 .ro-settings__heading {
+  scroll-margin-top: calc(var(--ro-scroll-chrome, var(--ro-topbar-h, 3.65rem)) + 0.75rem);
   margin: 0 0 0.35rem;
   padding: 0 0 0.55rem;
   border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
@@ -1456,6 +1508,27 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-settings-row__copy p,
 .ro-settings-row > div:first-child p {
   margin: 0.3rem 0 0;
+}
+
+.ro-cover-refresh-status:empty {
+  display: none;
+}
+
+.ro-cover-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.ro-cover-resources a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
 }
 
 .ro-settings-row--stack {
@@ -1710,6 +1783,8 @@ html[data-layout='tv'] .ro-btn--toggle {
     gap: 1.45rem;
     margin-top: 1.35rem;
   }
+
+  .ro-settings__nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .ro-settings-row .ro-toggle-group,
   .ro-settings-row .ro-btn-row {

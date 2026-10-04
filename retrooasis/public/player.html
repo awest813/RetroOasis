@@ -725,12 +725,49 @@
           window.EJS_core = core;
           window.EJS_biosUrl = bios;
           window.EJS_pathtodata = dataPath;
+          // Use the fork's controller fixes for every core download channel.
+          window.EJS_paths = Object.assign({}, window.EJS_paths, {
+            'emulator.min.js': './emulator/emulator.min.js',
+            'emulator.min.css': './emulator/emulator.min.css'
+          });
           window.EJS_startOnLoaded = true;
           window.EJS_askBeforeExit = false;
           window.EJS_threads = needsThreads;
           window.EJS_onExit = function () {
             window.location.href = back;
           };
+          window.EJS_onGameStart = function () {
+            document.getElementById("meta").textContent = core + " · " + channelLabel + " · playing";
+          };
+
+          if (params.get("lanhost") === "1") {
+            // Load our adapter before EmulatorJS binds its start callback.
+            window.EJS_threads = false;
+            window.EJS_Buttons = Object.assign({}, window.EJS_Buttons, { netplay: false });
+            window.EJS_startOnLoaded = false;
+            window.EJS_ready = async function () {
+              var emulator = window.EJS_emulator;
+              try {
+                var response = await fetch('./api/lan/core?core=' + encodeURIComponent(emulator.getCore()), { cache: 'no-store' });
+                var prepared = await response.json();
+                if (!response.ok || !prepared.ready) throw new Error(prepared.error || 'Prepare the local multiplayer core first.');
+                if (prepared.webgl2 && !emulator.supportsWebgl2) throw new Error('This multiplayer core needs WebGL 2. Enable hardware acceleration or use another browser.');
+              } catch (error) {
+                fail('Multiplayer core unavailable', error.message || 'Start the LAN server and prepare the core first.');
+                return;
+              }
+              // LAN sessions use locally prepared cores and never fall back to a CDN.
+              Object.values(emulator.downloadType || {}).forEach(function (type) { type.cdnFallback = false; });
+              var previousSetting = emulator.preGetSetting.bind(emulator);
+              emulator.preGetSetting = function (setting) {
+                if (setting === "ejs_threads") return "disabled";
+                if (prepared.webgl2 && setting === "webgl2Enabled") return "enabled";
+                return previousSetting(setting);
+              };
+              if (prepared.webgl2) emulator.webgl2Enabled = true;
+              emulator.startButtonClicked(document.querySelector(".ejs_start_button"));
+            };
+          }
 
           var display = document.getElementById("display");
           display.textContent = "";
@@ -739,24 +776,19 @@
           display.appendChild(gameDiv);
 
           var script = document.createElement("script");
-          script.src = dataPath + "loader.js";
+          script.src = './emulator/loader.js';
           script.onerror = function () {
-            var frag = document.createDocumentFragment();
-            frag.appendChild(document.createTextNode("Couldn’t load the emulator files from "));
-            var code1 = document.createElement("code");
-            code1.textContent = dataPath;
-            frag.appendChild(code1);
-            frag.appendChild(document.createTextNode(". If you’re using the Local channel, put EmulatorJS’s "));
-            var code2 = document.createElement("code");
-            code2.textContent = "data/";
-            frag.appendChild(code2);
-            frag.appendChild(document.createTextNode(" folder next to this site. Otherwise open Settings and set Emulator files to Stable (or Nightly for PSP / 3DS / DOS)."));
             fail(
-              "Emulator missing",
-              "Couldn’t load the emulator files.",
-              frag
+              "Player files missing",
+              "Couldn’t load RetroOasis’s bundled player. Reload this page. If you host RetroOasis yourself, rebuild it and deploy the complete build, including the emulator folder."
             );
           };
+          if (params.get("lanhost") === "1") {
+            return import("./lan-host.js").then(function (module) {
+              module.installLanHost();
+              document.body.appendChild(script);
+            });
+          }
           document.body.appendChild(script);
         }
 
@@ -772,7 +804,7 @@
           .then(function (gameUrl) {
             document.getElementById("meta").textContent = core + " · " + channelLabel + " · starting…";
             showLoading("Starting emulator…");
-            startEmulator(gameUrl);
+            return startEmulator(gameUrl);
           })
           .catch(function (err) {
             fail(

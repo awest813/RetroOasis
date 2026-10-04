@@ -769,6 +769,16 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   color: var(--ro-text);
 }
 
+.ro-xmb__item-thumb--glyph .ro-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.ro-xmb__stage-glyph .ro-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
 .ro-xmb__info-kicker {
   margin: 0;
   font-size: 0.7rem;

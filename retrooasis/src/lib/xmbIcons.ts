@@ -1,4 +1,5 @@
 /** Original XMB-style category icons (SVG). No trademarked console marks. */
+import { icon } from './icons'
 
 const VB = 'viewBox="0 0 32 32" aria-hidden="true" focusable="false"'
 
@@ -20,9 +21,7 @@ const ICONS: Record<string, string> = {
   add: svg(
     `<path fill="currentColor" d="M14.2 6.5h3.6v7.7h7.7v3.6h-7.7v7.7h-3.6v-7.7H6.5v-3.6h7.7z"/>`,
   ),
-  settings: svg(
-    `<path fill="currentColor" d="M14.1 4h3.8l.5 2.8 2.6-.8 1.9 3.3-2.1 1.8.7 2.5-2.7.7v2.4l2.7.7-.7 2.5 2.1 1.8-1.9 3.3-2.6-.8-.5 2.8h-3.8l-.5-2.8-2.6.8-1.9-3.3 2.1-1.8-.7-2.5 2.7-.7v-2.4l-2.7-.7.7-2.5-2.1-1.8 1.9-3.3 2.6.8zm1.9 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z"/>`,
-  ),
+  settings: icon('settings'),
 
   // Platform silhouettes / monograms — original, not official logos
   nes: svg(
@@ -39,7 +38,8 @@ const ICONS: Record<string, string> = {
   gb: svg(
     `<rect x="8" y="3.5" width="16" height="25" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
      <rect x="10.5" y="6.5" width="11" height="9" rx="1" fill="currentColor" opacity=".35"/>
-     <circle cx="16" cy="22" r="2.4" fill="currentColor"/>`,
+     <path fill="currentColor" d="M11 19h2v2h2v2h-2v2h-2v-2H9v-2h2z"/>
+     <circle cx="19" cy="22" r="1.3" fill="currentColor"/><circle cx="22" cy="20" r="1.3" fill="currentColor"/>`,
   ),
   gba: svg(
     `<rect x="2.5" y="10" width="27" height="12" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -67,10 +67,11 @@ const ICONS: Record<string, string> = {
      <path fill="currentColor" d="M12 22h8v2h-8z"/>`,
   ),
   n64: svg(
-    `<path fill="none" stroke="currentColor" stroke-width="2" d="M8 14h16v8H8z"/>
-     <path fill="currentColor" d="M14 6h4v8h-4zM10 8h3v3h-3zm9 0h3v3h-3z"/>
-     <circle cx="11" cy="22" r="1.5" fill="currentColor"/>
-     <circle cx="21" cy="22" r="1.5" fill="currentColor"/>`,
+    `<path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M9 8h14l4 4 2 13-5 1-4-8-2 10h-4l-2-10-4 8-5-1 2-13z"/>
+     <path fill="currentColor" d="M8 11h2v2h2v2h-2v2H8v-2H6v-2h2z"/>
+     <circle cx="16" cy="16" r="2" fill="currentColor"/>
+     <circle cx="23" cy="12" r="1" fill="currentColor"/><circle cx="25" cy="14" r="1" fill="currentColor"/>
+     <circle cx="21" cy="14" r="1" fill="currentColor"/><circle cx="23" cy="16" r="1" fill="currentColor"/>`,
   ),
   psx: svg(
     `<rect x="6" y="11" width="20" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -231,7 +232,7 @@ function monogram(short: string): string {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
-  return `<span class="ro-xmb__cat-text">${label}</span>`
+  return `<span class="ro-xmb__cat-text" aria-hidden="true">${label}</span>`
 }
 
 export function xmbCategoryIcon(kind: string, shortFallback = ''): string {

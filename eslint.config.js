@@ -1,4 +1,5 @@
 export default [
+    { ignores: ["**/.handheld-cache/**", "**/.lan-test-cache-*/**", "roms/.lan-audit/**"] },
     {
         files: ["**/*.js"],
         languageOptions: {

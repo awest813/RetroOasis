@@ -200,15 +200,22 @@ async function scanCoversBucket(
     return
   }
 
+  const covers: Array<[string, FileSystemFileHandle]> = []
   for await (const [name, handle] of coversDir.entries()) {
-    if (handle.kind !== 'file' || !isCoverFile(name)) continue
-    const matches = gamesForLocalCover(games, platformId, name)
-    if (!matches.length) continue
-    const file = await (handle as FileSystemFileHandle).getFile()
-    for (const match of matches) {
-      const url = URL.createObjectURL(file)
-      coverUrls.set(match.id, url)
-      match.cover = url
+    if (handle.kind === 'file' && isCoverFile(name)) covers.push([name, handle as FileSystemFileHandle])
+  }
+  covers.sort(([a], [b]) => a.localeCompare(b))
+  // Specific covers win before generic artwork, regardless of directory order.
+  for (const mode of ['exact', 'all'] as const) {
+    for (const [name, handle] of covers) {
+      const matches = gamesForLocalCover(games, platformId, name, mode)
+      if (!matches.length) continue
+      const file = await handle.getFile()
+      for (const match of matches) {
+        const url = URL.createObjectURL(file)
+        coverUrls.set(match.id, url)
+        match.cover = url
+      }
     }
   }
 }

@@ -21,7 +21,8 @@ class GamepadHandler {
         this.gamepads = [];
         this.listeners = {};
         this.timeout = null;
-        this.loop();
+        // Attach listeners before reporting controllers already present at startup.
+        this.timeout = setTimeout(this.loop.bind(this), 0);
     }
     terminate() {
         window.clearTimeout(this.timeout);
@@ -38,104 +39,70 @@ class GamepadHandler {
         this.updateGamepadState();
         this.timeout = setTimeout(this.loop.bind(this), 10);
     }
-    updateGamepadState() {
-        let gamepads = Array.from(this.getGamepads());
-        if (!gamepads) return;
-        if (!Array.isArray(gamepads) && gamepads.length) {
-            let gp = [];
-            for (let i=0; i<gamepads.length; i++) {
-                gp.push(gamepads[i]);
-            }
-            gamepads = gp;
-        } else if (!Array.isArray(gamepads)) return;
-
-        gamepads.forEach((gamepad, index) => {
-            if (!gamepad || !gamepad.connected) return;
-            let hasGamepad = false;
-            this.gamepads.forEach((oldGamepad, oldIndex) => {
-                if (oldGamepad.index !== gamepad.index) return;
-                const gamepadToSave = {
-                    axes: [],
-                    buttons: {},
-                    index: oldGamepad.index,
-                    id: oldGamepad.id
-                }
-                hasGamepad = true;
-
-                oldGamepad.axes.forEach((axis, axisIndex) => {
-                    const val = (axis < 0.01 && axis > -0.01) ? 0 : axis;
-                    const newVal = (gamepad.axes[axisIndex] < 0.01 && gamepad.axes[axisIndex] > -0.01) ? 0 : gamepad.axes[axisIndex];
-                    if (newVal !== val) {
-                        let axis = ['LEFT_STICK_X', 'LEFT_STICK_Y', 'RIGHT_STICK_X', 'RIGHT_STICK_Y'][axisIndex];
-                        if (!axis) {
-                            axis = "EXTRA_STICK_" + axisIndex;
-                        }
-                        this.dispatchEvent('axischanged', {
-                            axis: axis,
-                            value: newVal,
-                            oldValue: val,
-                            index: gamepad.index,
-                            label: this.getAxisLabel(axis, newVal),
-                            gamepadIndex: gamepad.index,
-                        });
-                    }
-                    gamepadToSave.axes[axisIndex] = newVal;
-                })
-
-                gamepad.buttons.forEach((button, buttonIndex) => {
-                    let pressed = oldGamepad.buttons[buttonIndex] === 1.0;
-                    if (typeof oldGamepad.buttons[buttonIndex] === "object") {
-                        pressed = oldGamepad.buttons[buttonIndex].pressed;
-                    }
-                    let pressed2 = button === 1.0;
-                    if (typeof button === "object") {
-                        pressed2 = button.pressed;
-                    }
-                    gamepadToSave.buttons[buttonIndex] = {pressed:pressed2};
-                    if (pressed !== pressed2) {
-                        if (pressed2) {
-                            this.dispatchEvent('buttondown', {index: buttonIndex, label: this.getButtonLabel(buttonIndex), gamepadIndex: gamepad.index});
-                        } else {
-                            this.dispatchEvent('buttonup', {index: buttonIndex, label:this.getButtonLabel(buttonIndex), gamepadIndex: gamepad.index});
-                        }
-                    }
-
-                })
-                this.gamepads[oldIndex] = gamepadToSave;
-            })
-            if (!hasGamepad) {
-                // Safari and other browsers may reuse live Gamepad objects.
-                this.gamepads.push({
-                    index: gamepad.index,
-                    id: gamepad.id,
-                    axes: Array.from(gamepad.axes),
-                    buttons: Array.from(gamepad.buttons, button => ({pressed: typeof button === "number" ? button === 1 : button.pressed}))
-                });
-                this.gamepads.sort((a, b) => {
-                    if (a == null && b == null) return 0;
-                    if (a == null) return 1;
-                    if (b == null) return -1;
-                    return a.index - b.index;
-                });
-                this.dispatchEvent('connected', {gamepadIndex: gamepad.index});
-            }
+    buttonPressed(button) {
+        return typeof button === "number" ? button > 0.5 : !!button && (button.pressed || button.value > 0.5);
+    }
+    axisValue(value) {
+        return Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
+    }
+    releaseGamepad(pad) {
+        pad.axes.forEach((value, index) => {
+            if (!value) return;
+            const axis = ['LEFT_STICK_X', 'LEFT_STICK_Y', 'RIGHT_STICK_X', 'RIGHT_STICK_Y'][index] || "EXTRA_STICK_" + index;
+            this.dispatchEvent('axischanged', {axis, value: 0, oldValue: value, index: pad.index, gamepadIndex: pad.index, label: null, release: true});
         });
-
-        for (let j=0; j<this.gamepads.length; j++) {
-            if (!this.gamepads[j]) continue;
-            let has = false;
-            for (let i=0; i<gamepads.length; i++) {
-                if (!gamepads[i] || !gamepads[i].connected) continue;
-                if (this.gamepads[j].index === gamepads[i].index) {
-                    has = true;
-                    break;
+        Array.from(pad.buttons).forEach((button, index) => {
+            if (this.buttonPressed(button)) this.dispatchEvent('buttonup', {index, label: this.getButtonLabel(index), gamepadIndex: pad.index, release: true});
+        });
+        pad.axes = pad.axes.map(() => 0);
+        pad.buttons = Array.from(pad.buttons, () => ({pressed: false}));
+        pad.armed = false;
+    }
+    resetInput() {
+        this.gamepads.forEach(pad => this.releaseGamepad(pad));
+    }
+    updateGamepadState() {
+        const pads = Array.from(this.getGamepads()).filter(pad => pad && pad.connected);
+        // Release while the old identity is still available to the player's assignment lookup.
+        for (let index = this.gamepads.length - 1; index >= 0; index--) {
+            const old = this.gamepads[index];
+            if (pads.some(pad => pad.index === old.index && pad.id === old.id)) continue;
+            this.releaseGamepad(old);
+            this.dispatchEvent('disconnected', {gamepadIndex: old.index});
+            this.gamepads.splice(index, 1);
+        }
+        const focused = typeof document === "undefined" || (!document.hidden && document.hasFocus());
+        if (!focused) { this.resetInput(); return; }
+        for (const pad of pads) {
+            const axes = Array.from(pad.axes, value => this.axisValue(value));
+            const buttons = Array.from(pad.buttons, button => ({pressed: this.buttonPressed(button)}));
+            const neutral = !buttons.some(button => button.pressed) && (pad.mapping !== "standard" || axes.slice(0, 4).every(axis => Math.abs(axis) <= 0.18));
+            let old = this.gamepads.find(old => old.index === pad.index && old.id === pad.id);
+            if (!old) {
+                old = {index: pad.index, id: pad.id, axes: axes.map(() => 0), buttons: buttons.map(() => ({pressed: false})), armed: neutral};
+                this.gamepads.push(old);
+                this.gamepads.sort((a, b) => a.index - b.index);
+                this.dispatchEvent('connected', {gamepadIndex: pad.index});
+                continue;
+            }
+            if (!old.armed) { if (neutral) old.armed = true; continue; }
+            for (let index = 0; index < Math.max(old.axes.length, axes.length); index++) {
+                const previous = old.axes[index] || 0;
+                const raw = axes[index] || 0;
+                const value = Math.abs(raw) < 0.01 ? 0 : raw;
+                axes[index] = value;
+                if (previous === value) continue;
+                const axis = ['LEFT_STICK_X', 'LEFT_STICK_Y', 'RIGHT_STICK_X', 'RIGHT_STICK_Y'][index] || "EXTRA_STICK_" + index;
+                this.dispatchEvent('axischanged', {axis, value, oldValue: previous, index: pad.index, gamepadIndex: pad.index, label: this.getAxisLabel(axis, value)});
+            }
+            for (let index = 0; index < Math.max(old.buttons.length, buttons.length); index++) {
+                const pressed = buttons[index]?.pressed || false;
+                if (this.buttonPressed(old.buttons[index]) !== pressed) {
+                    this.dispatchEvent(pressed ? 'buttondown' : 'buttonup', {index, label: this.getButtonLabel(index), gamepadIndex: pad.index});
                 }
             }
-            if (!has) {
-                this.dispatchEvent('disconnected', {gamepadIndex: this.gamepads[j].index});
-                this.gamepads.splice(j, 1);
-                j--;
-            }
+            old.axes = axes;
+            old.buttons = buttons;
         }
     }
     dispatchEvent(name, arg) {

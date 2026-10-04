@@ -15,10 +15,18 @@ import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
 import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
+import { icon } from '../lib/icons'
 import { getInputModality } from '../lib/inputModality'
 import { sfxConfirm, sfxMove } from '../lib/sfx'
 
 type Cleanup = () => void
+
+function actionGlyph(glyph: string): string {
+  if (glyph === 'ALL') return icon('library')
+  if (glyph === 'ADD') return icon('add')
+  if (glyph === 'SET') return icon('settings')
+  return escapeHtml(glyph)
+}
 
 type XmbItem =
   | {
@@ -297,7 +305,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       tabindex="-1"
       style="--item-accent: ${item.accent}"
     >
-      <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph">${escapeHtml(item.glyph)}</span>
+      <span class="ro-xmb__item-thumb ro-xmb__item-thumb--glyph" aria-hidden="true">${actionGlyph(item.glyph)}</span>
       <span class="ro-xmb__item-meta">
         <span class="ro-xmb__item-title">${escapeHtml(item.title)}</span>
         <span class="ro-xmb__item-sub">${escapeHtml(item.sub)}</span>
@@ -367,7 +375,7 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
           ${coverMarkup(item.title, item.accent, item.cover)}
         </div>`
       : `<div class="ro-xmb__stage ro-xmb__stage--glyph" style="--item-accent: ${item.accent}">
-          <span class="ro-xmb__stage-glyph">${escapeHtml(item.glyph)}</span>
+          <span class="ro-xmb__stage-glyph" aria-hidden="true">${actionGlyph(item.glyph)}</span>
         </div>`
 
   const kicker =
