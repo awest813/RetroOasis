@@ -73,6 +73,13 @@ equivalent generated C array. Each gpSP module has its own memory and filesystem
   These checks are deliberately excluded from `npm test`, since they require a local
   compiler/source cache and, for GBA, a supplied ROM.
 
-Next: provide a linked-session host adapter with per-console video/audio/input,
-cartridge selection and explicit save import/export. Test real GB/GBC link games
-and an Advance Wars multiplayer match before enabling handheld room actions.
+These wrappers now ship in the experimental **Trade & link** rooms. `npm run oasis:lan:link`
+(`scripts/prepare-link.mjs`) reproduces everything above without GNU Make. It also assembles
+SameBoy's own MIT boot ROMs with RGBDS 0.9.1, so library cartridges boot through real boot
+ROMs rather than the fixture stub. The bundle is written to `.handheld-cache/link/` with a
+checksum manifest. Since the prototypes, the wrappers gained a hardware model per console
+(GB ↔ GBC links), audio capture, RAM-only/RTC save imports (SameBoy), and for gpSP a
+selectable link mode, generic cartridges (header check instead of the AWRE gate), and save
+import/export. `scripts/test-link.mjs` covers them with original fixture cartridges, including
+a homebrew GBA ROM (`gbaCartridge`) that draws, counts boots in SRAM and records KEYINPUT.
+Real Pokémon trades and an Advance Wars match remain the gameplay acceptance gates.

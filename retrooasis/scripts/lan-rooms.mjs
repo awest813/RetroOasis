@@ -1,17 +1,18 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 
-import { LAN_CORES, LAN_CAPABILITIES, LAN_PROTOCOL } from '../public/lan-capabilities.js'
+import { LAN_CORES, LINK_CORES, ROOM_PROFILES, LAN_PROTOCOL } from '../public/lan-capabilities.js'
 export { LAN_CORES }
 const token = () => randomBytes(24).toString('base64url')
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 const text = (value, max) => typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, max) : ''
 
 /** In-memory LAN rooms. Socket IDs and controller slots are assigned by the server. */
-export function attachRooms(io, { graceMs = 15000, maxRooms = 32 } = {}) {
+/** linkAvailable: whether this server can host linked handheld rooms (built link cores). */
+export function attachRooms(io, { graceMs = 15000, maxRooms = 32, linkAvailable = () => false } = {}) {
   const rooms = new Map()
   const roomFor = socket => rooms.get(socket.data.room)
   const memberFor = (room, socket) => room?.members.find(member => member.socketId === socket.id)
-  const snapshot = room => ({ code: room.code, title: room.title, core: room.core, profile: room.core, protocol: LAN_PROTOCOL, locked: room.locked, maxPlayers: room.maxPlayers,
+  const snapshot = room => ({ code: room.code, title: room.title, core: room.core, profile: room.core, mode: ROOM_PROFILES[room.core].mode, protocol: LAN_PROTOCOL, locked: room.locked, maxPlayers: room.maxPlayers,
     players: room.members.map(({ id, socketId, nickname, slot, connected }) => ({ id, socketId, nickname, slot, connected })) })
   const publish = room => io.to(room.code).emit('room:update', snapshot(room))
   const remove = (room, member) => {
@@ -60,8 +61,8 @@ export function attachRooms(io, { graceMs = 15000, maxRooms = 32 } = {}) {
       if (data.protocol !== LAN_PROTOCOL) throw new Error('Update the host app and reload. The multiplayer versions differ.')
       if (roomFor(socket)) throw new Error('Leave your current room first.')
       if (rooms.size >= maxRooms) throw new Error('This LAN server has too many rooms. Try again later.')
-      if (!LAN_CORES.has(data.core)) throw new Error('This system does not have a supported LAN multiplayer mode.')
-      const capacity = LAN_CAPABILITIES[data.core].maxPlayers
+      if (!LAN_CORES.has(data.core) && !(LINK_CORES.has(data.core) && linkAvailable())) throw new Error('This system does not have a supported LAN multiplayer mode.')
+      const capacity = ROOM_PROFILES[data.core].maxPlayers
       if (data.maxPlayers !== undefined && ![2, capacity].includes(data.maxPlayers)) throw new Error('Invalid player capacity.')
       const title = text(data.title, 100)
       const nickname = text(data.nickname, 32)

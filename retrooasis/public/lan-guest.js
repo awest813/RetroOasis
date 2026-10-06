@@ -1,6 +1,9 @@
 import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom } from './lan-shared.js'
-import { LAN_CAPABILITIES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
+import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
+import { cartridgeInfo, validSaveSize } from './link-session.js'
+import { unwrapRom } from './rom-source.js'
+import { fileReceiver, sendFile, downloadBytes, SAVE_LIMIT } from './link-transfer.js'
 
 const joinForm = document.querySelector('#join-form')
 const joinView = document.querySelector('[data-lan-join]')
@@ -17,6 +20,22 @@ let timeout
 let previousHost
 let generation = 0
 let controlSequence = 0
+// Link rooms: the guest's cartridge runs as Console 2 on the host.
+const cartView = document.querySelector('[data-link-cart]')
+const cartForm = document.querySelector('#cart-form')
+const cartStatus = document.querySelector('[data-link-cart-status]')
+const requestSave = document.querySelector('#request-save')
+let cartChannel = null
+let cartInserted = false
+let linkRunning = false
+function refreshCart() {
+  const linked = room?.mode === 'linked-consoles'
+  cartView.hidden = !linked
+  const open = cartChannel?.readyState === 'open'
+  cartForm.hidden = linkRunning || cartInserted
+  cartForm.querySelector('button').disabled = !open
+  requestSave.hidden = !linkRunning || !open
+}
 const { code: codeInput, nickname: nicknameInput } = joinForm.elements
 nicknameInput.value = savedNickname()
 const inviteCode = () => roomCodeFrom(location.hash)
@@ -33,6 +52,7 @@ codeInput.addEventListener('input', () => { const next = roomCodeFrom(codeInput.
 
 function closePeer() {
   clearTimeout(timeout)
+  cartChannel = null
   guestInput?.dispose(); guestInput = null
   channel = null
   peer?.close(); peer = null
@@ -50,6 +70,7 @@ function end(message) {
   ended = true
   closePeer()
   room = null; resumeToken = null; playerId = null
+  cartInserted = false; linkRunning = false; refreshCart(); cartStatus.textContent = ''
   playView.hidden = true; joinView.hidden = false
   if (document.fullscreenElement === playView) void document.exitFullscreen().catch(() => {})
   codeInput.focus({ preventScroll: true })
@@ -64,7 +85,7 @@ function bindInput(core, send) {
   let last = ''
   let lastSent = 0
   let active = true
-  const profile = LAN_CAPABILITIES[core]
+  const profile = ROOM_PROFILES[core]
   const n64 = !!profile.analog
   const allowed = new Set(inputIndices(core))
   const keys = n64
@@ -203,6 +224,7 @@ function update(next) {
   peer = currentPeer
   peer.pc.ondatachannel = event => {
     if (peer !== currentPeer) return
+    if (event.channel.label === 'cart' && room.mode === 'linked-consoles') { attachCart(event.channel); return }
     if (event.channel.label !== 'controls') return
     channel = event.channel
     const incoming = channel
@@ -213,6 +235,62 @@ function update(next) {
     channel.onclose = () => { if (channel !== incoming) return; guestInput?.dispose(); guestInput = null; status('Controls disconnected. Tap Reconnect to retry.') }
   }
   timeout = setTimeout(() => status('Connection timed out. Both devices must use the same LAN; guest Wi-Fi/client isolation can prevent joining.'), 15000)
+}
+function attachCart(channel) {
+  cartChannel = channel
+  channel.binaryType = 'arraybuffer'
+  const receive = fileReceiver({
+    limits: { save: SAVE_LIMIT },
+    onFile: file => {
+      downloadBytes(file.bytes, file.name)
+      cartStatus.textContent = `Downloaded ${file.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+    },
+    onError: error => { cartStatus.textContent = error.message },
+    onMessage: data => {
+      if (data.type === 'hello') {
+        linkRunning = data.running === true
+        // A new game connection before the link starts means the host needs the cartridge again.
+        if (!linkRunning) cartInserted = false
+        if (typeof data.accept === 'string') cartForm.elements.rom.accept = data.accept
+        if (!linkRunning && !cartInserted) cartStatus.textContent = `Insert your ${room.core === 'gba' ? 'Game Boy Advance' : 'Game Boy / Game Boy Color'} game to link with ${data.title || 'the host'}.`
+        if (linkRunning) cartStatus.textContent = 'The link is running. Play on Console 2.'
+      } else if (data.type === 'session') {
+        linkRunning = data.running === true
+        cartStatus.textContent = linkRunning ? 'Linked! Use the game’s trade or link menu. Save in-game, then choose Save to this device.' : 'The host ended the link session. Keep your downloaded save file.'
+      } else if ((data.type === 'status' || data.type === 'error') && typeof data.text === 'string') {
+        if (data.type === 'error' && !linkRunning) cartInserted = false
+        cartStatus.textContent = data.text.slice(0, 300)
+      }
+      refreshCart()
+    },
+  })
+  channel.onmessage = event => { if (cartChannel === channel) receive(event.data) }
+  channel.onopen = refreshCart
+  channel.onclose = refreshCart
+  refreshCart()
+}
+cartForm.onsubmit = async event => {
+  event.preventDefault()
+  const channel = cartChannel
+  if (channel?.readyState !== 'open' || !room) return
+  const button = cartForm.querySelector('button')
+  button.disabled = true
+  try {
+    const rom = await unwrapRom({ name: cartForm.elements.rom.files[0].name, bytes: new Uint8Array(await cartForm.elements.rom.files[0].arrayBuffer()) })
+    const info = cartridgeInfo(room.core, rom.bytes)
+    const saveFile = cartForm.elements.save.files?.[0]
+    if (saveFile && (saveFile.size > SAVE_LIMIT || !validSaveSize(room.core, saveFile.size))) throw new Error('That save file does not match this system.')
+    cartStatus.textContent = `Sending ${info.title} to the host…`
+    await sendFile(channel, 'rom', rom.name, rom.bytes)
+    if (saveFile) await sendFile(channel, 'save', saveFile.name, new Uint8Array(await saveFile.arrayBuffer()))
+    cartInserted = true
+  } catch (error) { cartStatus.textContent = error.message }
+  finally { button.disabled = false; refreshCart() }
+}
+requestSave.onclick = () => {
+  if (cartChannel?.readyState !== 'open') return
+  cartChannel.send(JSON.stringify({ type: 'request-save' }))
+  cartStatus.textContent = 'Requesting your save…'
 }
 async function join(reconnecting = false) {
   if (joining || !socket?.connected) return
@@ -225,7 +303,7 @@ async function join(reconnecting = false) {
   try {
     const reply = await request(socket, 'room:join', { code: roomCodeFrom(data.get('code')), nickname, ...(reconnecting && resumeToken ? { resumeToken } : {}) })
     if (attempt !== generation || !socket.connected) return
-    if (reply.room.protocol !== LAN_PROTOCOL || reply.room.profile !== reply.room.core || !LAN_CAPABILITIES[reply.room.core]) {
+    if (reply.room.protocol !== LAN_PROTOCOL || reply.room.profile !== reply.room.core || !ROOM_PROFILES[reply.room.core]) {
       // The server already seated us; free the seat instead of reserving it.
       socket.emit('room:leave', {})
       throw new Error('Update the app to join this room’s input profile.')
@@ -237,7 +315,10 @@ async function join(reconnecting = false) {
     location.hash = room.code
     joinView.hidden = true; playView.hidden = false
     playView.focus({ preventScroll: true })
-    document.querySelector('[data-lan-input-hint]').textContent = room.core === 'n64'
+    refreshCart()
+    document.querySelector('[data-lan-input-hint]').textContent = room.core === 'gb' || room.core === 'gba'
+      ? `Keyboard: arrows move · Z = B · X = A · Enter = Start · Shift = Select${room.core === 'gba' ? ' · Q/W = L/R' : ''}.`
+      : room.core === 'n64'
       ? 'Keyboard: arrows = stick · WASD = D-pad · Z/X = A/B · Q = Z · E/R = L/R · IJKL = C-buttons · Enter starts. Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.'
       : room.core === 'segaMD'
       ? 'Keyboard: arrows move · A/Z/X = A/B/C · S/Q/W = X/Y/Z · Enter starts.'

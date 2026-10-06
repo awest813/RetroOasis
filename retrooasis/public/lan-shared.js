@@ -1,4 +1,4 @@
-import { LAN_CAPABILITIES, LAN_PROTOCOL, normalizeStick } from './lan-capabilities.js'
+import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick } from './lan-capabilities.js'
 export { CORE_LABELS } from './lan-capabilities.js'
 export const BUTTONS = { B: 0, Y: 1, Select: 2, Start: 3, Up: 4, Down: 5, Left: 6, Right: 7, A: 8, X: 9, L: 10, R: 11 }
 
@@ -177,7 +177,7 @@ export function roster(list, room, kick, connections) {
 
 /** Host binds the socket's assigned slot; packets can never choose a player. */
 export function inputReceiver(apply, now = () => performance.now(), core = 'snes') {
-  const profile = LAN_CAPABILITIES[core]
+  const profile = ROOM_PROFILES[core]
   if (!profile) throw new Error('Unsupported input profile')
   let sequence = -1
   let held = new Map()

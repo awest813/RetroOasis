@@ -98,7 +98,7 @@ gbaButton.onclick = async () => {
       } })
       cores.push(core); check(pageActive, 'Fixture closed'); check(core._gba_init() === 1, 'Netpacket interface unavailable')
       core.FS.writeFile('/AdvanceWars.gba', rom)
-      check(core.cwrap('gba_load', 'number', ['string'])('/AdvanceWars.gba') === 1, 'ROM failed to load')
+      check(core.cwrap('gba_load', 'number', ['string', 'number'])('/AdvanceWars.gba', 3) === 1, 'ROM failed to load')
       check(core._gba_start(id) === 1, 'Link start failed')
       const section = document.createElement('section'), heading = document.createElement('h2'), canvas = document.createElement('canvas'), controls = document.createElement('div')
       heading.textContent = `Console ${id + 1}`; canvas.width = 240; canvas.height = 160

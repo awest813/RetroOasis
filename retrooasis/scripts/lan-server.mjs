@@ -8,8 +8,9 @@ import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
 import QRCode from 'qrcode'
 import { attachRooms } from './lan-rooms.mjs'
-import { LAN_PROTOCOL, LAN_CAPABILITIES } from '../public/lan-capabilities.js'
+import { LAN_PROTOCOL, LAN_CAPABILITIES, LINK_CAPABILITIES } from '../public/lan-capabilities.js'
 import { inspectCore } from './lan-assets.mjs'
+import { inspectLink, linkRoot as defaultLinkRoot, LINK_FILES } from './lan-link.mjs'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const privateV4 = ip => /^127\.|^10\.|^192\.168\.|^169\.254\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
@@ -18,7 +19,7 @@ export function isLanAddress(ip = '') {
   if (!isIP(ip)) return false
   return privateV4(ip) || ip === '::1' || /^f[cd][\da-f]{2}:|^fe[89ab][\da-f]:/.test(ip)
 }
-export function createLanServer({ port = 8787, cert, key, staticRoot = path.join(repo, 'retrooasis/dist') } = {}) {
+export function createLanServer({ port = 8787, cert, key, staticRoot = path.join(repo, 'retrooasis/dist'), linkRoot = defaultLinkRoot } = {}) {
   if (!!cert !== !!key) throw new Error('Provide both --cert and --key for HTTPS.')
   const secure = !!cert
   const addresses = [...new Set(Object.values(os.networkInterfaces()).flat().filter(value => value && !value.internal && value.family === 'IPv4' && isLanAddress(value.address)).map(value => value.address))]
@@ -33,6 +34,9 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
     return !req.headers.origin || req.headers.origin === url.origin
   }
   const roots = { '/data/': path.join(repo, 'data'), '/roms/': path.join(repo, 'roms') }
+  let link = { ready: false, systems: [] }
+  const refreshLink = async () => { link = await inspectLink(linkRoot); return link }
+  void refreshLink()
   const serve = async (req, res) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
     res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
@@ -53,7 +57,10 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
     if (pathname === '/api/lan') {
       res.setHeader('Cache-Control', 'no-store')
       res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ available: true, protocol: LAN_PROTOCOL, maxPlayers: 4, cores: Object.keys(LAN_CAPABILITIES), capabilities: LAN_CAPABILITIES, secure,
+      await refreshLink()
+      const linked = link.ready ? Object.keys(LINK_CAPABILITIES) : []
+      res.end(JSON.stringify({ available: true, protocol: LAN_PROTOCOL, maxPlayers: 4, cores: [...Object.keys(LAN_CAPABILITIES), ...linked], capabilities: LAN_CAPABILITIES, secure,
+        link: { ready: link.ready, systems: linked, ...(link.ready ? {} : { error: link.error }) },
         addresses: addresses.map(ip => `${secure ? 'https' : 'http'}://${ip}:${actualPort}`) }))
       return
     }
@@ -67,6 +74,18 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
         res.setHeader('Cache-Control', 'no-store')
         res.end(await QRCode.toString(invite.href, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 }))
       } catch { res.writeHead(400); res.end('Invalid LAN invite') }
+      return
+    }
+    if (pathname.startsWith('/link/')) {
+      // Only the verified, manifest-listed link bundle; never arbitrary cache files.
+      const name = pathname.slice('/link/'.length)
+      if (!LINK_FILES.includes(name) || !(await refreshLink()).ready) { res.writeHead(404); res.end('Build the link cores with npm run oasis:lan:link.'); return }
+      let bytes
+      try { bytes = await fs.promises.readFile(path.join(linkRoot, name)) } catch { res.writeHead(404); res.end(); return }
+      res.setHeader('Content-Type', name.endsWith('.mjs') ? 'text/javascript' : name.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream')
+      res.setHeader('Content-Length', bytes.length)
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(req.method === 'HEAD' ? undefined : bytes)
       return
     }
     let root = staticRoot
@@ -98,8 +117,8 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
     : http.createServer((req, res) => { void serve(req, res) })
   const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384,
     allowRequest: (req, callback) => callback(null, validRequest(req)), cors: { origin: false } })
-  const rooms = attachRooms(io)
-  return { server, io, rooms, addresses, secure, setPort: value => { actualPort = value } }
+  const rooms = attachRooms(io, { linkAvailable: () => link.ready })
+  return { server, io, rooms, addresses, secure, refreshLink, setPort: value => { actualPort = value } }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,5 +1,5 @@
 import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname } from './lan-shared.js'
-import { LAN_CAPABILITIES, inputIndices } from './lan-capabilities.js'
+import { ROOM_PROFILES, inputIndices } from './lan-capabilities.js'
 
 /** Installed before the loader starts. Local emulation stays Player 1 throughout. */
 export function installLanHost() {
@@ -10,14 +10,16 @@ export function installLanHost() {
   }
 }
 
-export async function mountHost(emu) {
+/** options.onPeer(peer, player): add channels before the offer (link rooms use it for cartridges).
+ * options.onDrop(socketId): a guest's game connection was removed. options.note: room description. */
+export async function mountHost(emu, options = {}) {
   const core = emu.getCore(true)
-  const profile = LAN_CAPABILITIES[core]
+  const profile = ROOM_PROFILES[core]
   if (!profile) throw new Error('This system has no LAN multiplayer adapter.')
   const panel = document.createElement('aside')
   panel.className = 'ro-lan-panel'
   panel.setAttribute('aria-label', 'LAN multiplayer room')
-  panel.innerHTML = `<details open><summary>LAN multiplayer</summary>
+  panel.innerHTML = `<details open><summary>${options.heading || 'LAN multiplayer'}</summary>
     <form data-lan-create><label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" required></label>
     ${profile.maxPlayers > 2 ? '<label>Room size <select name="maxPlayers" aria-describedby="lan-capacity-help"><option value="2">2 players · host + 1 guest</option><option value="4">4 players · host + 3 guests (experimental)</option></select></label><p id="lan-capacity-help">Choose four players before creating the room. The game must support four controllers; select its multiplayer mode after everyone joins.</p>' : ''}
     <button type="submit" disabled>Create room</button></form>
@@ -25,8 +27,9 @@ export async function mountHost(emu) {
     <details><summary>Invite players</summary><label>Invite a player on the same Wi-Fi <select data-lan-address aria-label="Invite address"></select><input data-lan-invite readonly aria-label="Room invite link"></label>
     <img class="ro-lan-qr" data-lan-qr alt="Scan to join this room on the same Wi-Fi"></details>
     <div class="ro-lan-actions"><button type="button" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
-    <p>Keep this game and the LAN server open. You are Player 1; each guest owns one controller. Everyone shares the same game screen.</p></div>
+    <p data-lan-note></p></div>
     <p data-lan-status role="status" aria-live="polite">Preparing room service…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
+  panel.querySelector('[data-lan-note]').textContent = options.note || 'Keep this game and the LAN server open. You are Player 1; each guest owns one controller. Everyone shares the same game screen.'
   document.body.append(panel)
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'; stylesheet.href = './lan.css'; document.head.append(stylesheet)
@@ -80,6 +83,7 @@ export async function mountHost(emu) {
     peer.receiver.release()
     peer.close()
     peers.delete(id)
+    options.onDrop?.(id)
   }
   const stopStream = () => {
     stream?.getTracks().forEach(track => track.stop()); stream = null
@@ -153,6 +157,7 @@ export async function mountHost(emu) {
       }
       channel.onclose = () => { receiver.release(); refreshRoster() }
       channel.onerror = () => { receiver.release(); refreshRoster() }
+      options.onPeer?.(peer, player)
       void peer.pc.createOffer().then(offer => peer.pc.setLocalDescription(offer)).then(() => {
         if (room && peers.get(player.socketId) === peer) socket.emit('room:signal', { target: player.socketId, signal: { description: peer.pc.localDescription.toJSON() } })
       }).catch(error => { if (peers.get(player.socketId) === peer) status(`Could not connect guest: ${error.message}`, panel) })

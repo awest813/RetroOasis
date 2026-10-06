@@ -8,9 +8,18 @@ export const LAN_CAPABILITIES = Object.freeze({
   n64: { label: 'Nintendo 64 (experimental)', mode: 'shared-console', maxPlayers: 4, cores: ['mupen64plus_next', 'parallel_n64'], buttons: [0, 1, 3, 4, 5, 6, 7, 10, 11, 12, 20, 21, 22, 23], analog: true },
 })
 export const LAN_CORES = new Set(Object.keys(LAN_CAPABILITIES))
-export const CORE_LABELS = Object.fromEntries(Object.entries(LAN_CAPABILITIES).map(([core, info]) => [core, info.label]))
+/** Handheld link rooms: the host browser runs both consoles on one emulated cable
+ * and streams Console 2 to the guest. Each player brings a cartridge and save. */
+export const LINK_CAPABILITIES = Object.freeze({
+  gb: { label: 'Game Boy / Color link cable', mode: 'linked-consoles', maxPlayers: 2, cores: ['sameboy-link'], buttons: [0, 2, 3, 4, 5, 6, 7, 8], maxRom: 8 * 1024 * 1024 },
+  gba: { label: 'Game Boy Advance link', mode: 'linked-consoles', maxPlayers: 2, cores: ['gpsp-link'], buttons: [0, 2, 3, 4, 5, 6, 7, 8, 10, 11], maxRom: 32 * 1024 * 1024 },
+})
+export const LINK_CORES = new Set(Object.keys(LINK_CAPABILITIES))
+/** Every room input profile, streamed or linked. */
+export const ROOM_PROFILES = Object.freeze({ ...LAN_CAPABILITIES, ...LINK_CAPABILITIES })
+export const CORE_LABELS = Object.fromEntries(Object.entries(ROOM_PROFILES).map(([core, info]) => [core, info.label]))
 export function inputIndices(core) {
-  const profile = LAN_CAPABILITIES[core]
+  const profile = ROOM_PROFILES[core]
   return profile ? [...profile.buttons, ...(profile.analog ? [16, 17, 18, 19] : [])] : []
 }
 export function normalizeStick(x = 0, y = 0, deadZone = 0.18) {
@@ -23,7 +32,7 @@ export function normalizeStick(x = 0, y = 0, deadZone = 0.18) {
 
 /** Standard browser layout → libretro inputs, restricted to the room's system. */
 export function gamepadControls(pad, core) {
-  const profile = LAN_CAPABILITIES[core]
+  const profile = ROOM_PROFILES[core]
   if (!pad || !profile) return { buttons: [], stick: [0, 0] }
   const map = profile.analog ? { 0: 0, 1: 1, 4: 10, 5: 11, 6: 12, 7: 12, 9: 3, 12: 4, 13: 5, 14: 6, 15: 7 }
     : { 0: 0, 1: 8, 2: 1, 3: 9, 4: 10, 5: 11, 8: 2, 9: 3, 12: 4, 13: 5, 14: 6, 15: 7 }

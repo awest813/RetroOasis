@@ -17,13 +17,25 @@
           <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" placeholder="Your player name" required></label>
           <button type="submit" disabled>Join room</button>
         </form>
-        <p>To host: open a real NES, SNES, Mega Drive or N64 game in RetroOasis and choose <strong>Host multiplayer</strong>. N64 supports two to four players and is experimental.</p>
+        <p>To host: open a real NES, SNES, Mega Drive or N64 game in RetroOasis and choose <strong>Host multiplayer</strong>. N64 supports two to four players and is experimental. For Game Boy, Game Boy Color and GBA trading or link play, choose <strong>Trade &amp; link</strong> on the game instead.</p>
         <a href="./#/library">Browse your library</a>
       </section>
       <section data-lan-play tabindex="-1" hidden>
         <h1 data-lan-title>Connecting…</h1><p data-lan-slot></p>
         <div class="ro-lan-stage"><video id="lan-video" autoplay playsinline muted aria-label="Host game stream"></video><p data-lan-overlay>Waiting for the host’s game…</p></div>
         <div class="ro-lan-actions"><button type="button" id="sound">Enable sound</button><button type="button" id="fullscreen">Fullscreen</button><button type="button" id="reconnect">Reconnect</button><button type="button" id="leave">Leave room</button></div>
+        <section class="ro-link-cart" data-link-cart aria-labelledby="link-cart-heading" hidden>
+          <h2 id="link-cart-heading">Your cartridge</h2>
+          <form id="cart-form">
+            <label>Game ROM <input type="file" name="rom" required aria-describedby="cart-help"></label>
+            <label>Your save file (optional) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream"></label>
+            <p id="cart-help">Your game runs as Console 2 on the host’s computer, linked to theirs. Add your battery save (.sav / .srm) to trade from your own game; without one you start a new game.</p>
+            <button type="submit">Insert cartridge</button>
+          </form>
+          <div class="ro-lan-actions"><button type="button" id="request-save" hidden>Save to this device</button></div>
+          <p data-link-cart-status role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="ro-link-warning">Save in-game after trading, then choose Save to this device. Your file is not kept on the host.</p>
+        </section>
         <div class="ro-lan-controls" aria-label="Touch game controls"></div>
         <p data-lan-input-hint></p><p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul data-lan-players aria-label="Controller seats"></ul>
       </section>

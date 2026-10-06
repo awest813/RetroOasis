@@ -1,6 +1,6 @@
 # N64 GBC and GBA multiplayer plan
 
-Audit and implementation date: 2026-10-03. Status: shared room foundation and experimental N64 hosting implemented; GB/GBC and GBA core feasibility prototypes built and tested. Handheld linked-session UI and real multiplayer gameplay acceptance remain pending.
+Audit and implementation date: 2026-10-03. Status: shared room foundation and experimental N64 hosting implemented. Update 2026-10-06: experimental GB/GBC and GBA **Trade & link** rooms implemented. The host browser runs both consoles, streams Console 2, and each player supplies a cartridge and save. Fixture-cartridge cable, input and save tests pass in Node and in two browsers over WebRTC. Acceptance with real link games (Pokémon trades, an Advance Wars match) on separate devices remains pending.
 
 Extend RetroOasis multiplayer on the same Wi-Fi/LAN in three stages: N64 shared-console play, GB/GBC link play, then GBA link play. Keep emulation on the host and use WebRTC for guest video, audio, and controls. N64 can extend the existing room architecture. The handheld systems require multiple emulated consoles and a working emulated link cable on the host.
 

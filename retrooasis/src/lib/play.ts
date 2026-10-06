@@ -34,6 +34,17 @@ export function buildPlayerUrl(
   return `./player.html?${params.toString()}`
 }
 
+/** Trade & link page: the host's browser runs both linked handheld consoles. */
+export function buildLinkUrl(game: Game, romUrl: string, backPath: string): string {
+  const params = new URLSearchParams({
+    rom: romUrl,
+    system: normalizePlayCore(game.core),
+    name: game.title,
+    back: backPath.startsWith('#') ? `./${backPath}` : `./#${backPath}`,
+  })
+  return `./link.html?${params.toString()}`
+}
+
 async function bundleIfNeeded(files: File[]): Promise<File> {
   if (files.length <= 1) return files[0]
   const primary = files[0]
@@ -120,7 +131,7 @@ export async function fetchHostedDiscSet(romUrl: string): Promise<File> {
 export async function launchGame(
   game: Game,
   backRoute = hrefFor(`/game/${encodeURIComponent(game.id)}`),
-  lanHost = false,
+  lanHost: boolean | 'link' = false,
 ): Promise<void> {
   pushRecent(game.id)
 
@@ -141,5 +152,5 @@ export async function launchGame(
   }
   // Uploaded games already use durable library: refs — player reads without consuming.
 
-  window.location.href = buildPlayerUrl(game, romUrl, backRoute, lanHost)
+  window.location.href = lanHost === 'link' ? buildLinkUrl(game, romUrl, backRoute) : buildPlayerUrl(game, romUrl, backRoute, lanHost)
 }

@@ -15,8 +15,8 @@ const files = [...sourceBlock.matchAll(/\$\((CORE_DIR|LIBRETRO_COMM_DIR)\)\/([^\
 const bios = await fs.readFile(path.join(source,'bios/open_gba_bios.bin'))
 const biosC = path.join(cache,'gpsp-bios.c')
 await fs.writeFile(biosC,`const unsigned char open_gba_bios_rom[${bios.length}] = {${[...bios].join(',')}};\n`)
-const exports = ['malloc','free','gba_init','gba_load','gba_start','gba_connect','gba_disconnect','gba_receive','gba_set_paused','gba_run','gba_key','gba_frames','gba_audio_frames','gba_pressed_polls','gba_observed_keys','gba_pixels','gba_close'].map(name=>'_'+name)
-const result = spawnSync('python',[path.join(sdk,'upstream/emscripten/emcc.py'),...files,biosC,
+const exports = ['malloc','free','gba_init','gba_load','gba_start','gba_connect','gba_disconnect','gba_receive','gba_set_paused','gba_run','gba_key','gba_frames','gba_sample_rate','gba_audio','gba_save_size','gba_save_data','gba_restore','gba_audio_frames','gba_pressed_polls','gba_observed_keys','gba_pixels','gba_close'].map(name=>'_'+name)
+const result = spawnSync(process.platform === 'win32' ? 'python' : 'python3',[path.join(sdk,'upstream/emscripten/emcc.py'),...files,biosC,
   path.join(app,'scripts/handheld/gpsp-link.c'),'-I'+source,'-I'+path.join(source,'libretro'),'-I'+path.join(common,'include'),
   '-O2','-DNDEBUG','-D__LIBRETRO__','-DHAVE_STRINGS_H','-DHAVE_STDINT_H','-DHAVE_INTTYPES_H','-DINLINE=inline','-DFRONTEND_SUPPORTS_RGB565',
   '-sMODULARIZE=1','-sEXPORT_ES6=1','-sALLOW_MEMORY_GROWTH=1','-sENVIRONMENT=web,node',

@@ -7,6 +7,7 @@ import { once } from 'node:events'
 import http from 'node:http'
 import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
+import { LINK_FILES } from './lan-link.mjs'
 import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom } from '../public/lan-shared.js'
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
 import { coreLock, digest, inspectCore } from './lan-assets.mjs'
@@ -161,7 +162,8 @@ assert.equal((await inspectCore('mupen64plus_next', fixture)).ready, false, 'Mis
 const pinned = Object.keys(coreLock.files)[0]
 assert.notEqual(digest(Buffer.from('invalid core')), coreLock.files[pinned].sha256)
 await assert.rejects(inspectCore('../../private', fixture), /Unsupported/)
-const lan = createLanServer({ port: 0, staticRoot: fixture })
+const linkFixture = path.join(fixture, 'link')
+const lan = createLanServer({ port: 0, staticRoot: fixture, linkRoot: linkFixture })
 lan.server.listen(0, '127.0.0.1')
 await once(lan.server, 'listening')
 const port = lan.server.address().port
@@ -199,7 +201,28 @@ try {
   assert.equal((await call(host, 'room:create', { protocol: LAN_PROTOCOL - 1, title: 'Old client', core: 'n64', nickname: 'Host' })).ok, false, 'Old protocol clients cannot create rooms')
   assert.equal((await call(host, 'room:create', { title: 'Invalid capacity', core: 'nes', nickname: 'Host', maxPlayers: 4 })).ok, false)
   assert.equal((await call(host, 'room:create', { title: 'Unsupported', core: 'psp', nickname: 'Host' })).ok, false)
-  for (const core of ['gb', 'gba']) assert.equal((await call(host, 'room:create', { title: 'Unimplemented link session', core, nickname: 'Host' })).ok, false, 'Core prototypes must not expose handheld room actions')
+  for (const core of ['gb', 'gba']) assert.equal((await call(host, 'room:create', { title: 'Unbuilt link session', core, nickname: 'Host' })).ok, false, 'Handheld rooms need built link cores')
+  let info = await (await fetch(origin + '/api/lan')).json()
+  assert.equal(info.link.ready, false); assert(!info.cores.includes('gb'), 'Unbuilt link systems are not advertised')
+  assert.equal((await fetch(origin + '/link/sameboy-link.wasm')).status, 404, 'No link files before a verified build')
+  // A checksummed bundle (contents are irrelevant to the server) enables link rooms.
+  fs.mkdirSync(linkFixture)
+  const files = {}
+  for (const name of LINK_FILES) { const bytes = Buffer.from(`fixture ${name}`); fs.writeFileSync(path.join(linkFixture, name), bytes); files[name] = { size: bytes.length, sha256: digest(bytes) } }
+  fs.writeFileSync(path.join(linkFixture, 'manifest.json'), JSON.stringify({ version: 1, files }))
+  fs.writeFileSync(path.join(linkFixture, 'private.txt'), 'not served')
+  info = await (await fetch(origin + '/api/lan')).json()
+  assert.deepEqual([info.link.ready, info.link.systems], [true, ['gb', 'gba']]); assert(info.cores.includes('gba'))
+  const served = await fetch(origin + '/link/sameboy-link.wasm')
+  assert.equal(served.headers.get('content-type'), 'application/wasm'); assert.equal(await served.text(), 'fixture sameboy-link.wasm')
+  for (const name of ['manifest.json', 'private.txt', '..%2fprivate.txt', 'sub/gpsp-link.wasm']) assert.equal((await fetch(origin + '/link/' + name)).status, 404, `Only bundle files are served (${name})`)
+  const linkRoom = await call(host, 'room:create', { title: 'Trade', core: 'gb', nickname: 'Host' })
+  assert(linkRoom.ok && linkRoom.room.mode === 'linked-consoles' && linkRoom.room.maxPlayers === 2, 'Link rooms are two-player linked-console rooms')
+  await call(host, 'room:leave')
+  fs.writeFileSync(path.join(linkFixture, 'gpsp-link.wasm'), 'tampered')
+  fs.utimesSync(path.join(linkFixture, 'manifest.json'), new Date(), new Date(Date.now() + 5000))
+  assert.equal((await (await fetch(origin + '/api/lan')).json()).link.ready, false, 'A modified link core disables link rooms')
+  assert.equal((await call(host, 'room:create', { title: 'Tampered', core: 'gba', nickname: 'Host' })).ok, false)
   const created = await call(host, 'room:create', { title: '<Fixture game>', core: 'nes', nickname: 'Host' })
   assert(created.ok)
   const code = created.room.code

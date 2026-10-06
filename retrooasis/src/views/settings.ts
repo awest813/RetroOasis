@@ -303,8 +303,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <ul class="ro-settings__online-systems" aria-label="Supported multiplayer systems">
                 <li><span>NES · SNES · Mega Drive / Genesis</span><span>2 players</span></li>
                 <li><span>Nintendo 64 <em>Experimental</em></span><span>Up to 4 players</span></li>
+                <li><span>Game Boy / Color · GBA trade &amp; link <em>Experimental</em></span><span>2 players</span></li>
               </ul>
-              <p class="ro-muted">Player counts depend on the game. Game Boy / Color and GBA link play are not available yet.</p>
+              <p class="ro-muted">Player counts depend on the game. For handheld trades and link battles, the host runs both linked consoles and each player brings their own cartridge and save.</p>
             </div>
           </div>
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
@@ -318,7 +319,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Host a game</strong>
-              <p class="ro-muted">Open a supported game in your library and choose <b>Host multiplayer</b>. Create a room in the player, then share its invite link or QR code.</p>
+              <p class="ro-muted">Open a supported game in your library and choose <b>Host multiplayer</b>, or <b>Trade &amp; link</b> for Game Boy and GBA games. Create a room, then share its invite link or QR code.</p>
             </div>
             <a class="ro-btn ro-btn--primary" id="ro-lan-host" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-host" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Choose a game</a>
           </div>
@@ -335,6 +336,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                 <summary data-focus-id="lan-help" data-ro-focusable="true">Host setup &amp; troubleshooting</summary>
                 <ol class="ro-settings__online-steps ro-muted">
                   <li>On the host computer, open a terminal in the RetroOasis project folder. Prepare local cores once while online:<code>npm run oasis:lan:prepare</code></li>
+                  <li>For Game Boy / GBA trading, build the link cores once (downloads pinned open-source sources and a compiler):<code>npm run oasis:lan:link</code></li>
                   <li>Start the room service and leave the terminal open:<code>npm run oasis:lan</code></li>
                   <li>Open the printed <b>localhost</b> address on the host. Add a real ROM if needed, then choose a game above. Samples cannot host.</li>
                 </ol>

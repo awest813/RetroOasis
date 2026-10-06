@@ -1,5 +1,5 @@
 import { LAN_PROTOCOL, LAN_CORES } from '../../public/lan-capabilities.js'
-export { LAN_CORES, LAN_CAPABILITIES } from '../../public/lan-capabilities.js'
+export { LAN_CORES, LAN_CAPABILITIES, LINK_CORES } from '../../public/lan-capabilities.js'
 
 export interface LanInfo {
   available: true
@@ -8,6 +8,8 @@ export interface LanInfo {
   maxPlayers: number
   protocol: number
   cores: string[]
+  /** Handheld link (trade) rooms; absent on servers older than this feature. */
+  link?: { ready: boolean; systems: string[] }
 }
 
 export type LanServiceResult =

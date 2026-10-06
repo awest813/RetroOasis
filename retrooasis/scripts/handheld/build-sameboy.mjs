@@ -12,8 +12,8 @@ const sdk = path.join(cache, 'emsdk')
 const output = path.join(cache, 'sameboy-link.mjs')
 const excluded = new Set(['debugger.c','sm83_disassembler.c','symbol_hash.c','rewind.c','cheats.c','cheat_search.c'])
 const sources = (await fs.readdir(path.join(source, 'Core'))).filter(file => file.endsWith('.c') && !excluded.has(file)).map(file => path.join(source, 'Core', file))
-const exports = ['malloc','free','link_init','link_close','link_load','link_set_cable','link_set_paused','link_step','link_peek','link_serial_bits','link_key','link_pixels','link_save_size','link_save','link_restore'].map(name => '_' + name)
-const result = spawnSync('python', [path.join(sdk,'upstream/emscripten/emcc.py'),
+const exports = ['malloc','free','link_init','link_init_models','link_audio','link_close','link_load','link_set_cable','link_set_paused','link_step','link_peek','link_serial_bits','link_key','link_pixels','link_save_size','link_save','link_restore'].map(name => '_' + name)
+const result = spawnSync(process.platform === 'win32' ? 'python' : 'python3', [path.join(sdk,'upstream/emscripten/emcc.py'),
   ...sources, path.join(app,'scripts/handheld/sameboy-link.c'), '-I'+source, '-std=gnu11', '-O2',
   '-DGB_INTERNAL','-DGB_DISABLE_DEBUGGER','-DGB_DISABLE_REWIND','-DGB_DISABLE_CHEATS','-DGB_DISABLE_CHEAT_SEARCH','-DGB_DISABLE_TIMEKEEPING',
   '-DGB_VERSION="1.0.3"','-DGB_COPYRIGHT_YEAR="2025"', '-sMODULARIZE=1','-sEXPORT_ES6=1',

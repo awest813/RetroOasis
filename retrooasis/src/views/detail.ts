@@ -12,7 +12,7 @@ import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
-import { checkLanService, LAN_CORES } from '../lib/lan'
+import { checkLanService, LAN_CORES, LINK_CORES } from '../lib/lan'
 import {
   clearOverride,
   exportOverridesJson,
@@ -96,7 +96,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   )
   let favorited = isFavorite(game.id)
   let busy = false
-  const lanCandidate = LAN_CORES.has(normalizePlayCore(game.core)) && !game.demo
+  const linkSystem = LINK_CORES.has(normalizePlayCore(game.core))
+  const lanCandidate = (LAN_CORES.has(normalizePlayCore(game.core)) || linkSystem) && !game.demo
   const lanCheck = lanCandidate ? checkLanService(lanAbort.signal) : null
   let lan = false
   let fileLabel = game.file
@@ -110,14 +111,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     }
   }
 
-  const startPlay = async (focusId: string, lanHost = false): Promise<void> => {
+  const startPlay = async (focusId: string, lanHost: boolean | 'link' = false): Promise<void> => {
     if (busy || !active) return
     busy = true
     paint(focusId)
     const status = root.querySelector<HTMLElement>('#ro-play-status')
     if (status && !game.demo) {
       status.hidden = false
-      status.textContent = 'Starting emulator…'
+      status.textContent = lanHost === 'link' ? 'Opening Trade & link…' : 'Starting emulator…'
     }
     try {
       await launchGame(game, undefined, lanHost)
@@ -198,7 +199,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 ? `<a class="ro-btn ro-btn--primary ro-btn--lg" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
                 : `<button type="button" class="ro-btn ro-btn--primary ro-btn--lg" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
-            ${lanCandidate ? `<button type="button" class="ro-btn ro-btn--ghost ro-btn--lg" id="ro-host-lan" data-ro-focusable="true"${lan ? '' : ' hidden'}${busy || !lan ? ' disabled' : ''}>Host multiplayer</button>` : ''}
+            ${lanCandidate ? `<button type="button" class="ro-btn ro-btn--ghost ro-btn--lg" id="ro-host-lan" data-ro-focusable="true"${lan ? '' : ' hidden'}${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Trade &amp; link' : 'Host multiplayer'}</button>` : ''}
             <button
               type="button"
               class="ro-btn ro-btn--ghost"
@@ -208,7 +209,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               aria-controls="ro-options-menu"
             >${icon('add')} Options</button>
           </div>
-          ${!game.demo && !LAN_CORES.has(normalizePlayCore(game.core)) ? '<p class="ro-muted">LAN multiplayer supports NES, SNES, Mega Drive, and experimental N64 play. Game Boy / Color and GBA need link emulation that is not available yet. This game is available for local play.</p>' : ''}
+          ${!game.demo && !lanCandidate ? '<p class="ro-muted">LAN multiplayer supports NES, SNES, Mega Drive and experimental N64 play, plus Game Boy / Color and GBA trading over an emulated link cable. This game is available for local play.</p>' : ''}
+          ${linkSystem && lanCandidate ? `<p class="ro-muted" id="ro-link-note"${lan ? '' : ' hidden'}>Trade &amp; link joins your game to a guest’s on an emulated link cable for trades and link battles. Each player brings their own cartridge and save.</p>` : ''}
           ${normalizePlayCore(game.core) === 'n64' && lanCandidate ? `<p class="ro-muted" id="ro-lan-n64-note"${lan ? '' : ' hidden'}>Experimental N64 rooms support two to four players. Use a game with a multiplayer mode; all players share the host’s game screen.</p>` : ''}
           ${
             showMenu
@@ -280,7 +282,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     hydrateCovers(root)
 
     root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('ro-play'))
-    root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', true))
+    root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', linkSystem ? 'link' : true))
 
     root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
 
@@ -391,8 +393,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     lan = result.state === 'ready' && result.info.cores.includes(normalizePlayCore(game.core))
     const button = root.querySelector<HTMLButtonElement>('#ro-host-lan')
     if (button) { button.hidden = !lan; button.disabled = busy || !lan }
-    const note = root.querySelector<HTMLElement>('#ro-lan-n64-note')
-    if (note) note.hidden = !lan
+    for (const note of root.querySelectorAll<HTMLElement>('#ro-lan-n64-note, #ro-link-note')) note.hidden = !lan
   })
   document.title = `RetroOasis · ${game.title}`
 }

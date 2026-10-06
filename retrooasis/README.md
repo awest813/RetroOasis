@@ -209,7 +209,22 @@ For four-player N64, select **4 players · host + 3 guests** before creating the
 
 Hosting selects local, non-threaded cores and verifies their pinned SHA-256 hashes and reports before enabling a room. Preparation includes FCEUmm, Snes9x, Genesis Plus GX and Mupen64Plus-Next. The verified N64 alternate can be prepared with `npm run oasis:lan:prepare -- --core parallel_n64`. Other alternate cores need a reviewed asset pin before LAN hosting. `--refresh` re-downloads the pinned assets; it does not accept a changed upstream build silently. Missing or changed files produce a preparation error. The selected N64 build requires WebGL2.
 
-GB/GBC and GBA link play require multiple emulated consoles and remain unavailable in the room UI. Pinned WASM [feasibility prototypes](scripts/handheld/README.md) demonstrate GB/GBC serial exchange with separate save reloads and GBA local packet routing; real linked gameplay and the session UI are remaining work. See the [implementation plan and acceptance gates](../docs/plans/n64-gbc-gba-multiplayer.md).
+### Game Boy / Color and GBA trade & link (experimental)
+
+Trading and link battles need two consoles on one link cable, and cable timing is too tight to cross Wi-Fi. So the **host's browser runs both consoles**, linked in-process: SameBoy 1.0.3 for GB/GBC and two gpSP instances for GBA. The host plays Console 1. Console 2's screen and sound stream to the guest, whose controls drive it. Each player brings their **own cartridge and battery save**.
+
+Build the link cores once on the host computer while online. The script downloads pinned open-source sources (SameBoy and its MIT boot ROMs, gpSP and its open BIOS), Emscripten 3.1.74 and RGBDS into the ignored `retrooasis/.handheld-cache/`, then verifies the output by checksum:
+
+```sh
+npm run oasis:lan:link
+npm run oasis:lan
+```
+
+On a GB, GBC or GBA game page choose **Trade & link**, optionally add your `.sav`, create a room and share the invite. The guest joins, inserts their ROM and optional save under **Your cartridge** (zipped ROMs work), and the host chooses **Start link**. A Game Boy and a Game Boy Color cartridge can link: each console uses its cartridge's hardware. For GBA, Ruby/Sapphire use gpSP's Pokémon cable protocol; other games use gpSP's per-game choice (FireRed, LeafGreen and Emerald use the wireless adapter).
+
+Save in-game after trading. The guest chooses **Save to this device**, and the host chooses **Download my save**. **End session** sends both final saves. Saves are not written back to the RetroOasis library automatically, so import them in Saves or your emulator. If the guest disconnects, both consoles pause mid-link and Console 2 keeps its cartridge until they rejoin.
+
+Verified with original fixture cartridges in Node and in two real browsers over WebRTC: a 64-byte cable exchange between a GB and a GBC console through SameBoy's boot ROMs; per-console input, video, audio and save import/export on gpSP; guest reconnects; and final saves. **A real Pokémon trade has not been tested yet.** Please report results with your own cartridges. GBA multiboot (one cartridge) and four-player links are not supported. Prototype details are in the [handheld README](scripts/handheld/README.md).
 
 Allow Node through the host's private-network firewall if necessary, and avoid guest Wi-Fi with client isolation. Internet multiplayer and port forwarding are not supported.
 
