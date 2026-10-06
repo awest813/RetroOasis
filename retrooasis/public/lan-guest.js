@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom } from './lan-shared.js'
 import { LAN_CAPABILITIES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 
@@ -17,8 +17,19 @@ let timeout
 let previousHost
 let generation = 0
 let controlSequence = 0
-const code = location.hash.slice(1)
-if (/^[a-fA-F0-9]{10}$/.test(code)) joinForm.elements.code.value = code.toUpperCase()
+const { code: codeInput, nickname: nicknameInput } = joinForm.elements
+nicknameInput.value = savedNickname()
+const inviteCode = () => roomCodeFrom(location.hash)
+function prefillFromInvite() {
+  if (room || !/^[A-F0-9]{10}$/.test(inviteCode())) return
+  codeInput.value = inviteCode()
+  // An invite only needs a name; Enter joins when one is remembered.
+  nicknameInput.focus({ preventScroll: true })
+}
+prefillFromInvite()
+window.addEventListener('hashchange', prefillFromInvite)
+// Pasting a whole invite link into the code field keeps just the code.
+codeInput.addEventListener('input', () => { const next = roomCodeFrom(codeInput.value); if (next !== codeInput.value && /^[A-F0-9]{10}$/.test(next)) codeInput.value = next })
 
 function closePeer() {
   clearTimeout(timeout)
@@ -41,7 +52,7 @@ function end(message) {
   room = null; resumeToken = null; playerId = null
   playView.hidden = true; joinView.hidden = false
   if (document.fullscreenElement === playView) void document.exitFullscreen().catch(() => {})
-  joinForm.elements.code.focus({ preventScroll: true })
+  codeInput.focus({ preventScroll: true })
   status(message)
 }
 function bindInput(core, send) {
@@ -210,13 +221,19 @@ async function join(reconnecting = false) {
   joinForm.querySelector('button').disabled = true
   status(reconnecting ? 'Rejoining your room…' : 'Joining the room…')
   const data = new FormData(joinForm)
+  const nickname = String(data.get('nickname'))
   try {
-    const reply = await request(socket, 'room:join', { code: String(data.get('code')).trim().toUpperCase(), nickname: String(data.get('nickname')), ...(reconnecting && resumeToken ? { resumeToken } : {}) })
+    const reply = await request(socket, 'room:join', { code: roomCodeFrom(data.get('code')), nickname, ...(reconnecting && resumeToken ? { resumeToken } : {}) })
     if (attempt !== generation || !socket.connected) return
+    if (reply.room.protocol !== LAN_PROTOCOL || reply.room.profile !== reply.room.core || !LAN_CAPABILITIES[reply.room.core]) {
+      // The server already seated us; free the seat instead of reserving it.
+      socket.emit('room:leave', {})
+      throw new Error('Update the app to join this room’s input profile.')
+    }
     ended = false
     room = reply.room; playerId = reply.playerId; resumeToken = reply.resumeToken
-    if (room.protocol !== LAN_PROTOCOL || room.profile !== room.core || !LAN_CAPABILITIES[room.core]) throw new Error('Update the app to join this room’s input profile.')
-    joinForm.elements.code.value = room.code
+    if (!reconnecting) saveNickname(nickname)
+    codeInput.value = room.code
     location.hash = room.code
     joinView.hidden = true; playView.hidden = false
     playView.focus({ preventScroll: true })

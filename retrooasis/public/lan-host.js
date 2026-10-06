@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname } from './lan-shared.js'
 import { LAN_CAPABILITIES, inputIndices } from './lan-capabilities.js'
 
 /** Installed before the loader starts. Local emulation stays Player 1 throughout. */
@@ -18,7 +18,7 @@ export async function mountHost(emu) {
   panel.className = 'ro-lan-panel'
   panel.setAttribute('aria-label', 'LAN multiplayer room')
   panel.innerHTML = `<details open><summary>LAN multiplayer</summary>
-    <form data-lan-create><label>Your name <input name="nickname" maxlength="32" value="Host" required></label>
+    <form data-lan-create><label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" required></label>
     ${profile.maxPlayers > 2 ? '<label>Room size <select name="maxPlayers" aria-describedby="lan-capacity-help"><option value="2">2 players · host + 1 guest</option><option value="4">4 players · host + 3 guests (experimental)</option></select></label><p id="lan-capacity-help">Choose four players before creating the room. The game must support four controllers; select its multiplayer mode after everyone joins.</p>' : ''}
     <button type="submit" disabled>Create room</button></form>
     <div data-lan-room hidden><p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul data-lan-players aria-label="Controller seats"></ul>
@@ -32,6 +32,7 @@ export async function mountHost(emu) {
   stylesheet.rel = 'stylesheet'; stylesheet.href = './lan.css'; document.head.append(stylesheet)
   let socket, room, stream
   let busy = false
+  let ending = false
   let stopped = false
   let generation = 0
   let audioDestination, audioNodes = []
@@ -55,6 +56,7 @@ export async function mountHost(emu) {
     return originalInput.call(this, player, ...args)
   }
   const form = panel.querySelector('form')
+  form.elements.nickname.value = savedNickname('Host')
   const roomBox = panel.querySelector('[data-lan-room]')
   const address = panel.querySelector('[data-lan-address]')
   const invite = panel.querySelector('[data-lan-invite]')
@@ -88,6 +90,7 @@ export async function mountHost(emu) {
   const endLocal = message => {
     generation++
     busy = false
+    ending = false
     room = null
     for (const id of peers.keys()) drop(id)
     stopStream()
@@ -185,6 +188,9 @@ export async function mountHost(emu) {
     if (stopped) { socket.disconnect(); return }
     const addresses = info.addresses.length ? info.addresses : [location.origin]
     for (const origin of addresses) { const option = document.createElement('option'); option.value = origin; option.textContent = origin; address.append(option) }
+    // Prefer the address this host already reached the server with.
+    if (addresses.includes(location.origin)) address.value = location.origin
+    const loopbackOnly = !info.addresses.length
     const refreshInvite = () => {
       invite.value = room ? `${address.value}/lan.html#${room.code}` : ''
       if (room) panel.querySelector('[data-lan-qr]').src = `/api/lan/qr?invite=${encodeURIComponent(invite.value)}`
@@ -192,7 +198,7 @@ export async function mountHost(emu) {
     address.onchange = refreshInvite
     socket.on('room:update', update)
     socket.on('room:signal', ({ sender, signal }) => { void peers.get(sender)?.accept(signal) })
-    socket.on('room:ended', ({ reason }) => endLocal(reason))
+    socket.on('room:ended', ({ reason }) => endLocal(ending ? 'Room ended. You can continue playing locally.' : reason))
     socket.on('disconnect', () => { retry.hidden = false; endLocal('The LAN server disconnected. Retry connection, then create a new room.') })
     socket.on('connect_error', () => { retry.hidden = false; status('Cannot reach the LAN server. Retry when it is back.', panel) })
     socket.on('connect', serviceReady)
@@ -204,6 +210,7 @@ export async function mountHost(emu) {
       try {
         stream = capture()
         const data = new FormData(form)
+        saveNickname(String(data.get('nickname')))
         const reply = await request(socket, 'room:create', { nickname: String(data.get('nickname')), title: emu.config.gameName || 'Game', core, maxPlayers: Number(data.get('maxPlayers') || 2) })
         if (stopped || attempt !== generation || !socket.connected) return
         room = reply.room
@@ -212,7 +219,8 @@ export async function mountHost(emu) {
         refreshInvite()
         form.hidden = true; roomBox.hidden = false
         panel.querySelector('[data-lan-copy]').focus({ preventScroll: true })
-        status(stream.getAudioTracks().length ? `Room open for ${room.maxPlayers} players. Share the invite on the same Wi-Fi.` : 'Room open with video only; this core did not provide audio capture.', panel)
+        status(loopbackOnly ? 'Room open, but this computer has no LAN address. Connect it to Wi-Fi or Ethernet so other devices can join.'
+          : stream.getAudioTracks().length ? `Room open for ${room.maxPlayers} players. Share the invite on the same Wi-Fi.` : 'Room open with video only; this core did not provide audio capture.', panel)
       } catch (error) {
         if (!stopped && attempt === generation) {
           if (socket.connected) socket.emit('room:leave', {})
@@ -239,8 +247,10 @@ export async function mountHost(emu) {
     panel.querySelector('[data-lan-end]').onclick = () => {
       const current = room?.code
       if (!current) return
+      // The server announces room:ended before acknowledging the leave.
+      ending = true
       void request(socket, 'room:leave').then(() => { if (room?.code === current) endLocal('Room ended. You can continue playing locally.') })
-        .catch(error => { if (room?.code === current) status(error.message, panel) })
+        .catch(error => { if (room?.code === current) { ending = false; status(error.message, panel) } })
     }
     serviceReady()
   } catch (error) { if (!stopped) { createButton.disabled = true; retry.hidden = false; status(error.message, panel) } }

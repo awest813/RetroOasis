@@ -37,7 +37,7 @@ const sandbox = {
   document:{createElement:tag=>tag==='aside'?panel:new Element(),body:new Element(),head:new Element()},
   window:{addEventListener(){}},location:{origin:'http://localhost'},FormData:class {get(key){return key==='maxPlayers'?'4':'Host'}},
   navigator:{clipboard:{writeText:async()=>{throw new Error('Clipboard unavailable')}}},
-  LAN_CAPABILITIES,inputIndices,inputReceiver,roomSummary,
+  LAN_CAPABILITIES,inputIndices,inputReceiver,roomSummary,savedNickname:fallback=>fallback,saveNickname(){},
   setTimeout:fn=>{timers.set(++timerId,fn);return timerId},clearTimeout:id=>timers.delete(id),setInterval:()=>0,clearInterval(){},
   status:message=>lastStatus=message,roster:(list,next,kick,states)=>rosterStates=new Map(states),
   lanInfo:async()=>({addresses:[]}),connectSocket:async()=>socket,request:async(s,event)=> event==='room:create'?{room}: {},

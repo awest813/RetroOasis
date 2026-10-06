@@ -6,6 +6,19 @@ export function status(message, root = document) {
   const target = root.querySelector('[data-lan-status]')
   if (target) target.textContent = message
 }
+const NICKNAME_KEY = 'retrooasis.lan.nickname'
+/** Remembered per device; storage can be unavailable in private windows. */
+export function savedNickname(fallback = '') {
+  try { return localStorage.getItem(NICKNAME_KEY)?.trim().slice(0, 32) || fallback } catch { return fallback }
+}
+export function saveNickname(value) {
+  try { if (value.trim()) localStorage.setItem(NICKNAME_KEY, value.trim().slice(0, 32)) } catch { /* not persisted */ }
+}
+/** Accepts a bare room code or a pasted invite link. */
+export function roomCodeFrom(value) {
+  const text = String(value || '').trim()
+  return (/#([a-f0-9]{10})\s*$/i.exec(text)?.[1] || text).toUpperCase()
+}
 export async function lanInfo() {
   const response = await fetch('./api/lan', { cache: 'no-store', signal: AbortSignal.timeout(4000) })
   if (!response.ok) throw new Error('Start the LAN server on the host computer with npm run oasis:lan.')
@@ -80,6 +93,8 @@ export function createPeer(socket, target, onTrack, onState) {
 export function keyboardControl(event, keys, allowed, held) {
   if (event.type === 'keyup') return held.delete(event.code)
   const index = keys[event.code]
+  // Auto-repeat changes nothing; swallow it so the page doesn't scroll.
+  if (event.repeat && held.get(event.code) === index) { event.preventDefault(); return false }
   if (index === undefined || !allowed.has(index) || event.ctrlKey || event.metaKey || event.altKey || event.isComposing
     || event.target?.closest?.('input, textarea, select, [contenteditable]')
     || (event.code === 'Enter' && event.target?.closest?.('button'))) return false

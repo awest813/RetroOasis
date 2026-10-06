@@ -33,7 +33,7 @@ export function attachRooms(io, { graceMs = 15000, maxRooms = 32 } = {}) {
     delete socket.data.room
     if (!member) return
     socket.leave(room.code)
-    if (member.slot === 0) { close(room, 'The host left the room.'); return }
+    if (member.slot === 0) { close(room, deliberate ? 'The host ended the room.' : 'The host left the room.'); return }
     if (deliberate) remove(room, member)
     else {
       member.connected = false

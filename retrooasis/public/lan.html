@@ -12,8 +12,8 @@
         <h1>Join a local room</h1>
         <p>Connect to the host’s Wi-Fi or LAN, then open their invite. The host runs the game; you only need this browser.</p>
         <form id="join-form">
-          <label>Room code <input name="code" id="room-code" maxlength="10" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help"></label>
-          <p id="code-help">Use the code from the host’s invite on this LAN server.</p>
+          <label>Room code <input name="code" id="room-code" maxlength="200" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help"></label>
+          <p id="code-help">Use the 10-character code from the host’s invite, or paste the whole invite link.</p>
           <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" placeholder="Your player name" required></label>
           <button type="submit" disabled>Join room</button>
         </form>

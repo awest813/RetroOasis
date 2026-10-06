@@ -7,7 +7,7 @@ import { once } from 'node:events'
 import http from 'node:http'
 import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
-import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary } from '../public/lan-shared.js'
+import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom } from '../public/lan-shared.js'
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
 import { coreLock, digest, inspectCore } from './lan-assets.mjs'
 import './test-lan-host.mjs'
@@ -45,6 +45,12 @@ keyboardControl(keyEvent('ShiftLeft'), keys, allowed, heldKeys)
 keyboardControl(keyEvent('ShiftRight'), keys, allowed, heldKeys)
 keyboardControl(keyEvent('ShiftLeft', 'keyup'), keys, allowed, heldKeys)
 assert.deepEqual([...heldKeys.values()], [2], 'Releasing one Shift does not release the other')
+let repeatPrevented = false
+assert(!keyboardControl(keyEvent('ShiftRight', 'keydown', { repeat: true, preventDefault() { repeatPrevented = true } }), keys, allowed, heldKeys), 'Auto-repeat does not resend unchanged controls')
+assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
+assert.equal(roomCodeFrom(' ab12cd34ef '), 'AB12CD34EF')
+assert.equal(roomCodeFrom('https://192.168.1.5:8787/lan.html#ab12cd34ef'), 'AB12CD34EF', 'Pasted invite links keep only the room code')
+assert.equal(roomCodeFrom('#AB12CD34EF'), 'AB12CD34EF')
 let pressClock = 0, timerId = 0, changes = 0
 const timers = new Map()
 const presses = buttonHolds(() => { changes++ }, { now: () => pressClock,
@@ -250,7 +256,12 @@ try {
   const n64Host = await connect()
   const defaultN64 = await call(n64Host, 'room:create', { title: 'Default N64', core: 'n64', nickname: 'Host' })
   assert.equal(defaultN64.room.maxPlayers, 2, 'Four-player hosting requires an explicit selection')
+  const defaultGuest = await connect()
+  assert((await call(defaultGuest, 'room:join', { code: defaultN64.room.code, nickname: 'Guest' })).ok)
+  const deliberateEnd = once(defaultGuest, 'room:ended')
   await call(n64Host, 'room:leave')
+  assert.match((await deliberateEnd)[0].reason, /host ended/, 'Guests can tell a deliberate end from a lost host')
+  defaultGuest.disconnect()
   assert.equal((await call(stranger, 'room:join', { code, nickname: 'Guest' })).ok, false)
   const createdN64 = await call(n64Host, 'room:create', { title: 'N64 fixture', core: 'n64', nickname: 'Host', maxPlayers: 4 })
   assert(createdN64.ok)
