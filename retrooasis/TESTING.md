@@ -88,3 +88,9 @@ The follow-up N64 checks covered three things in the same fixture:
 - **Walking.** Shift halves keyboard stick tilt (32767 → 16384 on port 1) and releases cleanly.
 - **Stream rate.** WebRTC stats forced to report CPU-limited encoding stepped every guest stream to 30 fps with a host status message, and it returned to 60 fps after 30 healthy seconds.
 - **Landscape touch layout.** On a Pixel 7 in landscape, the game, stick and every N64 control fit on screen at once (15/15; NES 9/9). Portrait and desktop have no horizontal overflow.
+
+The October 6 keyboard audit had three parts:
+
+- **App navigation.** Tab order, visible rings and the skip link were checked on every page; no traps were found. Home keeps Tab inside its console shell by design.
+- **Shared layout.** LAN guests and the Trade & link host had A/B and X/Y swapped relative to the RetroOasis player. They now share `keyboardLayout()` (public/lan-capabilities.js), which `test-lan.mjs` checks against EmulatorJS's `defaultControllers`; a mutation test confirmed the guard fails on a swapped key.
+- **Fixture presses.** In the WebRTC fixture each key reached the expected input: NES Z/X/V/Enter/arrows, and N64 Z→Z, X/S→A/B, Q/E→L/R, I→C-up, arrows/T→stick, numpad 8→D-pad up. Tab stays with the browser.

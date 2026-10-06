@@ -7,6 +7,7 @@ import { once } from 'node:events'
 import http from 'node:http'
 import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
+import { keyboardLayout, BUTTON_LABELS, inputIndices } from '../public/lan-capabilities.js'
 import { LINK_FILES } from './lan-link.mjs'
 import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, STRAIN_SAMPLES, RECOVERY_SAMPLES } from '../public/lan-shared.js'
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
@@ -49,6 +50,32 @@ assert.deepEqual([...heldKeys.values()], [2], 'Releasing one Shift does not rele
 let repeatPrevented = false
 assert(!keyboardControl(keyEvent('ShiftRight', 'keydown', { repeat: true, preventDefault() { repeatPrevented = true } }), keys, allowed, heldKeys), 'Auto-repeat does not resend unchanged controls')
 assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
+// Keyboard layouts: player-consistent keys, only allowed inputs, every labelled button reachable.
+{
+  const emulatorSource = fs.readFileSync(path.join(repo, 'data/src/emulator.js'), 'utf8')
+  const block = emulatorSource.slice(emulatorSource.indexOf('this.defaultControllers = {'), emulatorSource.indexOf('this.keyMap = {'))
+  const playerDefault = index => block.match(new RegExp(`\\b${index}: \\{\\s*"value": "([^"]*)"`))?.[1]
+  const codeFor = value => value.length === 1 ? `Key${value.toUpperCase()}` : { enter: 'Enter', 'up arrow': 'ArrowUp', 'down arrow': 'ArrowDown', 'left arrow': 'ArrowLeft', 'right arrow': 'ArrowRight' }[value]
+  for (const core of ['nes', 'snes', 'segaMD', 'gb', 'gba', 'n64']) {
+    const { keys, hint } = keyboardLayout(core)
+    const allowed = new Set(inputIndices(core))
+    assert(Object.values(keys).every(index => allowed.has(index)), `${core}: keys only press inputs the system has`)
+    for (const index of Object.keys(BUTTON_LABELS[core])) assert(Object.values(keys).includes(Number(index)), `${core}: labelled button ${index} has a key`)
+    assert(hint.startsWith('Keyboard:'), `${core}: hint describes the keys`)
+    if (core !== 'n64') {
+      for (const [code, index] of Object.entries(keys)) {
+        if (code.startsWith('Shift')) continue
+        assert.equal(codeFor(playerDefault(index)), code, `${core}: ${code} matches the RetroOasis player's default for input ${index}`)
+      }
+    }
+  }
+  const n64 = keyboardLayout('n64').keys
+  assert.equal(n64.ArrowRight, 16, 'N64 arrows drive the analog stick'); assert.equal(n64.KeyH, 16, 'N64 also accepts the player stick keys')
+  assert.equal(n64.KeyZ, 12, 'N64 Z key is the Z trigger'); assert.equal(n64.KeyX, 0); assert.equal(n64.KeyS, 1)
+  assert.equal(n64.KeyI, 23, 'C-buttons match the player (I/J/K/L)'); assert(!('Tab' in n64), 'Tab stays with the browser')
+  assert.equal(keyboardLayout('snes').keys.KeyZ, 8, 'Z is A, as in the player'); assert.equal(keyboardLayout('snes').keys.KeyV, 2, 'V is Select, as in the player')
+  assert.equal(keyboardLayout('psp').hint, '', 'Systems without rooms have no layout')
+}
 // N64 keyboard stick: full tilt runs, Shift walks at half tilt, diagonals stay round.
 assert.deepEqual(keyboardStick(new Set([16])), [1, 0])
 assert.deepEqual(keyboardStick(new Set([16]), true), [0.5, 0], 'Shift walks at half tilt')

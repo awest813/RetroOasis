@@ -203,7 +203,7 @@ node retrooasis/scripts/lan-server.mjs --cert retrooasis/.lan-certs/server.pem -
 
 Install the generated `ca.crt` as a trusted certificate on the devices you control, following their operating system's instructions. Keep `server-key.pem` private. Regenerate certificates if your LAN address changes. Certificate files are gitignored. A certificate from your own trusted issuer also works through `--cert` and `--key`.
 
-The host can pause, lock, remove individual guests or end the room. Each disconnected guest has 15 seconds to reconnect in the same tab and recover their controller port; host exit ends the room. Keyboard, touch and standard gamepads are supported; guest save states and host migration are outside this release. N64 defaults to two players to reduce encoder load; four players remain experimental until tested on separate LAN devices.
+The host can pause, lock, remove individual guests or end the room. Each disconnected guest has 15 seconds to reconnect in the same tab and recover their controller port; host exit ends the room. Keyboard, touch and standard gamepads are supported. Guest keyboards use the same keys as the RetroOasis player (Z = A, X = B, A/S = X/Y, Q/E = L/R, V = Select, Enter = Start), and the guest page lists them for each system. N64 puts the stick on the arrows (or T/F/G/H) with Shift to walk, the Z trigger on Z, C-buttons on I/J/K/L and the D-pad on the numpad. Trade & link uses the same layout; guest save states and host migration are outside this release. N64 defaults to two players to reduce encoder load; four players remain experimental until tested on separate LAN devices.
 
 Streams run at 60 fps and are tuned for low latency on a LAN:
 

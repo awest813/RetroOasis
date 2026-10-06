@@ -1,5 +1,5 @@
 import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality, keyboardStick } from './lan-shared.js'
-import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
+import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls, keyboardLayout, BUTTON_LABELS } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 import { cartridgeInfo, validSaveSize } from './link-session.js'
 import { unwrapRom } from './rom-source.js'
@@ -96,16 +96,13 @@ function bindInput(core, send) {
   const profile = ROOM_PROFILES[core]
   const n64 = !!profile.analog
   const allowed = new Set(inputIndices(core))
-  const keys = n64
-    ? { ArrowUp: 19, ArrowDown: 18, ArrowLeft: 17, ArrowRight: 16, KeyZ: 0, KeyX: 1, KeyQ: 12, KeyE: 10, KeyR: 11, KeyI: 23, KeyK: 22, KeyJ: 21, KeyL: 20, KeyW: 4, KeyS: 5, KeyA: 6, KeyD: 7, Enter: 3 }
-    : { ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7, KeyZ: 0, KeyX: 8, KeyA: 1, KeyS: 9, KeyQ: 10, KeyW: 11, Enter: 3, ShiftLeft: 2, ShiftRight: 2 }
+  // Same keys as the RetroOasis player (see keyboardLayout in lan-capabilities.js).
+  const keys = keyboardLayout(core).keys
   let padStick = [0, 0], touchStick = [0, 0], stickPointer = null
   // N64: hold Shift for a half tilt, so keyboard players can walk as well as run.
   let walking = false
   const controls = document.querySelector('.ro-lan-controls')
-  const labels = n64 ? { 0: 'A', 1: 'B', 10: 'L', 11: 'R', 12: 'Z', 23: 'C ↑', 21: 'C ←', 22: 'C ↓', 20: 'C →' }
-    : core === 'segaMD' ? { 1: 'A', 0: 'B', 8: 'C', 10: 'X', 9: 'Y', 11: 'Z' } : { 0: 'B', 8: 'A', 1: 'Y', 9: 'X', 10: 'L', 11: 'R' }
-  if (core === 'segaMD') { keys.KeyS = 10; keys.KeyQ = 9 }
+  const labels = BUTTON_LABELS[core] ?? {}
   controls.replaceChildren()
   if (n64) {
     const stick = document.createElement('div')
@@ -339,15 +336,7 @@ async function join(reconnecting = false) {
     // Start at the game: the join form may have left the page scrolled down.
     playView.scrollIntoView({ block: 'start' })
     refreshCart()
-    document.querySelector('[data-lan-input-hint]').textContent = room.core === 'gb' || room.core === 'gba'
-      ? `Keyboard: arrows move · Z = B · X = A · Enter = Start · Shift = Select${room.core === 'gba' ? ' · Q/W = L/R' : ''}.`
-      : room.core === 'n64'
-      ? 'Keyboard: arrows = stick (hold Shift to walk) · WASD = D-pad · Z/X = A/B · Q = Z · E/R = L/R · IJKL = C-buttons · Enter starts. Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.'
-      : room.core === 'segaMD'
-      ? 'Keyboard: arrows move · A/Z/X = A/B/C · S/Q/W = X/Y/Z · Enter starts.'
-      : room.core === 'nes'
-        ? 'Keyboard: arrows move · Z = B · X = A · Enter starts · Shift selects.'
-        : 'Keyboard: arrows move · Z = B · X = A · A = Y · S = X · Q/W = L/R · Enter starts · Shift selects.'
+    document.querySelector('[data-lan-input-hint]').textContent = keyboardLayout(room.core).hint + (room.core === 'n64' ? ' Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.' : '')
     document.querySelector('[data-lan-input-hint]').textContent += ' After connecting or returning to this tab, release gamepad buttons and center both sticks before playing.'
     update(room)
     status('Joined. Connecting to the host’s game…')

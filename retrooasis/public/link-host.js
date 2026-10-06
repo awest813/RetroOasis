@@ -1,6 +1,6 @@
 import { mountHost } from './lan-host.js'
 import { keyboardControl, buttonHolds } from './lan-shared.js'
-import { LINK_CAPABILITIES, gamepadControls } from './lan-capabilities.js'
+import { LINK_CAPABILITIES, gamepadControls, keyboardLayout } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 import { createLinkSession, cartridgeInfo, validSaveSize } from './link-session.js'
 import { readRomReference, unwrapRom } from './rom-source.js'
@@ -109,7 +109,10 @@ function tick(now) {
 }
 
 // Host controls for Console 1: keyboard and the first active gamepad.
-const keyMap = { ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7, KeyZ: 0, KeyX: 8, Enter: 3, ShiftLeft: 2, ShiftRight: 2, KeyQ: 10, KeyW: 11 }
+// Same keys as the RetroOasis player.
+const { keys: keyMap, hint: keyHint } = keyboardLayout(system)
+const hintLine = document.querySelector('[data-link-hint]')
+if (hintLine && keyHint) hintLine.textContent = `${keyHint} A gamepad also works.`
 const allowed = new Set(LINK_CAPABILITIES[system]?.buttons || [])
 const keyboard = new Map()
 let padButtons = new Set(), applied = new Set()
