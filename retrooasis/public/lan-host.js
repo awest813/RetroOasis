@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname, STREAM_FPS, tuneVideoSender, connectionQuality } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname, STREAM_FPS, tuneVideoSender, connectionQuality, nextStreamRate } from './lan-shared.js'
 import { ROOM_PROFILES, inputIndices } from './lan-capabilities.js'
 
 /** Installed before the loader starts. Local emulation stays Player 1 throughout. */
@@ -148,6 +148,7 @@ export async function mountHost(emu, options = {}) {
       }, 15000)
       peers.set(player.socketId, peer)
       const senders = stream.getTracks().map(track => peer.pc.addTrack(track, stream))
+      peer.senders = senders
       // Every packet is a full controller snapshot with a sequence number, and stale
       // ones are dropped, so a late packet must not hold back newer ones.
       const channel = peer.pc.createDataChannel('controls', { ordered: false, maxPacketLifeTime: 120 })
@@ -162,20 +163,33 @@ export async function mountHost(emu, options = {}) {
       options.onPeer?.(peer, player)
       void peer.pc.createOffer().then(offer => peer.pc.setLocalDescription(offer)).then(() => {
         if (room && peers.get(player.socketId) === peer) socket.emit('room:signal', { target: player.socketId, signal: { description: peer.pc.localDescription.toJSON() } })
-        for (const sender of senders) void tuneVideoSender(sender, emu.canvas?.height)
+        for (const sender of senders) void tuneVideoSender(sender, emu.canvas?.height, streamRate.fps)
       }).catch(error => { if (peers.get(player.socketId) === peer) status(`Could not connect guest: ${error.message}`, panel) })
     }
     refreshRoster()
   }
   const pauseButton = panel.querySelector('[data-lan-pause]')
-  // Per-guest round-trip time for the roster, so a slow Wi-Fi link is visible.
+  // Per-guest round-trip time for the roster, so a slow Wi-Fi link is visible,
+  // and the shared stream rate, which steps down if encoding starves the game.
+  let streamRate = { fps: STREAM_FPS, strained: 0, healthy: 0 }
   const qualityTimer = setInterval(async () => {
     let changed = false
+    let cpuLimited = false
     for (const peer of peers.values()) {
-      const { rttMs } = await connectionQuality(peer.pc)
-      if (rttMs !== null && rttMs !== peer.rttMs) { peer.rttMs = rttMs; changed = true }
+      const quality = await connectionQuality(peer.pc)
+      if (quality.cpuLimited) cpuLimited = true
+      if (quality.rttMs !== null && quality.rttMs !== peer.rttMs) { peer.rttMs = quality.rttMs; changed = true }
     }
     if (changed) refreshRoster()
+    if (!peers.size || emu.paused) return
+    const previous = streamRate.fps
+    streamRate = nextStreamRate(streamRate, cpuLimited)
+    if (streamRate.fps !== previous) {
+      for (const peer of peers.values()) for (const sender of peer.senders ?? []) void tuneVideoSender(sender, emu.canvas?.height, streamRate.fps)
+      status(streamRate.fps < STREAM_FPS
+        ? `Streaming at ${streamRate.fps} fps so the game keeps full speed on this computer.`
+        : `Streaming at ${streamRate.fps} fps again.`, panel)
+    }
   }, 2000)
   const watchdog = setInterval(() => {
     pauseButton.textContent = emu.paused ? 'Resume game' : 'Pause game'

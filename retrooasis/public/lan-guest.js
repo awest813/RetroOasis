@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality, keyboardStick } from './lan-shared.js'
 import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 import { cartridgeInfo, validSaveSize } from './link-session.js'
@@ -100,6 +100,8 @@ function bindInput(core, send) {
     ? { ArrowUp: 19, ArrowDown: 18, ArrowLeft: 17, ArrowRight: 16, KeyZ: 0, KeyX: 1, KeyQ: 12, KeyE: 10, KeyR: 11, KeyI: 23, KeyK: 22, KeyJ: 21, KeyL: 20, KeyW: 4, KeyS: 5, KeyA: 6, KeyD: 7, Enter: 3 }
     : { ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7, KeyZ: 0, KeyX: 8, KeyA: 1, KeyS: 9, KeyQ: 10, KeyW: 11, Enter: 3, ShiftLeft: 2, ShiftRight: 2 }
   let padStick = [0, 0], touchStick = [0, 0], stickPointer = null
+  // N64: hold Shift for a half tilt, so keyboard players can walk as well as run.
+  let walking = false
   const controls = document.querySelector('.ro-lan-controls')
   const labels = n64 ? { 0: 'A', 1: 'B', 10: 'L', 11: 'R', 12: 'Z', 23: 'C ↑', 21: 'C ←', 22: 'C ↓', 20: 'C →' }
     : core === 'segaMD' ? { 1: 'A', 0: 'B', 8: 'C', 10: 'X', 9: 'Y', 11: 'Z' } : { 0: 'B', 8: 'A', 1: 'Y', 9: 'X', 10: 'L', 11: 'R' }
@@ -143,13 +145,18 @@ function bindInput(core, send) {
     controls.append(container)
   }
   group('Directional controls', [[4, '↑'], [6, '←'], [5, '↓'], [7, '→']], 'ro-lan-dpad')
-  group('Game buttons', Object.entries(labels).filter(([index]) => allowed.has(Number(index))).map(([index, label]) => [Number(index), label]), 'ro-lan-buttons')
+  if (n64) {
+    // Laid out like the controller: shoulders, B/A, and the C-buttons as a diamond.
+    group('Shoulder buttons', [[10, 'L'], [12, 'Z'], [11, 'R']], 'ro-lan-buttons ro-lan-shoulders')
+    group('Game buttons', [[1, 'B'], [0, 'A']], 'ro-lan-buttons ro-lan-face')
+    group('C buttons', [[23, 'C ↑'], [21, 'C ←'], [22, 'C ↓'], [20, 'C →']], 'ro-lan-dpad ro-lan-cpad')
+  } else group('Game buttons', Object.entries(labels).filter(([index]) => allowed.has(Number(index))).map(([index, label]) => [Number(index), label]), 'ro-lan-buttons')
   group('Start and select', [[3, 'Start'], ...(core === 'segaMD' || n64 ? [] : [[2, 'Select']])], 'ro-lan-system')
   function transmit(force = false) {
     if (!active) return
     const held = new Set([...keyboard.values(), ...pointers.values(), ...gamepad])
     const buttons = [...held].filter(index => profile.buttons.includes(index)).sort((a, b) => a - b)
-    const keyStick = normalizeStick(Number(held.has(16)) - Number(held.has(17)), Number(held.has(18)) - Number(held.has(19)), 0)
+    const keyStick = keyboardStick(held, walking)
     const stick = touchStick.some(Boolean) ? touchStick : keyStick.some(Boolean) ? keyStick : padStick
     const key = `${buttons.join(',')}/${stick.join(',')}`
     if (!force && key === last && performance.now() - lastSent < 250) return
@@ -158,9 +165,14 @@ function bindInput(core, send) {
     for (const button of controls.querySelectorAll('button')) button.setAttribute('aria-pressed', String(buttons.includes(Number(button.dataset.control))))
   }
   const onKey = event => {
+    if (n64 && (event.code === 'ShiftLeft' || event.code === 'ShiftRight') && !event.target?.closest?.('input, textarea, select, [contenteditable]')) {
+      const next = event.type === 'keydown'
+      if (next !== walking) { walking = next; transmit(true) }
+      return
+    }
     if (keyboardControl(event, keys, allowed, keyboard)) transmit(true)
   }
-  const release = () => { padGate.reset(); keyboard.clear(); gamepad.clear(); touchStick = [0, 0]; padStick = [0, 0]; stickPointer = null; const thumb = controls.querySelector('.ro-lan-stick i'); if (thumb) thumb.style.transform = ''; pointers.clear() }
+  const release = () => { walking = false; padGate.reset(); keyboard.clear(); gamepad.clear(); touchStick = [0, 0]; padStick = [0, 0]; stickPointer = null; const thumb = controls.querySelector('.ro-lan-stick i'); if (thumb) thumb.style.transform = ''; pointers.clear() }
   const visibility = () => { if (document.hidden) release() }
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey)
   window.addEventListener('blur', release); document.addEventListener('visibilitychange', visibility)
@@ -324,11 +336,13 @@ async function join(reconnecting = false) {
     location.hash = room.code
     joinView.hidden = true; playView.hidden = false
     playView.focus({ preventScroll: true })
+    // Start at the game: the join form may have left the page scrolled down.
+    playView.scrollIntoView({ block: 'start' })
     refreshCart()
     document.querySelector('[data-lan-input-hint]').textContent = room.core === 'gb' || room.core === 'gba'
       ? `Keyboard: arrows move · Z = B · X = A · Enter = Start · Shift = Select${room.core === 'gba' ? ' · Q/W = L/R' : ''}.`
       : room.core === 'n64'
-      ? 'Keyboard: arrows = stick · WASD = D-pad · Z/X = A/B · Q = Z · E/R = L/R · IJKL = C-buttons · Enter starts. Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.'
+      ? 'Keyboard: arrows = stick (hold Shift to walk) · WASD = D-pad · Z/X = A/B · Q = Z · E/R = L/R · IJKL = C-buttons · Enter starts. Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.'
       : room.core === 'segaMD'
       ? 'Keyboard: arrows move · A/Z/X = A/B/C · S/Q/W = X/Y/Z · Enter starts.'
       : room.core === 'nes'

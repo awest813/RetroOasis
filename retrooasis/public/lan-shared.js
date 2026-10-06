@@ -89,6 +89,17 @@ export function createPeer(socket, target, onTrack, onState) {
   return { pc, accept, close: () => { closed = true; queued.length = 0; pc.ontrack = null; pc.onicecandidate = null; pc.onconnectionstatechange = null; pc.close() } }
 }
 
+/** N64 keyboard stick from held direction indices (16 right, 17 left, 18 down, 19 up).
+ * Diagonals stay on the unit circle; walking (Shift) is a half tilt. */
+export const WALK_TILT = 0.5
+export function keyboardStick(held, walking = false) {
+  const [x, y] = normalizeStick(Number(held.has(16)) - Number(held.has(17)), Number(held.has(18)) - Number(held.has(19)), 0)
+  const scale = walking ? WALK_TILT : 1
+  // Round half away from zero so left/up and right/down tilt by the same amount.
+  const round = value => Math.sign(value) * Math.round(Math.abs(value) * scale * 1000) / 1000 || 0
+  return [round(x), round(y)]
+}
+
 /** Releases always win, including after focus or modifier changes. */
 export function keyboardControl(event, keys, allowed, held) {
   if (event.type === 'keyup') return held.delete(event.code)
@@ -215,14 +226,14 @@ export function inputReceiver(apply, now = () => performance.now(), core = 'snes
 /** Game streams are 60 Hz; prefer smooth motion and low latency over sharpness. */
 export const STREAM_FPS = 60
 const MAX_STREAM_LINES = 720
-export async function tuneVideoSender(sender, sourceHeight = 0) {
+export async function tuneVideoSender(sender, sourceHeight = 0, fps = STREAM_FPS) {
   if (sender?.track?.kind !== 'video' || typeof sender.getParameters !== 'function') return
   try { sender.track.contentHint = 'motion' } catch { /* optional hint */ }
   try {
     const params = sender.getParameters()
     if (!params.encodings?.length) params.encodings = [{}]
     const encoding = params.encodings[0]
-    encoding.maxFramerate = STREAM_FPS
+    encoding.maxFramerate = fps
     encoding.maxBitrate = 8_000_000 // Same-LAN budget; WebRTC still adapts downward.
     // Big host canvases (fullscreen) are scaled to 720 lines: N64 renders at 240–480.
     encoding.scaleResolutionDownBy = Math.max(1, sourceHeight / MAX_STREAM_LINES)
@@ -243,13 +254,28 @@ export function lowLatencyReceiver(receiver) {
 
 /** Round-trip time and received video frame rate, for the quality readouts. */
 export async function connectionQuality(pc) {
-  const quality = { rttMs: null, fps: null, dropped: 0 }
+  const quality = { rttMs: null, fps: null, dropped: 0, cpuLimited: false }
   if (typeof pc?.getStats !== 'function') return quality
   try {
     (await pc.getStats()).forEach(report => {
       if (report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded' && Number.isFinite(report.currentRoundTripTime)) quality.rttMs = Math.round(report.currentRoundTripTime * 1000)
+      if (report.type === 'outbound-rtp' && report.kind === 'video' && report.qualityLimitationReason === 'cpu') quality.cpuLimited = true
       if (report.type === 'inbound-rtp' && report.kind === 'video') { quality.fps = Number.isFinite(report.framesPerSecond) ? Math.round(report.framesPerSecond) : null; quality.dropped = report.framesDropped ?? 0 }
     })
   } catch { /* closed connection */ }
   return quality
+}
+
+/**
+ * Host stream rate. Several 60 fps encoders can starve the emulator on a slow
+ * computer, so sustained CPU limits drop every guest stream to 30 fps; a long
+ * healthy spell restores 60. One sample per poll (every 2 s).
+ */
+export const STRAIN_SAMPLES = 3
+export const RECOVERY_SAMPLES = 15
+export function nextStreamRate(state, cpuLimited) {
+  const next = { fps: state.fps, strained: cpuLimited ? state.strained + 1 : 0, healthy: cpuLimited ? 0 : state.healthy + 1 }
+  if (next.fps === STREAM_FPS && next.strained >= STRAIN_SAMPLES) return { fps: 30, strained: 0, healthy: 0 }
+  if (next.fps !== STREAM_FPS && next.healthy >= RECOVERY_SAMPLES) return { fps: STREAM_FPS, strained: 0, healthy: 0 }
+  return next
 }

@@ -211,7 +211,7 @@ Streams run at 60 fps and are tuned for low latency on a LAN:
 - Guests ask for a minimal jitter buffer.
 - Controls go over an unordered channel of sequence-numbered snapshots.
 
-The host's roster shows each guest's round-trip time, and guests see stream fps, latency and dropped frames under the video, so a weak Wi-Fi link is easy to spot.
+If several streams start starving the emulator on a slower host, every guest stream steps down to 30 fps until the host has been healthy for about 30 seconds. On a phone held sideways, guests get the game in the middle with the stick and D-pad on the left and the buttons on the right; N64 buttons are grouped like the controller (L Z R, B A, a C-button diamond). Keyboard guests hold Shift for a half stick tilt to walk. The host's roster shows each guest's round-trip time, and guests see stream fps, latency and dropped frames under the video, so a weak Wi-Fi link is easy to spot.
 
 For four-player N64, select **4 players · host + 3 guests** before creating the room. The controller-seat list shows open seats, reconnect reservations and each guest's game-connection readiness. Expand **Invite players** to choose the Wi-Fi address and view the link/QR code, or use **Copy invite**. Wait for all three guests to show **Ready to play**, then select a four-player mode inside the game. Removing one guest frees only that seat; other players keep their ports and controls. Joined-room status on a guest's roster does not imply that every other guest's stream is ready.
 

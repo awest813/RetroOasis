@@ -63,3 +63,30 @@ input[type=file] { padding: .5rem; }
 /* Phones: keep the host's own screen and controls together; the guest's screen is a preview. */
 @media (max-width: 899px) { .ro-link-stage { grid-template-columns: 1fr; } .ro-link-stage figure:nth-child(2) { max-width: 50%; } }
 .ro-lan-quality { margin: .35rem 0 0; min-height: 1.4em; font: 12px/1.4 ui-monospace, monospace; color: var(--lan-muted); }
+
+/* Phones held sideways: the game in the middle at full height, the stick and
+   D-pad under the left thumb, buttons under the right; page details below. */
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  .ro-lan-page:has([data-lan-play]:not([hidden])) .ro-lan-header { display: none; }
+  .ro-lan-page:has([data-lan-play]:not([hidden])) .ro-lan-main { padding: .5rem max(.5rem, env(safe-area-inset-left)); max-width: none; }
+  [data-lan-play]:not([hidden]) { display: grid; grid-auto-flow: row dense; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: repeat(4, auto); gap: .3rem .75rem; align-items: center; padding-top: .25rem; }
+  [data-lan-play] > * { grid-column: 1 / -1; }
+  [data-lan-play] .ro-lan-stage { grid-column: 2; grid-row: 1 / span 4; height: calc(100dvh - 1rem); max-height: none; aspect-ratio: auto; margin: 0; }
+  [data-lan-play] .ro-lan-controls { display: contents; }
+  .ro-lan-controls > * { justify-self: center; }
+  /* Left thumb: stick above the D-pad (or the D-pad alone on 2D systems). */
+  .ro-lan-controls .ro-lan-stick { grid-column: 1; grid-row: 1 / span 2; }
+  .ro-lan-controls .ro-lan-dpad:not(.ro-lan-cpad) { grid-column: 1; grid-row: 3 / span 2; }
+  .ro-lan-controls:not(:has(.ro-lan-stick)) .ro-lan-dpad { grid-row: 1 / span 4; }
+  /* Right thumb: one row each, top to bottom. */
+  .ro-lan-controls .ro-lan-buttons, .ro-lan-controls .ro-lan-cpad, .ro-lan-controls .ro-lan-system { grid-column: 3; }
+  .ro-lan-controls .ro-lan-shoulders { grid-row: 1; }
+  .ro-lan-controls .ro-lan-face { grid-row: 2; }
+  .ro-lan-controls .ro-lan-cpad { grid-row: 3; }
+  .ro-lan-controls .ro-lan-system { grid-row: 4; }
+  .ro-lan-controls:not(:has(.ro-lan-stick)) .ro-lan-buttons { grid-row: 1 / span 3; }
+  .ro-lan-controls .ro-lan-stick { width: 120px; height: 120px; flex-basis: 120px; }
+  .ro-lan-controls button { min-width: 44px; min-height: 44px; padding: .3rem; }
+  .ro-lan-dpad, .ro-lan-buttons { grid-template-columns: repeat(3, 44px); gap: .3rem; }
+  .ro-lan-face { grid-template-columns: repeat(2, 52px); }
+}

@@ -8,7 +8,7 @@ import http from 'node:http'
 import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
 import { LINK_FILES } from './lan-link.mjs'
-import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom } from '../public/lan-shared.js'
+import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, STRAIN_SAMPLES, RECOVERY_SAMPLES } from '../public/lan-shared.js'
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
 import { coreLock, digest, inspectCore } from './lan-assets.mjs'
 import './test-lan-host.mjs'
@@ -49,6 +49,26 @@ assert.deepEqual([...heldKeys.values()], [2], 'Releasing one Shift does not rele
 let repeatPrevented = false
 assert(!keyboardControl(keyEvent('ShiftRight', 'keydown', { repeat: true, preventDefault() { repeatPrevented = true } }), keys, allowed, heldKeys), 'Auto-repeat does not resend unchanged controls')
 assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
+// N64 keyboard stick: full tilt runs, Shift walks at half tilt, diagonals stay round.
+assert.deepEqual(keyboardStick(new Set([16])), [1, 0])
+assert.deepEqual(keyboardStick(new Set([16]), true), [0.5, 0], 'Shift walks at half tilt')
+assert.deepEqual(keyboardStick(new Set([17, 19]), true), [-0.354, -0.354], 'Diagonal walking stays on a half-size circle')
+assert.deepEqual(keyboardStick(new Set([16, 17])), [0, 0], 'Opposite keys cancel')
+// Stream rate: sustained CPU limits drop to 30 fps; a long healthy spell restores 60.
+let rate = { fps: 60, strained: 0, healthy: 0 }
+for (let i = 0; i < STRAIN_SAMPLES - 1; i++) rate = nextStreamRate(rate, true)
+assert.equal(rate.fps, 60, 'A brief CPU spike keeps 60 fps')
+rate = nextStreamRate(rate, false)
+for (let i = 0; i < STRAIN_SAMPLES - 1; i++) rate = nextStreamRate(rate, true)
+assert.equal(rate.fps, 60, 'Interrupted strain does not accumulate')
+rate = nextStreamRate(rate, true)
+assert.equal(rate.fps, 30, 'Sustained CPU limits drop guest streams to 30 fps')
+for (let i = 0; i < RECOVERY_SAMPLES - 1; i++) rate = nextStreamRate(rate, false)
+assert.equal(rate.fps, 30, 'Recovery waits for a long healthy spell')
+rate = nextStreamRate(rate, true); for (let i = 0; i < RECOVERY_SAMPLES - 1; i++) rate = nextStreamRate(rate, false)
+assert.equal(rate.fps, 30, 'Strain during recovery restarts the wait')
+rate = nextStreamRate(rate, false)
+assert.equal(rate.fps, 60, 'A healthy host returns to 60 fps')
 assert.equal(roomCodeFrom(' ab12cd34ef '), 'AB12CD34EF')
 assert.equal(roomCodeFrom('https://192.168.1.5:8787/lan.html#ab12cd34ef'), 'AB12CD34EF', 'Pasted invite links keep only the room code')
 assert.equal(roomCodeFrom('#AB12CD34EF'), 'AB12CD34EF')

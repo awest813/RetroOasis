@@ -82,3 +82,9 @@ The October 6 storage and offline audit used the production build behind its ser
 - **Clear cache.** Clear cache deletes only `EmulatorJS-Cache` and hands focus to Manage saves.
 
 The October 6 N64 streaming audit used the `test-lan.mjs --browser` fixture with `?core=n64`. Guests went from 30 fps to 60 fps. The sender applied a `motion` content hint, max 60 fps, 8 Mbps, `maintain-framerate` and 720-line scaling. The controls channel is `ordered: false, maxPacketLifeTime: 120`, and guest `jitterBufferTarget` is 0. Loopback input latency stayed at about 2 ms median. A four-player room held 60 fps on all three guest streams with no encoder quality limitation, and roster RTTs showed. The fixture canvas is 256×240, so encoding cost for a real N64 core, and Wi-Fi latency on separate devices, still need hardware testing. The fixture now copies the Trade & link modules that `lan-guest.js` imports; without them the guest page failed to load.
+
+The follow-up N64 checks covered three things in the same fixture:
+
+- **Walking.** Shift halves keyboard stick tilt (32767 → 16384 on port 1) and releases cleanly.
+- **Stream rate.** WebRTC stats forced to report CPU-limited encoding stepped every guest stream to 30 fps with a host status message, and it returned to 60 fps after 30 healthy seconds.
+- **Landscape touch layout.** On a Pixel 7 in landscape, the game, stick and every N64 control fit on screen at once (15/15; NES 9/9). Portrait and desktop have no horizontal overflow.
