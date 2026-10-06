@@ -42,6 +42,7 @@ import {
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { getStorageSnapshot, requestPersistentStorage } from '../lib/storageQuota'
+import { clearEmulatorCache, emulatorCacheUsage } from '../lib/emulatorCache'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
 import { getInputModality } from '../lib/inputModality'
@@ -456,6 +457,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                     : 'This browser doesn’t report how much space is left.'
                 }
               </p>
+              <p class="ro-muted" id="ro-storage-breakdown" hidden></p>
               <p class="ro-muted" id="ro-persist-status" role="status">
                 ${
                   storage.persistent
@@ -476,6 +478,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                 ? `<span class="ro-badge ro-badge--ok" role="status">Kept</span>`
                 : `<button type="button" class="ro-btn" id="ro-persist" data-focus-id="persist" data-ro-focusable="true">Keep ROMs</button>`
             }
+          </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Emulator cache</strong>
+              <p class="ro-muted" id="ro-emu-cache-status" role="status" aria-atomic="true">Cores and copies of recently played games, kept for a week so they start faster. Checking size…</p>
+            </div>
+            <button type="button" class="ro-btn" id="ro-clear-emu-cache" data-focus-id="clear-emu-cache" data-ro-focusable="true" aria-describedby="ro-emu-cache-status">Clear cache</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -701,6 +711,55 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       setEjsChannel(btn.dataset.ejs as EjsChannel)
       rerender(btn.dataset.focusId)
     })
+  })
+
+  // Where the space goes: saved ROMs, EmulatorJS's cache, and the app/cover caches.
+  const paintStorageBreakdown = async () => {
+    const [cache, estimate] = await Promise.all([
+      emulatorCacheUsage(),
+      navigator.storage?.estimate?.().catch(() => null) ?? Promise.resolve(null),
+    ])
+    if (!active) return
+    const status = root.querySelector('#ro-emu-cache-status')
+    if (status) {
+      const parts = [cache.games && `${cache.games} game${cache.games === 1 ? '' : 's'}`, cache.cores && `${cache.cores} core${cache.cores === 1 ? '' : 's'}`].filter(Boolean)
+      status.textContent = cache.items
+        ? `${formatBytes(cache.bytes)}${parts.length ? ` (${parts.join(', ')})` : ''}. Cores and copies of recently played games, kept for a week so they start faster. Clearing it never removes saves or saved ROMs.`
+        : 'Empty. Cores and recently played games are cached here when you play.'
+    }
+    const clear = root.querySelector<HTMLButtonElement>('#ro-clear-emu-cache')
+    if (clear) clear.disabled = !cache.items
+    const breakdown = root.querySelector<HTMLElement>('#ro-storage-breakdown')
+    const caches = (estimate as (StorageEstimate & { usageDetails?: { caches?: number } }) | null)?.usageDetails?.caches
+    if (breakdown && (uploadedMeta.bytes || cache.bytes || caches)) {
+      breakdown.textContent = [
+        `Saved ROMs ${formatBytes(uploadedMeta.bytes)}`,
+        `Emulator cache ${formatBytes(cache.bytes)}`,
+        ...(caches !== undefined ? [`App & cover art ${formatBytes(caches)}`] : []),
+      ].join(' · ')
+      breakdown.hidden = false
+    }
+  }
+  void paintStorageBreakdown()
+  root.querySelector('#ro-clear-emu-cache')?.addEventListener('click', async () => {
+    const button = root.querySelector<HTMLButtonElement>('#ro-clear-emu-cache')
+    const status = root.querySelector('#ro-emu-cache-status')
+    if (!button || button.disabled || !confirmAction('Clear the emulator cache? Cores and games are downloaded or copied again the next time you play. Saves are not affected.')) return
+    const wasFocused = document.activeElement === button
+    button.disabled = true
+    try {
+      await clearEmulatorCache()
+      if (!active) return
+      await paintStorageBreakdown()
+      if (status) status.textContent = 'Emulator cache cleared. Saves and saved ROMs were not touched.'
+    } catch (error) {
+      if (!active) return
+      button.disabled = false
+      if (status) status.textContent = error instanceof Error ? error.message : 'Couldn’t clear the emulator cache.'
+    }
+    if (active && wasFocused && (document.activeElement === button || document.activeElement === document.body)) {
+      root.querySelector<HTMLElement>('[data-focus-id="saves"]')?.focus({ preventScroll: true })
+    }
   })
 
   const paintControllerStatus = () => {

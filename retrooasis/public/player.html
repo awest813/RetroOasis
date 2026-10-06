@@ -733,6 +733,9 @@
           window.EJS_startOnLoaded = true;
           window.EJS_askBeforeExit = false;
           window.EJS_threads = needsThreads;
+          // EmulatorJS caches cores and every game it opens (default: 4 GB for 5 days).
+          // Saved ROMs already live in the RetroOasis library, so keep that copy small.
+          window.EJS_cacheConfig = { enabled: true, cacheMaxSizeMB: emulatorCacheMB, cacheMaxAgeMins: 7 * 24 * 60 };
           window.EJS_onExit = function () {
             window.location.href = back;
           };
@@ -800,7 +803,18 @@
         document.getElementById("meta").textContent = core + " · " + channelLabel + " · loading…";
         showLoading("Loading ROM…");
 
-        resolveRom(romParam)
+        // About 10% of this browser's quota, between 256 MB and 1 GB.
+        var emulatorCacheMB = 1024;
+        var quotaCheck = navigator.storage && navigator.storage.estimate
+          ? navigator.storage.estimate().then(function (estimate) {
+              if (estimate && estimate.quota > 0) {
+                emulatorCacheMB = Math.round(Math.max(256, Math.min(1024, estimate.quota * 0.1 / 1048576)));
+              }
+            }).catch(function () {})
+          : Promise.resolve();
+
+        Promise.all([resolveRom(romParam), quotaCheck])
+          .then(function (results) { return results[0]; })
           .then(function (gameUrl) {
             document.getElementById("meta").textContent = core + " · " + channelLabel + " · starting…";
             showLoading("Starting emulator…");

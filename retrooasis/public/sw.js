@@ -1,7 +1,43 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v9'
+const CACHE = 'retrooasis-shell-v10'
+// Libretro box art, so the library keeps its covers offline. Fetched with CORS:
+// opaque responses would each count as megabytes of padded quota.
+const COVER_CACHE = 'retrooasis-covers-v1'
+const COVER_LIMIT = 600
+let coverPuts = 0
+
+function isLibretroCover(req, url) {
+  return req.destination === 'image' && url.hostname === 'raw.githubusercontent.com' && url.pathname.startsWith('/libretro-thumbnails/')
+}
+
+async function trimCovers(cache) {
+  const keys = await cache.keys()
+  // Keys come back in insertion order; drop the oldest beyond the limit.
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - COVER_LIMIT)).map((key) => cache.delete(key)))
+}
+
+async function coverResponse(event, url) {
+  const refresh = url.searchParams.has('_ro_cover_refresh')
+  const key = new URL(url)
+  key.searchParams.delete('_ro_cover_refresh')
+  const cache = await caches.open(COVER_CACHE)
+  if (!refresh) {
+    const cached = await cache.match(key.href)
+    if (cached) return cached
+  }
+  try {
+    const response = await fetch(url.href, { mode: 'cors', credentials: 'omit', cache: refresh ? 'reload' : 'default' })
+    // Misses (404) pass through uncached; the page remembers them itself.
+    if (response.ok) {
+      event.waitUntil(cache.put(key.href, response.clone()).then(() => (++coverPuts % 25 === 0 ? trimCovers(cache) : undefined)).catch(() => {}))
+    }
+    return response
+  } catch {
+    return (await cache.match(key.href)) || Response.error()
+  }
+}
 
 const PRECACHE = [
   './',
@@ -68,11 +104,25 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return
 
   const url = new URL(req.url)
+  if (isLibretroCover(req, url)) {
+    event.respondWith(coverResponse(event, url))
+    return
+  }
   if (url.origin !== self.location.origin) return
 
   const path = url.pathname
   // Room traffic and invite responses must always reach the LAN service.
   if (path.startsWith('/api/lan') || path.startsWith('/socket.io/') || path.endsWith('/controller-input.js') || /\/lan(?:-[^/]+)?\.(?:html|js|css)$/.test(path)) return
+  // The hosted library list stays available offline (network-first); ROMs and cores do not.
+  if (path.endsWith('/roms/manifest.json')) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (res.ok) event.waitUntil(caches.open(CACHE).then((cache) => cache.put(req, res.clone())).catch(() => {}))
+        return res
+      }).catch(async () => (await caches.match(req, { cacheName: CACHE })) || Response.error()),
+    )
+    return
+  }
   if (path.includes('/data/') || path.includes('/roms/')) return
   // These player files keep fixed names. Fetch updates first, retain an offline copy.
   if (path.includes('/emulator/')) {

@@ -73,3 +73,10 @@ The October 6 controller and Settings audit drove the built app with a scripted 
 - **Touch targets.** Phone Settings controls are at least 44px.
 
 The October 6 cover art audit used a hosted manifest of nine real game names plus two homebrew titles, against the live Libretro thumbnail host. All nine real games matched their exact art: regions, `(SGB Enhanced)`, `Legend of Zelda, The` and Game Boy Color fallback. The homebrew titles kept placeholders. Request counts went from 34 → 28 on a revisit and 34 on a reload, to 34 → 7–9 cached hits on a revisit and 9 on a reload, because remembered misses make no requests. Box art is contained, not cropped, and its blurred backdrop is drawn from the loaded image with no second request. The cover browser suite (`node retrooasis/scripts/test-covers.mjs --browser`) passed all 33 checks.
+
+The October 6 storage and offline audit used the production build behind its service worker and checked four things:
+
+- **Offline box art.** Libretro covers are cached through CORS in `retrooasis-covers-v1` (600 entries), not as opaque responses that would count as megabytes of padded quota each. With the network cut, a reload kept the hosted library list (`roms/manifest.json` is network-first with an offline fallback) and every matched cover.
+- **EmulatorJS cache cap.** `player.html` limits EmulatorJS's own cache to about 10% of quota (256 MB–1 GB) for 7 days, instead of 4 GB of copies of library ROMs.
+- **Storage breakdown.** Settings → Data shows saved ROMs, emulator cache and app/cover cache.
+- **Clear cache.** Clear cache deletes only `EmulatorJS-Cache` and hands focus to Manage saves.
