@@ -9,6 +9,7 @@ import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize } from '..
 import { blockCartridge, withGbHeader, transferByte, gbaCartridge } from './handheld/link-fixtures.js'
 import { sendFile, fileReceiver, saveName, CHUNK, SAVE_LIMIT } from '../public/link-transfer.js'
 import { unwrapRom } from '../public/rom-source.js'
+import { librarySaveKey } from '../public/library-saves.js'
 import { deflateRawSync } from 'node:zlib'
 
 // Pure checks run everywhere.
@@ -43,6 +44,8 @@ receive(JSON.stringify({ type: 'file', kind: 'save', name: 's.sav', size: 2 }));
 receive('x'.repeat(3000)); assert.match(errors.at(-1), /Unexpected link message/)
 assert.equal(saveName('Pokemon - Red (USA).gb'), 'Pokemon - Red (USA).sav'); assert.equal(saveName('a/b:c.gba'), 'a_b_c.sav')
 await assert.rejects(sendFile({ ...channel, readyState: 'closed' }, 'rom', 'x', rom), /closed/)
+assert.equal(librarySaveKey('Pokemon - Crystal (USA).gbc'), '/data/saves/Pokemon - Crystal (USA).srm', 'Library saves use RetroArch’s ROM-stem .srm name')
+assert.equal(librarySaveKey('dir/Game.v1.gba'), '/data/saves/Game.v1.srm'); assert.equal(librarySaveKey(''), null)
 console.log('PASS link cartridge validation, save sizes and GBA protocol selection')
 console.log('PASS cartridge / save transfer framing, limits and interruption handling')
 

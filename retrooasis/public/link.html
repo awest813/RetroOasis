@@ -15,18 +15,20 @@
         <figure><canvas id="console-2" width="160" height="144" aria-label="Console 2 (guest)"></canvas><figcaption data-link-guest>Console 2 · Waiting for a guest</figcaption></figure>
       </div>
       <form id="link-setup" class="ro-link-setup">
-        <label>Your save file (optional) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
-        <p id="save-help">Use your game’s battery save (.sav or .srm) to trade from your existing game. Without one, Console 1 starts a new game. Export saves from any emulator or from RetroOasis Saves.</p>
+        <label class="ro-link-check" data-link-library hidden><input type="checkbox" name="library" checked> <span>Use my RetroOasis save</span></label>
+        <label>Save file (optional, used instead) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
+        <p id="save-help">Trade from your existing game with its battery save (.sav or .srm) from any emulator. Without a save, Console 1 starts a new game. When the session ends, Console 1’s save replaces this game’s RetroOasis save; the previous one is kept as a backup.</p>
       </form>
       <div class="ro-lan-actions">
         <button type="button" id="start" disabled>Start link</button>
         <button type="button" id="pause" hidden>Pause both</button>
+        <button type="button" id="save-library" hidden>Save to library</button>
         <button type="button" id="my-save" hidden>Download my save</button>
         <button type="button" id="guest-save" hidden>Send guest their save</button>
         <button type="button" id="end" hidden>End session</button>
       </div>
       <p data-link-hint>Keyboard: arrows move · Z = B · X = A · Enter = Start · Shift = Select · Q/W = L/R (GBA). A gamepad also works.</p>
-      <p class="ro-link-warning">Save in-game after every trade, then download saves before ending. Saves are not written back to your library automatically.</p>
+      <p class="ro-link-warning">Save in-game after every trade. End session updates your RetroOasis save and sends your guest theirs; close other tabs playing this game first.</p>
       <p data-lan-status data-link-status role="status" aria-live="polite" aria-atomic="true">Loading…</p>
       <a data-link-back href="./#/library">Back to library</a>
     </main>

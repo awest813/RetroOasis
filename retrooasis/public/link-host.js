@@ -5,6 +5,7 @@ import { readControllers, ControllerSelector, ControllerGate } from './controlle
 import { createLinkSession, cartridgeInfo, validSaveSize } from './link-session.js'
 import { readRomReference, unwrapRom } from './rom-source.js'
 import { fileReceiver, sendFile, downloadBytes, saveName, SAVE_LIMIT } from './link-transfer.js'
+import { librarySaveKey, readLibrarySave, writeLibrarySave } from './library-saves.js'
 
 const params = new URLSearchParams(location.search)
 const system = params.get('system')
@@ -13,7 +14,7 @@ const setStatus = message => { statusLine.textContent = message }
 const guestLabel = document.querySelector('[data-link-guest]')
 const canvases = [document.querySelector('#console-1'), document.querySelector('#console-2')]
 const contexts = canvases.map(canvas => canvas.getContext('2d'))
-const buttons = Object.fromEntries(['start', 'pause', 'my-save', 'guest-save', 'end'].map(id => [id, document.querySelector('#' + id)]))
+const buttons = Object.fromEntries(['start', 'pause', 'my-save', 'save-library', 'guest-save', 'end'].map(id => [id, document.querySelector('#' + id)]))
 const setupForm = document.querySelector('#link-setup')
 const back = params.get('back')
 if (back && /^\.\/#\/[^\s]*$/.test(back)) document.querySelector('[data-link-back]').href = back
@@ -42,6 +43,7 @@ function refreshButtons() {
   buttons.start.disabled = running || !host || !guest?.bytes
   buttons.start.hidden = running || sessionEnded
   for (const id of ['pause', 'my-save', 'end']) buttons[id].hidden = !running
+  buttons['save-library'].hidden = !running || !host?.saveKey
   buttons['guest-save'].hidden = !running || guest?.channel?.readyState !== 'open'
   buttons.pause.textContent = paused ? 'Resume both' : 'Pause both'
   setupForm.hidden = running || sessionEnded
@@ -214,7 +216,8 @@ buttons.start.onclick = async () => {
   setStatus('Starting both consoles…')
   try {
     const file = setupForm.elements.save.files?.[0]
-    let hostSave = null
+    // A chosen file wins; otherwise the game's RetroOasis save, unless the host opted out.
+    let hostSave = !file && setupForm.elements.library?.checked ? host.librarySave?.bytes ?? null : null
     if (file) {
       if (file.size > SAVE_LIMIT || !validSaveSize(system, file.size)) throw new Error('Your save file does not match this system.')
       hostSave = new Uint8Array(await file.arrayBuffer())
@@ -239,19 +242,33 @@ buttons['my-save'].onclick = () => {
   downloadBytes(bytes, saveName(host.name))
   setStatus('Your save was downloaded. Import it in RetroOasis Saves or your emulator to keep the trade.')
 }
+async function saveToLibrary(bytes) {
+  const { backedUp } = await writeLibrarySave(host.saveKey, bytes)
+  return backedUp ? 'Your RetroOasis save was updated; the previous one is kept as a “.before-trade” copy in Saves.' : 'Your RetroOasis save was updated.'
+}
+buttons['save-library'].onclick = async () => {
+  const bytes = session?.exportSave(0)
+  if (!bytes) { setStatus('This cartridge has no battery save.'); return }
+  try { setStatus(await saveToLibrary(bytes) + ' Close other tabs playing this game so they don’t overwrite it.') }
+  catch (error) { setStatus(`Couldn’t update your RetroOasis save: ${error.message} Use Download my save instead.`) }
+}
 buttons['guest-save'].onclick = () => void sendGuestSave().then(sent => setStatus(sent ? `Sent ${guest.nickname} their save.` : 'Could not send the guest’s save. Ask them to reconnect.'))
 buttons.end.onclick = async () => {
   if (!session) return
   setPaused(true)
   const mine = session.exportSave(0)
   await sendGuestSave(true)
-  if (mine) downloadBytes(mine, saveName(host.name))
+  let saved = 'This cartridge has no battery save.'
+  if (mine && host.saveKey) {
+    try { saved = await saveToLibrary(mine) }
+    catch (error) { downloadBytes(mine, saveName(host.name)); saved = `Couldn’t update your RetroOasis save (${error.message}), so it was downloaded instead.` }
+  } else if (mine) { downloadBytes(mine, saveName(host.name)); saved = 'Your save was downloaded.' }
   cancelAnimationFrame(frame)
   releaseHost()
   session.close(); session = null; sessionEnded = true
   message(guest?.channel, { type: 'session', running: false })
   placeholder(0, 'Session ended'); placeholder(1, 'Session ended')
-  setStatus('Session ended. Your save was downloaded and your guest received theirs.')
+  setStatus(`Session ended. ${saved} Your guest received theirs.`)
   refreshButtons()
 }
 window.addEventListener('beforeunload', event => { if (session) { event.preventDefault(); event.returnValue = '' } })
@@ -264,7 +281,13 @@ async function start() {
   if (!LINK_CAPABILITIES[system]) throw new Error('This system has no link cable support.')
   const rom = await unwrapRom(await readRomReference(params.get('rom')))
   const info = cartridgeInfo(system, rom.bytes)
-  host = { ...rom, info }
+  host = { ...rom, info, saveKey: librarySaveKey(rom.name) }
+  host.librarySave = await readLibrarySave(host.saveKey).catch(() => null)
+  const library = document.querySelector('[data-link-library]')
+  if (host.librarySave && validSaveSize(system, host.librarySave.bytes.length)) {
+    library.hidden = false
+    library.querySelector('span').textContent = `Use my RetroOasis save (last saved ${host.librarySave.modified.toLocaleString()})`
+  } else host.librarySave = null
   const title = params.get('name') || info.title
   document.querySelector('[data-link-title]').textContent = title
   document.title = `RetroOasis · Trade & link · ${title}`
