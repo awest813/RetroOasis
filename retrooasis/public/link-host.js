@@ -1,5 +1,5 @@
 import { mountHost } from './lan-host.js'
-import { keyboardControl } from './lan-shared.js'
+import { keyboardControl, buttonHolds } from './lan-shared.js'
 import { LINK_CAPABILITIES, gamepadControls } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 import { createLinkSession, cartridgeInfo, validSaveSize } from './link-session.js'
@@ -22,6 +22,8 @@ if (back && /^\.\/#\/[^\s]*$/.test(back)) document.querySelector('[data-link-bac
 let host = null // { name, bytes, info }
 let guest = null // { name, bytes, save, info, socketId, nickname, channel }
 let session = null
+let roomPanel = null
+const narrow = matchMedia('(max-width: 899px)')
 let paused = false
 let sessionEnded = false
 let frame = 0
@@ -46,6 +48,7 @@ function refreshButtons() {
   buttons['save-library'].hidden = !running || !host?.saveKey
   buttons['guest-save'].hidden = !running || guest?.channel?.readyState !== 'open'
   buttons.pause.textContent = paused ? 'Resume both' : 'Pause both'
+  touchPad.hidden = !running
   setupForm.hidden = running || sessionEnded
 }
 
@@ -111,8 +114,9 @@ const allowed = new Set(LINK_CAPABILITIES[system]?.buttons || [])
 const keyboard = new Map()
 let padButtons = new Set(), applied = new Set()
 const padSelector = new ControllerSelector(), padGate = new ControllerGate()
+const touch = buttonHolds(() => applyHostInput())
 function applyHostInput() {
-  const held = new Set([...keyboard.values(), ...padButtons])
+  const held = new Set([...keyboard.values(), ...padButtons, ...touch.values()])
   for (const index of applied) if (!held.has(index)) session?.key(0, index, false)
   for (const index of held) if (!applied.has(index)) session?.key(0, index, true)
   applied = session && !paused ? held : new Set()
@@ -126,7 +130,29 @@ function pollHostInput() {
   applyHostInput()
 }
 const onKey = event => { if (session && keyboardControl(event, keyMap, allowed, keyboard)) applyHostInput() }
-const releaseHost = () => { keyboard.clear(); padButtons.clear(); padGate.reset(); applyHostInput() }
+const releaseHost = () => { keyboard.clear(); padButtons.clear(); padGate.reset(); touch.clear() }
+// On-screen controls for tablet / phone hosts (shown for coarse pointers by CSS).
+const touchPad = document.querySelector('[data-link-touch]')
+function buildTouchControls() {
+  const groups = [['Directional controls', 'ro-lan-dpad', [[4, '↑'], [6, '←'], [5, '↓'], [7, '→']]],
+    ['Game buttons', 'ro-lan-buttons', [[0, 'B'], [8, 'A'], ...(system === 'gba' ? [[10, 'L'], [11, 'R']] : [])]],
+    ['Start and select', 'ro-lan-system', [[3, 'Start'], [2, 'Select']]]]
+  for (const [label, className, controls] of groups) {
+    const group = document.createElement('div')
+    group.className = className; group.setAttribute('role', 'group'); group.setAttribute('aria-label', label)
+    for (const [index, name] of controls) {
+      const button = document.createElement('button')
+      button.type = 'button'; button.textContent = name; button.setAttribute('aria-label', `Console 1 ${name}`)
+      button.onpointerdown = event => { if (!session || event.button !== 0) return; event.preventDefault(); button.setPointerCapture(event.pointerId); touch.press(event.pointerId, index) }
+      button.onpointerup = event => touch.release(event.pointerId)
+      button.onpointercancel = event => touch.cancel(event.pointerId)
+      button.onlostpointercapture = event => touch.lostCapture(event.pointerId)
+      button.onclick = event => { if (!session || event.detail !== 0) return; const tap = Symbol('tap'); touch.press(tap, index); touch.release(tap) }
+      group.append(button)
+    }
+    touchPad.append(group)
+  }
+}
 window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey)
 window.addEventListener('blur', releaseHost)
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseHost(); previous = null })
@@ -228,6 +254,7 @@ buttons.start.onclick = async () => {
     paused = false; emu.paused = false; previous = null
     frame = requestAnimationFrame(tick)
     message(guest.channel, { type: 'session', running: true })
+    if (narrow.matches && roomPanel) roomPanel.querySelector('details').open = false
     setStatus(`Linked: ${host.info.title} ↔ ${guest.info.title}. Use the game’s trade or link menu on both consoles.`)
   } catch (error) {
     session?.close(); session = null
@@ -292,12 +319,16 @@ async function start() {
   document.querySelector('[data-link-title]').textContent = title
   document.title = `RetroOasis · Trade & link · ${title}`
   emu.config.gameName = title
+  buildTouchControls()
   placeholder(0, `${info.title}\nReady`)
   setStatus('Create a room in the Link room panel, then share the invite with your guest.')
-  await mountHost(emu, {
+  const { panel } = await mountHost(emu, {
     heading: 'Link room', onPeer, onDrop,
     note: 'Keep this page and the LAN server open. Your guest plays Console 2 with their own cartridge and save; their screen streams from here.',
   })
+  // In the page flow, so on narrow screens it never covers the consoles or touch controls.
+  roomPanel = panel
+  document.querySelector('[data-link-room]').append(panel)
   refreshButtons()
 }
 start().catch(error => { setStatus(error.message); placeholder(0, 'Cartridge unavailable') })

@@ -10,10 +10,12 @@
     <main class="ro-lan-main">
       <h1 data-link-title>Loading cartridge…</h1>
       <p>Both Game Boys run here, joined by an emulated link cable. You play Console 1; your guest plays Console 2 from their own device on this Wi-Fi, using their own cartridge and save. Use the game’s trade or link menu as usual.</p>
+      <div class="ro-link-room" data-link-room></div>
       <div class="ro-link-stage">
         <figure><canvas id="console-1" width="160" height="144" aria-label="Console 1 (you)"></canvas><figcaption>Console 1 · You</figcaption></figure>
         <figure><canvas id="console-2" width="160" height="144" aria-label="Console 2 (guest)"></canvas><figcaption data-link-guest>Console 2 · Waiting for a guest</figcaption></figure>
       </div>
+      <div class="ro-lan-controls ro-link-touch" data-link-touch aria-label="Console 1 touch controls" hidden></div>
       <form id="link-setup" class="ro-link-setup">
         <label class="ro-link-check" data-link-library hidden><input type="checkbox" name="library" checked> <span>Use my RetroOasis save</span></label>
         <label>Save file (optional, used instead) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
