@@ -75,15 +75,56 @@ export function onRoute(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
+/** Where Back goes when there is no in-app history entry to return to. */
+export function parentHash(route: Route): string | null {
+  switch (route.name) {
+    case 'lobby': return null
+    case 'game':
+    case 'platform':
+    case 'tag': return '#/library'
+    case 'collection': return route.collection === 'all' ? '#/' : '#/library'
+    default: return '#/'
+  }
+}
+
+// How many in-app entries precede the current one. Stored in history.state so it
+// survives reloads and back/forward; a bookmark or shared link starts at 0.
+let depth = 0
+let replacing = false
+function trackDepth(): void {
+  const stored = (history.state as { roDepth?: unknown } | null)?.roDepth
+  if (typeof stored === 'number') depth = stored
+  else {
+    // A replaced entry (Back to a parent route) keeps its depth; a new one adds to it.
+    if (!replacing) depth += 1
+    history.replaceState({ ...(history.state ?? {}), roDepth: depth }, '')
+  }
+  replacing = false
+}
+
+/** Escape / controller B: step back inside RetroOasis, never out to another site or a blank tab. */
+export function goBackInApp(): boolean {
+  if (depth > 0) { history.back(); return true }
+  const parent = parentHash(getRoute())
+  if (!parent) return false
+  replacing = true
+  window.location.replace(parent)
+  return true
+}
+
 function emit(): void {
   const route = getRoute()
   for (const listener of listeners) listener(route)
 }
 
 export function startRouter(): void {
-  window.addEventListener('hashchange', emit)
+  window.addEventListener('hashchange', () => { trackDepth(); emit() })
+  const stored = (history.state as { roDepth?: unknown } | null)?.roDepth
+  depth = typeof stored === 'number' ? stored : 0
+  if (typeof stored !== 'number') history.replaceState({ ...(history.state ?? {}), roDepth: 0 }, '')
   if (!window.location.hash) {
-    window.location.hash = '#/'
+    // Replace, so the bare URL doesn't become an extra entry for Back to land on.
+    window.location.replace('#/')
   } else {
     emit()
   }

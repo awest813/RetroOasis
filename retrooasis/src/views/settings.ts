@@ -44,6 +44,7 @@ import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
 import { getStorageSnapshot, requestPersistentStorage } from '../lib/storageQuota'
 import { friendlyError } from '../lib/userErrors'
 import { bindRowFocus } from '../lib/focus'
+import { getInputModality } from '../lib/inputModality'
 import { escapeHtml, refreshCoverArt } from '../lib/dom'
 import { coverResourceLinks } from '../lib/coverResources'
 import { checkLanService, type LanServiceResult } from '../lib/lan'
@@ -267,12 +268,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Bluetooth &amp; USB controllers <span class="ro-settings__online-state" id="ro-controller-state"></span></strong>
-              <p class="ro-muted">Pair with your device or connect by USB, then press and release a controller button.</p>
+              <p class="ro-muted" id="ro-controller-pairing"${describeConnectedPads().state === 'ready' ? ' hidden' : ''}>Pair with your device or connect by USB, then press and release a controller button.</p>
               <p class="ro-muted" id="ro-controller-status" role="status" aria-atomic="true">${escapeHtml(describeConnectedPads().message)}</p>
               <ul class="ro-settings__controller-list" id="ro-controller-list" aria-label="Connected controllers" hidden></ul>
               <details class="ro-settings__help">
                 <summary data-focus-id="controller-help" data-ro-focusable="true">Controls &amp; troubleshooting</summary>
-                <p class="ro-muted">D-pad or left stick moves. A / Cross chooses; B / Circle goes back. Start chooses, Select goes back, and L/R moves between controls.</p>
+                <p class="ro-muted">D-pad or left stick moves. A / Cross chooses; B / Circle closes menus and goes back. Start chooses and Select goes back. In Settings, L1 / R1 jump between sections.</p>
                 <p class="ro-muted">Face-button labels vary by controller: the bottom button chooses and the right button goes back.</p>
                 <p class="ro-muted">Use HTTPS or localhost. If a controller stays unavailable, reconnect it and check again. Set game-specific controls in the player.</p>
                 <p class="ro-muted">To switch menu controllers, press and release a button on the other controller. Local multiplayer controller assignments are separate: select each player’s controller in the player’s Controls menu.</p>
@@ -284,7 +285,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <div class="ro-settings-row__copy">
               <details class="ro-settings__help" id="ro-controller-test">
                 <summary data-focus-id="controller-test" data-ro-focusable="true">Test buttons &amp; sticks</summary>
-                <p class="ro-muted">While this test is open, controller buttons update the readout instead of navigating menus. Keyboard and touch still navigate.</p>
+                <p class="ro-muted">While this test is open, controller buttons update the readout instead of navigating menus. Hold B / Circle to close it.</p>
                 <p class="ro-controller-test__buttons" id="ro-controller-buttons">No standard controller detected.</p>
                 <div class="ro-controller-test__sticks">
                   <span>Left stick <output id="ro-controller-left" aria-live="off">X 0.00 · Y 0.00</output></span>
@@ -706,6 +707,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     const status = root.querySelector('#ro-controller-status')
     const info = describeConnectedPads()
     if (status && status.textContent !== info.message) status.textContent = info.message
+    const pairing = root.querySelector<HTMLElement>('#ro-controller-pairing')
+    if (pairing) pairing.hidden = info.state === 'ready'
     const badge = root.querySelector<HTMLElement>('#ro-controller-state')
     if (badge) {
       badge.textContent = { ready: 'Ready', waiting: 'Press a button', unmapped: 'Custom layout', blocked: 'Access blocked', unsupported: 'Unavailable', insecure: 'HTTPS needed' }[info.state]
@@ -723,12 +726,26 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const controllerTest = root.querySelector<HTMLDetailsElement>('#ro-controller-test')
   controllerTest?.addEventListener('toggle', () => {
     stopControllerTest?.(); stopControllerTest = undefined
+    if (active && !controllerTest.open) {
+      const readout = root.querySelector('#ro-controller-buttons')
+      if (readout) readout.textContent = 'Open the test, then press buttons and move the sticks.'
+    }
     if (!active || !controllerTest.open) return
     const names = ['A / Cross', 'B / Circle', 'X / Square', 'Y / Triangle', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home']
+    // Controller-only players need a way out: holding B closes the test.
+    let backHeldSince = 0
     stopControllerTest = onPadInputChange(pad => {
       const buttons = root.querySelector('#ro-controller-buttons')
       const pressed = pad ? Array.from(pad.buttons).flatMap((_, index) => buttonPressed(pad, index) ? [names[index] || `Button ${index + 1}`] : []) : []
-      const text = document.hidden || !document.hasFocus() ? 'Test paused while this tab is inactive.' : pad ? pressed.length ? `Pressed: ${pressed.join(' · ')}` : 'All buttons released.' : 'No standard controller detected.'
+      const holdingBack = !!pad && buttonPressed(pad, 1)
+      backHeldSince = holdingBack ? backHeldSince || performance.now() : 0
+      if (holdingBack && performance.now() - backHeldSince >= 1500) {
+        // Closing unsubscribes; menus then wait for every button to be released.
+        controllerTest.open = false
+        controllerTest.querySelector<HTMLElement>('summary')?.focus({ preventScroll: true })
+        return
+      }
+      const text = document.hidden || !document.hasFocus() ? 'Test paused while this tab is inactive.' : pad ? pressed.length ? `Pressed: ${pressed.join(' · ')}${holdingBack ? ' — keep holding B to close' : ''}` : 'All buttons released.' : 'No standard controller detected.'
       if (buttons && buttons.textContent !== text) buttons.textContent = text
       for (const [id, axis] of [['left', 0], ['right', 2]] as const) {
         const output = root.querySelector(`#ro-controller-${id}`)
@@ -846,7 +863,16 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
   const focusRoot = root.querySelector<HTMLElement>('[data-ro-settings]')
   if (focusRoot) {
-    focusCleanup = bindRowFocus(focusRoot)
+    // Controller L1 / R1 jump between sections, like the section tabs.
+    focusCleanup = bindRowFocus(focusRoot, dir => {
+      const tabs = [...focusRoot.querySelectorAll<HTMLButtonElement>('[data-settings-section]')]
+      const sections = tabs.map(tab => focusRoot.querySelector(`#ro-set-${tab.dataset.settingsSection}`)?.closest('section'))
+      const current = sections.findIndex(section => section?.contains(document.activeElement))
+      const next = dir === 'pageright' ? current + 1 : current === -1 ? 0 : current - 1
+      if (next < 0 || next >= tabs.length) return true
+      tabs[next].click()
+      return true
+    })
     const restore =
       (restoreId
         ? focusRoot.querySelector<HTMLElement>(
@@ -854,9 +880,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           )
         : null) ??
       (pendingLanFocus ? focusRoot.querySelector<HTMLElement>('#ro-check-lan') : null) ??
-      focusRoot.querySelector<HTMLElement>(
-        '[data-ro-focusable="true"]:not([disabled]):not([aria-disabled="true"])',
-      )
+      // A first control is focused only for keyboard / controller players; on touch
+      // or mouse a ring on the first tab reads as a selection. The first D-pad press
+      // focuses it anyway.
+      (getInputModality() === 'mouse'
+        ? null
+        : focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]:not([disabled]):not([aria-disabled="true"])'))
     if (restore) {
       restore.focus({ preventScroll: true })
       if (restoreScroll != null) {
@@ -866,6 +895,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         restore.closest('[data-ro-focus-row]')?.scrollIntoView({ block: 'nearest' })
       }
       if (restore.dataset.focusId) rememberFocus(restore.dataset.focusId)
+    } else if (restoreScroll != null) {
+      window.scrollTo(0, restoreScroll)
+      rememberScroll(restoreScroll)
     }
   }
 

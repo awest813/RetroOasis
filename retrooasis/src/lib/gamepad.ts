@@ -123,7 +123,7 @@ export function describeConnectedPads(): {
     message = 'Controller detected, but its button layout is not recognized for menus. Use keyboard or touch here and configure controls in the player.'
   } else {
     state = 'waiting'
-    message = 'No controller visible yet. Press and release a controller button while this page is active, then check again. Browser or embedded-page permissions may also block access.'
+    message = 'No controller visible yet. If one is connected, keep this page active and check again; browser or embedded-page permissions can also block access.'
   }
   return { secure, available, pads, standard, state, message }
 }

@@ -3,6 +3,7 @@
 import { setModality } from './inputModality'
 import { sfxBack, sfxConfirm, sfxMove } from './sfx'
 import { bindMenuPad } from './gamepad'
+import { goBackInApp } from './router'
 
 export type XmbDir = 'left' | 'right' | 'up' | 'down' | 'pageleft' | 'pageright' | 'confirm' | 'back'
 
@@ -35,8 +36,7 @@ export function bindXmbFocus(root: HTMLElement, api: XmbFocusApi): Cleanup {
   const move = (dir: XmbDir): void => {
     if (dir === 'back') {
       if (atHomeHash()) return
-      sfxBack()
-      history.back()
+      if (goBackInApp()) sfxBack()
       return
     }
 

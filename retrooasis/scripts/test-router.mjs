@@ -28,7 +28,7 @@ if (!process.features.typescript) {
   process.exit(result.status ?? 1)
 }
 
-const { parseRouteHash } = await import(`file://${path.join(cacheDir, 'router.ts').replace(/\\/g, '/')}`)
+const { parseRouteHash, parentHash } = await import(`file://${path.join(cacheDir, 'router.ts').replace(/\\/g, '/')}`)
 
 let passed = 0
 let failed = 0
@@ -61,6 +61,18 @@ check('upload', parseRouteHash('#/upload'), { name: 'upload' })
 check('settings', parseRouteHash('#/settings'), { name: 'settings' })
 check('saves', parseRouteHash('#/saves'), { name: 'saves' })
 check('unknown', parseRouteHash('#/nope'), { name: 'notfound' })
+
+// Back without an in-app history entry goes to the logical parent, never off-site.
+const parent = hash => parentHash(parseRouteHash(hash))
+check('home has no parent', parent('#/'), null)
+check('game -> library', parent('#/game/abc'), '#/library')
+check('system shelf -> library', parent('#/library/snes'), '#/library')
+check('favorites -> library', parent('#/library/@favorites'), '#/library')
+check('legacy tag -> library', parent('#/library/tag/rpg'), '#/library')
+check('all games -> home', parent('#/library'), '#/')
+check('settings -> home', parent('#/settings'), '#/')
+check('add rom -> home', parent('#/upload'), '#/')
+check('unknown -> home', parent('#/nope'), '#/')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

@@ -1565,6 +1565,14 @@ html[data-layout='tv'] .ro-btn--toggle {
   min-height: 2rem;
 }
 
+@media (pointer: coarse) {
+  .ro-cover-resources a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .ro-settings-row--stack {
   align-items: flex-start;
 }

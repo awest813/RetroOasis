@@ -62,3 +62,12 @@ For Trade & link browser checks, build the app and link cores, put two fixture c
 The October 6 follow-up audit added two checks. First, the host's RetroOasis library save: a seeded EmulatorJS `/data/saves/<rom>.srm` booted Console 1, and End session wrote the updated save back with a `.before-trade` copy of the previous one. Second, touch hosting on an emulated Pixel 7: the room panel sits in the page flow without covering the consoles, the GBA touch layout has 44px controls, a held on-screen A reaches Console 1 and releases cleanly, and touch controls stay hidden for mouse pointers.
 
 The October 6 library and Add ROM audit checked several behaviours. Every file in a batch is reported: non-game files and orphan disc tracks are skipped with a reason; unknown extensions are saved when a system is chosen and skipped with a hint in Auto-detect. A batch with skipped files no longer launches the player. On phones the filter chips form one swipeable row of 44px chips with the active filter in view. Real games list before labelled samples. Keyboard Up/Down move between the search box and the grid; spatial navigation now measures edge gaps, so a wide control above a tile is reachable. The route-focus outline around the page is gone. The System picker in Add ROM and the metadata editor is grouped by maker. The controller navigation browser suite (`node retrooasis/scripts/test-gamepad.mjs --browser`) passed all 23 checks.
+
+The October 6 controller and Settings audit drove the built app with a scripted standard-layout controller. It covered:
+
+- **Back.** B / Escape never leaves RetroOasis: a fresh tab or shared link on a game page goes game → library → home, and B at home does nothing. Back uses `history.back()` only when the previous entry is in-app; the depth is tracked in `history.state`, so reloads are covered.
+- **Escape handling.** B acts like Escape first: it closes the game page's Options menu, cancels metadata edits and clears a library search. Keyboard Escape inside text fields is unchanged.
+- **Library position.** Returning from a game refocuses the same library tile.
+- **Settings.** L1 / R1 jump between Settings sections. Holding B for 1.5 s closes the button tester without triggering Back.
+- **Initial focus.** Settings no longer focuses its first tab for mouse or touch users; the first D-pad press still focuses it.
+- **Touch targets.** Phone Settings controls are at least 44px.

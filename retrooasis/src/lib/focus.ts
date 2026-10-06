@@ -163,7 +163,11 @@ export function bindGridFocus(root: HTMLElement): Cleanup {
   return bindPadAndKeys(root, moveFocus)
 }
 
-/** Up/down between `[data-ro-focus-row]` groups; left/right within the row. */
-export function bindRowFocus(root: HTMLElement): Cleanup {
-  return bindPadAndKeys(root, moveRowFocus)
+/** Up/down between `[data-ro-focus-row]` groups; left/right within the row.
+ * `onPage` receives controller L1/R1 first; returning true consumes the press. */
+export function bindRowFocus(root: HTMLElement, onPage?: (dir: 'pageleft' | 'pageright') => boolean): Cleanup {
+  return bindPadAndKeys(root, (target, dir) => {
+    if ((dir === 'pageleft' || dir === 'pageright') && onPage?.(dir)) return
+    moveRowFocus(target, dir)
+  })
 }

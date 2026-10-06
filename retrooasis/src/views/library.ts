@@ -16,6 +16,9 @@ import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { icon } from '../lib/icons'
 
+// Last focused tile per shelf, so Back from a game returns to the same place.
+const lastTileByShelf = new Map<string, string>()
+
 export type LibrarySelection =
   | { kind: 'platform'; id: string }
   | { kind: 'collection'; id: VirtualCollection }
@@ -126,6 +129,8 @@ export async function renderLibrary(
 
   const isRecent = sel.kind === 'collection' && sel.id === 'recent'
 
+  const shelfKey = window.location.hash
+  let firstPaint = true
   const paint = (opts: PaintOpts = {}) => {
     if (!active) return
     cleanup?.()
@@ -270,9 +275,26 @@ export async function renderLibrary(
       input.setSelectionRange(end, end)
     }
 
+    const grid = root.querySelector<HTMLElement>('[data-ro-grid]')
+    const rememberTile = (event: FocusEvent) => {
+      const href = (event.target as HTMLElement | null)?.closest('.ro-tile__link')?.getAttribute('href')
+      if (href) lastTileByShelf.set(shelfKey, href)
+    }
+    grid?.addEventListener('focusin', rememberTile)
+    if (firstPaint && !opts.restoreSearch) {
+      const href = lastTileByShelf.get(shelfKey)
+      const tile = href ? [...(grid?.querySelectorAll<HTMLElement>('.ro-tile__link') ?? [])].find(link => link.getAttribute('href') === href) : null
+      if (tile) {
+        tile.focus({ preventScroll: true })
+        tile.scrollIntoView({ block: 'center' })
+      }
+    }
+    firstPaint = false
+
     const cleanupNavigation = bindGridFocus(root)
     cleanup = () => {
       window.clearTimeout(searchTimer)
+      grid?.removeEventListener('focusin', rememberTile)
       cleanupNavigation()
     }
   }
