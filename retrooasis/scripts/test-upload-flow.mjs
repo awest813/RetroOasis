@@ -42,6 +42,7 @@ const {
   summarizeUpload,
   shouldLaunchAfterUpload,
   threadSupportHint,
+  unplannedFileVerdict,
   folderDropMessage,
   emptyDropMessage,
   discSetLabel,
@@ -120,7 +121,7 @@ check(
     { kind: 'skipped', filename: 'b.txt', detail: 'nope' },
     { kind: 'error', filename: 'c.nes', detail: 'quota' },
   ]),
-  'saved 1, skipped 1, 1 failed. See the list below.',
+  'Saved 1, skipped 1, 1 failed. See the list below.',
 )
 
 console.log('shouldLaunchAfterUpload')
@@ -159,6 +160,14 @@ console.log('copy')
 checkTrue('folder message mentions Settings', folderDropMessage().includes('Settings'))
 checkTrue('empty drop mentions ROM', emptyDropMessage().includes('ROM'))
 check('disc set label', discSetLabel(['game.cue', 'game.bin']), 'game.cue + 1 more')
+
+console.log('unplannedFileVerdict')
+check('manual system saves odd extension', unplannedFileVerdict('Prototype.rom', true), 'save')
+checkTrue('auto skips odd extension with a hint', unplannedFileVerdict('Prototype.rom', false).includes('Pick its system'))
+check('documents are never saved', unplannedFileVerdict('notes.txt', true), 'Not a game file.')
+check('cover images are never saved', unplannedFileVerdict('box.PNG', true), 'Not a game file.')
+check('dotfiles are never saved', unplannedFileVerdict('.DS_Store', true), 'Not a game file.')
+checkTrue('orphan disc tracks explain the .cue', unplannedFileVerdict('Track 02.wav', true).includes('.cue'))
 
 console.log('romFileAccept')
 checkTrue('includes zip', romFileAccept().includes('.zip'))

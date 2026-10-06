@@ -85,6 +85,23 @@ try {
   const selected = document.activeElement
   selected.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowUp', ctrlKey:true, bubbles:true}))
   assert(document.activeElement === selected, 'Menu navigation leaves modified keyboard shortcuts alone')
+  // Library layout: a wide search box above a two-column grid.
+  const library = document.createElement('div')
+  library.innerHTML = '<input type="search" id="lib-search" style="display:block;width:300px"><div style="display:grid;grid-template-columns:repeat(3,90px);gap:12px;margin-top:20px"><button id="tile-a">A</button><button id="tile-b">B</button><button id="tile-c">C</button></div>'
+  document.body.append(library)
+  const cleanLibrary = bindGridFocus(library)
+  const search = library.querySelector('#lib-search')
+  search.focus()
+  const down = new KeyboardEvent('keydown', {key:'ArrowDown', bubbles:true, cancelable:true})
+  search.dispatchEvent(down)
+  assert(down.defaultPrevented && document.activeElement.id === 'tile-a', 'Down leaves a search field for the first tile beneath it')
+  const caret = new KeyboardEvent('keydown', {key:'ArrowLeft', bubbles:true, cancelable:true})
+  search.focus(); search.dispatchEvent(caret)
+  assert(!caret.defaultPrevented && document.activeElement === search, 'Left/right still move the caret in a search field')
+  library.querySelector('#tile-b').focus()
+  library.querySelector('#tile-b').dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowUp', bubbles:true, cancelable:true}))
+  assert(document.activeElement === search, 'Up from any tile under the search box reaches it')
+  cleanLibrary(); library.remove()
   const editor = document.createElement('div')
   editor.contentEditable = 'true'; editor.textContent = 'Editable text'
   rows.append(editor); editor.focus()

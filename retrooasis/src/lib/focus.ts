@@ -44,6 +44,10 @@ function moveFocus(root: HTMLElement, key: Dir): void {
   const sign = dir === 'right' || dir === 'down' ? 1 : -1
   const cx = box.left + box.width / 2
   const cy = box.top + box.height / 2
+  // Edge gap across the direction of travel: 0 when the two boxes overlap, so a
+  // wide control (the library search box) is reachable from anything beneath it.
+  const gap = (start: number, end: number, otherStart: number, otherEnd: number) =>
+    Math.max(0, Math.max(start, otherStart) - Math.min(end, otherEnd))
   let best: HTMLElement | null = null
   let score = Infinity
   for (const el of list) {
@@ -53,7 +57,8 @@ function moveFocus(root: HTMLElement, key: Dir): void {
     const dy = rect.top + rect.height / 2 - cy
     const forward = (horizontal ? dx : dy) * sign
     if (forward < 1) continue
-    const sideways = Math.abs(horizontal ? dy : dx)
+    const sideways = horizontal ? gap(box.top, box.bottom, rect.top, rect.bottom) : gap(box.left, box.right, rect.left, rect.right)
+    // Strict '<' keeps the earliest element in document order on ties.
     const distance = forward + sideways * 3
     if (distance < score) { score = distance; best = el }
   }
@@ -121,8 +126,13 @@ function bindPadAndKeys(
   const onKeyDown = (event: KeyboardEvent) => {
     if (!root.isConnected || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
     if (event.isComposing || (event.target as HTMLElement | null)?.isContentEditable) return
-    const tag = (event.target as HTMLElement | null)?.tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+    const target = event.target as HTMLElement | null
+    const tag = target?.tagName
+    // Up/down have no editing role in a single-line text or search field, so they
+    // leave it (e.g. from library search into the grid). Left/right keep the caret.
+    const leavesField = target instanceof HTMLInputElement && (target.type === 'search' || target.type === 'text') &&
+      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+    if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') && !leavesField) return
 
     const map: Record<string, Dir> = {
       ArrowRight: 'right',

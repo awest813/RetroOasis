@@ -343,7 +343,8 @@ select.ro-input {
 
 .ro-upload__log-item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  /* Fixed label column so filenames line up across Saved / Skipped / Error. */
+  grid-template-columns: 5rem 1fr;
   gap: 0.7rem 0.85rem;
   align-items: baseline;
   padding: 0.65rem 0.8rem;
@@ -549,6 +550,12 @@ select.ro-input {
   padding: var(--ro-space);
   padding-left: max(var(--ro-space), env(safe-area-inset-left, 0px));
   padding-right: max(var(--ro-space), env(safe-area-inset-right, 0px));
+}
+
+/* Route changes focus <main> for screen readers; it is not a control, so no ring. */
+.ro-main:focus,
+.ro-main:focus-visible {
+  outline: none;
 }
 
 .ro-main:has(.ro-library) {
@@ -982,6 +989,33 @@ html[data-crt='on'] .ro-shell::after {
   font-size: 0.66rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
+}
+
+/* Phones: one swipeable filter row instead of several wrapped rows above the games. */
+@media (max-width: 640px) {
+  .ro-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    /* Room for focus rings inside the scroller; the bleed keeps chips flush with the page edge. */
+    margin-inline: calc(-1 * var(--ro-space));
+    padding: 0.35rem var(--ro-space);
+    scroll-padding-inline: var(--ro-space);
+  }
+  .ro-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .ro-chip {
+    scroll-snap-align: start;
+  }
+}
+
+@media (pointer: coarse) {
+  .ro-chip {
+    min-height: 44px;
+  }
 }
 
 .ro-gallery__cue {

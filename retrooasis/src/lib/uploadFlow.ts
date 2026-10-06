@@ -77,7 +77,8 @@ export function summarizeUpload(outcomes: UploadOutcome[]): string {
   if (saved) parts.push(`saved ${saved}`)
   if (skipped) parts.push(`skipped ${skipped}`)
   if (failed) parts.push(`${failed} failed`)
-  return `${parts.join(', ')}. See the list below.`
+  const sentence = parts.join(', ')
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. See the list below.`
 }
 
 export function shouldLaunchAfterUpload(outcomes: UploadOutcome[]): boolean {
@@ -105,4 +106,19 @@ export function emptyDropMessage(): string {
 export function discSetLabel(filenames: string[]): string {
   if (filenames.length <= 1) return filenames[0] || 'ROM'
   return `${filenames[0]} + ${filenames.length - 1} more`
+}
+
+const NON_GAME_EXTENSIONS = new Set(['txt', 'nfo', 'diz', 'md', 'pdf', 'doc', 'rtf', 'htm', 'html', 'url', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'sfv', 'md5', 'sha1', 'crc', 'log', 'ini', 'db', 'ds_store'])
+const ORPHAN_TRACK_EXTENSIONS = new Set(['wav', 'ape', 'flac', 'sub', 'cdg', 'mds', 'scm', 'ccd', 'toc'])
+
+/**
+ * A file the disc/ROM grouping left out. Returns 'save' when the person chose a
+ * system for it (any extension is allowed then), otherwise why it was skipped.
+ */
+export function unplannedFileVerdict(filename: string, systemChosen: boolean): 'save' | string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+  if (NON_GAME_EXTENSIONS.has(ext) || filename.startsWith('.')) return 'Not a game file.'
+  if (ORPHAN_TRACK_EXTENSIONS.has(ext)) return 'Disc track without its .cue or .m3u — add them in the same batch.'
+  if (systemChosen) return 'save'
+  return 'File type isn’t recognized. Pick its system above, then add it again.'
 }

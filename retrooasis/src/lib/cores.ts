@@ -318,43 +318,61 @@ export function normalizePlayCore(core: string): string {
 }
 
 /** All EmulatorJS system keys users can pick in Upload. */
-export const UPLOAD_CORE_OPTIONS: Array<{ label: string; value: string }> = [
+export const UPLOAD_CORE_OPTIONS: Array<{ label: string; value: string; group?: string }> = [
   { label: 'Auto-detect', value: 'auto' },
-  { label: 'NES', value: 'nes' },
-  { label: 'SNES', value: 'snes' },
-  { label: 'Game Boy / Color', value: 'gb' },
-  { label: 'Game Boy Advance', value: 'gba' },
-  { label: 'Nintendo DS', value: 'nds' },
-  { label: 'Nintendo 64', value: 'n64' },
-  { label: 'Virtual Boy', value: 'vb' },
-  { label: 'Nintendo 3DS (threads)', value: '3ds' },
-  { label: 'PlayStation', value: 'psx' },
-  { label: 'PlayStation Portable / PPSSPP (threads)', value: 'ppsspp' },
-  { label: 'Sega Mega Drive / Genesis', value: 'segaMD' },
-  { label: 'Sega Master System', value: 'segaMS' },
-  { label: 'Sega Game Gear', value: 'segaGG' },
-  { label: 'Sega CD', value: 'segaCD' },
-  { label: 'Sega 32X', value: 'sega32x' },
-  { label: 'Sega Saturn', value: 'segaSaturn' },
-  { label: 'Arcade (FBNeo)', value: 'arcade' },
-  { label: 'MAME 2003', value: 'mame2003' },
-  { label: 'Atari 2600', value: 'atari2600' },
-  { label: 'Atari 7800', value: 'atari7800' },
-  { label: 'Atari 5200', value: 'atari5200' },
-  { label: 'Atari Lynx', value: 'lynx' },
-  { label: 'Atari Jaguar', value: 'jaguar' },
-  { label: '3DO', value: '3do' },
-  { label: 'PC Engine / TurboGrafx-16', value: 'pce' },
-  { label: 'PC-FX', value: 'pcfx' },
-  { label: 'Neo Geo Pocket', value: 'ngp' },
-  { label: 'WonderSwan', value: 'ws' },
-  { label: 'ColecoVision', value: 'coleco' },
-  { label: 'Commodore 64', value: 'vice_x64sc' },
-  { label: 'Commodore 128', value: 'vice_x128' },
-  { label: 'Commodore VIC-20', value: 'vice_xvic' },
-  { label: 'Commodore Plus/4', value: 'vice_xplus4' },
-  { label: 'Commodore PET', value: 'vice_xpet' },
-  { label: 'Amiga', value: 'puae' },
-  { label: 'DOS (threads)', value: 'dosbox_pure' },
-  { label: 'Intellivision', value: 'intv' },
+  { label: 'NES', value: 'nes', group: 'Nintendo' },
+  { label: 'SNES', value: 'snes', group: 'Nintendo' },
+  { label: 'Game Boy / Color', value: 'gb', group: 'Nintendo' },
+  { label: 'Game Boy Advance', value: 'gba', group: 'Nintendo' },
+  { label: 'Nintendo DS', value: 'nds', group: 'Nintendo' },
+  { label: 'Nintendo 64', value: 'n64', group: 'Nintendo' },
+  { label: 'Virtual Boy', value: 'vb', group: 'Nintendo' },
+  { label: 'Nintendo 3DS (threads)', value: '3ds', group: 'Nintendo' },
+  { label: 'PlayStation', value: 'psx', group: 'Sony' },
+  { label: 'PlayStation Portable / PPSSPP (threads)', value: 'ppsspp', group: 'Sony' },
+  { label: 'Sega Mega Drive / Genesis', value: 'segaMD', group: 'Sega' },
+  { label: 'Sega Master System', value: 'segaMS', group: 'Sega' },
+  { label: 'Sega Game Gear', value: 'segaGG', group: 'Sega' },
+  { label: 'Sega CD', value: 'segaCD', group: 'Sega' },
+  { label: 'Sega 32X', value: 'sega32x', group: 'Sega' },
+  { label: 'Sega Saturn', value: 'segaSaturn', group: 'Sega' },
+  { label: 'Arcade (FBNeo)', value: 'arcade', group: 'Arcade' },
+  { label: 'MAME 2003', value: 'mame2003', group: 'Arcade' },
+  { label: 'Atari 2600', value: 'atari2600', group: 'Atari' },
+  { label: 'Atari 7800', value: 'atari7800', group: 'Atari' },
+  { label: 'Atari 5200', value: 'atari5200', group: 'Atari' },
+  { label: 'Atari Lynx', value: 'lynx', group: 'Atari' },
+  { label: 'Atari Jaguar', value: 'jaguar', group: 'Atari' },
+  { label: '3DO', value: '3do', group: 'Other consoles' },
+  { label: 'PC Engine / TurboGrafx-16', value: 'pce', group: 'Other consoles' },
+  { label: 'PC-FX', value: 'pcfx', group: 'Other consoles' },
+  { label: 'Neo Geo Pocket', value: 'ngp', group: 'Other consoles' },
+  { label: 'WonderSwan', value: 'ws', group: 'Other consoles' },
+  { label: 'ColecoVision', value: 'coleco', group: 'Other consoles' },
+  { label: 'Commodore 64', value: 'vice_x64sc', group: 'Computers' },
+  { label: 'Commodore 128', value: 'vice_x128', group: 'Computers' },
+  { label: 'Commodore VIC-20', value: 'vice_xvic', group: 'Computers' },
+  { label: 'Commodore Plus/4', value: 'vice_xplus4', group: 'Computers' },
+  { label: 'Commodore PET', value: 'vice_xpet', group: 'Computers' },
+  { label: 'Amiga', value: 'puae', group: 'Computers' },
+  { label: 'DOS (threads)', value: 'dosbox_pure', group: 'Computers' },
+  { label: 'Intellivision', value: 'intv', group: 'Other consoles' },
 ]
+
+const CORE_GROUP_ORDER = ['Nintendo', 'Sony', 'Sega', 'Arcade', 'Atari', 'Other consoles', 'Computers']
+
+/** System picker options grouped by maker; an unknown current value is kept selectable. */
+export function coreOptionsMarkup(selected: string, { includeAuto = false } = {}): string {
+  const esc = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
+  const option = (value: string, label: string) => `<option value="${esc(value)}"${value === selected ? ' selected' : ''}>${esc(label)}</option>`
+  const known = UPLOAD_CORE_OPTIONS.some((o) => o.value === selected)
+  const head = [
+    ...(includeAuto ? [option('auto', 'Auto-detect')] : []),
+    ...(!known && selected && selected !== 'auto' ? [option(selected, selected)] : []),
+  ]
+  const groups = CORE_GROUP_ORDER.map((group) => {
+    const items = UPLOAD_CORE_OPTIONS.filter((o) => o.group === group).map((o) => option(o.value, o.label)).join('')
+    return `<optgroup label="${group}">${items}</optgroup>`
+  })
+  return head.join('') + groups.join('')
+}

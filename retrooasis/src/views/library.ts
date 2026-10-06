@@ -133,7 +133,8 @@ export async function renderLibrary(
     const recents = getRecents()
     const selected = selectGames(catalog, sel, favorites, recents)
     let games = applySearch(selected, query, platformById)
-    if (!isRecent) games = [...games].sort((a, b) => a.title.localeCompare(b.title))
+    // Your games first (A–Z), then the sample entries; Recent keeps play order.
+    if (!isRecent) games = [...games].sort((a, b) => Number(!!a.demo) - Number(!!b.demo) || a.title.localeCompare(b.title))
 
     const heading = shelfTitle(sel, catalog)
     const demoOnly =
@@ -255,6 +256,13 @@ export async function renderLibrary(
     )
 
     hydrateCovers(root)
+
+    // Keep the selected filter visible in the swipeable phone chip row (no page scroll).
+    const chipRow = root.querySelector<HTMLElement>('.ro-chips')
+    const activeChip = chipRow?.querySelector<HTMLElement>('.ro-chip.is-active')
+    if (chipRow && activeChip && chipRow.scrollWidth > chipRow.clientWidth) {
+      chipRow.scrollLeft = Math.max(0, activeChip.offsetLeft - chipRow.offsetLeft - (chipRow.clientWidth - activeChip.offsetWidth) / 2)
+    }
 
     if (opts.restoreSearch && input) {
       input.focus()
@@ -391,12 +399,12 @@ function gameTile(
         class="ro-tile__link"
         href="${gameHref}"
         data-ro-focusable="true"
-        aria-label="View ${escapeAttr(game.title)} details"
+        aria-label="View ${escapeAttr(game.title)} details${game.demo ? ' (sample)' : ''}"
       >
         ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
         <span class="ro-tile__caption">
           <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}</span>
+          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${game.demo ? ' · Sample' : ''}</span>
         </span>
       </a>
     </div>

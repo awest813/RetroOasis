@@ -6,7 +6,7 @@ import {
   refreshCatalogView,
   reloadUploadedLibrary,
 } from '../lib/catalog'
-import { UPLOAD_CORE_OPTIONS, coreNeedsThreads, normalizePlayCore } from '../lib/cores'
+import { coreNeedsThreads, coreOptionsMarkup, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
@@ -245,18 +245,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               <label class="ro-muted">Title <input class="ro-input" name="title" value="${escapeAttr(over?.title ?? game.title)}" /></label>
               <label class="ro-muted">Core
                 <select class="ro-input" name="core">
-                  ${(() => {
-                    const current = over?.core ?? game.core;
-                    let hasCurrent = false;
-                    const opts = UPLOAD_CORE_OPTIONS.filter(o => o.value !== 'auto').map(o => {
-                      if (o.value === current) hasCurrent = true;
-                      return `<option value="${o.value}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`;
-                    });
-                    if (!hasCurrent) {
-                      opts.unshift(`<option value="${escapeAttr(current)}" selected>${escapeHtml(current)}</option>`);
-                    }
-                    return opts.join('');
-                  })()}
+                  ${coreOptionsMarkup(over?.core ?? game.core)}
                 </select>
               </label>
               <label class="ro-muted">Year <input class="ro-input" name="year" value="${escapeAttr(String(over?.year ?? game.year ?? ''))}" /></label>

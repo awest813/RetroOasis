@@ -19,14 +19,14 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 | `npm run oasis:lan:link` | Build the GB/GBC/GBA Trade & link cores (pinned SameBoy + gpSP, Emscripten, RGBDS) into ignored `retrooasis/.handheld-cache/link/`. Needs network once; `npm run test:lan` skips core-backed link checks when absent. |
 | `npm run oasis:scan` | Scan `roms/` (+ optional `--covers`) into manifest |
 | `npx eslint .` | Lint (repo root). Rules are `warn`-only; ~1600 warnings from minified `data/` are expected and exit 0. |
-| `npm run typecheck` | TypeScript check only (`retrooasis/`) |
+| `npm run typecheck` in `retrooasis/` | TypeScript check only (`npm --prefix retrooasis run typecheck` from the repo root) |
 | `npm run test:archives` in `retrooasis/` | Fixture tests for the zip/7z/rar archive-peek parsers (`src/lib/archives.ts`) |
 | `npm run build` in `retrooasis/` | Same as `oasis:build` |
 
 ### RetroOasis architecture (quick map)
 
 - **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/library/tag/<t>` (legacy: opens All games with the tag prefilled as search), `#/game/<id>`, `#/upload`, `#/settings`, `#/saves`
-- **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (Switch-style flat cover grid: one filter chip row, A–Z sort, search), `detail.ts` (Play + “＋ Options” vertical menu for favorite/edit/remove), `upload.ts`, `settings.ts` (console-style row focus)
+- **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (Switch-style flat cover grid: one filter chip row — a swipeable single row on phones, your games A–Z then labelled samples, search; Up/Down leave the search box), `detail.ts` (Play + “＋ Options” vertical menu for favorite/edit/remove), `upload.ts`, `settings.ts` (console-style row focus)
 - **Play**: navigates to `public/player.html` with EmulatorJS `EJS_*` globals (iframe isolation)
 - **Archives** (`src/lib/archives.ts`): header-only peek into zip/7z/rar for Auto-detect (zip central directory, RAR4/5 block walk, 7z plain header; compressed 7z headers fall back to EmulatorJS's `data/compression/extract7z.js` worker — CDN in production, same-origin on the local channel). EmulatorJS itself extracts archives at play time.
 - **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder

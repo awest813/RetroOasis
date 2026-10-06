@@ -1,5 +1,5 @@
 import {
-  UPLOAD_CORE_OPTIONS,
+  coreOptionsMarkup,
   coreForPlatform,
   coreNeedsThreads,
   isRomFile,
@@ -31,6 +31,7 @@ import {
   shouldLaunchAfterUpload,
   summarizeUpload,
   threadSupportHint,
+  unplannedFileVerdict,
   type UploadOutcome,
 } from '../lib/uploadFlow'
 import { friendlyError } from '../lib/userErrors'
@@ -110,7 +111,7 @@ export function renderUpload(root: HTMLElement): void {
         <div class="ro-upload__field">
           <label class="ro-upload__label" for="ro-core">System</label>
           <select id="ro-core" class="ro-input" data-ro-focusable="true" aria-describedby="ro-core-hint">
-            ${UPLOAD_CORE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+            ${coreOptionsMarkup('auto', { includeAuto: true })}
           </select>
           <p class="ro-muted ro-upload__hint" id="ro-core-hint">${coreHintText('auto')}</p>
         </div>
@@ -276,6 +277,15 @@ export function renderUpload(root: HTMLElement): void {
       const texts = await readDescriptorTexts(files)
       if (!active) return
       const plans = groupDiscSetFiles(files, texts)
+      // Report every file: grouping only keeps recognized ROMs and complete disc sets.
+      const planned = new Set(plans.flatMap((plan) => plan.files))
+      const unplanned: UploadOutcome[] = []
+      for (const file of files) {
+        if (planned.has(file)) continue
+        const verdict = unplannedFileVerdict(file.name, coreSelect.value !== 'auto')
+        if (verdict === 'save') plans.push({ primary: file, files: [file], kind: 'single', missing: [] })
+        else unplanned.push({ kind: 'skipped', filename: file.name, detail: verdict })
+      }
 
       for (let index = 0; index < plans.length; index += 1) {
         if (!active) return
@@ -359,6 +369,7 @@ export function renderUpload(root: HTMLElement): void {
       }
 
       if (!active) return
+      outcomes.push(...unplanned)
 
       if (shouldLaunchAfterUpload(outcomes) && playable) {
         say(`Saved. Starting ${playable.title}…`)
