@@ -144,6 +144,24 @@ try {
   root.innerHTML = coverMarkup('Remember new match', 'cyan', raceUrls)
   check(new URL(root.querySelector('img').src).pathname.endsWith('/refresh-race.svg'), 'An old failed request cannot erase a newly learned match')
   oldHost.remove()
+
+  // Misses persist (art has loaded this session, so the host is reachable).
+  const absent = [`${imageOrigin}/absent-three.svg`, `${imageOrigin}/absent-four.svg`]
+  cover = paint(absent)
+  await waitFor(() => cover.classList.contains('ro-cover--missing'))
+  const afterMiss = await fetch('/counts').then(res => res.json())
+  cover = paint(absent)
+  check(!cover.querySelector('img') && cover.querySelector('.ro-cover__label').textContent === 'Fixture <title>', 'A remembered miss shows the placeholder without guessing again')
+  const afterRepaint = await fetch('/counts').then(res => res.json())
+  check(afterRepaint['/absent-three.svg'] === afterMiss['/absent-three.svg'] && afterRepaint['/absent-four.svg'] === afterMiss['/absent-four.svg'], 'A remembered miss makes no requests')
+  check(Object.values(JSON.parse(localStorage.getItem('retrooasis.coverMatches') ?? '{}')).some(match => match.u === null), 'Misses persist across reloads')
+  refreshCoverArt()
+  cover = paint(absent)
+  check(!!cover.querySelector('img'), 'Refresh cover art forgets remembered misses')
+  await waitFor(() => cover.classList.contains('ro-cover--missing'))
+  cover = paint([`${imageOrigin}/art.svg`])
+  await waitFor(() => cover.classList.contains('ro-cover--ready'))
+  check(cover.querySelector('canvas.ro-cover__backdrop')?.getAttribute('aria-hidden') === 'true', 'Ready art gets a blurred backdrop drawn from the loaded image')
   results.textContent += `\nPASS: ${passed} cover loading checks`
 } catch (error) {
   results.textContent += `\nFAIL: ${error.message}`

@@ -71,3 +71,5 @@ The October 6 controller and Settings audit drove the built app with a scripted 
 - **Settings.** L1 / R1 jump between Settings sections. Holding B for 1.5 s closes the button tester without triggering Back.
 - **Initial focus.** Settings no longer focuses its first tab for mouse or touch users; the first D-pad press still focuses it.
 - **Touch targets.** Phone Settings controls are at least 44px.
+
+The October 6 cover art audit used a hosted manifest of nine real game names plus two homebrew titles, against the live Libretro thumbnail host. All nine real games matched their exact art: regions, `(SGB Enhanced)`, `Legend of Zelda, The` and Game Boy Color fallback. The homebrew titles kept placeholders. Request counts went from 34 → 28 on a revisit and 34 on a reload, to 34 → 7–9 cached hits on a revisit and 9 on a reload, because remembered misses make no requests. Box art is contained, not cropped, and its blurred backdrop is drawn from the loaded image with no second request. The cover browser suite (`node retrooasis/scripts/test-covers.mjs --browser`) passed all 33 checks.
