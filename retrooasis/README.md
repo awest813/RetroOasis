@@ -205,6 +205,14 @@ Install the generated `ca.crt` as a trusted certificate on the devices you contr
 
 The host can pause, lock, remove individual guests or end the room. Each disconnected guest has 15 seconds to reconnect in the same tab and recover their controller port; host exit ends the room. Keyboard, touch and standard gamepads are supported; guest save states and host migration are outside this release. N64 defaults to two players to reduce encoder load; four players remain experimental until tested on separate LAN devices.
 
+Streams run at 60 fps and are tuned for low latency on a LAN:
+
+- The host's encoder keeps frame rate under load and scales oversized canvases to 720 lines.
+- Guests ask for a minimal jitter buffer.
+- Controls go over an unordered channel of sequence-numbered snapshots.
+
+The host's roster shows each guest's round-trip time, and guests see stream fps, latency and dropped frames under the video, so a weak Wi-Fi link is easy to spot.
+
 For four-player N64, select **4 players · host + 3 guests** before creating the room. The controller-seat list shows open seats, reconnect reservations and each guest's game-connection readiness. Expand **Invite players** to choose the Wi-Fi address and view the link/QR code, or use **Copy invite**. Wait for all three guests to show **Ready to play**, then select a four-player mode inside the game. Removing one guest frees only that seat; other players keep their ports and controls. Joined-room status on a guest's roster does not imply that every other guest's stream is ready.
 
 Hosting selects local, non-threaded cores and verifies their pinned SHA-256 hashes and reports before enabling a room. Preparation includes FCEUmm, Snes9x, Genesis Plus GX and Mupen64Plus-Next. The verified N64 alternate can be prepared with `npm run oasis:lan:prepare -- --core parallel_n64`. Other alternate cores need a reviewed asset pin before LAN hosting. `--refresh` re-downloads the pinned assets; it does not accept a changed upstream build silently. Missing or changed files produce a preparation error. The selected N64 build requires WebGL2.

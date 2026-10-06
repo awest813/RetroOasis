@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname, STREAM_FPS, tuneVideoSender, connectionQuality } from './lan-shared.js'
 import { ROOM_PROFILES, inputIndices } from './lan-capabilities.js'
 
 /** Installed before the loader starts. Local emulation stays Player 1 throughout. */
@@ -48,7 +48,7 @@ export async function mountHost(emu, options = {}) {
     const connections = new Map([...peers].map(([id, peer]) => {
       const ready = peer.pc.connectionState === 'connected' && peer.channel?.readyState === 'open'
       if (ready) { clearTimeout(peer.deadline); peer.timedOut = false }
-      return [id, ready ? 'Ready to play' : peer.timedOut ? 'Timed out · reconnect'
+      return [id, ready ? `Ready to play${Number.isFinite(peer.rttMs) ? ` · ${peer.rttMs} ms` : ''}` : peer.timedOut ? 'Timed out · reconnect'
         : ['disconnected', 'failed', 'closed'].includes(peer.pc.connectionState) || ['closed', 'closing'].includes(peer.channel?.readyState) ? 'Game connection lost · reconnect' : 'Connecting to game…']
     }))
     roster(panel.querySelector('[data-lan-players]'), room, id => { void request(socket, 'room:kick', { id }).catch(error => status(error.message, panel)) }, connections)
@@ -104,7 +104,7 @@ export async function mountHost(emu, options = {}) {
   }
   function capture() {
     if (!emu.canvas?.captureStream || !emu.gameManager?.functions?.simulateInput) throw new Error('This emulator cannot stream multiplayer yet.')
-    const captured = emu.canvas.captureStream(30)
+    const captured = emu.canvas.captureStream(STREAM_FPS)
     if (!captured.getVideoTracks().length) throw new Error('The game’s video is not ready. Try again.')
     try {
       const manager = emu.gameManager
@@ -147,8 +147,10 @@ export async function mountHost(emu, options = {}) {
         status(`Player ${player.slot + 1} · ${player.nickname} timed out. Ask them to reconnect on the same LAN; Wi-Fi client isolation can prevent joining.`, panel)
       }, 15000)
       peers.set(player.socketId, peer)
-      for (const track of stream.getTracks()) peer.pc.addTrack(track, stream)
-      const channel = peer.pc.createDataChannel('controls', { ordered: true })
+      const senders = stream.getTracks().map(track => peer.pc.addTrack(track, stream))
+      // Every packet is a full controller snapshot with a sequence number, and stale
+      // ones are dropped, so a late packet must not hold back newer ones.
+      const channel = peer.pc.createDataChannel('controls', { ordered: false, maxPacketLifeTime: 120 })
       peer.channel = channel
       channel.onopen = refreshRoster
       channel.onmessage = event => {
@@ -160,11 +162,21 @@ export async function mountHost(emu, options = {}) {
       options.onPeer?.(peer, player)
       void peer.pc.createOffer().then(offer => peer.pc.setLocalDescription(offer)).then(() => {
         if (room && peers.get(player.socketId) === peer) socket.emit('room:signal', { target: player.socketId, signal: { description: peer.pc.localDescription.toJSON() } })
+        for (const sender of senders) void tuneVideoSender(sender, emu.canvas?.height)
       }).catch(error => { if (peers.get(player.socketId) === peer) status(`Could not connect guest: ${error.message}`, panel) })
     }
     refreshRoster()
   }
   const pauseButton = panel.querySelector('[data-lan-pause]')
+  // Per-guest round-trip time for the roster, so a slow Wi-Fi link is visible.
+  const qualityTimer = setInterval(async () => {
+    let changed = false
+    for (const peer of peers.values()) {
+      const { rttMs } = await connectionQuality(peer.pc)
+      if (rttMs !== null && rttMs !== peer.rttMs) { peer.rttMs = rttMs; changed = true }
+    }
+    if (changed) refreshRoster()
+  }, 2000)
   const watchdog = setInterval(() => {
     pauseButton.textContent = emu.paused ? 'Resume game' : 'Pause game'
     for (const peer of peers.values()) {
@@ -177,6 +189,7 @@ export async function mountHost(emu, options = {}) {
     stopped = true
     generation++
     clearInterval(watchdog)
+    clearInterval(qualityTimer)
     socket?.emit('room:leave', {})
     socket?.disconnect()
     for (const id of peers.keys()) drop(id)

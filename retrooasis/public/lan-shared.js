@@ -211,3 +211,45 @@ export function inputReceiver(apply, now = () => performance.now(), core = 'snes
   }
   return { receive, release, check: () => { if (now() - lastPacket > 1200) release() } }
 }
+
+/** Game streams are 60 Hz; prefer smooth motion and low latency over sharpness. */
+export const STREAM_FPS = 60
+const MAX_STREAM_LINES = 720
+export async function tuneVideoSender(sender, sourceHeight = 0) {
+  if (sender?.track?.kind !== 'video' || typeof sender.getParameters !== 'function') return
+  try { sender.track.contentHint = 'motion' } catch { /* optional hint */ }
+  try {
+    const params = sender.getParameters()
+    if (!params.encodings?.length) params.encodings = [{}]
+    const encoding = params.encodings[0]
+    encoding.maxFramerate = STREAM_FPS
+    encoding.maxBitrate = 8_000_000 // Same-LAN budget; WebRTC still adapts downward.
+    // Big host canvases (fullscreen) are scaled to 720 lines: N64 renders at 240–480.
+    encoding.scaleResolutionDownBy = Math.max(1, sourceHeight / MAX_STREAM_LINES)
+    // Under encoder or network load, drop resolution before frame rate.
+    params.degradationPreference = 'maintain-framerate'
+    await sender.setParameters(params)
+  } catch { /* Browsers without these fields keep their defaults. */ }
+}
+
+/** Ask the guest's browser to keep as little video buffered as it can. */
+export function lowLatencyReceiver(receiver) {
+  try {
+    if (!receiver) return
+    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0
+    else receiver.playoutDelayHint = 0
+  } catch { /* unsupported */ }
+}
+
+/** Round-trip time and received video frame rate, for the quality readouts. */
+export async function connectionQuality(pc) {
+  const quality = { rttMs: null, fps: null, dropped: 0 }
+  if (typeof pc?.getStats !== 'function') return quality
+  try {
+    (await pc.getStats()).forEach(report => {
+      if (report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded' && Number.isFinite(report.currentRoundTripTime)) quality.rttMs = Math.round(report.currentRoundTripTime * 1000)
+      if (report.type === 'inbound-rtp' && report.kind === 'video') { quality.fps = Number.isFinite(report.framesPerSecond) ? Math.round(report.framesPerSecond) : null; quality.dropped = report.framesDropped ?? 0 }
+    })
+  } catch { /* closed connection */ }
+  return quality
+}

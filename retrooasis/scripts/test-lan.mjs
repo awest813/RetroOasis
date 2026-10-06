@@ -326,7 +326,7 @@ try {
 
 if (process.argv.includes('--browser')) {
   const browserFixture = fs.mkdtempSync(path.join(here, '.lan-test-cache-'))
-  for (const name of ['lan.html', 'lan.css', 'lan-guest.js', 'lan-host.js', 'lan-shared.js', 'lan-capabilities.js', 'controller-input.js']) fs.copyFileSync(path.join(repo, 'retrooasis/public', name), path.join(browserFixture, name))
+  for (const name of ['lan.html', 'lan.css', 'lan-guest.js', 'lan-host.js', 'lan-shared.js', 'lan-capabilities.js', 'controller-input.js', 'link-session.js', 'link-transfer.js', 'rom-source.js']) fs.copyFileSync(path.join(repo, 'retrooasis/public', name), path.join(browserFixture, name))
   if (process.argv.includes('--controller')) {
     fs.copyFileSync(path.join(here, 'settings-controller-fixture.js'), path.join(browserFixture, 'settings-controller-fixture.js'))
     const guestPath = path.join(browserFixture, 'lan.html')

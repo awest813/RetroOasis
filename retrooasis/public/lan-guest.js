@@ -1,4 +1,4 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality } from './lan-shared.js'
 import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
 import { cartridgeInfo, validSaveSize } from './link-session.js'
@@ -49,6 +49,14 @@ prefillFromInvite()
 window.addEventListener('hashchange', prefillFromInvite)
 // Pasting a whole invite link into the code field keeps just the code.
 codeInput.addEventListener('input', () => { const next = roomCodeFrom(codeInput.value); if (next !== codeInput.value && /^[A-F0-9]{10}$/.test(next)) codeInput.value = next })
+
+// Stream frame rate and latency, so players can tell a weak Wi-Fi link from a slow game.
+const qualityLine = document.querySelector('[data-lan-quality]')
+setInterval(async () => {
+  if (!peer || peer.pc.connectionState !== 'connected') { qualityLine.textContent = ''; return }
+  const { rttMs, fps, dropped } = await connectionQuality(peer.pc)
+  qualityLine.textContent = [fps !== null && `${fps} fps`, rttMs !== null && `${rttMs} ms`, dropped && `${dropped} dropped frames`].filter(Boolean).join(' · ')
+}, 2000)
 
 function closePeer() {
   clearTimeout(timeout)
@@ -208,6 +216,7 @@ function update(next) {
   overlay.hidden = false
   const currentPeer = createPeer(socket, host.socketId, event => {
     if (peer !== currentPeer) return
+    lowLatencyReceiver(event.receiver)
     stream.addTrack(event.track)
     video.srcObject = stream
     void video.play().catch(() => status('Tap Enable sound to start the game stream.'))
