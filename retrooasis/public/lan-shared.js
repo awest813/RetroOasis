@@ -20,7 +20,9 @@ export function roomCodeFrom(value) {
   return (/#([a-f0-9]{10})\s*$/i.exec(text)?.[1] || text).toUpperCase()
 }
 export async function lanInfo() {
-  const response = await fetch('./api/lan', { cache: 'no-store', signal: AbortSignal.timeout(4000) })
+  // AbortSignal.timeout arrived in Safari 16; iOS 15 guests need the long way round.
+  const signal = AbortSignal.timeout?.(4000) ?? (() => { const controller = new AbortController(); setTimeout(() => controller.abort(), 4000); return controller.signal })()
+  const response = await fetch('./api/lan', { cache: 'no-store', signal })
   if (!response.ok) throw new Error('Start the LAN server on the host computer with npm run oasis:lan.')
   const info = await response.json()
   if (!info.available) throw new Error('LAN room service is unavailable.')
@@ -58,6 +60,37 @@ export function request(socket, event, data = {}) {
     })
   })
 }
+/**
+ * WebRTC starts a stream at a few hundred kbit/s and ramps up over 15–25 s, so every guest
+ * began at 288×180. On a LAN the link can take more at once: this Chromium hint on the
+ * answer's video codecs starts the sender near 2 Mbit/s (full resolution within ~5 s in testing).
+ * There is deliberately no minimum, so a weak link or a busy encoder can still back off.
+ * Other browsers ignore it. Codecs without an fmtp line (VP8) get one; retransmission
+ * and error-correction payloads are left alone.
+ */
+export const START_KBPS = 2000
+const HINTS = `x-google-start-bitrate=${START_KBPS}`
+export function lanBitrateHints(sdp) {
+  const lines = sdp.split(/\r\n|\n/)
+  const out = []
+  let video = false
+  for (const line of lines) {
+    if (line.startsWith('m=')) video = line.startsWith('m=video')
+    if (video && /^a=fmtp:\d+ /.test(line) && !line.includes('apt=') && !line.includes('x-google-start-bitrate')) out.push(`${line};${HINTS}`)
+    else out.push(line)
+  }
+  // Primary video codecs that had no fmtp line at all.
+  const result = []
+  video = false
+  const withFmtp = new Set(out.map(line => line.match(/^a=fmtp:(\d+) /)?.[1]).filter(Boolean))
+  for (const line of out) {
+    if (line.startsWith('m=')) video = line.startsWith('m=video')
+    result.push(line)
+    const codec = video && line.match(/^a=rtpmap:(\d+) ([\w-]+)\//)
+    if (codec && !withFmtp.has(codec[1]) && !/^(rtx|red|ulpfec|flexfec-03)$/i.test(codec[2])) result.push(`a=fmtp:${codec[1]} ${HINTS}`)
+  }
+  return result.join('\r\n')
+}
 export function createPeer(socket, target, onTrack, onState) {
   const pc = new RTCPeerConnection({ iceServers: [] })
   const queued = []
@@ -73,7 +106,9 @@ export function createPeer(socket, target, onTrack, onState) {
     chain = chain.then(async () => {
       if (closed) return
       if (signal.description) {
-        await pc.setRemoteDescription(signal.description)
+        const description = signal.description.type === 'answer' && typeof signal.description.sdp === 'string'
+          ? { type: 'answer', sdp: lanBitrateHints(signal.description.sdp) } : signal.description
+        await pc.setRemoteDescription(description)
         for (const candidate of queued.splice(0)) await pc.addIceCandidate(candidate)
         if (signal.description.type === 'offer') {
           await pc.setLocalDescription(await pc.createAnswer())
@@ -89,11 +124,12 @@ export function createPeer(socket, target, onTrack, onState) {
   return { pc, accept, close: () => { closed = true; queued.length = 0; pc.ontrack = null; pc.onicecandidate = null; pc.onconnectionstatechange = null; pc.close() } }
 }
 
-/** N64 keyboard stick from held direction indices (16 right, 17 left, 18 down, 19 up).
- * Diagonals stay on the unit circle; walking (Shift) is a half tilt. */
+/** Keyboard stick from held direction indices: the left stick is 16 right, 17 left,
+ * 18 down, 19 up; the right stick (base 20) uses 20–23 the same way. Diagonals stay on
+ * the unit circle; walking (Shift) is a half tilt. */
 export const WALK_TILT = 0.5
-export function keyboardStick(held, walking = false) {
-  const [x, y] = normalizeStick(Number(held.has(16)) - Number(held.has(17)), Number(held.has(18)) - Number(held.has(19)), 0)
+export function keyboardStick(held, walking = false, base = 16) {
+  const [x, y] = normalizeStick(Number(held.has(base)) - Number(held.has(base + 1)), Number(held.has(base + 2)) - Number(held.has(base + 3)), 0)
   const scale = walking ? WALK_TILT : 1
   // Round half away from zero so left/up and right/down tilt by the same amount.
   const round = value => Math.sign(value) * Math.round(Math.abs(value) * scale * 1000) / 1000 || 0
@@ -154,20 +190,31 @@ export function roomSummary(room) {
   const open = room.maxPlayers - room.players.length
   return `${room.players.length}/${room.maxPlayers} seats filled · ${open ? `${open} open` : 'Full'}${reserved ? ` · ${reserved} reserved for reconnect` : ''}${room.locked ? ' · Locked' : ''}`
 }
-export function roster(list, room, kick, connections) {
+/** selfId marks the viewer's own seat (guest pages): "You", outlined. */
+export function roster(list, room, kick, connections, selfId) {
   const focusedId = list.contains(document.activeElement) ? document.activeElement.dataset.playerId : null
   list.replaceChildren()
   for (let slot = 0; slot < room.maxPlayers; slot++) {
     const player = room.players.find(player => player.slot === slot)
     const li = document.createElement('li')
     li.dataset.slot = slot
-    const text = document.createElement('span')
-    const state = !player ? (room.locked ? 'Empty · room locked' : 'Open seat')
+    const state = !player ? (room.locked ? 'Room locked' : 'Open seat')
       : !player.connected ? 'Reserved · reconnecting…'
-      : slot === 0 ? 'Host'
+      : slot === 0 ? (kick ? 'You · host' : 'Host')
+      : player.id === selfId ? 'You'
       : connections ? connections.get(player.socketId) || 'Connecting to game…' : 'Joined room'
-    text.textContent = `Player ${slot + 1}${player ? ` · ${player.nickname}` : ''} · ${state}`
-    li.append(text)
+    // A seat card: colored player chip, name, status (green ready, amber waiting, red lost).
+    li.dataset.state = !player ? 'open' : !player.connected ? 'waiting' : slot === 0 || state === 'You' || state.startsWith('Ready') ? 'ready'
+      : /lost|Timed out/.test(state) ? 'lost' : state === 'Joined room' ? 'joined' : 'waiting'
+    li.className = 'ro-seat'
+    if (selfId && player?.id === selfId) li.dataset.me = 'true'
+    const chip = document.createElement('b'); chip.className = 'ro-seat__chip'; chip.textContent = `P${slot + 1}`; chip.setAttribute('aria-hidden', 'true')
+    const text = document.createElement('span'); text.className = 'ro-seat__text'
+    const name = document.createElement('strong'); name.textContent = player ? player.nickname : 'Empty'
+    const detail = document.createElement('small'); detail.textContent = state
+    text.append(name, detail)
+    li.setAttribute('aria-label', `Player ${slot + 1}${player ? `, ${player.nickname}` : ''}, ${state}`)
+    li.append(chip, text)
     if (kick && player?.slot > 0) {
       const button = document.createElement('button')
       button.type = 'button'
@@ -190,6 +237,9 @@ export function roster(list, room, kick, connections) {
 export function inputReceiver(apply, now = () => performance.now(), core = 'snes') {
   const profile = ROOM_PROFILES[core]
   if (!profile) throw new Error('Unsupported input profile')
+  // N64: one analog stick (its C-buttons are digital). PlayStation: two analog sticks.
+  const sticks = profile.analog ? 1 : profile.dualAnalog ? 2 : 0
+  const validStick = stick => Array.isArray(stick) && stick.length === 2 && stick.every(value => Number.isFinite(value) && Math.abs(value) <= 1)
   let sequence = -1
   let held = new Map()
   let lastPacket = now()
@@ -200,21 +250,23 @@ export function inputReceiver(apply, now = () => performance.now(), core = 'snes
     try { packet = JSON.parse(raw) } catch { return false }
     if (!packet || typeof packet !== 'object' || packet.type !== 'controls' || !Number.isSafeInteger(packet.seq) || packet.seq <= sequence || packet.seq < 0
       || (packet.v !== undefined && packet.v !== LAN_PROTOCOL)
-      || (profile.analog && packet.v !== LAN_PROTOCOL)
+      || (sticks && packet.v !== LAN_PROTOCOL)
       || !Array.isArray(packet.buttons) || packet.buttons.length > profile.buttons.length
       || packet.buttons.some(index => !Number.isInteger(index) || !profile.buttons.includes(index))
-      || (profile.analog && (!Array.isArray(packet.stick) || packet.stick.length !== 2 || packet.stick.some(value => !Number.isFinite(value) || Math.abs(value) > 1)))
-      || (!profile.analog && packet.stick !== undefined)) return false
+      || (sticks ? !validStick(packet.stick) : packet.stick !== undefined)
+      || (sticks === 2 ? !validStick(packet.stick2) : packet.stick2 !== undefined)) return false
     sequence = packet.seq
     lastPacket = now()
     if (!enabled) { release(); return true }
     const next = new Map(packet.buttons.map(index => [index, profile.analog && index >= 20 ? 0x7fff : 1]))
-    if (profile.analog) {
-      const [x, y] = normalizeStick(...packet.stick, 0)
-      for (const [index, value] of [[16, Math.max(0, x)], [17, Math.max(0, -x)], [18, Math.max(0, y)], [19, Math.max(0, -y)]]) {
+    const axes = (stick, base) => {
+      const [x, y] = normalizeStick(...stick, 0)
+      for (const [index, value] of [[base, Math.max(0, x)], [base + 1, Math.max(0, -x)], [base + 2, Math.max(0, y)], [base + 3, Math.max(0, -y)]]) {
         if (value) next.set(index, Math.round(value * 0x7fff))
       }
     }
+    if (sticks) axes(packet.stick, 16)
+    if (sticks === 2) axes(packet.stick2, 20)
     for (const index of held.keys()) if (!next.has(index)) apply(index, 0)
     for (const [index, value] of next) if (held.get(index) !== value) apply(index, value)
     held = next
@@ -225,7 +277,31 @@ export function inputReceiver(apply, now = () => performance.now(), core = 'snes
 
 /** Game streams are 60 Hz; prefer smooth motion and low latency over sharpness. */
 export const STREAM_FPS = 60
-const MAX_STREAM_LINES = 720
+// Every supported console renders 480 lines or fewer (N64 at most 480, the rest 144–240),
+// so more only costs encoder time: 720 lines took about 40% longer to encode per frame.
+export const MAX_STREAM_LINES = 480
+
+/**
+ * H.264 first, then the browser's own order. In testing, Chromium's default VP8 took
+ * 18–56 ms per frame on a busy host and slowed the game itself to 10–48 fps; H.264 took
+ * 12 ms and kept it at 60. Every guest browser decodes H.264, and VP8 stays as fallback.
+ * Within H.264, packetization-mode=1 (what browsers negotiate first) leads.
+ */
+export function preferredVideoCodecs(codecs) {
+  const isH264 = codec => /^video\/h264$/i.test(codec.mimeType)
+  const mode1 = codec => /packetization-mode=1/.test(codec.sdpFmtpLine || '')
+  const h264 = codecs.filter(isH264).sort((a, b) => Number(mode1(b)) - Number(mode1(a)))
+  return [...h264, ...codecs.filter(codec => !isH264(codec))]
+}
+export function preferH264(pc) {
+  try {
+    const codecs = globalThis.RTCRtpSender?.getCapabilities?.('video')?.codecs
+    if (!codecs?.some(codec => /^video\/h264$/i.test(codec.mimeType))) return
+    for (const transceiver of pc.getTransceivers?.() ?? []) {
+      if (transceiver.sender?.track?.kind === 'video' && typeof transceiver.setCodecPreferences === 'function') transceiver.setCodecPreferences(preferredVideoCodecs(codecs))
+    }
+  } catch { /* Older browsers keep their default order. */ }
+}
 export async function tuneVideoSender(sender, sourceHeight = 0, fps = STREAM_FPS) {
   if (sender?.track?.kind !== 'video' || typeof sender.getParameters !== 'function') return
   try { sender.track.contentHint = 'motion' } catch { /* optional hint */ }
@@ -235,7 +311,7 @@ export async function tuneVideoSender(sender, sourceHeight = 0, fps = STREAM_FPS
     const encoding = params.encodings[0]
     encoding.maxFramerate = fps
     encoding.maxBitrate = 8000000 // Same-LAN budget; WebRTC still adapts downward.
-    // Big host canvases (fullscreen) are scaled to 720 lines: N64 renders at 240–480.
+    // Big host canvases (fullscreen) are scaled down to MAX_STREAM_LINES.
     encoding.scaleResolutionDownBy = Math.max(1, sourceHeight / MAX_STREAM_LINES)
     // Under encoder or network load, drop resolution before frame rate.
     params.degradationPreference = 'maintain-framerate'
@@ -253,6 +329,9 @@ export function lowLatencyReceiver(receiver) {
 }
 
 /** Round-trip time and received video frame rate, for the quality readouts. */
+// Frames decoded at the last poll, per connection: the measured rate works in every
+// browser, while framesPerSecond reads 0 or stale in Firefox and Safari.
+const decodedAt = new WeakMap()
 export async function connectionQuality(pc) {
   const quality = { rttMs: null, fps: null, dropped: 0, cpuLimited: false }
   if (typeof pc?.getStats !== 'function') return quality
@@ -260,7 +339,15 @@ export async function connectionQuality(pc) {
     (await pc.getStats()).forEach(report => {
       if (report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded' && Number.isFinite(report.currentRoundTripTime)) quality.rttMs = Math.round(report.currentRoundTripTime * 1000)
       if (report.type === 'outbound-rtp' && report.kind === 'video' && report.qualityLimitationReason === 'cpu') quality.cpuLimited = true
-      if (report.type === 'inbound-rtp' && report.kind === 'video') { quality.fps = Number.isFinite(report.framesPerSecond) ? Math.round(report.framesPerSecond) : null; quality.dropped = report.framesDropped ?? 0 }
+      if (report.type === 'inbound-rtp' && report.kind === 'video') {
+        quality.fps = Number.isFinite(report.framesPerSecond) ? Math.round(report.framesPerSecond) : null
+        quality.dropped = report.framesDropped ?? 0
+        if (Number.isFinite(report.framesDecoded)) {
+          const now = performance.now(), last = decodedAt.get(pc)
+          decodedAt.set(pc, { frames: report.framesDecoded, at: now })
+          if (last && now - last.at > 500 && report.framesDecoded >= last.frames) quality.fps = Math.round((report.framesDecoded - last.frames) * 1000 / (now - last.at))
+        }
+      }
     })
   } catch { /* closed connection */ }
   return quality

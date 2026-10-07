@@ -82,4 +82,6 @@ checksum manifest. Since the prototypes, the wrappers gained a hardware model pe
 selectable link mode, generic cartridges (header check instead of the AWRE gate), and save
 import/export. `scripts/test-link.mjs` covers them with original fixture cartridges, including
 a homebrew GBA ROM (`gbaCartridge`) that draws, counts boots in SRAM and records KEYINPUT.
-Real Pokémon trades and an Advance Wars match remain the gameplay acceptance gates.
+Real Pokémon trades (Crystal ↔ Crystal, Ruby ↔ Ruby) passed on one computer in the October 6
+Downloads ROM audit (see `TESTING.md`); trades across separate devices and an Advance Wars
+match remain the gameplay acceptance gates.

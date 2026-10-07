@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v11'
+const CACHE = 'retrooasis-shell-v12'
 // Libretro box art, so the library keeps its covers offline. Fetched with CORS:
 // opaque responses would each count as megabytes of padded quota.
 const COVER_CACHE = 'retrooasis-covers-v1'
@@ -56,6 +56,13 @@ const PRECACHE = [
   './emulator/loader.js',
   './emulator/emulator.min.js',
   './emulator/emulator.min.css',
+  // N64 Transfer Pak (Pokémon Stadium) works offline too.
+  './transfer-pak.js',
+  './ejs-start-hooks.js',
+  './rom-source.js',
+  './library-saves.js',
+  './link-session.js',
+  './lan-capabilities.js',
 ]
 
 self.addEventListener('install', (event) => {
@@ -144,7 +151,10 @@ self.addEventListener('fetch', (event) => {
   }
   if (path.includes('/data/') || path.includes('/roms/')) return
   // These player files keep fixed names. Fetch updates first, retain an offline copy.
-  if (path.includes('/emulator/')) {
+  // That includes the unhashed ES modules beside the pages (link-host.js imports
+  // library-saves.js, and so on): served stale-while-revalidate, the first visit after an
+  // update mixed new and old modules and failed on a missing export.
+  if (path.includes('/emulator/') || (/\/[\w-]+\.js$/.test(path) && !path.includes('/assets/') && !path.endsWith('/sw.js'))) {
     event.respondWith(
       caches.open(CACHE).then(async cache => {
         let response

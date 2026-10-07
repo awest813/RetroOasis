@@ -303,11 +303,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Same Wi-Fi or LAN</strong>
               <p class="ro-muted">One computer runs the game and streams it to the other players. Guests need no ROM. Internet rooms are not supported.</p>
               <ul class="ro-settings__online-systems" aria-label="Supported multiplayer systems">
-                <li><span>NES · SNES · Mega Drive / Genesis</span><span>2 players</span></li>
+                <li><span>NES · SNES · Mega Drive / Genesis · PlayStation</span><span>2 players</span></li>
                 <li><span>Nintendo 64 <em>Experimental</em></span><span>Up to 4 players</span></li>
                 <li><span>Game Boy / Color · GBA trade &amp; link <em>Experimental</em></span><span>2 players</span></li>
+                <li><span>N64 Transfer Pak (Pokémon Stadium)</span><span>On this device</span></li>
               </ul>
-              <p class="ro-muted">Player counts depend on the game. For handheld trades and link battles, the host runs both linked consoles and each player brings their own cartridge and save.</p>
+              <p class="ro-muted">Player counts depend on the game. For handheld trades and link battles, the host runs both linked consoles and each player brings their own cartridge and save. The Transfer Pak plugs a Game Boy game from your library into an N64 game; pick it on the N64 game’s page.</p>
             </div>
           </div>
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
@@ -321,7 +322,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Host a game</strong>
-              <p class="ro-muted">Open a supported game in your library and choose <b>Host multiplayer</b>, or <b>Trade &amp; link</b> for Game Boy and GBA games. Create a room, then share its invite link or QR code.</p>
+              <p class="ro-muted">Open a supported game in your library and choose <b>Host a room</b>, or <b>Start Trade &amp; link</b> for Game Boy and GBA games. Create a room, then share its invite link or QR code.</p>
             </div>
             <a class="ro-btn ro-btn--primary" id="ro-lan-host" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-host" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Choose a game</a>
           </div>

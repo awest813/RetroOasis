@@ -260,3 +260,16 @@ export function clearLocalPrefs(): void {
   clearRecents()
   clearFavorites()
 }
+
+/** N64 Transfer Pak: which Game Boy / Color game (by id) each N64 game plugs into Controller 1. */
+const TRANSFER_PAK_KEY = 'retrooasis.transferPak'
+export function getTransferPak(n64GameId: string): string {
+  const map = readJson<Record<string, string>>(TRANSFER_PAK_KEY, {})
+  return typeof map[n64GameId] === 'string' ? map[n64GameId] : ''
+}
+export function setTransferPak(n64GameId: string, gbGameId: string): void {
+  const map = readJson<Record<string, string>>(TRANSFER_PAK_KEY, {})
+  if (gbGameId) map[n64GameId] = gbGameId
+  else delete map[n64GameId]
+  writeJson(TRANSFER_PAK_KEY, map)
+}

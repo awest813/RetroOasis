@@ -1,8 +1,20 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname, STREAM_FPS, tuneVideoSender, connectionQuality, nextStreamRate } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, inputReceiver, status, savedNickname, saveNickname, STREAM_FPS, tuneVideoSender, connectionQuality, nextStreamRate, preferH264 } from './lan-shared.js'
 import { ROOM_PROFILES, inputIndices } from './lan-capabilities.js'
+import { beforeCoreStart, writeCoreRemap } from './ejs-start-hooks.js'
+
+// pcsx_rearmed's DualShock: RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1). It starts in
+// digital mode, so games without analog support play as usual; games with it switch on
+// the sticks themselves. The pinned core has no port-device export, so RetroArch sets it
+// from a core remap file when the core loads.
+export const PSX_DUALSHOCK = (2 << 8) | 5
 
 /** Installed before the loader starts. Local emulation stays Player 1 throughout. */
 export function installLanHost() {
+  beforeCoreStart(emulator => {
+    if (!ROOM_PROFILES[window.EJS_core]?.dualAnalog) return
+    const ports = ROOM_PROFILES[window.EJS_core].maxPlayers
+    writeCoreRemap(emulator, 'PCSX-ReARMed', Object.fromEntries(Array.from({ length: ports }, (_, port) => [`input_libretro_device_p${port + 1}`, PSX_DUALSHOCK])))
+  })
   const previous = window.EJS_onGameStart
   window.EJS_onGameStart = (...args) => {
     previous?.(...args)
@@ -18,18 +30,22 @@ export async function mountHost(emu, options = {}) {
   if (!profile) throw new Error('This system has no LAN multiplayer adapter.')
   const panel = document.createElement('aside')
   panel.className = 'ro-lan-panel'
-  panel.setAttribute('aria-label', 'LAN multiplayer room')
-  panel.innerHTML = `<details open><summary>${options.heading || 'LAN multiplayer'}</summary>
-    <form data-lan-create><label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" required></label>
-    ${profile.maxPlayers > 2 ? '<label>Room size <select name="maxPlayers" aria-describedby="lan-capacity-help"><option value="2">2 players · host + 1 guest</option><option value="4">4 players · host + 3 guests (experimental)</option></select></label><p id="lan-capacity-help">Choose four players before creating the room. The game must support four controllers; select its multiplayer mode after everyone joins.</p>' : ''}
-    <button type="submit" disabled>Create room</button></form>
-    <div data-lan-room hidden><p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul data-lan-players aria-label="Controller seats"></ul>
-    <details><summary>Invite players</summary><label>Invite a player on the same Wi-Fi <select data-lan-address aria-label="Invite address"></select><input data-lan-invite readonly aria-label="Room invite link"></label>
-    <img class="ro-lan-qr" data-lan-qr alt="Scan to join this room on the same Wi-Fi"></details>
-    <div class="ro-lan-actions"><button type="button" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
-    <p data-lan-note></p></div>
+  panel.setAttribute('aria-label', 'Online room')
+  panel.innerHTML = `<details open><summary>${options.heading || 'Online room'}</summary>
+    <form data-lan-create><p class="ro-lan-panel__lede">Friends on the same Wi-Fi join from their own browser. Each gets a controller; everyone sees this screen.</p>
+    <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" required></label>
+    ${profile.maxPlayers > 2 ? '<label>Players <select name="maxPlayers" aria-describedby="lan-capacity-help"><option value="2">2 players · you + 1 guest</option><option value="4">4 players · you + 3 guests</option></select></label><p id="lan-capacity-help" class="ro-lan-panel__hint">Pick 4 before creating the room, then choose the game’s 4-player mode once everyone has joined.</p>' : ''}
+    <button type="submit" class="ro-lan-primary ro-lan-wide" disabled>Create room</button></form>
+    <div data-lan-room hidden>
+      <div class="ro-room-code"><span>Room code</span><strong data-lan-code aria-live="polite"></strong></div>
+      <p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul class="ro-seats" data-lan-players aria-label="Controller seats"></ul>
+      <details class="ro-lan-invite" open><summary>Invite players</summary>
+        <div class="ro-lan-invite__body"><img class="ro-lan-qr" data-lan-qr alt="Scan to join this room on the same Wi-Fi">
+        <label>Address for this Wi-Fi <select data-lan-address aria-label="Invite address"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
+      <div class="ro-lan-actions"><button type="button" class="ro-lan-primary" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
+      <p class="ro-lan-panel__hint" data-lan-note></p></div>
     <p data-lan-status role="status" aria-live="polite">Preparing room service…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
-  panel.querySelector('[data-lan-note]').textContent = options.note || 'Keep this game and the LAN server open. You are Player 1; each guest owns one controller. Everyone shares the same game screen.'
+  panel.querySelector('[data-lan-note]').textContent = options.note || 'Keep this tab open while friends play.'
   document.body.append(panel)
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'; stylesheet.href = './lan.css'; document.head.append(stylesheet)
@@ -40,19 +56,48 @@ export async function mountHost(emu, options = {}) {
   let generation = 0
   let audioDestination, audioNodes = []
   const peers = new Map()
+  // The panel floats over the game, so once every seat is filled and ready it folds
+  // down to a one-line summary; it reopens if a guest drops. A host who opens or
+  // closes it by hand keeps that choice.
+  const details = panel.querySelector('details')
+  const summaryLine = panel.querySelector('summary')
+  const heading = options.heading || 'Online room'
+  const collapseWhenReady = options.collapseWhenReady !== false
+  let autoCollapsed = false, userToggled = false
+  summaryLine.addEventListener('click', () => { userToggled = true; autoCollapsed = false })
+  const refreshSummary = () => {
+    const text = !details.open && room ? `${heading} · ${room.players.length}/${room.maxPlayers}${emu.paused ? ' · Paused' : ''}` : heading
+    if (summaryLine.textContent !== text) summaryLine.textContent = text
+  }
+  details.addEventListener('toggle', refreshSummary)
   const refreshRoster = () => {
     if (!room) return
     const capacity = panel.querySelector('[data-lan-capacity]')
     const summary = roomSummary(room)
     if (capacity.textContent !== summary) capacity.textContent = summary
+    let allReady = room.players.length === room.maxPlayers && peers.size === room.maxPlayers - 1
     const connections = new Map([...peers].map(([id, peer]) => {
       const ready = peer.pc.connectionState === 'connected' && peer.channel?.readyState === 'open'
-      if (ready) { clearTimeout(peer.deadline); peer.timedOut = false }
+      if (ready) { clearTimeout(peer.deadline); peer.timedOut = false } else allReady = false
       return [id, ready ? `Ready to play${Number.isFinite(peer.rttMs) ? ` · ${peer.rttMs} ms` : ''}` : peer.timedOut ? 'Timed out · reconnect'
         : ['disconnected', 'failed', 'closed'].includes(peer.pc.connectionState) || ['closed', 'closing'].includes(peer.channel?.readyState) ? 'Game connection lost · reconnect' : 'Connecting to game…']
     }))
     roster(panel.querySelector('[data-lan-players]'), room, id => { void request(socket, 'room:kick', { id }).catch(error => status(error.message, panel)) }, connections)
+    if (collapseWhenReady && !userToggled) {
+      if (allReady && details.open) {
+        const hadFocus = details.contains(document.activeElement) && document.activeElement !== summaryLine
+        details.open = false; autoCollapsed = true
+        if (hadFocus) summaryLine.focus({ preventScroll: true })
+      } else if (!allReady && autoCollapsed) { details.open = true; autoCollapsed = false }
+    }
+    // Sharing the invite is the next step while seats are open, so the link and QR code
+    // show then and fold away once the room is full (unless the host toggled them).
+    if (!inviteTouched && inviteDetails) inviteDetails.open = room.players.length < room.maxPlayers
+    refreshSummary()
   }
+  const inviteDetails = panel.querySelector('[data-lan-invite]')?.closest?.('details')
+  let inviteTouched = false
+  inviteDetails?.querySelector?.('summary')?.addEventListener('click', () => { inviteTouched = true })
   const originalInput = emu.gameManager?.simulateInput
   if (originalInput) emu.gameManager.simulateInput = function (player, ...args) {
     if (room && player !== 0) return // Additional controller ports belong to guests.
@@ -97,6 +142,8 @@ export async function mountHost(emu, options = {}) {
     busy = false
     ending = false
     room = null
+    if (autoCollapsed) details.open = true
+    autoCollapsed = false; userToggled = false; inviteTouched = false; refreshSummary()
     for (const id of peers.keys()) drop(id)
     stopStream()
     roomBox.hidden = true; form.hidden = false; createButton.disabled = !socket?.connected
@@ -105,7 +152,11 @@ export async function mountHost(emu, options = {}) {
   }
   function capture() {
     if (!emu.canvas?.captureStream || !emu.gameManager?.functions?.simulateInput) throw new Error('This emulator cannot stream multiplayer yet.')
-    const captured = emu.canvas.captureStream(STREAM_FPS)
+    // No frame-rate argument: captureStream(60) drops any frame that lands a hair under
+    // 16.7 ms after the previous one, which animation-frame jitter does constantly; it
+    // captured only 37–44 of 60 game frames in testing, uncapped 48–59. The encoder's
+    // maxFramerate (tuneVideoSender) still holds the stream to STREAM_FPS.
+    const captured = emu.canvas.captureStream()
     if (!captured.getVideoTracks().length) throw new Error('The game’s video is not ready. Try again.')
     try {
       const manager = emu.gameManager
@@ -154,7 +205,7 @@ export async function mountHost(emu, options = {}) {
       // ones are dropped, so a late packet must not hold back newer ones.
       const channel = peer.pc.createDataChannel('controls', { ordered: false, maxPacketLifeTime: 120 })
       peer.channel = channel
-      channel.onopen = refreshRoster
+      channel.onopen = () => { refreshRoster(); announcePause(peer) }
       channel.onmessage = event => {
         if (peers.get(player.socketId) !== peer || channel.readyState !== 'open') return
         receiver.receive(event.data, !emu.paused && peer.pc.connectionState === 'connected')
@@ -162,6 +213,7 @@ export async function mountHost(emu, options = {}) {
       channel.onclose = () => { receiver.release(); refreshRoster() }
       channel.onerror = () => { receiver.release(); refreshRoster() }
       options.onPeer?.(peer, player)
+      preferH264(peer.pc)
       void peer.pc.createOffer().then(offer => peer.pc.setLocalDescription(offer)).then(() => {
         if (room && peers.get(player.socketId) === peer) socket.emit('room:signal', { target: player.socketId, signal: { description: peer.pc.localDescription.toJSON() } })
         for (const sender of senders) void tuneVideoSender(sender, emu.canvas?.height, streamRate.fps)
@@ -170,6 +222,8 @@ export async function mountHost(emu, options = {}) {
     refreshRoster()
   }
   const pauseButton = panel.querySelector('[data-lan-pause]')
+  // Pages with their own pause control (Trade & link's Pause both) hide this duplicate.
+  if (options.pauseButton === false) pauseButton.hidden = true
   // Per-guest round-trip time for the roster, so a slow Wi-Fi link is visible,
   // and the shared stream rate, which steps down if encoding starves the game.
   let streamRate = { fps: STREAM_FPS, strained: 0, healthy: 0 }
@@ -194,8 +248,17 @@ export async function mountHost(emu, options = {}) {
         : `Streaming at ${streamRate.fps} fps again.`, panel)
     }
   }, 2000)
+  // Guests only see a frozen picture when the host pauses, so tell them why. The controls
+  // channel drops late packets, so the state is also repeated every 2 s (8 watchdog ticks).
+  const announcePause = peer => {
+    try { if (peer.channel?.readyState === 'open') peer.channel.send(JSON.stringify({ type: 'state', paused: !!emu.paused })) } catch { /* closing channel */ }
+  }
+  let announcedPause = !!emu.paused, ticks = 0
   const watchdog = setInterval(() => {
     pauseButton.textContent = emu.paused ? 'Resume game' : 'Pause game'
+    const changed = announcedPause !== !!emu.paused
+    if (changed || ++ticks % 8 === 0) { announcedPause = !!emu.paused; for (const peer of peers.values()) announcePause(peer) }
+    if (changed) refreshSummary()
     for (const peer of peers.values()) {
       if (emu.paused) peer.receiver.release()
       else peer.receiver.check()
@@ -228,6 +291,9 @@ export async function mountHost(emu, options = {}) {
     const loopbackOnly = !info.addresses.length
     const refreshInvite = () => {
       invite.value = room ? `${address.value}/lan.html#${room.code}` : ''
+      // Shown big and grouped (A1B2C 3D4E5) so it can be read out across a room.
+      const codeLine = panel.querySelector('[data-lan-code]')
+      if (codeLine) codeLine.textContent = room ? `${room.code.slice(0, 5)} ${room.code.slice(5)}` : ''
       if (room) panel.querySelector('[data-lan-qr]').src = `/api/lan/qr?invite=${encodeURIComponent(invite.value)}`
     }
     address.onchange = refreshInvite
@@ -270,7 +336,10 @@ export async function mountHost(emu, options = {}) {
         invite.closest('details').open = true
         invite.focus({ preventScroll: true })
         invite.select()
-        status('Select and copy the invite link above.', panel)
+        // Plain-HTTP LAN addresses have no Clipboard API, but the older copy command still works.
+        let copied = false
+        try { copied = document.execCommand('copy') } catch { /* unsupported */ }
+        status(copied ? 'Invite copied. Send it to someone on the same Wi-Fi.' : 'Select and copy the invite link above.', panel)
       }
     }
     lock.onclick = () => { if (room) void request(socket, 'room:lock', { locked: !room.locked }).catch(error => status(error.message, panel)) }
@@ -293,7 +362,7 @@ export async function mountHost(emu, options = {}) {
   retry.onclick = async () => {
     retryFocus = document.activeElement === retry
     retry.disabled = true
-    status('Reconnecting to the LAN room service…', panel)
+    status('Reconnecting to the room service…', panel)
     try {
       if (socket) { socket.disconnect(); socket.connect() }
       else await initialize()

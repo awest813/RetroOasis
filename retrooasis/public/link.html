@@ -3,13 +3,23 @@
   <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="#071018"><title>RetroOasis · Trade &amp; link</title>
-    <link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./lan.css">
+    <link rel="icon" href="./favicon.svg">
+    <script src="./online-theme.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="./lan.css">
   </head>
   <body class="ro-lan-page ro-link-page">
     <header class="ro-lan-header"><a href="./#/">RETRO OASIS</a><span>Trade &amp; link</span></header>
     <main class="ro-lan-main">
       <h1 data-link-title>Loading cartridge…</h1>
-      <p>Both Game Boys run here, joined by an emulated link cable. You play Console 1; your guest plays Console 2 from their own device on this Wi-Fi, using their own cartridge and save. Use the game’s trade or link menu as usual.</p>
+      <p class="ro-link-lede">Both consoles run here on one emulated link cable. You play Console 1; your friend plays Console 2 from their own device on this Wi-Fi, with their own cartridge and save.</p>
+      <ol class="ro-link-steps" data-link-steps aria-label="Link setup">
+        <li data-step="cart"><b>1</b><span>Your cartridge</span></li>
+        <li data-step="room"><b>2</b><span>Invite a friend</span></li>
+        <li data-step="guest"><b>3</b><span>Their cartridge</span></li>
+        <li data-step="start"><b>4</b><span>Start link</span></li>
+      </ol>
       <div class="ro-link-room" data-link-room></div>
       <div class="ro-link-stage">
         <figure><canvas id="console-1" width="160" height="144" aria-label="Console 1 (you)"></canvas><figcaption>Console 1 · You</figcaption></figure>
@@ -18,11 +28,11 @@
       <div class="ro-lan-controls ro-link-touch" data-link-touch aria-label="Console 1 touch controls" hidden></div>
       <form id="link-setup" class="ro-link-setup">
         <label class="ro-link-check" data-link-library hidden><input type="checkbox" name="library" checked> <span>Use my RetroOasis save</span></label>
-        <label>Save file (optional, used instead) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
-        <p id="save-help">Trade from your existing game with its battery save (.sav or .srm) from any emulator. Without a save, Console 1 starts a new game. Whenever you save in-game, Console 1’s save replaces this game’s RetroOasis save; the one from before the session is kept as a backup.</p>
+        <label>Use a save file instead (optional) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
+        <p id="save-help">A .sav or .srm from any emulator works. Without a save, Console 1 starts a new game. Each in-game save updates this game’s RetroOasis save; the one from before the session is kept as a backup.</p>
       </form>
       <div class="ro-lan-actions">
-        <button type="button" id="start" disabled>Start link</button>
+        <button type="button" id="start" class="ro-lan-primary" disabled>Start link</button>
         <button type="button" id="pause" hidden>Pause both</button>
         <button type="button" id="save-library" hidden>Save to library</button>
         <button type="button" id="my-save" hidden>Download my save</button>

@@ -60,6 +60,18 @@
     "parallel_n64-legacy-wasm.data": {
       "sha256": "de0db87bb2d99c8aa6c9d70e9a101025cecf8dcd83d1c5a7ade25ac919b20485",
       "size": 1027660
+    },
+    "reports/pcsx_rearmed.json": {
+      "sha256": "93b99266955ab16e9aa0faa0d6338f4a29b50c197764dd48be945573a5b449c1",
+      "size": 149
+    },
+    "pcsx_rearmed-wasm.data": {
+      "sha256": "fe5515f6c29f093f0e8c01824b213804f1f76eb9cb4c97c72fe2cc17606bfbc2",
+      "size": 1039627
+    },
+    "pcsx_rearmed-legacy-wasm.data": {
+      "sha256": "88faee73d06c597a68a8b78e5621d97feefca134c64b623e65f0a900037456da",
+      "size": 1038636
     }
   }
 }

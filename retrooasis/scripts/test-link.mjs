@@ -5,11 +5,12 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { inspectLink, linkRoot } from './lan-link.mjs'
-import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink, saveSettler } from '../public/link-session.js'
+import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink, saveSettler, holdTaps, MIN_PRESS_MS } from '../public/link-session.js'
 import { blockCartridge, withGbHeader, transferByte, gbaCartridge } from './handheld/link-fixtures.js'
 import { sendFile, fileReceiver, saveName, CHUNK, SAVE_LIMIT } from '../public/link-transfer.js'
 import { unwrapRom } from '../public/rom-source.js'
-import { librarySaveKey } from '../public/library-saves.js'
+import { librarySaveKey, playerSaveKey } from '../public/library-saves.js'
+import { transferPakArgs, isBlank, keepsCartRam, cartTitle } from '../public/transfer-pak.js'
 import { deflateRawSync } from 'node:zlib'
 
 // Pure checks run everywhere.
@@ -18,6 +19,19 @@ assert.throws(() => cartridgeInfo('gb', new Uint8Array(100)), /not a Game Boy/)
 assert.throws(() => cartridgeInfo('gba', new Uint8Array(0x8000)), /not a Game Boy Advance/)
 assert.throws(() => cartridgeInfo('psp', new Uint8Array(10)), /no link cable/)
 assert.deepEqual(cartridgeInfo('gb', withGbHeader(blockCartridge(1, 1), 'TRADE')), { system: 'gb', color: true, title: 'TRADE' })
+// Color headers: Yellow's title runs into the maker-code bytes; Gold's ends before its code.
+const gbTitle = (title, flag) => {
+  const rom = new Uint8Array(0x8000)
+  rom.set(Array.from(title, c => c.charCodeAt(0)), 0x134); rom[0x143] = flag
+  let check = 0
+  for (let at = 0x134; at <= 0x14c; at++) check = (check - rom[at] - 1) & 255
+  rom[0x14d] = check
+  return cartridgeInfo('gb', rom).title
+}
+assert.equal(gbTitle('POKEMON YELLOW', 0x80), 'POKEMON YELLOW')
+assert.equal(gbTitle('POKEMON_GLDAAUE', 0x80), 'POKEMON_GLD')
+assert.equal(gbTitle('PM_CRYSTAL\0BYTE', 0xc0), 'PM_CRYSTAL')
+assert.equal(gbTitle('POKEMON BLUE', 0), 'POKEMON BLUE')
 assert.equal(cartridgeInfo('gba', gbaCartridge('POKEMON RUBY', 'AXVE')).code, 'AXVE')
 assert.equal(gbaLinkMode(['AXVE', 'BPRE']), 1, 'Ruby/Sapphire force the Pokémon cable protocol on both consoles')
 assert.equal(gbaLinkMode(['BPRE', 'BPGE']), 0, 'FireRed/LeafGreen keep gpSP’s per-game choice')
@@ -46,7 +60,35 @@ assert.equal(saveName('Pokemon - Red (USA).gb'), 'Pokemon - Red (USA).sav'); ass
 await assert.rejects(sendFile({ ...channel, readyState: 'closed' }, 'rom', 'x', rom), /closed/)
 assert.equal(librarySaveKey('Pokemon - Crystal (USA).gbc'), '/data/saves/Pokemon - Crystal (USA).srm', 'Library saves use RetroArch’s ROM-stem .srm name')
 assert.equal(librarySaveKey('dir/Game.v1.gba'), '/data/saves/Game.v1.srm'); assert.equal(librarySaveKey(''), null)
-assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null })
+assert.equal(playerSaveKey('Pokemon - Crystal (USA).gbc', 'gb'), '/data/saves/Gambatte/Pokemon - Crystal (USA).srm', 'The player saves GB games in RetroArch’s Gambatte folder')
+assert.equal(playerSaveKey('Ruby.gba', 'gba'), '/data/saves/mGBA/Ruby.srm')
+assert.deepEqual(transferPakArgs(['-v', '/Stadium 2.z64']), ['-v', '--subsystem', 'gb', '/tp.sav', '/tp.gb', '/Stadium 2.z64'], 'Transfer Pak: GB save, GB ROM, then the N64 ROM')
+assert(isBlank(new Uint8Array(32768)) && isBlank(new Uint8Array(8).fill(255)) && !isBlank(Uint8Array.from({ length: 64 }, (_, i) => i)), 'Blank cartridge RAM is never written back as a save')
+assert.equal(cartTitle('Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc'), 'Pokemon - Gold Version')
+assert.equal(cartTitle('tetris [!].gb'), 'tetris')
+const goldFirstBoot = new Uint8Array(32768).fill(0xff); goldFirstBoot.set([0x1b, 0x6e], 0x1ffe)
+assert(isBlank(goldFirstBoot), 'Gold’s first-boot marker is not a save')
+// Stadium writes scratch bytes into a cartridge with no save: still not a save.
+assert(!keepsCartRam(null, Uint8Array.of(0, 7, 9)) && !keepsCartRam(new Uint8Array(4), new Uint8Array(4)) && keepsCartRam(new Uint8Array(4), Uint8Array.from({ length: 64 }, (_, i) => i)), 'Only a cartridge that had a save is written back')
+assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null, howTo: 'Use the game’s trade or link menu on both consoles.' })
+assert.match(describeGbaLink([2, 2]).howTo, /Union Room/, 'Wireless-adapter links say where Pokémon players trade')
+{
+  // Quick taps survive slow catch-up batches: a release waits for two emulated frames.
+  const calls = [], session = holdTaps({ key: (slot, index, pressed) => calls.push([slot, index, pressed]), advance() {}, setPaused() {} })
+  session.key(0, 8, true); session.key(0, 8, false)
+  assert.deepEqual(calls, [[0, 8, true]], 'A release before any emulated frame is deferred')
+  session.advance(16)
+  assert.equal(calls.length, 1, 'One frame is not yet a long enough press')
+  session.advance(1000)
+  assert.deepEqual(calls.at(-1), [0, 8, false], 'The deferred release lands once the press lasted two frames')
+  session.key(1, 3, true); session.advance(MIN_PRESS_MS + 1); session.key(1, 3, false)
+  assert.deepEqual(calls.at(-1), [1, 3, false], 'A long press releases immediately')
+  session.key(1, 4, true); session.key(1, 4, false); session.setPaused(true)
+  assert.deepEqual(calls.at(-1), [1, 4, false], 'Pausing releases deferred taps')
+  session.key(0, 5, true); session.key(0, 5, false); session.key(0, 5, true); session.advance(1000)
+  assert.deepEqual(calls.at(-1), [0, 5, true], 'Pressing again cancels a deferred release')
+}
+assert.match(describeGbaLink([3, 2], ['POKEMON RUBY', 'POKEMON FIRE']).warning, /Pair Ruby with Sapphire/, 'Cable and wireless Pokémon games explain the pairing')
 assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle has no link support/, 'Games without a gpSP link mode are named')
 assert.match(describeGbaLink([2, 4]).warning, /different link modes/, 'Mismatched link modes are reported')
 {

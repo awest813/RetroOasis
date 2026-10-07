@@ -21,7 +21,7 @@ import {
   setOverride,
 } from '../lib/overrides'
 import { sfxToggle } from '../lib/sfx'
-import { forgetGameId, getLibretroCovers, isFavorite, toggleFavorite } from '../lib/store'
+import { forgetGameId, getLibretroCovers, getTransferPak, isFavorite, setTransferPak, toggleFavorite } from '../lib/store'
 import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
@@ -97,9 +97,25 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let favorited = isFavorite(game.id)
   let busy = false
   const linkSystem = LINK_CORES.has(normalizePlayCore(game.core))
+  // N64 Transfer Pak (Pokémon Stadium): any Game Boy / Color game in the library.
+  const transferCarts = normalizePlayCore(game.core) === 'n64' && !game.demo
+    ? catalog.games.filter(g => normalizePlayCore(g.core) === 'gb' && !g.demo).sort((a, b) => a.title.localeCompare(b.title))
+    : []
+  let transferPakId = transferCarts.some(g => g.id === getTransferPak(game.id)) ? getTransferPak(game.id) : ''
   const lanCandidate = (LAN_CORES.has(normalizePlayCore(game.core)) || linkSystem) && !game.demo
   const lanCheck = lanCandidate ? checkLanService(lanAbort.signal) : null
   let lan = false
+  // Online card state: checking → ready, or the reason hosting isn't available here.
+  type OnlineState = 'checking' | 'ready' | 'off' | 'needs-core' | 'needs-link'
+  let onlineState: OnlineState = 'checking'
+  const ONLINE_STATE_TEXT: Record<OnlineState, string> = { checking: 'Checking…', ready: 'Ready', off: 'Room service off', 'needs-core': 'Core not prepared', 'needs-link': 'Link cores not built' }
+  const onlineHelp = (state: OnlineState): string => ({
+    checking: '',
+    ready: '',
+    off: 'To host, start the room service on this computer.',
+    'needs-core': 'Prepare this system’s multiplayer core once on this computer.',
+    'needs-link': 'Build the link cores once on this computer.',
+  })[state]
   let fileLabel = game.file
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
@@ -121,7 +137,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       status.textContent = lanHost === 'link' ? 'Opening Trade & link…' : 'Starting emulator…'
     }
     try {
-      await launchGame(game, undefined, lanHost)
+      await launchGame(game, undefined, lanHost, transferCarts.find(g => g.id === transferPakId))
     } catch (err) {
       if (!active) return
       busy = false
@@ -199,7 +215,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
                 ? `<a class="ro-btn ro-btn--primary ro-btn--lg" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>`
                 : `<button type="button" class="ro-btn ro-btn--primary ro-btn--lg" id="ro-play" data-ro-focusable="true"${busy ? ' disabled' : ''}>${busy ? 'Starting…' : 'Play'}</button>`
             }
-            ${lanCandidate ? `<button type="button" class="ro-btn ro-btn--ghost ro-btn--lg" id="ro-host-lan" data-ro-focusable="true"${lan ? '' : ' hidden'}${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Trade &amp; link' : 'Host multiplayer'}</button>` : ''}
             <button
               type="button"
               class="ro-btn ro-btn--ghost"
@@ -209,9 +224,42 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               aria-controls="ro-options-menu"
             >${icon('add')} Options</button>
           </div>
-          ${!game.demo && !lanCandidate ? '<p class="ro-muted">LAN multiplayer supports NES, SNES, Mega Drive and experimental N64 play, plus Game Boy / Color and GBA trading over an emulated link cable. This game is available for local play.</p>' : ''}
-          ${linkSystem && lanCandidate ? `<p class="ro-muted" id="ro-link-note"${lan ? '' : ' hidden'}>Trade &amp; link joins your game to a guest’s on an emulated link cable for trades and link battles. Each player brings their own cartridge and save.</p>` : ''}
-          ${normalizePlayCore(game.core) === 'n64' && lanCandidate ? `<p class="ro-muted" id="ro-lan-n64-note"${lan ? '' : ' hidden'}>Experimental N64 rooms support two to four players. Use a game with a multiplayer mode; all players share the host’s game screen.</p>` : ''}
+          ${lanCandidate ? `
+          <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="${onlineState}">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-online-title">${linkSystem ? 'Trade &amp; link' : 'Online play'}</h2>
+              <span class="ro-online-card__state" id="ro-online-state">${ONLINE_STATE_TEXT[onlineState]}</span>
+            </div>
+            <p class="ro-muted">${linkSystem
+              ? 'Trade and battle with a friend over an emulated link cable. They join from their own browser on the same Wi-Fi, with their own cartridge and save.'
+              : normalizePlayCore(game.core) === 'n64'
+                ? 'Up to 4 players on the same Wi-Fi. Friends join from their browser with no ROM needed, and everyone sees your screen.'
+                : '2 players on the same Wi-Fi. Your friend joins from their browser with no ROM needed and sees your screen.'}</p>
+            <p class="ro-muted ro-online-card__help" id="ro-online-help"${onlineHelp(onlineState) ? '' : ' hidden'}>${onlineHelp(onlineState)} <a href="${hrefFor('/settings')}">Online play setup</a></p>
+            <div class="ro-btn-row">
+              <button type="button" class="ro-btn ro-btn--lg${lan ? ' ro-btn--primary' : ''}" id="ro-host-lan" data-ro-focusable="true"${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Start Trade &amp; link' : 'Host a room'}</button>
+            </div>
+          </section>` : ''}
+          ${
+            transferCarts.length || (normalizePlayCore(game.core) === 'n64' && /stadium/i.test(game.title))
+              ? `<section class="ro-online-card ro-tpk-card" aria-labelledby="ro-tpk-title">
+              <div class="ro-online-card__head">
+                <h2 class="ro-online-card__title" id="ro-tpk-title">Transfer Pak</h2>
+                <span class="ro-online-card__state">Controller 1</span>
+              </div>
+              ${transferCarts.length ? `<label class="ro-muted ro-transfer-pak">Game Boy cartridge
+              <select class="ro-input" id="ro-transfer-pak" data-ro-focusable="true" aria-describedby="ro-transfer-pak-help">
+                <option value="">None</option>
+                ${transferCarts.map(g => `<option value="${escapeAttr(g.id)}"${g.id === transferPakId ? ' selected' : ''}>${escapeHtml(g.title)}</option>`).join('')}
+              </select></label>` : `<p class="ro-muted">Add a Game Boy or Game Boy Color game with <a href="${hrefFor('/upload')}">Add ROM</a> to plug it in here.</p>`}
+              <ul class="ro-tpk-card__facts" id="ro-transfer-pak-help">
+                <li><strong>Games</strong> Stadium: Red, Blue, Yellow. Stadium 2: those plus Gold, Silver, Crystal.</li>
+                <li><strong>Save</strong> Uses the cartridge’s RetroOasis save. Save it in a Pokémon Center, or import a .sav in its player. Changes come back here, with a backup.</li>
+                <li><strong>Not yet</strong> GB Tower (playing the Game Boy game on the TV).</li>
+              </ul>
+            </section>`
+              : ''
+          }
           ${
             showMenu
               ? `
@@ -274,6 +322,10 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', linkSystem ? 'link' : true))
 
     root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
+    root.querySelector<HTMLSelectElement>('#ro-transfer-pak')?.addEventListener('change', event => {
+      transferPakId = (event.target as HTMLSelectElement).value
+      setTransferPak(game.id, transferPakId)
+    })
 
     root.querySelector('#ro-options-btn')?.addEventListener('click', () => {
       menuOpen = !menuOpen
@@ -380,9 +432,15 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   if (lanCheck) void lanCheck.then(result => {
     if (!active) return
     lan = result.state === 'ready' && result.info.cores.includes(normalizePlayCore(game.core))
+    onlineState = lan ? 'ready' : result.state !== 'ready' ? 'off' : linkSystem ? 'needs-link' : 'needs-core'
+    const card = root.querySelector<HTMLElement>('#ro-online')
+    if (card) card.dataset.state = onlineState
+    const stateLine = root.querySelector<HTMLElement>('#ro-online-state')
+    if (stateLine) stateLine.textContent = ONLINE_STATE_TEXT[onlineState]
+    const help = root.querySelector<HTMLElement>('#ro-online-help')
+    if (help?.firstChild) { help.firstChild.textContent = `${onlineHelp(onlineState)} `; help.hidden = !onlineHelp(onlineState) }
     const button = root.querySelector<HTMLButtonElement>('#ro-host-lan')
-    if (button) { button.hidden = !lan; button.disabled = busy || !lan }
-    for (const note of root.querySelectorAll<HTMLElement>('#ro-lan-n64-note, #ro-link-note')) note.hidden = !lan
+    if (button) { button.disabled = busy || !lan; button.classList.toggle('ro-btn--primary', lan) }
   })
   document.title = `RetroOasis · ${game.title}`
 }

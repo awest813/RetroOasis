@@ -19,7 +19,9 @@ const pins = {
   emsdk: '3.1.74',
   sameboy: { url: 'https://github.com/LIJI32/SameBoy.git', tag: 'v1.0.3', rev: '208ba4afabffab9edde416f2dbb8ae459e34adb8' },
   gpsp: { url: 'https://github.com/libretro/gpsp.git', rev: '5819380c2ffb0900219d700a382ee68c464ebb99' },
-  rgbds: { version: '0.9.1', linux: { file: 'rgbds-0.9.1-linux-x86_64.tar.xz', sha256: '5934e83b0075341531ce9c878f516e664fe2755b6c46f7ee723b48b88aa0612d' } },
+  rgbds: { version: '0.9.1',
+    'linux-x64': { file: 'rgbds-0.9.1-linux-x86_64.tar.xz', sha256: '5934e83b0075341531ce9c878f516e664fe2755b6c46f7ee723b48b88aa0612d' },
+    'win32-x64': { file: 'rgbds-0.9.1-win64.zip', sha256: '1a96ba4393a03347606856ea74ca4beb4f89fa8d5f2ffcf88192391a9a7b19c3' } },
 }
 const python = process.platform === 'win32' ? 'python' : 'python3'
 const exe = process.platform === 'win32' ? '.exe' : ''
@@ -53,10 +55,11 @@ async function rgbds() {
   if (found('rgbasm')) return ''
   const dir = path.join(cache, 'rgbds')
   if (existsSync(path.join(dir, 'rgbasm' + exe))) return dir + path.sep
-  if (process.platform !== 'linux' || os.arch() !== 'x64') {
+  const release = pins.rgbds[`${process.platform}-${os.arch()}`]
+  if (!release) {
     throw new Error(`Install RGBDS ${pins.rgbds.version} (https://rgbds.gbdev.io/install) so rgbasm is on PATH, then run again.`)
   }
-  const { file, sha256: expected } = pins.rgbds.linux
+  const { file, sha256: expected } = release
   const response = await fetch(`https://github.com/gbdev/rgbds/releases/download/v${pins.rgbds.version}/${file}`)
   if (!response.ok) throw new Error(`RGBDS download failed (${response.status}). Retry while online.`)
   const bytes = Buffer.from(await response.arrayBuffer())
@@ -64,7 +67,10 @@ async function rgbds() {
   await fs.mkdir(dir, { recursive: true })
   const archive = path.join(cache, file)
   await fs.writeFile(archive, bytes)
-  run('tar', ['-xJf', archive, '-C', dir])
+  if (process.platform === 'win32') {
+    // Windows' own bsdtar reads .zip; a Git Bash PATH may put GNU tar (no zip support) first.
+    run(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', archive, '-C', dir])
+  } else run('tar', ['-xJf', archive, '-C', dir])
   return dir + path.sep
 }
 
@@ -82,9 +88,12 @@ async function bootRoms() {
     run(native, ['-std=c99', path.join(source, 'BootROMs/pb12.c'), '-o', pb12[0]])
   } else {
     // No native compiler (e.g. Windows): run the compressor through Emscripten on Node.
-    pb12 = [process.execPath, path.join(source, 'build/pb12.js')]
-    run(python, [path.join(cache, 'emsdk/upstream/emscripten/emcc.py'), '-std=c99', '-sNODERAWFS=1', path.join(source, 'BootROMs/pb12.c'), '-o', pb12[1]],
+    // emcc emits CommonJS, and retrooasis/package.json is "type": "module", so run it as .cjs.
+    const built = path.join(source, 'build/pb12.js')
+    pb12 = [process.execPath, path.join(source, 'build/pb12.cjs')]
+    run(python, [path.join(cache, 'emsdk/upstream/emscripten/emcc.py'), '-std=c99', '-sNODERAWFS=1', path.join(source, 'BootROMs/pb12.c'), '-o', built],
       { env: { ...process.env, EM_CONFIG: path.join(cache, 'emsdk/.emscripten') } })
+    await fs.rename(built, pb12[1])
   }
   const logo = await fs.readFile(path.join(obj, 'SameBoyLogo.2bpp'))
   const compressed = spawnSync(pb12[0], pb12.slice(1), { input: logo })

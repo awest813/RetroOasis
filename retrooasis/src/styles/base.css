@@ -2151,3 +2151,64 @@ html[data-layout='tv'] .ro-btn--toggle {
     min-height: 2.75rem;
   }
 }
+
+/* Game page: Online play / Trade & link and Transfer Pak cards. One card per feature, a
+   state pill in the corner, one primary action. */
+.ro-online-card {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+  padding: 1rem 1.15rem 1.1rem;
+  max-width: 40rem;
+  border: 1px solid var(--ro-line);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--ro-accent) 10%, transparent), transparent 55%),
+    color-mix(in srgb, var(--ro-bg-panel-solid) 85%, transparent);
+}
+.ro-online-card p { margin: 0; }
+.ro-online-card__head { display: flex; align-items: center; gap: 0.75rem; }
+.ro-online-card__title {
+  margin: 0;
+  font-family: var(--ro-font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+.ro-online-card__state {
+  margin-left: auto;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--ro-line);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ro-text-dim);
+  white-space: nowrap;
+}
+.ro-online-card__state::before {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: #5d7280;
+  vertical-align: 0.05em;
+}
+.ro-online-card[data-state='ready'] .ro-online-card__state { color: #4ade80; border-color: color-mix(in srgb, #4ade80 45%, transparent); }
+.ro-online-card[data-state='ready'] .ro-online-card__state::before { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.ro-online-card[data-state='off'] .ro-online-card__state::before,
+.ro-online-card[data-state='needs-core'] .ro-online-card__state::before,
+.ro-online-card[data-state='needs-link'] .ro-online-card__state::before { background: #f0b429; }
+.ro-online-card .ro-btn-row { margin-top: 0.25rem; }
+.ro-tpk-card .ro-online-card__state::before { background: var(--ro-plat-gb); }
+.ro-tpk-card label { display: grid; gap: 0.4rem; }
+.ro-tpk-card__facts { display: grid; gap: 0.45rem; margin: 0.25rem 0 0; padding: 0; list-style: none; color: var(--ro-text-dim); font-size: 0.9rem; line-height: 1.45; }
+.ro-tpk-card__facts li { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline; }
+.ro-tpk-card__facts strong { color: var(--ro-text); font: 600 0.7rem/1.4 var(--ro-font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* Touch screens: small text links get thumb-sized hit areas (44px) without moving. */
+@media (pointer: coarse) {
+  .ro-kicker a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
+  .ro-nav a { display: inline-flex; align-items: center; min-height: 44px; }
+}

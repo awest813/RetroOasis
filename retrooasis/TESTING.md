@@ -160,3 +160,189 @@ The October 7 Home audit drove the built app in Chromium at 1440×900, 1100×760
 - **Overlap.** The selected item's title no longer lets neighbouring category icons show through. The info panel stays below the clock at every tested height.
 - **Clock.** The clock and date follow the browser locale (12- or 24-hour).
 - **Phone hint.** The pill sits inside the margins and says "Swipe the icons · tap to open".
+
+## Downloads ROM audit (real games)
+
+The October 6 audit used commercial ROMs and two battery saves supplied in Downloads, on Windows 11. Two Playwright Chromium contexts, host and guest, ran on one computer against a loopback LAN server. Saves were copies; the originals were never written.
+
+**Setup on Windows.** `npm run oasis:lan:link` failed twice. It now fetches the pinned RGBDS win64 release and runs it with Windows' own `tar.exe`. It also runs the Emscripten-built `pb12` compressor as `.cjs`, because `retrooasis/package.json` is `"type": "module"`. A rerun with no RGBDS, boot ROMs or `pb12` rebuilt boot ROMs identical to the first build. `npm test` and core-backed `test:link` passed.
+
+**Trade & link**
+- **Pokémon Crystal ↔ Crystal (GBC).** Both consoles booted the same supplied `.srm`, flew to a Pokémon Center and passed the Cable Club handshake and pre-link save. Each saw the other trainer in the Trade Center, then traded Abra for Pidgeotto. Both copies of each downloaded save held the new party, and End session delivered both saves.
+- **Pokémon Ruby ↔ Ruby (GBA, Pokémon cable).** Console 1 led a "2P LINK" and both reached the Trade Center. They traded Latias for Flygon, both auto-saved, and End session reported delivery. Decoded saves held the traded party: the guest's download, and the host's RetroOasis library save at save index 155. There was no `.before-trade` copy, because the session started without a library save.
+- **Tetris (GB, 2PLAYER).** The consoles negotiated Mario vs. Luigi. A guest height change showed on both consoles, and the versus match ran with the opponent's stack meter.
+- The guest inserted zipped ROMs (Tetris) and unzipped ones (Crystal, Ruby).
+
+**LAN online play**
+- **Mario Tennis (N64).** The guest picked Baby Mario on Player Select and moved them in a singles match, while Player 1 stayed put. The guest's A, Start, stick, C-up and Z reached raw port 1 and released. Reconnect kept the seat, and pause stopped frames.
+- **Contra (NES).** The guest ran Lance right on stage 1 while Bill stayed put.
+- **Streets of Rage 2 (Genesis).** The guest moved the 2P cursor on Select Player.
+- **Stream rate not certified.** Headless and headed captures gave 8–16 fps. A trivial WebGL canvas in the same page also captured at about 16 fps, and the machine was at 100% CPU from other work. Emulation itself ran at 52–60 fps. The October 6 N64 streaming target (60 fps) still needs a quiet machine or separate devices.
+
+**Add ROM.** Bomberman Max – Red Challenger (zip, auto-detected as Game Boy) ran at 60 fps. Mega Man 64 (`.z64`) ran at about 52 fps. Dragon Ball Z: Ultimate Battle 22 (PS1, 212 MB zip of BIN/CUE) extracted and played its intro at about 51 fps.
+
+Some guest key taps landed as turns, or were dropped in Crystal's start menu. Host taps were dropped the same way, so it wasn't transport loss. The October 7 audit below traced it to catch-up batching on a busy host and fixed it.
+
+## Online play and Trade & link batch audit (October 7)
+
+Two Playwright harnesses ran every game through the same checks in host and guest Chromium contexts, against a loopback LAN server on Windows 11 with GPU. The checks covered 24 online games and 27 link pairings.
+
+**Online play: 24 games.**
+- N64 (4): Mario Tennis, Mega Man 64, Ocarina of Time, Harvest Moon 64.
+- NES (10): Contra, Super Mario Bros., Ice Climber, Double Dragon II and III, Bomberman II, Battletoads & Double Dragon, SMB2 (J), Chip 'n Dale, Nintendo World Cup.
+- Genesis (10): Streets of Rage 1–3, Gunstar Heroes, Mortal Kombat II and 3, UMK3, Contra: Hard Corps, Golden Axe, NBA Jam TE.
+
+Every game passed: boot, room, join and stream, every mapped guest key on raw Player 2 with release and nothing on port 0, reconnect with the same seat and live input, pause and resume, and end room. SNES was not covered, because there were no SNES ROMs.
+
+**Trade & link: 27 pairs.** Every pair linked, streamed Console 2 at native size, and ended cleanly.
+- GB/GBC (15): Gold ↔ Silver, Crystal, Tetris DX, SMB Deluxe, Bomberman Max Red ↔ Blue, Mario Tennis, Mario Golf, Pokémon TCG, Pokémon Puzzle Challenge, Dragon Warrior Monsters, Yu-Gi-Oh! DDS, Tetris, Dr. Mario, F-1 Race, Tetris ↔ Tetris DX.
+- GBA (12): Ruby ↔ Sapphire, FireRed ↔ LeafGreen, Emerald, Advance Wars 1 and 2, Mario Kart SC, SFA3, Sonic Battle, MMBN, Puyo Pop, Mario Tennis Power Tour, F-Zero MV.
+- Both consoles boot the same ROM frame-identically, so the guest-only Start/A test checks that Console 2 diverges.
+- GBA modes: Ruby/Sapphire link over the Pokémon cable, FRLG, Emerald and Mario Tennis Power Tour over the Wireless Adapter, and Advance Wars over its own cables. The other GBA games correctly warned that they have no link support.
+
+**Fixes**
+- **Dropped taps in link rooms.** Both consoles run in catch-up batches per animation frame. On a loaded host, a tap's press and release could land between batches, so the game never saw it. Pokémon Puzzle Challenge and Yu-Gi-Oh! missed every guest Start, even after a 20 s boot wait. `holdTaps` now keeps each press for at least two emulated frames, and all six reruns diverged. `test:link` covers deferral, the per-batch cap, pause flushing and re-pressing, and a mutation run failed it.
+- **Guests see host pauses.** A host pause used to freeze the guest's picture while it still read "Connected". The host now sends the pause state on the controls channel when it changes, when a guest's controls open, and every 2 s, since that channel drops late packets. The guest shows "The host paused the game." over a dimmed stage. `test-lan-host` covers all three cases, and a mutation run failed it.
+- **Stream started at 288×180.** WebRTC starts near 300 kbit/s and took 15–25 s to reach 720p, so every guest began blurry. The host now adds `x-google-start-bitrate=2000` to the guest's answer, including VP8, which has no fmtp line. 720p arrives in 2–5 s. A first version with a 1 Mbit/s floor cost frame rate on the loaded test machine, so there is no floor. An interleaved A/B without it averaged 37.5 vs 39 fps, within noise.
+- **Room panel covered the game.** The fixed 340 px panel hid about 23% of the picture all session. It now folds to "LAN multiplayer · 2/2" once every seat is ready, with focus kept on its header. It reopens when a guest drops, and a host who toggles it keeps their choice. Link rooms opt out, because that panel sits beside the consoles.
+- **Phone layouts.** In link rooms, the guest's cartridge box sat between Console 2's video and the touch controls, which were about 1000 px down. It moves below them while the link runs, so video and controls fit on one 844 px screen. The host page scrolls to Console 1 on Start link, and Console 1 with its touch pad fits on one screen.
+- **Link guidance.** Wireless-adapter links tell players to use the Union Room. Ruby/Sapphire paired with FRLG/Emerald explains why they can't link here, and the README no longer says every Pokémon game uses the cable.
+
+**Not certified**
+- Stream frame rate. The test machine stayed at 99–100% CPU from unrelated workloads, and guest fps varied from 2 to 59 between identical runs.
+- Wireless-adapter trading in FRLG/Emerald. It needs saves in progress.
+- Separate physical devices.
+- EmulatorJS online rooms could drop taps the same way when the host's frames stall. That path has no frame hook and was not changed.
+
+## Stream speed, online UI, PlayStation rooms and party games (October 7)
+
+**Stream speed.** Interleaved A/B runs on the busy test machine compared Chromium's default VP8 encoder with H.264. VP8 took 18–56 ms per frame and slowed the host game to 10–48 fps. H.264 took about 12 ms and kept it at 60. The host now puts H.264 first (`preferredVideoCodecs`), with VP8 as fallback. Streams are capped at 480 lines, the highest native resolution of any supported console, down from 720; that cut encode time from about 12.5 to 9 ms per frame. `test:lan` covers the codec order and the cap.
+
+**Online UI.**
+- The guest join page is a card with numbered steps.
+- The play view has a top bar with the seat chip and a colour-coded quality pill.
+- A rounded stage keeps the touch controls directly under it, so on a 390×844 phone the N64 game and all its controls fit without scrolling.
+- Status messages appear under the game. The key list and room seats sit in collapsible cards.
+- On-screen controls are on by default for touch screens only, with a remembered toggle.
+- Roster rows have status dots.
+- The host panel's invite link and QR code fold away when the room is full, and its primary action is highlighted.
+- Trade & link hides the duplicate Pause button.
+- No horizontal overflow at 390 px, 844×390 landscape or desktop.
+
+**PlayStation rooms (new).** `psx` uses the pinned `pcsx_rearmed` stable build (checksums in `lan-core-lock.json`; prepare with `npm run oasis:lan:prepare -- --core pcsx_rearmed`). It has 2 seats, the D-pad and all eight face and shoulder buttons. Keys match the player, except L2 is W because the player's Tab would move page focus. The batch harness passed key delivery, reconnect, pause and end room for Dragon Ball Z UB22, Tekken 3, Mortal Kombat Trilogy, Marvel vs. Capcom, Bloody Roar 2, Fighter Maker, Jedi Power Battles and Board Game Top Shop. In Tekken 3 the guest pressed P2 Start as a challenger, picked King and fought Xiaoyu.
+
+**Super Smash Bros. (4 players).** A 4-player room with three guest browsers showed HMN on all four slots. Each guest moved its own hand cursor (DK and Link) with live previews, and the match ran on Peach's Castle.
+
+**Mario Party 3.** Four seats connected. In Duel Map the guest on port 1 moved the P2 hand and picked Waluigi, while port 2 presses reached their own port and were correctly ignored.
+
+**Not done**
+- Perfect Dark and Pokémon Stadium 1 and 2 (Transfer Pak). No ROMs were available.
+- PlayStation analog sticks and multitap.
+- Stream frame-rate certification. The machine stayed at 99% CPU from other workloads.
+
+## Online frame rate, guest polish, Transfer Pak and save-loss fixes (October 7)
+
+**New games.** Super Mario World and Super Mario All-Stars (the first SNES ROMs), Perfect Dark and Pokémon Stadium 2 passed the online harness: key delivery, reconnect, pause and end room. The final regression pass covered SNES, N64 (6 games), NES, Genesis and PlayStation.
+
+**Frame rate.** A per-stage probe measured capture, encode, send, receive, decode and display rates.
+- **Capture.** Encode, send and decode kept up. The loss was at capture: `captureStream(60)` drops frames that land just under 16.7 ms apart, so only 37–44 of 60 game frames were captured. Plain `captureStream()` captured 48–59, and the encoder's `maxFramerate` still caps the stream.
+- **Measurement.** Guest frame rate now uses the compositor's `presentedFrames` counter. The earlier `requestVideoFrameCallback` count understated it by about a third.
+- **Jitter buffer.** Guest jitter-buffer targets of 0, 20 and 40 ms showed no consistent difference, so 0 stays for the lowest latency.
+- **Native rates.** Perfect Dark and most N64 games render at 20–30 fps natively, and the stream matches.
+
+**Guest polish.**
+- The first key press or tap turns sound on, and "Sound on." confirms it. If the browser refuses unmuted playback, the stream plays muted instead of freezing.
+- A lost game connection rejoins automatically with the same seat: "Connection interrupted. Reconnecting automatically", then "Joined", then "Connected" in about 2.8 s, down from 11 s. The closed controls channel triggers it, because the peer connection keeps reading "connected" for about 8 s after the host closes it. It backs off 2, 4 and 8 s, then hands over to the Reconnect button.
+- A "Gamepad ready" chip appears in the top bar.
+
+**N64 Transfer Pak.** mupen64plus-next reads the Game Boy cartridge only through libretro's "N64 Transferpak" subsystem. The player starts the core with `--subsystem gb /tp.sav /tp.gb <n64 rom>` and the `mupen64plus-pak1 = transfer` option, with no EmulatorJS change (`public/transfer-pak.js`). An N64 game page lists library GB/GBC games as cartridges and remembers the choice. End to end through the UI, Pokémon Stadium 2 with the supplied Crystal ROM and save showed the trainer (MATTHEW, ID 55944) on Game Pak Check. Pokémon Stadium 1 needs a Red, Blue or Yellow ROM, which wasn't available.
+
+**Data-loss bugs fixed**
+- **Every battery save was deleted on leaving the player.** EmulatorJS's exit handler saved, then unmounted `/data/saves` at once. The queued IDBFS autoPersist then synced the empty mount point and deleted every save in the database. It reproduced three times with the real import path, and disabling the unmount kept the saves. `GameManager.js` now persists, then unmounts. After the fix a save survived two play sessions and loaded back.
+- **Library saves used the wrong path.** `library-saves.js` read and wrote `/data/saves/<game>.srm`, but the player saves under the core's folder (`/data/saves/Gambatte/…`). Trade & link's "Use my RetroOasis save" and its write-back never met saves from normal play, and earlier audits seeded that wrong path themselves. `libraryCartSave` now finds the newest save in any core folder, writes there or to the system's player folder, and creates the folder entry.
+- **Fixed-name scripts were stale after updates.** The service worker served `library-saves.js`, `link-host.js` and similar modules stale-while-revalidate, so the first visit after an update mixed module versions and failed on a missing export. They are now network-first with an offline copy, and the shell cache moved to v12.
+- **Blank cartridge saves.** A Transfer Pak session started with no save no longer writes blank cartridge RAM into the library.
+
+**MIT/GPL projects.** Already in use: socket.io and qrcode (MIT), SameBoy (MIT), gpSP (GPL), EmulatorJS (GPL). Rollback netplay (GGPO, MIT) would help fighting games most, but needs deterministic state hooks inside each WASM core. simple-peer and nipplejs would replace working code, and coturn only matters for internet play. None were added.
+
+## PlayStation analog sticks and Mario Party 3's four-player board (October 7)
+
+**PlayStation analog.** PlayStation rooms now carry both sticks. The profile flag `dualAnalog` adds a `stick2` field to control packets. The host applies the left stick to axes 16–19 and the right to 20–23. Right-stick axes are never accepted as buttons, and other systems reject `stick2`.
+- **Keyboard:** T/F/G/H and I/J/K/L, the player's own defaults.
+- **Gamepad:** both sticks pass through as real analog, never as D-pad presses.
+- **Touch:** the left stick appears on screen.
+- **Core:** the pinned pcsx_rearmed core has no port-device export, and RetroArch ignores `input_libretro_device_pN` in `retroarch.cfg`. The host therefore writes a core remap (`config/remaps/PCSX-ReARMed/PCSX-ReARMed.rmp`) before the core starts (`ejs-start-hooks.js`, shared with the Transfer Pak). The core log changed from `port: 1 device: standard` to `device: dualshock` on both room ports.
+- **Digital games:** DualShock starts in digital mode. A Tekken 3 rerun in that mode let the guest join as the P2 challenger and pick King with the D-pad, as before.
+- **Live check:** a guest's T and L reached raw Player 2 axes 19 and 20 at full tilt and released.
+- **Layout:** the phone layout in both orientations has no overflow, and the landscape view puts the stick and D-pad under the left thumb with all eight buttons on the right.
+- **Tests:** `test:lan` and `test-gamepad` cover packets, validation, keys and gamepad mapping.
+
+**Mario Party 3, four players.** A 4-seat room with three guest browsers reached the Battle Royal Map, Chilly Waters, with "4 Players" selected.
+- **Character select:** all four selection hands moved at once, each from its own controller. The picks were Mario (host), Waluigi, Peach and Daisy.
+- **Turn-order roll:** each guest's A stopped only its own dice block (7, 9 and 1) while the host's kept spinning.
+- **Navigation notes:** the hub's blue star is Battle Royal. Its player count defaults to 1 player and 3 CPU. B at the hub exits to the title.
+
+## Online UI/UX overhaul (October 7)
+
+The plan is in [docs/plans/online-shippable.md](../docs/plans/online-shippable.md). Before/after screenshots covered every online surface on desktop (1366×860) and phone (390×844): Home, Library, Settings → Online play, NES/N64/GB game pages, join, host panel, guest play, and the Trade & link host. Every surface now uses the app's tokens, fonts, accent and buttons.
+
+Regression after the overhaul:
+- **Tests:** full `npm test` (27 suites), lint and typecheck.
+- **Online harness:** Contra, Super Mario World, Streets of Rage 2, Tekken 3 (22 inputs including both sticks) and Super Smash Bros. Each passed key delivery, reconnect, pause and end room.
+- **Link harness:** Gold ↔ Silver, Ruby ↔ Sapphire and Crystal ↔ Crystal linked, and Console 2 responded to the guest.
+- **Trade & link tracker:** it advanced cart → room → guest cartridge → start in a live session.
+
+## Guest lobby, Pokémon Stadium with Blue, and a full online audit (October 7)
+
+**Guest lobby.** Guests now wait in a lobby that covers the stage until the host's game is on screen. It shows "You're Player N", the game and system, the seat cards (yours outlined), a step tracker and the controls. It comes back as a paused, reconnecting or lost state, with Reconnect as its one action. A browser harness checked every state on desktop, phone portrait and landscape, with no overflow:
+- **Link room:** connecting → insert your cartridge → waiting for the host to start → gone once the link runs. After inserting, the page scrolls back to the lobby.
+- **LAN room (Contra):** connecting → game on screen; the host's Pause shows the paused state over the frozen game.
+- **Dropped connection:** closing the host's peer showed "Connection interrupted · attempt 1 of 3" and recovered in 2.5–2.8 s.
+
+**Pokémon Stadium + Pokémon Blue** (a real 255-hour save: trainer NICK, 8 badges, a full Pokédex), all through the app:
+- **Setup:** Add ROM took `Pokemon Stadium (USA) (Rev 2).zip` (a zip with an extra `.txt`) and Blue. The `.sav` went in through Blue's player (**Import Save File**), and Blue's Continue screen showed NICK.
+- **Game Pak Check:** NICK, ID 04445 on controller 1. Stadium asks for a save made in a Pokémon Center, so Blue was re-saved in the Viridian Pokémon Center (Fly, then save). After that the cartridge passed cleanly.
+- **Pokémon Lab:** the PC listed the party (six at L100) and GB Box 1 (MEW, MACHOP, BELLSPROUT, VENOMOTH ×2, GEODUDE… 20/20).
+- **Save safety:** at boot Stadium writes to Gen 1's sprite scratch area (`0x0000–0x0425`). The trainer data, boxes, Hall of Fame and checksum stayed byte-identical, and the earlier save was kept as a backup.
+- **GB Tower doesn't work.** Stadium reports "The Transfer Pak is not set properly". EmulatorJS's `mupen64plus_next` build (2025-06-14) predates mupen64plus-core's fix ([#1154](https://github.com/mupen64plus/mupen64plus-core/pull/1154), 2025-10-08), which also needs a low-level RSP. The game page now says so.
+
+**More cartridges:**
+- **Stadium + Red, Stadium + Yellow (no saves):** each cartridge was recognized; Stadium showed "Saved file not found".
+- **Stadium 2 + Blue:** read NICK at 60 fps; Stadium 2 takes Gen 1 cartridges as well.
+- **Stadium 2 + Crystal:** read MATTHEW, ID 55944.
+- **Stadium 2 + Gold (no save):** recognized; "Saved file not found".
+
+**Fixed along the way:**
+- **Junk saves.** Stadium writes scratch data into cartridge RAM as it boots, so a cartridge with no save got a junk "save" in the library. A cartridge that starts without a save is now never written back. Blank detection also ignores the two bytes Gold and Silver mark on first boot, and the untouched RAM the player stores when a game closes.
+- **Titles.** Color headers read past the maker-code bytes only when they aren't a code, so Yellow shows "POKEMON YELLOW", not "POKEMON YEL". Transfer Pak and link status lines use the file name ("Pokemon - Gold Version") instead of header codes like "POKEMON_GLD".
+- **Transfer Pak card:** now three short facts (games, save, not yet) instead of a paragraph.
+
+**Audit and browser compatibility:**
+- **Wake lock.** The EmulatorJS build's screen wake-lock request threw an uncaught error where the browser refuses it (battery saver, headless); the player now absorbs it. Page errors in the audit runs went from four to none.
+- **iOS 15 and older Safari:** `AbortSignal.timeout` has a fallback (the guest page would otherwise fail before joining), `Array.prototype.at` is gone from the online scripts, and the online pages get solid stand-ins where `color-mix()` is missing (Safari < 16.2, Firefox < 113).
+- **Fullscreen:** iPad uses the prefixed call; on iPhone, which can't make a page element fullscreen, the button is hidden instead of doing nothing.
+- **Copy invite:** on plain-HTTP LAN addresses with no Clipboard API, it falls back to the copy command.
+- **Host panel:** the note is now just "Keep this tab open while friends play." (the seat card already says "You · host").
+- **Not covered:** only Chromium engines are installed here, so Firefox and WebKit/Safari weren't run; the compatibility fixes above come from reading the code.
+
+**Regression:**
+- **Tests:** full `npm test`, lint (0 errors), typecheck and build.
+- **Online harness:** Contra, Super Mario World, Streets of Rage 2, Tekken 3 and Super Smash Bros. passed keys, reconnect, pause and end with no issues.
+- **Trade & link:** the stepper passed a live Crystal session.
+
+## Cross-browser and mobile audit (October 7)
+
+**Browsers.** Playwright's Firefox (from 1.59) and WebKit 26.4 builds ran the same checks as Chromium:
+- **Firefox:** every page (Home, Library, Add ROM upload, game page, Settings, Saves) at desktop and phone sizes with no overflow or page errors. The player ran Contra at 45 fps (headless). An online guest, desktop and phone, saw the lobby clear and video play, and its Z key reached Player 2 on a Chromium host. A link guest inserted Crystal and reached "Waiting for Host to start the link".
+- **WebKit:** all 12 pages render with no overflow or page errors. The Windows WebKit build has no WebRTC or MediaRecorder, so the guest page shows its "does not support WebRTC" message and the player can't start; real Safari has both, and stays a separate-device gate. That build also draws variable fonts at their thinnest weight, which real Safari doesn't.
+- **Fixed:** the guest's frame-rate readout used `framesPerSecond`, which Firefox reports as 0 while playing. It is now measured from frames decoded between polls (unit-tested in `test:lan`).
+
+**Mobile (390×844 and 360×740 upright, 844×390 sideways):**
+- **Touch:** a real tap on the on-screen A button reached Player 2 on NES, N64 and PlayStation rooms in both orientations. The controls never cover the game and nothing scrolls sideways.
+- **Fixed, upright:** on N64 and PlayStation, Start (and Select) were below the fold. While playing, the site header now hides on phones, controls are tighter, and Start/Select share a row, so the game and every button fit on one screen.
+- **Fixed, PlayStation layout:** the touch layout matches a DualShock: L1 L2 R2 R1 in a row and △ □ ○ ✕ as a diamond, with the diamond (and the N64 C-buttons) under the right thumb.
+- **Fixed, player:** upright phones draw the game from the top, under the Exit bar; the game now starts below the bar. EmulatorJS's on-screen gamepad appears for phone user agents.
+- **Fixed, tap targets:** breadcrumbs and header links get 44 px hit areas on touch screens without moving.
+- **Menus:** the navigation menu opens upright; sideways, the links show inline.
+
+**Regression:** full `npm test`, lint (0 errors), typecheck and build.

@@ -51,14 +51,20 @@ class EJS_GameManager {
                 this.saveSaveFiles();
             }
             this.toggleMainLoop(0);
-            this.FS.unmount("/data/saves");
-            setTimeout(() => {
-                try {
-                    this.Module.abort();
-                } catch(e) {
-                    console.warn(e);
-                };
-            }, 1000);
+            // Persist first, unmount after. The saves above queue an IDBFS autoPersist; if
+            // the folder is unmounted before it runs, it syncs the now-empty mount point
+            // and deletes every battery save in the database (seen on every page exit).
+            const finish = () => {
+                try { this.FS.unmount("/data/saves"); } catch (e) { console.warn(e); }
+                setTimeout(() => {
+                    try {
+                        this.Module.abort();
+                    } catch(e) {
+                        console.warn(e);
+                    };
+                }, 1000);
+            };
+            try { this.FS.syncfs(false, finish); } catch (e) { console.warn(e); finish(); }
         })
     }
     setupPreLoadSettings() {

@@ -92,7 +92,11 @@ export function attachRooms(io, { graceMs = 15000, maxRooms = 32, linkAvailable 
       if (member?.connected) throw new Error('That player is already connected.')
       if (!member) {
         if (room.locked) throw new Error('The host locked this room.')
-        if (room.members.length >= room.maxPlayers) throw new Error('This room is full.')
+        if (room.members.length >= room.maxPlayers) {
+          throw new Error(room.members.some(member => !member.connected)
+            ? 'This room is full: a seat is being held for a player who is reconnecting. Try again in a minute, or ask the host to remove them.'
+            : 'This room is full.')
+        }
         const nickname = text(data.nickname, 32)
         if (!nickname) throw new Error('Enter your player name.')
         const slot = Array.from({ length: room.maxPlayers - 1 }, (_, i) => i + 1).find(slot => !room.members.some(member => member.slot === slot))

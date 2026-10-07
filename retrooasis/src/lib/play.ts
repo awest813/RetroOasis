@@ -18,6 +18,7 @@ export function buildPlayerUrl(
   romUrl: string,
   backPath: string,
   lanHost = false,
+  transferPak = '',
 ): string {
   const core = normalizePlayCore(game.core)
   const channel = lanHost ? 'local' : resolveEjsChannel(core)
@@ -31,6 +32,8 @@ export function buildPlayerUrl(
   if (game.bios) params.set('bios', game.bios)
   if (coreNeedsThreads(core)) params.set('threads', '1')
   if (lanHost) params.set('lanhost', '1')
+  // N64 Transfer Pak: a Game Boy / Color game in Controller 1 (Pokémon Stadium).
+  if (transferPak && core === 'n64') params.set('tpk', transferPak)
   return `./player.html?${params.toString()}`
 }
 
@@ -128,12 +131,24 @@ export async function fetchHostedDiscSet(romUrl: string): Promise<File> {
   return bundleIfNeeded([primary, ...companions])
 }
 
+/** A ROM reference the player can read after a full-page navigation. */
+async function playableRef(game: Game): Promise<string> {
+  if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
+    const files = await getLocalRomFiles(game.id)
+    const bundled = await bundleIfNeeded(files)
+    return stageRomForPlay(bundled, bundled.name || `${game.title}.bin`)
+  }
+  return game.file
+}
+
 export async function launchGame(
   game: Game,
   backRoute = hrefFor(`/game/${encodeURIComponent(game.id)}`),
   lanHost: boolean | 'link' = false,
+  transferPak?: Game,
 ): Promise<void> {
   pushRecent(game.id)
+  const cartRef = transferPak ? await playableRef(transferPak) : ''
 
   let romUrl = game.file
   if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
@@ -152,5 +167,5 @@ export async function launchGame(
   }
   // Uploaded games already use durable library: refs — player reads without consuming.
 
-  window.location.href = lanHost === 'link' ? buildLinkUrl(game, romUrl, backRoute) : buildPlayerUrl(game, romUrl, backRoute, lanHost)
+  window.location.href = lanHost === 'link' ? buildLinkUrl(game, romUrl, backRoute) : buildPlayerUrl(game, romUrl, backRoute, lanHost, cartRef)
 }

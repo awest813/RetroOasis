@@ -7,10 +7,21 @@ import { once } from 'node:events'
 import http from 'node:http'
 import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
-import { keyboardLayout, BUTTON_LABELS, inputIndices } from '../public/lan-capabilities.js'
+import { keyboardLayout, BUTTON_LABELS, inputIndices, ROOM_KEY_EXCEPTIONS, gamepadControls } from '../public/lan-capabilities.js'
 import { LINK_FILES } from './lan-link.mjs'
 import { cleanText } from './lan-rooms.mjs'
-import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, STRAIN_SAMPLES, RECOVERY_SAMPLES, MAX_RECOVERY_SAMPLES } from '../public/lan-shared.js'
+import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, lanBitrateHints, START_KBPS, preferredVideoCodecs, MAX_STREAM_LINES, STRAIN_SAMPLES, RECOVERY_SAMPLES, MAX_RECOVERY_SAMPLES, connectionQuality } from '../public/lan-shared.js'
+
+// Stream rate from frames decoded between polls: Firefox reports framesPerSecond as 0.
+{
+  let decoded = 100
+  const pc = { getStats: async () => new Map([['v', { type: 'inbound-rtp', kind: 'video', framesPerSecond: 0, framesDecoded: decoded, framesDropped: 0 }]]) }
+  assert.equal((await connectionQuality(pc)).fps, 0, 'First poll: only the reported rate')
+  decoded += 36
+  await new Promise(resolve => setTimeout(resolve, 600))
+  const { fps } = await connectionQuality(pc)
+  assert(fps >= 50 && fps <= 62, `Measured rate from decoded frames (${fps})`)
+}
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
 import { coreLock, digest, inspectCore } from './lan-assets.mjs'
 import './test-lan-host.mjs'
@@ -57,7 +68,7 @@ assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
   const block = emulatorSource.slice(emulatorSource.indexOf('this.defaultControllers = {'), emulatorSource.indexOf('this.keyMap = {'))
   const playerDefault = index => block.match(new RegExp(`\\b${index}: \\{\\s*"value": "([^"]*)"`))?.[1]
   const codeFor = value => value.length === 1 ? `Key${value.toUpperCase()}` : { enter: 'Enter', 'up arrow': 'ArrowUp', 'down arrow': 'ArrowDown', 'left arrow': 'ArrowLeft', 'right arrow': 'ArrowRight' }[value]
-  for (const core of ['nes', 'snes', 'segaMD', 'gb', 'gba', 'n64']) {
+  for (const core of ['nes', 'snes', 'segaMD', 'gb', 'gba', 'n64', 'psx']) {
     const { keys, hint } = keyboardLayout(core)
     const allowed = new Set(inputIndices(core))
     assert(Object.values(keys).every(index => allowed.has(index)), `${core}: keys only press inputs the system has`)
@@ -65,7 +76,7 @@ assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
     assert(hint.startsWith('Keyboard:'), `${core}: hint describes the keys`)
     if (core !== 'n64') {
       for (const [code, index] of Object.entries(keys)) {
-        if (code.startsWith('Shift')) continue
+        if (code.startsWith('Shift') || ROOM_KEY_EXCEPTIONS[code] === index) continue
         assert.equal(codeFor(playerDefault(index)), code, `${core}: ${code} matches the RetroOasis player's default for input ${index}`)
       }
     }
@@ -76,12 +87,38 @@ assert(repeatPrevented, 'Auto-repeat of a game key is still swallowed')
   assert.equal(n64.KeyI, 23, 'C-buttons match the player (I/J/K/L)'); assert(!('Tab' in n64), 'Tab stays with the browser')
   assert.equal(keyboardLayout('snes').keys.KeyZ, 8, 'Z is A, as in the player'); assert.equal(keyboardLayout('snes').keys.KeyV, 2, 'V is Select, as in the player')
   assert.equal(keyboardLayout('psp').hint, '', 'Systems without rooms have no layout')
+  const psx = keyboardLayout('psx').keys
+  assert.equal(psx.KeyW, 12, 'PlayStation L2 is W, since Tab would move page focus')
+  assert.equal(psx.KeyR, 13, 'PlayStation R2 is R, as in the player')
+  assert(!('Tab' in psx) && !('KeyW' in keyboardLayout('snes').keys), 'No room maps Tab, and W only exists where L2 does')
 }
 // N64 keyboard stick: full tilt runs, Shift walks at half tilt, diagonals stay round.
 assert.deepEqual(keyboardStick(new Set([16])), [1, 0])
 assert.deepEqual(keyboardStick(new Set([16]), true), [0.5, 0], 'Shift walks at half tilt')
 assert.deepEqual(keyboardStick(new Set([17, 19]), true), [-0.354, -0.354], 'Diagonal walking stays on a half-size circle')
 assert.deepEqual(keyboardStick(new Set([16, 17])), [0, 0], 'Opposite keys cancel')
+// LAN start-bitrate hints: only primary video codecs, VP8 gains an fmtp line, idempotent.
+{
+  const answer = ['v=0', 'm=audio 9 UDP/TLS/RTP/SAVPF 111', 'a=rtpmap:111 opus/48000/2', 'a=fmtp:111 minptime=10',
+    'm=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99', 'a=rtpmap:96 VP8/90000', 'a=rtpmap:97 rtx/90000', 'a=fmtp:97 apt=96',
+    'a=rtpmap:98 H264/90000', 'a=fmtp:98 profile-level-id=42e01f', 'a=rtpmap:99 red/90000', ''].join('\r\n')
+  const hinted = lanBitrateHints(answer)
+  const lines = hinted.split('\r\n')
+  const hint = `x-google-start-bitrate=${START_KBPS}`
+  assert(lines.includes(`a=fmtp:96 ${hint}`), 'VP8 without fmtp gets the hint')
+  assert(!hinted.includes('x-google-min-bitrate'), 'No bitrate floor: weak links and busy encoders can still back off')
+  assert(lines.some(line => line.startsWith('a=fmtp:98 profile-level-id=42e01f;' + hint)), 'H264 fmtp keeps its parameters')
+  assert(!lines.some(line => /^a=fmtp:(97|99|111) .*x-google/.test(line)), 'rtx, red and audio are untouched')
+  assert.equal(lanBitrateHints(hinted), hinted, 'Hints are applied once')
+  assert(hinted.endsWith('\r\n'), 'SDP keeps its trailing line break')
+}
+// H.264 leads (packetization-mode=1 first); everything else keeps its order.
+{
+  const codecs = [{ mimeType: 'video/VP8' }, { mimeType: 'video/rtx' }, { mimeType: 'video/H264', sdpFmtpLine: 'packetization-mode=0' }, { mimeType: 'video/H264', sdpFmtpLine: 'packetization-mode=1;profile-level-id=42e01f' }, { mimeType: 'video/VP9' }]
+  assert.deepEqual(preferredVideoCodecs(codecs).map(codec => codec.mimeType + (codec.sdpFmtpLine?.includes('mode=1') ? '/1' : '')), ['video/H264/1', 'video/H264', 'video/VP8', 'video/rtx', 'video/VP9'])
+  assert.deepEqual(preferredVideoCodecs([{ mimeType: 'video/VP8' }]), [{ mimeType: 'video/VP8' }], 'Without H.264 the order is unchanged')
+  assert.equal(MAX_STREAM_LINES, 480, 'Streams stop at the highest native console resolution')
+}
 // Stream rate: sustained CPU limits drop to 30 fps; a long healthy spell restores 60.
 let rate = { fps: 60, strained: 0, healthy: 0 }
 for (let i = 0; i < STRAIN_SAMPLES - 1; i++) rate = nextStreamRate(rate, true)
@@ -183,6 +220,24 @@ assert.deepEqual(analog.at(-1), [17, 0], 'Watchdog clears analog input')
 assert(n64.receive(n64Packet(2, [], [1, 1])))
 assert.deepEqual(analog.slice(-2), [[16, 23166], [18, 23166]], 'The host clamps diagonal stick snapshots to the unit circle')
 n64.release()
+// PlayStation: two analog sticks; the right stick drives axes 20–23 (not N64 C-buttons).
+{
+  const psxInputs = []
+  const psx = inputReceiver((index, value) => psxInputs.push([index, value]), () => clock, 'psx')
+  const psxPacket = (seq, buttons, stick, stick2) => JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq, buttons, stick, stick2 })
+  assert(psx.receive(psxPacket(0, [13], [0.5, 0], [0, -1])))
+  assert.deepEqual(psxInputs, [[13, 1], [16, 16384], [23, 32767]], 'Left stick 16–19, right stick 20–23, R2 a plain button')
+  assert(!psx.receive(JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq: 1, buttons: [], stick: [0, 0] })), 'PlayStation packets need both sticks')
+  assert(!psx.receive(psxPacket(1, [20], [0, 0], [0, 0])), 'Right-stick axes are never buttons')
+  assert(!inputReceiver(() => {}, () => clock, 'snes').receive(JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq: 0, buttons: [], stick2: [0, 0] })), 'Systems without sticks reject a second stick')
+  psx.release()
+  assert.deepEqual(psxInputs.slice(-3).map(([, value]) => value), [0, 0, 0], 'Release neutralizes both sticks')
+  assert.deepEqual(keyboardStick(new Set([20, 23]), false, 20), [0.707, -0.707], 'The keyboard right stick uses indices 20–23')
+  const pad = { buttons: [], axes: [0, 0, 1, 0] }
+  assert.deepEqual(gamepadControls(pad, 'psx').stick2, [1, 0], 'A gamepad right stick stays analog on PlayStation')
+  assert.deepEqual(gamepadControls(pad, 'psx').buttons, [], 'PlayStation sticks never become D-pad presses')
+  assert.deepEqual(inputIndices('psx').filter(index => index >= 16), [16, 17, 18, 19, 20, 21, 22, 23])
+}
 
 // Three guests can hold the same button without releasing another player's port.
 const portInputs = new Map()

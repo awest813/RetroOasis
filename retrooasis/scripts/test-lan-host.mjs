@@ -11,12 +11,14 @@ class Element {
   append(child) { this.children.push(child); if (child.value) this.value ||= child.value }
   contains() { return false }
   focus() {}
+  addEventListener() {}
   querySelector(selector) { return this.nodes?.[selector] }
 }
-const selectors = ['[data-lan-note]','form', '[data-lan-room]', '[data-lan-address]', '[data-lan-invite]', '[data-lan-lock]', '[data-lan-retry]', '[data-lan-pause]', '[data-lan-end]', '[data-lan-copy]', '[data-lan-qr]', '[data-lan-players]', '[data-lan-capacity]']
+const selectors = ['[data-lan-note]','form', '[data-lan-room]', '[data-lan-address]', '[data-lan-invite]', '[data-lan-lock]', '[data-lan-retry]', '[data-lan-pause]', '[data-lan-end]', '[data-lan-copy]', '[data-lan-qr]', '[data-lan-players]', '[data-lan-capacity]', 'details', 'summary']
 const panel = new Element()
 panel.nodes = Object.fromEntries(selectors.map(selector => [selector, new Element()]))
 panel.nodes.form.nodes = {button:new Element()}
+panel.nodes.details.open = true
 panel.nodes.form.elements = {nickname:new Element()}
 const inviteDetails = {open:false}
 let inviteFocused = false, inviteSelected = false
@@ -24,6 +26,7 @@ panel.nodes['[data-lan-invite]'].closest = () => inviteDetails
 panel.nodes['[data-lan-invite]'].focus = () => { inviteFocused = true }
 panel.nodes['[data-lan-invite]'].select = () => { inviteSelected = true }
 const events = new Map(), timers = new Map(), peers = [], inputs = new Map()
+const intervals = []
 let timerId = 0, rosterStates, lastStatus, stoppedUnusedAudio = 0
 const room = {code:'1234567890',core:'n64',maxPlayers:4,locked:false,players:[{slot:0,id:'host',socketId:'host',nickname:'Host',connected:true}]}
 const socket = {connected:true,on:(name, handler)=>events.set(name,handler),emit(){},disconnect(){this.connected=false}}
@@ -37,12 +40,12 @@ const sandbox = {
   document:{createElement:tag=>tag==='aside'?panel:new Element(),body:new Element(),head:new Element()},
   window:{addEventListener(){}},location:{origin:'http://localhost'},FormData:class {get(key){return key==='maxPlayers'?'4':'Host'}},
   navigator:{clipboard:{writeText:async()=>{throw new Error('Clipboard unavailable')}}},
-  ROOM_PROFILES:LAN_CAPABILITIES,inputIndices,inputReceiver,roomSummary,savedNickname:fallback=>fallback,saveNickname(){},STREAM_FPS:60,tuneVideoSender:async()=>{},nextStreamRate:state=>state,connectionQuality:async()=>({rttMs:null,fps:null,dropped:0}),
-  setTimeout:fn=>{timers.set(++timerId,fn);return timerId},clearTimeout:id=>timers.delete(id),setInterval:()=>0,clearInterval(){},
+  ROOM_PROFILES:LAN_CAPABILITIES,inputIndices,inputReceiver,roomSummary,savedNickname:fallback=>fallback,saveNickname(){},STREAM_FPS:60,tuneVideoSender:async()=>{},nextStreamRate:state=>state,preferH264(){},connectionQuality:async()=>({rttMs:null,fps:null,dropped:0}),
+  setTimeout:fn=>{timers.set(++timerId,fn);return timerId},clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn),clearInterval(){},
   status:message=>lastStatus=message,roster:(list,next,kick,states)=>rosterStates=new Map(states),
   lanInfo:async()=>({addresses:[]}),connectSocket:async()=>socket,request:async(s,event)=> event==='room:create'?{room}: {},
   createPeer:(s,id,onTrack,onState)=>{
-    const channel={readyState:'connecting'}
+    const channel={readyState:'connecting',sent:[],send(message){this.sent.push(JSON.parse(message))}}
     const peer={pc:{connectionState:'new',addTrack(){},createDataChannel:()=>channel,createOffer:async()=>({}),setLocalDescription:async()=>{},localDescription:{toJSON:()=>({})}},accept(){},close(){peer.pc.connectionState='closed'},
       setState(state){peer.pc.connectionState=state;onState(state)}}
     peers.push(peer);return peer
@@ -69,11 +72,16 @@ assert.equal(rosterStates.get('s2'),'Timed out · reconnect')
 assert.match(lastStatus,/Player 3/)
 for(const peer of peers){peer.channel.readyState='open';peer.channel.onopen();assert(!timers.has(peer.deadline))}
 assert([...rosterStates.values()].every(state=>state==='Ready to play'))
+assert(peers.every(peer=>peer.channel.sent.at(-1)?.type==='state'&&peer.channel.sent.at(-1).paused===false),'Guests learn the pause state when their controls open')
+assert.equal(panel.nodes.details.open,false,'A full, ready room folds the floating panel off the game')
+assert.equal(panel.nodes.summary.textContent,'Online room · 4/4','The folded panel still shows the seat count')
+assert.equal(inviteDetails.open,false,'A full room folds the invite link and QR code')
 const packet=seq=>JSON.stringify({type:'controls',v:LAN_PROTOCOL,seq,buttons:[0,12,21],stick:[.5,-.5]})
 peers.forEach(peer=>peer.channel.onmessage({data:packet(0)}))
 assert.equal(inputs.size,15)
 peers[1].setState('disconnected')
 assert.equal(inputs.size,10,'Only the disconnected port releases')
+assert.equal(panel.nodes.details.open,true,'A dropped guest reopens the panel')
 peers[1].channel.onmessage({data:packet(1)})
 assert.equal(inputs.size,10,'A late packet during disconnection cannot restore held controls')
 peers[1].setState('connected')
@@ -84,6 +92,13 @@ assert.equal(inputs.size,15,'Fresh input recovers only the assigned port')
 emu.paused=true
 peers.forEach(peer=>peer.channel.onmessage({data:packet(3)}))
 assert.equal(inputs.size,0,'Paused snapshots neutralize every guest')
+for(const tick of intervals) await tick()
+assert(peers.every(peer=>peer.channel.sent.at(-1)?.paused===true),'A pause is announced to every guest')
+const sentCount=peers[0].channel.sent.length
+for(const tick of intervals) await tick()
+assert.equal(peers[0].channel.sent.length,sentCount,'An unchanged pause state is not resent on every tick')
+for(let i=0;i<8;i++) for(const tick of intervals) await tick()
+assert(peers[0].channel.sent.length>sentCount&&peers[0].channel.sent.at(-1).paused===true,'The pause state repeats, since the controls channel may drop a packet')
 cleanup()
 assert.equal(emu.gameManager.simulateInput,originalInput)
 emu.gameManager.simulateInput(3,0,1)

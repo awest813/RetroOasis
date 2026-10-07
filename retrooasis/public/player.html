@@ -59,6 +59,15 @@
         height: 100%;
       }
 
+      /* Phones held upright draw the game from the top (the on-screen pad sits below it),
+         so the game starts under the bar instead of behind it. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #display {
+          box-sizing: border-box;
+          padding-top: calc(max(0.55rem, env(safe-area-inset-top, 0px)) + 2.9rem);
+        }
+      }
+
       .ro-play-bar {
         position: fixed;
         top: 0;
@@ -248,6 +257,11 @@
     <div id="display"><div id="game"></div></div>
     <script>
       (function () {
+        // EmulatorJS asks to keep the screen awake and doesn't handle a refusal (battery
+        // saver, some browsers); the game runs the same either way.
+        window.addEventListener("unhandledrejection", function (event) {
+          if (/wake lock/i.test(String(event.reason && event.reason.message))) event.preventDefault();
+        });
         try {
           var storedAccent = localStorage.getItem("retrooasis.accent");
           document.documentElement.dataset.accent = storedAccent === "ps" ? "ps" : "sega";
@@ -312,11 +326,13 @@
           latest: "Latest",
           nightly: "Nightly",
         };
-        const channelLabel = CHANNEL_LABELS[channel] || channel;
+        const channelLabel = params.get("lanhost") === "1" ? "Online room" : CHANNEL_LABELS[channel] || channel;
+        // People-facing system names for the top bar (the core key stays internal).
+        const SYSTEM_NAMES = { nes: "NES", snes: "SNES", gb: "Game Boy", gba: "Game Boy Advance", nds: "Nintendo DS", n64: "Nintendo 64", vb: "Virtual Boy", psx: "PlayStation", psp: "PSP", segaMD: "Mega Drive", segaMS: "Master System", segaGG: "Game Gear", segaCD: "Sega CD", sega32x: "32X", segaSaturn: "Saturn", arcade: "Arcade", mame2003: "Arcade", atari2600: "Atari 2600", atari7800: "Atari 7800", lynx: "Lynx", jaguar: "Jaguar", pce: "PC Engine", ngp: "Neo Geo Pocket", ws: "WonderSwan", dos: "DOS", dosbox_pure: "DOS", ppsspp: "PSP", "3ds": "3DS", azahar: "3DS" };
 
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
-        document.getElementById("meta").textContent = core + " · " + channelLabel;
+        document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel;
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
@@ -748,6 +764,7 @@
         }
 
         var loadedRom = null;
+        var tpkNote = "";
         function restageRom() {
           if (romParam.indexOf(IDB_ROM_PREFIX) !== 0 || !(loadedRom instanceof File)) return Promise.resolve();
           var key = romParam.slice(IDB_ROM_PREFIX.length);
@@ -776,7 +793,7 @@
         // EmulatorJS's own start errors are terse; explain what happened and what to try.
         function explainStartError(detail) {
           var reason = detail && detail.reason;
-          document.getElementById("meta").textContent = core + " · " + channelLabel + " · didn’t start";
+          document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · didn’t start";
           var offline = navigator.onLine === false;
           var again = { label: "Try again", run: function () { retry(); } };
           if (reason === "core") {
@@ -838,7 +855,7 @@
             window.location.href = back;
           };
           window.EJS_onGameStart = function () {
-            document.getElementById("meta").textContent = core + " · " + channelLabel + " · playing";
+            document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · playing" + (tpkNote ? " · " + tpkNote : "");
           };
 
           if (params.get("lanhost") === "1") {
@@ -889,13 +906,32 @@
               "Couldn’t load RetroOasis’s bundled player. Reload this page. If you host RetroOasis yourself, rebuild it and deploy the complete build, including the emulator folder."
             );
           };
-          if (params.get("lanhost") === "1") {
-            return import("./lan-host.js").then(function (module) {
-              module.installLanHost();
-              document.body.appendChild(script);
-            });
-          }
-          document.body.appendChild(script);
+          // N64 Transfer Pak (?tpk=<GB / Color game>): plugs the cartridge into Controller 1.
+          var transferPak = core === "n64" && params.get("tpk")
+            ? import("./transfer-pak.js").then(function (module) {
+                // Not showLoading(): that would replace the #game element EmulatorJS mounts into.
+                document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · inserting the Game Boy cartridge…";
+                return module.loadTransferCart(params.get("tpk")).then(function (cart) {
+                  module.installTransferPak(cart, {
+                    onStatus: function (text) {
+                      tpkNote = text;
+                      var meta = document.getElementById("meta");
+                      meta.textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · " + text;
+                      meta.title = text;
+                    },
+                  });
+                });
+              })
+            : Promise.resolve();
+          return transferPak.then(function () {
+            if (params.get("lanhost") === "1") {
+              return import("./lan-host.js").then(function (module) {
+                module.installLanHost();
+                document.body.appendChild(script);
+              });
+            }
+            document.body.appendChild(script);
+          });
         }
 
         if (!romParam || !core) {
@@ -903,7 +939,7 @@
           return;
         }
 
-        document.getElementById("meta").textContent = core + " · " + channelLabel + " · loading…";
+        document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · loading…";
         showLoading("Loading ROM…");
 
         // About 10% of this browser's quota, between 256 MB and 1 GB.
@@ -919,7 +955,7 @@
         Promise.all([resolveRom(romParam), quotaCheck])
           .then(function (results) { return results[0]; })
           .then(function (gameUrl) {
-            document.getElementById("meta").textContent = core + " · " + channelLabel + " · starting…";
+            document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · starting…";
             showLoading("Starting emulator…");
             return startEmulator(gameUrl);
           })

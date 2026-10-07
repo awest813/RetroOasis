@@ -115,7 +115,8 @@ const n64 = gamepadControls(other, 'n64')
 assert.deepEqual(n64.buttons, [12, 21, 22], 'N64 analog trigger maps Z and right stick maps C buttons')
 assert.ok(n64.stick[0] > 0 && n64.stick[1] < 0, 'N64 left stick retains analog directions')
 other.axes = [NaN, Infinity, NaN, -Infinity]; other.buttons[6].value = 0
-assert.deepEqual(gamepadControls(other, 'n64'), {buttons:[], stick:[0,0]}, 'Malformed axes stay neutral')
+assert.deepEqual(gamepadControls(other, 'n64'), {buttons:[], stick:[0,0], stick2:[0,0]}, 'Malformed axes stay neutral')
+assert.deepEqual(gamepadControls(other, 'psx'), {buttons:[], stick:[0,0], stick2:[0,0]}, 'Malformed axes stay neutral on both PlayStation sticks')
 const { GamepadHandler } = await import('../../data/src/gamepad.js')
 globalThis.window = { clearTimeout }
 const handler = Object.create(GamepadHandler.prototype)

@@ -2,46 +2,83 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <meta name="theme-color" content="#071018"><title>RetroOasis · LAN multiplayer</title>
-    <link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./lan.css">
+    <meta name="theme-color" content="#071018"><title>RetroOasis · Online play</title>
+    <link rel="icon" href="./favicon.svg">
+    <script src="./online-theme.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="./lan.css">
   </head>
-  <body class="ro-lan-page">
-    <header class="ro-lan-header"><a href="./#/">RETRO OASIS</a><span>LAN multiplayer</span></header>
+  <body class="ro-lan-page ro-lan-guest">
+    <header class="ro-lan-header"><a href="./#/">RETRO OASIS</a><span>Online play</span></header>
     <main class="ro-lan-main">
-      <section data-lan-join>
-        <h1>Join a local room</h1>
-        <p>Connect to the host’s Wi-Fi or LAN, then open their invite. The host runs the game; you only need this browser.</p>
-        <form id="join-form">
-          <label>Room code <input name="code" id="room-code" maxlength="200" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help"></label>
-          <p id="code-help">Use the 10-character code from the host’s invite, or paste the whole invite link.</p>
-          <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" placeholder="Your player name" required></label>
-          <button type="submit" disabled>Join room</button>
-        </form>
-        <p>To host: open a real NES, SNES, Mega Drive or N64 game in RetroOasis and choose <strong>Host multiplayer</strong>. N64 supports two to four players and is experimental. For Game Boy, Game Boy Color and GBA trading or link play, choose <strong>Trade &amp; link</strong> on the game instead.</p>
-        <a href="./#/library">Browse your library</a>
+      <section class="ro-lan-join" data-lan-join>
+        <div class="ro-lan-join-card">
+          <h1>Join a local game</h1>
+          <p>The host runs the game on their computer; you play from this browser on the same Wi-Fi.</p>
+          <form id="join-form">
+            <label>Room code <input name="code" id="room-code" maxlength="200" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help" placeholder="A1B2C3D4E5"></label>
+            <p id="code-help">The 10-character code from the host’s invite. Pasting the whole invite link works too.</p>
+            <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" placeholder="Your player name" required></label>
+            <button type="submit" class="ro-lan-primary" disabled>Join room</button>
+          </form>
+        </div>
+        <ol class="ro-lan-steps" aria-label="How online play works">
+          <li><strong>Same network.</strong> Connect to the host’s Wi-Fi or LAN. Guest Wi-Fi with client isolation blocks joining.</li>
+          <li><strong>Open the invite.</strong> Scan the host’s QR code or open their link; the room code fills in.</li>
+          <li><strong>Play.</strong> You get your own controller seat and see the host’s screen. Keyboard, touch and gamepads work.</li>
+        </ol>
+        <p class="ro-lan-hosting">To host, open an NES, SNES, Mega Drive, PlayStation or N64 game in RetroOasis and choose <strong>Host a room</strong> (N64 supports up to four players). For Game Boy, Game Boy Color and GBA trades and link battles, choose <strong>Start Trade &amp; link</strong>. <a href="./#/library">Browse your library</a></p>
       </section>
-      <section data-lan-play tabindex="-1" hidden>
-        <h1 data-lan-title>Connecting…</h1><p data-lan-slot></p>
-        <div class="ro-lan-stage"><video id="lan-video" autoplay playsinline muted aria-label="Host game stream"></video><p data-lan-overlay>Waiting for the host’s game…</p></div>
-        <p class="ro-lan-quality" data-lan-quality aria-label="Stream quality"></p>
-        <div class="ro-lan-actions"><button type="button" id="sound">Enable sound</button><button type="button" id="fullscreen">Fullscreen</button><button type="button" id="reconnect">Reconnect</button><button type="button" id="leave">Leave room</button></div>
+      <section class="ro-lan-play" data-lan-play tabindex="-1" hidden>
+        <div class="ro-lan-topbar">
+          <h1 data-lan-title>Connecting…</h1>
+          <p class="ro-lan-seat" data-lan-slot></p>
+          <ul class="ro-seat-strip" data-lan-strip aria-label="Players in this room"></ul>
+          <p class="ro-lan-seat ro-lan-pad" data-lan-pad hidden>Gamepad ready</p>
+          <p class="ro-lan-quality" data-lan-quality aria-label="Stream quality"></p>
+        </div>
+        <div class="ro-lan-stage"><video id="lan-video" autoplay playsinline muted aria-label="Host game stream"></video><div class="ro-lan-lobby" data-lan-lobby data-mode="lobby" aria-labelledby="lobby-head">
+            <p class="ro-lan-lobby__eyebrow" data-lobby-eyebrow>Lobby</p>
+            <h2 id="lobby-head" data-lobby-head>Connecting to the host’s game…</h2>
+            <p class="ro-lan-lobby__game" data-lobby-game></p>
+            <ol class="ro-link-steps ro-lan-lobby__steps" data-lobby-steps aria-label="Getting ready">
+              <li data-step="joined"><b>1</b><span>Joined the room</span></li>
+              <li data-step="connect"><b>2</b><span>Connecting to the host</span></li>
+              <li data-step="cart" hidden><b>3</b><span>Insert your cartridge</span></li>
+              <li data-step="start"><b>3</b><span>Starting the game</span></li>
+            </ol>
+            <ul class="ro-seats ro-lan-lobby__seats" data-lobby-seats aria-label="Players in this room"></ul>
+            <p class="ro-lan-lobby__tip" data-lobby-tip></p>
+            <button type="button" class="ro-lan-primary" data-lobby-action hidden>Reconnect</button>
+          </div></div>
+        <div class="ro-lan-controls" aria-label="Touch game controls"></div>
+        <p class="ro-lan-live" data-lan-live role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="ro-lan-actions ro-lan-toolbar" role="toolbar" aria-label="Game stream"><button type="button" id="sound">Enable sound</button><button type="button" id="fullscreen">Fullscreen</button><button type="button" id="reconnect">Reconnect</button><button type="button" id="leave">Leave room</button></div>
         <section class="ro-link-cart" data-link-cart aria-labelledby="link-cart-heading" hidden>
           <h2 id="link-cart-heading">Your cartridge</h2>
           <form id="cart-form">
             <label>Game ROM <input type="file" name="rom" required aria-describedby="cart-help"></label>
             <label>Your save file (optional) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream"></label>
             <p id="cart-help">Your game runs as Console 2 on the host’s computer, linked to theirs. Add your battery save (.sav / .srm) to trade from your own game; without one you start a new game.</p>
-            <button type="submit">Insert cartridge</button>
+            <button type="submit" class="ro-lan-primary">Insert cartridge</button>
           </form>
           <div class="ro-lan-actions"><button type="button" id="request-save" hidden>Save to this device</button></div>
           <p data-link-cart-status role="status" aria-live="polite" aria-atomic="true"></p>
           <p class="ro-link-sync" data-link-sync role="status" aria-live="polite"></p>
           <p class="ro-link-warning">Save in-game after trading, then choose Save to this device. Your file is not kept on the host.</p>
         </section>
-        <div class="ro-lan-controls" aria-label="Touch game controls"></div>
-        <p data-lan-input-hint></p><p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul data-lan-players aria-label="Controller seats"></ul>
+        <details class="ro-lan-card ro-lan-keys" data-lan-keys>
+          <summary>Keyboard and gamepad</summary>
+          <p data-lan-input-hint></p>
+          <label class="ro-lan-toggle"><input type="checkbox" data-lan-touch-toggle> Show on-screen controls</label>
+        </details>
+        <details class="ro-lan-card ro-lan-room" data-lan-room-card>
+          <summary>Room <span data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></span></summary>
+          <ul data-lan-players aria-label="Controller seats"></ul>
+        </details>
       </section>
-      <p data-lan-status role="status" aria-live="polite" aria-atomic="true">Checking LAN room service…</p>
+      <p data-lan-status role="status" aria-live="polite" aria-atomic="true">Checking the room service…</p>
       <button type="button" id="retry-service" hidden>Retry connection</button>
       <p class="ro-lan-note">Use a trusted HTTPS server for guest gamepads. Keyboard and touch are available in HTTP mode. Host and guest must stay on the same LAN.</p>
     </main>

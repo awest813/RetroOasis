@@ -2,10 +2,10 @@ import { mountHost } from './lan-host.js'
 import { keyboardControl, buttonHolds } from './lan-shared.js'
 import { LINK_CAPABILITIES, gamepadControls, keyboardLayout } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
-import { createLinkSession, cartridgeInfo, validSaveSize, saveSettler } from './link-session.js'
+import { createLinkSession, cartridgeInfo, cartTitle, validSaveSize, saveSettler } from './link-session.js'
 import { readRomReference, unwrapRom } from './rom-source.js'
 import { fileReceiver, sendFile, downloadBytes, saveName, SAVE_LIMIT } from './link-transfer.js'
-import { librarySaveKey, readLibrarySave, writeLibrarySave } from './library-saves.js'
+import { libraryCartSave, writeLibrarySave } from './library-saves.js'
 
 const params = new URLSearchParams(location.search)
 const system = params.get('system')
@@ -48,11 +48,28 @@ function placeholder(slot, text) {
   const ctx = contexts[slot], canvas = canvases[slot]
   ctx.fillStyle = '#071018'; ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.fillStyle = '#e8eef5'; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'
-  text.split('\n').forEach((line, index) => ctx.fillText(line, canvas.width / 2, canvas.height / 2 - 6 + index * 14))
+  text.split('\n').forEach((line, index) => ctx.fillText(line, canvas.width / 2, canvas.height / 2 - 6 + index * 14, canvas.width - 12))
 }
 
 function message(channel, payload) { if (channel?.readyState === 'open') channel.send(JSON.stringify(payload)) }
+// The setup tracker: each step is done, current (the next thing to do) or waiting.
+const stepList = document.querySelector('[data-link-steps]')
+function refreshSteps() {
+  if (!stepList) return
+  const roomOpen = roomPanel?.querySelector('[data-lan-room]')?.hidden === false
+  const done = { cart: !!host, room: roomOpen || !!session, guest: !!guest?.bytes || !!session, start: !!session }
+  stepList.hidden = sessionEnded
+  let current = false
+  for (const item of stepList.children) {
+    const isDone = done[item.dataset.step]
+    item.dataset.status = isDone ? 'done' : current ? 'waiting' : 'current'
+    if (!isDone) current = true
+    item.setAttribute('aria-current', item.dataset.status === 'current' ? 'step' : 'false')
+  }
+}
+setInterval(refreshSteps, 500)
 function refreshButtons() {
+  refreshSteps()
   const running = !!session
   buttons.start.disabled = running || !host || !guest?.bytes
   buttons.start.hidden = running || sessionEnded
@@ -186,7 +203,8 @@ function onGuestFile(file) {
   if (!guest || session || sessionEnded) return
   if (file.kind === 'rom') {
     try {
-      const info = cartridgeInfo(system, file.bytes)
+      const parsed = cartridgeInfo(system, file.bytes)
+      const info = { ...parsed, title: cartTitle(file.name) || parsed.title }
       guest.bytes = file.bytes; guest.name = file.name; guest.info = info; guest.save = null
       guestLabel.textContent = `Console 2 · ${guest.nickname} · ${info.title}`
       placeholder(1, `${info.title}\nReady to link`)
@@ -343,10 +361,12 @@ buttons.start.onclick = async () => {
     frame = requestAnimationFrame(tick)
     message(guest.channel, { type: 'session', running: true })
     if (narrow.matches && roomPanel) roomPanel.querySelector('details').open = false
+    // On a phone, Console 1 and its touch controls fit on one screen from Console 1's top.
+    if (narrow.matches) canvases[0].scrollIntoView({ block: 'start', behavior: 'smooth' })
     setStatus(session.link.warning
       ? `Running ${host.info.title} and ${guest.info.title}. ${session.link.warning}`
-      : `Linked by ${session.link.label}: ${host.info.title} ↔ ${guest.info.title}. Use the game’s trade or link menu on both consoles.`)
-    if (session.link.warning) message(guest.channel, { type: 'status', text: session.link.warning })
+      : `Linked by ${session.link.label}: ${host.info.title} ↔ ${guest.info.title}. ${session.link.howTo}`)
+    message(guest.channel, { type: 'status', text: session.link.warning || `Linked by ${session.link.label}. ${session.link.howTo} Save in-game after trading; each save is sent here automatically.` })
   } catch (error) {
     clearInterval(syncTimer)
     session?.close(); session = null
@@ -418,9 +438,12 @@ async function start() {
   placeholder(0, 'Loading cartridge…'); placeholder(1, 'Waiting for a guest')
   if (!LINK_CAPABILITIES[system]) throw new Error('This system has no link cable support.')
   const rom = await unwrapRom(await readRomReference(params.get('rom')))
-  const info = cartridgeInfo(system, rom.bytes)
-  host = { ...rom, info, saveKey: librarySaveKey(rom.name) }
-  host.librarySave = await readLibrarySave(host.saveKey).catch(() => null)
+  const parsed = cartridgeInfo(system, rom.bytes)
+  // The file name ("Pokemon - Crystal Version") reads better than the header ("PM_CRYSTAL").
+  const info = { ...parsed, title: cartTitle(rom.name) || parsed.title }
+  // The save the player itself wrote for this game (see library-saves.js).
+  const { save, key } = await libraryCartSave(rom.name, system)
+  host = { ...rom, info, saveKey: key, librarySave: save }
   const library = document.querySelector('[data-link-library]')
   if (host.librarySave && validSaveSize(system, host.librarySave.bytes.length)) {
     library.hidden = false
@@ -434,7 +457,8 @@ async function start() {
   placeholder(0, `${info.title}\nReady`)
   setStatus('Create a room in the Link room panel, then share the invite with your guest.')
   const { panel } = await mountHost(emu, {
-    heading: 'Link room', onPeer, onDrop,
+    // This panel sits beside the consoles (or folds itself on phones), never over them.
+    heading: 'Link room', onPeer, onDrop, collapseWhenReady: false, pauseButton: false,
     note: 'Keep this page and the LAN server open. Your guest plays Console 2 with their own cartridge and save; their screen streams from here.',
   })
   // In the page flow, so on narrow screens it never covers the consoles or touch controls.

@@ -12,6 +12,10 @@ const GB_KEYS = { 7: 0, 6: 1, 4: 2, 5: 3, 8: 4, 0: 5, 2: 6, 3: 7 }
 const text = (bytes, start, end) => String.fromCharCode(...bytes.subarray(start, end)).replace(/[^\x20-\x7e]/g, '').trim()
 
 /** Validates a cartridge for a link system; returns display details or throws a user-facing error. */
+/** "Pokemon - Gold Version (USA, Europe) (SGB Enhanced).gbc" → "Pokemon - Gold Version";
+ * reads better than the header's "POKEMON_GLD". */
+export const cartTitle = name => String(name ?? '').replace(/\.[^.]+$/, '').replace(/\s*[([][^)\]]*[)\]]/g, '').trim()
+
 export function cartridgeInfo(system, bytes) {
   const profile = LINK_CAPABILITIES[system]
   if (!profile) throw new Error('This system has no link cable support.')
@@ -22,7 +26,10 @@ export function cartridgeInfo(system, bytes) {
     for (let at = 0x134; at <= 0x14c; at++) check = (check - bytes[at] - 1) & 255
     if (check !== bytes[0x14d]) throw new Error('That Game Boy cartridge header is damaged.')
     const cgb = bytes[0x143]
-    return { system, color: (cgb & 0x80) !== 0, title: text(bytes, 0x134, cgb & 0x80 ? 0x13f : 0x144) || 'Game Boy cartridge' }
+    // Color carts may end the title early for a 4-character maker code (Gold's "AAUE"),
+    // but older ones run it on: Yellow's "POKEMON YELLOW" fills those bytes with "LOW".
+    const makerCode = (cgb & 0x80) && bytes.subarray(0x13f, 0x143).every(byte => (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5a))
+    return { system, color: (cgb & 0x80) !== 0, title: text(bytes, 0x134, !(cgb & 0x80) ? 0x144 : makerCode ? 0x13f : 0x143) || 'Game Boy cartridge' }
   }
   if (bytes.length < 0xc0 || bytes[0xb2] !== 0x96) throw new Error('That is not a Game Boy Advance cartridge.')
   return { system, code: text(bytes, 0xac, 0xb0), title: text(bytes, 0xa0, 0xac) || 'GBA cartridge' }
@@ -61,8 +68,12 @@ export function saveSettler(initial = null, length = 0) {
 export function describeGbaLink(modes, titles = ['Console 1', 'Console 2']) {
   const missing = modes.findIndex(mode => !GBA_LINK_LABELS[mode])
   if (missing !== -1) return { label: null, warning: `${titles[missing]} has no link support in this emulator. Both games run, but linking won’t work. Supported: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, Advance Wars 1 and 2, and a few wireless-adapter games.` }
+  // gpSP emulates Ruby and Sapphire's cable but FireRed, LeafGreen and Emerald's wireless adapter.
+  if (modes[0] !== modes[1] && modes.includes(2) && modes.includes(3)) return { label: null, warning: 'In this emulator Pokémon Ruby and Sapphire link by cable, and FireRed, LeafGreen and Emerald by wireless adapter, so these two can’t link. Pair Ruby with Sapphire, or FireRed, LeafGreen and Emerald with each other.' }
   if (modes[0] !== modes[1]) return { label: null, warning: `These games use different link modes (${GBA_LINK_LABELS[modes[0]]} and ${GBA_LINK_LABELS[modes[1]]}), so they can’t link.` }
-  return { label: GBA_LINK_LABELS[modes[0]], warning: null }
+  return { label: GBA_LINK_LABELS[modes[0]], warning: null, howTo: modes[0] === 2
+    ? 'Use the game’s wireless menu on both consoles: in Pokémon FireRed, LeafGreen and Emerald, the Union Room on a Pokémon Center’s second floor.'
+    : 'Use the game’s trade or link menu on both consoles.' }
 }
 
 export function validSaveSize(system, size) {
@@ -101,7 +112,7 @@ async function gbSession({ carts, saves, loadCore, loadFile }) {
   const audioBuffer = core._malloc(4096 * 4)
   let budget = 0
   return {
-    info, width: 160, height: 144, sampleRate: 48000, link: { label: 'Game Boy link cable', warning: null },
+    info, width: 160, height: 144, sampleRate: 48000, link: { label: 'Game Boy link cable', warning: null, howTo: 'Use the game’s trade or link menu on both consoles.' },
     advance(ms) {
       budget = Math.min(budget + ms * GB_TICKS_PER_MS, 4 * 70224 * 2)
       // Small slices keep both consoles' serial clocks interleaved.
@@ -211,5 +222,37 @@ export async function createLinkSession({ system, carts, saves = [null, null], l
   saves.forEach((save, slot) => {
     if (save && !validSaveSize(system, save.length)) throw new Error(`Console ${slot + 1}’s save file is not a ${system === 'gb' ? 'Game Boy' : 'GBA'} save.`)
   })
-  return system === 'gb' ? gbSession({ carts, saves, loadCore, loadFile }) : gbaSession({ carts, saves, loadCore })
+  return holdTaps(await (system === 'gb' ? gbSession({ carts, saves, loadCore, loadFile }) : gbaSession({ carts, saves, loadCore })))
+}
+
+/**
+ * Both consoles run in catch-up batches on each animation frame. On a busy host a frame
+ * can take longer than a quick tap, so a press and its release could both land between
+ * batches and the game never saw the button (seen with menus under load). Every press
+ * now lasts at least MIN_PRESS_MS of emulated time; an earlier release waits for it.
+ */
+export const MIN_PRESS_MS = 2 * 1000 / 60
+const MAX_BATCH_MS = 4 * 1000 / 60 // Both cores cap one catch-up batch near four frames.
+export function holdTaps(session) {
+  const held = [new Map(), new Map()] // index → emulated ms since the press
+  const deferred = [new Set(), new Set()]
+  const { key, advance, setPaused } = session
+  const release = (slot, index) => { held[slot].delete(index); deferred[slot].delete(index); key.call(session, slot, index, false) }
+  session.key = (slot, index, pressed) => {
+    if (!held[slot]) return
+    if (pressed) { deferred[slot].delete(index); if (!held[slot].has(index)) held[slot].set(index, 0); key.call(session, slot, index, true); return }
+    if ((held[slot].get(index) ?? Infinity) < MIN_PRESS_MS) deferred[slot].add(index)
+    else release(slot, index)
+  }
+  session.advance = ms => {
+    advance.call(session, ms)
+    const step = Math.min(Math.max(0, ms), MAX_BATCH_MS)
+    for (let slot = 0; slot < 2; slot++) {
+      for (const [index, time] of held[slot]) held[slot].set(index, time + step)
+      for (const index of [...deferred[slot]]) if (held[slot].get(index) >= MIN_PRESS_MS) release(slot, index)
+    }
+  }
+  // Pausing releases everything at once: nothing may stay held across a pause.
+  session.setPaused = paused => { if (paused) for (let slot = 0; slot < 2; slot++) for (const index of [...deferred[slot]]) release(slot, index); setPaused.call(session, paused) }
+  return session
 }

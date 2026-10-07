@@ -1,7 +1,7 @@
-import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality, keyboardStick } from './lan-shared.js'
+import { connectSocket, createPeer, lanInfo, request, roster, roomSummary, status as pageStatus, CORE_LABELS, keyboardControl, buttonHolds, savedNickname, saveNickname, roomCodeFrom, lowLatencyReceiver, connectionQuality, keyboardStick } from './lan-shared.js'
 import { ROOM_PROFILES, LAN_PROTOCOL, normalizeStick, inputIndices, gamepadControls, keyboardLayout, BUTTON_LABELS } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
-import { cartridgeInfo, validSaveSize } from './link-session.js'
+import { cartridgeInfo, cartTitle, validSaveSize } from './link-session.js'
 import { unwrapRom } from './rom-source.js'
 import { fileReceiver, sendFile, downloadBytes, SAVE_LIMIT } from './link-transfer.js'
 
@@ -9,9 +9,33 @@ const joinForm = document.querySelector('#join-form')
 const joinView = document.querySelector('[data-lan-join]')
 const playView = document.querySelector('[data-lan-play]')
 const video = document.querySelector('#lan-video')
-const overlay = document.querySelector('[data-lan-overlay]')
 const sound = document.querySelector('#sound')
 const retryService = document.querySelector('#retry-service')
+const padChip = document.querySelector('[data-lan-pad]')
+// While playing, messages show right under the game (the page-level line is hidden then,
+// so screen readers hear each message once).
+const liveLine = document.querySelector('[data-lan-live]')
+function status(message) {
+  pageStatus(message)
+  if (liveLine) liveLine.textContent = message
+}
+// On-screen controls: on by default for touch screens, off for mouse and keyboard; the
+// player's choice is remembered on this device.
+const touchToggle = document.querySelector('[data-lan-touch-toggle]')
+const coarsePointer = matchMedia('(pointer: coarse)')
+const readPref = () => { try { return localStorage.getItem('retrooasis.lan.touch') } catch { return null } }
+function applyTouchPref() {
+  const pref = readPref()
+  const show = pref === null ? coarsePointer.matches : pref === '1'
+  document.body.classList.toggle('ro-lan-touch-on', show)
+  if (touchToggle) touchToggle.checked = show
+}
+if (touchToggle) touchToggle.onchange = () => { try { localStorage.setItem('retrooasis.lan.touch', touchToggle.checked ? '1' : '0') } catch { /* private mode */ } applyTouchPref() }
+coarsePointer.addEventListener?.('change', applyTouchPref)
+applyTouchPref()
+// Keyboard players see the key list at once; touch players open it if they want it.
+const keysCard = document.querySelector('[data-lan-keys]')
+if (keysCard) keysCard.open = !coarsePointer.matches
 let socket, room, peer, channel, resumeToken, playerId
 let joining = false
 let ended = false
@@ -36,11 +60,78 @@ const syncLine = document.querySelector('[data-link-sync]')
 function refreshCart() {
   const linked = room?.mode === 'linked-consoles'
   cartView.hidden = !linked
+  // Before the link starts the cartridge box sits right under the screen, where the guest
+  // needs it; while it runs, the touch controls take that place (on a phone the box pushed
+  // them a screen away) and the box follows the toolbar. Moved only on a change, so a
+  // focused button inside it keeps focus.
+  const playing = linkRunning || linkEnded
+  const anchor = playing ? document.querySelector('.ro-lan-toolbar') : document.querySelector('.ro-lan-controls')
+  if (linked && anchor && (playing ? anchor.nextElementSibling !== cartView : anchor.previousElementSibling !== cartView)) {
+    if (playing) anchor.after(cartView)
+    else anchor.before(cartView)
+  }
   const open = cartChannel?.readyState === 'open'
   cartForm.hidden = linkRunning || cartInserted || linkEnded
   cartForm.querySelector('button').disabled = !open
   requestSave.hidden = !(linkRunning && open) && !latestSave
   syncLine.textContent = latestSave ? `Latest save from your game: ${latestSave.at.toLocaleTimeString()}${latestSave.downloaded ? ' (downloaded)' : ''}.` : ''
+  refreshLobby()
+}
+// The lobby covers the stage until the host's game is on screen: who is here, what is
+// still happening (connecting, cartridge, start) and the controls. It comes back while the
+// host pauses, while a dropped connection rejoins, and when it can't.
+const lobby = document.querySelector('[data-lan-lobby]')
+const stage = document.querySelector('.ro-lan-stage')
+let trouble = null // null, 'reconnecting' or 'lost'
+let slow = false
+function lobbyStep(name, status, label) {
+  const step = lobby.querySelector(`[data-step="${name}"]`)
+  step.hidden = status === null
+  if (status === null) return
+  step.dataset.status = status
+  step.querySelector('span').textContent = label
+}
+function refreshLobby() {
+  if (!room) return
+  const me = room.players.find(player => player.id === playerId)
+  const hostName = room.players.find(player => player.slot === 0)?.nickname || 'the host'
+  const linked = room.mode === 'linked-consoles'
+  const connected = peer?.pc.connectionState === 'connected' && channel?.readyState === 'open'
+  const live = connected && video.readyState >= 2
+  const waitingLink = linked && !linkRunning && !linkEnded
+  const needsCart = waitingLink && !cartInserted
+  const mode = trouble ?? (hostPaused && connected ? 'paused' : !live || waitingLink ? 'lobby' : null)
+  lobby.hidden = !mode
+  // With no game picture behind it, the lobby takes the stage's place and its full height.
+  if (mode && mode !== 'paused') stage.dataset.lobby = 'full'
+  else delete stage.dataset.lobby
+  if (!mode) return
+  lobby.dataset.mode = mode
+  const text = (selector, value) => { const node = lobby.querySelector(selector); if (node.textContent !== value) node.textContent = value }
+  text('[data-lobby-eyebrow]', mode === 'paused' ? 'Paused' : mode === 'reconnecting' ? `Reconnecting · attempt ${Math.min(autoRetries + 1, AUTO_RETRIES)} of ${AUTO_RETRIES}` : mode === 'lost' ? 'Disconnected' : `Lobby · You’re Player ${(me?.slot ?? 0) + 1}`)
+  text('[data-lobby-head]', mode === 'paused' ? 'The host paused the game'
+    : mode === 'reconnecting' ? 'Connection interrupted'
+      : mode === 'lost' ? 'Game connection lost'
+        : !connected ? (slow ? `Still connecting to ${hostName}…` : `Connecting to ${hostName}’s game…`)
+          : needsCart ? 'Insert your cartridge'
+            : waitingLink ? `Waiting for ${hostName} to start the link`
+              : 'Starting the game…')
+  text('[data-lobby-game]', `${room.title} · ${CORE_LABELS[room.core] || room.core}`)
+  text('[data-lobby-tip]', mode === 'paused' ? 'Your controls work again when they resume.'
+    : mode === 'reconnecting' ? 'Your seat is held while this page rejoins.'
+      : mode === 'lost' ? 'Check that both devices are still on the same Wi-Fi, then reconnect.'
+        : slow && !connected ? 'Both devices must be on the same Wi-Fi or LAN. Guest networks with client isolation block the game connection.'
+          : needsCart && connected ? 'Choose your game below, and your save file to trade from your own game.'
+            : coarsePointer.matches ? 'On-screen controls appear under the game. Sound turns on with your first tap.'
+              : keyboardLayout(room.core).hint)
+  lobbyStep('joined', 'done', 'Joined the room')
+  lobbyStep('connect', connected ? 'done' : 'current', connected ? `Connected to ${hostName}` : `Connecting to ${hostName}`)
+  lobbyStep('cart', linked ? (cartInserted || linkRunning ? 'done' : connected ? 'current' : 'waiting') : null, cartInserted || linkRunning ? 'Cartridge inserted' : 'Insert your cartridge')
+  lobbyStep('start', live && !waitingLink ? 'done' : connected && !needsCart ? 'current' : 'waiting', linked ? `${hostName} starts the link` : 'Game on screen')
+  const steps = [...lobby.querySelectorAll('[data-step]')].filter(step => !step.hidden)
+  steps.forEach((step, index) => { step.querySelector('b').textContent = index + 1 })
+  lobby.querySelector('[data-lobby-steps]').style.setProperty('--steps', steps.length)
+  lobby.querySelector('[data-lobby-action]').hidden = mode !== 'lost'
 }
 function keepSave(file, downloaded) {
   latestSave = { name: file.name, bytes: file.bytes, at: new Date(), downloaded }
@@ -72,23 +163,49 @@ setInterval(async () => {
   if (!peer || peer.pc.connectionState !== 'connected') { qualityLine.textContent = ''; return }
   const { rttMs, fps, dropped } = await connectionQuality(peer.pc)
   qualityLine.textContent = [fps !== null && `${fps} fps`, rttMs !== null && `${rttMs} ms`, dropped && `${dropped} dropped frames`].filter(Boolean).join(' · ')
+  // A colour cue alongside the numbers: smooth, playable, or struggling.
+  qualityLine.dataset.level = fps === null ? '' : fps >= 45 && (rttMs ?? 0) < 40 ? 'good' : fps >= 25 && (rttMs ?? 0) < 100 ? 'fair' : 'poor'
 }, 2000)
 
+// Each new track calls play() again, and a newer call aborts the older one: that's not an
+// error. If the browser refuses to play with sound, play muted rather than show a frozen
+// screen; the next tap or key press turns sound back on.
+async function startVideo() {
+  try { await video.play() }
+  catch (error) {
+    if (error?.name === 'AbortError') return
+    if (!video.muted) {
+      video.muted = true; soundChoice = false; sound.textContent = 'Enable sound'
+      try { await video.play(); status('Playing muted. Press any key or tap the game to turn sound back on.'); return } catch { /* still blocked */ }
+    }
+    status('Tap the game to start the stream.')
+  }
+}
+// The host announces pauses on the controls channel; the stream alone would just freeze.
+let hostPaused = false
+function showHostPause(paused) {
+  if (paused === hostPaused) return
+  hostPaused = paused
+  status(paused ? 'The host paused the game. Your controls work again when they resume.' : 'The host resumed the game.')
+  refreshLobby()
+}
 function closePeer() {
   clearTimeout(timeout)
+  hostPaused = false
   cartChannel = null
   guestInput?.dispose(); guestInput = null
   channel = null
   peer?.close(); peer = null
   video.srcObject = null
   video.load()
-  overlay.textContent = 'Waiting for the host’s game…'
-  overlay.hidden = false
   previousHost = null
   controlSequence = 0
+  refreshLobby()
 }
 function end(message) {
   generation++
+  clearTimeout(autoTimer); autoTimer = null; autoRetries = 0
+  trouble = null; slow = false
   joining = false
   joinForm.querySelector('button').disabled = false
   ended = true
@@ -114,18 +231,20 @@ function bindInput(core, send) {
   let active = true
   const profile = ROOM_PROFILES[core]
   const n64 = !!profile.analog
+  // PlayStation rooms send both analog sticks (keyboard T/F/G/H and I/J/K/L, gamepad sticks).
+  const dual = !!profile.dualAnalog
   const allowed = new Set(inputIndices(core))
   // Same keys as the RetroOasis player (see keyboardLayout in lan-capabilities.js).
   const keys = keyboardLayout(core).keys
-  let padStick = [0, 0], touchStick = [0, 0], stickPointer = null
+  let padStick = [0, 0], padStick2 = [0, 0], touchStick = [0, 0], stickPointer = null
   // N64: hold Shift for a half tilt, so keyboard players can walk as well as run.
   let walking = false
   const controls = document.querySelector('.ro-lan-controls')
   const labels = BUTTON_LABELS[core] ?? {}
   controls.replaceChildren()
-  if (n64) {
+  if (n64 || dual) {
     const stick = document.createElement('div')
-    stick.className = 'ro-lan-stick'; stick.setAttribute('role', 'group'); stick.setAttribute('aria-label', 'Analog stick. Drag to move or use keyboard arrows.'); stick.tabIndex = 0
+    stick.className = 'ro-lan-stick'; stick.setAttribute('role', 'group'); stick.setAttribute('aria-label', n64 ? 'Analog stick. Drag to move or use keyboard arrows.' : 'Left analog stick. Drag to move or use T/F/G/H.'); stick.tabIndex = 0
     stick.innerHTML = '<span>Stick</span><i aria-hidden="true"></i>'
     const move = event => {
       if (!active || event.pointerId !== stickPointer) return
@@ -166,6 +285,10 @@ function bindInput(core, send) {
     group('Shoulder buttons', [[10, 'L'], [12, 'Z'], [11, 'R']], 'ro-lan-buttons ro-lan-shoulders')
     group('Game buttons', [[1, 'B'], [0, 'A']], 'ro-lan-buttons ro-lan-face')
     group('C buttons', [[23, 'C ↑'], [21, 'C ←'], [22, 'C ↓'], [20, 'C →']], 'ro-lan-dpad ro-lan-cpad')
+  } else if (dual) {
+    // Laid out like a DualShock: the four shoulders in a row, the face buttons as a diamond.
+    group('Shoulder buttons', [[10, 'L1'], [12, 'L2'], [13, 'R2'], [11, 'R1']], 'ro-lan-buttons ro-lan-shoulders ro-lan-shoulders4')
+    group('Face buttons', [[9, '△'], [1, '□'], [8, '○'], [0, '✕']], 'ro-lan-facepad')
   } else group('Game buttons', Object.entries(labels).filter(([index]) => allowed.has(Number(index))).map(([index, label]) => [Number(index), label]), 'ro-lan-buttons')
   group('Start and select', [[3, 'Start'], ...(core === 'segaMD' || n64 ? [] : [[2, 'Select']])], 'ro-lan-system')
   function transmit(force = false) {
@@ -174,7 +297,9 @@ function bindInput(core, send) {
     const buttons = [...held].filter(index => profile.buttons.includes(index)).sort((a, b) => a - b)
     const keyStick = keyboardStick(held, walking)
     const stick = touchStick.some(Boolean) ? touchStick : keyStick.some(Boolean) ? keyStick : padStick
-    const key = `${buttons.join(',')}/${stick.join(',')}`
+    const keyStick2 = keyboardStick(held, false, 20)
+    const stick2 = keyStick2.some(Boolean) ? keyStick2 : padStick2
+    const key = `${buttons.join(',')}/${stick.join(',')}/${dual ? stick2.join(',') : ''}`
     const now = performance.now()
     if (key !== last) changedAt = now
     // The controls channel drops late packets instead of resending them, so a change is
@@ -182,7 +307,7 @@ function bindInput(core, send) {
     const gap = now - changedAt < 120 ? 15 : 250
     if (!force && key === last && now - lastSent < gap) return
     last = key; lastSent = now
-    send(JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq: controlSequence++, buttons, ...(n64 ? { stick } : {}) }))
+    send(JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq: controlSequence++, buttons, ...(n64 || dual ? { stick } : {}), ...(dual ? { stick2 } : {}) }))
     for (const button of controls.querySelectorAll('button')) button.setAttribute('aria-pressed', String(buttons.includes(Number(button.dataset.control))))
   }
   const onKey = event => {
@@ -193,21 +318,25 @@ function bindInput(core, send) {
     }
     if (keyboardControl(event, keys, allowed, keyboard)) transmit(true)
   }
-  const release = () => { walking = false; padGate.reset(); keyboard.clear(); gamepad.clear(); touchStick = [0, 0]; padStick = [0, 0]; stickPointer = null; const thumb = controls.querySelector('.ro-lan-stick i'); if (thumb) thumb.style.transform = ''; pointers.clear() }
+  const release = () => { walking = false; padGate.reset(); keyboard.clear(); gamepad.clear(); touchStick = [0, 0]; padStick = [0, 0]; padStick2 = [0, 0]; stickPointer = null; const thumb = controls.querySelector('.ro-lan-stick i'); if (thumb) thumb.style.transform = ''; pointers.clear() }
   const visibility = () => { if (document.hidden) release() }
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey)
   window.addEventListener('blur', release); document.addEventListener('visibilitychange', visibility)
   const poll = () => {
     if (!active) return
     gamepad = new Set()
-    padStick = [0, 0]
+    padStick = [0, 0]; padStick2 = [0, 0]
     if (document.hasFocus() && !document.hidden) {
       try {
-        const pad = padGate.read(padSelector.read(readControllers().pads))
+        const pads = readControllers().pads
+        // A chip in the top bar confirms the controller is seen (it's otherwise silent).
+        if (padChip && padChip.hidden === pads.length > 0) padChip.hidden = !pads.length
+        const pad = padGate.read(padSelector.read(pads))
         if (pad) {
           const input = gamepadControls(pad, core)
           gamepad = new Set(input.buttons)
           padStick = input.stick
+          padStick2 = input.stick2 ?? [0, 0]
         }
       } catch { /* HTTP origins can deny gamepad access; keyboard and touch still work. */ }
     }
@@ -237,31 +366,47 @@ function update(next) {
   const host = room.players.find(player => player.slot === 0)
   if (!me || !host) { end('This room is no longer available.'); return }
   roster(document.querySelector('[data-lan-players]'), room)
+  roster(lobby.querySelector('[data-lobby-seats]'), room, null, null, playerId)
+  // Seat chips in the top bar: who is here at a glance, yours outlined.
+  const strip = document.querySelector('[data-lan-strip]')
+  if (strip) {
+    strip.replaceChildren(...Array.from({ length: room.maxPlayers }, (_, slot) => {
+      const player = room.players.find(p => p.slot === slot)
+      const chip = document.createElement('li')
+      chip.className = 'ro-seat-strip__chip'
+      chip.dataset.slot = slot
+      chip.dataset.state = !player ? 'open' : player.connected ? 'in' : 'away'
+      if (player?.id === me.id) chip.dataset.me = 'true'
+      chip.textContent = `P${slot + 1}`
+      chip.title = player ? `Player ${slot + 1}: ${player.nickname}${player.connected ? '' : ' (reconnecting)'}` : `Player ${slot + 1}: open`
+      return chip
+    }))
+  }
   const capacity = document.querySelector('[data-lan-capacity]')
   const summary = roomSummary(room)
   if (capacity.textContent !== summary) capacity.textContent = summary
   document.querySelector('[data-lan-title]').textContent = `${room.title} · ${CORE_LABELS[room.core] || room.core}`
-  document.querySelector('[data-lan-slot]').textContent = `You are Player ${me.slot + 1} · ${me.nickname}`
-  if (previousHost === host.socketId && peer) return
+  document.querySelector('[data-lan-slot]').textContent = `You · Player ${me.slot + 1} · ${me.nickname}`
+  if (previousHost === host.socketId && peer) { refreshLobby(); return }
   closePeer()
   previousHost = host.socketId
+  slow = false
   const stream = new MediaStream()
-  overlay.hidden = false
   const currentPeer = createPeer(socket, host.socketId, event => {
     if (peer !== currentPeer) return
     lowLatencyReceiver(event.receiver)
     stream.addTrack(event.track)
     video.srcObject = stream
-    void video.play().catch(() => status('Tap Enable sound to start the game stream.'))
+    void startVideo()
   }, state => {
     if (peer !== currentPeer) return
-    if (state === 'connected') { clearTimeout(timeout); enableInput(); overlay.hidden = video.readyState >= 2; status('Connected. Use your controls to play; Enable sound turns on game audio.') }
+    if (state === 'connected') { clearTimeout(timeout); slow = false; enableInput(); status(video.muted && !soundChoice ? 'Connected! Press any key or tap the game to turn on sound.' : 'Connected. Have fun!') }
+    if (state === 'connected') autoRetries = 0
     if (['failed', 'disconnected'].includes(state)) {
       guestInput?.dispose(); guestInput = null
-      overlay.textContent = 'Game connection lost. Choose Reconnect to try again.'
-      overlay.hidden = false
-      status('Game connection lost. Tap Reconnect to retry on the same LAN.')
+      scheduleAutoReconnect(currentPeer)
     }
+    refreshLobby()
   })
   peer = currentPeer
   peer.pc.ondatachannel = event => {
@@ -272,11 +417,22 @@ function update(next) {
     const incoming = channel
     channel.onopen = () => {
       if (channel !== incoming) return
+      // Back on a working connection: the interrupted / lost notice goes.
+      if (peer?.pc.connectionState === 'connected') { trouble = null; autoRetries = 0 }
       enableInput()
+      refreshLobby()
     }
-    channel.onclose = () => { if (channel !== incoming) return; guestInput?.dispose(); guestInput = null; status('Controls disconnected. Tap Reconnect to retry.') }
+    channel.onmessage = event => {
+      if (channel !== incoming || typeof event.data !== 'string') return
+      let data
+      try { data = JSON.parse(event.data) } catch { return }
+      if (data?.type === 'state' && typeof data.paused === 'boolean') showHostPause(data.paused)
+    }
+    // The controls channel closing is the quickest sign the host dropped this connection
+    // (ICE takes 5–10 s to report it), so the automatic rejoin starts from here.
+    channel.onclose = () => { if (channel !== incoming) return; guestInput?.dispose(); guestInput = null; scheduleAutoReconnect(peer); refreshLobby() }
   }
-  timeout = setTimeout(() => status('Connection timed out. Both devices must use the same LAN; guest Wi-Fi/client isolation can prevent joining.'), 15000)
+  timeout = setTimeout(() => { slow = true; refreshLobby(); status('Connection timed out. Both devices must use the same LAN; guest Wi-Fi/client isolation can prevent joining.') }, 15000)
 }
 function attachCart(channel) {
   cartChannel = channel
@@ -329,10 +485,12 @@ cartForm.onsubmit = async event => {
     const info = cartridgeInfo(room.core, rom.bytes)
     const saveFile = cartForm.elements.save.files?.[0]
     if (saveFile && (saveFile.size > SAVE_LIMIT || !validSaveSize(room.core, saveFile.size))) throw new Error('That save file does not match this system.')
-    cartStatus.textContent = `Sending ${info.title} to the host…`
+    cartStatus.textContent = `Sending ${cartTitle(rom.name) || info.title} to the host…`
     await sendFile(channel, 'rom', rom.name, rom.bytes)
     if (saveFile) await sendFile(channel, 'save', saveFile.name, new Uint8Array(await saveFile.arrayBuffer()))
     cartInserted = true
+    // Back to the lobby (the form sits below it): the game appears there when the host starts.
+    playView.scrollIntoView({ block: 'start', behavior: 'smooth' })
   } catch (error) { cartStatus.textContent = error.message }
   finally { button.disabled = false; refreshCart() }
 }
@@ -375,20 +533,43 @@ async function join(reconnecting = false) {
     // Start at the game: the join form may have left the page scrolled down.
     playView.scrollIntoView({ block: 'start' })
     refreshCart()
-    document.querySelector('[data-lan-input-hint]').textContent = keyboardLayout(room.core).hint + (room.core === 'n64' ? ' Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.' : '')
+    document.querySelector('[data-lan-input-hint]').textContent = keyboardLayout(room.core).hint + (room.core === 'n64' ? ' Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.' : ROOM_PROFILES[room.core]?.dualAnalog ? ' Gamepad: both sticks are analog; games that support the DualShock use them.' : '')
     document.querySelector('[data-lan-input-hint]').textContent += ' After connecting or returning to this tab, release gamepad buttons and center both sticks before playing.'
     update(room)
     status('Joined. Connecting to the host’s game…')
   } catch (error) { if (attempt === generation) end(error.message) }
   finally { if (attempt === generation) { joining = false; joinForm.querySelector('button').disabled = false } }
 }
-video.onplaying = () => { if (peer?.pc.connectionState === 'connected') overlay.hidden = true }
+video.onplaying = refreshLobby
+video.onloadeddata = refreshLobby
 sound.onclick = async () => {
+  soundChoice = true
   video.muted = !video.muted
   try { await video.play(); sound.textContent = video.muted ? 'Enable sound' : 'Mute sound' }
   catch { video.muted = true; sound.textContent = 'Enable sound'; status('Audio is not ready. Try Enable sound after the stream connects.') }
 }
-document.querySelector('#fullscreen').onclick = () => { void playView.requestFullscreen?.().catch(() => status('Fullscreen is unavailable in this browser.')) }
+// Browsers only allow sound after the player interacts, so the stream starts muted. The
+// first tap, click or key press while playing turns sound on (unless they used the
+// button themselves); a muted stream with a working game is easy to miss.
+let soundChoice = false
+async function autoSound(event) {
+  if (soundChoice || playView.hidden || !video.muted || !video.srcObject?.getAudioTracks().length) return
+  if (event.target?.closest?.('#sound, input, textarea, select')) return
+  soundChoice = true
+  video.muted = false
+  try { await video.play(); sound.textContent = 'Mute sound'; if (/turn (on|sound back on)/.test(liveLine?.textContent || '')) status('Sound on.') }
+  catch { video.muted = true; soundChoice = false }
+}
+for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, event => { void autoSound(event) }, { capture: true })
+// iPad Safari only has the prefixed call; iPhone Safari can't make a page element
+// fullscreen at all, so the button goes rather than doing nothing.
+const fullscreenButton = document.querySelector('#fullscreen')
+const enterFullscreen = playView.requestFullscreen ?? playView.webkitRequestFullscreen
+if (!enterFullscreen) fullscreenButton.hidden = true
+fullscreenButton.onclick = () => {
+  try { void Promise.resolve(enterFullscreen.call(playView)).catch(() => status('Fullscreen is unavailable in this browser.')) }
+  catch { status('Fullscreen is unavailable in this browser.') }
+}
 document.querySelector('#leave').onclick = () => {
   if (joining) return
   end('You left the room.')
@@ -396,13 +577,40 @@ document.querySelector('#leave').onclick = () => {
   joinForm.querySelector('button').disabled = true
   void request(socket, 'room:leave').catch(() => {}).finally(() => { joining = false; joinForm.querySelector('button').disabled = false })
 }
-document.querySelector('#reconnect').onclick = () => {
+function reconnect() {
+  clearTimeout(autoTimer); autoTimer = null
+  rejoining = !!socket?.connected // A planned rejoin: the disconnect that follows is not news.
   guestInput?.release(); closePeer()
   if (socket) { socket.disconnect(); socket.connect() }
 }
+// A dropped game connection (Wi-Fi blip, host tab busy) is retried on its own: WebRTC
+// often recovers from 'disconnected' by itself, so wait first, then rejoin with the
+// same seat, backing off 2 s, 4 s, 8 s. After that it's the guest's call.
+const AUTO_RETRIES = 3
+let autoRetries = 0, autoTimer = null, rejoining = false
+function scheduleAutoReconnect(lostPeer) {
+  if (autoTimer || ended) return
+  if (autoRetries >= AUTO_RETRIES) {
+    trouble = 'lost'; refreshLobby()
+    status('Game connection lost. Tap Reconnect to retry on the same LAN.')
+    return
+  }
+  const wait = 2000 * 2 ** autoRetries
+  trouble = 'reconnecting'; refreshLobby()
+  status(`Connection interrupted. Reconnecting automatically (attempt ${autoRetries + 1} of ${AUTO_RETRIES})…`)
+  autoTimer = setTimeout(() => {
+    autoTimer = null
+    // Recovered by itself only if both the media and the controls are back: after the host
+    // closes its side, this page's connection keeps reading 'connected' for ~8 s.
+    if (ended || peer !== lostPeer || (peer?.pc.connectionState === 'connected' && channel?.readyState === 'open')) return
+    autoRetries++
+    reconnect()
+  }, wait)
+}
+document.querySelector('#reconnect').onclick = lobby.querySelector('[data-lobby-action]').onclick = () => { autoRetries = 0; trouble = 'reconnecting'; reconnect(); refreshLobby() }
 retryService.onclick = () => {
   retryService.hidden = true
-  status('Reconnecting to the LAN room service…')
+  status('Reconnecting to the room service…')
   if (socket) { socket.disconnect(); socket.connect() }
   else void initialize()
 }
@@ -416,13 +624,13 @@ try {
   socket.on('room:update', update)
   socket.on('room:signal', ({ sender, signal }) => { if (room?.players.find(player => player.slot === 0)?.socketId === sender) void peer?.accept(signal) })
   socket.on('room:ended', ({ reason }) => end(reason))
-  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = false; guestInput?.release(); closePeer(); status(!ended && room ? 'Room service disconnected. Trying to reconnect…' : 'Room service disconnected. Retry when the host server is back.') })
-  socket.on('connect', () => { retryService.hidden = true; if (!ended && resumeToken) void join(true); else { joinForm.querySelector('button').disabled = false; status('LAN room service ready. Enter the invite code and your name.') } })
-  socket.on('connect_error', () => { retryService.hidden = false; status('Cannot reach the LAN room service. Retry when the host server is back.') })
+  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = rejoining; guestInput?.release(); closePeer(); if (rejoining) { rejoining = false; return } status(!ended && room ? 'Room service disconnected. Trying to reconnect…' : 'Room service disconnected. Retry when the host server is back.') })
+  socket.on('connect', () => { retryService.hidden = true; if (!ended && resumeToken) void join(true); else { joinForm.querySelector('button').disabled = false; status('Ready. Enter the room code and your name.') } })
+  socket.on('connect_error', () => { retryService.hidden = false; status('Can’t reach the room service. Retry once the host’s room service is running again.') })
   socket.io.on('reconnect_failed', () => { if (!ended && room) status('Room service is still unavailable. Tap Reconnect when the host server is back.') })
   joinForm.querySelector('button').disabled = false
   retryService.hidden = true
-  status('LAN room service ready. Enter the invite code and your name.')
+  status('Ready. Enter the room code and your name.')
 } catch (error) { joinForm.querySelector('button').disabled = true; retryService.hidden = false; status(error.message) }
 }
 void initialize()

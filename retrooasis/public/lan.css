@@ -1,60 +1,221 @@
-:root { color-scheme: dark; --lan-bg: #071018; --lan-panel: #102330; --lan-accent: #2ee6d6; --lan-text: #e8eef5; --lan-muted: #9aabbc; }
+/* Online play pages share the app's design system: tokens, fonts, accent and buttons
+   mirror src/styles/tokens.css and base.css (.ro-btn), so rooms look like the rest of
+   RetroOasis. The --lan-* names are aliases kept for the page scripts' class names. */
+:root {
+  color-scheme: dark;
+  --ro-bg-void: #071018; --ro-bg-void-mid: #0c1c28; --ro-bg-panel-solid: #102433;
+  --ro-accent-sega: #2ee6d6; --ro-accent-ps: #f0b429; --ro-accent: var(--ro-accent-sega);
+  --ro-accent-soft: color-mix(in srgb, var(--ro-accent) 22%, transparent);
+  --ro-line: rgba(46, 230, 214, 0.28); --ro-text: #e8eef5; --ro-text-dim: #9aabbc; --ro-danger: #ff4d6d;
+  --ro-font-display: "Outfit", system-ui, sans-serif; --ro-font-ui: "Sora", system-ui, sans-serif; --ro-font-mono: ui-monospace, "Cascadia Code", monospace;
+  --lan-bg: var(--ro-bg-void); --lan-panel: var(--ro-bg-panel-solid); --lan-panel-2: var(--ro-bg-void-mid); --lan-line: color-mix(in srgb, var(--ro-accent) 18%, #24404d);
+  --lan-accent: var(--ro-accent); --lan-text: var(--ro-text); --lan-muted: var(--ro-text-dim);
+  --lan-good: #4ade80; --lan-fair: #f0b429; --lan-poor: #ff4d6d; --lan-radius: 10px;
+  /* Seat colors, as on N64 / Switch controllers: P1 red, P2 blue, P3 yellow, P4 green. */
+  --seat-1: #ff5a5f; --seat-2: #4f8cff; --seat-3: #f5c518; --seat-4: #3ecf8e;
+}
+/* Safari before 16.2 and Firefox before 113 have no color-mix(): solid stand-ins for the
+   tokens built from it (the per-element mixes then fall back to their plain colors). */
+@supports not (color: color-mix(in srgb, red, blue)) {
+  :root { --ro-accent-soft: rgba(46, 230, 214, 0.22); --lan-line: #21505a; }
+  :root[data-accent="ps"] { --ro-accent-soft: rgba(240, 180, 41, 0.22); --lan-line: #4a4a34; }
+}
+html[data-accent="ps"] { --ro-accent: var(--ro-accent-ps); --ro-line: rgba(240, 180, 41, 0.3); }
 * { box-sizing: border-box; }
-.ro-lan-page { margin: 0; background: var(--lan-bg); color: var(--lan-text); font: 16px/1.5 system-ui, sans-serif; }
-.ro-lan-header { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem max(1rem, env(safe-area-inset-left)); border-bottom: 1px solid #24404d; }
-.ro-lan-header a { font-weight: 750; letter-spacing: .12em; }
-.ro-lan-main { max-width: 960px; margin: auto; padding: 1.5rem max(1rem, env(safe-area-inset-left)); }
+.ro-lan-page { margin: 0; min-height: 100dvh; background: radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--ro-accent) 9%, transparent), transparent 60%), var(--lan-bg); color: var(--lan-text); font: 16px/1.5 var(--ro-font-ui); }
+/* The app's top bar: wordmark + section label. */
+.ro-lan-header { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: baseline; gap: .55rem 1rem; padding: max(.8rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) .8rem max(1rem, env(safe-area-inset-left)); border-bottom: 1px solid var(--ro-line); background: color-mix(in srgb, var(--ro-bg-void) 78%, transparent); backdrop-filter: blur(8px); }
+.ro-lan-header a { font-family: var(--ro-font-display); font-size: clamp(.95rem, 1.8vw, 1.15rem); font-weight: 650; letter-spacing: .12em; color: var(--ro-accent); text-shadow: 0 0 18px var(--ro-accent-soft); text-decoration: none; }
+.ro-lan-header span { font-size: .75rem; text-transform: uppercase; letter-spacing: .18em; color: var(--lan-muted); }
+.ro-lan-main { max-width: 1080px; margin: auto; padding: 1.25rem max(1rem, env(safe-area-inset-left)) 2.5rem; }
 .ro-lan-page a, .ro-lan-panel a { color: var(--lan-accent); }
-.ro-lan-page h1 { font-size: clamp(1.3rem, 4vw, 2rem); }
+.ro-lan-page h1, .ro-lan-page h2, .ro-lan-panel summary { font-family: var(--ro-font-display); letter-spacing: .01em; }
+.ro-lan-page h1 { font-size: clamp(1.4rem, 4vw, 2.1rem); font-weight: 700; margin: .2rem 0 .6rem; }
 .ro-lan-page p, .ro-lan-panel p { color: var(--lan-muted); }
-.ro-lan-page label, .ro-lan-panel label { display: grid; gap: .4rem; margin: .7rem 0; }
-.ro-lan-page input, .ro-lan-page select, .ro-lan-panel input, .ro-lan-panel select { width: 100%; min-width: 0; padding: .7rem; background: var(--lan-bg); color: var(--lan-text); border: 1px solid #456270; font: inherit; border-radius: 3px; }
-.ro-lan-page button, .ro-lan-panel button { cursor: pointer; padding: .65rem .9rem; min-height: 44px; background: var(--lan-panel); color: var(--lan-accent); border: 1px solid var(--lan-accent); font: inherit; border-radius: 3px; }
-.ro-lan-page button:disabled, .ro-lan-panel button:disabled { opacity: .5; cursor: wait; }
-.ro-lan-page button:hover, .ro-lan-page button[aria-pressed=true], .ro-lan-panel button:hover { background: var(--lan-accent); color: var(--lan-bg); }
-.ro-lan-page :focus-visible, .ro-lan-panel :focus-visible { outline: 3px solid #f0b429; outline-offset: 3px; }
+.ro-lan-page label, .ro-lan-panel label { display: grid; gap: .4rem; margin: .7rem 0; font-size: .92rem; }
+.ro-lan-page input, .ro-lan-page select, .ro-lan-panel input, .ro-lan-panel select { width: 100%; min-width: 0; min-height: 44px; padding: .7rem; background: var(--lan-bg); color: var(--lan-text); border: 1px solid color-mix(in srgb, var(--ro-accent) 30%, #456270); font: inherit; border-radius: 6px; }
+.ro-lan-page input:focus, .ro-lan-panel input:focus { border-color: var(--ro-accent); outline: none; box-shadow: 0 0 0 3px var(--ro-accent-soft); }
+/* Buttons: the app's .ro-btn look (uppercase, tracked, accent outline / fill). */
+.ro-lan-page button, .ro-lan-panel button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; cursor: pointer; padding: .62rem 1.05rem; min-height: 44px; background: transparent; color: var(--lan-accent); border: 1px solid var(--lan-accent); font: 600 .78rem/1.2 var(--ro-font-ui); text-transform: uppercase; letter-spacing: .12em; border-radius: 6px; transition: background 160ms ease, color 160ms ease, transform 160ms ease; }
+.ro-lan-page button:active, .ro-lan-panel button:active { transform: translateY(1px); }
+.ro-lan-page button:disabled, .ro-lan-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.ro-lan-page button:hover:not(:disabled), .ro-lan-page button[aria-pressed=true], .ro-lan-panel button:hover:not(:disabled) { background: var(--lan-accent); color: var(--lan-bg); }
+.ro-lan-page .ro-lan-primary, .ro-lan-panel .ro-lan-primary { background: var(--lan-accent); color: var(--lan-bg); }
+.ro-lan-page .ro-lan-primary:hover:not(:disabled), .ro-lan-panel .ro-lan-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ro-accent) 85%, white); }
+.ro-lan-page :focus-visible, .ro-lan-panel :focus-visible { outline: 2px solid var(--ro-accent); outline-offset: 3px; box-shadow: 0 0 0 5px var(--ro-accent-soft); }
 .ro-lan-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
-.ro-lan-stage { position: relative; background: #000; aspect-ratio: 4 / 3; max-height: 65vh; }
-.ro-lan-stage video { width: 100%; height: 100%; object-fit: contain; }
-.ro-lan-stage [data-lan-overlay] { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; padding: 1rem; text-align: center; pointer-events: none; }
-.ro-lan-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; touch-action: none; user-select: none; }
-.ro-lan-controls button { min-width: 48px; min-height: 48px; touch-action: none; }
-.ro-lan-dpad, .ro-lan-buttons { display: grid; grid-template-columns: repeat(3, minmax(48px, 1fr)); gap: .45rem; }
+.ro-lan-panel [data-lan-end], .ro-lan-page #leave, .ro-lan-page #end { border-color: var(--ro-danger); color: var(--ro-danger); background: color-mix(in srgb, var(--ro-danger) 12%, transparent); }
+.ro-lan-panel [data-lan-end]:hover:not(:disabled), .ro-lan-page #leave:hover:not(:disabled), .ro-lan-page #end:hover:not(:disabled) { background: var(--ro-danger); color: var(--lan-bg); }
+[hidden] { display: none !important; }
+
+/* Cards and disclosure */
+.ro-lan-card { margin: .9rem 0; padding: .2rem 1rem; background: var(--lan-panel-2); border: 1px solid var(--lan-line); border-radius: var(--lan-radius); }
+.ro-lan-card summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .5rem; font-weight: 650; }
+.ro-lan-card summary::before { content: '▸'; color: var(--lan-accent); transition: transform .15s; }
+.ro-lan-card[open] summary::before { transform: rotate(90deg); }
+.ro-lan-card summary::-webkit-details-marker { display: none; }
+.ro-lan-card summary [data-lan-capacity] { font-weight: 500; color: var(--lan-muted); font-size: .9rem; }
+.ro-lan-toggle { display: flex !important; align-items: center; gap: .6rem; min-height: 44px; }
+.ro-lan-toggle input { width: 22px; height: 22px; }
+
+/* Seats: a status dot per row (host roster and guest room card). */
+.ro-lan-panel ul, .ro-lan-page ul { padding: 0; list-style: none; margin: .4rem 0; }
+/* Seat cards: colored player chip, name, status dot. */
+.ro-seats { display: grid; gap: .4rem; }
+.ro-seat { display: flex; align-items: center; gap: .6rem; padding: .45rem .55rem; border-radius: 8px; background: color-mix(in srgb, var(--lan-panel-2) 80%, transparent); border: 1px solid var(--lan-line); }
+.ro-seat__chip { flex: 0 0 auto; display: grid; place-content: center; width: 2.1rem; height: 2.1rem; border-radius: 8px; font: 700 .8rem/1 var(--ro-font-display); color: #071018; background: var(--seat-1); }
+.ro-seat[data-slot="1"] .ro-seat__chip { background: var(--seat-2); }
+.ro-seat[data-slot="2"] .ro-seat__chip { background: var(--seat-3); }
+.ro-seat[data-slot="3"] .ro-seat__chip { background: var(--seat-4); }
+.ro-seat[data-state=open] .ro-seat__chip { background: transparent; color: var(--lan-muted); border: 1px dashed color-mix(in srgb, var(--lan-muted) 60%, transparent); }
+.ro-seat__text { display: grid; min-width: 0; flex: 1; }
+.ro-seat__text strong { color: var(--lan-text); font-weight: 600; overflow-wrap: anywhere; }
+.ro-seat__text small { color: var(--lan-muted); font-size: .78rem; }
+.ro-seat__text small::before { content: ''; display: inline-block; width: .5rem; height: .5rem; margin-right: .4rem; border-radius: 50%; background: #5d7280; vertical-align: .05em; }
+.ro-seat[data-state=ready] small::before, .ro-seat[data-state=joined] small::before { background: var(--lan-good); }
+.ro-seat[data-state=waiting] small::before { background: var(--lan-fair); }
+.ro-seat[data-state=lost] small::before { background: var(--lan-poor); }
+.ro-seat button { flex: 0 0 auto; min-height: 36px; padding: .35rem .6rem; font-size: .7rem; }
+[data-lan-capacity] { font-weight: 650; }
+
+/* Status lines */
+[data-lan-status] { overflow-wrap: anywhere; }
+.ro-lan-page .ro-lan-main > [data-lan-status] { padding: .75rem 1rem; border-left: 3px solid var(--lan-accent); background: var(--lan-panel); border-radius: 0 8px 8px 0; }
+.ro-lan-note { font-size: .85rem; }
+
+/* Guest: join view */
+.ro-lan-join { display: grid; gap: 1.25rem; align-items: start; }
+@media (min-width: 820px) { .ro-lan-join { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); } .ro-lan-hosting { grid-column: 1 / -1; } }
+.ro-lan-join-card { padding: 1.25rem; background: var(--lan-panel); border: 1px solid var(--lan-line); border-radius: var(--lan-radius); }
+.ro-lan-join-card h1 { margin-top: 0; }
+.ro-lan-page #join-form button { width: 100%; margin-top: .4rem; }
+.ro-lan-page #room-code { text-transform: uppercase; letter-spacing: .2em; font: 600 1.25rem/1.2 ui-monospace, monospace; padding: .8rem; }
+.ro-lan-page #room-code::placeholder { letter-spacing: .2em; color: #3d5866; }
+.ro-lan-page #code-help { font-size: .85rem; margin-top: 0; }
+.ro-lan-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: .75rem; }
+.ro-lan-steps li { counter-increment: step; position: relative; min-height: 2rem; padding: .15rem 0 0 2.85rem; color: var(--lan-muted); }
+.ro-lan-steps li::before { content: counter(step); position: absolute; left: 0; top: 0; display: grid; place-content: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--lan-panel); border: 1px solid var(--lan-accent); color: var(--lan-accent); font-weight: 700; }
+.ro-lan-steps strong { color: var(--lan-text); }
+.ro-lan-hosting { font-size: .9rem; }
+
+/* Guest: play view. It takes focus on join (tabindex -1) only to anchor keyboard
+   navigation; a ring around the whole page would just be noise. */
+[data-lan-play]:focus { outline: none; }
+.ro-lan-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; margin-bottom: .6rem; }
+.ro-lan-topbar h1 { flex: 1 1 14rem; margin: 0; font-size: clamp(1.1rem, 3vw, 1.5rem); }
+.ro-lan-seat, .ro-lan-quality { margin: 0; padding: .2rem .65rem; border-radius: 999px; background: var(--lan-panel); border: 1px solid var(--lan-line); font-size: .85rem; white-space: nowrap; }
+.ro-lan-seat { color: var(--lan-text); }
+.ro-lan-seat:empty, .ro-lan-quality:empty { display: none; }
+.ro-lan-quality { font: 12px/1.6 ui-monospace, monospace; color: var(--lan-muted); }
+.ro-lan-quality::before { content: ''; display: inline-block; width: .55rem; height: .55rem; margin-right: .4rem; border-radius: 50%; background: #5d7280; }
+.ro-lan-quality[data-level=good]::before { background: var(--lan-good); }
+.ro-lan-quality[data-level=fair]::before { background: var(--lan-fair); }
+.ro-lan-quality[data-level=poor]::before { background: var(--lan-poor); }
+.ro-lan-stage { position: relative; background: #000; aspect-ratio: 4 / 3; width: min(100%, calc(70vh * 4 / 3)); max-height: 70vh; margin-inline: auto; border-radius: var(--lan-radius); overflow: hidden; border: 1px solid var(--lan-line); }
+.ro-lan-stage video { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
+/* Guest lobby: covers the stage until the host's game is live (and while paused,
+   reconnecting or lost). Before the first frame the stage grows to fit it, so a phone
+   in portrait shows the whole lobby; the video keeps playing underneath, unseen. */
+.ro-lan-lobby { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem; padding: clamp(1rem, 4vw, 2rem); text-align: center; overflow: auto;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--ro-accent) 14%, var(--lan-panel)) 0%, var(--lan-bg) 70%); color: var(--lan-text); }
+.ro-lan-lobby[hidden] { display: none; }
+.ro-lan-lobby > * { margin: 0; max-width: 34rem; width: 100%; }
+.ro-lan-lobby > .ro-lan-lobby__steps { max-width: 44rem; }
+.ro-lan-lobby .ro-lan-lobby__steps li span { overflow-wrap: normal; min-width: 0; }
+.ro-lan-lobby__eyebrow { font: 700 .72rem/1 var(--ro-font-display); letter-spacing: .18em; text-transform: uppercase; color: var(--ro-accent); }
+.ro-lan-lobby h2 { font: 650 clamp(1.15rem, 3.4vw, 1.6rem)/1.2 var(--ro-font-display); }
+.ro-lan-lobby__game { color: var(--lan-muted); font-size: .92rem; overflow-wrap: anywhere; }
+.ro-lan-lobby .ro-lan-lobby__steps { grid-template-columns: repeat(var(--steps, 3), minmax(0, 1fr)); margin: .3rem 0; text-align: left; }
+.ro-lan-lobby__steps li[data-status=current] b { animation: ro-lobby-pulse 1.4s ease-in-out infinite; }
+.ro-lan-lobby__seats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); text-align: left; padding: 0; list-style: none; }
+.ro-lan-lobby__tip { color: var(--lan-muted); font-size: .82rem; overflow-wrap: anywhere; }
+.ro-lan-lobby__tip:empty { display: none; }
+.ro-lan-lobby [data-lobby-action] { width: auto; min-width: 12rem; }
+.ro-seat[data-me=true] { border-color: var(--ro-accent); box-shadow: 0 0 0 2px var(--ro-accent-soft); }
+.ro-lan-stage[data-lobby=full] { aspect-ratio: auto; min-height: min(70vh, calc(min(100vw - 2rem, 70vh * 4 / 3) * 3 / 4)); max-height: none; overflow: visible; }
+.ro-lan-stage[data-lobby=full] video { position: absolute; inset: 0; opacity: 0; }
+.ro-lan-stage[data-lobby=full] .ro-lan-lobby { position: relative; inset: auto; min-height: inherit; border-radius: inherit; }
+/* Paused: the frozen game shows through; the steps are hidden (only lobby and reconnecting show them). */
+.ro-lan-lobby[data-mode=paused] { background: rgb(0 0 0 / .66); backdrop-filter: blur(2px); }
+.ro-lan-lobby:not([data-mode=lobby]):not([data-mode=reconnecting]) .ro-lan-lobby__steps { display: none; }
+@keyframes ro-lobby-pulse { 50% { box-shadow: 0 0 0 6px var(--ro-accent-soft); } }
+@media (prefers-reduced-motion: reduce) { .ro-lan-lobby__steps li[data-status=current] b { animation: none; } }
+@media (max-width: 600px) { .ro-lan-lobby .ro-lan-lobby__steps { grid-template-columns: 1fr; } .ro-lan-lobby__seats { grid-template-columns: 1fr 1fr; } }
+.ro-lan-live { margin: .6rem 0 0; padding: .45rem .8rem; border-left: 3px solid var(--lan-accent); background: var(--lan-panel); border-radius: 0 8px 8px 0; font-size: .9rem; overflow-wrap: anywhere; }
+.ro-lan-live:empty { display: none; }
+.ro-lan-toolbar { margin: .6rem 0; }
+.ro-lan-toolbar button { padding: .45rem .8rem; font-size: .92rem; }
+.ro-lan-toolbar #leave { margin-left: auto; }
+/* The page-level line repeats the live line while playing; hide it then. */
+.ro-lan-guest:has([data-lan-play]:not([hidden])) .ro-lan-main > [data-lan-status] { display: none; }
+[data-lan-play]:fullscreen { background: var(--lan-bg); padding: 1rem; overflow: auto; }
+[data-lan-play]:fullscreen .ro-lan-stage { width: min(100%, calc(85vh * 4 / 3)); max-height: 85vh; }
+
+/* Touch controls: shown for touch screens (or on request), laid out like a controller. */
+.ro-lan-guest:not(.ro-lan-touch-on) .ro-lan-controls { display: none; }
+.ro-lan-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ro-lan-controls button { min-width: 52px; min-height: 52px; touch-action: none; font: 700 1rem/1 var(--ro-font-display); letter-spacing: 0; text-transform: none; }
+.ro-lan-dpad, .ro-lan-buttons { display: grid; grid-template-columns: repeat(3, minmax(52px, 1fr)); gap: .45rem; }
 .ro-lan-dpad button:first-child { grid-column: 2; }
 .ro-lan-dpad button:nth-child(2) { grid-column: 1; }
-.ro-lan-system { display: flex; gap: .5rem; align-items: center; }
-.ro-lan-panel { position: fixed; z-index: 9999; right: max(.65rem, env(safe-area-inset-right)); top: 3.6rem; width: min(340px, calc(100vw - 1.3rem)); max-height: calc(100dvh - 4.5rem); overflow: auto; padding: .8rem; background: var(--lan-panel, #102330); color: var(--lan-text, #e8eef5); border: 1px solid var(--lan-accent, #2ee6d6); font: 14px/1.45 system-ui, sans-serif; box-shadow: 0 8px 25px #0009; }
-.ro-lan-panel summary { cursor: pointer; font-weight: 700; min-height: 44px; display: list-item; align-content: center; }
-.ro-lan-panel ul, .ro-lan-page ul { padding: 0; list-style: none; }
-.ro-lan-panel li, .ro-lan-page li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .5rem 0; }
-.ro-lan-panel li span, .ro-lan-page li span { min-width: 0; overflow-wrap: anywhere; }
-.ro-lan-panel li button { flex: 0 0 auto; }
-[data-lan-capacity] { font-weight: 650; }
-.ro-lan-qr { width: 150px; height: 150px; background: white; margin-top: .5rem; }
-[data-lan-status] { overflow-wrap: anywhere; }
-.ro-lan-note { font-size: .85rem; }
-.ro-lan-stick { position: relative; width: 130px; height: 130px; flex: 0 0 130px; border: 2px solid #456270; border-radius: 50%; background: #071018; touch-action: none; }
+.ro-lan-buttons button { border-radius: 50%; aspect-ratio: 1; }
+/* PlayStation: four shoulders in a row and a face-button diamond (△ □ ○ ✕). */
+.ro-lan-shoulders4 { grid-template-columns: repeat(4, minmax(52px, 1fr)); }
+.ro-lan-shoulders4 button { aspect-ratio: auto; border-radius: 999px; }
+.ro-lan-facepad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: .3rem; }
+.ro-lan-facepad button { border-radius: 50%; }
+.ro-lan-facepad button:nth-child(1) { grid-area: 1 / 2; }
+.ro-lan-facepad button:nth-child(2) { grid-area: 2 / 1; }
+.ro-lan-facepad button:nth-child(3) { grid-area: 2 / 3; }
+.ro-lan-facepad button:nth-child(4) { grid-area: 3 / 2; }
+/* With a C-pad or face diamond, Start / Select share that row instead of taking their own. */
+.ro-lan-controls:has(.ro-lan-cpad, .ro-lan-facepad) .ro-lan-system { flex: 0 1 auto; }
+/* Right-thumb buttons belong on the right: Start / Select go first in that row. */
+.ro-lan-controls:has(.ro-lan-cpad, .ro-lan-facepad) .ro-lan-system { order: 1; }
+.ro-lan-controls .ro-lan-cpad, .ro-lan-controls .ro-lan-facepad { order: 2; }
+.ro-lan-system { display: flex; gap: .5rem; align-items: center; justify-content: center; flex: 1 1 100%; }
+.ro-lan-system button { border-radius: 999px; min-height: 40px; font-size: .85rem; font-weight: 600; }
+.ro-lan-stick { position: relative; width: 130px; height: 130px; flex: 0 0 130px; border: 2px solid #456270; border-radius: 50%; background: var(--lan-panel-2); touch-action: none; }
 .ro-lan-stick span { position: absolute; bottom: .3rem; width: 100%; text-align: center; font-size: .8rem; color: var(--lan-muted); }
 .ro-lan-stick i { position: absolute; width: 44px; height: 44px; left: calc(50% - 22px); top: calc(50% - 22px); border-radius: 50%; background: var(--lan-accent); pointer-events: none; }
-.ro-lan-page #join-form { max-width: 480px; padding: 1rem; background: var(--lan-panel); border: 1px solid #24404d; border-radius: 6px; }
-.ro-lan-page #room-code { text-transform: uppercase; letter-spacing: .15em; font-family: ui-monospace, monospace; }
-.ro-lan-page #code-help { font-size: .85rem; margin-top: 0; }
-.ro-lan-page [data-lan-status] { padding: .75rem 1rem; border-left: 3px solid var(--lan-accent); background: var(--lan-panel); }
-.ro-lan-panel [data-lan-end], .ro-lan-page #leave { border-color: #ef9a9a; color: #ef9a9a; }
-[hidden] { display: none !important; }
-[data-lan-play]:fullscreen { background: var(--lan-bg); padding: 1rem; overflow: auto; }
+
+/* Host: floating room panel */
+.ro-lan-panel { position: fixed; z-index: 9999; right: max(.65rem, env(safe-area-inset-right)); top: 3.6rem; width: min(360px, calc(100vw - 1.3rem)); max-height: calc(100dvh - 4.5rem); overflow: auto; padding: .55rem .95rem .8rem; background: color-mix(in srgb, var(--ro-bg-panel-solid) 94%, transparent); backdrop-filter: blur(10px); color: var(--lan-text); border: 1px solid var(--ro-line); border-radius: 14px; font: 14px/1.45 var(--ro-font-ui); box-shadow: 0 18px 40px #000a, 0 0 0 1px #0006; }
+.ro-lan-panel > details > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .5rem; font-size: 1rem; font-weight: 700; list-style: none; }
+.ro-lan-panel > details > summary::-webkit-details-marker { display: none; }
+.ro-lan-panel > details > summary::before { content: ''; width: .55rem; height: .55rem; border-radius: 50%; background: var(--lan-good); box-shadow: 0 0 10px var(--lan-good); }
+.ro-lan-panel > details > summary::after { content: '▾'; margin-left: auto; color: var(--lan-muted); transition: transform .15s; }
+.ro-lan-panel > details:not([open]) > summary::after { transform: rotate(-90deg); }
+.ro-lan-panel__lede, .ro-lan-panel__hint { font-size: .82rem; margin: .3rem 0 .5rem; }
+.ro-lan-wide { width: 100%; }
+.ro-lan-panel [data-lan-status] { margin: .6rem 0 .1rem; font-size: .82rem; }
+.ro-lan-panel [data-lan-capacity] { font-size: .8rem; color: var(--lan-muted); margin: .5rem 0 .4rem; }
+/* The room code, big and grouped, like a console's room ID. */
+.ro-room-code { display: grid; gap: .1rem; padding: .7rem .8rem; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--ro-accent) 18%, transparent), transparent); border: 1px solid var(--ro-line); }
+.ro-room-code span { font-size: .68rem; text-transform: uppercase; letter-spacing: .18em; color: var(--lan-muted); }
+.ro-room-code strong { font: 700 1.55rem/1.15 var(--ro-font-mono); letter-spacing: .14em; color: var(--ro-accent); }
+.ro-lan-invite { margin: .6rem 0; }
+.ro-lan-invite > summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
+.ro-lan-invite__body { display: grid; grid-template-columns: auto 1fr; gap: .25rem .75rem; align-items: start; }
+.ro-lan-invite__body label { margin: 0; font-size: .78rem; }
+.ro-lan-invite__body input { grid-column: 1 / -1; font: .78rem var(--ro-font-mono); }
+.ro-lan-qr { width: 112px; height: 112px; background: white; padding: 4px; border-radius: 8px; grid-row: span 1; }
+.ro-lan-panel .ro-lan-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.ro-lan-panel .ro-lan-actions button { padding-inline: .5rem; }
+
 /* Trade & link */
 .ro-link-stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; }
 .ro-link-stage figure { margin: 0; }
-.ro-link-stage canvas { width: 100%; height: auto; background: #000; image-rendering: pixelated; display: block; }
+.ro-link-stage canvas { width: 100%; height: auto; background: #000; image-rendering: pixelated; display: block; border-radius: var(--lan-radius); border: 1px solid var(--lan-line); }
 .ro-link-stage figcaption { color: var(--lan-muted); margin-top: .4rem; overflow-wrap: anywhere; }
-.ro-link-setup, .ro-link-cart { max-width: 560px; padding: 1rem; margin: 1rem 0; background: var(--lan-panel); border: 1px solid #24404d; border-radius: 6px; }
+.ro-link-setup, .ro-link-cart { max-width: 560px; padding: 1rem; margin: 1rem 0; background: var(--lan-panel); border: 1px solid var(--lan-line); border-radius: var(--lan-radius); }
 .ro-link-cart h2 { margin-top: 0; font-size: 1.1rem; }
-.ro-link-warning { border-left: 3px solid #f0b429; padding-left: .7rem; }
+.ro-link-warning { border-left: 3px solid var(--lan-fair); padding-left: .7rem; }
 .ro-link-sync { font-size: .9rem; }
 .ro-link-sync:empty { display: none; }
 .ro-link-page .ro-lan-main { padding-bottom: 4rem; }
-.ro-lan-stage video { image-rendering: pixelated; }
+.ro-link-page .ro-lan-main > [data-lan-status] { margin-top: 1rem; }
+.ro-link-page #start { background: var(--lan-accent); color: var(--lan-bg); font-weight: 650; }
 input[type=file] { padding: .5rem; }
 /* Keep the floating room panel beside both screens instead of over Console 2. */
 @media (min-width: 900px) { .ro-link-page .ro-lan-main { max-width: none; margin: 0 calc(min(340px, 100vw - 1.3rem) + 1.5rem) 0 0; padding-left: max(1.5rem, env(safe-area-inset-left)); } }
@@ -64,7 +225,6 @@ input[type=file] { padding: .5rem; }
 @media (max-width: 899px) { .ro-link-page .ro-lan-panel { position: static; width: auto; max-height: none; margin: 1rem 0; box-shadow: none; } }
 /* Phones: keep the host's own screen and controls together; the guest's screen is a preview. */
 @media (max-width: 899px) { .ro-link-stage { grid-template-columns: 1fr; } .ro-link-stage figure:nth-child(2) { max-width: 50%; } }
-.ro-lan-quality { margin: .35rem 0 0; min-height: 1.4em; font: 12px/1.4 ui-monospace, monospace; color: var(--lan-muted); }
 
 /* Phones held sideways: the game in the middle at full height, the stick and
    D-pad under the left thumb, buttons under the right; page details below. */
@@ -73,8 +233,11 @@ input[type=file] { padding: .5rem; }
   .ro-lan-page:has([data-lan-play]:not([hidden])) .ro-lan-main { padding: .5rem max(.5rem, env(safe-area-inset-left)); max-width: none; }
   [data-lan-play]:not([hidden]) { display: grid; grid-auto-flow: row dense; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: repeat(4, auto); gap: .3rem .75rem; align-items: center; padding-top: .25rem; }
   [data-lan-play] > * { grid-column: 1 / -1; }
-  [data-lan-play] .ro-lan-stage { grid-column: 2; grid-row: 1 / span 4; height: calc(100dvh - 1rem); max-height: none; aspect-ratio: auto; margin: 0; }
-  [data-lan-play] .ro-lan-controls { display: contents; }
+  [data-lan-play] .ro-lan-stage { grid-column: 2; grid-row: 1 / span 4; width: 100%; height: calc(100dvh - 1rem); max-height: none; aspect-ratio: auto; margin: 0; }
+  [data-lan-play] .ro-lan-stage[data-lobby=full] { min-height: 0; overflow: auto; }
+  .ro-lan-stage[data-lobby=full] .ro-lan-lobby { min-height: 100%; justify-content: flex-start; }
+  .ro-lan-lobby .ro-lan-lobby__steps { grid-template-columns: 1fr 1fr; }
+  .ro-lan-touch-on [data-lan-play] .ro-lan-controls { display: contents; }
   .ro-lan-controls > * { justify-self: center; }
   /* Left thumb: stick above the D-pad (or the D-pad alone on 2D systems). */
   .ro-lan-controls .ro-lan-stick { grid-column: 1; grid-row: 1 / span 2; }
@@ -84,11 +247,59 @@ input[type=file] { padding: .5rem; }
   .ro-lan-controls .ro-lan-buttons, .ro-lan-controls .ro-lan-cpad, .ro-lan-controls .ro-lan-system { grid-column: 3; }
   .ro-lan-controls .ro-lan-shoulders { grid-row: 1; }
   .ro-lan-controls .ro-lan-face { grid-row: 2; }
+  .ro-lan-controls .ro-lan-facepad { grid-column: 3; grid-row: 2 / span 2; }
   .ro-lan-controls .ro-lan-cpad { grid-row: 3; }
-  .ro-lan-controls .ro-lan-system { grid-row: 4; }
+  .ro-lan-controls .ro-lan-system { grid-row: 4; flex: 0 0 auto; }
   .ro-lan-controls:not(:has(.ro-lan-stick)) .ro-lan-buttons { grid-row: 1 / span 3; }
   .ro-lan-controls .ro-lan-stick { width: 120px; height: 120px; flex-basis: 120px; }
   .ro-lan-controls button { min-width: 44px; min-height: 44px; padding: .3rem; }
   .ro-lan-dpad, .ro-lan-buttons { grid-template-columns: repeat(3, 44px); gap: .3rem; }
   .ro-lan-face { grid-template-columns: repeat(2, 52px); }
+  .ro-lan-shoulders4 { grid-template-columns: repeat(4, 44px); }
+  .ro-lan-facepad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
+}
+.ro-lan-pad::before { content: '🎮 '; }
+
+/* Trade & link: setup tracker and cards in the app's style. */
+.ro-link-lede { max-width: 46rem; }
+.ro-link-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin: 1rem 0 1.2rem; padding: 0; list-style: none; counter-reset: none; }
+.ro-link-steps li { position: relative; display: flex; align-items: center; gap: .55rem; padding: .6rem .7rem; border-radius: 10px; border: 1px solid var(--lan-line); background: var(--lan-panel-2); color: var(--lan-muted); font-size: .82rem; font-weight: 600; min-width: 0; }
+.ro-link-steps li span { overflow-wrap: anywhere; }
+.ro-link-steps b { flex: 0 0 auto; display: grid; place-content: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1px solid var(--lan-line); font: 700 .8rem/1 var(--ro-font-display); }
+.ro-link-steps li[data-status=current] { border-color: var(--ro-accent); color: var(--lan-text); box-shadow: 0 0 0 3px var(--ro-accent-soft); }
+.ro-link-steps li[data-status=current] b { background: var(--ro-accent); border-color: var(--ro-accent); color: var(--lan-bg); }
+.ro-link-steps li[data-status=done] { color: var(--lan-text); }
+.ro-link-steps li[data-status=done] b { background: color-mix(in srgb, var(--lan-good) 22%, transparent); border-color: var(--lan-good); color: transparent; }
+.ro-link-steps li[data-status=done] b { position: relative; }
+.ro-link-steps li[data-status=done] b::after { content: '✓'; position: absolute; inset: 0; display: grid; place-content: center; color: var(--lan-good); font-size: .9rem; }
+@media (max-width: 600px) { .ro-link-steps { grid-template-columns: 1fr 1fr; } }
+.ro-link-page .ro-lan-main h1[data-link-title] { margin-top: .3rem; }
+.ro-link-setup label { font-weight: 600; }
+.ro-link-setup input[type=file] { cursor: pointer; }
+.ro-link-setup input[type=file]::file-selector-button { margin-right: .75rem; padding: .45rem .8rem; border-radius: 6px; border: 1px solid var(--ro-accent); background: transparent; color: var(--ro-accent); font: 600 .72rem/1.2 var(--ro-font-ui); text-transform: uppercase; letter-spacing: .12em; cursor: pointer; }
+.ro-link-cart input[type=file]::file-selector-button { margin-right: .75rem; padding: .45rem .8rem; border-radius: 6px; border: 1px solid var(--ro-accent); background: transparent; color: var(--ro-accent); font: 600 .72rem/1.2 var(--ro-font-ui); text-transform: uppercase; letter-spacing: .12em; cursor: pointer; }
+.ro-link-stage figcaption { font-size: .82rem; text-transform: uppercase; letter-spacing: .12em; }
+
+/* Guest top bar: seat chips in player colors; yours outlined. */
+.ro-seat-strip { display: flex; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.ro-seat-strip__chip { display: grid; place-content: center; width: 2rem; height: 1.6rem; border-radius: 6px; font: 700 .7rem/1 var(--ro-font-display); color: #071018; background: var(--seat-1); }
+.ro-seat-strip__chip[data-slot="1"] { background: var(--seat-2); }
+.ro-seat-strip__chip[data-slot="2"] { background: var(--seat-3); }
+.ro-seat-strip__chip[data-slot="3"] { background: var(--seat-4); }
+.ro-seat-strip__chip[data-state=open] { background: transparent; color: var(--lan-muted); border: 1px dashed color-mix(in srgb, var(--lan-muted) 55%, transparent); }
+.ro-seat-strip__chip[data-state=away] { opacity: .45; }
+.ro-seat-strip__chip[data-me=true] { outline: 2px solid var(--lan-text); outline-offset: 2px; }
+
+/* The play view takes programmatic focus on join; no ring around the whole page, and
+   scrolling it to the top must clear the sticky header. */
+[data-lan-play]:focus, [data-lan-play]:focus-visible { outline: none; box-shadow: none; }
+[data-lan-play], .ro-link-stage { scroll-margin-top: 4.5rem; }
+
+/* Phones held upright while playing: the site header goes and the controls tighten, so
+   the game and every button (Start included) fit on one screen. Leave room stays. */
+@media (max-width: 600px) and (pointer: coarse) {
+  .ro-lan-page:has([data-lan-play]:not([hidden])) .ro-lan-header { display: none; }
+  .ro-lan-page:has([data-lan-play]:not([hidden])) .ro-lan-main { padding-top: .6rem; }
+  [data-lan-play] .ro-lan-topbar h1 { font-size: 1.05rem; flex-basis: 100%; }
+  .ro-lan-controls { gap: .6rem; margin: .6rem 0; }
 }
