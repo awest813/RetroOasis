@@ -160,4 +160,3 @@ The October 7 Home audit drove the built app in Chromium at 1440×900, 1100×760
 - **Overlap.** The selected item's title no longer lets neighbouring category icons show through. The info panel stays below the clock at every tested height.
 - **Clock.** The clock and date follow the browser locale (12- or 24-hour).
 - **Phone hint.** The pill sits inside the margins and says "Swipe the icons · tap to open".
-
