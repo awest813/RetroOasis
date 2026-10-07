@@ -51,6 +51,8 @@
 .ro-link-setup, .ro-link-cart { max-width: 560px; padding: 1rem; margin: 1rem 0; background: var(--lan-panel); border: 1px solid #24404d; border-radius: 6px; }
 .ro-link-cart h2 { margin-top: 0; font-size: 1.1rem; }
 .ro-link-warning { border-left: 3px solid #f0b429; padding-left: .7rem; }
+.ro-link-sync { font-size: .9rem; }
+.ro-link-sync:empty { display: none; }
 .ro-link-page .ro-lan-main { padding-bottom: 4rem; }
 .ro-lan-stage video { image-rendering: pixelated; }
 input[type=file] { padding: .5rem; }

@@ -2,7 +2,7 @@ import { mountHost } from './lan-host.js'
 import { keyboardControl, buttonHolds } from './lan-shared.js'
 import { LINK_CAPABILITIES, gamepadControls, keyboardLayout } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
-import { createLinkSession, cartridgeInfo, validSaveSize } from './link-session.js'
+import { createLinkSession, cartridgeInfo, validSaveSize, saveSettler } from './link-session.js'
 import { readRomReference, unwrapRom } from './rom-source.js'
 import { fileReceiver, sendFile, downloadBytes, saveName, SAVE_LIMIT } from './link-transfer.js'
 import { librarySaveKey, readLibrarySave, writeLibrarySave } from './library-saves.js'
@@ -11,6 +11,7 @@ const params = new URLSearchParams(location.search)
 const system = params.get('system')
 const statusLine = document.querySelector('[data-link-status]')
 const setStatus = message => { statusLine.textContent = message }
+const syncLine = document.querySelector('[data-link-sync]')
 const guestLabel = document.querySelector('[data-link-guest]')
 const canvases = [document.querySelector('#console-1'), document.querySelector('#console-2')]
 const contexts = canvases.map(canvas => canvas.getContext('2d'))
@@ -27,6 +28,15 @@ const narrow = matchMedia('(max-width: 899px)')
 let paused = false
 let sessionEnded = false
 let frame = 0
+// Automatic save sync: every few seconds both battery saves are sampled; once an
+// in-game save settles, Console 1's goes to the RetroOasis library and Console 2's
+// to the guest's page, where it waits ready to download.
+const SYNC_MS = 3000
+let syncTimer = 0
+let settlers = []
+let guestSync = null // Console 2's latest settled save, until the guest's page has it.
+let libraryBackupPending = true
+let sends = Promise.resolve()
 const audioContext = new AudioContext()
 const outputs = [audioContext.createGain(), audioContext.createGain()]
 outputs[0].connect(audioContext.destination) // Console 2's sound goes only to the guest stream.
@@ -193,16 +203,48 @@ function onGuestFile(file) {
   refreshButtons()
 }
 
+// One file at a time on the cart channel: the receiver rejects interleaved files.
+function queueFile(channel, kind, name, bytes) {
+  const send = sends.then(() => sendFile(channel, kind, name, bytes))
+  sends = send.catch(() => {})
+  return send
+}
+
 async function sendGuestSave(final = false) {
   const channel = guest?.channel
   const bytes = session?.exportSave(1)
   if (!bytes) { message(channel, { type: 'error', text: 'This cartridge has no battery save.' }); return false }
   if (channel?.readyState !== 'open') return false
   try {
-    await sendFile(channel, 'save', saveName(guest.name), bytes)
+    await queueFile(channel, 'save', saveName(guest.name), bytes)
+    guestSync = null
     message(channel, { type: 'status', text: final ? 'Session ended. Your final save was sent; keep the downloaded file.' : 'Save sent. Keep the downloaded file for your game.' })
     return true
   } catch { return false }
+}
+
+async function deliverGuestSync() {
+  const channel = guest?.channel, bytes = guestSync
+  if (!bytes || channel?.readyState !== 'open') return
+  try {
+    await queueFile(channel, 'sync', saveName(guest.name), bytes)
+    if (guestSync === bytes) guestSync = null
+    showSync(`${guest.nickname}’s game saved; their page has the copy`)
+  } catch {} // Kept in guestSync; sent again when they reconnect.
+}
+
+function showSync(text) { if (syncLine) syncLine.textContent = `Auto-saved ${new Date().toLocaleTimeString()}: ${text}.` }
+
+let syncing = null
+function syncSaves() {
+  if (!session || syncing) return syncing
+  const theirs = session.exportSave(1), mine = session.exportSave(0)
+  if (settlers[1](theirs)) { guestSync = theirs; void deliverGuestSync() }
+  if (!host.saveKey || !settlers[0](mine)) return null
+  syncing = saveToLibrary(mine)
+    .then(() => showSync('your RetroOasis save is up to date'), error => showSync(`couldn’t update your RetroOasis save (${error.message}); use Download my save`))
+    .finally(() => { syncing = null })
+  return syncing
 }
 
 function onPeer(peer, player) {
@@ -226,6 +268,7 @@ function onPeer(peer, player) {
   channel.onmessage = event => { if (guest?.channel === channel) receive(event.data) }
   channel.onopen = () => {
     message(channel, { type: 'hello', system, title: host?.info.title, running: !!session, accept: system === 'gb' ? '.gb,.gbc,.zip' : '.gba,.zip' })
+    void deliverGuestSync()
     if (!session) guestLabel.textContent = `Console 2 · ${player.nickname} · inserting a cartridge…`
     refreshButtons()
   }
@@ -253,6 +296,9 @@ buttons.start.onclick = async () => {
     }
     void audioContext.resume().catch(() => {})
     session = await createLinkSession({ system, carts: [host.bytes, guest.bytes], saves: [hostSave, guest.save], loadCore, loadFile })
+    settlers = [0, 1].map(slot => saveSettler(session.exportSave(slot)))
+    guestSync = null; libraryBackupPending = true
+    syncTimer = setInterval(syncSaves, SYNC_MS)
     images = [0, 1].map(() => new ImageData(session.width, session.height))
     paused = false; emu.paused = false; previous = null
     frame = requestAnimationFrame(tick)
@@ -276,8 +322,10 @@ buttons['my-save'].onclick = () => {
   setStatus('Your save was downloaded. Import it in RetroOasis Saves or your emulator to keep the trade.')
 }
 async function saveToLibrary(bytes) {
-  const { backedUp } = await writeLibrarySave(host.saveKey, bytes)
-  return backedUp ? 'Your RetroOasis save was updated; the previous one is kept as a “.before-trade” copy in Saves.' : 'Your RetroOasis save was updated.'
+  // Only the first change of a session is backed up, so the backup stays the pre-session save.
+  const { backedUp } = await writeLibrarySave(host.saveKey, bytes, { backup: libraryBackupPending })
+  if (backedUp) libraryBackupPending = false
+  return libraryBackupPending ? 'Your RetroOasis save was updated.' : 'Your RetroOasis save was updated; the one from before this session is kept as a “.before-trade” copy in Saves.'
 }
 buttons['save-library'].onclick = async () => {
   const bytes = session?.exportSave(0)
@@ -287,8 +335,11 @@ buttons['save-library'].onclick = async () => {
 }
 buttons['guest-save'].onclick = () => void sendGuestSave().then(sent => setStatus(sent ? `Sent ${guest.nickname} their save.` : 'Could not send the guest’s save. Ask them to reconnect.'))
 buttons.end.onclick = async () => {
-  if (!session) return
+  if (!session || buttons.end.disabled) return
+  buttons.end.disabled = true
   setPaused(true)
+  clearInterval(syncTimer)
+  await syncing // The final write below must land after any automatic one.
   const mine = session.exportSave(0)
   await sendGuestSave(true)
   let saved = 'This cartridge has no battery save.'
@@ -305,7 +356,7 @@ buttons.end.onclick = async () => {
   refreshButtons()
 }
 window.addEventListener('beforeunload', event => { if (session) { event.preventDefault(); event.returnValue = '' } })
-window.addEventListener('pagehide', () => { session?.close(); session = null })
+window.addEventListener('pagehide', () => { clearInterval(syncTimer); session?.close(); session = null })
 
 async function start() {
   // Native size from the start: the guest's stream keeps the canvas size it began with.

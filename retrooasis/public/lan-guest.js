@@ -28,13 +28,28 @@ const requestSave = document.querySelector('#request-save')
 let cartChannel = null
 let cartInserted = false
 let linkRunning = false
+// The host sends Console 2's save each time the game saves; it is kept here,
+// ready to download, even if the host goes away.
+let latestSave = null // { name, bytes, at, downloaded }
+const syncLine = document.querySelector('[data-link-sync]')
 function refreshCart() {
   const linked = room?.mode === 'linked-consoles'
   cartView.hidden = !linked
   const open = cartChannel?.readyState === 'open'
   cartForm.hidden = linkRunning || cartInserted
   cartForm.querySelector('button').disabled = !open
-  requestSave.hidden = !linkRunning || !open
+  requestSave.hidden = !(linkRunning && open) && !latestSave
+  syncLine.textContent = latestSave ? `Latest save from your game: ${latestSave.at.toLocaleTimeString()}${latestSave.downloaded ? ' (downloaded)' : ''}.` : ''
+}
+function keepSave(file, downloaded) {
+  latestSave = { name: file.name, bytes: file.bytes, at: new Date(), downloaded }
+  if (downloaded) downloadBytes(file.bytes, file.name)
+}
+// Leaving a room must not lose a save the guest hasn't downloaded yet.
+function rescueSave() {
+  if (!latestSave || latestSave.downloaded) return ''
+  downloadBytes(latestSave.bytes, latestSave.name)
+  return ` Your latest save (${latestSave.name}) was downloaded.`
 }
 const { code: codeInput, nickname: nicknameInput } = joinForm.elements
 nicknameInput.value = savedNickname()
@@ -78,11 +93,13 @@ function end(message) {
   ended = true
   closePeer()
   room = null; resumeToken = null; playerId = null
+  const rescued = rescueSave()
+  latestSave = null
   cartInserted = false; linkRunning = false; refreshCart(); cartStatus.textContent = ''
   playView.hidden = true; joinView.hidden = false
   if (document.fullscreenElement === playView) void document.exitFullscreen().catch(() => {})
   codeInput.focus({ preventScroll: true })
-  status(message)
+  status(message + rescued)
 }
 function bindInput(core, send) {
   const keyboard = new Map()
@@ -258,10 +275,12 @@ function attachCart(channel) {
   cartChannel = channel
   channel.binaryType = 'arraybuffer'
   const receive = fileReceiver({
-    limits: { save: SAVE_LIMIT },
+    limits: { save: SAVE_LIMIT, sync: SAVE_LIMIT },
     onFile: file => {
-      downloadBytes(file.bytes, file.name)
-      cartStatus.textContent = `Downloaded ${file.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+      // 'sync' arrives on every in-game save and is only kept; 'save' was asked for (or is final) and downloads.
+      keepSave(file, file.kind === 'save')
+      if (file.kind === 'save') cartStatus.textContent = `Downloaded ${file.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+      refreshCart()
     },
     onError: error => { cartStatus.textContent = error.message },
     onMessage: data => {
@@ -274,7 +293,7 @@ function attachCart(channel) {
         if (linkRunning) cartStatus.textContent = 'The link is running. Play on Console 2.'
       } else if (data.type === 'session') {
         linkRunning = data.running === true
-        cartStatus.textContent = linkRunning ? 'Linked! Use the game’s trade or link menu. Save in-game, then choose Save to this device.' : 'The host ended the link session. Keep your downloaded save file.'
+        cartStatus.textContent = linkRunning ? 'Linked! Use the game’s trade or link menu, then save in-game; each save is sent here automatically.' : 'The host ended the link session. Keep your downloaded save file.'
       } else if ((data.type === 'status' || data.type === 'error') && typeof data.text === 'string') {
         if (data.type === 'error' && !linkRunning) cartInserted = false
         cartStatus.textContent = data.text.slice(0, 300)
@@ -306,10 +325,18 @@ cartForm.onsubmit = async event => {
   finally { button.disabled = false; refreshCart() }
 }
 requestSave.onclick = () => {
-  if (cartChannel?.readyState !== 'open') return
-  cartChannel.send(JSON.stringify({ type: 'request-save' }))
-  cartStatus.textContent = 'Requesting your save…'
+  if (linkRunning && cartChannel?.readyState === 'open') {
+    cartChannel.send(JSON.stringify({ type: 'request-save' }))
+    cartStatus.textContent = 'Requesting your save…'
+  } else if (latestSave) {
+    // The link is over or the host is unreachable: the copy kept here is the latest.
+    downloadBytes(latestSave.bytes, latestSave.name)
+    latestSave.downloaded = true
+    cartStatus.textContent = `Downloaded ${latestSave.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+    refreshCart()
+  }
 }
+window.addEventListener('beforeunload', event => { if (latestSave && !latestSave.downloaded) { event.preventDefault(); event.returnValue = '' } })
 async function join(reconnecting = false) {
   if (joining || !socket?.connected) return
   joining = true

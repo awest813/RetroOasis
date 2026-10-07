@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { inspectLink, linkRoot } from './lan-link.mjs'
-import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink } from '../public/link-session.js'
+import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink, saveSettler } from '../public/link-session.js'
 import { blockCartridge, withGbHeader, transferByte, gbaCartridge } from './handheld/link-fixtures.js'
 import { sendFile, fileReceiver, saveName, CHUNK, SAVE_LIMIT } from '../public/link-transfer.js'
 import { unwrapRom } from '../public/rom-source.js'
@@ -49,7 +49,22 @@ assert.equal(librarySaveKey('dir/Game.v1.gba'), '/data/saves/Game.v1.srm'); asse
 assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null })
 assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle has no link support/, 'Games without a gpSP link mode are named')
 assert.match(describeGbaLink([2, 4]).warning, /different link modes/, 'Mismatched link modes are reported')
-console.log('PASS link cartridge validation, save sizes and GBA protocol selection')
+{
+  // Automatic save sync reports each in-game save once, after it stops changing.
+  const settle = saveSettler(Uint8Array.of(1, 1))
+  assert.equal(settle(Uint8Array.of(1, 1)), false, 'The starting save is not reported')
+  assert.equal(settle(Uint8Array.of(2, 1)), false, 'A save still being written is not reported')
+  assert.equal(settle(Uint8Array.of(2, 2)), false, 'A changing save is not reported')
+  assert.equal(settle(Uint8Array.of(2, 2)), true, 'A settled new save is reported')
+  assert.equal(settle(Uint8Array.of(2, 2)), false, 'The same save is reported only once')
+  assert.equal(settle(null), false, 'A cartridge without a save is never reported')
+  assert.equal(settle(Uint8Array.of(1, 1)), false)
+  assert.equal(settle(Uint8Array.of(1, 1)), true, 'Saving back to the original bytes is still a new save')
+  const fresh = saveSettler(null)
+  assert.equal(fresh(Uint8Array.of(9)), false)
+  assert.equal(fresh(Uint8Array.of(9)), true, 'A session without a starting save reports its first save')
+}
+console.log('PASS link cartridge validation, save sizes, GBA protocol selection and save-sync settling')
 console.log('PASS cartridge / save transfer framing, limits and interruption handling')
 
 // Zipped ROMs (stored and deflated) unwrap to the single ROM inside.
@@ -99,9 +114,13 @@ try {
   assert.deepEqual(gb.info.map(cart => cart.color), [false, true], 'Each console uses its cartridge’s hardware')
   const frame = new Uint8ClampedArray(160 * 144 * 4)
   let samples = 0
+  const settlers = [0, 1].map(slot => saveSettler(gb.exportSave(slot)))
+  const synced = [[], []]
   for (let ms = 0; ms < 16000; ms += 16) {
     gb.advance(16)
     samples += gb.audio(0).length + gb.audio(1).length
+    // The host page samples both saves every 3 seconds.
+    if (ms % 3008 === 0) for (const slot of [0, 1]) { const bytes = gb.exportSave(slot); if (settlers[slot](bytes)) synced[slot].push(bytes) }
   }
   gb.pixels(1, frame)
   assert(frame.some((value, index) => index % 4 === 3 && value === 255), 'Console 2 renders RGBA video')
@@ -112,9 +131,10 @@ try {
   }
   assert.equal(saves[1][4096], 0x5c, 'The guest’s imported save survives the session')
   assert.equal(saves[0][4096], 0xff, 'The host console never sees the guest’s save')
+  for (const slot of [0, 1]) assert.deepEqual(synced[slot], [saves[slot]], `Console ${slot + 1}’s in-game save is synced once, with its final bytes`)
   gb.setPaused(true); gb.advance(1000); gb.setPaused(false)
 } finally { gb.close() }
-console.log('PASS GB ↔ GBC link session: real boot ROMs, 64-byte cable exchange, per-console saves, video and audio')
+console.log('PASS GB ↔ GBC link session: real boot ROMs, 64-byte cable exchange, per-console saves and save sync, video and audio')
 
 // GBA: two isolated gpSP consoles, per-console input and SRAM save round trip.
 const hostSave = new Uint8Array(32768).fill(0); hostSave[0] = 41

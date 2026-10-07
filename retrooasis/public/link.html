@@ -19,7 +19,7 @@
       <form id="link-setup" class="ro-link-setup">
         <label class="ro-link-check" data-link-library hidden><input type="checkbox" name="library" checked> <span>Use my RetroOasis save</span></label>
         <label>Save file (optional, used instead) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
-        <p id="save-help">Trade from your existing game with its battery save (.sav or .srm) from any emulator. Without a save, Console 1 starts a new game. When the session ends, Console 1’s save replaces this game’s RetroOasis save; the previous one is kept as a backup.</p>
+        <p id="save-help">Trade from your existing game with its battery save (.sav or .srm) from any emulator. Without a save, Console 1 starts a new game. Whenever you save in-game, Console 1’s save replaces this game’s RetroOasis save; the one from before the session is kept as a backup.</p>
       </form>
       <div class="ro-lan-actions">
         <button type="button" id="start" disabled>Start link</button>
@@ -30,8 +30,9 @@
         <button type="button" id="end" hidden>End session</button>
       </div>
       <p data-link-hint>A keyboard or gamepad works; keys match the RetroOasis player.</p>
-      <p class="ro-link-warning">Save in-game after every trade. End session updates your RetroOasis save and sends your guest theirs; close other tabs playing this game first.</p>
+      <p class="ro-link-warning">Save in-game after every trade. Each in-game save updates your RetroOasis save and is sent to your guest’s page automatically; close other tabs playing this game first.</p>
       <p data-lan-status data-link-status role="status" aria-live="polite" aria-atomic="true">Loading…</p>
+      <p class="ro-link-sync" data-link-sync></p>
       <a data-link-back href="./#/library">Back to library</a>
     </main>
     <script type="module" src="./link-host.js"></script>

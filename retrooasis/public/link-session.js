@@ -37,6 +37,23 @@ export function gbaLinkMode(codes) {
 
 const GBA_LINK_LABELS = { 2: 'GBA Wireless Adapter', 3: 'Pokémon link cable', 4: 'Advance Wars link cable', 5: 'Advance Wars 2 link cable' }
 /** gpSP's resolved link modes for both consoles → what the host is told. */
+const sameBytes = (a, b) => a.length === b.length && a.every((byte, index) => byte === b[index])
+
+/** Spots in-game saves from periodic battery-save samples: returns true once per
+ * change, when two samples in a row agree (the game finished writing) and differ
+ * from the last one reported. `initial` is the save the session started with. */
+export function saveSettler(initial = null) {
+  let reported = initial, last = initial
+  return bytes => {
+    if (!bytes) return false
+    const settled = last !== null && sameBytes(bytes, last)
+    last = bytes
+    if (!settled || (reported !== null && sameBytes(bytes, reported))) return false
+    reported = bytes
+    return true
+  }
+}
+
 export function describeGbaLink(modes, titles = ['Console 1', 'Console 2']) {
   const missing = modes.findIndex(mode => !GBA_LINK_LABELS[mode])
   if (missing !== -1) return { label: null, warning: `${titles[missing]} has no link support in this emulator. Both games run, but linking won’t work. Supported: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, Advance Wars 1 and 2, and a few wireless-adapter games.` }

@@ -46,8 +46,10 @@ export async function readLibrarySave(key) {
   } finally { db.close() }
 }
 
-/** Writes the save in one transaction; an existing different save is kept as '<key>.before-trade'. */
-export async function writeLibrarySave(key, bytes) {
+/** Writes the save in one transaction. With `backup`, an existing different save is
+ * kept as '<key>.before-trade'; later writes in the same session pass false so the
+ * backup stays the save from before the session. */
+export async function writeLibrarySave(key, bytes, { backup = true } = {}) {
   if (!key) throw new Error('This game has no save name.')
   const db = await open(true)
   try {
@@ -59,7 +61,7 @@ export async function writeLibrarySave(key, bytes) {
       read.onsuccess = () => {
         const previous = read.result
         const old = previous?.contents && bytesOf(previous.contents)
-        if (old && (old.length !== bytes.length || old.some((byte, index) => byte !== bytes[index]))) {
+        if (backup && old && (old.length !== bytes.length || old.some((byte, index) => byte !== bytes[index]))) {
           store.put({ ...previous, timestamp: new Date() }, `${key}.before-trade`)
           backedUp = true
         }
