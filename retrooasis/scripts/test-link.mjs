@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { inspectLink, linkRoot } from './lan-link.mjs'
-import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize } from '../public/link-session.js'
+import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink } from '../public/link-session.js'
 import { blockCartridge, withGbHeader, transferByte, gbaCartridge } from './handheld/link-fixtures.js'
 import { sendFile, fileReceiver, saveName, CHUNK, SAVE_LIMIT } from '../public/link-transfer.js'
 import { unwrapRom } from '../public/rom-source.js'
@@ -46,6 +46,9 @@ assert.equal(saveName('Pokemon - Red (USA).gb'), 'Pokemon - Red (USA).sav'); ass
 await assert.rejects(sendFile({ ...channel, readyState: 'closed' }, 'rom', 'x', rom), /closed/)
 assert.equal(librarySaveKey('Pokemon - Crystal (USA).gbc'), '/data/saves/Pokemon - Crystal (USA).srm', 'Library saves use RetroArch’s ROM-stem .srm name')
 assert.equal(librarySaveKey('dir/Game.v1.gba'), '/data/saves/Game.v1.srm'); assert.equal(librarySaveKey(''), null)
+assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null })
+assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle has no link support/, 'Games without a gpSP link mode are named')
+assert.match(describeGbaLink([2, 4]).warning, /different link modes/, 'Mismatched link modes are reported')
 console.log('PASS link cartridge validation, save sizes and GBA protocol selection')
 console.log('PASS cartridge / save transfer framing, limits and interruption handling')
 
@@ -139,3 +142,12 @@ try {
   gba.setPaused(false)
 } finally { gba.close() }
 console.log('PASS GBA link session: isolated consoles, per-console input, SRAM import/export, video and audio')
+// gpSP resolves the link from each game's code; the host is told which, or warned.
+for (const [codes, expected] of [[['AXVE', 'AXPE'], 'Pokémon link cable'], [['BPRE', 'BPEE'], 'Pokémon link cable'], [['AWRE', 'AWRE'], 'Advance Wars link cable'], [['RTST', 'RTST'], null]]) {
+  const session = await createLinkSession({ system: 'gba', carts: codes.map((code, i) => gbaCartridge(`G${i}`, code)), loadCore, loadFile })
+  try {
+    assert.equal(session.link.label, expected, `${codes.join(' + ')} link: ${expected ?? 'unsupported'}`)
+    if (!expected) assert.match(session.link.warning, /no link support/)
+  } finally { session.close() }
+}
+console.log('PASS GBA link mode detection: Pokémon and Advance Wars cables, unsupported-game warning')

@@ -139,6 +139,10 @@ int gba_set_paused(int value) {
 }
 unsigned gba_frames(void) { return frames; }
 unsigned gba_sample_rate(void) { return sound_frequency; }
+extern int serial_mode;
+/* gpSP's resolved link mode after loading: 0 none, 1 GB Player, 2 wireless
+ * adapter, 3 Pokémon cable, 4/5 Advance Wars cable, 6 auto (no game match). */
+int gba_link_mode(void) { return loaded ? serial_mode : -1; }
 unsigned gba_audio(int16_t *buffer, unsigned max_frames) {
     if (!buffer) return 0;
     unsigned count = audio_count < max_frames ? audio_count : max_frames;

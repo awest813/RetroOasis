@@ -258,7 +258,10 @@ buttons.start.onclick = async () => {
     frame = requestAnimationFrame(tick)
     message(guest.channel, { type: 'session', running: true })
     if (narrow.matches && roomPanel) roomPanel.querySelector('details').open = false
-    setStatus(`Linked: ${host.info.title} ↔ ${guest.info.title}. Use the game’s trade or link menu on both consoles.`)
+    setStatus(session.link.warning
+      ? `Running ${host.info.title} and ${guest.info.title}. ${session.link.warning}`
+      : `Linked by ${session.link.label}: ${host.info.title} ↔ ${guest.info.title}. Use the game’s trade or link menu on both consoles.`)
+    if (session.link.warning) message(guest.channel, { type: 'status', text: session.link.warning })
   } catch (error) {
     session?.close(); session = null
     setStatus(error.message)

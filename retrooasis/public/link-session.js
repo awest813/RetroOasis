@@ -35,6 +35,15 @@ export function gbaLinkMode(codes) {
   return 0
 }
 
+const GBA_LINK_LABELS = { 2: 'GBA Wireless Adapter', 3: 'Pokémon link cable', 4: 'Advance Wars link cable', 5: 'Advance Wars 2 link cable' }
+/** gpSP's resolved link modes for both consoles → what the host is told. */
+export function describeGbaLink(modes, titles = ['Console 1', 'Console 2']) {
+  const missing = modes.findIndex(mode => !GBA_LINK_LABELS[mode])
+  if (missing !== -1) return { label: null, warning: `${titles[missing]} has no link support in this emulator. Both games run, but linking won’t work. Supported: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, Advance Wars 1 and 2, and a few wireless-adapter games.` }
+  if (modes[0] !== modes[1]) return { label: null, warning: `These games use different link modes (${GBA_LINK_LABELS[modes[0]]} and ${GBA_LINK_LABELS[modes[1]]}), so they can’t link.` }
+  return { label: GBA_LINK_LABELS[modes[0]], warning: null }
+}
+
 export function validSaveSize(system, size) {
   return (system === 'gb' ? size > 0 && size <= 131072 + 48 : GBA_SAVE_SIZES.includes(size))
 }
@@ -71,7 +80,7 @@ async function gbSession({ carts, saves, loadCore, loadFile }) {
   const audioBuffer = core._malloc(4096 * 4)
   let budget = 0
   return {
-    info, width: 160, height: 144, sampleRate: 48000,
+    info, width: 160, height: 144, sampleRate: 48000, link: { label: 'Game Boy link cable', warning: null },
     advance(ms) {
       budget = Math.min(budget + ms * GB_TICKS_PER_MS, 4 * 70224 * 2)
       // Small slices keep both consoles' serial clocks interleaved.
@@ -133,8 +142,9 @@ async function gbaSession({ carts, saves, loadCore }) {
   } catch (error) { cores.forEach(core => core._gba_close()); throw error }
   const audioBuffers = cores.map(core => core._malloc(4096 * 4))
   let elapsed = 0
+  const link = describeGbaLink(cores.map(core => core._gba_link_mode?.() ?? -1), info.map(cart => cart.title))
   return {
-    info, mode, width: 240, height: 160, sampleRate: cores[0]._gba_sample_rate(),
+    info, mode, link, width: 240, height: 160, sampleRate: cores[0]._gba_sample_rate(),
     advance(ms) {
       elapsed = Math.min(elapsed + ms, GBA_FRAME_MS * 4)
       while (elapsed >= GBA_FRAME_MS) {
