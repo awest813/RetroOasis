@@ -392,17 +392,16 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
     </div>`
 }
 
+// The browser's locale decides 12- or 24-hour time and the date's wording.
+const clockFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+
 function formatClock(date: Date): string {
-  const h = date.getHours()
-  const m = date.getMinutes()
-  const hour12 = h % 12 || 12
-  return `${hour12}:${String(m).padStart(2, '0')}`
+  return clockFormat.format(date)
 }
 
 function formatClockDate(date: Date): string {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`
+  return dateFormat.format(date)
 }
 
 function hintCopy(): string {
@@ -410,7 +409,7 @@ function hintCopy(): string {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(pointer: coarse)').matches
   ) {
-    return 'Swipe to move · tap to open'
+    return 'Swipe the icons · tap to open'
   }
   return getInputModality() === 'pad'
     ? 'D-pad move · A / Start open'
@@ -561,14 +560,17 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
       const w = shell.clientWidth
       const targetRatio = w < 1100 ? 0.16 : w >= 1600 ? 0.22 : 0.2
       const targetX = w * targetRatio
-      const trackPad = Number.parseFloat(getComputedStyle(catsTrack).paddingLeft) || 0
+      const trackStyle = getComputedStyle(catsTrack)
+      const trackPad = Number.parseFloat(trackStyle.paddingLeft) || 0
       const catShift = targetX - (trackPad + activeCat.offsetLeft + activeCat.offsetWidth / 2)
-      catsTrack.style.setProperty('--xmb-shift', `${catShift}px`)
-
-      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
+      // Align the rail with where the icon will settle, not where the slide is now:
+      // measuring mid-transition left the item column a category or more off.
       const shellRect = shell.getBoundingClientRect()
+      const movingX = trackStyle.transform === 'none' ? 0 : new DOMMatrixReadOnly(trackStyle.transform).m41
+      catsTrack.style.setProperty('--xmb-shift', `${catShift}px`)
+      const catIcon = activeCat.querySelector<HTMLElement>('.ro-xmb__cat-icon')
       const iconRect = (catIcon ?? activeCat).getBoundingClientRect()
-      const iconCenterX = iconRect.left - shellRect.left + iconRect.width / 2
+      const iconCenterX = iconRect.left - shellRect.left + iconRect.width / 2 - movingX + catShift
       const sampleItem =
         railInner.querySelector<HTMLElement>('.ro-xmb__item[data-active="true"]') ??
         railInner.querySelector<HTMLElement>('.ro-xmb__item')
@@ -791,18 +793,29 @@ export async function renderXmb(root: HTMLElement): Promise<void> {
     activate()
   })
 
-  let wheelLock = 0
+  // One step per gesture: a trackpad swipe keeps firing (decaying) inertia events for
+  // about a second, which a fixed 150 ms lock turned into four or five steps.
+  let wheelStepAt = -Infinity
+  let lastWheelAt = -Infinity
+  let lastWheelMag = 0
   const onWheel = (event: WheelEvent) => {
     const now = performance.now()
-    if (now < wheelLock) {
+    const horiz = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey
+    const delta = horiz ? event.deltaX || event.deltaY : event.deltaY
+    const mag = Math.abs(delta)
+    const quiet = now - lastWheelAt > 120
+    const surge = mag > Math.max(20, lastWheelMag * 1.6) // a fresh swipe during inertia
+    const spinning = now - wheelStepAt > 400 && mag >= lastWheelMag // a mouse wheel kept turning
+    const sameGesture = !quiet && !surge && !spinning
+    lastWheelAt = now
+    lastWheelMag = mag
+    if (sameGesture && now - wheelStepAt < 1500) {
       event.preventDefault()
       return
     }
-    const horiz = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey
-    const delta = horiz ? event.deltaX || event.deltaY : event.deltaY
-    if (Math.abs(delta) < 6) return
+    if (mag < 6) return
     event.preventDefault()
-    wheelLock = now + 150
+    wheelStepAt = now
     dismissHint()
     if (horiz) {
       const next =

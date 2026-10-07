@@ -110,6 +110,14 @@
   overflow-y: hidden;
 }
 
+/* The highlighted item is the focus indicator; a ring around the whole menu only
+   draws a stray line along its bottom edge. */
+.ro-xmb:focus,
+html[data-input] .ro-xmb:focus-visible,
+html[data-layout] .ro-xmb:focus-visible {
+  outline: none;
+}
+
 .ro-xmb[data-resizing='1'] .ro-xmb__cats-track,
 .ro-xmb[data-resizing='1'] .ro-xmb__rail-inner {
   transition: none !important;
@@ -173,6 +181,7 @@
 }
 
 .ro-xmb__clock-time {
+  white-space: nowrap;
   font-family: var(--ro-font-display);
   font-size: clamp(0.95rem, 1.6vw, 1.15rem);
   font-weight: 500;
@@ -407,7 +416,11 @@
 .ro-xmb__item[data-active='true'] {
   z-index: 2;
   opacity: 1;
-  background: color-mix(in srgb, var(--ro-bg-panel-solid) 42%, transparent);
+  /* Nearly solid: the focused item sits on the category row, and neighbouring
+     icons showed through its title. */
+  background: color-mix(in srgb, var(--ro-bg-panel-solid) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border-color: transparent;
   box-shadow: none;
 }
@@ -606,7 +619,8 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
 .ro-xmb__info {
   position: absolute;
-  top: 14%;
+  /* Never above the clock's bottom edge (time + date), whatever the height. */
+  top: max(14%, 4.75rem);
   right: max(var(--ro-space), 4vw);
   z-index: 6;
   width: min(18rem, 26vw);
@@ -971,7 +985,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__info {
-    top: 8%;
+    top: max(8%, 4.75rem);
   }
 
   .ro-xmb__stage {
@@ -1025,7 +1039,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__info {
-    top: 6%;
+    top: max(6%, 3.5rem);
   }
 
   .ro-xmb__stage {
@@ -1432,8 +1446,9 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
   .ro-xmb__hint {
     position: static;
-    padding: 0 max(var(--ro-space), env(safe-area-inset-left, 0px));
-    margin-top: 0.5rem;
+    width: fit-content;
+    max-width: calc(100% - 2 * var(--ro-space));
+    margin: 0.5rem max(var(--ro-space), env(safe-area-inset-left, 0px)) 0;
   }
 
   .ro-shell--xmb .ro-nav {

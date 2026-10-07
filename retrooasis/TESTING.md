@@ -151,3 +151,13 @@ Four parallel reviews covered the whole branch: Trade & link, LAN online play, t
 
 `test:static` now expects 404 rather than 403 for backslash traversal off Windows, where a backslash names a file rather than separating paths. It still asserts that nothing outside the ROM folder is ever returned.
 
+## Home screen (XMB) audit
+
+The October 7 Home audit drove the built app in Chromium at 1440×900, 1100×760, 1024×640, 1280×480, a 390×844 phone and an 844×390 landscape phone.
+- **Item column alignment.** It was measured while the category strip was still sliding, which left the selected game up to a category off (a NES game drawn over the SNES icon), even after returning Home. It now follows where the icon will settle: the icon and thumbnail centres matched within 1 px at 50 ms, 300 ms and 1.5 s after moving.
+- **Trackpad swipes.** One swipe with inertia (60 decaying events) moved 4 categories; it now moves 1. Separate mouse-wheel notches still step each time, and a continuous spin steps about every 400 ms.
+- **Stray line.** A focus ring around the whole menu drew a line across the bottom after keyboard use. It's gone, and the highlighted item remains the focus indicator.
+- **Overlap.** The selected item's title no longer lets neighbouring category icons show through. The info panel stays below the clock at every tested height.
+- **Clock.** The clock and date follow the browser locale (12- or 24-hour).
+- **Phone hint.** The pill sits inside the margins and says "Swipe the icons · tap to open".
+
