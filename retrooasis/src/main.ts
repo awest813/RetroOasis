@@ -97,6 +97,11 @@ if (waveCanvas) mountWave(waveCanvas)
 
 const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
+// The skip link only moves focus: following its #ro-main hash would be routed as a page.
+app.querySelector<HTMLAnchorElement>('.ro-skip')?.addEventListener('click', (event) => {
+  event.preventDefault()
+  mainEl.focus()
+})
 const main = mainEl
 
 main.innerHTML = `

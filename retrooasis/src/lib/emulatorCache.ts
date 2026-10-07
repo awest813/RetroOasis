@@ -26,7 +26,9 @@ export function emulatorCacheUsage(): Promise<EmulatorCacheUsage> {
       const all = db.transaction('cache', 'readonly').objectStore('cache').getAll()
       all.onsuccess = () => {
         const usage = { ...EMPTY }
-        for (const item of all.result as Array<{ fileSize?: number; type?: string }>) {
+        for (const item of all.result as Array<{ key?: string; fileSize?: number; type?: string }>) {
+          // EmulatorJS keeps its key list ('?EJS_KEYS!', an array) in the same store.
+          if (!item || Array.isArray(item) || typeof item.key !== 'string') continue
           usage.items++
           usage.bytes += Number(item?.fileSize) || 0
           if (item?.type === 'ROM') usage.games++
@@ -40,12 +42,23 @@ export function emulatorCacheUsage(): Promise<EmulatorCacheUsage> {
   })
 }
 
+/** Empties the cache in place. Deleting the database instead would wait on every open
+ * game tab (EmulatorJS never closes its connections) and stall their cache reads meanwhile. */
 export function clearEmulatorCache(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error ?? new Error('Couldn’t clear the emulator cache.'))
-    // The delete still completes once those tabs close.
-    request.onblocked = () => reject(new Error('The emulator cache will clear once other RetroOasis game tabs are closed.'))
+    let missing = false
+    let request: IDBOpenDBRequest
+    try { request = indexedDB.open(DB) } catch { resolve(); return }
+    request.onupgradeneeded = () => { missing = true; request.transaction?.abort() }
+    request.onerror = () => (missing ? resolve() : reject(request.error ?? new Error('Couldn’t clear the emulator cache.')))
+    request.onsuccess = () => {
+      const db = request.result
+      const stores = ['cache', 'blobs'].filter((name) => db.objectStoreNames.contains(name))
+      if (!stores.length) { db.close(); resolve(); return }
+      const tx = db.transaction(stores, 'readwrite')
+      for (const name of stores) tx.objectStore(name).clear()
+      tx.oncomplete = () => { db.close(); resolve() }
+      tx.onerror = tx.onabort = () => { db.close(); reject(tx.error ?? new Error('Couldn’t clear the emulator cache.')) }
+    }
   })
 }

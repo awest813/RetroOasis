@@ -123,7 +123,9 @@ export function startRouter(): void {
   depth = typeof stored === 'number' ? stored : 0
   if (typeof stored !== 'number') history.replaceState({ ...(history.state ?? {}), roDepth: 0 }, '')
   if (!window.location.hash) {
-    // Replace, so the bare URL doesn't become an extra entry for Back to land on.
+    // Replace, so the bare URL doesn't become an extra entry for Back to land on;
+    // the replacement keeps depth 0.
+    replacing = true
     window.location.replace('#/')
   } else {
     emit()

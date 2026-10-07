@@ -23,9 +23,13 @@ const MISS_TTL = 7 * 24 * 3600 * 1000
 const MAX_MATCHES = 2000
 type StoredMatch = { u: string | null; t: number }
 let storedMatches: Record<string, StoredMatch> | null = null
-// An <img> error can't tell a 404 from being offline. Persist misses only once a
-// cover has loaded this session, so a blocked host or lost Wi-Fi isn't remembered.
-let coverHostReachable = false
+// An <img> error can't tell a 404 from being offline. Persist a miss only when every
+// host it tried has served a cover this session, so a blocked host or lost Wi-Fi
+// (even with same-site art still loading) isn't remembered as missing art.
+const reachedCoverHosts = new Set<string>()
+const coverHost = (url: string): string | null => {
+  try { return new URL(url, window.location.href).host } catch { return null }
+}
 
 function matchStore(): Record<string, StoredMatch> {
   if (storedMatches) return storedMatches
@@ -186,7 +190,8 @@ export function hydrateCovers(root: ParentNode): void {
         return
       }
       markCoverReady(img)
-      coverHostReachable = true
+      const host = candidates[attempt] ? coverHost(candidates[attempt]) : null
+      if (host) reachedCoverHosts.add(host)
       if (requestVersion === coverRefreshVersion && img.isConnected && img.dataset.coverKey && candidates[attempt]) {
         // Bound session memory for very large libraries.
         if (loadedCovers.size >= 1000) loadedCovers.delete(loadedCovers.keys().next().value!)
@@ -213,7 +218,8 @@ export function hydrateCovers(root: ParentNode): void {
       } else {
         if (img.dataset.coverKey) {
           loadedCovers.delete(img.dataset.coverKey)
-          if (coverHostReachable && navigator.onLine !== false) rememberMatch(img.dataset.coverKey, null)
+          const hostsReached = candidates.length > 0 && candidates.every((url) => reachedCoverHosts.has(coverHost(url) ?? ''))
+          if (hostsReached && navigator.onLine !== false) rememberMatch(img.dataset.coverKey, null)
         }
         markCoverMissing(img)
         finish()

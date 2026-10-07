@@ -144,6 +144,15 @@ check(
   false,
 )
 check(
+  'a save dropped with its game still launches the game',
+  shouldLaunchAfterUpload([
+    { kind: 'saved', filename: 'Pokemon.gba', detail: 'Added', gameId: 'p' },
+    { kind: 'skipped', filename: 'Pokemon.sav', detail: unplannedFileVerdict('Pokemon.sav', true) },
+    { kind: 'skipped', filename: 'readme.txt', detail: unplannedFileVerdict('readme.txt', false) },
+  ]),
+  true,
+)
+check(
   'missing companions hold launch',
   shouldLaunchAfterUpload([{ kind: 'saved', filename: 'a.cue', detail: 'needs bin', gameId: 'a', holdLaunch: true }]),
   false,
@@ -163,6 +172,9 @@ check('disc set label', discSetLabel(['game.cue', 'game.bin']), 'game.cue + 1 mo
 
 console.log('unplannedFileVerdict')
 check('manual system saves odd extension', unplannedFileVerdict('Prototype.rom', true), 'save')
+checkTrue('manual system never saves a battery save as a game', unplannedFileVerdict('Pokemon.sav', true).startsWith('Save or state'))
+checkTrue('save states are recognized', unplannedFileVerdict('Pokemon.state3', true).startsWith('Save or state'))
+check('cheat files are not games', unplannedFileVerdict('Pokemon.cht', true), 'Not a game file.')
 checkTrue('auto skips odd extension with a hint', unplannedFileVerdict('Prototype.rom', false).includes('Pick its system'))
 check('documents are never saved', unplannedFileVerdict('notes.txt', true), 'Not a game file.')
 check('cover images are never saved', unplannedFileVerdict('box.PNG', true), 'Not a game file.')

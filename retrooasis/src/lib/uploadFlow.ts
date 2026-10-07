@@ -82,6 +82,8 @@ export function summarizeUpload(outcomes: UploadOutcome[]): string {
 }
 
 export function shouldLaunchAfterUpload(outcomes: UploadOutcome[]): boolean {
+  // A save or readme dropped next to the game doesn't stop it from launching.
+  outcomes = outcomes.filter((o) => !(o.kind === 'skipped' && (o.detail === NOT_A_GAME || o.detail === SAVE_FILE)))
   return (
     outcomes.length === 1 &&
     outcomes[0]?.kind === 'saved' &&
@@ -108,7 +110,11 @@ export function discSetLabel(filenames: string[]): string {
   return `${filenames[0]} + ${filenames.length - 1} more`
 }
 
-const NON_GAME_EXTENSIONS = new Set(['txt', 'nfo', 'diz', 'md', 'pdf', 'doc', 'rtf', 'htm', 'html', 'url', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'sfv', 'md5', 'sha1', 'crc', 'log', 'ini', 'db', 'ds_store'])
+const NON_GAME_EXTENSIONS = new Set(['cht', 'xml', 'dat', 'json', 'txt', 'nfo', 'diz', 'md', 'pdf', 'doc', 'rtf', 'htm', 'html', 'url', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'sfv', 'md5', 'sha1', 'crc', 'log', 'ini', 'db', 'ds_store'])
+// Battery saves, save states and memory cards: never games, even with a system chosen.
+const SAVE_EXTENSIONS = new Set(['sav', 'srm', 'sa1', 'eep', 'fla', 'rtc', 'dsv', 'mcr', 'mcd', 'mc', 'gme', 'vmp', 'state', 'ss0', 'ss1', 'ss2', 'ss3', 'ss4', 'ss5', 'ss6', 'ss7', 'ss8', 'ss9'])
+export const NOT_A_GAME = 'Not a game file.'
+export const SAVE_FILE = 'Save or state file, not a game. Import it in Saves after adding the game.'
 const ORPHAN_TRACK_EXTENSIONS = new Set(['wav', 'ape', 'flac', 'sub', 'cdg', 'mds', 'scm', 'ccd', 'toc'])
 
 /**
@@ -117,7 +123,8 @@ const ORPHAN_TRACK_EXTENSIONS = new Set(['wav', 'ape', 'flac', 'sub', 'cdg', 'md
  */
 export function unplannedFileVerdict(filename: string, systemChosen: boolean): 'save' | string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-  if (NON_GAME_EXTENSIONS.has(ext) || filename.startsWith('.')) return 'Not a game file.'
+  if (NON_GAME_EXTENSIONS.has(ext) || filename.startsWith('.')) return NOT_A_GAME
+  if (SAVE_EXTENSIONS.has(ext) || /^state\d+$/.test(ext)) return SAVE_FILE
   if (ORPHAN_TRACK_EXTENSIONS.has(ext)) return 'Disc track without its .cue or .m3u — add them in the same batch.'
   if (systemChosen) return 'save'
   return 'File type isn’t recognized. Pick its system above, then add it again.'
