@@ -162,8 +162,31 @@
         font-weight: 600;
       }
 
-      .ro-play-error a:hover {
+      .ro-play-error a:hover,
+      .ro-play-error button:hover {
         text-decoration: underline;
+      }
+
+      .ro-play-error__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.75rem 1.5rem;
+      }
+
+      .ro-play-error button {
+        padding: 0.5rem 0.9rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--ro-accent);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
       }
 
       .ro-play-loading {
@@ -209,7 +232,8 @@
       }
 
       .ro-play-bar a:focus-visible,
-      .ro-play-error a:focus-visible {
+      .ro-play-error a:focus-visible,
+      .ro-play-error button:focus-visible {
         outline: 2px solid var(--ro-accent);
         outline-offset: 3px;
       }
@@ -296,7 +320,7 @@
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
-        function fail(title, message, domMessage) {
+        function fail(title, message, domMessage, actions) {
           var display = document.getElementById("display");
           display.textContent = ""; // clear
 
@@ -319,6 +343,22 @@
 
           container.appendChild(h1);
           container.appendChild(p);
+          if (actions && actions.length) {
+            var row = document.createElement("div");
+            row.className = "ro-play-error__actions";
+            actions.forEach(function (action) {
+              var button = document.createElement("button");
+              button.type = "button";
+              button.textContent = action.label;
+              button.addEventListener("click", action.run);
+              row.appendChild(button);
+            });
+            row.appendChild(a);
+            container.appendChild(row);
+            display.appendChild(container);
+            row.querySelector("button").focus({ preventScroll: true });
+            return;
+          }
           container.appendChild(a);
           display.appendChild(container);
         }
@@ -707,7 +747,64 @@
           });
         }
 
+        var loadedRom = null;
+        function restageRom() {
+          if (romParam.indexOf(IDB_ROM_PREFIX) !== 0 || !(loadedRom instanceof File)) return Promise.resolve();
+          var key = romParam.slice(IDB_ROM_PREFIX.length);
+          return loadedRom.arrayBuffer().then(function (bytes) {
+            return openDb().then(function (db) {
+              return new Promise(function (resolve, reject) {
+                var tx = db.transaction(PENDING_ROM_STORE, "readwrite");
+                tx.objectStore(PENDING_ROM_STORE).put(
+                  { key: key, bytes: bytes, filename: loadedRom.name, type: loadedRom.type, createdAt: Date.now() },
+                  key,
+                );
+                tx.oncomplete = function () { db.close(); resolve(); };
+                tx.onerror = tx.onabort = function () { db.close(); reject(tx.error); };
+              });
+            });
+          });
+        }
+        function retry(nextChannel) {
+          var url = new URL(window.location.href);
+          if (nextChannel) url.searchParams.set("channel", nextChannel);
+          showLoading("Restarting…");
+          var go = function () { window.location.replace(url.href); };
+          restageRom().then(go, go);
+        }
+
+        // EmulatorJS's own start errors are terse; explain what happened and what to try.
+        function explainStartError(detail) {
+          var reason = detail && detail.reason;
+          document.getElementById("meta").textContent = core + " · " + channelLabel + " · didn’t start";
+          var offline = navigator.onLine === false;
+          var again = { label: "Try again", run: function () { retry(); } };
+          if (reason === "core") {
+            if (params.get("lanhost") === "1") {
+              fail("Multiplayer core unavailable", "The LAN server didn’t send this system’s prepared core. Prepare it on the host computer, then try again.", null, [again]);
+            } else if (offline) {
+              fail("You’re offline", "This system’s emulator isn’t saved on this device yet. Connect to the internet and play any game for this system once; after that it starts offline too.", null, [again]);
+            } else if (channel === "local") {
+              fail("Emulator files missing", "This site has no local emulator files for this system (" + detail.file + "). In Settings → Emulator files, choose Stable.", null, [{ label: "Use Stable", run: function () { retry("stable"); } }]);
+            } else {
+              var actions = [again];
+              if (channel === "stable" || channel === "latest") actions.push({ label: "Try Nightly", run: function () { retry("nightly"); } });
+              fail("Couldn’t download the emulator", "The " + channelLabel + " channel didn’t send this system’s emulator (" + detail.file + "). Check your connection and try again" + (actions.length > 1 ? ", or try the Nightly channel for this game." : "."), null, actions);
+            }
+          } else if (reason === "webgl") {
+            fail("Graphics not supported", "This system needs WebGL 2. Turn on hardware acceleration in your browser settings, update your graphics driver, or try another browser.");
+          } else if (reason === "version") {
+            var newer = [again];
+            if (channel !== "stable" && channel !== "local") newer.push({ label: "Use Stable", run: function () { retry("stable"); } });
+            fail("Emulator too new", "The " + channelLabel + " channel’s emulator needs a newer RetroOasis player than this site has. Choose Stable in Settings → Emulator files.", null, newer);
+          } else if (reason === "runtime") {
+            fail("Emulator didn’t start", "The emulator downloaded but couldn’t start. Try again; if it keeps happening, clear the emulator cache in Settings → Data.", null, [again]);
+          }
+          // Other errors stay on EmulatorJS's screen, which shows its own message and menu.
+        }
+
         function startEmulator(gameUrl) {
+          loadedRom = gameUrl;
           if (needsThreads && typeof SharedArrayBuffer === "undefined") {
             fail(
               "Needs extra setup",
@@ -736,6 +833,7 @@
           // EmulatorJS caches cores and every game it opens (default: 4 GB for 5 days).
           // Saved ROMs already live in the RetroOasis library, so keep that copy small.
           window.EJS_cacheConfig = { enabled: true, cacheMaxSizeMB: emulatorCacheMB, cacheMaxAgeMins: 7 * 24 * 60 };
+          window.EJS_onStartError = explainStartError;
           window.EJS_onExit = function () {
             window.location.href = back;
           };

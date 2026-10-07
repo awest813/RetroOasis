@@ -152,6 +152,12 @@ RetroOasis bundles its patched EmulatorJS frontend for every channel; the select
 Stable/Nightly/Latest/Local channel still determines core and support-file downloads.
 Player frontend files are refreshed before use online and keep their last successful
 offline copy. Rebuild the frontend bundle with `npm run minify` after editing `data/src/`.
+Cores are cached on the device after their first download. Each system's last core report
+is remembered too, so offline play picks the same core build (WebGL 2 or legacy) that was cached.
+When a core can't be downloaded, the player explains why: offline with nothing cached,
+missing Local files, a channel that didn't send the core, WebGL 2 missing, or a core newer than
+the player. It offers **Try again**, plus **Try Nightly** or **Use Stable** where that could help.
+Try again keeps a staged ROM. A Local channel without local cores falls back to the Nightly CDN.
 
 All preferences persist in **localStorage** on this device (except ROM bytes and folder handles, which use IndexedDB).
 
@@ -173,7 +179,7 @@ Settings includes section shortcuts and remembers your focused control and scrol
 - **UI sounds** (Settings): soft, XMB, or arcade packs — off by default
 - **Install**: top-bar / Settings button when `beforeinstallprompt` fires; iOS uses Share → Add to Home Screen
 - **Standalone mode**: home-screen launch uses `viewport-fit=cover`, safe-area padding, and hides install CTAs
-- **Offline**: a banner appears when the network drops; the cached app shell and IndexedDB ROMs still open
+- **Offline**: a banner appears when the network drops; the cached app shell and IndexedDB ROMs still open, and systems played once online start offline from cached cores
 - **File handlers**: an installed PWA can receive ROM/ISO files from the OS and send them to Add ROM
 - **Skip link**: “Skip to shelf” for keyboard users (reachable from XMB and Library)
 - **Onboarding**: empty-library hint in the grid when only demo samples are visible

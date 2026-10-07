@@ -246,7 +246,8 @@ async function prepareLanguage() {
         ["saveState", window.EJS_onSaveState],
         ["loadSave", window.EJS_onLoadSave],
         ["saveSave", window.EJS_onSaveSave],
-        ["exit", window.EJS_onExit]
+        ["exit", window.EJS_onExit],
+        ["startError", window.EJS_onStartError]
     ];
 
     handlers.forEach(([event, callback]) => {

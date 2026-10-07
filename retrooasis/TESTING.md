@@ -96,3 +96,19 @@ The October 6 keyboard audit had three parts:
 - **App navigation.** Tab order, visible rings and the skip link were checked on every page; no traps were found. Home keeps Tab inside its console shell by design.
 - **Shared layout.** LAN guests and the Trade & link host had A/B and X/Y swapped relative to the RetroOasis player. They now share `keyboardLayout()` (public/lan-capabilities.js), which `test-lan.mjs` checks against EmulatorJS's `defaultControllers`; a mutation test confirmed the guard fails on a swapped key.
 - **Fixture presses.** In the WebRTC fixture each key reached the expected input: NES Z/X/V/Enter/arrows, and N64 Z→Z, X/S→A/B, Q/E→L/R, I→C-up, arrows/T→stick, numpad 8→D-pad up. Tab stays with the browser.
+
+## Core loading
+
+This sandbox can't reach `cdn.emulatorjs.org`, so the October 7 core-loading audit used Playwright to route that host to a fake CDN. It served a core report, a zipped stub core, and the real `data/compression` workers. Two bugs reproduced before the fixes:
+- An N64 core cached online failed offline. Without the report, the player asked for the `-legacy` build, which had never been downloaded.
+- A missing local core fell back to `cdn.emulatorjs.org/4.3.0-pre/`, a folder that doesn't exist. Stable failures also retried a second CDN build.
+
+After the fixes, all of these passed:
+- Online then offline, the cached core ran with the same variant.
+- A core 404 on Stable showed "Couldn’t download the emulator" with the file name, a focused Try again and Try Nightly, and no second CDN request.
+- Try again reloaded with an `idb:` staged ROM still available and started.
+- Try Nightly restarted on Nightly.
+- Offline with nothing cached showed "You’re offline".
+- Local with no local cores loaded the Nightly report and the WebGL 2 core, with no update-check request.
+
+The error screen has no horizontal overflow at 390px. When retesting with a stub core, give it no empty files: the cache treats a zero-byte file as corruption and discards the entry.

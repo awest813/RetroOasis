@@ -162,10 +162,13 @@ class EmulatorJS {
             let result = await attempt(fullPath);
 
             const typeConfig = Object.values(this.downloadType).find((t) => t.name === type);
-            if (result === -1 && !notWithPath && typeConfig && typeConfig.cdnFallback) {
+            // Retrying another CDN build after a CDN failure only doubles the wait.
+            const fromCdn = /^https:\/\/cdn\.emulatorjs\.org\//.test(new URL(fullPath, document.baseURI).href);
+            if (result === -1 && !notWithPath && !fromCdn && typeConfig && typeConfig.cdnFallback) {
                 console.log("[EJS " + type + "] " + path + " not found locally, attempting to fetch from the emulatorjs cdn.");
                 console.error("**THIS METHOD IS A FAILSAFE, AND NOT OFFICIALLY SUPPORTED. USE AT YOUR OWN RISK**");
-                const version = this.ejs_version.endsWith("-beta") ? "nightly" : this.ejs_version;
+                // Pre-release and beta builds have no versioned CDN folder; nightly is their match.
+                const version = /-(beta|pre)$/.test(this.ejs_version) ? "nightly" : this.ejs_version;
                 result = await attempt(`https://cdn.emulatorjs.org/${version}/data/${path}`);
                 if (result !== -1) {
                     console.warn("File was not found locally, but was found on the emulatorjs cdn.\nIt is recommended to download the stable release from here: https://cdn.emulatorjs.org/releases/");
@@ -190,7 +193,7 @@ class EmulatorJS {
         })
     }
     checkForUpdates() {
-        if (this.ejs_version.endsWith("-beta")) {
+        if (/-(beta|pre)$/.test(this.ejs_version)) {
             console.warn("Using EmulatorJS beta. Not checking for updates. This instance may be out of date. Using stable is highly recommended unless you build and ship your own cores.");
             return;
         }
@@ -353,7 +356,7 @@ class EmulatorJS {
             "bios": { "name": "BIOS", "dontCache": false, "dontExtractIfCore": ["arcade", "fbneo", "fbalpha2012_cps1", "fbalpha2012_cps2", "same_cdi", "mame", "mame2003_plus", "mame2003"] },
             "parent": { "name": "Parent", "dontCache": false },
             "patch": { "name": "Patch", "dontCache": false },
-            "reports": { "name": "Reports", "dontCache": true },
+            "reports": { "name": "Reports", "dontCache": true, "cdnFallback": true },
             "states": { "name": "States", "dontCache": true },
             "support": { "name": "Support", "dontCache": true },
             "unknown": { "name": "Unknown", "dontCache": true }
@@ -592,12 +595,13 @@ class EmulatorJS {
     }
     checkCoreCompatibility(version) {
         if (this.versionAsInt(version.minimumEJSVersion) > this.versionAsInt(this.ejs_version)) {
-            this.startGameError(this.localization("Outdated EmulatorJS version"));
+            this.startGameError(this.localization("Outdated EmulatorJS version"), { reason: "version" });
             throw new Error("Core requires minimum EmulatorJS version of " + version.minimumEJSVersion);
         }
     }
-    startGameError(message) {
+    startGameError(message, detail = {}) {
         console.log(message);
+        this.callEvent("startError", { message, ...detail });
         this.textElem.innerText = message;
         this.textElem.classList.add("ejs_error_text");
 
@@ -611,16 +615,16 @@ class EmulatorJS {
     downloadGameCore() {
         this.textElem.innerText = this.localization("Download Game Core");
         if (!this.config.threads && this.requiresThreads(this.getCore())) {
-            this.startGameError(this.localization("Error for site owner") + "\n" + this.localization("Check console"));
+            this.startGameError(this.localization("Error for site owner") + "\n" + this.localization("Check console"), { reason: "threads" });
             console.warn("This core requires threads, but EJS_threads is not set!");
             return;
         }
         if (!this.supportsWebgl2 && this.requiresWebGL2(this.getCore())) {
-            this.startGameError(this.localization("Outdated graphics driver"));
+            this.startGameError(this.localization("Outdated graphics driver"), { reason: "webgl" });
             return;
         }
         if (this.config.threads && typeof window.SharedArrayBuffer !== "function") {
-            this.startGameError(this.localization("Error for site owner") + "\n" + this.localization("Check console"));
+            this.startGameError(this.localization("Error for site owner") + "\n" + this.localization("Check console"), { reason: "threads" });
             console.warn("Threads is set to true, but the SharedArrayBuffer function is not exposed. Threads requires 2 headers to be set when sending you html page. See https://stackoverflow.com/a/68630724");
             return;
         }
@@ -700,6 +704,13 @@ class EmulatorJS {
 
         this.downloadFile(reportUrl, this.downloadType.reports.name, null, false, { responseType: "text", method: "GET" }, false, this.downloadType.reports.dontCache).then(async rep => {
             rep = parseCoreReport(rep);
+            // Offline, the last report decides the core variant (e.g. WebGL 2 or -legacy),
+            // so the cached core is found instead of a variant that was never downloaded.
+            const reportKey = "ejs-core-report:" + new URL(this.config.dataPath || "", document.baseURI).href + this.getCore();
+            try {
+                if (rep.buildStart) localStorage.setItem(reportKey, JSON.stringify(rep));
+                else rep = parseCoreReport(localStorage.getItem(reportKey));
+            } catch (e) { }
             if (!rep.buildStart) {
                 console.warn("Could not fetch core report JSON at " + reportUrl + "! Core caching will be disabled!");
                 rep.buildStart = Math.random() * 100;
@@ -731,9 +742,9 @@ class EmulatorJS {
             }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
             if (res === -1) {
                 if (!this.supportsWebgl2) {
-                    this.startGameError(this.localization("Outdated graphics driver"));
+                    this.startGameError(this.localization("Outdated graphics driver"), { reason: "webgl" });
                 } else {
-                    this.startGameError(this.localization("Error downloading core") + " (" + filename + ")");
+                    this.startGameError(this.localization("Error downloading core") + " (" + filename + ")", { reason: "core", file: filename });
                 }
                 return;
             }
@@ -1109,7 +1120,7 @@ class EmulatorJS {
     initModule(wasmData, threadData) {
         if (typeof window.EJS_Runtime !== "function") {
             console.warn("EJS_Runtime is not defined!");
-            this.startGameError(this.localization("Error loading EmulatorJS runtime"));
+            this.startGameError(this.localization("Error loading EmulatorJS runtime"), { reason: "runtime" });
             throw new Error("EJS_Runtime is not defined!");
         }
         window.EJS_Runtime({
