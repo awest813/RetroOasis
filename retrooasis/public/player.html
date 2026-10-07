@@ -846,6 +846,11 @@
             window.EJS_threads = false;
             window.EJS_Buttons = Object.assign({}, window.EJS_Buttons, { netplay: false });
             window.EJS_startOnLoaded = false;
+            // Start only from EJS_ready below, after CDN fallback is off: an early click
+            // would fetch CDN files (and remember a CDN core report) for a LAN session.
+            var hideStart = document.createElement("style");
+            hideStart.textContent = ".ejs_start_button { display: none !important; }";
+            document.head.appendChild(hideStart);
             window.EJS_ready = async function () {
               var emulator = window.EJS_emulator;
               try {

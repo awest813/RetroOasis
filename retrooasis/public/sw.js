@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v10'
+const CACHE = 'retrooasis-shell-v11'
 // Libretro box art, so the library keeps its covers offline. Fetched with CORS:
 // opaque responses would each count as megabytes of padded quota.
 const COVER_CACHE = 'retrooasis-covers-v1'
@@ -52,6 +52,10 @@ const PRECACHE = [
   './icon-512-maskable.png',
   './catalog/platforms.json',
   './catalog/games.json',
+  // The player frontend: without these an update would leave play broken offline.
+  './emulator/loader.js',
+  './emulator/emulator.min.js',
+  './emulator/emulator.min.css',
 ]
 
 self.addEventListener('install', (event) => {
@@ -74,7 +78,22 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('retrooasis-shell-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then(async (keys) => {
+        const old = keys.filter((k) => k.startsWith('retrooasis-shell-') && k !== CACHE)
+        // Keep the hosted library list across updates; it is only cached on use.
+        try {
+          const manifest = new URL('roms/manifest.json', self.location.href).href
+          const fresh = await caches.open(CACHE)
+          for (const name of old) {
+            if (await fresh.match(manifest)) break
+            const kept = await (await caches.open(name)).match(manifest)
+            if (kept) await fresh.put(manifest, kept)
+          }
+        } catch {
+          /* never block activation */
+        }
+        await Promise.all(old.map((k) => caches.delete(k)))
+      })
       .then(() => self.clients.claim()),
   )
 })
@@ -128,11 +147,17 @@ self.addEventListener('fetch', (event) => {
   if (path.includes('/emulator/')) {
     event.respondWith(
       caches.open(CACHE).then(async cache => {
-        try {
-          const response = await fetch(req, { cache: 'no-cache' })
-          if (response.ok) event.waitUntil(cache.put(req, response.clone()).catch(() => {}))
+        let response
+        try { response = await fetch(req, { cache: 'no-cache' }) } catch { return (await cache.match(req)) || Response.error() }
+        // A server error or an SPA fallback page (HTML for a script) must not replace a good
+        // copy; a 404 still surfaces, since it means the deployment lacks the file.
+        const type = response.headers.get('content-type') || ''
+        if (response.ok && /javascript|css/.test(type)) {
+          event.waitUntil(cache.put(req, response.clone()).catch(() => {}))
           return response
-        } catch { return (await cache.match(req)) || Response.error() }
+        }
+        if (response.status >= 500 || (response.ok && type.includes('text/html'))) return (await cache.match(req)) || response
+        return response
       }),
     )
     return

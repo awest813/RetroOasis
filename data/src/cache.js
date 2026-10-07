@@ -650,6 +650,13 @@ class EJS_Cache {
         // add file size attribute
         item.fileSize = item.size();
 
+        // An item larger than half the cache would evict everything else, cores included,
+        // and still overflow the limit; leave it uncached instead.
+        if (item.fileSize > this.maxSizeMB * 1024 * 1024 / 2) {
+            console.log("[EJS Cache] Not caching " + item.filename + ": too large for the " + this.maxSizeMB + " MB cache");
+            return;
+        }
+
         // check that the size of item.files does not cause the cache to exceed maxSizeMB
         let currentSize = 0;
         const allItems = await this.storage.getAll();

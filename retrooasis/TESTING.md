@@ -112,3 +112,42 @@ After the fixes, all of these passed:
 - Local with no local cores loaded the Nightly report and the WebGL 2 core, with no update-check request.
 
 The error screen has no horizontal overflow at 390px. When retesting with a stub core, give it no empty files: the cache treats a zero-byte file as corruption and discards the entry.
+
+## October 7 branch audit
+
+Four parallel reviews covered the whole branch: Trade & link, LAN online play, the app shell, and caching/core loading. Each finding was confirmed in code before it was fixed.
+
+**Trade & link**
+- Clock carts (MBC3, HuC3, TPP1) never auto-synced, because SameBoy appends a ticking RTC footer. `test-link` now builds an MBC3+timer cartridge, confirms the footer changes between exports, and checks that settling compares cartridge RAM only.
+- A guest dropping or rejoining while Start link loaded the cores is now handled.
+- Saves count as delivered only after the guest page's receipt. A dropped guest fails fast.
+- The `.before-trade` backup flag handles sessions that start with no library save.
+- Guests who join after End are told the session is over.
+- A cartridge with no battery gets its own message.
+- `/link/` serves only the bytes that passed verification, and any changed file forces re-verification.
+- The host shows library and guest auto-saves side by side.
+- The two-browser e2e passed all 30 checks on three consecutive runs.
+
+**LAN online play**
+- Control changes are repeated every frame for 120 ms, so a lost press or release on the lossy channel is covered.
+- The roster redraws only when the round-trip time moves by 20 ms or more.
+- Stream-rate recovery backs off (doubling, capped at 8×) and resets when a room ends.
+- Names and titles drop invisible and bidi-override characters.
+
+**App shell**
+- With a system chosen, Add ROM no longer saves `.sav`, `.state` or memory-card files as games, and a save dropped with its game still auto-launches the game.
+- Cover misses are remembered only when every host they tried has served art this session.
+- A bare URL keeps router depth 0.
+- The skip link focuses the shelf instead of routing to #ro-main. A browser check passed with the fix and failed without it.
+
+**Caching and core loading**
+- The service worker precaches the player frontend and keeps the hosted library list across updates.
+- A 5xx or SPA fallback page for a player file is served from the last good copy and never cached. A 404 still surfaces.
+- An item larger than half the EmulatorJS cache is no longer cached, so one large game can't evict every core.
+- `startError` fires after the page's listeners are attached.
+- Clear cache empties the stores instead of deleting the database. A blocked delete used to stall every later game load.
+- The usage count skips EmulatorJS's key-index record.
+- LAN host mode hides EmulatorJS's own start button until the prepared-core check finishes.
+
+`test:static` now expects 404 rather than 403 for backslash traversal off Windows, where a backslash names a file rather than separating paths. It still asserts that nothing outside the ROM folder is ever returned.
+

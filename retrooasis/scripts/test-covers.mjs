@@ -141,11 +141,14 @@ const cachedImage = {
 }
 vm.runInNewContext(fs.readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), {
   URL, Request, Response,
-  self: { location: { origin: 'https://retrooasis.test' }, clients: { claim: async () => {} }, addEventListener: (name, handler) => swHandlers.set(name, handler) },
+  self: { location: { origin: 'https://retrooasis.test', href: 'https://retrooasis.test/sw.js' }, clients: { claim: async () => {} }, addEventListener: (name, handler) => swHandlers.set(name, handler) },
   fetch: async (request, options) => {
     refreshedRequest = { request, options }
     if (networkMode === 'offline') throw new Error('Offline')
-    return new Response('fresh-image', { status: networkMode === 'missing' ? 404 : 200 })
+    if (networkMode === 'outage') return new Response('down', { status: 503 })
+    if (networkMode === 'spa') return new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })
+    const type = new URL(request.url ?? request).pathname.endsWith('.js') ? 'text/javascript' : 'image/png'
+    return new Response('fresh-image', { status: networkMode === 'missing' ? 404 : 200, headers: { 'content-type': type } })
   },
   caches: {
     open: async name => { cacheNames.add(name); return cachedImage },
@@ -190,6 +193,10 @@ networkMode = 'offline'
 assert.equal(await (await swFetch(frontendRequest)).text(), 'fresh-image', 'Offline player retains the last successful frontend')
 networkMode = 'missing'
 assert.equal((await swFetch(frontendRequest)).status, 404, 'An incomplete online deployment surfaces a missing frontend')
+networkMode = 'outage'
+assert.equal(await (await swFetch(frontendRequest)).text(), 'fresh-image', 'A server error falls back to the last good frontend')
+networkMode = 'spa'
+assert.equal(await (await swFetch(frontendRequest)).text(), 'fresh-image', 'An HTML fallback page is never served or cached as the player script')
 console.log('PASS: bundled player updates first and retains its offline copy')
 
 // A cache hit must still finish its background revalidation before the worker exits.

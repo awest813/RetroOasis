@@ -601,7 +601,8 @@ class EmulatorJS {
     }
     startGameError(message, detail = {}) {
         console.log(message);
-        this.callEvent("startError", { message, ...detail });
+        // Some checks fail inside the constructor, before the page has attached listeners.
+        setTimeout(() => this.callEvent("startError", { message, ...detail }), 0);
         this.textElem.innerText = message;
         this.textElem.classList.add("ejs_error_text");
 
