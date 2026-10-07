@@ -234,7 +234,7 @@ export async function tuneVideoSender(sender, sourceHeight = 0, fps = STREAM_FPS
     if (!params.encodings?.length) params.encodings = [{}]
     const encoding = params.encodings[0]
     encoding.maxFramerate = fps
-    encoding.maxBitrate = 8_000_000 // Same-LAN budget; WebRTC still adapts downward.
+    encoding.maxBitrate = 8000000 // Same-LAN budget; WebRTC still adapts downward.
     // Big host canvases (fullscreen) are scaled to 720 lines: N64 renders at 240–480.
     encoding.scaleResolutionDownBy = Math.max(1, sourceHeight / MAX_STREAM_LINES)
     // Under encoder or network load, drop resolution before frame rate.
@@ -273,9 +273,17 @@ export async function connectionQuality(pc) {
  */
 export const STRAIN_SAMPLES = 3
 export const RECOVERY_SAMPLES = 15
+export const MAX_RECOVERY_SAMPLES = RECOVERY_SAMPLES * 8
+/** Falling back soon after a recovery means 60 fps doesn't hold on this computer, so each
+ * such fallback doubles the next wait (up to 4 minutes); a long steady spell resets it. */
 export function nextStreamRate(state, cpuLimited) {
-  const next = { fps: state.fps, strained: cpuLimited ? state.strained + 1 : 0, healthy: cpuLimited ? 0 : state.healthy + 1 }
-  if (next.fps === STREAM_FPS && next.strained >= STRAIN_SAMPLES) return { fps: 30, strained: 0, healthy: 0 }
-  if (next.fps !== STREAM_FPS && next.healthy >= RECOVERY_SAMPLES) return { fps: STREAM_FPS, strained: 0, healthy: 0 }
+  const wait = state.wait ?? RECOVERY_SAMPLES
+  const steady = state.fps === STREAM_FPS ? (state.steady ?? 0) + 1 : 0
+  const next = { ...state, wait, steady, strained: cpuLimited ? state.strained + 1 : 0, healthy: cpuLimited ? 0 : state.healthy + 1 }
+  if (next.fps === STREAM_FPS && next.strained >= STRAIN_SAMPLES) {
+    const backoff = state.recovered === true && steady < MAX_RECOVERY_SAMPLES
+    return { fps: 30, strained: 0, healthy: 0, steady: 0, recovered: false, wait: backoff ? Math.min(wait * 2, MAX_RECOVERY_SAMPLES) : RECOVERY_SAMPLES }
+  }
+  if (next.fps !== STREAM_FPS && next.healthy >= wait) return { fps: STREAM_FPS, strained: 0, healthy: 0, steady: 0, recovered: true, wait }
   return next
 }

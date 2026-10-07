@@ -28,6 +28,7 @@ const requestSave = document.querySelector('#request-save')
 let cartChannel = null
 let cartInserted = false
 let linkRunning = false
+let linkEnded = false
 // The host sends Console 2's save each time the game saves; it is kept here,
 // ready to download, even if the host goes away.
 let latestSave = null // { name, bytes, at, downloaded }
@@ -36,7 +37,7 @@ function refreshCart() {
   const linked = room?.mode === 'linked-consoles'
   cartView.hidden = !linked
   const open = cartChannel?.readyState === 'open'
-  cartForm.hidden = linkRunning || cartInserted
+  cartForm.hidden = linkRunning || cartInserted || linkEnded
   cartForm.querySelector('button').disabled = !open
   requestSave.hidden = !(linkRunning && open) && !latestSave
   syncLine.textContent = latestSave ? `Latest save from your game: ${latestSave.at.toLocaleTimeString()}${latestSave.downloaded ? ' (downloaded)' : ''}.` : ''
@@ -95,7 +96,7 @@ function end(message) {
   room = null; resumeToken = null; playerId = null
   const rescued = rescueSave()
   latestSave = null
-  cartInserted = false; linkRunning = false; refreshCart(); cartStatus.textContent = ''
+  cartInserted = false; linkRunning = false; linkEnded = false; refreshCart(); cartStatus.textContent = ''
   playView.hidden = true; joinView.hidden = false
   if (document.fullscreenElement === playView) void document.exitFullscreen().catch(() => {})
   codeInput.focus({ preventScroll: true })
@@ -109,6 +110,7 @@ function bindInput(core, send) {
   const padGate = new ControllerGate()
   let last = ''
   let lastSent = 0
+  let changedAt = 0
   let active = true
   const profile = ROOM_PROFILES[core]
   const n64 = !!profile.analog
@@ -173,8 +175,13 @@ function bindInput(core, send) {
     const keyStick = keyboardStick(held, walking)
     const stick = touchStick.some(Boolean) ? touchStick : keyStick.some(Boolean) ? keyStick : padStick
     const key = `${buttons.join(',')}/${stick.join(',')}`
-    if (!force && key === last && performance.now() - lastSent < 250) return
-    last = key; lastSent = performance.now()
+    const now = performance.now()
+    if (key !== last) changedAt = now
+    // The controls channel drops late packets instead of resending them, so a change is
+    // repeated every frame for a moment: a lost tap or release is covered by the next copy.
+    const gap = now - changedAt < 120 ? 15 : 250
+    if (!force && key === last && now - lastSent < gap) return
+    last = key; lastSent = now
     send(JSON.stringify({ type: 'controls', v: LAN_PROTOCOL, seq: controlSequence++, buttons, ...(n64 ? { stick } : {}) }))
     for (const button of controls.querySelectorAll('button')) button.setAttribute('aria-pressed', String(buttons.includes(Number(button.dataset.control))))
   }
@@ -279,6 +286,8 @@ function attachCart(channel) {
     onFile: file => {
       // 'sync' arrives on every in-game save and is only kept; 'save' was asked for (or is final) and downloads.
       keepSave(file, file.kind === 'save')
+      // The host counts a save as delivered only after this receipt.
+      if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'received', kind: file.kind }))
       if (file.kind === 'save') cartStatus.textContent = `Downloaded ${file.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
       refreshCart()
     },
@@ -286,13 +295,16 @@ function attachCart(channel) {
     onMessage: data => {
       if (data.type === 'hello') {
         linkRunning = data.running === true
+        linkEnded = data.ended === true
+        if (linkEnded) cartStatus.textContent = 'This link session has ended. Ask the host to open a new one to link again.'
         // A new game connection before the link starts means the host needs the cartridge again.
         if (!linkRunning) cartInserted = false
         if (typeof data.accept === 'string') cartForm.elements.rom.accept = data.accept
-        if (!linkRunning && !cartInserted) cartStatus.textContent = `Insert your ${room.core === 'gba' ? 'Game Boy Advance' : 'Game Boy / Game Boy Color'} game to link with ${data.title || 'the host'}.`
+        if (!linkRunning && !cartInserted && !linkEnded) cartStatus.textContent = `Insert your ${room.core === 'gba' ? 'Game Boy Advance' : 'Game Boy / Game Boy Color'} game to link with ${data.title || 'the host'}.`
         if (linkRunning) cartStatus.textContent = 'The link is running. Play on Console 2.'
       } else if (data.type === 'session') {
         linkRunning = data.running === true
+        if (!linkRunning) linkEnded = true
         cartStatus.textContent = linkRunning ? 'Linked! Use the game’s trade or link menu, then save in-game; each save is sent here automatically.' : 'The host ended the link session. Keep your downloaded save file.'
       } else if ((data.type === 'status' || data.type === 'error') && typeof data.text === 'string') {
         if (data.type === 'error' && !linkRunning) cartInserted = false

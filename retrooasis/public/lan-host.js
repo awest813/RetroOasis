@@ -93,6 +93,7 @@ export async function mountHost(emu, options = {}) {
   }
   const endLocal = message => {
     generation++
+    streamRate = { fps: STREAM_FPS, strained: 0, healthy: 0 }
     busy = false
     ending = false
     room = null
@@ -178,7 +179,9 @@ export async function mountHost(emu, options = {}) {
     for (const peer of peers.values()) {
       const quality = await connectionQuality(peer.pc)
       if (quality.cpuLimited) cpuLimited = true
-      if (quality.rttMs !== null && quality.rttMs !== peer.rttMs) { peer.rttMs = quality.rttMs; changed = true }
+      // Redraw the roster only for a visible change: rebuilding it every poll moves
+      // focus and swallows clicks on its Remove buttons.
+      if (quality.rttMs !== null && (peer.rttMs == null || Math.abs(quality.rttMs - peer.rttMs) >= 20)) { peer.rttMs = quality.rttMs; changed = true }
     }
     if (changed) refreshRoster()
     if (!peers.size || emu.paused) return

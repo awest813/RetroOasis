@@ -4,7 +4,14 @@ import { LAN_CORES, LINK_CORES, ROOM_PROFILES, LAN_PROTOCOL } from '../public/la
 export { LAN_CORES }
 const token = () => randomBytes(24).toString('base64url')
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
-const text = (value, max) => typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, max) : ''
+/** Names and titles: no control, format (zero-width, bidi override) or line-separator
+ * characters, except the joiner inside emoji sequences, and at least one visible character. */
+export const cleanText = (value, max) => {
+  if (typeof value !== 'string') return ''
+  const cleaned = value.replace(/(?!\u200d)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '').trim().slice(0, max).trim()
+  return /[\p{L}\p{N}\p{P}\p{S}]/u.test(cleaned) ? cleaned : ''
+}
+const text = cleanText
 
 /** In-memory LAN rooms. Socket IDs and controller slots are assigned by the server. */
 /** linkAvailable: whether this server can host linked handheld rooms (built link cores). */

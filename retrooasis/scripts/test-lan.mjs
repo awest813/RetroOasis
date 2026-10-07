@@ -9,7 +9,8 @@ import WebSocket from 'ws'
 import { createLanServer, isLanAddress } from './lan-server.mjs'
 import { keyboardLayout, BUTTON_LABELS, inputIndices } from '../public/lan-capabilities.js'
 import { LINK_FILES } from './lan-link.mjs'
-import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, STRAIN_SAMPLES, RECOVERY_SAMPLES } from '../public/lan-shared.js'
+import { cleanText } from './lan-rooms.mjs'
+import { inputReceiver, keyboardControl, request, createPeer, buttonHolds, roomSummary, roomCodeFrom, keyboardStick, nextStreamRate, STRAIN_SAMPLES, RECOVERY_SAMPLES, MAX_RECOVERY_SAMPLES } from '../public/lan-shared.js'
 import { LAN_PROTOCOL, normalizeStick } from '../public/lan-capabilities.js'
 import { coreLock, digest, inspectCore } from './lan-assets.mjs'
 import './test-lan-host.mjs'
@@ -96,7 +97,22 @@ rate = nextStreamRate(rate, true); for (let i = 0; i < RECOVERY_SAMPLES - 1; i++
 assert.equal(rate.fps, 30, 'Strain during recovery restarts the wait')
 rate = nextStreamRate(rate, false)
 assert.equal(rate.fps, 60, 'A healthy host returns to 60 fps')
+for (let i = 0; i < STRAIN_SAMPLES; i++) rate = nextStreamRate(rate, true)
+assert.equal(rate.fps, 30, 'Strain soon after recovering drops again')
+for (let i = 0; i < RECOVERY_SAMPLES; i++) rate = nextStreamRate(rate, false)
+assert.equal(rate.fps, 30, 'A quick fallback after recovering doubles the next wait')
+for (let i = 0; i < RECOVERY_SAMPLES; i++) rate = nextStreamRate(rate, false)
+assert.equal(rate.fps, 60, 'The doubled wait still recovers')
+for (let i = 0; i < 20; i++) { for (let j = 0; j < STRAIN_SAMPLES; j++) rate = nextStreamRate(rate, true); while (rate.fps !== 60) rate = nextStreamRate(rate, false) }
+assert.equal(rate.wait, MAX_RECOVERY_SAMPLES, 'Backoff is capped')
+for (let i = 0; i < MAX_RECOVERY_SAMPLES; i++) rate = nextStreamRate(rate, false)
+for (let i = 0; i < STRAIN_SAMPLES; i++) rate = nextStreamRate(rate, true)
+assert.equal(rate.wait, RECOVERY_SAMPLES, 'A long steady spell at 60 fps resets the backoff')
 assert.equal(roomCodeFrom(' ab12cd34ef '), 'AB12CD34EF')
+assert.equal(cleanText('\u202eAsh', 32), 'Ash', 'Bidi overrides are removed from names')
+assert.equal(cleanText('\u200b\u200b', 32), '', 'Invisible-only names are rejected')
+assert.equal(cleanText(' Misty\u2028 ', 32), 'Misty', 'Line separators are removed')
+assert.equal(cleanText('Brock 👨\u200d👩\u200d👧', 32), 'Brock 👨\u200d👩\u200d👧', 'Emoji sequences keep their joiners')
 assert.equal(roomCodeFrom('https://192.168.1.5:8787/lan.html#ab12cd34ef'), 'AB12CD34EF', 'Pasted invite links keep only the room code')
 assert.equal(roomCodeFrom('#AB12CD34EF'), 'AB12CD34EF')
 let pressClock = 0, timerId = 0, changes = 0
