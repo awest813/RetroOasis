@@ -37,6 +37,7 @@ let settlers = []
 let guestSync = null // Console 2's latest settled save, until the guest's page has it.
 let libraryBackupPending = true
 let sends = Promise.resolve()
+let libraryWrites = Promise.resolve()
 const audioContext = new AudioContext()
 const outputs = [audioContext.createGain(), audioContext.createGain()]
 outputs[0].connect(audioContext.destination) // Console 2's sound goes only to the guest stream.
@@ -321,11 +322,16 @@ buttons['my-save'].onclick = () => {
   downloadBytes(bytes, saveName(host.name))
   setStatus('Your save was downloaded. Import it in RetroOasis Saves or your emulator to keep the trade.')
 }
-async function saveToLibrary(bytes) {
-  // Only the first change of a session is backed up, so the backup stays the pre-session save.
-  const { backedUp } = await writeLibrarySave(host.saveKey, bytes, { backup: libraryBackupPending })
-  if (backedUp) libraryBackupPending = false
-  return libraryBackupPending ? 'Your RetroOasis save was updated.' : 'Your RetroOasis save was updated; the one from before this session is kept as a “.before-trade” copy in Saves.'
+function saveToLibrary(bytes) {
+  // One write at a time, and only the first change of a session is backed up, so the
+  // backup stays the pre-session save even when an automatic and a manual save overlap.
+  const write = libraryWrites.then(async () => {
+    const { backedUp } = await writeLibrarySave(host.saveKey, bytes, { backup: libraryBackupPending })
+    if (backedUp) libraryBackupPending = false
+    return libraryBackupPending ? 'Your RetroOasis save was updated.' : 'Your RetroOasis save was updated; the one from before this session is kept as a “.before-trade” copy in Saves.'
+  })
+  libraryWrites = write.catch(() => {})
+  return write
 }
 buttons['save-library'].onclick = async () => {
   const bytes = session?.exportSave(0)
@@ -340,8 +346,13 @@ buttons.end.onclick = async () => {
   setPaused(true)
   clearInterval(syncTimer)
   await syncing // The final write below must land after any automatic one.
-  const mine = session.exportSave(0)
-  await sendGuestSave(true)
+  const mine = session.exportSave(0), theirs = session.exportSave(1)
+  let delivered = theirs ? 'Your guest received theirs.' : ''
+  if (theirs && !await sendGuestSave(true)) {
+    // The guest isn't connected: keep their save here so the trade isn't lost.
+    downloadBytes(theirs, saveName(guest.name))
+    delivered = `${guest.nickname} wasn’t connected, so their save was downloaded here as ${saveName(guest.name)}; pass it on to them.`
+  }
   let saved = 'This cartridge has no battery save.'
   if (mine && host.saveKey) {
     try { saved = await saveToLibrary(mine) }
@@ -352,7 +363,7 @@ buttons.end.onclick = async () => {
   session.close(); session = null; sessionEnded = true
   message(guest?.channel, { type: 'session', running: false })
   placeholder(0, 'Session ended'); placeholder(1, 'Session ended')
-  setStatus(`Session ended. ${saved} Your guest received theirs.`)
+  setStatus(`Session ended. ${saved} ${delivered}`.trim())
   refreshButtons()
 }
 window.addEventListener('beforeunload', event => { if (session) { event.preventDefault(); event.returnValue = '' } })
