@@ -14,8 +14,7 @@ import {
 import { escapeHtml } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { takePendingUploads } from '../lib/pendingUploads'
-import { buildPlayerUrl } from '../lib/play'
-import { hrefFor } from '../lib/router'
+import { hrefFor, navigate } from '../lib/router'
 import { formatEjsChannelLabel, pushRecent } from '../lib/store'
 import { reloadUploadedLibrary, type Game } from '../lib/catalog'
 import { formatBytes, getUploadedLibraryMeta, saveUploadedRomSet } from '../lib/uploadedLibrary'
@@ -180,7 +179,7 @@ export function renderUpload(root: HTMLElement): void {
     }
     if (mode === 'drag') {
       dropTitle.textContent = 'Release to add'
-      dropSub.textContent = 'Saves to this device — one file starts playing'
+      dropSub.textContent = 'Saves to this device — one file opens its game page'
       return
     }
     dropTitle.textContent = 'Drop ROM files here'
@@ -371,14 +370,11 @@ export function renderUpload(root: HTMLElement): void {
       if (!active) return
       outcomes.push(...unplanned)
 
+      // One game added: open its page (Play, online play, save data) rather than start it.
       if (shouldLaunchAfterUpload(outcomes) && playable) {
-        say(`Saved. Starting ${playable.title}…`)
+        say(`Saved. Opening ${playable.title}…`)
         navigating = true
-        window.location.href = buildPlayerUrl(
-          playable,
-          playable.file,
-          hrefFor(`/game/${encodeURIComponent(playable.id)}`),
-        )
+        navigate(`/game/${encodeURIComponent(playable.id)}`)
         return
       }
 

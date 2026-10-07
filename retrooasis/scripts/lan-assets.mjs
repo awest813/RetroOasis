@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
+import { lanPaths } from './lan-paths.mjs'
 import { LAN_CAPABILITIES } from '../public/lan-capabilities.js'
 
 export const coreLock = JSON.parse(await fs.readFile(new URL('./lan-core-lock.json', import.meta.url), 'utf8'))
-export const coreRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data/cores')
+export const coreRoot = path.join(lanPaths.data, 'cores')
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 export async function inspectCore(core, root = coreRoot) {
   if (!Object.values(LAN_CAPABILITIES).some(profile => profile.cores.includes(core))) throw new Error('Unsupported LAN core.')

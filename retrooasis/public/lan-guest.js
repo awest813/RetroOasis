@@ -610,7 +610,7 @@ function scheduleAutoReconnect(lostPeer) {
 document.querySelector('#reconnect').onclick = lobby.querySelector('[data-lobby-action]').onclick = () => { autoRetries = 0; trouble = 'reconnecting'; reconnect(); refreshLobby() }
 retryService.onclick = () => {
   retryService.hidden = true
-  status('Reconnecting to the room service…')
+  status('Reconnecting to the room host…')
   if (socket) { socket.disconnect(); socket.connect() }
   else void initialize()
 }
@@ -624,10 +624,10 @@ try {
   socket.on('room:update', update)
   socket.on('room:signal', ({ sender, signal }) => { if (room?.players.find(player => player.slot === 0)?.socketId === sender) void peer?.accept(signal) })
   socket.on('room:ended', ({ reason }) => end(reason))
-  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = rejoining; guestInput?.release(); closePeer(); if (rejoining) { rejoining = false; return } status(!ended && room ? 'Room service disconnected. Trying to reconnect…' : 'Room service disconnected. Retry when the host server is back.') })
+  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = rejoining; guestInput?.release(); closePeer(); if (rejoining) { rejoining = false; return } status(!ended && room ? 'Room host disconnected. Trying to reconnect…' : 'Room host disconnected. Retry when the host server is back.') })
   socket.on('connect', () => { retryService.hidden = true; if (!ended && resumeToken) void join(true); else { joinForm.querySelector('button').disabled = false; status('Ready. Enter the room code and your name.') } })
-  socket.on('connect_error', () => { retryService.hidden = false; status('Can’t reach the room service. Retry once the host’s room service is running again.') })
-  socket.io.on('reconnect_failed', () => { if (!ended && room) status('Room service is still unavailable. Tap Reconnect when the host server is back.') })
+  socket.on('connect_error', () => { retryService.hidden = false; status('Can’t reach the room host. Retry once it’s running again.') })
+  socket.io.on('reconnect_failed', () => { if (!ended && room) status('The room host is still unavailable. Tap Reconnect when it’s back.') })
   joinForm.querySelector('button').disabled = false
   retryService.hidden = true
   status('Ready. Enter the room code and your name.')

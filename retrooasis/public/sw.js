@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v12'
+const CACHE = 'retrooasis-shell-v13'
 // Libretro box art, so the library keeps its covers offline. Fetched with CORS:
 // opaque responses would each count as megabytes of padded quota.
 const COVER_CACHE = 'retrooasis-covers-v1'
@@ -58,6 +58,7 @@ const PRECACHE = [
   './emulator/emulator.min.css',
   // N64 Transfer Pak (Pokémon Stadium) works offline too.
   './transfer-pak.js',
+  './game-saves.js',
   './ejs-start-hooks.js',
   './rom-source.js',
   './library-saves.js',

@@ -23,9 +23,9 @@ export async function lanInfo() {
   // AbortSignal.timeout arrived in Safari 16; iOS 15 guests need the long way round.
   const signal = AbortSignal.timeout?.(4000) ?? (() => { const controller = new AbortController(); setTimeout(() => controller.abort(), 4000); return controller.signal })()
   const response = await fetch('./api/lan', { cache: 'no-store', signal })
-  if (!response.ok) throw new Error('Start the LAN server on the host computer with npm run oasis:lan.')
+  if (!response.ok) throw new Error('No room host here. Start one on the host computer (start-host, or npm run oasis:lan).')
   const info = await response.json()
-  if (!info.available) throw new Error('LAN room service is unavailable.')
+  if (!info.available) throw new Error('The room host is unavailable.')
   if (info.protocol !== LAN_PROTOCOL) throw new Error('The room server and app versions differ. Update the host and reload this page.')
   return info
 }
@@ -34,16 +34,16 @@ export async function connectSocket() {
     await new Promise((resolve, reject) => {
       const script = document.createElement('script')
       script.src = '/socket.io/socket.io.js'
-      const timer = setTimeout(() => { script.remove(); reject(new Error('LAN room service did not respond.')) }, 5000)
+      const timer = setTimeout(() => { script.remove(); reject(new Error('The room host did not respond.')) }, 5000)
       script.onload = () => { clearTimeout(timer); resolve() }
-      script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('Start the LAN server first.')) }
+      script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('Start the room host first.')) }
       document.head.append(script)
     })
   }
   const socket = window.io({ transports: ['websocket'], reconnectionAttempts: 5, timeout: 5000 })
   await new Promise((resolve, reject) => {
     const connected = () => { socket.off('connect_error', failed); resolve() }
-    const failed = error => { socket.off('connect', connected); socket.disconnect(); reject(new Error(`Cannot connect to the LAN room service: ${error.message}`)) }
+    const failed = error => { socket.off('connect', connected); socket.disconnect(); reject(new Error(`Cannot connect to the room host: ${error.message}`)) }
     socket.once('connect', connected)
     socket.once('connect_error', failed)
   })
@@ -51,10 +51,10 @@ export async function connectSocket() {
 }
 export function request(socket, event, data = {}) {
   if (event === 'room:create' || event === 'room:join') data = { ...data, protocol: LAN_PROTOCOL }
-  if (!socket?.connected) return Promise.reject(new Error('The LAN server is disconnected. Reconnect before trying again.'))
+  if (!socket?.connected) return Promise.reject(new Error('The room host is disconnected. Reconnect before trying again.'))
   return new Promise((resolve, reject) => {
     socket.timeout(5000).emit(event, data, (error, reply) => {
-      if (error) reject(new Error('The LAN server did not respond. Try again.'))
+      if (error) reject(new Error('The room host did not respond. Try again.'))
       else if (!reply?.ok) reject(new Error(reply?.error || 'Room request failed.'))
       else resolve(reply)
     })

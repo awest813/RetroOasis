@@ -5,6 +5,8 @@ import { decodeBackup, deleteSave, encodeBackup, listSaves, MAX_BACKUP_BYTES, re
 import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { bindRowFocus } from '../lib/focus'
+import { loadCatalog } from '../lib/catalog'
+import { savePathOwners } from '../lib/store'
 
 function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob)
@@ -71,16 +73,29 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       busyFocus = null
     }
   }
+  // Save path → game, from the paths the player records, so rows name the game.
+  let owners = new Map<string, { id: string; title: string }>()
+  void loadCatalog().then(catalog => {
+    const titles = new Map(catalog.games.map(g => [g.id, g.title]))
+    owners = new Map([...savePathOwners()].filter(([, id]) => titles.has(id)).map(([path, id]) => [path, { id, title: titles.get(id)! }]))
+    draw()
+  }).catch(() => {})
   const draw = () => {
     const files = entries.filter(e => e.bytes)
     const visible = files.filter(e => e.key.toLowerCase().includes(query.toLowerCase()))
     list.innerHTML = visible.length ? visible.map(entry => {
       const index = entries.indexOf(entry)
       const filename = entry.key.split('/').pop()!
+      const previous = entry.key.endsWith('.before-trade')
+      // Clock carts (Pokémon Gold/Silver/Crystal) keep the clock beside the save, as .rtc.
+      const clock = /\.rtc$/i.test(entry.key)
+      const owner = owners.get(previous ? entry.key.slice(0, -'.before-trade'.length) : clock ? entry.key.replace(/\.rtc$/i, '.srm') : entry.key)
+      const stem = filename.replace(/\.before-trade$/, '').replace(/\.[^.]+$/, '')
+      const title = `${previous ? 'Previous save · ' : clock ? 'Clock · ' : ''}${owner?.title ?? stem}`
       return `<article class="ro-save-row" data-ro-focus-row>
-        <div class="ro-save-row__copy"><h2>${escapeHtml(filename)}</h2>
+        <div class="ro-save-row__copy"><h2>${escapeHtml(title)}</h2>
           <p class="ro-muted">${formatBytes(entry.bytes!.byteLength)}${entry.modified ? ` · ${escapeHtml(new Date(entry.modified).toLocaleString())}` : ' · Date unavailable'}</p>
-          ${kind === 'game' ? `<p class="ro-save-row__path">${escapeHtml(entry.key.slice('/data/saves/'.length))}</p>` : ''}
+          ${kind === 'game' ? `<p class="ro-save-row__path">${escapeHtml(entry.key.slice('/data/saves/'.length))}${owner ? ` · <a href="${hrefFor(`/game/${encodeURIComponent(owner.id)}`)}">Game page</a>` : ''}</p>` : ''}
         </div>
         <div class="ro-btn-row">
           <button class="ro-btn ro-btn--ghost" data-download="${index}" data-ro-focusable="true" aria-label="Download ${escapeHtml(filename)}">Download</button>

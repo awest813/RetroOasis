@@ -273,3 +273,24 @@ export function setTransferPak(n64GameId: string, gbGameId: string): void {
   else delete map[n64GameId]
   writeJson(TRANSFER_PAK_KEY, map)
 }
+
+/** Where the player keeps each game's battery save (the player records it on start: the
+ * name comes from the ROM inside the archive, which only the player knows). */
+const SAVE_PATHS_KEY = 'retrooasis.savePaths'
+export function getSavePath(gameId: string): string {
+  const map = readJson<Record<string, string>>(SAVE_PATHS_KEY, {})
+  return typeof map[gameId] === 'string' ? map[gameId] : ''
+}
+
+/** A save file chosen on the game page, handed to the player for its next start. */
+export const PENDING_SAVE_KEY = 'retrooasis.pendingSave'
+export function setPendingSave(gameId: string, name: string, bytes: Uint8Array): void {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify({ gameId, name, data: btoa(binary) }))
+}
+/** Save path → library game id, inverted from the paths the player records. */
+export function savePathOwners(): Map<string, string> {
+  const map = readJson<Record<string, string>>(SAVE_PATHS_KEY, {})
+  return new Map(Object.entries(map).filter(([, path]) => typeof path === 'string').map(([id, path]) => [path, id]))
+}

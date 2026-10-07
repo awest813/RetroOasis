@@ -37,8 +37,9 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 | `npm run typecheck` | TypeScript only, no emit |
 | `npm run manifest` | Generate `../roms/manifest.json` from `roms/` |
 | `npm run scan` | Scan `roms/` (+ optional sidecars / covers) |
+| `npm run test:online-browser -- --room nes=<rom> [--link gb=<rom>]` | Opt-in browser test of online rooms and Trade & link with your own ROMs (needs Playwright) |
 
-From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
+From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`, and `oasis:host:pack` for the portable room host). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
 
 ## Routes
 
@@ -84,7 +85,7 @@ Merge order: demo catalog → `roms/manifest.json` (hosted) → **saved uploads*
 
 ### Saved uploads (all browsers)
 
-**Add ROM** stores file bytes in IndexedDB on this device and adds a shelf entry. Reloads keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key). Re-adding the same filename replaces the bytes but keeps the original title/`addedAt` when possible.
+**Add ROM** stores file bytes in IndexedDB on this device and adds a shelf entry. Adding one game opens its page. Reloads keep the title until you remove it from game detail or clear uploads in Settings. Play uses a durable `library:` reference (not a one-shot staging key). Re-adding the same filename replaces the bytes but keeps the original title/`addedAt` when possible.
 
 Disc dumps dropped together (`.cue` + `.bin` / `.img` / `.iso`, `.ccd` + `.img`, `.m3u` playlists) are packed into one library entry so EmulatorJS sees every file. Auto-detect peeks ISO 9660 headers so a `.iso` can resolve to PSP, PlayStation, Sega CD, 3DO, or DOS instead of always assuming PSP. Settings shows browser storage use and can ask the browser to keep saved ROMs.
 
@@ -137,6 +138,10 @@ For manually chosen artwork, open a game's **Options → Edit metadata** and use
 
 **Settings → Library → Refresh cover art** clears remembered matches and retries artwork as you browse during the current session. Fresh image requests bypass the browser/app image cache; same-origin app-cached artwork remains available if the network is offline. Blob/data images and custom URLs with existing query parameters remain intact; query parameters may contain signatures required by the image host. The action preserves your cover edits and Online box art preference.
 
+### Save data
+
+Each game page has a **Save data** card: when the game was last saved, **Download**, **Use a save file** (a `.sav` / `.srm` from another emulator; the game starts with it) and **Restore previous save**. The save replaced by an import, a trade or a Transfer Pak session is kept as the previous save, and restoring swaps them, so it can be undone. The player records where each game's save lives the first time it starts, and writes in-game saves to storage whenever the page is hidden as well as every few minutes, so closing a phone's tab doesn't lose them. **Settings → Saves & storage → Local saves** lists every save by game, with backups and restore.
+
 ## Settings
 
 **Settings → Controllers** reports controller access, lists connected devices and marks
@@ -163,13 +168,15 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 
 | Group | Options |
 | ----- | ------- |
-| **Look** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
+| **Appearance** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
+| **Sound** | UI sounds (off by default), sound pack (Soft / XMB / Arcade) |
 | **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right |
-| **Sound & cores** | UI sounds (off by default), sound pack (Soft / XMB / Arcade), Emulator files channel, thread-support status |
+| **Online play** | The two ways to play (Online rooms, Trade & link), room host status, host and join, room host setup |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
-| **Data** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
+| **Saves & storage** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
+| **Advanced** | Emulator files channel, thread-support status, self-hosting |
 
-Settings includes section shortcuts and remembers your focused control and scroll position when you return. Its console-style row menu supports D-pad or arrows, Enter to confirm, and Escape / B to go back. Controller troubleshooting and host setup are expandable. **Online play** explains same-Wi-Fi/LAN limits, supported systems, and separate host and guest flows. **Check again** checks the local room service, distinguishes setup, timeout, update and invalid-response failures, and enables **Choose a game** and **Enter room code** only when the service and browser support are available. The player verifies core files before creating a room. Saved ROMs belong to the browser address where they were added; the host setup explains how to add or link them at the LAN address.
+On wide screens a section rail sits beside the settings and marks the section on screen; on phones the sections are a sticky row of chips. Settings remembers your focused control and scroll position when you return. Its console-style row menu supports D-pad or arrows, Enter to confirm, and Escape / B to go back. Controller troubleshooting and host setup are expandable. **Online play** compares the two ways to play and shows separate host and join actions. **Check again** checks for a room host, distinguishes setup, timeout, update and invalid-response failures, and enables **Choose a game** and **Enter room code** only when the service and browser support are available. The player verifies core files before creating a room. Saved ROMs belong to the browser address where they were added; the host setup explains how to add or link them at the LAN address.
 
 ## Layout, PWA & accessibility
 
@@ -186,18 +193,35 @@ Settings includes section shortcuts and remembers your focused control and scrol
 - Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`); mouse/touch without sticky rings
 - `manifest.webmanifest` (icons + shortcuts) + `sw.js` cache the app shell and catalog (not cores/ROMs), production only
 
-## Same Wi-Fi / LAN multiplayer
+## Online play
 
-Two players can share NES, SNES and Mega Drive / Genesis games. Experimental N64 rooms offer two or four players, including analog stick, Z and C-button controls. The host runs the emulator as Player 1 and streams video and audio over WebRTC; guests control separate controller ports. Guests need no ROM or emulator download. Rooms use the local server for signaling, with no public signaling service, STUN or TURN relay.
+Two ways to play together, both from a **room host**: one computer that friends join from their own browser.
 
-On the host computer, prepare the default cores once while online, then start the server:
+| | **Online rooms** | **Trade & link** |
+| --- | --- | --- |
+| Systems | NES, SNES, Mega Drive / Genesis, PlayStation (2 players); N64 (2 or 4, experimental) | Game Boy, Game Boy Color, GBA (2 players, experimental) |
+| How it works | The host runs the game and streams it; each guest plays on their own controller port | Both linked handhelds run on the host; each player brings their own game and save |
+| Guests need | A browser | A browser, their game and (optionally) their save |
+| Start it | Game page → **Host a room** | Game page → **Start Trade & link** |
+
+RetroOasis itself stays a static site; the room host only adds signaling (Socket.IO) and serves the app on the network. Streams are WebRTC between the browsers, with no public signaling service, STUN or TURN relay.
+
+### Room host
+
+**Portable host:** `npm run oasis:host:pack` (from the repo root) builds `retrooasis/release/retrooasis-host/`, about 15 MB: one bundled `server/server.mjs`, the app, the emulator files and prepared cores, the link cores when built, and `start-host.cmd` / `start-host.sh`. Zip it and run it on any Windows, macOS or Linux computer with Node.js 18+; nothing else to install. Its `README.txt` covers the rest.
+
+**From the project:** prepare the default cores once while online, then start the server:
 
 ```sh
 npm run oasis:lan:prepare
 npm run oasis:lan
 ```
 
-Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host a room** in the Online play card on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and room-service status. Demo placeholders cannot host.
+Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host a room** in the Online room card on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and room host status. Demo placeholders cannot host.
+
+### Over the internet
+
+Put every player on one virtual LAN, Hamachi-style, then host as usual: [Tailscale](https://tailscale.com) (addresses in `100.64.0.0/10`), [Nebula](https://github.com/slackhq/nebula) (MIT, self-hosted) or [ZeroTier](https://www.zerotier.com). The room host prints and offers the virtual LAN address as an invite address. No port forwarding is needed, and rooms still refuse public addresses.
 
 Keyboard and touch work in HTTP mode. Guest gamepads require trusted HTTPS in browsers that restrict the Gamepad API. To generate certificates without installing trust automatically:
 
@@ -213,7 +237,7 @@ The host can pause, lock, remove individual guests or end the room. Each disconn
 
 Streams run at 60 fps and are tuned for low latency on a LAN:
 
-- The host's encoder keeps frame rate under load and scales oversized canvases to 720 lines.
+- The host prefers H.264, starts at 2 Mbit/s, keeps frame rate under load and scales oversized canvases to 480 lines.
 - Guests ask for a minimal jitter buffer.
 - Controls go over an unordered channel of sequence-numbered snapshots.
 
@@ -225,7 +249,7 @@ Hosting selects local, non-threaded cores and verifies their pinned SHA-256 hash
 
 ### N64 Transfer Pak (Pokémon Stadium)
 
-On an N64 game's page, **Transfer Pak (Controller 1)** lists the Game Boy and Game Boy Color games in your library. Pick one and press Play. The cartridge starts with that game's RetroOasis save, so play it once in RetroOasis, or import its `.sav` / `.srm` with the player's **Import Save File**. Anything the N64 game writes to the cartridge is saved back to it, and the previous save is kept as a `.before-trade` backup. A cartridge that had no save is never written back (Stadium writes scratch data to cartridge RAM as it boots). Pokémon Stadium reads Red, Blue and Yellow; Pokémon Stadium 2 reads those and Gold, Silver and Crystal. Save in a Pokémon Center first: Stadium only uses Pokémon from a cartridge saved there. GB Tower (playing the Game Boy game on the N64) doesn't work yet. It needs mupen64plus-core's Transfer Pak fix ([mupen64plus-core#1154](https://github.com/mupen64plus/mupen64plus-core/pull/1154)) and a low-level RSP, and EmulatorJS's current `mupen64plus_next` build has neither, so Stadium reports "The Transfer Pak is not set properly" there.
+On an N64 game's page, **Transfer Pak (Controller 1)** lists the Game Boy and Game Boy Color games in your library. Pick one and press Play. The cartridge starts with that game's RetroOasis save, so play it once in RetroOasis, or start it from a `.sav` / `.srm` with **Use a save file** in its game page's Save data card. Anything the N64 game writes to the cartridge is saved back to it, and the previous save is kept as a `.before-trade` backup. A cartridge that had no save is never written back (Stadium writes scratch data to cartridge RAM as it boots). Pokémon Stadium reads Red, Blue and Yellow; Pokémon Stadium 2 reads those and Gold, Silver and Crystal. Save in a Pokémon Center first: Stadium only uses Pokémon from a cartridge saved there. GB Tower (playing the Game Boy game on the N64) doesn't work yet. It needs mupen64plus-core's Transfer Pak fix ([mupen64plus-core#1154](https://github.com/mupen64plus/mupen64plus-core/pull/1154)) and a low-level RSP, and EmulatorJS's current `mupen64plus_next` build has neither, so Stadium reports "The Transfer Pak is not set properly" there.
 
 ### Game Boy / Color and GBA trade & link (experimental)
 

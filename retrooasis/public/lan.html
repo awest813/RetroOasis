@@ -14,8 +14,8 @@
     <main class="ro-lan-main">
       <section class="ro-lan-join" data-lan-join>
         <div class="ro-lan-join-card">
-          <h1>Join a local game</h1>
-          <p>The host runs the game on their computer; you play from this browser on the same Wi-Fi.</p>
+          <h1>Join a room</h1>
+          <p>Play a friend’s online room or Trade &amp; link from this browser.</p>
           <form id="join-form">
             <label>Room code <input name="code" id="room-code" maxlength="200" pattern="[a-fA-F0-9]{10}" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="code-help" placeholder="A1B2C3D4E5"></label>
             <p id="code-help">The 10-character code from the host’s invite. Pasting the whole invite link works too.</p>
@@ -24,11 +24,11 @@
           </form>
         </div>
         <ol class="ro-lan-steps" aria-label="How online play works">
-          <li><strong>Same network.</strong> Connect to the host’s Wi-Fi or LAN. Guest Wi-Fi with client isolation blocks joining.</li>
+          <li><strong>Same network.</strong> Join the host’s Wi-Fi, or the same virtual LAN (Tailscale, Nebula, ZeroTier) to play over the internet. Guest Wi-Fi often blocks this.</li>
           <li><strong>Open the invite.</strong> Scan the host’s QR code or open their link; the room code fills in.</li>
           <li><strong>Play.</strong> You get your own controller seat and see the host’s screen. Keyboard, touch and gamepads work.</li>
         </ol>
-        <p class="ro-lan-hosting">To host, open an NES, SNES, Mega Drive, PlayStation or N64 game in RetroOasis and choose <strong>Host a room</strong> (N64 supports up to four players). For Game Boy, Game Boy Color and GBA trades and link battles, choose <strong>Start Trade &amp; link</strong>. <a href="./#/library">Browse your library</a></p>
+        <p class="ro-lan-hosting"><strong>Online rooms</strong> (NES, SNES, Mega Drive, PlayStation, N64): you play on the host’s screen, no game needed. <strong>Trade &amp; link</strong> (Game Boy, Color, GBA): you bring your own game and save. To host either, open a game in RetroOasis on a computer running the room host. <a href="./#/settings">Online play settings</a></p>
       </section>
       <section class="ro-lan-play" data-lan-play tabindex="-1" hidden>
         <div class="ro-lan-topbar">
@@ -78,7 +78,7 @@
           <ul data-lan-players aria-label="Controller seats"></ul>
         </details>
       </section>
-      <p data-lan-status role="status" aria-live="polite" aria-atomic="true">Checking the room service…</p>
+      <p data-lan-status role="status" aria-live="polite" aria-atomic="true">Checking the room host…</p>
       <button type="button" id="retry-service" hidden>Retry connection</button>
       <p class="ro-lan-note">Use a trusted HTTPS server for guest gamepads. Keyboard and touch are available in HTTP mode. Host and guest must stay on the same LAN.</p>
     </main>

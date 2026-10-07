@@ -346,3 +346,29 @@ Regression after the overhaul:
 - **Menus:** the navigation menu opens upright; sideways, the links show inline.
 
 **Regression:** full `npm test`, lint (0 errors), typecheck and build.
+
+## Save tools, portable room host, Settings overhaul (October 7)
+
+**Saves:**
+- **Phones.** The player writes in-game saves to storage whenever the page is hidden (`visibilitychange` / `pagehide`). EmulatorJS's own timer runs every 5 minutes. In the test, a `pagehide` updated the IndexedDB save in about 40 ms, without leaving the player.
+- **Save data card on each game page.** The player records each game's save path when it starts. The card shows "No save yet" for untouched cartridge RAM. **Use a save file** started Crystal with your `004 Pokemon-Crystal Version.srm`, byte-identical in the core; the player bar read "Using your save file…". A second import kept the first as the previous save, and **Restore previous save** swapped them back (and can itself be undone).
+- **Saves page:** rows are named by game: "crystal", "Previous save · crystal", "Clock · crystal" (Crystal's real-time clock file).
+- **Tests:** `test:link` covers the pending-save handoff (used once, only by its own game) and the save-path map.
+
+**Online play:**
+- **Two methods, one vocabulary.** Settings, game pages, the join page and Trade & link now describe **Online rooms** (you host the game, guests need no ROM) and **Trade & link** (each player brings their own game and save), both on a **room host**. "Room service" and "LAN server" are gone from the UI.
+- **Portable room host.** `npm run oasis:host:pack` builds a 15 MB folder: one bundled `server/server.mjs` (Socket.IO included), the app, the emulator files, the cores, the link cores, and start scripts for Windows and Linux. Copied outside the repo and run there, it hosted a Contra room (lobby cleared, the guest's key reached Player 2) and opened a Trade & link room with no errors.
+  - **Fixed along the way:** the bundle first crashed on Socket.IO's `__dirname`. It now runs under a CommonJS banner and ships Socket.IO's browser client.
+- **Over the internet:** rooms now also accept `100.64.0.0/10` (Tailscale and other virtual LANs). The rest of `100.0.0.0/8` and public addresses are still refused (unit-tested). Docs cover Tailscale, Nebula (MIT) and ZeroTier.
+- **Opt-in browser test in the repo:** `npm --prefix retrooasis run test:online-browser -- --room nes=<rom> --room n64=<rom> --link gb=<rom> --browsers chromium,firefox`. It passed 24 of 24 checks: NES and N64 rooms (lobby, video, input to Player 2, pause and resume) and a Game Boy link, with Chromium and Firefox guests. Without Playwright it prints how to install it and skips.
+  - **What it caught:** a player change that would have stopped every game from starting (a top-bar label used before it was declared). Fixed before any commit.
+
+**UI:**
+- **Settings overhaul.** Sections: Appearance, Sound, Controllers, Online play, Library, Saves & storage, Advanced (emulator files, thread support, self-hosting).
+  - **Desktop:** a sticky section rail that marks the section on screen.
+  - **Phone:** a sticky, swipeable chip row pinned under the header, scrolled to the current section.
+  - **Online play** shows the two methods side by side, then room host status, Host, Join and "Set up a room host" (portable host, project setup, internet play, troubleshooting).
+- **Player bar:** the default Stable channel is no longer shown ("Game Boy · playing"); other channels and "Online room" still are.
+- **Add ROM** with one game now opens its game page (Play, online, Save data) instead of starting it.
+
+**Regression:** full `npm test`, lint (0 errors), typecheck and build; lobby harness (every state, drop recovered in 2.9 s); in-repo online browser test (24/24).

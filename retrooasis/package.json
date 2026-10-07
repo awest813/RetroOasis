@@ -21,7 +21,8 @@
     "test:gamepad": "node scripts/test-gamepad.mjs",
     "test:lan-service": "node scripts/test-lan-service.mjs",
     "test:link": "node scripts/test-link.mjs",
-    "test:static": "node scripts/test-static.mjs"
+    "test:static": "node scripts/test-static.mjs",
+    "test:online-browser": "node scripts/test-online-browser.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

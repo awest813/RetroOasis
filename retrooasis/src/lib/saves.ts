@@ -224,3 +224,52 @@ export async function deleteSave(kind: SaveKind, key: string): Promise<void> {
 }
 
 export const MAX_BACKUP_BYTES = MAX_BACKUP
+
+/** A game's battery save at `key` and the one kept before the last trade or import. */
+export type GameSaveInfo = { save: SaveEntry | null; previous: SaveEntry | null }
+export async function readGameSave(key: string): Promise<GameSaveInfo> {
+  const db = await openStore('game')
+  if (!db) return { save: null, previous: null }
+  try {
+    return await new Promise<GameSaveInfo>((resolve, reject) => {
+      const tx = db.transaction(stores.game.store, 'readonly')
+      const store = tx.objectStore(stores.game.store)
+      const out: GameSaveInfo = { save: null, previous: null }
+      const read = (k: string, slot: keyof GameSaveInfo) => {
+        const request = store.get(k)
+        request.onsuccess = () => {
+          const value = request.result
+          if (value && (value.mode & 0xf000) === 0x8000) out[slot] = { key: k, mode: value.mode, modified: new Date(value.timestamp).toISOString(), bytes: bytesOf(value.contents) }
+        }
+      }
+      read(key, 'save'); read(`${key}.before-trade`, 'previous')
+      tx.oncomplete = () => resolve(out)
+      tx.onabort = () => reject(tx.error ?? new Error('The save could not be read.'))
+    })
+  } finally { db.close() }
+}
+
+/** Puts the previous save back and keeps the current one as the new "previous", so a
+ * restore can itself be undone. */
+export async function swapWithPreviousSave(key: string): Promise<void> {
+  const db = await openStore('game')
+  if (!db) throw new Error('There is no save to restore.')
+  const backup = `${key}.before-trade`
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(stores.game.store, 'readwrite')
+      const store = tx.objectStore(stores.game.store)
+      const current = store.get(key)
+      const previous = store.get(backup)
+      previous.onsuccess = () => {
+        if (!previous.result || (previous.result.mode & 0xf000) !== 0x8000) { tx.abort(); return }
+        const now = new Date()
+        store.put({ ...previous.result, timestamp: now }, key)
+        if (current.result && (current.result.mode & 0xf000) === 0x8000) store.put({ ...current.result, timestamp: now }, backup)
+        else store.delete(backup)
+      }
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error ?? new Error('There is no previous save to restore.'))
+    })
+  } finally { db.close() }
+}

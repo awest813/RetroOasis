@@ -29,6 +29,7 @@
         "oasis:scan": "npm --prefix retrooasis run scan",
         "oasis:lan": "npm run oasis:build && node retrooasis/scripts/lan-server.mjs",
         "oasis:lan:prepare": "node retrooasis/scripts/prepare-lan.mjs",
+        "oasis:host:pack": "npm run oasis:build && node retrooasis/scripts/pack-host.mjs",
         "oasis:lan:link": "node retrooasis/scripts/prepare-link.mjs",
         "oasis:lan:cert": "pwsh -NoProfile -File retrooasis/scripts/lan-cert.ps1",
         "test:lan": "node retrooasis/scripts/test-lan.mjs && npm --prefix retrooasis run test:lan-service && npm --prefix retrooasis run test:link"

@@ -34,3 +34,5 @@ scripts/.covers-test-cache-*
 .lan-certs/
 scripts/.lan-test-cache-*/
 .handheld-cache/
+# Portable room host (npm run oasis:host:pack)
+release/

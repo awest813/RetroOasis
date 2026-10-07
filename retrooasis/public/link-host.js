@@ -459,7 +459,7 @@ async function start() {
   const { panel } = await mountHost(emu, {
     // This panel sits beside the consoles (or folds itself on phones), never over them.
     heading: 'Link room', onPeer, onDrop, collapseWhenReady: false, pauseButton: false,
-    note: 'Keep this page and the LAN server open. Your guest plays Console 2 with their own cartridge and save; their screen streams from here.',
+    note: 'Keep this page and the room host open. Your guest plays Console 2 with their own cartridge and save; their screen streams from here.',
   })
   // In the page flow, so on narrow screens it never covers the consoles or touch controls.
   roomPanel = panel

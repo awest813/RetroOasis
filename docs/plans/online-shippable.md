@@ -86,7 +86,7 @@ Each finding is ranked by the damage it would do to a first-time player: **P0** 
 | 4. Guest join and play | **Done.** App styling, a seat strip in the top bar, sound on first input and automatic rejoin. A lobby covers the stage until the game is on screen (seats, step tracker, controls) and returns for paused, reconnecting and lost states. |
 | 5. Trade & link stepper | **Done.** A four-step tracker (cartridge → invite → their cartridge → start) advances through a live session. File pickers are restyled and Start link is the primary action. |
 | 6. Transfer Pak polish | **Done.** Stadium + Blue (party and boxes in the Pokémon Lab), Stadium 2 + Blue and Crystal, and Red, Yellow and Gold without saves. Cartridges without a save are never written back. Left: GB Tower, which needs a newer core (mupen64plus-core #1154 plus a low-level RSP). |
-| 7. Stability gates in the repo | **Open.** The online, link, UI-screenshot and stream-diagnostic harnesses work but live outside the repo. Next step: `scripts/test-online-browser.mjs`. |
+| 7. Stability gates in the repo | **Done.** `npm --prefix retrooasis run test:online-browser` (opt-in, your own ROMs, Chromium/Firefox/WebKit guests) checks rooms and Trade & link end to end; it skips cleanly without Playwright. |
 | 8. Ship gates | **Open.** Needs separate devices on real Wi-Fi, Safari/iOS and HTTPS gamepads. Code-level fixes for older Safari and Firefox are in; runtime runs in Firefox and WebKit are still to do. |
 
 ## 5. Risks
@@ -94,3 +94,4 @@ Each finding is ranked by the damage it would do to a first-time player: **P0** 
 - **The fonts come from Google Fonts.** Offline LAN rooms fall back to system-ui. That is acceptable; the tokens and buttons still match.
 - **Room codes are hex.** Grouping is display-only, and pasting a full invite link still works.
 - **Restyling the host panel over the game.** It must not cover the game while playing. It auto-folds (done) and gets a slimmer room bar.
+- **Hosting beyond one network.** Rooms stay LAN-only by design; internet play works over a virtual LAN (Tailscale, Nebula, ZeroTier), and the portable room host (`npm run oasis:host:pack`) makes hosting a copy-and-run folder.

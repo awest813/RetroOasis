@@ -326,13 +326,15 @@
           latest: "Latest",
           nightly: "Nightly",
         };
-        const channelLabel = params.get("lanhost") === "1" ? "Online room" : CHANNEL_LABELS[channel] || channel;
+        // The default (Stable) file source goes unsaid; others, and hosting, are shown.
+        const channelLabel = params.get("lanhost") === "1" ? "Online room" : channel === "stable" ? "" : CHANNEL_LABELS[channel] || channel;
         // People-facing system names for the top bar (the core key stays internal).
         const SYSTEM_NAMES = { nes: "NES", snes: "SNES", gb: "Game Boy", gba: "Game Boy Advance", nds: "Nintendo DS", n64: "Nintendo 64", vb: "Virtual Boy", psx: "PlayStation", psp: "PSP", segaMD: "Mega Drive", segaMS: "Master System", segaGG: "Game Gear", segaCD: "Sega CD", sega32x: "32X", segaSaturn: "Saturn", arcade: "Arcade", mame2003: "Arcade", atari2600: "Atari 2600", atari7800: "Atari 7800", lynx: "Lynx", jaguar: "Jaguar", pce: "PC Engine", ngp: "Neo Geo Pocket", ws: "WonderSwan", dos: "DOS", dosbox_pure: "DOS", ppsspp: "PSP", "3ds": "3DS", azahar: "3DS" };
+        const metaPrefix = (SYSTEM_NAMES[core] || core) + (channelLabel ? " · " + channelLabel : "");
 
         const dataPath = PATHS[channel];
         document.getElementById("title").textContent = name;
-        document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel;
+        document.getElementById("meta").textContent = metaPrefix;
         document.getElementById("back").setAttribute("href", back);
         document.title = name + " · RetroOasis";
 
@@ -765,6 +767,8 @@
 
         var loadedRom = null;
         var tpkNote = "";
+        var saveNote = "";
+        var onSavesStarted = null;
         function restageRom() {
           if (romParam.indexOf(IDB_ROM_PREFIX) !== 0 || !(loadedRom instanceof File)) return Promise.resolve();
           var key = romParam.slice(IDB_ROM_PREFIX.length);
@@ -793,12 +797,12 @@
         // EmulatorJS's own start errors are terse; explain what happened and what to try.
         function explainStartError(detail) {
           var reason = detail && detail.reason;
-          document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · didn’t start";
+          document.getElementById("meta").textContent = metaPrefix + " · didn’t start";
           var offline = navigator.onLine === false;
           var again = { label: "Try again", run: function () { retry(); } };
           if (reason === "core") {
             if (params.get("lanhost") === "1") {
-              fail("Multiplayer core unavailable", "The LAN server didn’t send this system’s prepared core. Prepare it on the host computer, then try again.", null, [again]);
+              fail("Multiplayer core unavailable", "The room host didn’t send this system’s prepared core. Prepare it on the host computer, then try again.", null, [again]);
             } else if (offline) {
               fail("You’re offline", "This system’s emulator isn’t saved on this device yet. Connect to the internet and play any game for this system once; after that it starts offline too.", null, [again]);
             } else if (channel === "local") {
@@ -806,14 +810,14 @@
             } else {
               var actions = [again];
               if (channel === "stable" || channel === "latest") actions.push({ label: "Try Nightly", run: function () { retry("nightly"); } });
-              fail("Couldn’t download the emulator", "The " + channelLabel + " channel didn’t send this system’s emulator (" + detail.file + "). Check your connection and try again" + (actions.length > 1 ? ", or try the Nightly channel for this game." : "."), null, actions);
+              fail("Couldn’t download the emulator", "The " + (CHANNEL_LABELS[channel] || channel) + " channel didn’t send this system’s emulator (" + detail.file + "). Check your connection and try again" + (actions.length > 1 ? ", or try the Nightly channel for this game." : "."), null, actions);
             }
           } else if (reason === "webgl") {
             fail("Graphics not supported", "This system needs WebGL 2. Turn on hardware acceleration in your browser settings, update your graphics driver, or try another browser.");
           } else if (reason === "version") {
             var newer = [again];
             if (channel !== "stable" && channel !== "local") newer.push({ label: "Use Stable", run: function () { retry("stable"); } });
-            fail("Emulator too new", "The " + channelLabel + " channel’s emulator needs a newer RetroOasis player than this site has. Choose Stable in Settings → Emulator files.", null, newer);
+            fail("Emulator too new", "The " + (CHANNEL_LABELS[channel] || channel) + " channel’s emulator needs a newer RetroOasis player than this site has. Choose Stable in Settings → Emulator files.", null, newer);
           } else if (reason === "runtime") {
             fail("Emulator didn’t start", "The emulator downloaded but couldn’t start. Try again; if it keeps happening, clear the emulator cache in Settings → Data.", null, [again]);
           }
@@ -855,8 +859,21 @@
             window.location.href = back;
           };
           window.EJS_onGameStart = function () {
-            document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · playing" + (tpkNote ? " · " + tpkNote : "");
+            if (onSavesStarted) onSavesStarted(window.EJS_emulator);
+            document.getElementById("meta").textContent = metaPrefix + " · playing" + (tpkNote ? " · " + tpkNote : "") + (saveNote ? " · " + saveNote : "");
           };
+          // Phones close background tabs without warning (and EmulatorJS only writes saves
+          // every 5 minutes), so in-game saves go to storage as soon as the page is hidden.
+          function flushSaves() {
+            var emulator = window.EJS_emulator;
+            if (!emulator || !emulator.started || emulator.failedToStart || !emulator.gameManager) return;
+            try {
+              emulator.gameManager.saveSaveFiles();
+              emulator.gameManager.FS.syncfs(false, function () {});
+            } catch (_) { /* the core is shutting down */ }
+          }
+          document.addEventListener("visibilitychange", function () { if (document.hidden) flushSaves(); });
+          window.addEventListener("pagehide", flushSaves);
 
           if (params.get("lanhost") === "1") {
             // Load our adapter before EmulatorJS binds its start callback.
@@ -876,7 +893,7 @@
                 if (!response.ok || !prepared.ready) throw new Error(prepared.error || 'Prepare the local multiplayer core first.');
                 if (prepared.webgl2 && !emulator.supportsWebgl2) throw new Error('This multiplayer core needs WebGL 2. Enable hardware acceleration or use another browser.');
               } catch (error) {
-                fail('Multiplayer core unavailable', error.message || 'Start the LAN server and prepare the core first.');
+                fail('Multiplayer core unavailable', error.message || 'Start the room host and prepare the core first.');
                 return;
               }
               // LAN sessions use locally prepared cores and never fall back to a CDN.
@@ -910,20 +927,32 @@
           var transferPak = core === "n64" && params.get("tpk")
             ? import("./transfer-pak.js").then(function (module) {
                 // Not showLoading(): that would replace the #game element EmulatorJS mounts into.
-                document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · inserting the Game Boy cartridge…";
+                document.getElementById("meta").textContent = metaPrefix + " · inserting the Game Boy cartridge…";
                 return module.loadTransferCart(params.get("tpk")).then(function (cart) {
                   module.installTransferPak(cart, {
                     onStatus: function (text) {
                       tpkNote = text;
                       var meta = document.getElementById("meta");
-                      meta.textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · " + text;
+                      meta.textContent = metaPrefix + " · " + text;
                       meta.title = text;
                     },
                   });
                 });
               })
             : Promise.resolve();
-          return transferPak.then(function () {
+          // Battery saves: record where this game's save lives, and put in a save file
+          // chosen on the game page (?gid=<library id>).
+          var gameSaves = params.get("gid")
+            ? import("./game-saves.js").then(function (module) {
+                onSavesStarted = module.installGameSaves(params.get("gid"), {
+                  onStatus: function (text) {
+                    saveNote = text;
+                    document.getElementById("meta").textContent = metaPrefix + " · " + text;
+                  },
+                });
+              })
+            : Promise.resolve();
+          return Promise.all([gameSaves, transferPak]).then(function () {
             if (params.get("lanhost") === "1") {
               return import("./lan-host.js").then(function (module) {
                 module.installLanHost();
@@ -939,7 +968,7 @@
           return;
         }
 
-        document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · loading…";
+        document.getElementById("meta").textContent = metaPrefix + " · loading…";
         showLoading("Loading ROM…");
 
         // About 10% of this browser's quota, between 256 MB and 1 GB.
@@ -955,7 +984,7 @@
         Promise.all([resolveRom(romParam), quotaCheck])
           .then(function (results) { return results[0]; })
           .then(function (gameUrl) {
-            document.getElementById("meta").textContent = (SYSTEM_NAMES[core] || core) + " · " + channelLabel + " · starting…";
+            document.getElementById("meta").textContent = metaPrefix + " · starting…";
             showLoading("Starting emulator…");
             return startEmulator(gameUrl);
           })

@@ -29,6 +29,8 @@ export function buildPlayerUrl(
     channel,
     back: backPath.startsWith('#') ? `./${backPath}` : `./#${backPath}`,
   })
+  // The player records this game's save path under its id, for the game page's save card.
+  params.set('gid', game.id)
   if (game.bios) params.set('bios', game.bios)
   if (coreNeedsThreads(core)) params.set('threads', '1')
   if (lanHost) params.set('lanhost', '1')

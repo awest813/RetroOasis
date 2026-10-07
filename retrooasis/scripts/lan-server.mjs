@@ -11,15 +11,17 @@ import { attachRooms } from './lan-rooms.mjs'
 import { LAN_PROTOCOL, LAN_CAPABILITIES, LINK_CAPABILITIES } from '../public/lan-capabilities.js'
 import { inspectCore } from './lan-assets.mjs'
 import { inspectLink, verifiedLinkFile, linkRoot as defaultLinkRoot, LINK_FILES } from './lan-link.mjs'
+import { lanPaths } from './lan-paths.mjs'
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const privateV4 = ip => /^127\.|^10\.|^192\.168\.|^169\.254\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+// Private ranges, plus 100.64.0.0/10: virtual LANs such as Tailscale hand out these
+// addresses, so friends on one can join over the internet like on home Wi-Fi.
+const privateV4 = ip => /^127\.|^10\.|^192\.168\.|^169\.254\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip)
 export function isLanAddress(ip = '') {
   ip = ip.toLowerCase().replace(/^::ffff:/, '').split('%')[0]
   if (!isIP(ip)) return false
   return privateV4(ip) || ip === '::1' || /^f[cd][\da-f]{2}:|^fe[89ab][\da-f]:/.test(ip)
 }
-export function createLanServer({ port = 8787, cert, key, staticRoot = path.join(repo, 'retrooasis/dist'), linkRoot = defaultLinkRoot } = {}) {
+export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.app, linkRoot = defaultLinkRoot } = {}) {
   if (!!cert !== !!key) throw new Error('Provide both --cert and --key for HTTPS.')
   const secure = !!cert
   const addresses = [...new Set(Object.values(os.networkInterfaces()).flat().filter(value => value && !value.internal && value.family === 'IPv4' && isLanAddress(value.address)).map(value => value.address))]
@@ -33,7 +35,7 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
     if (!hosts.has(url.hostname.toLowerCase()) || Number(url.port || (secure ? 443 : 80)) !== actualPort) return false
     return !req.headers.origin || req.headers.origin === url.origin
   }
-  const roots = { '/data/': path.join(repo, 'data'), '/roms/': path.join(repo, 'roms') }
+  const roots = { '/data/': lanPaths.data, '/roms/': lanPaths.roms }
   let link = { ready: false, systems: [] }
   const refreshLink = async () => { link = await inspectLink(linkRoot); return link }
   void refreshLink()
@@ -135,7 +137,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const option = name => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1] }
   const port = Number(option('--port') || 8787)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Choose a port between 1 and 65535.')
-  if (!fs.existsSync(path.join(repo, 'retrooasis/dist/index.html'))) throw new Error('Build RetroOasis first: npm run oasis:build')
+  if (!fs.existsSync(path.join(lanPaths.app, 'index.html'))) throw new Error(lanPaths.portable ? 'The app folder is missing from this host package. Unpack the whole folder.' : 'Build RetroOasis first: npm run oasis:build')
   const lan = createLanServer({ port, cert: option('--cert'), key: option('--key') })
   lan.server.on('error', error => {
     console.error(error.code === 'EADDRINUSE' ? `Port ${port} is already in use. Choose another with --port.` : error.message)
@@ -146,7 +148,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(`RetroOasis LAN host: ${protocol}://localhost:${port}`)
     for (const ip of lan.addresses) console.log(`Guest invite address: ${protocol}://${ip}:${port}/lan.html`)
     if (!lan.secure) console.log('HTTP mode: keyboard/touch guests. Use --cert and --key with a trusted certificate for guest gamepads and secure browser APIs.')
-    console.log('Keep this terminal and the host game open. Same Wi-Fi/LAN only; no port forwarding is needed.')
+    console.log('Keep this window and the host game open. Players join on the same Wi-Fi, or over the internet on a shared virtual LAN (Tailscale, Nebula, ZeroTier). No port forwarding is needed.')
   })
   const stop = () => { lan.rooms.close(); lan.io.close(); lan.server.close() }
   process.once('SIGINT', stop)

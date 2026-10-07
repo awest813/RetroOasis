@@ -44,7 +44,7 @@ export async function mountHost(emu, options = {}) {
         <label>Address for this Wi-Fi <select data-lan-address aria-label="Invite address"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
       <div class="ro-lan-actions"><button type="button" class="ro-lan-primary" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
       <p class="ro-lan-panel__hint" data-lan-note></p></div>
-    <p data-lan-status role="status" aria-live="polite">Preparing room service…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
+    <p data-lan-status role="status" aria-live="polite">Preparing room host…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
   panel.querySelector('[data-lan-note]').textContent = options.note || 'Keep this tab open while friends play.'
   document.body.append(panel)
   const stylesheet = document.createElement('link')
@@ -117,7 +117,7 @@ export async function mountHost(emu, options = {}) {
     if (!room) {
       createButton.disabled = false
       if (retryFocus && (document.activeElement === document.body || document.activeElement === retry)) createButton.focus({ preventScroll: true })
-      status('Room service ready. Create a room when you’re ready.', panel)
+      status('Room host ready. Create a room when you’re ready.', panel)
     }
     retryFocus = false
   }
@@ -300,8 +300,8 @@ export async function mountHost(emu, options = {}) {
     socket.on('room:update', update)
     socket.on('room:signal', ({ sender, signal }) => { void peers.get(sender)?.accept(signal) })
     socket.on('room:ended', ({ reason }) => endLocal(ending ? 'Room ended. You can continue playing locally.' : reason))
-    socket.on('disconnect', () => { retry.hidden = false; endLocal('The LAN server disconnected. Retry connection, then create a new room.') })
-    socket.on('connect_error', () => { retry.hidden = false; status('Cannot reach the LAN server. Retry when it is back.', panel) })
+    socket.on('disconnect', () => { retry.hidden = false; endLocal('The room host disconnected. Retry connection, then create a new room.') })
+    socket.on('connect_error', () => { retry.hidden = false; status('Cannot reach the room host. Retry when it is back.', panel) })
     socket.on('connect', serviceReady)
     form.onsubmit = async event => {
       event.preventDefault()
@@ -362,7 +362,7 @@ export async function mountHost(emu, options = {}) {
   retry.onclick = async () => {
     retryFocus = document.activeElement === retry
     retry.disabled = true
-    status('Reconnecting to the room service…', panel)
+    status('Reconnecting to the room host…', panel)
     try {
       if (socket) { socket.disconnect(); socket.connect() }
       else await initialize()

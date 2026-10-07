@@ -238,3 +238,20 @@ for (const [codes, expected] of [[['AXVE', 'AXPE'], 'Pokémon link cable'], [['B
   } finally { session.close() }
 }
 console.log('PASS GBA link mode detection: Pokémon and Advance Wars cables, unsupported-game warning')
+
+// Game-page saves: a chosen save file is used once, only by its own game.
+{
+  const { takePendingSave, rememberSavePath, PENDING_SAVE_KEY, SAVE_PATHS_KEY } = await import('../public/game-saves.js')
+  const memory = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) } }
+  const session = memory()
+  session.setItem(PENDING_SAVE_KEY, JSON.stringify({ gameId: 'a', name: 'x.sav', data: Buffer.from([1, 2, 3]).toString('base64') }))
+  assert.equal(takePendingSave('b', session), null, 'Another game never takes the pending save')
+  assert.equal(session.getItem(PENDING_SAVE_KEY), null, 'A stale pending save is dropped')
+  session.setItem(PENDING_SAVE_KEY, JSON.stringify({ gameId: 'a', name: 'x.sav', data: Buffer.from([1, 2, 3]).toString('base64') }))
+  assert.deepEqual([...takePendingSave('a', session).bytes], [1, 2, 3])
+  assert.equal(takePendingSave('a', session), null, 'Used once')
+  const local = memory()
+  rememberSavePath('a', '/data/saves/Gambatte/A.srm', local)
+  assert.deepEqual(JSON.parse(local.getItem(SAVE_PATHS_KEY)), { a: '/data/saves/Gambatte/A.srm' })
+  console.log('PASS game-page saves: pending save file handoff and save-path map')
+}

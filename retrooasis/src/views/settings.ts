@@ -115,8 +115,36 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     if (pendingLanFocus && target?.id !== 'ro-check-lan') pendingLanFocus = false
     if (active && target?.dataset.focusId) rememberFocus(target.dataset.focusId)
   }
+  // The section rail marks the section on screen (the last one once the page bottoms out);
+  // on phones the rail is one swipeable row, kept scrolled to that section's chip.
+  // Pin the rail right under the app header (its height varies on phones).
+  const pinRail = () => {
+    const rail = root.querySelector<HTMLElement>('.ro-settings__nav')
+    const bar = document.querySelector<HTMLElement>('.ro-topbar')
+    if (!rail || !bar) return
+    const pinned = ['sticky', 'fixed'].includes(getComputedStyle(bar).position)
+    rail.style.setProperty('--ro-rail-top', `${pinned ? bar.offsetHeight : 0}px`)
+  }
+  const markCurrentSection = () => {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[data-settings-section]')]
+    if (!tabs.length) return
+    const line = window.innerHeight * 0.3
+    let current = tabs[0]
+    for (const tab of tabs) {
+      const heading = root.querySelector(`#ro-set-${tab.dataset.settingsSection}`)
+      if (heading && heading.getBoundingClientRect().top <= line) current = tab
+    }
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) current = tabs[tabs.length - 1]
+    if (current.getAttribute('aria-current') === 'true') return
+    for (const tab of tabs) {
+      if (tab === current) tab.setAttribute('aria-current', 'true')
+      else tab.removeAttribute('aria-current')
+    }
+    const rail = current.parentElement
+    if (rail && rail.scrollWidth > rail.clientWidth) rail.scrollTo({ left: current.offsetLeft - (rail.clientWidth - current.offsetWidth) / 2, behavior: 'smooth' })
+  }
   const onScroll = () => {
-    if (!scrollFrame) scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; if (active) rememberScroll() })
+    if (!scrollFrame) scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; if (active) { rememberScroll(); markCurrentSection() } })
   }
   registerViewCleanup(() => {
     if (root.querySelector('[data-ro-settings]')) rememberScroll()
@@ -162,14 +190,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       <header class="ro-settings-page__head">
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Settings</p>
         <h1 class="ro-title">Settings</h1>
-        <p class="ro-lede">Appearance, sound, controllers, online play, and your library.</p>
+        <p class="ro-lede">Look and sound, controllers, online play, your library and saves.</p>
       </header>
 
       <div class="ro-settings" data-ro-settings>
         <nav class="ro-settings__nav" aria-label="Settings sections" data-ro-focus-row>
           ${[
-            ['look', 'Appearance'], ['playback', 'Sound & cores'], ['controller', 'Controllers'],
-            ['lan', 'Online play'], ['library', 'Library'], ['data', 'Data'],
+            ['look', 'Appearance'], ['playback', 'Sound'], ['controller', 'Controllers'],
+            ['lan', 'Online play'], ['library', 'Library'], ['data', 'Saves & storage'], ['advanced', 'Advanced'],
           ].map(([id, label]) => `<button type="button" class="ro-btn ro-btn--ghost" data-settings-section="${id}" data-focus-id="section-${id}" data-ro-focusable="true">${escapeHtml(label)}</button>`).join('')}
         </nav>
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
@@ -207,7 +235,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         </section>
 
         <section class="ro-settings__group" aria-labelledby="ro-set-playback">
-          <h2 class="ro-settings__heading" id="ro-set-playback">Sound &amp; cores</h2>
+          <h2 class="ro-settings__heading" id="ro-set-playback">Sound</h2>
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
@@ -230,39 +258,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
 
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
-            <div class="ro-settings-row__copy">
-              <strong>Emulator files</strong>
-              <p class="ro-muted">
-                Where game cores and support files load from. Stable suits most systems.
-                PSP, DOS, and 3DS always use Nightly (unless Local).
-              </p>
-            </div>
-            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="Emulator files">
-              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}" title="Official stable CDN builds">Stable</button>
-              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}" title="Newer CDN builds; required for PSP / DOS / 3DS">Nightly</button>
-              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}" title="Latest CDN channel">Latest</button>
-              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}" title="Load from a local data/ folder next to the site">Local</button>
-            </div>
-          </div>
-
-          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
-            <div class="ro-settings-row__copy">
-              <strong>Thread support</strong>
-              <p class="ro-muted">
-                Lets PSP, DOS, and 3DS games run in the browser.
-                Separate from the Nightly CDN channel above.
-              </p>
-              <p class="ro-muted">
-                ${
-                  hasSab
-                    ? 'Available here. These systems also need compatible cores and game files.'
-                    : 'Missing here. Use the RetroOasis dev server, or host with isolation headers (see README). GitHub Pages can’t set them.'
-                }
-              </p>
-            </div>
-            <span class="ro-badge ${hasSab ? 'ro-badge--ok' : 'ro-badge--threads'}" role="status">${hasSab ? 'Ready' : 'Missing'}</span>
-          </div>
-        </section>
+          </section>
 
         <section class="ro-settings__group" aria-labelledby="ro-set-controller">
           <h2 class="ro-settings__heading" id="ro-set-controller">Controllers</h2>
@@ -300,53 +296,64 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <h2 class="ro-settings__heading" id="ro-set-lan">Online play</h2>
           <div class="ro-settings-row ro-settings__online-intro">
             <div class="ro-settings-row__copy">
-              <strong>Same Wi-Fi or LAN</strong>
-              <p class="ro-muted">One computer runs the game and streams it to the other players. Guests need no ROM. Internet rooms are not supported.</p>
-              <ul class="ro-settings__online-systems" aria-label="Supported multiplayer systems">
-                <li><span>NES · SNES · Mega Drive / Genesis · PlayStation</span><span>2 players</span></li>
-                <li><span>Nintendo 64 <em>Experimental</em></span><span>Up to 4 players</span></li>
-                <li><span>Game Boy / Color · GBA trade &amp; link <em>Experimental</em></span><span>2 players</span></li>
-                <li><span>N64 Transfer Pak (Pokémon Stadium)</span><span>On this device</span></li>
-              </ul>
-              <p class="ro-muted">Player counts depend on the game. For handheld trades and link battles, the host runs both linked consoles and each player brings their own cartridge and save. The Transfer Pak plugs a Game Boy game from your library into an N64 game; pick it on the N64 game’s page.</p>
+              <p class="ro-muted">Two ways to play together. Both run on a <b>room host</b>: one computer that friends join from their own browser, on the same Wi-Fi or over the internet on a shared virtual LAN.</p>
+              <div class="ro-online-methods">
+                <article class="ro-online-method">
+                  <h3>Online rooms</h3>
+                  <p>You run the game; friends see your screen and play with their own controller. They don’t need the game.</p>
+                  <ul class="ro-settings__online-systems" aria-label="Online room systems">
+                    <li><span>NES · SNES · Mega Drive · PlayStation</span><span>2 players</span></li>
+                    <li><span>Nintendo 64 <em>Experimental</em></span><span>Up to 4</span></li>
+                  </ul>
+                  <p class="ro-online-method__how">Game page → <b>Host a room</b></p>
+                </article>
+                <article class="ro-online-method">
+                  <h3>Trade &amp; link</h3>
+                  <p>Two handhelds on one link cable, for trades and link battles. Each player brings their own game and save.</p>
+                  <ul class="ro-settings__online-systems" aria-label="Trade and link systems">
+                    <li><span>Game Boy · Color · GBA <em>Experimental</em></span><span>2 players</span></li>
+                  </ul>
+                  <p class="ro-online-method__how">Game page → <b>Start Trade &amp; link</b></p>
+                </article>
+              </div>
             </div>
           </div>
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Local room service <span class="ro-settings__online-state" id="ro-lan-state" data-state="checking">Checking</span></strong>
-              <p class="ro-muted" id="ro-lan-service-status" role="status" aria-atomic="true">Checking the room service at this address…</p>
+              <strong>Room host <span class="ro-settings__online-state" id="ro-lan-state" data-state="checking">Checking</span></strong>
+              <p class="ro-muted" id="ro-lan-service-status" role="status" aria-atomic="true">Checking for a room host at this address…</p>
               <p class="ro-muted" id="ro-lan-controls-status" hidden></p>
             </div>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-check-lan" data-focus-id="lan-check" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Check again</button>
           </div>
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Host a game</strong>
-              <p class="ro-muted">Open a supported game in your library and choose <b>Host a room</b>, or <b>Start Trade &amp; link</b> for Game Boy and GBA games. Create a room, then share its invite link or QR code.</p>
+              <strong>Host</strong>
+              <p class="ro-muted">Pick a game, choose <b>Host a room</b> or <b>Start Trade &amp; link</b>, then share the invite link or QR code.</p>
             </div>
             <a class="ro-btn ro-btn--primary" id="ro-lan-host" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-host" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Choose a game</a>
           </div>
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Join a room</strong>
-              <p class="ro-muted">Open the host’s invite link or scan their QR code on the same network. You can also enter their room code from this host address.</p>
+              <strong>Join</strong>
+              <p class="ro-muted">Open the host’s invite link or scan their QR code. Or enter their room code here.</p>
             </div>
             <a class="ro-btn ro-btn--ghost" id="ro-lan-join" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-join" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Enter room code</a>
           </div>
           <div class="ro-settings-row ro-settings-row--note" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <details class="ro-settings__help">
-                <summary data-focus-id="lan-help" data-ro-focusable="true">Host setup &amp; troubleshooting</summary>
+                <summary data-focus-id="lan-help" data-ro-focusable="true">Set up a room host</summary>
+                <p class="ro-muted"><b>Portable host</b> (any Windows, macOS or Linux computer with <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+): unzip the RetroOasis room host and run <b>start-host</b>. Build it from the project with <code>npm run oasis:host:pack</code>.</p>
+                <p class="ro-muted"><b>From the project folder:</b></p>
                 <ol class="ro-settings__online-steps ro-muted">
-                  <li>On the host computer, open a terminal in the RetroOasis project folder. Prepare local cores once while online:<code>npm run oasis:lan:prepare</code></li>
-                  <li>For Game Boy / GBA trading, build the link cores once (downloads pinned open-source sources and a compiler):<code>npm run oasis:lan:link</code></li>
-                  <li>Start the room service and leave the terminal open:<code>npm run oasis:lan</code></li>
-                  <li>Open the printed <b>localhost</b> address on the host. Add a real ROM if needed, then choose a game above. Samples cannot host.</li>
+                  <li>Prepare the multiplayer cores once, while online:<code>npm run oasis:lan:prepare</code></li>
+                  <li>For Trade &amp; link, build the link cores once:<code>npm run oasis:lan:link</code></li>
+                  <li>Start the room host and leave it running:<code>npm run oasis:lan</code></li>
                 </ol>
-                <p class="ro-muted">Saved ROMs belong to this browser address. If your library looks empty at the new address, add your ROM there or link its folder.</p>
-                <p class="ro-muted">Keep the host game open and the computer awake. Share the invite for your Wi-Fi adapter; a localhost link works only on the host computer.</p>
-                <p class="ro-muted">If guests cannot connect, check that all devices use the same network, allow Node through the host’s private-network firewall, and avoid guest Wi-Fi with device isolation.</p>
-                <p class="ro-muted">Keyboard and touch work over HTTP. Guest gamepads need trusted HTTPS. The host terminal and project README explain certificate setup.</p>
+                <p class="ro-muted">Then open the <b>localhost</b> address it prints on the host computer and add your games there; samples can’t host. Saved games belong to each browser address.</p>
+                <p class="ro-muted"><b>Over the internet:</b> put everyone on one virtual LAN, such as <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, <a href="https://github.com/slackhq/nebula" target="_blank" rel="noopener">Nebula</a> or <a href="https://www.zerotier.com" target="_blank" rel="noopener">ZeroTier</a>, and share the invite for that network. No port forwarding needed.</p>
+                <p class="ro-muted"><b>If guests can’t connect:</b> check they’re on the same network (guest Wi-Fi often blocks devices from seeing each other) and allow Node.js through the host’s firewall for private networks. Keyboard and touch work over HTTP; guest gamepads need trusted HTTPS.</p>
               </details>
             </div>
           </div>
@@ -444,7 +451,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         </section>
 
         <section class="ro-settings__group" aria-labelledby="ro-set-data">
-          <h2 class="ro-settings__heading" id="ro-set-data">Data</h2>
+          <h2 class="ro-settings__heading" id="ro-set-data">Saves &amp; storage</h2>
 
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
@@ -543,12 +550,50 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
         </section>
 
+        <section class="ro-settings__group" aria-labelledby="ro-set-advanced">
+          <h2 class="ro-settings__heading" id="ro-set-advanced">Advanced</h2>
+          <div class="ro-settings-row__copy">
+              <strong>Emulator files</strong>
+              <p class="ro-muted">
+                Where game cores and support files load from. Stable suits most systems.
+                PSP, DOS, and 3DS always use Nightly (unless Local).
+              </p>
+            </div>
+            <div class="ro-toggle-group ro-toggle-group--channels" role="group" aria-label="Emulator files">
+              <button type="button" class="ro-btn" data-ejs="stable" data-focus-id="ejs-stable" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'stable')}" title="Official stable CDN builds">Stable</button>
+              <button type="button" class="ro-btn" data-ejs="nightly" data-focus-id="ejs-nightly" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'nightly')}" title="Newer CDN builds; required for PSP / DOS / 3DS">Nightly</button>
+              <button type="button" class="ro-btn" data-ejs="latest" data-focus-id="ejs-latest" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'latest')}" title="Latest CDN channel">Latest</button>
+              <button type="button" class="ro-btn" data-ejs="local" data-focus-id="ejs-local" data-ro-focusable="true" aria-pressed="${pressed(ejsChannel === 'local')}" title="Load from a local data/ folder next to the site">Local</button>
+            </div>
+          </div>
+
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Thread support</strong>
+              <p class="ro-muted">
+                Lets PSP, DOS, and 3DS games run in the browser.
+                Separate from the Nightly CDN channel above.
+              </p>
+              <p class="ro-muted">
+                ${
+                  hasSab
+                    ? 'Available here. These systems also need compatible cores and game files.'
+                    : 'Missing here. Use the RetroOasis dev server, or host with isolation headers (see README). GitHub Pages can’t set them.'
+                }
+              </p>
+            </div>
+            <span class="ro-badge ${hasSab ? 'ro-badge--ok' : 'ro-badge--threads'}" role="status">${hasSab ? 'Ready' : 'Missing'}</span>
+          </div>
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Host RetroOasis yourself</strong>
+              <p class="ro-muted">It’s a static site: run <code>npm run oasis:build</code> and serve <code>dist/</code> beside <code>data/</code> and <code>roms/</code>. Online play needs a room host (see Online play).</p>
+            </div>
+          </div>
+        </section>
+
         <div class="ro-settings__footer" data-ro-focus-row>
           <a class="ro-btn ro-btn--ghost" href="${hrefFor('/')}" data-focus-id="back-home" data-ro-focusable="true">Back home</a>
-          <p class="ro-settings__footnote ro-muted">
-            Self-host: <code>npm run oasis:build</code>, serve <code>dist/</code> beside
-            <code>data/</code> and <code>roms/</code>.
-          </p>
         </div>
       </div>
     </section>
@@ -572,6 +617,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       heading?.scrollIntoView({ block: 'start' })
     })
   })
+  markCurrentSection()
+  pinRail()
 
   let working = false
   const restoreActionFocus = (button: HTMLButtonElement, wasFocused: boolean) => {
@@ -665,7 +712,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     const badge = root.querySelector<HTMLElement>('#ro-lan-state')
     const controls = root.querySelector<HTMLElement>('#ro-lan-controls-status')
     const actions = Array.from(root.querySelectorAll<HTMLAnchorElement>('#ro-lan-host, #ro-lan-join'))
-    if (status) status.textContent = 'Checking the room service at this address…'
+    if (status) status.textContent = 'Checking for a room host at this address…'
     if (badge) { badge.textContent = 'Checking'; badge.dataset.state = 'checking' }
     if (controls) controls.hidden = true
     for (const action of actions) { action.removeAttribute('href'); action.setAttribute('aria-disabled', 'true'); action.tabIndex = -1 }
@@ -673,12 +720,12 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     if (!active || attempt !== lanCheck) return
     const browserSupported = typeof window.RTCPeerConnection === 'function'
     const messages = {
-      ready: ['Available', 'Room service connected. The player checks the game’s core before you create a room.'],
-      unavailable: ['Setup needed', 'No room service at this address. Guests: open the host’s invite link. Hosts: follow Host setup below and open the printed address.'],
-      unreachable: ['Unavailable', 'Couldn’t reach the room service. Keep the host terminal open, check the network, then try again.'],
-      timeout: ['Timed out', 'The room service took too long to reply. Check the host computer and network, then try again.'],
-      incompatible: ['Update needed', 'The app and room service are incompatible. Update the host, restart the room service, and reload this page.'],
-      invalid: ['Unexpected response', 'This address did not return valid room information. Restart the host service and open its printed address.'],
+      ready: ['Ready', 'Room host running. The player checks each game’s core when you create a room.'],
+      unavailable: ['Not here', 'No room host at this address. Guests: open the host’s invite link. Hosts: start a room host (see Set up a room host) and open the address it shows.'],
+      unreachable: ['Unavailable', 'Couldn’t reach the room host. Keep its window open, check the network, then try again.'],
+      timeout: ['Timed out', 'The room host took too long to reply. Check the host computer and network, then try again.'],
+      incompatible: ['Update needed', 'This page and the room host are different versions. Update the room host, restart it and reload.'],
+      invalid: ['Unexpected response', 'This address didn’t answer like a room host. Restart it and open the address it shows.'],
     } as const
     const [label, message] = browserSupported ? messages[result.state] : ['Browser unsupported', 'This browser does not provide WebRTC. Open the host’s invite in a browser with WebRTC support.']
     const available = browserSupported && result.state === 'ready'

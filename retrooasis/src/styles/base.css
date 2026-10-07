@@ -2212,3 +2212,71 @@ html[data-layout='tv'] .ro-btn--toggle {
   .ro-kicker a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
   .ro-nav a { display: inline-flex; align-items: center; min-height: 44px; }
 }
+
+/* Settings → Online play: the two ways to play together, side by side. */
+.ro-online-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 0.85rem; margin-top: 0.85rem; }
+.ro-online-method { padding: 0.9rem 1rem; border: 1px solid var(--ro-line); border-radius: 10px; background: color-mix(in srgb, var(--ro-bg-panel, #102433) 70%, transparent); }
+.ro-online-method h3 { margin: 0 0 0.35rem; font: 650 1rem/1.3 var(--ro-font-display); color: var(--ro-text); }
+.ro-online-method > p { margin: 0; color: var(--ro-text-dim); font-size: 0.88rem; line-height: 1.45; }
+.ro-online-method .ro-settings__online-systems { margin: 0.6rem 0; }
+.ro-online-method__how { font-size: 0.8rem !important; letter-spacing: 0.04em; }
+
+/* Settings: a section rail beside the settings on wide screens, a sticky swipeable row of
+   section chips on narrow ones. The chip for the section on screen is marked. */
+.ro-settings__nav .ro-btn[aria-current='true'] {
+  color: var(--ro-accent);
+  border-color: color-mix(in srgb, var(--ro-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--ro-accent) 10%, transparent);
+}
+@media (min-width: 1000px) {
+  .ro-settings, html[data-layout='tv'] .ro-settings {
+    display: grid;
+    grid-template-columns: 13.5rem minmax(0, 46rem);
+    column-gap: 2.75rem;
+    row-gap: 1.75rem;
+    max-width: 64rem;
+    align-items: start;
+  }
+  .ro-settings > * { grid-column: 2; }
+  /* Spans the seven sections and the footer beside it. */
+  .ro-settings > .ro-settings__nav {
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    position: sticky;
+    top: calc(var(--ro-rail-top, 3.65rem) + 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .ro-settings__nav .ro-btn {
+    justify-content: flex-start;
+    text-align: left;
+    border-color: transparent;
+    border-left: 3px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    padding-left: 0.9rem;
+  }
+  .ro-settings__nav .ro-btn[aria-current='true'] { border-color: transparent; border-left-color: var(--ro-accent); }
+}
+@media (max-width: 999px) {
+  .ro-settings > .ro-settings__nav {
+    position: sticky;
+    top: var(--ro-rail-top, var(--ro-scroll-chrome, 3.65rem));
+    z-index: 5;
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--ro-space, 1rem));
+    padding: 0.55rem var(--ro-space, 1rem);
+    background: color-mix(in srgb, var(--ro-bg-void) 92%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .ro-settings__nav::-webkit-scrollbar { display: none; }
+  .ro-settings__nav .ro-btn { flex: 0 0 auto; white-space: nowrap; min-height: 40px; }
+}
+@supports not (color: color-mix(in srgb, red, blue)) {
+  .ro-settings__nav .ro-btn[aria-current='true'] { background: rgba(46, 230, 214, 0.1); }
+  @media (max-width: 999px) { .ro-settings > .ro-settings__nav { background: #071018; } }
+}

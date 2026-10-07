@@ -21,8 +21,9 @@ import {
   setOverride,
 } from '../lib/overrides'
 import { sfxToggle } from '../lib/sfx'
-import { forgetGameId, getLibretroCovers, getTransferPak, isFavorite, setTransferPak, toggleFavorite } from '../lib/store'
-import { getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
+import { forgetGameId, getLibretroCovers, getSavePath, getTransferPak, isFavorite, setPendingSave, setTransferPak, toggleFavorite } from '../lib/store'
+import { readGameSave, swapWithPreviousSave, type GameSaveInfo } from '../lib/saves'
+import { formatBytes, getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
 import { suppressPadBackUntilRelease } from '../lib/input'
@@ -108,11 +109,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   // Online card state: checking → ready, or the reason hosting isn't available here.
   type OnlineState = 'checking' | 'ready' | 'off' | 'needs-core' | 'needs-link'
   let onlineState: OnlineState = 'checking'
-  const ONLINE_STATE_TEXT: Record<OnlineState, string> = { checking: 'Checking…', ready: 'Ready', off: 'Room service off', 'needs-core': 'Core not prepared', 'needs-link': 'Link cores not built' }
+  const ONLINE_STATE_TEXT: Record<OnlineState, string> = { checking: 'Checking…', ready: 'Ready', off: 'No room host', 'needs-core': 'Core not prepared', 'needs-link': 'Link cores not built' }
   const onlineHelp = (state: OnlineState): string => ({
     checking: '',
     ready: '',
-    off: 'To host, start the room service on this computer.',
+    off: 'Start a room host on this computer to host.',
     'needs-core': 'Prepare this system’s multiplayer core once on this computer.',
     'needs-link': 'Build the link cores once on this computer.',
   })[state]
@@ -148,6 +149,67 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         el.textContent = friendlyError(err, 'Couldn’t start that game. Try again.')
       }
     }
+  }
+
+  // Save data card: this game's battery save, a save file to use instead, and the save kept
+  // before the last import, trade or Transfer Pak session. The player records the save's
+  // path the first time the game starts.
+  let saveInfo: GameSaveInfo | null = null
+  const savePath = getSavePath(game.id)
+  const when = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
+  const showSave = (message?: string) => {
+    const state = root.querySelector<HTMLElement>('#ro-save-state')
+    const detail = root.querySelector<HTMLElement>('#ro-save-detail')
+    if (!state || !detail) return
+    // The player stores a game's untouched cartridge RAM when it closes: not a save yet.
+    const blank = (bytes?: Uint8Array) => { let other = 0; for (const b of bytes ?? []) if (b !== 0 && b !== 0xff && ++other > 16) return false; return true }
+    const save = saveInfo?.save && !blank(saveInfo.save.bytes) ? saveInfo.save : null
+    const previous = saveInfo?.previous && !blank(saveInfo.previous.bytes) ? saveInfo.previous : null
+    state.textContent = !saveInfo ? 'Checking…' : save ? 'Saved' : 'No save yet'
+    root.querySelector('#ro-save-card')?.setAttribute('data-state', save ? 'ready' : 'none')
+    detail.textContent = message ?? (!saveInfo ? ''
+      : save ? `Last saved ${when(save.modified)} · ${formatBytes(save.bytes?.length ?? 0)}.${previous ? ` The save from before ${when(previous.modified)} is kept too.` : ''}`
+        : savePath ? 'Save in the game to keep your progress here. You can also start from a .sav or .srm file from another emulator.'
+          : 'Play once to create a save, or start from a .sav or .srm file from another emulator.')
+    root.querySelector<HTMLElement>('#ro-save-download')!.hidden = !save
+    root.querySelector<HTMLElement>('#ro-save-restore')!.hidden = !previous
+  }
+  const loadSave = async () => {
+    saveInfo = savePath ? await readGameSave(savePath).catch(() => ({ save: null, previous: null })) : { save: null, previous: null }
+    if (active) showSave()
+  }
+  const bindSaveCard = () => {
+    if (!root.querySelector('#ro-save-card')) return
+    showSave()
+    if (!saveInfo) void loadSave()
+    const input = root.querySelector<HTMLInputElement>('#ro-save-file')!
+    root.querySelector('#ro-save-use')?.addEventListener('click', () => { input.value = ''; input.click() })
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      if (file.size === 0 || file.size > 2 * 1024 * 1024) { showSave('That doesn’t look like a save file (saves are under 2 MB).'); return }
+      try { setPendingSave(game.id, file.name, new Uint8Array(await file.arrayBuffer())) }
+      catch { showSave('This browser couldn’t hold that save file. Try a smaller file or another browser.'); return }
+      showSave(`Starting ${game.title} with ${file.name}. Your current save is kept as the previous save.`)
+      void startPlay('ro-save-use')
+    })
+    root.querySelector('#ro-save-download')?.addEventListener('click', () => {
+      const save = saveInfo?.save
+      if (!save?.bytes) return
+      const url = URL.createObjectURL(new Blob([save.bytes], { type: 'application/octet-stream' }))
+      const link = Object.assign(document.createElement('a'), { href: url, download: save.key.split('/').pop() || `${game.title}.srm` })
+      document.body.append(link); link.click(); link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    })
+    root.querySelector('#ro-save-restore')?.addEventListener('click', async () => {
+      if (!savePath || !saveInfo?.previous) return
+      if (!window.confirm(`Go back to the save from ${when(saveInfo.previous.modified)}? Your current save is kept, so you can switch back.`)) return
+      try {
+        await swapWithPreviousSave(savePath)
+        await loadSave()
+        showSave(`Restored the save from before. The one you replaced is now the previous save.`)
+      } catch (error) { showSave(friendlyError(error, 'Couldn’t restore that save. Close other game tabs and try again.')) }
+    })
   }
 
   paint = (restoreFocusId?: string) => {
@@ -227,14 +289,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           ${lanCandidate ? `
           <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="${onlineState}">
             <div class="ro-online-card__head">
-              <h2 class="ro-online-card__title" id="ro-online-title">${linkSystem ? 'Trade &amp; link' : 'Online play'}</h2>
+              <h2 class="ro-online-card__title" id="ro-online-title">${linkSystem ? 'Trade &amp; link' : 'Online room'}</h2>
               <span class="ro-online-card__state" id="ro-online-state">${ONLINE_STATE_TEXT[onlineState]}</span>
             </div>
             <p class="ro-muted">${linkSystem
-              ? 'Trade and battle with a friend over an emulated link cable. They join from their own browser on the same Wi-Fi, with their own cartridge and save.'
+              ? 'Trade and battle on one link cable. Your friend joins from their browser with their own game and save. 2 players.'
               : normalizePlayCore(game.core) === 'n64'
-                ? 'Up to 4 players on the same Wi-Fi. Friends join from their browser with no ROM needed, and everyone sees your screen.'
-                : '2 players on the same Wi-Fi. Your friend joins from their browser with no ROM needed and sees your screen.'}</p>
+                ? 'Friends join from their browser and play on your screen. They don’t need the game. Up to 4 players.'
+                : 'A friend joins from their browser and plays on your screen. They don’t need the game. 2 players.'}</p>
             <p class="ro-muted ro-online-card__help" id="ro-online-help"${onlineHelp(onlineState) ? '' : ' hidden'}>${onlineHelp(onlineState)} <a href="${hrefFor('/settings')}">Online play setup</a></p>
             <div class="ro-btn-row">
               <button type="button" class="ro-btn ro-btn--lg${lan ? ' ro-btn--primary' : ''}" id="ro-host-lan" data-ro-focusable="true"${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Start Trade &amp; link' : 'Host a room'}</button>
@@ -254,12 +316,25 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               </select></label>` : `<p class="ro-muted">Add a Game Boy or Game Boy Color game with <a href="${hrefFor('/upload')}">Add ROM</a> to plug it in here.</p>`}
               <ul class="ro-tpk-card__facts" id="ro-transfer-pak-help">
                 <li><strong>Games</strong> Stadium: Red, Blue, Yellow. Stadium 2: those plus Gold, Silver, Crystal.</li>
-                <li><strong>Save</strong> Uses the cartridge’s RetroOasis save. Save it in a Pokémon Center, or import a .sav in its player. Changes come back here, with a backup.</li>
+                <li><strong>Save</strong> Uses the cartridge’s RetroOasis save (Save data on its game page). Save it in a Pokémon Center first. Changes go back to it, with a backup.</li>
                 <li><strong>Not yet</strong> GB Tower (playing the Game Boy game on the TV).</li>
               </ul>
             </section>`
               : ''
           }
+          ${game.demo ? '' : `<section class="ro-online-card ro-save-card" id="ro-save-card" aria-labelledby="ro-save-title">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-save-title">Save data</h2>
+              <span class="ro-online-card__state" id="ro-save-state">Checking…</span>
+            </div>
+            <p class="ro-muted" id="ro-save-detail" role="status" aria-live="polite"></p>
+            <div class="ro-btn-row">
+              <button type="button" class="ro-btn" id="ro-save-use" data-ro-focusable="true"${busy ? ' disabled' : ''}>Use a save file</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-download" data-ro-focusable="true" hidden>Download</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-restore" data-ro-focusable="true" hidden>Restore previous save</button>
+            </div>
+            <input type="file" id="ro-save-file" accept=".sav,.srm,.sa1,.sra,.fla,.eep,.mpk,.mcr,.mcd,.dsv,application/octet-stream" hidden />
+          </section>`}
           ${
             showMenu
               ? `
@@ -322,6 +397,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', linkSystem ? 'link' : true))
 
     root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
+    bindSaveCard()
     root.querySelector<HTMLSelectElement>('#ro-transfer-pak')?.addEventListener('change', event => {
       transferPakId = (event.target as HTMLSelectElement).value
       setTransferPak(game.id, transferPakId)

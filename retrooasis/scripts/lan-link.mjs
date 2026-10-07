@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
+import { lanPaths } from './lan-paths.mjs'
 
 /** Built by scripts/prepare-link.mjs; served to the host browser under /link/. */
-export const linkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.handheld-cache/link')
+export const linkRoot = lanPaths.link
 export const LINK_FILES = Object.freeze(['sameboy-link.mjs', 'sameboy-link.wasm', 'gpsp-link.mjs', 'gpsp-link.wasm', 'dmg_boot.bin', 'cgb_boot.bin'])
 
 let cached = null

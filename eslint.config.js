@@ -1,5 +1,5 @@
 export default [
-    { ignores: ["**/.handheld-cache/**", "**/.lan-test-cache-*/**", "roms/.lan-audit/**"] },
+    { ignores: ["**/.handheld-cache/**", "**/.lan-test-cache-*/**", "roms/.lan-audit/**", "roms/.online-test/**", "retrooasis/release/**"] },
     {
         files: ["**/*.js"],
         languageOptions: {
