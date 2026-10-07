@@ -39,7 +39,11 @@ try {
   assert.equal(head.body, '')
   assert.equal(head.headers['content-length'], '8')
   for (const separator of ['%2f', '%5c']) {
-    assert.equal((await request(`/roms/..${separator}${path.basename(outside)}${separator}private.txt`)).status, 403, 'Sibling-prefix traversal cannot escape the ROM directory')
+    const escaped = await request(`/roms/..${separator}${path.basename(outside)}${separator}private.txt`)
+    assert.notEqual(escaped.body, 'outside-public-root', 'Sibling-prefix traversal cannot read outside the ROM directory')
+    // A backslash only separates paths on Windows; elsewhere it names a missing file inside roms/.
+    const expected = separator === '%5c' && process.platform !== 'win32' ? 404 : 403
+    assert.equal(escaped.status, expected, 'Sibling-prefix traversal cannot escape the ROM directory')
   }
   assert.equal((await request(`${prefix}/escape/private.txt`)).status, 403, 'Symlink targets must remain inside the public root')
   for (const suffix of ['bad%ZZ.nes', '%00.nes']) assert.equal((await request(`${prefix}/${suffix}`)).status, 400)
