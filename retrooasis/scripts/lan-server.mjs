@@ -10,7 +10,7 @@ import QRCode from 'qrcode'
 import { attachRooms } from './lan-rooms.mjs'
 import { LAN_PROTOCOL, LAN_CAPABILITIES, LINK_CAPABILITIES } from '../public/lan-capabilities.js'
 import { inspectCore } from './lan-assets.mjs'
-import { inspectLink, linkRoot as defaultLinkRoot, LINK_FILES } from './lan-link.mjs'
+import { inspectLink, verifiedLinkFile, linkRoot as defaultLinkRoot, LINK_FILES } from './lan-link.mjs'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const privateV4 = ip => /^127\.|^10\.|^192\.168\.|^169\.254\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
@@ -80,8 +80,8 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = path.join
       // Only the verified, manifest-listed link bundle; never arbitrary cache files.
       const name = pathname.slice('/link/'.length)
       if (!LINK_FILES.includes(name) || !(await refreshLink()).ready) { res.writeHead(404); res.end('Build the link cores with npm run oasis:lan:link.'); return }
-      let bytes
-      try { bytes = await fs.promises.readFile(path.join(linkRoot, name)) } catch { res.writeHead(404); res.end(); return }
+      const bytes = verifiedLinkFile(linkRoot, name)
+      if (!bytes) { res.writeHead(404); res.end(); return }
       res.setHeader('Content-Type', name.endsWith('.mjs') ? 'text/javascript' : name.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream')
       res.setHeader('Content-Length', bytes.length)
       res.setHeader('Cache-Control', 'no-store')

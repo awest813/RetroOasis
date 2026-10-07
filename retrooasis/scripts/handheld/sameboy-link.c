@@ -124,6 +124,14 @@ void link_key(int slot, int key, int pressed) {
 }
 uint32_t *link_pixels(int slot) { return slot >= 0 && slot < 2 && loaded[slot] ? pixels[slot] : NULL; }
 int link_save_size(int slot) { return slot >= 0 && slot < 2 && loaded[slot] ? GB_save_battery_size(gb[slot]) : -1; }
+/* Cartridge RAM alone: battery exports of clock carts (MBC3, HuC3, TPP1) end with the
+ * RTC registers and the wall-clock time, which change every second. */
+int link_ram_size(int slot) {
+    size_t ram = 0;
+    if (slot < 0 || slot > 1 || !loaded[slot]) return -1;
+    GB_get_direct_access(gb[slot], GB_DIRECT_ACCESS_CART_RAM, &ram, NULL);
+    return (int)ram;
+}
 int link_save(int slot, uint8_t *buffer, unsigned size) {
     int expected = link_save_size(slot);
     if (expected <= 0 || !buffer || size != (unsigned)expected) return -1;

@@ -63,6 +63,11 @@ assert.match(describeGbaLink([2, 4]).warning, /different link modes/, 'Mismatche
   const fresh = saveSettler(null)
   assert.equal(fresh(Uint8Array.of(9)), false)
   assert.equal(fresh(Uint8Array.of(9)), true, 'A session without a starting save reports its first save')
+  // Clock carts (Pokémon Gold/Silver/Crystal): the RTC footer after cartridge RAM ticks every second.
+  const clock = saveSettler(Uint8Array.of(1, 1, 0), 2)
+  assert.equal(clock(Uint8Array.of(2, 2, 1)), false)
+  assert.equal(clock(Uint8Array.of(2, 2, 2)), true, 'A ticking clock footer does not stop a RAM save from settling')
+  assert.equal(clock(Uint8Array.of(2, 2, 3)), false, 'A clock tick alone is not a new save')
 }
 console.log('PASS link cartridge validation, save sizes, GBA protocol selection and save-sync settling')
 console.log('PASS cartridge / save transfer framing, limits and interruption handling')
@@ -135,6 +140,26 @@ try {
   gb.setPaused(true); gb.advance(1000); gb.setPaused(false)
 } finally { gb.close() }
 console.log('PASS GB ↔ GBC link session: real boot ROMs, 64-byte cable exchange, per-console saves and save sync, video and audio')
+
+// Clock cart (MBC3 + timer + RAM + battery, like Pokémon Gold/Silver/Crystal): the battery
+// export ends with an RTC footer that ticks, so save sync compares cartridge RAM only.
+{
+  const clockCart = cart => { const rom = new Uint8Array(cart); rom[0x147] = 0x10; rom[0x149] = 0x03; return withGbHeader(rom, 'CLOCK CART') }
+  const rtc = await createLinkSession({ system: 'gb', carts: [clockCart(carts[0]), clockCart(carts[1])], saves: [null, null], loadCore, loadFile })
+  try {
+    const ram = rtc.saveRamSize(0)
+    const first = rtc.exportSave(0)
+    assert.equal(ram, 32768, 'saveRamSize reports the cartridge RAM')
+    assert(first.length > ram, 'A clock cart’s battery export carries an RTC footer after its RAM')
+    rtc.advance(1100)
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    const later = rtc.exportSave(0)
+    assert(!first.every((byte, index) => byte === later[index]), 'The RTC footer changes between exports')
+    const settle = saveSettler(first, ram)
+    assert.equal(settle(later), false, 'Clock ticks alone are not reported as a save')
+  } finally { rtc.close() }
+}
+console.log('PASS clock carts: save sync compares cartridge RAM, not the ticking RTC footer')
 
 // GBA: two isolated gpSP consoles, per-console input and SRAM save round trip.
 const hostSave = new Uint8Array(32768).fill(0); hostSave[0] = 41

@@ -56,18 +56,19 @@ export async function writeLibrarySave(key, bytes, { backup = true } = {}) {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite')
       const store = tx.objectStore(STORE)
-      let backedUp = false
+      let backedUp = false, hadPrevious = false
       const read = store.get(key)
       read.onsuccess = () => {
         const previous = read.result
         const old = previous?.contents && bytesOf(previous.contents)
+        hadPrevious = !!old
         if (backup && old && (old.length !== bytes.length || old.some((byte, index) => byte !== bytes[index]))) {
           store.put({ ...previous, timestamp: new Date() }, `${key}.before-trade`)
           backedUp = true
         }
         store.put({ timestamp: new Date(), mode: FILE_MODE, contents: new Uint8Array(bytes) }, key)
       }
-      tx.oncomplete = () => resolve({ backedUp })
+      tx.oncomplete = () => resolve({ backedUp, hadPrevious })
       tx.onabort = () => reject(tx.error || new Error('Could not update the library save.'))
     })
   } finally { db.close() }

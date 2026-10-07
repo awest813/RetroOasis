@@ -36,6 +36,7 @@ let syncTimer = 0
 let settlers = []
 let guestSync = null // Console 2's latest settled save, until the guest's page has it.
 let libraryBackupPending = true
+let sessionBackedUp = false
 let sends = Promise.resolve()
 let libraryWrites = Promise.resolve()
 const audioContext = new AudioContext()
@@ -182,7 +183,7 @@ async function loadFile(name) {
 }
 
 function onGuestFile(file) {
-  if (!guest || session) return
+  if (!guest || session || sessionEnded) return
   if (file.kind === 'rom') {
     try {
       const info = cartridgeInfo(system, file.bytes)
@@ -205,24 +206,43 @@ function onGuestFile(file) {
 }
 
 // One file at a time on the cart channel: the receiver rejects interleaved files.
+// A file counts as delivered only when the guest's page confirms it: a channel can
+// still read 'open' for seconds after the guest's Wi-Fi drops.
+const ACK_MS = 8000
+let ackWaiter = null // { kind, done }
 function queueFile(channel, kind, name, bytes) {
-  const send = sends.then(() => sendFile(channel, kind, name, bytes))
+  const send = sends.then(async () => {
+    const received = new Promise((resolve, reject) => {
+      const fail = () => { clearTimeout(timer); channel.removeEventListener('close', fail); ackWaiter = null; reject(new Error('The guest’s page didn’t confirm the file.')) }
+      const timer = setTimeout(fail, ACK_MS)
+      channel.addEventListener('close', fail)
+      ackWaiter = { kind, done: () => { clearTimeout(timer); channel.removeEventListener('close', fail); ackWaiter = null; resolve() } }
+    })
+    received.catch(() => {})
+    await sendFile(channel, kind, name, bytes)
+    await received
+  })
   sends = send.catch(() => {})
   return send
 }
 
+/** 'sent', 'no-battery' or 'failed'. */
 async function sendGuestSave(final = false) {
   const channel = guest?.channel
   const bytes = session?.exportSave(1)
-  if (!bytes) { message(channel, { type: 'error', text: 'This cartridge has no battery save.' }); return false }
-  if (channel?.readyState !== 'open') return false
+  if (!bytes) { message(channel, { type: 'error', text: 'This cartridge has no battery save.' }); return 'no-battery' }
+  // The room already reported them gone: don't wait for a receipt that can't come.
+  if (channel?.readyState !== 'open' || guest.connected === false) return 'failed'
   try {
     await queueFile(channel, 'save', saveName(guest.name), bytes)
     guestSync = null
     message(channel, { type: 'status', text: final ? 'Session ended. Your final save was sent; keep the downloaded file.' : 'Save sent. Keep the downloaded file for your game.' })
-    return true
-  } catch { return false }
+    return 'sent'
+  } catch { return 'failed' }
 }
+const guestSaveStatus = result => result === 'sent' ? `Sent ${guest.nickname} their save.`
+  : result === 'no-battery' ? 'This cartridge has no battery save to send.'
+  : 'Could not send the guest’s save. Ask them to reconnect.'
 
 async function deliverGuestSync() {
   const channel = guest?.channel, bytes = guestSync
@@ -230,11 +250,16 @@ async function deliverGuestSync() {
   try {
     await queueFile(channel, 'sync', saveName(guest.name), bytes)
     if (guestSync === bytes) guestSync = null
-    showSync(`${guest.nickname}’s game saved; their page has the copy`)
+    showSync('guest', `${guest.nickname}’s page has their latest save`)
   } catch {} // Kept in guestSync; sent again when they reconnect.
 }
 
-function showSync(text) { if (syncLine) syncLine.textContent = `Auto-saved ${new Date().toLocaleTimeString()}: ${text}.` }
+// One line per side, so a guest delivery never hides the library update (or vice versa).
+const syncNotes = { library: '', guest: '' }
+function showSync(side, text) {
+  syncNotes[side] = `${text} (${new Date().toLocaleTimeString()})`
+  if (syncLine) syncLine.textContent = `Auto-saved: ${[syncNotes.library, syncNotes.guest].filter(Boolean).join(' · ')}.`
+}
 
 let syncing = null
 function syncSaves() {
@@ -243,7 +268,7 @@ function syncSaves() {
   if (settlers[1](theirs)) { guestSync = theirs; void deliverGuestSync() }
   if (!host.saveKey || !settlers[0](mine)) return null
   syncing = saveToLibrary(mine)
-    .then(() => showSync('your RetroOasis save is up to date'), error => showSync(`couldn’t update your RetroOasis save (${error.message}); use Download my save`))
+    .then(() => showSync('library', 'your RetroOasis save is up to date'), error => showSync('library', `couldn’t update your RetroOasis save (${error.message}); use Download my save`))
     .finally(() => { syncing = null })
   return syncing
 }
@@ -255,6 +280,7 @@ function onPeer(peer, player) {
     guest.nickname = player.nickname
   } else guest = { nickname: player.nickname, bytes: null, save: null }
   guest.socketId = player.socketId
+  guest.connected = true
   const channel = peer.pc.createDataChannel('cart', { ordered: true })
   channel.binaryType = 'arraybuffer'
   guest.channel = channel
@@ -263,21 +289,24 @@ function onPeer(peer, player) {
     onFile: onGuestFile,
     onError: error => message(channel, { type: 'error', text: error.message }),
     onMessage: data => {
-      if (data.type === 'request-save') void sendGuestSave().then(sent => { if (sent) setStatus(`Sent ${guest.nickname} their save.`) })
+      if (data.type === 'received' && ackWaiter?.kind === data.kind) ackWaiter.done()
+      if (data.type === 'request-save') void sendGuestSave().then(result => { if (result === 'sent') setStatus(guestSaveStatus(result)) })
     },
   })
   channel.onmessage = event => { if (guest?.channel === channel) receive(event.data) }
   channel.onopen = () => {
-    message(channel, { type: 'hello', system, title: host?.info.title, running: !!session, accept: system === 'gb' ? '.gb,.gbc,.zip' : '.gba,.zip' })
+    message(channel, { type: 'hello', system, title: host?.info.title, running: !!session, ended: sessionEnded, accept: system === 'gb' ? '.gb,.gbc,.zip' : '.gba,.zip' })
     void deliverGuestSync()
-    if (!session) guestLabel.textContent = `Console 2 · ${player.nickname} · inserting a cartridge…`
+    if (!session && !sessionEnded) guestLabel.textContent = `Console 2 · ${player.nickname} · inserting a cartridge…`
     refreshButtons()
   }
   channel.onclose = refreshButtons
 }
 
 function onDrop() {
+  if (sessionEnded) { refreshButtons(); return }
   if (!session) { guest = null; guestLabel.textContent = 'Console 2 · Waiting for a guest'; placeholder(1, 'Waiting for a guest'); refreshButtons(); return }
+  if (guest) guest.connected = false
   if (!paused) setPaused(true)
   setStatus('The guest disconnected, so both consoles are paused mid-link. Resume once they reconnect.')
   refreshButtons()
@@ -296,9 +325,18 @@ buttons.start.onclick = async () => {
       hostSave = new Uint8Array(await file.arrayBuffer())
     }
     void audioContext.resume().catch(() => {})
+    const starting = guest
     session = await createLinkSession({ system, carts: [host.bytes, guest.bytes], saves: [hostSave, guest.save], loadCore, loadFile })
-    settlers = [0, 1].map(slot => saveSettler(session.exportSave(slot)))
-    guestSync = null; libraryBackupPending = true
+    if (guest !== starting) {
+      // The guest left or rejoined while the cores loaded; their cartridge went with them.
+      session.close(); session = null
+      setStatus('Your guest disconnected while the consoles were starting. Start the link again once they’ve inserted their cartridge.')
+      refreshButtons()
+      return
+    }
+    settlers = [0, 1].map(slot => saveSettler(session.exportSave(slot), session.saveRamSize(slot)))
+    guestSync = null; libraryBackupPending = true; sessionBackedUp = false
+    syncNotes.library = syncNotes.guest = ''; if (syncLine) syncLine.textContent = ''
     syncTimer = setInterval(syncSaves, SYNC_MS)
     images = [0, 1].map(() => new ImageData(session.width, session.height))
     paused = false; emu.paused = false; previous = null
@@ -310,6 +348,7 @@ buttons.start.onclick = async () => {
       : `Linked by ${session.link.label}: ${host.info.title} ↔ ${guest.info.title}. Use the game’s trade or link menu on both consoles.`)
     if (session.link.warning) message(guest.channel, { type: 'status', text: session.link.warning })
   } catch (error) {
+    clearInterval(syncTimer)
     session?.close(); session = null
     setStatus(error.message)
   }
@@ -326,9 +365,12 @@ function saveToLibrary(bytes) {
   // One write at a time, and only the first change of a session is backed up, so the
   // backup stays the pre-session save even when an automatic and a manual save overlap.
   const write = libraryWrites.then(async () => {
-    const { backedUp } = await writeLibrarySave(host.saveKey, bytes, { backup: libraryBackupPending })
-    if (backedUp) libraryBackupPending = false
-    return libraryBackupPending ? 'Your RetroOasis save was updated.' : 'Your RetroOasis save was updated; the one from before this session is kept as a “.before-trade” copy in Saves.'
+    const { backedUp, hadPrevious } = await writeLibrarySave(host.saveKey, bytes, { backup: libraryBackupPending })
+    if (backedUp) sessionBackedUp = true
+    // Done once the pre-session save is copied, or there was none to keep. An identical
+    // pre-session save stays pending so a later change still backs it up.
+    if (backedUp || !hadPrevious) libraryBackupPending = false
+    return sessionBackedUp ? 'Your RetroOasis save was updated; the one from before this session is kept as a “.before-trade” copy in Saves.' : 'Your RetroOasis save was updated.'
   })
   libraryWrites = write.catch(() => {})
   return write
@@ -339,7 +381,7 @@ buttons['save-library'].onclick = async () => {
   try { setStatus(await saveToLibrary(bytes) + ' Close other tabs playing this game so they don’t overwrite it.') }
   catch (error) { setStatus(`Couldn’t update your RetroOasis save: ${error.message} Use Download my save instead.`) }
 }
-buttons['guest-save'].onclick = () => void sendGuestSave().then(sent => setStatus(sent ? `Sent ${guest.nickname} their save.` : 'Could not send the guest’s save. Ask them to reconnect.'))
+buttons['guest-save'].onclick = () => { setStatus(`Sending ${guest.nickname} their save…`); void sendGuestSave().then(result => setStatus(guestSaveStatus(result))) }
 buttons.end.onclick = async () => {
   if (!session || buttons.end.disabled) return
   buttons.end.disabled = true
@@ -348,7 +390,8 @@ buttons.end.onclick = async () => {
   await syncing // The final write below must land after any automatic one.
   const mine = session.exportSave(0), theirs = session.exportSave(1)
   let delivered = theirs ? 'Your guest received theirs.' : ''
-  if (theirs && !await sendGuestSave(true)) {
+  if (theirs) setStatus(`Sending ${guest.nickname} their final save…`)
+  if (theirs && await sendGuestSave(true) !== 'sent') {
     // The guest isn't connected: keep their save here so the trade isn't lost.
     downloadBytes(theirs, saveName(guest.name))
     delivered = `${guest.nickname} wasn’t connected, so their save was downloaded here as ${saveName(guest.name)}; pass it on to them.`

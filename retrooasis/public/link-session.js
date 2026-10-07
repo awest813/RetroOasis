@@ -41,15 +41,19 @@ const sameBytes = (a, b) => a.length === b.length && a.every((byte, index) => by
 
 /** Spots in-game saves from periodic battery-save samples: returns true once per
  * change, when two samples in a row agree (the game finished writing) and differ
- * from the last one reported. `initial` is the save the session started with. */
-export function saveSettler(initial = null) {
-  let reported = initial, last = initial
+ * from the last one reported. `initial` is the save the session started with; `length`
+ * limits the comparison to cartridge RAM (session.saveRamSize). */
+export function saveSettler(initial = null, length = 0) {
+  // Only the first `length` bytes are compared when given: a trailing clock footer ticks.
+  const view = bytes => bytes && length > 0 ? bytes.subarray(0, length) : bytes
+  let reported = view(initial), last = view(initial)
   return bytes => {
     if (!bytes) return false
-    const settled = last !== null && sameBytes(bytes, last)
-    last = bytes
-    if (!settled || (reported !== null && sameBytes(bytes, reported))) return false
-    reported = bytes
+    const current = view(bytes)
+    const settled = last !== null && sameBytes(current, last)
+    last = current
+    if (!settled || (reported !== null && sameBytes(current, reported))) return false
+    reported = current
     return true
   }
 }
@@ -113,6 +117,8 @@ async function gbSession({ carts, saves, loadCore, loadFile }) {
     },
     key(slot, index, pressed) { if (GB_KEYS[index] !== undefined) core._link_key(slot, GB_KEYS[index], pressed ? 1 : 0) },
     setPaused(paused) { core._link_set_paused(paused ? 1 : 0); budget = 0 },
+    // Older builds without the export compare the whole save.
+    saveRamSize(slot) { return Math.max(0, core._link_ram_size?.(slot) ?? 0) },
     exportSave(slot) {
       const size = core._link_save_size(slot)
       if (size <= 0) return null
@@ -188,6 +194,7 @@ async function gbaSession({ carts, saves, loadCore }) {
       cores[slot]._gba_key(index, pressed ? 1 : 0)
     },
     setPaused(paused) { cores.forEach(core => core._gba_set_paused(paused ? 1 : 0)); keys.fill(0); elapsed = 0 },
+    saveRamSize() { return 0 }, // gpSP's backup memory has no clock footer.
     exportSave(slot) {
       const core = cores[slot], size = core._gba_save_size()
       if (size <= 0) return null
