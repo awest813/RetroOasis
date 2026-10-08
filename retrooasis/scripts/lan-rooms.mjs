@@ -65,10 +65,10 @@ export function attachRooms(io, { graceMs = 15000, maxRooms = 32, linkAvailable 
       catch (error) { reply({ ok: false, error: error.message }) }
     })
     handle('room:create', data => {
-      if (data.protocol !== LAN_PROTOCOL) throw new Error('Update the host app and reload. The multiplayer versions differ.')
+      if (data.protocol !== LAN_PROTOCOL) throw new Error('This page and the host app are different versions. Update the host app, then reload this page.')
       if (roomFor(socket)) throw new Error('Leave your current room first.')
-      if (rooms.size >= maxRooms) throw new Error('This LAN server has too many rooms. Try again later.')
-      if (!LAN_CORES.has(data.core) && !(LINK_CORES.has(data.core) && linkAvailable())) throw new Error('This system does not have a supported LAN multiplayer mode.')
+      if (rooms.size >= maxRooms) throw new Error('This host has too many rooms open. Try again later.')
+      if (!LAN_CORES.has(data.core) && !(LINK_CORES.has(data.core) && linkAvailable())) throw new Error('This system can’t be played online yet.')
       const capacity = ROOM_PROFILES[data.core].maxPlayers
       if (data.maxPlayers !== undefined && ![2, capacity].includes(data.maxPlayers)) throw new Error('Invalid player capacity.')
       const title = text(data.title, 100)
@@ -83,18 +83,18 @@ export function attachRooms(io, { graceMs = 15000, maxRooms = 32, linkAvailable 
       return { room: snapshot(room), playerId: room.members[0].id }
     })
     handle('room:join', data => {
-      if (data.protocol !== LAN_PROTOCOL) throw new Error('Update the app and reload. The multiplayer versions differ.')
+      if (data.protocol !== LAN_PROTOCOL) throw new Error('Your page and your friend’s host app are different versions. Reload this page; if it still happens, they need to update.')
       if (roomFor(socket)) throw new Error('Leave your current room first.')
       const room = rooms.get(typeof data.code === 'string' ? data.code.toUpperCase() : '')
-      if (!room) throw new Error('Room not found. Ask the host for a new invite.')
+      if (!room) throw new Error('That room isn’t open anymore. Ask your friend for a new invite.')
       let member = room.members.find(member => member.slot > 0 && equal(member.resumeToken, data.resumeToken))
-      if (data.resumeToken && !member) throw new Error('Your reconnect reservation expired. Join again.')
-      if (member?.connected) throw new Error('That player is already connected.')
+      if (data.resumeToken && !member) throw new Error('You were away too long, so your spot was given up. Join again.')
+      if (member?.connected) throw new Error('You’re already in this room in another tab or window.')
       if (!member) {
         if (room.locked) throw new Error('The host locked this room.')
         if (room.members.length >= room.maxPlayers) {
           throw new Error(room.members.some(member => !member.connected)
-            ? 'This room is full: a seat is being held for a player who is reconnecting. Try again in a minute, or ask the host to remove them.'
+            ? 'This room is full: a spot is being kept for someone who’s reconnecting. Try again in a minute, or ask the host to remove them.'
             : 'This room is full.')
         }
         const nickname = text(data.nickname, 32)

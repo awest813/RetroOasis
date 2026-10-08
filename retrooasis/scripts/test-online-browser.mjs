@@ -91,7 +91,7 @@ try {
       await host.waitForFunction(() => document.querySelector('[data-lan-invite]')?.value.includes('#'), null, { timeout: 15000 })
       const code = (await host.locator('[data-lan-invite]').inputValue()).split('#')[1]
       const guest = await guestPage(browser, code, `${name}-guest`)
-      await guest.waitForFunction(() => document.querySelector('[data-lobby-head]').textContent.includes('Insert'), null, { timeout: 30000 })
+      await guest.waitForFunction(() => document.querySelector('[data-lobby-head]').textContent.includes('Add your game'), null, { timeout: 30000 })
       await guest.setInputFiles('#cart-form [name=rom]', link.file)
       await guest.click('#cart-form button[type=submit]')
       check(await host.waitForFunction(() => !document.querySelector('#start').disabled, null, { timeout: 30000 }).then(() => true, () => false), `${label}: the guest's cartridge reaches the host`)

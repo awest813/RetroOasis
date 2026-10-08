@@ -802,7 +802,7 @@
           var again = { label: "Try again", run: function () { retry(); } };
           if (reason === "core") {
             if (params.get("lanhost") === "1") {
-              fail("Multiplayer core unavailable", "The room host didn’t send this system’s prepared core. Prepare it on the host computer, then try again.", null, [again]);
+              fail("Online play needs setting up", "This system needs a one-time setup on the host computer before you can host it (Settings → Online play → Set up the host app). Then try again.", null, [again]);
             } else if (offline) {
               fail("You’re offline", "This system’s emulator isn’t saved on this device yet. Connect to the internet and play any game for this system once; after that it starts offline too.", null, [again]);
             } else if (channel === "local") {
@@ -893,7 +893,7 @@
                 if (!response.ok || !prepared.ready) throw new Error(prepared.error || 'Prepare the local multiplayer core first.');
                 if (prepared.webgl2 && !emulator.supportsWebgl2) throw new Error('This multiplayer core needs WebGL 2. Enable hardware acceleration or use another browser.');
               } catch (error) {
-                fail('Multiplayer core unavailable', error.message || 'Start the room host and prepare the core first.');
+                fail('Online play needs setting up', error.message || 'Start the RetroOasis host app and run its one-time setup for this system first.');
                 return;
               }
               // LAN sessions use locally prepared cores and never fall back to a CDN.

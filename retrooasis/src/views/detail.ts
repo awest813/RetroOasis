@@ -109,13 +109,13 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   // Online card state: checking → ready, or the reason hosting isn't available here.
   type OnlineState = 'checking' | 'ready' | 'off' | 'needs-core' | 'needs-link'
   let onlineState: OnlineState = 'checking'
-  const ONLINE_STATE_TEXT: Record<OnlineState, string> = { checking: 'Checking…', ready: 'Ready', off: 'No room host', 'needs-core': 'Core not prepared', 'needs-link': 'Link cores not built' }
+  const ONLINE_STATE_TEXT: Record<OnlineState, string> = { checking: 'Checking…', ready: 'Ready', off: 'Host app not running', 'needs-core': 'Needs setup', 'needs-link': 'Needs setup' }
   const onlineHelp = (state: OnlineState): string => ({
     checking: '',
     ready: '',
-    off: 'Start a room host on this computer to host.',
-    'needs-core': 'Prepare this system’s multiplayer core once on this computer.',
-    'needs-link': 'Build the link cores once on this computer.',
+    off: 'To host, run the RetroOasis host app on this computer and open the address it shows.',
+    'needs-core': 'This system needs a one-time setup on this computer first.',
+    'needs-link': 'Trade & link needs a one-time setup on this computer first.',
   })[state]
   let fileLabel = game.file
   if (game.source === 'upload') {

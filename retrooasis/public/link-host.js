@@ -141,7 +141,7 @@ function tick(now) {
 // Same keys as the RetroOasis player.
 const { keys: keyMap, hint: keyHint } = keyboardLayout(system)
 const hintLine = document.querySelector('[data-link-hint]')
-if (hintLine && keyHint) hintLine.textContent = `${keyHint} A gamepad also works.`
+if (hintLine && keyHint) hintLine.textContent = `${keyHint} A game controller works too.`
 const allowed = new Set(LINK_CAPABILITIES[system]?.buttons || [])
 const keyboard = new Map()
 let padButtons = new Set(), applied = new Set()
@@ -174,7 +174,7 @@ function buildTouchControls() {
     group.className = className; group.setAttribute('role', 'group'); group.setAttribute('aria-label', label)
     for (const [index, name] of controls) {
       const button = document.createElement('button')
-      button.type = 'button'; button.textContent = name; button.setAttribute('aria-label', `Console 1 ${name}`)
+      button.type = 'button'; button.textContent = name; button.setAttribute('aria-label', `Game ${name}`)
       button.onpointerdown = event => { if (!session || event.button !== 0) return; event.preventDefault(); button.setPointerCapture(event.pointerId); touch.press(event.pointerId, index) }
       button.onpointerup = event => touch.release(event.pointerId)
       button.onpointercancel = event => touch.cancel(event.pointerId)
@@ -206,19 +206,19 @@ function onGuestFile(file) {
       const parsed = cartridgeInfo(system, file.bytes)
       const info = { ...parsed, title: cartTitle(file.name) || parsed.title }
       guest.bytes = file.bytes; guest.name = file.name; guest.info = info; guest.save = null
-      guestLabel.textContent = `Console 2 · ${guest.nickname} · ${info.title}`
-      placeholder(1, `${info.title}\nReady to link`)
-      message(guest.channel, { type: 'status', text: `Cartridge received: ${info.title}. Waiting for the host to start the link.` })
-      setStatus(`${guest.nickname} inserted ${info.title}. Choose Start link when you’re both ready.`)
+      guestLabel.textContent = `${guest.nickname} · ${info.title}`
+      placeholder(1, `${info.title}\nReady`)
+      message(guest.channel, { type: 'status', text: `Got your game (${info.title}). Waiting for the host to start.` })
+      setStatus(`${guest.nickname} added ${info.title}. Choose Start when you’re both ready.`)
     } catch (error) {
       guest.bytes = null
       message(guest.channel, { type: 'error', text: error.message })
-      setStatus(`${guest.nickname}’s cartridge was refused: ${error.message}`)
+      setStatus(`${guest.nickname}’s game couldn’t be used: ${error.message}`)
     }
   } else if (file.kind === 'save' && guest.bytes) {
     if (!validSaveSize(system, file.bytes.length)) { message(guest.channel, { type: 'error', text: 'That save file does not match this system.' }); return }
     guest.save = file.bytes
-    message(guest.channel, { type: 'status', text: 'Save received. Waiting for the host to start the link.' })
+    message(guest.channel, { type: 'status', text: 'Got your save. Waiting for the host to start.' })
   }
   refreshButtons()
 }
@@ -248,18 +248,18 @@ function queueFile(channel, kind, name, bytes) {
 async function sendGuestSave(final = false) {
   const channel = guest?.channel
   const bytes = session?.exportSave(1)
-  if (!bytes) { message(channel, { type: 'error', text: 'This cartridge has no battery save.' }); return 'no-battery' }
+  if (!bytes) { message(channel, { type: 'error', text: 'This game doesn’t save.' }); return 'no-battery' }
   // The room already reported them gone: don't wait for a receipt that can't come.
   if (channel?.readyState !== 'open' || guest.connected === false) return 'failed'
   try {
     await queueFile(channel, 'save', saveName(guest.name), bytes)
     guestSync = null
-    message(channel, { type: 'status', text: final ? 'Session ended. Your final save was sent; keep the downloaded file.' : 'Save sent. Keep the downloaded file for your game.' })
+    message(channel, { type: 'status', text: final ? 'All done. Your final save was downloaded; keep that file.' : 'Your save was downloaded. Keep that file for your game.' })
     return 'sent'
   } catch { return 'failed' }
 }
 const guestSaveStatus = result => result === 'sent' ? `Sent ${guest.nickname} their save.`
-  : result === 'no-battery' ? 'This cartridge has no battery save to send.'
+  : result === 'no-battery' ? 'This game doesn’t save, so there’s nothing to send.'
   : 'Could not send the guest’s save. Ask them to reconnect.'
 
 async function deliverGuestSync() {
@@ -294,7 +294,7 @@ function syncSaves() {
 function onPeer(peer, player) {
   if (session && guest) {
     // A running link keeps Console 2's cartridge; whoever holds the seat controls it.
-    if (guest.nickname !== player.nickname) setStatus(`${player.nickname} now controls Console 2 (${guest.info.title}).`)
+    if (guest.nickname !== player.nickname) setStatus(`${player.nickname} is now playing your friend’s game (${guest.info.title}).`)
     guest.nickname = player.nickname
   } else guest = { nickname: player.nickname, bytes: null, save: null }
   guest.socketId = player.socketId
@@ -315,7 +315,7 @@ function onPeer(peer, player) {
   channel.onopen = () => {
     message(channel, { type: 'hello', system, title: host?.info.title, running: !!session, ended: sessionEnded, accept: system === 'gb' ? '.gb,.gbc,.zip' : '.gba,.zip' })
     void deliverGuestSync()
-    if (!session && !sessionEnded) guestLabel.textContent = `Console 2 · ${player.nickname} · inserting a cartridge…`
+    if (!session && !sessionEnded) guestLabel.textContent = `Your friend · ${player.nickname} · adding their game…`
     refreshButtons()
   }
   channel.onclose = refreshButtons
@@ -323,17 +323,17 @@ function onPeer(peer, player) {
 
 function onDrop() {
   if (sessionEnded) { refreshButtons(); return }
-  if (!session) { guest = null; guestLabel.textContent = 'Console 2 · Waiting for a guest'; placeholder(1, 'Waiting for a guest'); refreshButtons(); return }
+  if (!session) { guest = null; guestLabel.textContent = 'Your friend · waiting for them to join'; placeholder(1, 'Waiting for your friend'); refreshButtons(); return }
   if (guest) guest.connected = false
   if (!paused) setPaused(true)
-  setStatus('The guest disconnected, so both consoles are paused mid-link. Resume once they reconnect.')
+  setStatus('Your friend lost connection, so both games are paused. Resume once they’re back.')
   refreshButtons()
 }
 
 buttons.start.onclick = async () => {
   if (session || !host || !guest?.bytes) return
   buttons.start.disabled = true
-  setStatus('Starting both consoles…')
+  setStatus('Starting both games…')
   try {
     const file = setupForm.elements.save.files?.[0]
     // A chosen file wins; otherwise the game's RetroOasis save, unless the host opted out.
@@ -348,7 +348,7 @@ buttons.start.onclick = async () => {
     if (guest !== starting) {
       // The guest left or rejoined while the cores loaded; their cartridge went with them.
       session.close(); session = null
-      setStatus('Your guest disconnected while the consoles were starting. Start the link again once they’ve inserted their cartridge.')
+      setStatus('Your friend lost connection while the games were starting. Start again once they’ve added their game.')
       refreshButtons()
       return
     }
@@ -364,9 +364,9 @@ buttons.start.onclick = async () => {
     // On a phone, Console 1 and its touch controls fit on one screen from Console 1's top.
     if (narrow.matches) canvases[0].scrollIntoView({ block: 'start', behavior: 'smooth' })
     setStatus(session.link.warning
-      ? `Running ${host.info.title} and ${guest.info.title}. ${session.link.warning}`
-      : `Linked by ${session.link.label}: ${host.info.title} ↔ ${guest.info.title}. ${session.link.howTo}`)
-    message(guest.channel, { type: 'status', text: session.link.warning || `Linked by ${session.link.label}. ${session.link.howTo} Save in-game after trading; each save is sent here automatically.` })
+      ? `Playing ${host.info.title} with ${guest.info.title}. ${session.link.warning}`
+      : `Connected: ${host.info.title} ↔ ${guest.info.title}. ${session.link.howTo}`)
+    message(guest.channel, { type: 'status', text: session.link.warning || `Connected! ${session.link.howTo} Save in the game afterwards; your save comes to this page automatically.` })
   } catch (error) {
     clearInterval(syncTimer)
     session?.close(); session = null
@@ -377,9 +377,9 @@ buttons.start.onclick = async () => {
 buttons.pause.onclick = () => setPaused(!paused)
 buttons['my-save'].onclick = () => {
   const bytes = session?.exportSave(0)
-  if (!bytes) { setStatus('This cartridge has no battery save.'); return }
+  if (!bytes) { setStatus('This game doesn’t save.'); return }
   downloadBytes(bytes, saveName(host.name))
-  setStatus('Your save was downloaded. Import it in RetroOasis Saves or your emulator to keep the trade.')
+  setStatus('Your save was downloaded. Use it in RetroOasis (Save data on the game’s page) or your emulator to keep what you traded.')
 }
 function saveToLibrary(bytes) {
   // One write at a time, and only the first change of a session is backed up, so the
@@ -397,9 +397,9 @@ function saveToLibrary(bytes) {
 }
 buttons['save-library'].onclick = async () => {
   const bytes = session?.exportSave(0)
-  if (!bytes) { setStatus('This cartridge has no battery save.'); return }
+  if (!bytes) { setStatus('This game doesn’t save.'); return }
   try { setStatus(await saveToLibrary(bytes) + ' Close other tabs playing this game so they don’t overwrite it.') }
-  catch (error) { setStatus(`Couldn’t update your RetroOasis save: ${error.message} Use Download my save instead.`) }
+  catch (error) { setStatus(`Couldn’t update your RetroOasis save (${error.message}). Use Download my save instead.`) }
 }
 buttons['guest-save'].onclick = () => { setStatus(`Sending ${guest.nickname} their save…`); void sendGuestSave().then(result => setStatus(guestSaveStatus(result))) }
 buttons.end.onclick = async () => {
@@ -409,14 +409,14 @@ buttons.end.onclick = async () => {
   clearInterval(syncTimer)
   await syncing // The final write below must land after any automatic one.
   const mine = session.exportSave(0), theirs = session.exportSave(1)
-  let delivered = theirs ? 'Your guest received theirs.' : ''
+  let delivered = theirs ? 'Your friend got their save.' : ''
   if (theirs) setStatus(`Sending ${guest.nickname} their final save…`)
   if (theirs && await sendGuestSave(true) !== 'sent') {
     // The guest isn't connected: keep their save here so the trade isn't lost.
     downloadBytes(theirs, saveName(guest.name))
     delivered = `${guest.nickname} wasn’t connected, so their save was downloaded here as ${saveName(guest.name)}; pass it on to them.`
   }
-  let saved = 'This cartridge has no battery save.'
+  let saved = 'This game doesn’t save.'
   if (mine && host.saveKey) {
     try { saved = await saveToLibrary(mine) }
     catch (error) { downloadBytes(mine, saveName(host.name)); saved = `Couldn’t update your RetroOasis save (${error.message}), so it was downloaded instead.` }
@@ -425,8 +425,8 @@ buttons.end.onclick = async () => {
   releaseHost()
   session.close(); session = null; sessionEnded = true
   message(guest?.channel, { type: 'session', running: false })
-  placeholder(0, 'Session ended'); placeholder(1, 'Session ended')
-  setStatus(`Session ended. ${saved} ${delivered}`.trim())
+  placeholder(0, 'Finished'); placeholder(1, 'Finished')
+  setStatus(`Finished. ${saved} ${delivered}`.trim())
   refreshButtons()
 }
 window.addEventListener('beforeunload', event => { if (session) { event.preventDefault(); event.returnValue = '' } })
@@ -435,7 +435,7 @@ window.addEventListener('pagehide', () => { clearInterval(syncTimer); session?.c
 async function start() {
   // Native size from the start: the guest's stream keeps the canvas size it began with.
   canvases.forEach(canvas => { canvas.width = system === 'gba' ? 240 : 160; canvas.height = system === 'gba' ? 160 : 144 })
-  placeholder(0, 'Loading cartridge…'); placeholder(1, 'Waiting for a guest')
+  placeholder(0, 'Loading your game…'); placeholder(1, 'Waiting for your friend')
   if (!LINK_CAPABILITIES[system]) throw new Error('This system has no link cable support.')
   const rom = await unwrapRom(await readRomReference(params.get('rom')))
   const parsed = cartridgeInfo(system, rom.bytes)
@@ -459,7 +459,7 @@ async function start() {
   const { panel } = await mountHost(emu, {
     // This panel sits beside the consoles (or folds itself on phones), never over them.
     heading: 'Trade & link', onPeer, onDrop, collapseWhenReady: false, pauseButton: false,
-    lede: 'Your friend joins from their own browser and plays Console 2 with their own game and save.',
+    lede: 'Your friend joins from their own browser and plays their own game and save.',
     note: 'Keep this page open while you play.',
   })
   // In the page flow, so on narrow screens it never covers the consoles or touch controls.
@@ -467,4 +467,4 @@ async function start() {
   document.querySelector('[data-link-room]').append(panel)
   refreshButtons()
 }
-start().catch(error => { setStatus(error.message); placeholder(0, 'Cartridge unavailable') })
+start().catch(error => { setStatus(error.message); placeholder(0, 'Game unavailable') })

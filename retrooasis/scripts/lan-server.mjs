@@ -169,7 +169,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   })
   lan.server.listen(port, '0.0.0.0', () => {
     const protocol = lan.secure ? 'https' : 'http'
-    console.log(`RetroOasis room host. Open on this computer: ${protocol}://localhost:${port}`)
+    console.log(`RetroOasis host app. Open on this computer: ${protocol}://localhost:${port}`)
     for (const { ip, label } of lan.described) console.log(`Friends join at (${label}): ${protocol}://${ip}:${port}/lan.html`)
     if (!lan.secure) console.log('Guests can use keyboard and touch. For guest gamepads, start with --cert and --key (a trusted HTTPS certificate).')
     console.log('Keep this window and the host game open. Players join on the same Wi-Fi, or over the internet on a shared virtual LAN (Tailscale, Nebula, ZeroTier). No port forwarding is needed.')

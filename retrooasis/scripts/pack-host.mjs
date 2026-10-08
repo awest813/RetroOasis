@@ -1,4 +1,4 @@
-// Builds the portable room host: one folder that runs on any Windows, macOS or Linux
+// Builds the portable host app: one folder that runs on any Windows, macOS or Linux
 // computer with Node.js 18+, with no install step. RetroOasis itself stays a static site;
 // this is only for hosting online rooms and Trade & link.
 //   release/retrooasis-host/
@@ -51,10 +51,10 @@ await fs.mkdir(path.join(out, 'roms'), { recursive: true })
 
 await fs.writeFile(path.join(out, 'start-host.cmd'), '@echo off\r\ncd /d "%~dp0"\r\nnode server\\server.mjs %*\r\npause\r\n')
 await fs.writeFile(path.join(out, 'start-host.sh'), '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\nexec node server/server.mjs "$@"\n', { mode: 0o755 })
-await fs.writeFile(path.join(out, 'README.txt'), `RetroOasis room host
-====================
+await fs.writeFile(path.join(out, 'README.txt'), `RetroOasis host app
+===================
 
-Hosts RetroOasis online rooms (NES, SNES, Mega Drive, PlayStation, N64) and, when
+Runs RetroOasis online rooms (NES, SNES, Mega Drive, PlayStation, N64) and, when
 included, Game Boy / GBA Trade & link, for players on the same network.
 
 Needs: Node.js 18 or newer (https://nodejs.org). Nothing else to install.
@@ -91,4 +91,4 @@ const size = async dir => {
   }
   return total
 }
-console.log(`Room host ready: ${path.relative(repo, out)} (${(await size(out) / 1048576).toFixed(1)} MB). Zip the folder to share it.`)
+console.log(`Host app ready: ${path.relative(repo, out)} (${(await size(out) / 1048576).toFixed(1)} MB). Zip the folder to share it.`)

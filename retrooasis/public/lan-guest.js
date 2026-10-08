@@ -108,26 +108,26 @@ function refreshLobby() {
   if (!mode) return
   lobby.dataset.mode = mode
   const text = (selector, value) => { const node = lobby.querySelector(selector); if (node.textContent !== value) node.textContent = value }
-  text('[data-lobby-eyebrow]', mode === 'paused' ? 'Paused' : mode === 'reconnecting' ? `Reconnecting · attempt ${Math.min(autoRetries + 1, AUTO_RETRIES)} of ${AUTO_RETRIES}` : mode === 'lost' ? 'Disconnected' : `Lobby · You’re Player ${(me?.slot ?? 0) + 1}`)
+  text('[data-lobby-eyebrow]', mode === 'paused' ? 'Paused' : mode === 'reconnecting' ? `Reconnecting · try ${Math.min(autoRetries + 1, AUTO_RETRIES)} of ${AUTO_RETRIES}` : mode === 'lost' ? 'Disconnected' : `Lobby · You’re Player ${(me?.slot ?? 0) + 1}`)
   text('[data-lobby-head]', mode === 'paused' ? 'The host paused the game'
-    : mode === 'reconnecting' ? 'Connection interrupted'
-      : mode === 'lost' ? 'Game connection lost'
-        : !connected ? (slow ? `Still connecting to ${hostName}…` : `Connecting to ${hostName}’s game…`)
-          : needsCart ? 'Insert your cartridge'
-            : waitingLink ? `Waiting for ${hostName} to start the link`
+    : mode === 'reconnecting' ? 'Connection dropped'
+      : mode === 'lost' ? 'Lost the connection'
+        : !connected ? (slow ? `Still connecting to ${hostName}…` : `Connecting to ${hostName}…`)
+          : needsCart ? 'Add your game'
+            : waitingLink ? `Waiting for ${hostName} to start`
               : 'Starting the game…')
   text('[data-lobby-game]', `${room.title} · ${CORE_LABELS[room.core] || room.core}`)
   text('[data-lobby-tip]', mode === 'paused' ? 'Your controls work again when they resume.'
-    : mode === 'reconnecting' ? 'Your seat is held while this page rejoins.'
-      : mode === 'lost' ? 'Check that both devices are still on the same Wi-Fi, then reconnect.'
-        : slow && !connected ? 'Both devices must be on the same Wi-Fi or LAN. Guest networks with client isolation block the game connection.'
-          : needsCart && connected ? 'Choose your game below, and your save file to trade from your own game.'
+    : mode === 'reconnecting' ? 'Your spot is kept while you reconnect.'
+      : mode === 'lost' ? 'Check you’re still on the same Wi-Fi as the host, then reconnect.'
+        : slow && !connected ? 'You need to be on the same Wi-Fi as the host. Guest Wi-Fi networks often block this.'
+          : needsCart && connected ? 'Choose your game file below. Add your save file too, to play with your own progress.'
             : coarsePointer.matches ? 'On-screen controls appear under the game. Sound turns on with your first tap.'
               : keyboardLayout(room.core).hint)
   lobbyStep('joined', 'done', 'Joined the room')
   lobbyStep('connect', connected ? 'done' : 'current', connected ? `Connected to ${hostName}` : `Connecting to ${hostName}`)
-  lobbyStep('cart', linked ? (cartInserted || linkRunning ? 'done' : connected ? 'current' : 'waiting') : null, cartInserted || linkRunning ? 'Cartridge inserted' : 'Insert your cartridge')
-  lobbyStep('start', live && !waitingLink ? 'done' : connected && !needsCart ? 'current' : 'waiting', linked ? `${hostName} starts the link` : 'Game on screen')
+  lobbyStep('cart', linked ? (cartInserted || linkRunning ? 'done' : connected ? 'current' : 'waiting') : null, cartInserted || linkRunning ? 'Game added' : 'Add your game')
+  lobbyStep('start', live && !waitingLink ? 'done' : connected && !needsCart ? 'current' : 'waiting', linked ? `${hostName} starts` : 'Game on screen')
   const steps = [...lobby.querySelectorAll('[data-step]')].filter(step => !step.hidden)
   steps.forEach((step, index) => { step.querySelector('b').textContent = index + 1 })
   lobby.querySelector('[data-lobby-steps]').style.setProperty('--steps', steps.length)
@@ -162,9 +162,11 @@ const qualityLine = document.querySelector('[data-lan-quality]')
 setInterval(async () => {
   if (!peer || peer.pc.connectionState !== 'connected') { qualityLine.textContent = ''; return }
   const { rttMs, fps, dropped } = await connectionQuality(peer.pc)
-  qualityLine.textContent = [fps !== null && `${fps} fps`, rttMs !== null && `${rttMs} ms`, dropped && `${dropped} dropped frames`].filter(Boolean).join(' · ')
-  // A colour cue alongside the numbers: smooth, playable, or struggling.
-  qualityLine.dataset.level = fps === null ? '' : fps >= 45 && (rttMs ?? 0) < 40 ? 'good' : fps >= 25 && (rttMs ?? 0) < 100 ? 'fair' : 'poor'
+  // In words for everyone (Great / OK / Weak); the numbers stay in the tooltip.
+  const level = fps === null ? '' : fps >= 45 && (rttMs ?? 0) < 40 ? 'good' : fps >= 25 && (rttMs ?? 0) < 100 ? 'fair' : 'poor'
+  qualityLine.dataset.level = level
+  qualityLine.textContent = level ? { good: 'Great connection', fair: 'OK connection', poor: 'Weak connection' }[level] : ''
+  qualityLine.title = [fps !== null && `${fps} frames a second`, rttMs !== null && `${rttMs} ms delay`, dropped && `${dropped} frames skipped`].filter(Boolean).join(' · ')
 }, 2000)
 
 // Each new track calls play() again, and a newer call aborts the older one: that's not an
@@ -175,10 +177,10 @@ async function startVideo() {
   catch (error) {
     if (error?.name === 'AbortError') return
     if (!video.muted) {
-      video.muted = true; soundChoice = false; sound.textContent = 'Enable sound'
+      video.muted = true; soundChoice = false; sound.textContent = 'Turn on sound'
       try { await video.play(); status('Playing muted. Press any key or tap the game to turn sound back on.'); return } catch { /* still blocked */ }
     }
-    status('Tap the game to start the stream.')
+    status('Tap the game to start.')
   }
 }
 // The host announces pauses on the controls channel; the stream alone would just freeze.
@@ -432,7 +434,7 @@ function update(next) {
     // (ICE takes 5–10 s to report it), so the automatic rejoin starts from here.
     channel.onclose = () => { if (channel !== incoming) return; guestInput?.dispose(); guestInput = null; scheduleAutoReconnect(peer); refreshLobby() }
   }
-  timeout = setTimeout(() => { slow = true; refreshLobby(); status('Connection timed out. Both devices must use the same LAN; guest Wi-Fi/client isolation can prevent joining.') }, 15000)
+  timeout = setTimeout(() => { slow = true; refreshLobby(); status('Still can’t reach the host. Make sure you’re on the same Wi-Fi as them; guest Wi-Fi networks often block this.') }, 15000)
 }
 function attachCart(channel) {
   cartChannel = channel
@@ -444,7 +446,7 @@ function attachCart(channel) {
       keepSave(file, file.kind === 'save')
       // The host counts a save as delivered only after this receipt.
       if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'received', kind: file.kind }))
-      if (file.kind === 'save') cartStatus.textContent = `Downloaded ${file.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+      if (file.kind === 'save') cartStatus.textContent = `Downloaded your save (${file.name}). Use it in RetroOasis (Save data on the game’s page) or your emulator to keep what you traded.`
       refreshCart()
     },
     onError: error => { cartStatus.textContent = error.message },
@@ -452,12 +454,12 @@ function attachCart(channel) {
       if (data.type === 'hello') {
         linkRunning = data.running === true
         linkEnded = data.ended === true
-        if (linkEnded) cartStatus.textContent = 'This link session has ended. Ask the host to open a new one to link again.'
+        if (linkEnded) cartStatus.textContent = 'This session has ended. Ask the host to start a new one to play again.'
         // A new game connection before the link starts means the host needs the cartridge again.
         if (!linkRunning) cartInserted = false
         if (typeof data.accept === 'string') cartForm.elements.rom.accept = data.accept
-        if (!linkRunning && !cartInserted && !linkEnded) cartStatus.textContent = `Insert your ${room.core === 'gba' ? 'Game Boy Advance' : 'Game Boy / Game Boy Color'} game to link with ${data.title || 'the host'}.`
-        if (linkRunning) cartStatus.textContent = 'The link is running. Play on Console 2.'
+        if (!linkRunning && !cartInserted && !linkEnded) cartStatus.textContent = `Add your ${room.core === 'gba' ? 'Game Boy Advance' : 'Game Boy'} game to play with ${data.title || 'the host'}.`
+        if (linkRunning) cartStatus.textContent = 'You’re connected. Play your game here.'
       } else if (data.type === 'session') {
         linkRunning = data.running === true
         if (!linkRunning) linkEnded = true
@@ -497,12 +499,12 @@ cartForm.onsubmit = async event => {
 requestSave.onclick = () => {
   if (linkRunning && cartChannel?.readyState === 'open') {
     cartChannel.send(JSON.stringify({ type: 'request-save' }))
-    cartStatus.textContent = 'Requesting your save…'
+    cartStatus.textContent = 'Getting your save…'
   } else if (latestSave) {
     // The link is over or the host is unreachable: the copy kept here is the latest.
     downloadBytes(latestSave.bytes, latestSave.name)
     latestSave.downloaded = true
-    cartStatus.textContent = `Downloaded ${latestSave.name}. Load it in your emulator or RetroOasis Saves to keep your trade.`
+    cartStatus.textContent = `Downloaded your save (${latestSave.name}). Use it in RetroOasis (Save data on the game’s page) or your emulator to keep what you traded.`
     refreshCart()
   }
 }
@@ -534,9 +536,9 @@ async function join(reconnecting = false) {
     playView.scrollIntoView({ block: 'start' })
     refreshCart()
     document.querySelector('[data-lan-input-hint]').textContent = keyboardLayout(room.core).hint + (room.core === 'n64' ? ' Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.' : ROOM_PROFILES[room.core]?.dualAnalog ? ' Gamepad: both sticks are analog; games that support the DualShock use them.' : '')
-    document.querySelector('[data-lan-input-hint]').textContent += ' If a controller seems stuck, release its buttons and center the sticks.'
+    document.querySelector('[data-lan-input-hint]').textContent += ' If a controller seems stuck, let go of its buttons and sticks for a moment.'
     update(room)
-    status('Joined. Connecting to the host’s game…')
+    status('Joined! Connecting to the host’s game…')
   } catch (error) { if (attempt === generation) end(error.message) }
   finally { if (attempt === generation) { joining = false; joinForm.querySelector('button').disabled = false } }
 }
@@ -545,8 +547,8 @@ video.onloadeddata = refreshLobby
 sound.onclick = async () => {
   soundChoice = true
   video.muted = !video.muted
-  try { await video.play(); sound.textContent = video.muted ? 'Enable sound' : 'Mute sound' }
-  catch { video.muted = true; sound.textContent = 'Enable sound'; status('Audio is not ready. Try Enable sound after the stream connects.') }
+  try { await video.play(); sound.textContent = video.muted ? 'Turn on sound' : 'Mute' }
+  catch { video.muted = true; sound.textContent = 'Turn on sound'; status('Sound isn’t ready yet. Try Turn on sound once the game appears.') }
 }
 // Browsers only allow sound after the player interacts, so the stream starts muted. The
 // first tap, click or key press while playing turns sound on (unless they used the
@@ -557,7 +559,7 @@ async function autoSound(event) {
   if (event.target?.closest?.('#sound, input, textarea, select')) return
   soundChoice = true
   video.muted = false
-  try { await video.play(); sound.textContent = 'Mute sound'; if (/turn (on|sound back on)/.test(liveLine?.textContent || '')) status('Sound on.') }
+  try { await video.play(); sound.textContent = 'Mute'; if (/turn (on|sound back on)/.test(liveLine?.textContent || '')) status('Sound on.') }
   catch { video.muted = true; soundChoice = false }
 }
 for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, event => { void autoSound(event) }, { capture: true })
@@ -592,12 +594,12 @@ function scheduleAutoReconnect(lostPeer) {
   if (autoTimer || ended) return
   if (autoRetries >= AUTO_RETRIES) {
     trouble = 'lost'; refreshLobby()
-    status('Game connection lost. Tap Reconnect to retry on the same LAN.')
+    status('Lost the connection to the host. Tap Reconnect to try again.')
     return
   }
   const wait = 2000 * 2 ** autoRetries
   trouble = 'reconnecting'; refreshLobby()
-  status(`Connection interrupted. Reconnecting automatically (attempt ${autoRetries + 1} of ${AUTO_RETRIES})…`)
+  status(`Connection dropped. Reconnecting (try ${autoRetries + 1} of ${AUTO_RETRIES})…`)
   autoTimer = setTimeout(() => {
     autoTimer = null
     // Recovered by itself only if both the media and the controls are back: after the host
@@ -610,7 +612,7 @@ function scheduleAutoReconnect(lostPeer) {
 document.querySelector('#reconnect').onclick = lobby.querySelector('[data-lobby-action]').onclick = () => { autoRetries = 0; trouble = 'reconnecting'; reconnect(); refreshLobby() }
 retryService.onclick = () => {
   retryService.hidden = true
-  status('Reconnecting to the room host…')
+  status('Reconnecting to the host…')
   if (socket) { socket.disconnect(); socket.connect() }
   else void initialize()
 }
@@ -619,15 +621,15 @@ window.addEventListener('pagehide', () => { guestInput?.release(); socket?.emit(
 async function initialize() {
 try {
   await lanInfo()
-  if (!window.RTCPeerConnection) throw new Error('This browser does not support WebRTC. Use a current browser with a trusted HTTPS LAN address.')
+  if (!window.RTCPeerConnection) throw new Error('This browser can’t play online. Use a current Chrome, Edge, Firefox or Safari.')
   socket = await connectSocket()
   socket.on('room:update', update)
   socket.on('room:signal', ({ sender, signal }) => { if (room?.players.find(player => player.slot === 0)?.socketId === sender) void peer?.accept(signal) })
   socket.on('room:ended', ({ reason }) => end(reason))
-  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = rejoining; guestInput?.release(); closePeer(); if (rejoining) { rejoining = false; return } status(!ended && room ? 'Room host disconnected. Trying to reconnect…' : 'Room host disconnected. Retry when the host server is back.') })
+  socket.on('disconnect', () => { generation++; joining = false; joinForm.querySelector('button').disabled = true; retryService.hidden = rejoining; guestInput?.release(); closePeer(); if (rejoining) { rejoining = false; return } status(!ended && room ? 'Lost the connection to the host. Trying to reconnect…' : 'Lost the connection to the host. Try again once their host app is running.') })
   socket.on('connect', () => { retryService.hidden = true; if (!ended && resumeToken) void join(true); else { joinForm.querySelector('button').disabled = false; status('Ready. Enter the room code and your name.') } })
-  socket.on('connect_error', () => { retryService.hidden = false; status('Can’t reach the room host. Retry once it’s running again.') })
-  socket.io.on('reconnect_failed', () => { if (!ended && room) status('The room host is still unavailable. Tap Reconnect when it’s back.') })
+  socket.on('connect_error', () => { retryService.hidden = false; status('Can’t reach the host. Try again once their RetroOasis host app is running.') })
+  socket.io.on('reconnect_failed', () => { if (!ended && room) status('Still can’t reach the host. Tap Reconnect when they’re back.') })
   joinForm.querySelector('button').disabled = false
   retryService.hidden = true
   status('Ready. Enter the room code and your name.')

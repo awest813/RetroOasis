@@ -18,21 +18,21 @@ export const cartTitle = name => String(name ?? '').replace(/\.[^.]+$/, '').repl
 
 export function cartridgeInfo(system, bytes) {
   const profile = LINK_CAPABILITIES[system]
-  if (!profile) throw new Error('This system has no link cable support.')
+  if (!profile) throw new Error('This system can’t trade or link.')
   if (!(bytes instanceof Uint8Array) || bytes.length > profile.maxRom) throw new Error('That file is too large for this system.')
   if (system === 'gb') {
-    if (bytes.length < 0x8000 || bytes.length % 0x4000) throw new Error('That is not a Game Boy / Game Boy Color cartridge.')
+    if (bytes.length < 0x8000 || bytes.length % 0x4000) throw new Error('That file isn’t a Game Boy or Game Boy Color game.')
     let check = 0
     for (let at = 0x134; at <= 0x14c; at++) check = (check - bytes[at] - 1) & 255
-    if (check !== bytes[0x14d]) throw new Error('That Game Boy cartridge header is damaged.')
+    if (check !== bytes[0x14d]) throw new Error('That Game Boy game file looks damaged.')
     const cgb = bytes[0x143]
     // Color carts may end the title early for a 4-character maker code (Gold's "AAUE"),
     // but older ones run it on: Yellow's "POKEMON YELLOW" fills those bytes with "LOW".
     const makerCode = (cgb & 0x80) && bytes.subarray(0x13f, 0x143).every(byte => (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5a))
-    return { system, color: (cgb & 0x80) !== 0, title: text(bytes, 0x134, !(cgb & 0x80) ? 0x144 : makerCode ? 0x13f : 0x143) || 'Game Boy cartridge' }
+    return { system, color: (cgb & 0x80) !== 0, title: text(bytes, 0x134, !(cgb & 0x80) ? 0x144 : makerCode ? 0x13f : 0x143) || 'Game Boy game' }
   }
-  if (bytes.length < 0xc0 || bytes[0xb2] !== 0x96) throw new Error('That is not a Game Boy Advance cartridge.')
-  return { system, code: text(bytes, 0xac, 0xb0), title: text(bytes, 0xa0, 0xac) || 'GBA cartridge' }
+  if (bytes.length < 0xc0 || bytes[0xb2] !== 0x96) throw new Error('That file isn’t a Game Boy Advance game.')
+  return { system, code: text(bytes, 0xac, 0xb0), title: text(bytes, 0xa0, 0xac) || 'GBA game' }
 }
 
 /** gpSP link mode shared by both consoles. 0 = gpSP per-game choice, 1 = Pokémon cable. */
@@ -65,15 +65,15 @@ export function saveSettler(initial = null, length = 0) {
   }
 }
 
-export function describeGbaLink(modes, titles = ['Console 1', 'Console 2']) {
+export function describeGbaLink(modes, titles = ['Your game', 'Your friend’s game']) {
   const missing = modes.findIndex(mode => !GBA_LINK_LABELS[mode])
-  if (missing !== -1) return { label: null, warning: `${titles[missing]} has no link support in this emulator. Both games run, but linking won’t work. Supported: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, Advance Wars 1 and 2, and a few wireless-adapter games.` }
+  if (missing !== -1) return { label: null, warning: `${titles[missing]} can’t link in RetroOasis yet. Both games run, but trading and battles won’t work. Games that link: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, and Advance Wars 1 and 2.` }
   // gpSP emulates Ruby and Sapphire's cable but FireRed, LeafGreen and Emerald's wireless adapter.
-  if (modes[0] !== modes[1] && modes.includes(2) && modes.includes(3)) return { label: null, warning: 'In this emulator Pokémon Ruby and Sapphire link by cable, and FireRed, LeafGreen and Emerald by wireless adapter, so these two can’t link. Pair Ruby with Sapphire, or FireRed, LeafGreen and Emerald with each other.' }
-  if (modes[0] !== modes[1]) return { label: null, warning: `These games use different link modes (${GBA_LINK_LABELS[modes[0]]} and ${GBA_LINK_LABELS[modes[1]]}), so they can’t link.` }
+  if (modes[0] !== modes[1] && modes.includes(2) && modes.includes(3)) return { label: null, warning: 'Pokémon Ruby and Sapphire can’t link with FireRed, LeafGreen or Emerald here. Pair Ruby with Sapphire, or FireRed, LeafGreen and Emerald with each other.' }
+  if (modes[0] !== modes[1]) return { label: null, warning: 'These two games can’t link with each other.' }
   return { label: GBA_LINK_LABELS[modes[0]], warning: null, howTo: modes[0] === 2
-    ? 'Use the game’s wireless menu on both consoles: in Pokémon FireRed, LeafGreen and Emerald, the Union Room on a Pokémon Center’s second floor.'
-    : 'Use the game’s trade or link menu on both consoles.' }
+    ? 'Use the wireless menu in both games: in Pokémon FireRed, LeafGreen and Emerald, that’s the Union Room upstairs in any Pokémon Center.'
+    : 'Use the trade or battle menu in both games.' }
 }
 
 export function validSaveSize(system, size) {
@@ -90,13 +90,13 @@ function loadGbConsoles(core, carts, saves, info, boots) {
   for (let slot = 0; slot < 2; slot++) {
     const boot = boots[info[slot].color ? 'cgb_boot.bin' : 'dmg_boot.bin']
     const rom = copyIn(core, carts[slot]), bootPointer = copyIn(core, boot)
-    try { if (core._link_load(slot, rom, carts[slot].length, bootPointer, boot.length) !== 1) throw new Error(`Console ${slot + 1} could not load its cartridge.`) }
+    try { if (core._link_load(slot, rom, carts[slot].length, bootPointer, boot.length) !== 1) throw new Error(`${slot ? 'Your friend’s' : 'Your'} game couldn’t load.`) }
     finally { core._free(rom); core._free(bootPointer) }
     if (saves[slot]) {
       const size = core._link_save_size(slot)
-      if (size <= 0) throw new Error(`${info[slot].title} has no battery save, so its save file can’t be used.`)
+      if (size <= 0) throw new Error(`${info[slot].title} doesn’t save, so a save file can’t be used with it.`)
       const pointer = copyIn(core, saves[slot])
-      try { if (core._link_restore(slot, pointer, saves[slot].length) !== 1) throw new Error(`Console ${slot + 1}’s save file doesn’t match its cartridge.`) }
+      try { if (core._link_restore(slot, pointer, saves[slot].length) !== 1) throw new Error(`${slot ? 'Your friend’s' : 'Your'} save file doesn’t match that game.`) }
       finally { core._free(pointer) }
     }
   }
@@ -107,12 +107,12 @@ async function gbSession({ carts, saves, loadCore, loadFile }) {
   const info = carts.map(cart => cartridgeInfo('gb', cart))
   const boots = {}
   for (const name of new Set(info.map(cart => cart.color ? 'cgb_boot.bin' : 'dmg_boot.bin'))) boots[name] = await loadFile(name)
-  if (core._link_init_models(Number(info[0].color), Number(info[1].color)) !== 1) throw new Error('The link cable could not start.')
+  if (core._link_init_models(Number(info[0].color), Number(info[1].color)) !== 1) throw new Error('Couldn’t connect the two games. Try Start again.')
   try { loadGbConsoles(core, carts, saves, info, boots) } catch (error) { core._link_close(); throw error }
   const audioBuffer = core._malloc(4096 * 4)
   let budget = 0
   return {
-    info, width: 160, height: 144, sampleRate: 48000, link: { label: 'Game Boy link cable', warning: null, howTo: 'Use the game’s trade or link menu on both consoles.' },
+    info, width: 160, height: 144, sampleRate: 48000, link: { label: 'Game Boy link cable', warning: null, howTo: 'Use the trade or battle menu in both games.' },
     advance(ms) {
       budget = Math.min(budget + ms * GB_TICKS_PER_MS, 4 * 70224 * 2)
       // Small slices keep both consoles' serial clocks interleaved.
@@ -162,17 +162,17 @@ async function gbaSession({ carts, saves, loadCore }) {
         },
       })
       cores.push(core)
-      if (core._gba_init() !== 1) throw new Error('The GBA link interface is unavailable.')
+      if (core._gba_init() !== 1) throw new Error('Game Boy Advance linking isn’t available here.')
       core.FS.writeFile('/cartridge.gba', carts[id])
-      if (core.cwrap('gba_load', 'number', ['string', 'number'])('/cartridge.gba', mode) !== 1) throw new Error(`Console ${id + 1} could not load its cartridge.`)
+      if (core.cwrap('gba_load', 'number', ['string', 'number'])('/cartridge.gba', mode) !== 1) throw new Error(`${id ? 'Your friend’s' : 'Your'} game couldn’t load.`)
       if (saves[id]) {
         const pointer = copyIn(core, saves[id])
-        try { if (core._gba_restore(pointer, saves[id].length) !== 1) throw new Error(`Console ${id + 1}’s save file doesn’t match a GBA save size.`) }
+        try { if (core._gba_restore(pointer, saves[id].length) !== 1) throw new Error(`${id ? 'Your friend’s' : 'Your'} save file isn’t the right size for a GBA game.`) }
         finally { core._free(pointer) }
       }
-      if (core._gba_start(id) !== 1) throw new Error('The GBA link cable could not start.')
+      if (core._gba_start(id) !== 1) throw new Error('Couldn’t connect the two games. Try Start again.')
     }
-    if (cores[0]._gba_connect(1) !== 1 || cores[1]._gba_connect(0) !== 1) throw new Error('The GBA link cable could not connect.')
+    if (cores[0]._gba_connect(1) !== 1 || cores[1]._gba_connect(0) !== 1) throw new Error('Couldn’t connect the two games. Try Start again.')
   } catch (error) { cores.forEach(core => core._gba_close()); throw error }
   const audioBuffers = cores.map(core => core._malloc(4096 * 4))
   let elapsed = 0
@@ -218,9 +218,9 @@ async function gbaSession({ carts, saves, loadCore }) {
 
 /** carts / saves: [host, guest] Uint8Arrays (saves may be null). */
 export async function createLinkSession({ system, carts, saves = [null, null], loadCore, loadFile }) {
-  if (!LINK_CAPABILITIES[system] || carts?.length !== 2) throw new Error('Choose two cartridges for this link session.')
+  if (!LINK_CAPABILITIES[system] || carts?.length !== 2) throw new Error('Choose two games to play together.')
   saves.forEach((save, slot) => {
-    if (save && !validSaveSize(system, save.length)) throw new Error(`Console ${slot + 1}’s save file is not a ${system === 'gb' ? 'Game Boy' : 'GBA'} save.`)
+    if (save && !validSaveSize(system, save.length)) throw new Error(`${slot ? 'Your friend’s' : 'Your'} save file isn’t a ${system === 'gb' ? 'Game Boy' : 'GBA'} save.`)
   })
   return holdTaps(await (system === 'gb' ? gbSession({ carts, saves, loadCore, loadFile }) : gbaSession({ carts, saves, loadCore })))
 }

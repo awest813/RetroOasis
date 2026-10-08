@@ -39,7 +39,7 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 | `npm run scan` | Scan `roms/` (+ optional sidecars / covers) |
 | `npm run test:online-browser -- --room nes=<rom> [--link gb=<rom>]` | Opt-in browser test of online rooms and Trade & link with your own ROMs (needs Playwright) |
 
-From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`, and `oasis:host:pack` for the portable room host). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
+From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`, and `oasis:host:pack` for the portable host app). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
 
 ## Routes
 
@@ -171,12 +171,12 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | **Appearance** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
 | **Sound** | UI sounds (off by default), sound pack (Soft / XMB / Arcade) |
 | **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right |
-| **Online play** | The two ways to play (Online rooms, Trade & link), room host status, host and join, room host setup |
+| **Online play** | The two ways to play (Online rooms, Trade & link), host app status, host and join, host app setup |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
 | **Saves & storage** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
 | **Advanced** | Emulator files channel, thread-support status, self-hosting |
 
-On wide screens a section rail sits beside the settings and marks the section on screen; on phones the sections are a sticky row of chips. Settings remembers your focused control and scroll position when you return. Its console-style row menu supports D-pad or arrows, Enter to confirm, and Escape / B to go back. Controller troubleshooting and host setup are expandable. **Online play** compares the two ways to play and shows separate host and join actions. **Check again** checks for a room host, distinguishes setup, timeout, update and invalid-response failures, and enables **Choose a game** and **Enter room code** only when the service and browser support are available. The player verifies core files before creating a room. Saved ROMs belong to the browser address where they were added; the host setup explains how to add or link them at the LAN address.
+On wide screens a section rail sits beside the settings and marks the section on screen; on phones the sections are a sticky row of chips. Settings remembers your focused control and scroll position when you return. Its console-style row menu supports D-pad or arrows, Enter to confirm, and Escape / B to go back. Controller troubleshooting and host setup are expandable. **Online play** compares the two ways to play and shows separate host and join actions. **Check again** checks for a host app, distinguishes setup, timeout, update and invalid-response failures, and enables **Choose a game** and **Enter room code** only when the service and browser support are available. The player verifies core files before creating a room. Saved ROMs belong to the browser address where they were added; the host setup explains how to add or link them at the LAN address.
 
 ## Layout, PWA & accessibility
 
@@ -195,7 +195,7 @@ On wide screens a section rail sits beside the settings and marks the section on
 
 ## Online play
 
-Two ways to play together, both from a **room host**: one computer that friends join from their own browser.
+Two ways to play together, both from the **RetroOasis host app**: one computer that friends join from their own browser.
 
 | | **Online rooms** | **Trade & link** |
 | --- | --- | --- |
@@ -204,9 +204,9 @@ Two ways to play together, both from a **room host**: one computer that friends 
 | Guests need | A browser | A browser, their game and (optionally) their save |
 | Start it | Game page → **Host a room** | Game page → **Start Trade & link** |
 
-RetroOasis itself stays a static site; the room host only adds signaling (Socket.IO) and serves the app on the network. Streams are WebRTC between the browsers, with no public signaling service, STUN or TURN relay.
+RetroOasis itself stays a static site; the host app only adds signaling (Socket.IO) and serves the app on the network. Streams are WebRTC between the browsers, with no public signaling service, STUN or TURN relay.
 
-### Room host
+### Host app
 
 **Portable host:** `npm run oasis:host:pack` (from the repo root) builds `retrooasis/release/retrooasis-host/`, about 15 MB: one bundled `server/server.mjs`, the app, the emulator files and prepared cores, the link cores when built, and `start-host.cmd` / `start-host.sh`. Zip it and run it on any Windows, macOS or Linux computer with Node.js 18+; nothing else to install. Its `README.txt` covers the rest.
 
@@ -217,11 +217,11 @@ npm run oasis:lan:prepare
 npm run oasis:lan
 ```
 
-Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host a room** in the Online room card on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and room host status. Demo placeholders cannot host.
+Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host a room** in the Online room card on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and host app status. Demo placeholders cannot host.
 
 ### Over the internet
 
-Put every player on one virtual LAN, Hamachi-style, then host as usual: [Tailscale](https://tailscale.com) (addresses in `100.64.0.0/10`), [Nebula](https://github.com/slackhq/nebula) (MIT, self-hosted) or [ZeroTier](https://www.zerotier.com). The room host prints and offers the virtual LAN address as an invite address. No port forwarding is needed, and rooms still refuse public addresses.
+Put every player on one virtual LAN, Hamachi-style, then host as usual: [Tailscale](https://tailscale.com) (addresses in `100.64.0.0/10`), [Nebula](https://github.com/slackhq/nebula) (MIT, self-hosted) or [ZeroTier](https://www.zerotier.com). The host app prints and offers the virtual LAN address as an invite address. No port forwarding is needed, and rooms still refuse public addresses.
 
 Keyboard and touch work in HTTP mode. Guest gamepads require trusted HTTPS in browsers that restrict the Gamepad API. To generate certificates without installing trust automatically:
 

@@ -9,7 +9,7 @@ export const LAN_CAPABILITIES = Object.freeze({
   // fighting games use (✕ □ ○ △, L1 R1, L2 R2), plus both analog sticks (dualAnalog) for
   // games that support a DualShock; the host's ports are set to DualShock in rooms.
   psx: { label: 'PlayStation', mode: 'shared-console', maxPlayers: 2, cores: ['pcsx_rearmed'], buttons: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], dualAnalog: true },
-  n64: { label: 'Nintendo 64 (experimental)', mode: 'shared-console', maxPlayers: 4, cores: ['mupen64plus_next', 'parallel_n64'], buttons: [0, 1, 3, 4, 5, 6, 7, 10, 11, 12, 20, 21, 22, 23], analog: true },
+  n64: { label: 'Nintendo 64 (beta)', mode: 'shared-console', maxPlayers: 4, cores: ['mupen64plus_next', 'parallel_n64'], buttons: [0, 1, 3, 4, 5, 6, 7, 10, 11, 12, 20, 21, 22, 23], analog: true },
 })
 export const LAN_CORES = new Set(Object.keys(LAN_CAPABILITIES))
 /** Handheld link rooms: the host browser runs both consoles on one emulated cable
@@ -108,5 +108,5 @@ export function keyboardLayout(core) {
   const buttons = Object.entries(labels)
     .sort(([, a], [, b]) => LABEL_ORDER.indexOf(a) - LABEL_ORDER.indexOf(b))
     .map(([index, label]) => `${keyName(Object.keys(PLAYER_KEYS).find(code => PLAYER_KEYS[code] === Number(index)))} = ${label}`)
-  return { keys, hint: ['Keyboard: arrows = D-pad', ...buttons, 'Enter = Start', ...(allowed.has(2) ? ['V = Select'] : []), ...(profile.dualAnalog ? ['T/F/G/H = left stick', 'I/J/K/L = right stick'] : [])].join(' · ') + '. Same keys as the RetroOasis player' + (allowed.has(12) ? ', except W for L2 (the player’s Tab would move page focus).' : '.') }
+  return { keys, hint: ['Keyboard: arrows = D-pad', ...buttons, 'Enter = Start', ...(allowed.has(2) ? ['V = Select'] : []), ...(profile.dualAnalog ? ['T/F/G/H = left stick', 'I/J/K/L = right stick'] : [])].join(' · ') + '. Same keys as the RetroOasis player' + (allowed.has(12) ? ', except W for L2.' : '.') }
 }

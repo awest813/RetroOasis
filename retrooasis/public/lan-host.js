@@ -38,13 +38,13 @@ export async function mountHost(emu, options = {}) {
     <button type="submit" class="ro-lan-primary ro-lan-wide" disabled>Create room</button></form>
     <div data-lan-room hidden>
       <div class="ro-room-code"><span>Room code</span><strong data-lan-code aria-live="polite"></strong></div>
-      <p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul class="ro-seats" data-lan-players aria-label="Controller seats"></ul>
+      <p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul class="ro-seats" data-lan-players aria-label="Players"></ul>
       <details class="ro-lan-invite" open><summary>Invite players</summary>
         <div class="ro-lan-invite__body"><img class="ro-lan-qr" data-lan-qr alt="Scan to join this room">
-        <label>Invite address <select data-lan-address aria-label="Invite address"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
+        <label>Network <select data-lan-address aria-label="Network friends join through"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
       <div class="ro-lan-actions"><button type="button" class="ro-lan-primary" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
       <p class="ro-lan-panel__hint" data-lan-note></p></div>
-    <p data-lan-status role="status" aria-live="polite">Preparing room host…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
+    <p data-lan-status role="status" aria-live="polite">Getting ready…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
   panel.querySelector('[data-lan-note]').textContent = options.note || 'Keep this tab open while friends play.'
   document.body.append(panel)
   const stylesheet = document.createElement('link')
@@ -79,8 +79,8 @@ export async function mountHost(emu, options = {}) {
     const connections = new Map([...peers].map(([id, peer]) => {
       const ready = peer.pc.connectionState === 'connected' && peer.channel?.readyState === 'open'
       if (ready) { clearTimeout(peer.deadline); peer.timedOut = false } else allReady = false
-      return [id, ready ? `Ready to play${Number.isFinite(peer.rttMs) ? ` · ${peer.rttMs} ms` : ''}` : peer.timedOut ? 'Timed out · reconnect'
-        : ['disconnected', 'failed', 'closed'].includes(peer.pc.connectionState) || ['closed', 'closing'].includes(peer.channel?.readyState) ? 'Game connection lost · reconnect' : 'Connecting to game…']
+      return [id, ready ? `Ready${Number.isFinite(peer.rttMs) ? ` · ${peer.rttMs < 60 ? 'great' : peer.rttMs < 150 ? 'OK' : 'slow'} connection` : ''}` : peer.timedOut ? 'Couldn’t connect · ask them to rejoin'
+        : ['disconnected', 'failed', 'closed'].includes(peer.pc.connectionState) || ['closed', 'closing'].includes(peer.channel?.readyState) ? 'Lost connection · ask them to rejoin' : 'Connecting…']
     }))
     roster(panel.querySelector('[data-lan-players]'), room, id => { void request(socket, 'room:kick', { id }).catch(error => status(error.message, panel)) }, connections)
     if (collapseWhenReady && !userToggled) {
@@ -162,14 +162,14 @@ export async function mountHost(emu, options = {}) {
       const manager = emu.gameManager
       const ctx = manager.audioContext || emu.Module?.AL?.currentCtx?.audioCtx
       if (ctx) {
-        void ctx.resume().catch(() => status('The browser paused game audio. Resume the game to enable sound.', panel))
+        void ctx.resume().catch(() => status('The browser paused the game’s sound. Resume the game to turn it back on.', panel))
         audioDestination = ctx.createMediaStreamDestination()
         const al = emu.Module?.AL?.currentCtx
         audioNodes = manager.audioNode ? [manager.audioNode] : al?.gain ? [al.gain] : Object.values(al?.sources || {}).map(source => source.gain).filter(Boolean)
         for (const node of audioNodes) node.connect(audioDestination)
         if (audioNodes.length) audioDestination.stream.getAudioTracks().forEach(track => captured.addTrack(track))
       }
-    } catch { status('Video is ready; this core’s audio capture is unavailable.', panel) }
+    } catch { status('Friends will see the game but won’t hear it: this system’s emulator can’t share sound.', panel) }
     return captured
   }
   function update(next) {
@@ -196,7 +196,7 @@ export async function mountHost(emu, options = {}) {
         if (peers.get(player.socketId) !== peer) return
         peer.timedOut = true
         refreshRoster()
-        status(`Player ${player.slot + 1} · ${player.nickname} timed out. Ask them to reconnect on the same LAN; Wi-Fi client isolation can prevent joining.`, panel)
+        status(`${player.nickname} (Player ${player.slot + 1}) couldn’t connect. Check they’re on your Wi-Fi (guest Wi-Fi often blocks this), then ask them to rejoin.`, panel)
       }, 15000)
       peers.set(player.socketId, peer)
       const senders = stream.getTracks().map(track => peer.pc.addTrack(track, stream))
@@ -217,7 +217,7 @@ export async function mountHost(emu, options = {}) {
       void peer.pc.createOffer().then(offer => peer.pc.setLocalDescription(offer)).then(() => {
         if (room && peers.get(player.socketId) === peer) socket.emit('room:signal', { target: player.socketId, signal: { description: peer.pc.localDescription.toJSON() } })
         for (const sender of senders) void tuneVideoSender(sender, emu.canvas?.height, streamRate.fps)
-      }).catch(error => { if (peers.get(player.socketId) === peer) status(`Could not connect guest: ${error.message}`, panel) })
+      }).catch(error => { if (peers.get(player.socketId) === peer) status(`Couldn’t connect a friend: ${error.message}`, panel) })
     }
     refreshRoster()
   }
@@ -306,8 +306,8 @@ export async function mountHost(emu, options = {}) {
     socket.on('room:update', update)
     socket.on('room:signal', ({ sender, signal }) => { void peers.get(sender)?.accept(signal) })
     socket.on('room:ended', ({ reason }) => endLocal(ending ? 'Room ended. You can continue playing locally.' : reason))
-    socket.on('disconnect', () => { retry.hidden = false; endLocal('The room host disconnected. Retry connection, then create a new room.') })
-    socket.on('connect_error', () => { retry.hidden = false; status('Cannot reach the room host. Retry when it is back.', panel) })
+    socket.on('disconnect', () => { retry.hidden = false; endLocal('Lost the connection to the RetroOasis host app. Choose Retry connection, then create a new room.') })
+    socket.on('connect_error', () => { retry.hidden = false; status('Can’t reach the RetroOasis host app. Try again once it’s running.', panel) })
     socket.on('connect', serviceReady)
     form.onsubmit = async event => {
       event.preventDefault()
@@ -326,7 +326,7 @@ export async function mountHost(emu, options = {}) {
         refreshInvite()
         form.hidden = true; roomBox.hidden = false
         panel.querySelector('[data-lan-copy]').focus({ preventScroll: true })
-        status(loopbackOnly ? 'Room open, but this computer isn’t on a network. Connect it to Wi-Fi or Ethernet so friends can join.'
+        status(loopbackOnly ? 'Room open, but this computer isn’t on a network. Connect it to Wi-Fi or a network cable so friends can join.'
           : stream.getAudioTracks().length ? 'Room open. Send the invite: Copy invite, or let friends scan the QR code.' : 'Room open, without sound (this system’s emulator can’t share audio). Send the invite.', panel)
       } catch (error) {
         if (!stopped && attempt === generation) {
@@ -337,7 +337,7 @@ export async function mountHost(emu, options = {}) {
       finally { if (attempt === generation) { busy = false; createButton.disabled = !socket.connected } }
     }
     panel.querySelector('[data-lan-copy]').onclick = async () => {
-      try { await navigator.clipboard.writeText(invite.value); status('Invite copied. Send it to someone on the same Wi-Fi.', panel) }
+      try { await navigator.clipboard.writeText(invite.value); status('Invite copied. Send it to a friend on your Wi-Fi.', panel) }
       catch {
         invite.closest('details').open = true
         invite.focus({ preventScroll: true })
@@ -368,7 +368,7 @@ export async function mountHost(emu, options = {}) {
   retry.onclick = async () => {
     retryFocus = document.activeElement === retry
     retry.disabled = true
-    status('Reconnecting to the room host…', panel)
+    status('Reconnecting to the host app…', panel)
     try {
       if (socket) { socket.disconnect(); socket.connect() }
       else await initialize()

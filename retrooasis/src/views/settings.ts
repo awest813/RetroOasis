@@ -296,14 +296,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <h2 class="ro-settings__heading" id="ro-set-lan">Online play</h2>
           <div class="ro-settings-row ro-settings__online-intro">
             <div class="ro-settings-row__copy">
-              <p class="ro-muted">Two ways to play together. Both run on a <b>room host</b>: one computer that friends join from their own browser, on the same Wi-Fi or over the internet on a shared virtual LAN.</p>
+              <p class="ro-muted">Two ways to play together. One computer runs the <b>RetroOasis host app</b>; friends join from their own phone or computer on the same Wi-Fi. Far apart? You can all join a free app like Tailscale instead.</p>
               <div class="ro-online-methods">
                 <article class="ro-online-method">
                   <h3>Online rooms</h3>
                   <p>You run the game; friends see your screen and play with their own controller. They don’t need the game.</p>
                   <ul class="ro-settings__online-systems" aria-label="Online room systems">
                     <li><span>NES · SNES · Mega Drive · PlayStation</span><span>2 players</span></li>
-                    <li><span>Nintendo 64 <em>Experimental</em></span><span>Up to 4</span></li>
+                    <li><span>Nintendo 64 <em>Beta</em></span><span>Up to 4</span></li>
                   </ul>
                   <p class="ro-online-method__how">Game page → <b>Host a room</b></p>
                 </article>
@@ -311,7 +311,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                   <h3>Trade &amp; link</h3>
                   <p>Two handhelds on one link cable, for trades and link battles. Each player brings their own game and save.</p>
                   <ul class="ro-settings__online-systems" aria-label="Trade and link systems">
-                    <li><span>Game Boy · Color · GBA <em>Experimental</em></span><span>2 players</span></li>
+                    <li><span>Game Boy · Color · GBA <em>Beta</em></span><span>2 players</span></li>
                   </ul>
                   <p class="ro-online-method__how">Game page → <b>Start Trade &amp; link</b></p>
                 </article>
@@ -320,8 +320,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           </div>
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
             <div class="ro-settings-row__copy">
-              <strong>Room host <span class="ro-settings__online-state" id="ro-lan-state" data-state="checking">Checking</span></strong>
-              <p class="ro-muted" id="ro-lan-service-status" role="status" aria-atomic="true">Checking for a room host at this address…</p>
+              <strong>Host app <span class="ro-settings__online-state" id="ro-lan-state" data-state="checking">Checking</span></strong>
+              <p class="ro-muted" id="ro-lan-service-status" role="status" aria-atomic="true">Checking whether the host app is running…</p>
               <p class="ro-muted" id="ro-lan-controls-status" hidden></p>
             </div>
             <button type="button" class="ro-btn ro-btn--ghost" id="ro-check-lan" data-focus-id="lan-check" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Check again</button>
@@ -343,21 +343,21 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row ro-settings-row--note" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <details class="ro-settings__help">
-                <summary data-focus-id="lan-help" data-ro-focusable="true">Set up a room host</summary>
+                <summary data-focus-id="lan-help" data-ro-focusable="true">Set up the host app</summary>
                 <ol class="ro-settings__online-steps ro-muted">
                   <li>On the computer that will host, install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> (version 18 or newer).</li>
-                  <li>Unzip the <b>RetroOasis room host</b> folder there and run <b>start-host</b>.</li>
-                  <li>On that computer, open the <b>localhost</b> address it shows, add your games, and choose <b>Host a room</b>.</li>
+                  <li>Unzip the <b>RetroOasis host app</b> folder there and run <b>start-host</b>.</li>
+                  <li>On that computer, open the address it shows (starting with <b>http://localhost</b>), add your games, and choose <b>Host a room</b>.</li>
                 </ol>
-                <p class="ro-muted"><b>Over the internet:</b> everyone joins the same virtual LAN (<a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, <a href="https://github.com/slackhq/nebula" target="_blank" rel="noopener">Nebula</a> or <a href="https://www.zerotier.com" target="_blank" rel="noopener">ZeroTier</a>), then pick that network’s invite address. No port forwarding.</p>
-                <p class="ro-muted"><b>Friends can’t connect?</b> Use the invite address marked Wi-Fi or Ethernet, put everyone on the same network (guest Wi-Fi often blocks this), and let Node.js through the host’s firewall.</p>
+                <p class="ro-muted"><b>Playing with someone far away:</b> you both install a free private-network app (<a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, <a href="https://github.com/slackhq/nebula" target="_blank" rel="noopener">Nebula</a> or <a href="https://www.zerotier.com" target="_blank" rel="noopener">ZeroTier</a>), then pick that network in the room’s invite list.</p>
+                <p class="ro-muted"><b>Friends can’t connect?</b> Send the invite marked Wi-Fi, make sure everyone is on the same Wi-Fi (guest Wi-Fi often blocks this), and if the computer asks, allow Node.js through its firewall.</p>
                 <details class="ro-settings__help">
                   <summary data-focus-id="lan-dev" data-ro-focusable="true">From the project folder (developers)</summary>
                   <ol class="ro-settings__online-steps ro-muted">
-                    <li>Build the portable room host:<code>npm run oasis:host:pack</code></li>
+                    <li>Build the host app folder:<code>npm run oasis:host:pack</code></li>
                     <li>Or run it in place. Prepare cores once, while online:<code>npm run oasis:lan:prepare</code></li>
                     <li>For Trade &amp; link, build the link cores once:<code>npm run oasis:lan:link</code></li>
-                    <li>Start the room host:<code>npm run oasis:lan</code></li>
+                    <li>Start the host app:<code>npm run oasis:lan</code></li>
                   </ol>
                   <p class="ro-muted">Guest game controllers need HTTPS: <code>npm run oasis:lan:cert</code>, then start with <code>--cert</code> and <code>--key</code> (see README).</p>
                 </details>
@@ -594,7 +594,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Host RetroOasis yourself</strong>
-              <p class="ro-muted">It’s a static site: run <code>npm run oasis:build</code> and serve <code>dist/</code> beside <code>data/</code> and <code>roms/</code>. Online play needs a room host (see Online play).</p>
+              <p class="ro-muted">It’s a static site: run <code>npm run oasis:build</code> and serve <code>dist/</code> beside <code>data/</code> and <code>roms/</code>. Online play needs the host app (see Online play).</p>
             </div>
           </div>
         </section>
@@ -719,7 +719,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     const badge = root.querySelector<HTMLElement>('#ro-lan-state')
     const controls = root.querySelector<HTMLElement>('#ro-lan-controls-status')
     const actions = Array.from(root.querySelectorAll<HTMLAnchorElement>('#ro-lan-host, #ro-lan-join'))
-    if (status) status.textContent = 'Checking for a room host at this address…'
+    if (status) status.textContent = 'Checking whether the host app is running…'
     if (badge) { badge.textContent = 'Checking'; badge.dataset.state = 'checking' }
     if (controls) controls.hidden = true
     for (const action of actions) { action.removeAttribute('href'); action.setAttribute('aria-disabled', 'true'); action.tabIndex = -1 }
@@ -727,21 +727,21 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     if (!active || attempt !== lanCheck) return
     const browserSupported = typeof window.RTCPeerConnection === 'function'
     const messages = {
-      ready: ['Ready', 'A room host is running here. Friends can join the rooms you host.'],
-      unavailable: ['Not here', 'No room host at this address. Guests: open the host’s invite link. Hosts: start a room host (see Set up a room host) and open the address it shows.'],
-      unreachable: ['Unavailable', 'Couldn’t reach the room host. Keep its window open, check the network, then try again.'],
-      timeout: ['Timed out', 'The room host took too long to reply. Check the host computer and network, then try again.'],
-      incompatible: ['Update needed', 'This page and the room host are different versions. Update the room host, restart it and reload.'],
-      invalid: ['Unexpected response', 'This address didn’t answer like a room host. Restart it and open the address it shows.'],
+      ready: ['Running', 'The host app is running here. You can host, and friends can join.'],
+      unavailable: ['Not running', 'The host app isn’t running here. Joining a friend? Open their invite link. Hosting? Start the host app (see Set up the host app) and open the address it shows.'],
+      unreachable: ['Can’t reach it', 'Couldn’t reach the host app. Keep its window open, check the Wi-Fi, then try again.'],
+      timeout: ['No answer', 'The host app took too long to answer. Check the host computer and Wi-Fi, then try again.'],
+      incompatible: ['Update needed', 'This page and the host app are different versions. Update the host app, restart it and reload this page.'],
+      invalid: ['Something’s wrong', 'This address didn’t answer like the host app. Restart the host app and open the address it shows.'],
     } as const
-    const [label, message] = browserSupported ? messages[result.state] : ['Browser unsupported', 'This browser does not provide WebRTC. Open the host’s invite in a browser with WebRTC support.']
+    const [label, message] = browserSupported ? messages[result.state] : ['Browser not supported', 'This browser can’t play online. Use a current Chrome, Edge, Firefox or Safari.']
     const available = browserSupported && result.state === 'ready'
     if (status) status.textContent = message
     if (badge) { badge.textContent = label; badge.dataset.state = available ? 'ready' : 'unavailable' }
     if (controls && available && result.state === 'ready') {
       controls.textContent = result.info.secure
-        ? 'Secure address: guests can use keyboard, touch and game controllers.'
-        : 'Guests can use keyboard and touch. Game controllers need a secure (HTTPS) host; see setup.'
+        ? 'Secure: friends can use a keyboard, touch screen or game controller.'
+        : 'Friends can play with a keyboard or touch screen. For their game controllers, the host app needs a security certificate (see developers below).'
       controls.hidden = false
     }
     // Re-enable the check before moving focus away from an unavailable link.

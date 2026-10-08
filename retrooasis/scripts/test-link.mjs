@@ -14,10 +14,10 @@ import { transferPakArgs, isBlank, keepsCartRam, cartTitle } from '../public/tra
 import { deflateRawSync } from 'node:zlib'
 
 // Pure checks run everywhere.
-assert.throws(() => cartridgeInfo('gb', new Uint8Array(0x8000)), /header is damaged/)
-assert.throws(() => cartridgeInfo('gb', new Uint8Array(100)), /not a Game Boy/)
-assert.throws(() => cartridgeInfo('gba', new Uint8Array(0x8000)), /not a Game Boy Advance/)
-assert.throws(() => cartridgeInfo('psp', new Uint8Array(10)), /no link cable/)
+assert.throws(() => cartridgeInfo('gb', new Uint8Array(0x8000)), /looks damaged/)
+assert.throws(() => cartridgeInfo('gb', new Uint8Array(100)), /isn’t a Game Boy/)
+assert.throws(() => cartridgeInfo('gba', new Uint8Array(0x8000)), /isn’t a Game Boy Advance/)
+assert.throws(() => cartridgeInfo('psp', new Uint8Array(10)), /can’t trade or link/)
 assert.deepEqual(cartridgeInfo('gb', withGbHeader(blockCartridge(1, 1), 'TRADE')), { system: 'gb', color: true, title: 'TRADE' })
 // Color headers: Yellow's title runs into the maker-code bytes; Gold's ends before its code.
 const gbTitle = (title, flag) => {
@@ -37,8 +37,8 @@ assert.equal(gbaLinkMode(['AXVE', 'BPRE']), 1, 'Ruby/Sapphire force the Pokémon
 assert.equal(gbaLinkMode(['BPRE', 'BPGE']), 0, 'FireRed/LeafGreen keep gpSP’s per-game choice')
 assert(validSaveSize('gba', 131072) && !validSaveSize('gba', 1000))
 assert(validSaveSize('gb', 32768 + 48) && !validSaveSize('gb', 0))
-await assert.rejects(createLinkSession({ system: 'gb', carts: [new Uint8Array(1)] }), /two cartridges/)
-await assert.rejects(createLinkSession({ system: 'gba', carts: [gbaCartridge(), gbaCartridge()], saves: [new Uint8Array(1000), null] }), /not a GBA save/)
+await assert.rejects(createLinkSession({ system: 'gb', carts: [new Uint8Array(1)] }), /two games/)
+await assert.rejects(createLinkSession({ system: 'gba', carts: [gbaCartridge(), gbaCartridge()], saves: [new Uint8Array(1000), null] }), /isn’t a GBA save/)
 // Cartridge/save transfer framing over the 'cart' data channel.
 const sent = []
 const channel = { readyState: 'open', bufferedAmount: 0, send: data => sent.push(data), addEventListener() {}, removeEventListener() {} }
@@ -70,7 +70,7 @@ const goldFirstBoot = new Uint8Array(32768).fill(0xff); goldFirstBoot.set([0x1b,
 assert(isBlank(goldFirstBoot), 'Gold’s first-boot marker is not a save')
 // Stadium writes scratch bytes into a cartridge with no save: still not a save.
 assert(!keepsCartRam(null, Uint8Array.of(0, 7, 9)) && !keepsCartRam(new Uint8Array(4), new Uint8Array(4)) && keepsCartRam(new Uint8Array(4), Uint8Array.from({ length: 64 }, (_, i) => i)), 'Only a cartridge that had a save is written back')
-assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null, howTo: 'Use the game’s trade or link menu on both consoles.' })
+assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null, howTo: 'Use the trade or battle menu in both games.' })
 assert.match(describeGbaLink([2, 2]).howTo, /Union Room/, 'Wireless-adapter links say where Pokémon players trade')
 {
   // Quick taps survive slow catch-up batches: a release waits for two emulated frames.
@@ -89,8 +89,8 @@ assert.match(describeGbaLink([2, 2]).howTo, /Union Room/, 'Wireless-adapter link
   assert.deepEqual(calls.at(-1), [0, 5, true], 'Pressing again cancels a deferred release')
 }
 assert.match(describeGbaLink([3, 2], ['POKEMON RUBY', 'POKEMON FIRE']).warning, /Pair Ruby with Sapphire/, 'Cable and wireless Pokémon games explain the pairing')
-assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle has no link support/, 'Games without a gpSP link mode are named')
-assert.match(describeGbaLink([2, 4]).warning, /different link modes/, 'Mismatched link modes are reported')
+assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle can’t link/, 'Games without a gpSP link mode are named')
+assert.match(describeGbaLink([2, 4]).warning, /can’t link with each other/, 'Mismatched link modes are reported')
 {
   // Automatic save sync reports each in-game save once, after it stops changing.
   const settle = saveSettler(Uint8Array.of(1, 1))
@@ -152,7 +152,7 @@ const loadCore = async (name, options = {}) => {
   return create({ ...options, wasmBinary: await loadFile(name.replace('.mjs', '.wasm')) })
 }
 
-await assert.rejects(createLinkSession({ system: 'gb', carts: [withGbHeader(blockCartridge(0, 0)), withGbHeader(blockCartridge(1, 0))], saves: [new Uint8Array(100), null], loadCore, loadFile }), /doesn’t match its cartridge/, 'A save smaller than the cartridge RAM is refused')
+await assert.rejects(createLinkSession({ system: 'gb', carts: [withGbHeader(blockCartridge(0, 0)), withGbHeader(blockCartridge(1, 0))], saves: [new Uint8Array(100), null], loadCore, loadFile }), /doesn’t match that game/, 'A save smaller than the cartridge RAM is refused')
 // GB ↔ GBC on one cable through SameBoy's real boot ROMs; saves stay per console.
 const carts = [withGbHeader(blockCartridge(0, 0, { wait: 6 }), 'HOST GB'), withGbHeader(blockCartridge(1, 1), 'GUEST GBC')]
 const guestSave = new Uint8Array(8192).fill(0x5c)
@@ -234,7 +234,7 @@ for (const [codes, expected] of [[['AXVE', 'AXPE'], 'Pokémon link cable'], [['B
   const session = await createLinkSession({ system: 'gba', carts: codes.map((code, i) => gbaCartridge(`G${i}`, code)), loadCore, loadFile })
   try {
     assert.equal(session.link.label, expected, `${codes.join(' + ')} link: ${expected ?? 'unsupported'}`)
-    if (!expected) assert.match(session.link.warning, /no link support/)
+    if (!expected) assert.match(session.link.warning, /can’t link in RetroOasis yet/)
   } finally { session.close() }
 }
 console.log('PASS GBA link mode detection: Pokémon and Advance Wars cables, unsupported-game warning')

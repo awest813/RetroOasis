@@ -385,3 +385,23 @@ Every online surface was walked as a first-time user: Settings, the game-page ca
 - **Settings → Online play:** plain room host status, and "Set up a room host" is three numbered steps (install Node.js, run start-host, open localhost and host), then one line on internet play and one on fixing connections. Developer commands are folded away.
 
 **Regression:** full `npm test`, lint (0 errors), and the in-repo online browser test (NES room and Game Boy link, Chromium and Firefox guests) passed.
+
+## Online play in everyday language (October 7)
+
+Every word a player sees in online play was rewritten without technical terms, then read back in a full capture of every screen.
+- **Names:**
+  - The program on the hosting computer is **the host app** (it was "room host", "room service" and "LAN server").
+  - Players add a **game**, not a cartridge or ROM.
+  - Rooms have **spots**, not seats.
+  - N64 and Trade & link are **Beta** (they were "Experimental").
+  - In Trade & link it's **you** and **your friend**, not Console 1 and Console 2.
+- **No jargon on screen:**
+  - **Removed terms:** LAN, client isolation, WebRTC, core, link mode and "page focus" are gone from what players see.
+  - **Internet play** reads as "Far apart? You can both join a free app like Tailscale."
+  - **Game controllers** that need HTTPS read as "your friend's host app needs its security certificate set up".
+  - **Errors** say what to do: "This system needs a one-time setup on the host computer…", "That room isn't open anymore. Ask your friend for a new invite.", "You were away too long, so your spot was given up. Join again."
+- **Connection chip:** it reads "Great / OK / Weak connection"; frames per second and delay stay in its tooltip.
+- **Buttons:** Turn on sound, Mute, Full screen, Add game, Download my save, Start, Finish.
+- **Tests:** strings pinned by tests were updated: roster states, room summary ("1 of 4 players · 3 spots open"), link validation errors and GBA link messages.
+
+**Regression:** full `npm test`, lint (0 errors), and the in-repo online browser test (NES room and Game Boy link, Chromium and Firefox guests, 14/14).

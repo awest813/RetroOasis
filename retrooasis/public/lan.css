@@ -106,7 +106,7 @@ html[data-accent="ps"] { --ro-accent: var(--ro-accent-ps); --ro-line: rgba(240, 
 .ro-lan-seat, .ro-lan-quality { margin: 0; padding: .2rem .65rem; border-radius: 999px; background: var(--lan-panel); border: 1px solid var(--lan-line); font-size: .85rem; white-space: nowrap; }
 .ro-lan-seat { color: var(--lan-text); }
 .ro-lan-seat:empty, .ro-lan-quality:empty { display: none; }
-.ro-lan-quality { font: 12px/1.6 ui-monospace, monospace; color: var(--lan-muted); }
+.ro-lan-quality { font-size: .8rem; color: var(--lan-muted); }
 .ro-lan-quality::before { content: ''; display: inline-block; width: .55rem; height: .55rem; margin-right: .4rem; border-radius: 50%; background: #5d7280; }
 .ro-lan-quality[data-level=good]::before { background: var(--lan-good); }
 .ro-lan-quality[data-level=fair]::before { background: var(--lan-fair); }

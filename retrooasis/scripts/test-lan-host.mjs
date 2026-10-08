@@ -65,13 +65,13 @@ room.players.push(...[1,2,3].map(slot=>({slot,id:`p${slot}`,socketId:`s${slot}`,
 events.get('room:update')(room)
 assert.equal(peers.length,3)
 for(const peer of peers){peer.setState('connected');assert(timers.has(peer.deadline),'Media connection alone must not cancel the control-channel deadline')}
-assert([...rosterStates.values()].every(state=>state==='Connecting to game…'))
+assert([...rosterStates.values()].every(state=>state==='Connecting…'))
 const timedOut=peers[1]
 timers.get(timedOut.deadline)()
-assert.equal(rosterStates.get('s2'),'Timed out · reconnect')
+assert.equal(rosterStates.get('s2'),'Couldn’t connect · ask them to rejoin')
 assert.match(lastStatus,/Player 3/)
 for(const peer of peers){peer.channel.readyState='open';peer.channel.onopen();assert(!timers.has(peer.deadline))}
-assert([...rosterStates.values()].every(state=>state==='Ready to play'))
+assert([...rosterStates.values()].every(state=>state==='Ready'))
 assert(peers.every(peer=>peer.channel.sent.at(-1)?.type==='state'&&peer.channel.sent.at(-1).paused===false),'Guests learn the pause state when their controls open')
 assert.equal(panel.nodes.details.open,false,'A full, ready room folds the floating panel off the game')
 assert.equal(panel.nodes.summary.textContent,'Online room · 4/4','The folded panel still shows the seat count')

@@ -176,7 +176,7 @@ assert.deepEqual(presses.values(), [0], 'One pointer cannot release another poin
 presses.release(2); presses.clear(); const clearedChanges = changes; advance(100)
 assert.deepEqual(presses.values(), []); assert.equal(changes, clearedChanges, 'Focus loss cancels all pending tap callbacks')
 assert.equal(timers.size, 0)
-await assert.rejects(request({ connected: false, timeout() { throw Error('Must not queue a mutation') } }, 'room:leave'), /disconnected/)
+await assert.rejects(request({ connected: false, timeout() { throw Error('Must not queue a mutation') } }, 'room:leave'), /Lost the connection/)
 const originalPeer = globalThis.RTCPeerConnection
 let sent = 0
 globalThis.RTCPeerConnection = class {
@@ -269,8 +269,8 @@ assert(![...portInputs.keys()].some(key => key.startsWith('2:')), 'Only the stal
 assert(portInputs.has('1:0') && portInputs.has('3:0'), 'Other guests remain active')
 remotePorts.forEach(receiver => receiver.release())
 assert.equal(portInputs.size, 0, 'Room end/pause neutralizes every port')
-assert.equal(roomSummary({maxPlayers:4,locked:false,players:[{connected:true}]}), '1/4 seats filled · 3 open')
-assert.equal(roomSummary({maxPlayers:4,locked:true,players:[{connected:true},{connected:true},{connected:false},{connected:true}]}), '4/4 seats filled · Full · 1 reserved for reconnect · Locked')
+assert.equal(roomSummary({maxPlayers:4,locked:false,players:[{connected:true}]}), '1 of 4 players · 3 spots open')
+assert.equal(roomSummary({maxPlayers:4,locked:true,players:[{connected:true},{connected:true},{connected:false},{connected:true}]}), '4 of 4 players · Full · 1 reconnecting · Locked')
 console.log('PASS simultaneous N64 ports, independent disconnect/stale release and four-seat summaries')
 assert.deepEqual(analog.slice(-2), [[16, 0], [18, 0]], 'Release clears both diagonal axes')
 assert(n64.receive(n64Packet(3, [12], [0.5, 0]), false), 'Paused input is validated and its sequence is consumed')
