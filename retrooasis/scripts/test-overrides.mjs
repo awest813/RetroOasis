@@ -114,5 +114,16 @@ check('title-only patch keeps title', renamed.title, 'Pixel Quest+')
 check('title-only patch drops matching core', renamed.core, '')
 check('title-only persists', setOverride('demo-3', renamed)?.title, 'Pixel Quest+')
 
+// The shelf shows saved edits, so editing one field must not drop the others.
+const shown = { ...catalog, title: 'Renamed', description: 'Mine' }
+const yearOnly = formFieldsToPatch(shown, { title: 'Renamed', core: 'nes', year: '1999', developer: '', cover: '', description: 'Mine' }, { title: 'Renamed', description: 'Mine' })
+check('editing the year keeps the saved title', yearOnly.title, 'Renamed')
+check('editing the year keeps the saved description', yearOnly.description, 'Mine')
+check('editing the year saves the year', yearOnly.year, '1999')
+const blanked = formFieldsToPatch(shown, { title: '   ', core: 'nes', year: '', developer: '', cover: '', description: 'Mine' }, { title: 'Renamed', description: 'Mine' })
+check('a blank title drops the edit', blanked.title, '')
+const padded = formFieldsToPatch(catalog, { title: '  New  ', core: 'nes', year: '', developer: '', cover: '', description: '' })
+check('text is trimmed', padded.title, 'New')
+
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

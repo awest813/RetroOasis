@@ -38,8 +38,10 @@ if (!process.features.typescript) {
   process.exit(result.status ?? 1)
 }
 
-const { peekArchive, platformFromArchiveEntries, detectRomPlatform, archiveFormatFromBytes } =
+const { peekArchive, platformFromArchiveEntries, detectRomPlatform, archiveFormatFromBytes, archiveProblem } =
   await import(`file://${path.join(cacheDir, 'archives.ts').replace(/\\/g, '/')}`)
+const { peekChdMedia, unsupportedChdReason } = await import(`file://${path.join(cacheDir, 'iso.ts').replace(/\\/g, '/')}`)
+const { platformFromFolder } = await import(`file://${path.join(cacheDir, 'cores.ts').replace(/\\/g, '/')}`)
 
 let passed = 0
 let failed = 0
@@ -427,6 +429,53 @@ function makeRawIso(names, volumeId = 'CDROM') {
 
 check('raw 2352 iso system.cnf is psx', await detectRomPlatform(toFile(makeRawIso(['SYSTEM.CNF']), 'final.iso')), 'psx')
 check('zipped lone iso stays unknown', await detectRomPlatform(toFile(makeZip(['disc.iso']), 'disc.zip')), null)
+
+const goodZip = makeZip(['game.gba'])
+check('valid zip has no problem', await archiveProblem(toFile(goodZip, 'game.zip')), null)
+check('truncated zip is reported', /incomplete|damaged/.test(await archiveProblem(toFile(goodZip.subarray(0, goodZip.length - 30), 'cut.zip'))), true)
+check('text renamed .zip is reported', /isn.t a real \.zip/.test(await archiveProblem(toFile(new TextEncoder().encode('not a zip at all'), 'fake.zip'))), true)
+check('non-archives are not judged', await archiveProblem(toFile(new Uint8Array(10), 'game.gba')), null)
+
+const bigUnreadable = toFile(new Uint8Array(64), 'pc-game.7z')
+Object.defineProperty(bigUnreadable, 'size', { value: 2.6e9 })
+check('multi-gigabyte unreadable archive is not assumed arcade', await detectRomPlatform(bigUnreadable), null)
+const bigDos = toFile(makeZip(['SETUP.EXE', 'DATA1.CAB']), 'installer.zip')
+Object.defineProperty(bigDos, 'size', { value: 2.0e9 })
+check('a 2 GB archive of .exe files is not DOS', await detectRomPlatform(bigDos), null)
+check('a small archive of .exe files is DOS', await detectRomPlatform(toFile(makeZip(['GAME.EXE']), 'game.zip')), 'dos')
+const smallUnreadable = toFile(new Uint8Array(64), 'sets.7z')
+check('small unreadable archive still falls back to arcade', await detectRomPlatform(smallUnreadable), 'arcade')
+
+// CHD v5: a 124-byte header whose metadata chain tells CD images from Dreamcast and DVD dumps.
+function makeChd(tag, version = 5) {
+  const buf = new Uint8Array(124 + 16 + 20)
+  const view = new DataView(buf.buffer)
+  buf.set(new TextEncoder().encode('MComprHD'), 0)
+  view.setUint32(8, 124)
+  view.setUint32(12, version)
+  view.setBigUint64(48, 124n)
+  buf.set(new TextEncoder().encode(tag), 124)
+  view.setUint32(128, 20) // flags 0, length 20
+  return buf
+}
+check('chd CD metadata is a CD image', await peekChdMedia(toFile(makeChd('CHT2'), 'tekken.chd')), 'cd')
+check('chd GD-ROM metadata is Dreamcast', await peekChdMedia(toFile(makeChd('CHGD'), 'taxi.chd')), 'gdrom')
+check('chd DVD metadata is a DVD image', await peekChdMedia(toFile(makeChd('DVD '), 'madden.chd')), 'dvd')
+check('chd v4 is unknown, not rejected', await peekChdMedia(toFile(makeChd('CHGD', 4), 'old.chd')), null)
+check('non-chd bytes are unknown', await peekChdMedia(toFile(new Uint8Array(400), 'junk.chd')), null)
+check('CD chd has no objection', await unsupportedChdReason(toFile(makeChd('CHT2'), 'tekken.chd')), null)
+check('Dreamcast chd is explained', /Dreamcast/.test(await unsupportedChdReason(toFile(makeChd('CHGD'), 'taxi.chd'))), true)
+check('DVD chd is explained', /DVD/.test(await unsupportedChdReason(toFile(makeChd('DVD '), 'madden.chd'))), true)
+
+// Folder names as Libretro / No-Intro collections spell them.
+const folders = {
+  gba: 'gba', 'Nintendo - Game Boy Advance': 'gba', 'Nintendo - Game Boy Color': 'gb', 'Nintendo - Game Boy': 'gb',
+  'Nintendo - NES': 'nes', 'Nintendo - Nintendo Entertainment System': 'nes', 'Nintendo - Super Nintendo Entertainment System': 'snes',
+  'Sega - Genesis': 'segaMD', 'Sega - Mega Drive - Genesis': 'segaMD', 'Sega - Master System - Mark III': 'segaMS',
+  'Sony - PlayStation': 'psx', 'Sega - Game Gear': 'segaGG', 'Atari - Lynx': 'lynx', 'NEC - PC Engine - TurboGrafx-16': 'pce',
+  'Mega Drive': 'segaMD', Games: null, Pictures: null,
+}
+for (const [folder, platform] of Object.entries(folders)) check(`folder "${folder}"`, platformFromFolder(folder), platform)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

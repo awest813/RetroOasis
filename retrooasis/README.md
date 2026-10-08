@@ -113,6 +113,8 @@ roms/
   covers/nes/Game.png   # optional
 ```
 
+Folder names can be short (`gba`, `nes`, `Mega Drive`) or spelled as collections spell them (`Nintendo - Game Boy Advance`, `Sega - Mega Drive - Genesis`, `Sony - PlayStation`). If the folder you pick has no system folders, the folders one level down are used, so you can pick `Downloads` and find `Downloads/Games/<system>/`. `npm run oasis:manifest` reads the same names.
+
 Handles are remembered in IndexedDB. Linked-folder ROMs are staged in IndexedDB before navigating to `player.html` (blob URLs do not survive that navigation). Saved uploads use a permanent library store instead.
 
 ### Sidecar metadata

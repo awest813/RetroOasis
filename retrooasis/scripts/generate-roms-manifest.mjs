@@ -65,6 +65,28 @@ const COVER_EXT = ['png', 'jpg', 'jpeg', 'webp']
 const DESCRIPTOR_EXT = new Set(['cue', 'ccd', 'm3u', 'toc'])
 const COMPANION_EXT = new Set(['bin', 'img', 'iso', 'wav', 'chd', 'sub', 'ape', 'flac', 'cdg', 'scm', 'mdf', 'mds'])
 
+/** Mirrors platformFromFolder in src/lib/cores.ts: short aliases plus Libretro / No-Intro folder names. */
+const FOLDER_LONG_NAMES = {
+  nintendoentertainmentsystem: 'nes', supernintendoentertainmentsystem: 'snes', supernintendo: 'snes', superfamicom: 'snes',
+  gameboycolor: 'gb', gameboyadvance: 'gba', nintendods: 'nds', nintendodsi: 'nds',
+  megadrivegenesis: 'segaMD', genesismegadrive: 'segaMD', segamegadrive: 'segaMD', segagenesis: 'segaMD',
+  segamastersystem: 'segaMS', segagamegear: 'segaGG', segacdmegacd: 'segaCD', megacdsegacd: 'segaCD', segasaturn: 'segaSaturn',
+  sonyplaystation: 'psx', sonyplaystationportable: 'psp', turbografx16: 'pce', pcenginetg16: 'pce', pcengineturbografx16: 'pce',
+  neogeopocketcolor: 'ngp', wonderswancolor: 'ws', atarilynx: 'lynx', atarijaguar: 'jaguar',
+}
+function platformFromFolder(name) {
+  const direct = FOLDER_TO_PLATFORM[name.trim().toLowerCase().replace(/\s+/g, '')]
+  if (direct) return direct
+  const squash = (text) => text.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '')
+  const parts = name.split(/\s+-\s+/)
+  const candidates = [squash(name), ...parts.map(squash), ...(parts.length > 2 ? [squash(parts.slice(1).join(' '))] : [])]
+  for (const key of candidates) {
+    const platform = FOLDER_LONG_NAMES[key] ?? FOLDER_TO_PLATFORM[key]
+    if (platform) return platform
+  }
+  return null
+}
+
 const hostedPath = (...parts) => parts.map(encodeURIComponent).join('/')
 
 function parseCueFileReferences(text) {
@@ -165,8 +187,7 @@ const games = []
 
 for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue
-  const key = entry.name.trim().toLowerCase().replace(/\s+/g, '')
-  const platform = FOLDER_TO_PLATFORM[key]
+  const platform = platformFromFolder(entry.name)
   if (!platform) continue
 
   const platformDir = path.join(romsRoot, entry.name)

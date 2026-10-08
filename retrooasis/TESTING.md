@@ -405,3 +405,16 @@ Every word a player sees in online play was rewritten without technical terms, t
 - **Tests:** strings pinned by tests were updated: roster states, room summary ("1 of 4 players · 3 spots open"), link validation errors and GBA link messages.
 
 **Regression:** full `npm test`, lint (0 errors), and the in-repo online browser test (NES room and Game Boy link, Chromium and Firefox guests, 14/14).
+
+## Menus, settings and Downloads ROM audit (October 7)
+
+The full findings, fixes and open items are in [docs/plans/audit-menus-roms.md](../docs/plans/audit-menus-roms.md). In short:
+
+- **Every ROM in Downloads.** 825 zipped cartridge ROMs (GB, GBC, GBA, NES, Genesis) plus 7 N64 ROMs, 9 CHD discs and loose zips, were each loaded in the real player on the Stable channel. All 825 zips were intact, every one was detected as the right system by Add ROM, and every N64 and CD-based PlayStation game started and drew. Failures were limited to games the Stable core can't run (see the plan), and the two non-CD `.chd` files (Dreamcast, DVD) are now refused with a reason.
+- **Every Settings control.** 49 checks drove each control in the built app: state, DOM effect, storage, persistence across reload, the section rail, downloads, and the hidden-samples count.
+- **Devices.** 11 viewports (desktop 1920, laptops, Chromebooks with touch, tablets, phones in both orientations) on 8 routes: no horizontal overflow, 44 px touch targets, 11 px minimum text.
+- **Edge cases.** Malformed routes, hostile search and edit text, throwing storage, a slow library, bad player parameters, and truncated, empty and garbage uploads.
+
+`npm --prefix retrooasis run test:roms -- "<folder of system folders>" [--limit N] [--concurrency N] [--channel nightly]` repeats the ROM check on your own collection. It serves the folder read-only on loopback, boots each game in the real player and reports ok, blank or failed. It needs a build and Playwright, like `test:online-browser`.
+
+New unit checks in `npm test`: CHD media detection, folder names in the Libretro / No-Intro style, damaged-archive detection, size guards for unreadable archives, router decoding and case, and edited-field merging.

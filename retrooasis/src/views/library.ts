@@ -1,4 +1,5 @@
 import {
+  catalogExtrasPending,
   countByPlatform,
   findPlatform,
   gamesForPlatform,
@@ -83,6 +84,8 @@ export async function renderLibrary(
   if (!active) return
 
   let sel = normalizeSelection(selection)
+  // #/library/GBA and #/library/gba are the same shelf.
+  if (sel.kind === 'platform') sel = { kind: 'platform', id: findPlatform(catalog, sel.id)?.id ?? sel.id }
   let query = ''
   let queryRaw = ''
   let searchTimer = 0
@@ -142,10 +145,13 @@ export async function renderLibrary(
     if (!isRecent) games = [...games].sort((a, b) => Number(!!a.demo) - Number(!!b.demo) || a.title.localeCompare(b.title))
 
     const heading = shelfTitle(sel, catalog)
+    document.title = `RetroOasis · ${heading}`
+    // "Add a ROM to start" only once the hosted list, saved ROMs and linked folder have all been read.
     const demoOnly =
-      !catalog.local && !(catalog.uploadedCount ?? 0) && !(catalog.hostedCount ?? 0)
+      !catalogExtrasPending() && !catalog.local && !(catalog.uploadedCount ?? 0) && !(catalog.hostedCount ?? 0)
     const sampleCue =
-      games.some((g) => g.demo) && !demoOnly
+      // The hint is for a mostly empty shelf; a full library doesn't need it.
+      games.some((g) => g.demo) && !demoOnly && games.filter((g) => !g.demo).length < 12
         ? '<p class="ro-gallery__cue">Sample entries fill the shelf so you can explore the UI — hide them in Settings if you only want real ROMs.</p>'
         : ''
     const onboard = demoOnly
@@ -199,8 +205,9 @@ export async function renderLibrary(
       ),
     ]
 
+    const twins = findTwins(games)
     const body = `<div class="ro-grid" data-ro-grid>${games
-      .map((g) => gameTile(g, platformById.get(g.platform), useLibretro))
+      .map((g) => gameTile(g, platformById.get(g.platform), useLibretro, twins.has(twinKey(g)) ? variantLabel(g) : ''))
       .join('')}</div>`
 
     root.innerHTML = `
@@ -408,10 +415,30 @@ function emptyState(sel: LibrarySelection): string {
     </div>`
 }
 
+/** Games that share a title and system (two regions or revisions), so their cards need telling apart. */
+const twinKey = (game: Game): string => `${game.platform}|${game.title.trim().toLowerCase()}`
+function findTwins(games: Game[]): Set<string> {
+  const seen = new Set<string>()
+  const twins = new Set<string>()
+  for (const game of games) {
+    const key = twinKey(game)
+    if (seen.has(key)) twins.add(key)
+    seen.add(key)
+  }
+  return twins
+}
+
+/** "USA, Europe · Rev 1" from the file name's tags, for cards that would otherwise read the same. */
+function variantLabel(game: Game): string {
+  const name = (game.romFilename ?? '').replace(/\.[^.]+$/, '')
+  return [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]).filter(Boolean).join(' · ')
+}
+
 function gameTile(
   game: Game,
   platform: Platform | undefined,
   useLibretro: boolean,
+  variant = '',
 ): string {
   const cover = resolveCoverUrls(game.platform, game.title, game.cover, useLibretro && !game.demo, game.romFilename ?? romFilenameFromUrl(game.file))
   const gameHref = hrefFor(`/game/${encodeURIComponent(game.id)}`)
@@ -420,13 +447,14 @@ function gameTile(
       <a
         class="ro-tile__link"
         href="${gameHref}"
+        title="${escapeAttr(variant ? `${game.title} (${variant})` : game.title)}"
         data-ro-focusable="true"
-        aria-label="View ${escapeAttr(game.title)} details${game.demo ? ' (sample)' : ''}"
+        aria-label="View ${escapeAttr(game.title)}${variant ? ` (${escapeAttr(variant)})` : ''} details${game.demo ? ' (sample)' : ''}"
       >
         ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
         <span class="ro-tile__caption">
           <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${game.demo ? ' · Sample' : ''}</span>
+          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${variant ? ` · ${escapeHtml(variant)}` : ''}${game.demo ? ' · Sample' : ''}</span>
         </span>
       </a>
     </div>

@@ -1,17 +1,20 @@
 import {
   findGame,
   findPlatform,
+  catalogExtrasPending,
   loadCatalog,
   platformAccentVar,
   refreshCatalogView,
   reloadUploadedLibrary,
 } from '../lib/catalog'
+import { archiveHoldsDisk, biosKindFor, biosSpec, hasBios, removeBios, saveBios } from '../lib/bios'
 import { coreNeedsThreads, coreOptionsMarkup, normalizePlayCore } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { hrefFor, navigate } from '../lib/router'
 import { launchGame } from '../lib/play'
+import { getLocalRomFiles, hasLocalHandle } from '../lib/localLibrary'
 import { checkLanService, LAN_CORES, LINK_CORES } from '../lib/lan'
 import {
   clearOverride,
@@ -68,6 +71,19 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   if (!active) return
   const game = findGame(catalog, gameId)
 
+  if (!game && catalogExtrasPending()) {
+    // A shared link opened before the library finished loading: wait, the shelf re-renders when it does.
+    root.innerHTML = `
+      <section class="ro-view">
+        <div class="ro-empty" role="status">
+          <p class="ro-empty__title">Loading your library…</p>
+          <p class="ro-empty__body">One moment.</p>
+        </div>
+      </section>
+    `
+    return
+  }
+
   if (!game) {
     root.innerHTML = `
       <section class="ro-view">
@@ -117,7 +133,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     'needs-core': 'This system needs a one-time setup on this computer first.',
     'needs-link': 'Trade & link needs a one-time setup on this computer first.',
   })[state]
-  let fileLabel = game.file
+  // Show the file as named on disk, not the percent-encoded URL (local:// ids mean nothing to people).
+  let fileLabel = game.romFilename ?? game.file
+  try { fileLabel = decodeURIComponent(fileLabel) } catch { /* keep the raw text */ }
   if (game.source === 'upload') {
     const record = await getUploadedRomRecord(game.id)
     if (!active) return
@@ -138,7 +156,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       status.textContent = lanHost === 'link' ? 'Opening Trade & link…' : 'Starting emulator…'
     }
     try {
-      await launchGame(game, undefined, lanHost, transferCarts.find(g => g.id === transferPakId))
+      await launchGame(game, undefined, lanHost, transferCarts.find(g => g.id === transferPakId), biosKind)
     } catch (err) {
       if (!active) return
       busy = false
@@ -212,6 +230,44 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
   }
 
+  // BIOS card: a system file some games can't start without (Famicom Disk System: disksys.rom).
+  let biosKind = biosKindFor(game)
+  if (!biosKind && normalizePlayCore(game.core) === 'nes') {
+    const holdsDisk = await archiveHoldsDisk(game, async () => {
+      if (game.source === 'upload') { const rec = await getUploadedRomRecord(game.id); return rec ? new Blob([rec.bytes]) : null }
+      if (hasLocalHandle(game.id)) return (await getLocalRomFiles(game.id))[0] ?? null
+      const res = await fetch(game.file, { cache: 'force-cache' })
+      return res.ok ? await res.blob() : null
+    })
+    if (holdsDisk) biosKind = 'fds'
+  }
+  if (!active) return
+  let biosPresent = biosKind ? await hasBios(biosKind) : false
+  if (!active) return
+  const bindBiosCard = () => {
+    if (!biosKind || !root.querySelector('#ro-bios-card')) return
+    const spec = biosSpec(biosKind)
+    const detail = root.querySelector<HTMLElement>('#ro-bios-detail')!
+    const input = root.querySelector<HTMLInputElement>('#ro-bios-file')!
+    root.querySelector('#ro-bios-add')?.addEventListener('click', () => { input.value = ''; input.click() })
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        await saveBios(biosKind, file)
+        biosPresent = true
+        paint('ro-bios-add')
+      } catch (error) { detail.textContent = friendlyError(error, `Couldn’t keep that file. Try ${spec.filename} again.`) }
+    })
+    root.querySelector('#ro-bios-remove')?.addEventListener('click', async () => {
+      try {
+        await removeBios(biosKind)
+        biosPresent = false
+        paint('ro-bios-add')
+      } catch (error) { detail.textContent = friendlyError(error, 'Couldn’t remove that file.') }
+    })
+  }
+
   paint = (restoreFocusId?: string) => {
     if (!active) return
     focusCleanup?.()
@@ -250,8 +306,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             ${threadBadge}
           </div>
           <p class="ro-lede">
-            Core <strong>${escapeHtml(playCore)}</strong>
-            · File <code>${escapeHtml(fileLabel)}</code>
+            <strong title="Emulator core: ${escapeAttr(playCore)}">${escapeHtml(platform?.name ?? playCore)}</strong>
+            · <code>${escapeHtml(fileLabel)}</code>
             ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
             ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
           </p>
@@ -260,6 +316,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               ? `<p class="ro-lede">${escapeHtml(game.description)}</p>`
               : ''
           }
+
           ${
             game.demo
               ? `<p class="ro-muted">This is a sample entry for exploring the UI — the ROM file isn’t included. Use <a href="${hrefFor('/upload')}">Add ROM</a> or link a folder in <a href="${hrefFor('/settings')}">Settings</a> to play a real game.</p>`
@@ -335,6 +392,20 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             </div>
             <input type="file" id="ro-save-file" accept=".sav,.srm,.sa1,.sra,.fla,.eep,.mpk,.mcr,.mcd,.dsv,application/octet-stream" hidden />
           </section>`}
+          ${biosKind ? `<section class="ro-online-card" id="ro-bios-card" aria-labelledby="ro-bios-title" data-state="${biosPresent ? 'ready' : 'none'}">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-bios-title">${escapeHtml(biosSpec(biosKind).label)} BIOS</h2>
+              <span class="ro-online-card__state" id="ro-bios-state">${biosPresent ? 'Added' : 'Needed'}</span>
+            </div>
+            <p class="ro-muted" id="ro-bios-detail" role="status" aria-live="polite">${biosPresent
+              ? `${escapeHtml(biosSpec(biosKind).filename)} is kept on this device and used when you play.`
+              : `This game needs <b>${escapeHtml(biosSpec(biosKind).filename)}</b> (${biosSpec(biosKind).size / 1024} KB) to start. Without it the emulator shows its own menu. Add your copy of the file here; it stays on this device.`}</p>
+            <div class="ro-btn-row">
+              <button type="button" class="ro-btn" id="ro-bios-add" data-ro-focusable="true"${busy ? ' disabled' : ''}>${biosPresent ? 'Replace file' : `Add ${escapeHtml(biosSpec(biosKind).filename)}`}</button>
+              ${biosPresent ? '<button type="button" class="ro-btn ro-btn--ghost" id="ro-bios-remove" data-ro-focusable="true">Remove</button>' : ''}
+            </div>
+            <input type="file" id="ro-bios-file" accept=".rom,.bin" hidden />
+          </section>` : ''}
           ${
             showMenu
               ? `
@@ -398,6 +469,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
     root.querySelector('#ro-demo-play')?.addEventListener('click', () => void startPlay('ro-demo-play'))
     bindSaveCard()
+    bindBiosCard()
     root.querySelector<HTMLSelectElement>('#ro-transfer-pak')?.addEventListener('change', event => {
       transferPakId = (event.target as HTMLSelectElement).value
       setTransferPak(game.id, transferPakId)
@@ -458,7 +530,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             developer: String(data.get('developer') || ''),
             cover: String(data.get('cover') || ''),
             description: String(data.get('description') || ''),
-          }),
+          }, getOverride(game.id)),
         )
         editing = false
         refreshCatalogView()

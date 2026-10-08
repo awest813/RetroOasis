@@ -17,9 +17,16 @@ type Listener = (route: Route) => void
 const listeners = new Set<Listener>()
 const VIRTUAL = new Set<VirtualCollection>(['recent', 'favorites', 'all'])
 
+/** A hand-typed or truncated link can hold a broken % escape; use it as written rather than throw. */
+function safeDecode(part: string): string {
+  try { return decodeURIComponent(part) } catch { return part }
+}
+
 function parseHash(hash: string): Route {
   const raw = hash.replace(/^#\/?/, '').replace(/\/$/, '')
   const parts = raw.split('/').filter(Boolean)
+  // Page names don't care about case (#/Settings); game and system ids keep theirs.
+  if (parts[0]) parts[0] = parts[0].toLowerCase()
 
   if (parts.length === 0) return { name: 'lobby' }
   // Bare #/library is the All-games shelf (same as #/library/@all).
@@ -27,11 +34,11 @@ function parseHash(hash: string): Route {
     return { name: 'collection', collection: 'all' }
   }
   if (parts[0] === 'library' && parts[1] === 'tag') {
-    if (parts[2]) return { name: 'tag', tagId: decodeURIComponent(parts[2]) }
+    if (parts[2]) return { name: 'tag', tagId: safeDecode(parts[2]) }
     return { name: 'notfound' }
   }
   if (parts[0] === 'library' && parts.length === 2 && parts[1]) {
-    const id = decodeURIComponent(parts[1])
+    const id = safeDecode(parts[1])
     if (id.startsWith('@')) {
       const collection = id.slice(1) as VirtualCollection
       if (VIRTUAL.has(collection)) return { name: 'collection', collection }
@@ -40,7 +47,7 @@ function parseHash(hash: string): Route {
     return { name: 'platform', platformId: id }
   }
   if (parts[0] === 'game' && parts.length === 2 && parts[1]) {
-    return { name: 'game', gameId: decodeURIComponent(parts[1]) }
+    return { name: 'game', gameId: safeDecode(parts[1]) }
   }
   if (parts[0] === 'upload' && parts.length === 1) return { name: 'upload' }
   if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' }

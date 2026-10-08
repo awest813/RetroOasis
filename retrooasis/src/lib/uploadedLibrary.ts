@@ -23,6 +23,8 @@ export interface LibraryRomRecord {
   size: number
   addedAt: number
   parts?: string[]
+  /** Extra labels such as 'famicom-disk' (needs a BIOS). */
+  tags?: string[]
 }
 
 /** Map an EmulatorJS core / system key to a platforms.json id. */
@@ -58,7 +60,7 @@ export function libraryRomRef(id: string): string {
 }
 
 function recordToGame(record: LibraryRomRecord): Game {
-  const tags = ['upload']
+  const tags = ['upload', ...(record.tags ?? [])]
   if ((record.parts?.length ?? 0) > 1) tags.push('disc-set')
   return {
     id: record.id,
@@ -88,10 +90,14 @@ export async function saveUploadedRom(file: Blob, filename: string, core: string
   return saveUploadedRomSet([new File([file], filename, { type: file.type })], core)
 }
 
-export async function saveUploadedRomSet(files: File[], core: string): Promise<SavedUpload> {
+export async function saveUploadedRomSet(files: File[], core: string, extraTags: string[] = []): Promise<SavedUpload> {
   const usable = files.filter((file) => file?.name?.trim() && file.size > 0)
   if (!usable.length) {
-    throw new Error('That file doesn’t have a name. Try another file.')
+    throw new Error(
+      files.some((file) => file?.name?.trim())
+        ? 'That file is empty (0 bytes). Download it again, then try again.'
+        : 'That file doesn’t have a name. Try another file.',
+    )
   }
   const primary = usable[0]
   const parts = usable.map((file) => file.name)
@@ -129,6 +135,7 @@ export async function saveUploadedRomSet(files: File[], core: string): Promise<S
     size: bytes.byteLength,
     addedAt: existing?.addedAt ?? Date.now(),
     parts,
+    ...(extraTags.length ? { tags: extraTags } : {}),
   }
 
   try {

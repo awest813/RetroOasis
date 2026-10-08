@@ -257,8 +257,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             </div>
           </div>
 
-          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
-          </section>
+        </section>
 
         <section class="ro-settings__group" aria-labelledby="ro-set-controller">
           <h2 class="ro-settings__heading" id="ro-set-controller">Controllers</h2>
@@ -559,7 +558,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
         <section class="ro-settings__group" aria-labelledby="ro-set-advanced">
           <h2 class="ro-settings__heading" id="ro-set-advanced">Advanced</h2>
-          <div class="ro-settings-row__copy">
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
               <strong>Emulator files</strong>
               <p class="ro-muted">
                 Where game cores and support files load from. Stable suits most systems.

@@ -236,12 +236,23 @@ export async function scanDirectory(root: FileSystemDirectoryHandle): Promise<Lo
     start = root
   }
 
-  for await (const [name, handle] of start.entries()) {
-    if (handle.kind !== 'directory') continue
-    const platformId = platformFromFolder(name)
-    if (!platformId) continue
-    await scanPlatformDir(platformId, handle as FileSystemDirectoryHandle, games)
-    await scanCoversBucket(start, platformId, games)
+  const scanSystems = async (parent: FileSystemDirectoryHandle): Promise<number> => {
+    let found = 0
+    for await (const [name, handle] of parent.entries()) {
+      if (handle.kind !== 'directory') continue
+      const platformId = platformFromFolder(name)
+      if (!platformId) continue
+      await scanPlatformDir(platformId, handle as FileSystemDirectoryHandle, games)
+      await scanCoversBucket(parent, platformId, games)
+      found += 1
+    }
+    return found
+  }
+  // Nothing recognised? The system folders may sit one level down (Downloads/Games/<system>/).
+  if (!(await scanSystems(start))) {
+    for await (const [, handle] of start.entries()) {
+      if (handle.kind === 'directory' && (await scanSystems(handle as FileSystemDirectoryHandle))) break
+    }
   }
 
   games.sort((a, b) => a.title.localeCompare(b.title))

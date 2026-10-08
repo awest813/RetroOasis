@@ -128,6 +128,48 @@
         opacity: 0.65;
       }
 
+      .ro-play-hint {
+        position: fixed;
+        left: 50%;
+        bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        z-index: 60;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem 0.9rem;
+        max-width: min(34rem, calc(100vw - 2rem));
+        padding: 0.6rem 0.9rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--ro-bg-void) 92%, transparent);
+        color: var(--ro-text);
+        font-size: 0.82rem;
+        line-height: 1.4;
+        text-align: center;
+      }
+
+      .ro-play-hint button {
+        min-height: 44px;
+        padding: 0.4rem 0.9rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--ro-accent);
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      .ro-play-hint button:focus-visible {
+        outline: 2px solid var(--ro-accent);
+        outline-offset: 3px;
+      }
+
       .ro-play-error {
         position: absolute;
         inset: 0;
@@ -765,6 +807,23 @@
           });
         }
 
+        // A BIOS the person added on the game page lives in IndexedDB; hand it over as a File.
+        var biosFile = null;
+        function resolveBios() {
+          if (bios.indexOf("bios:") !== 0) return Promise.resolve(null);
+          return openDb().then(function (db) {
+            return new Promise(function (resolve) {
+              var req = db.transaction("handles", "readonly").objectStore("handles").get(bios);
+              req.onsuccess = function () {
+                var record = req.result;
+                db.close();
+                resolve(record && record.bytes ? new File([record.bytes], record.filename || "bios.rom") : null);
+              };
+              req.onerror = function () { db.close(); resolve(null); };
+            });
+          }).catch(function () { return null; });
+        }
+
         var loadedRom = null;
         var tpkNote = "";
         var saveNote = "";
@@ -841,7 +900,7 @@
           // File objects keep the original filename (extension) for EmulatorJS.
           window.EJS_gameUrl = gameUrl;
           window.EJS_core = core;
-          window.EJS_biosUrl = bios;
+          window.EJS_biosUrl = biosFile || (bios.indexOf("bios:") === 0 ? "" : bios);
           window.EJS_pathtodata = dataPath;
           // Use the fork's controller fixes for every core download channel.
           window.EJS_paths = Object.assign({}, window.EJS_paths, {
@@ -858,7 +917,60 @@
           window.EJS_onExit = function () {
             window.location.href = back;
           };
+          // A core can start yet never draw (a mapper or hack it doesn't handle). Say so after a while
+          // instead of leaving a blank screen that looks like a hang, and offer the newer files.
+          function watchForBlankScreen() {
+            var flat = 0, checks = 0;
+            var sample = function () {
+              var canvas = document.querySelector("#game canvas");
+              if (!canvas || document.hidden || (window.EJS_emulator && window.EJS_emulator.paused)) return;
+              requestAnimationFrame(function () {
+                var shades = null;
+                try {
+                  var probe = document.createElement("canvas");
+                  probe.width = 32; probe.height = 24;
+                  var ctx = probe.getContext("2d", { willReadFrequently: true });
+                  ctx.drawImage(canvas, 0, 0, 32, 24);
+                  var data = ctx.getImageData(0, 0, 32, 24).data;
+                  var seen = {};
+                  shades = 0;
+                  for (var i = 0; i < data.length; i += 4) {
+                    var key = (data[i] >> 4) * 256 + (data[i + 1] >> 4) * 16 + (data[i + 2] >> 4);
+                    if (!seen[key]) { seen[key] = 1; shades++; }
+                  }
+                } catch (e) { shades = null; }
+                if (shades === null) { clearInterval(timer); return; }
+                if (shades > 1) { clearInterval(timer); return; }
+                flat++;
+                if (flat >= 8 && !document.getElementById("blank-hint")) {
+                  clearInterval(timer);
+                  var hint = document.createElement("div");
+                  hint.id = "blank-hint";
+                  hint.className = "ro-play-hint";
+                  hint.setAttribute("role", "status");
+                  var text = document.createElement("span");
+                  text.textContent = "Still a blank screen? Some games need newer emulator files.";
+                  hint.appendChild(text);
+                  if (channel !== "nightly" && channel !== "local") {
+                    var again = document.createElement("button");
+                    again.type = "button";
+                    again.textContent = "Try Nightly";
+                    again.addEventListener("click", function () { retry("nightly"); });
+                    hint.appendChild(again);
+                  }
+                  var dismiss = document.createElement("button");
+                  dismiss.type = "button";
+                  dismiss.textContent = "Dismiss";
+                  dismiss.addEventListener("click", function () { hint.remove(); });
+                  hint.appendChild(dismiss);
+                  document.body.appendChild(hint);
+                }
+              });
+            };
+            var timer = setInterval(function () { checks++; if (checks > 40) clearInterval(timer); else sample(); }, 4000);
+          }
           window.EJS_onGameStart = function () {
+            watchForBlankScreen();
             if (onSavesStarted) onSavesStarted(window.EJS_emulator);
             document.getElementById("meta").textContent = metaPrefix + " · playing" + (tpkNote ? " · " + tpkNote : "") + (saveNote ? " · " + saveNote : "");
           };
@@ -963,6 +1075,30 @@
           });
         }
 
+        // A .chd made from a Dreamcast GD-ROM or a DVD would start a CD core and sit on a blank screen.
+        function explainDiscImage(file) {
+          var cdCores = { psx: 1, segaCD: 1, segaSaturn: 1 };
+          if (!cdCores[core] || !(file instanceof Blob) || !/\.chd$/i.test(file.name || "")) return Promise.resolve(null);
+          return file.slice(0, 124).arrayBuffer().then(function (buffer) {
+            var view = new DataView(buffer);
+            if (view.byteLength < 124 || String.fromCharCode.apply(null, new Uint8Array(buffer, 0, 8)) !== "MComprHD" || view.getUint32(12) !== 5) return null;
+            var offset = Number(view.getBigUint64(48));
+            var walk = function (step) {
+              if (!offset || step > 16 || offset + 16 > file.size) return Promise.resolve(null);
+              return file.slice(offset, offset + 16).arrayBuffer().then(function (chunk) {
+                var entry = new DataView(chunk);
+                var tag = String.fromCharCode(entry.getUint8(0), entry.getUint8(1), entry.getUint8(2), entry.getUint8(3));
+                if (tag === "CHGD" || tag === "CHGT") return "This is a Dreamcast disc image (GD-ROM). RetroOasis can’t play Dreamcast games yet.";
+                if (tag === "DVD ") return "This is a DVD-sized disc image (PlayStation 2, GameCube, Xbox or similar). RetroOasis can’t play those yet.";
+                if (tag === "CHCD" || tag === "CHTR" || tag === "CHT2") return null;
+                offset = Number(entry.getBigUint64(8));
+                return walk(step + 1);
+              });
+            };
+            return walk(0);
+          }).catch(function () { return null; });
+        }
+
         if (!romParam || !core) {
           fail("Can’t start", "Missing the game file or system. Go back and try Play again.");
           return;
@@ -981,8 +1117,18 @@
             }).catch(function () {})
           : Promise.resolve();
 
-        Promise.all([resolveRom(romParam), quotaCheck])
-          .then(function (results) { return results[0]; })
+        Promise.all([resolveRom(romParam), quotaCheck, resolveBios()])
+          .then(function (results) { biosFile = results[2]; return results[0]; })
+          .then(function (gameUrl) {
+            return explainDiscImage(gameUrl).then(function (problem) {
+              if (problem) {
+                var error = new Error(problem);
+                error.discProblem = true;
+                throw error;
+              }
+              return gameUrl;
+            });
+          })
           .then(function (gameUrl) {
             document.getElementById("meta").textContent = metaPrefix + " · starting…";
             showLoading("Starting emulator…");
@@ -990,7 +1136,7 @@
           })
           .catch(function (err) {
             fail(
-              "Can’t load ROM",
+              err && err.discProblem ? "Can’t play this disc" : "Can’t load ROM",
               (err && err.message) || "Couldn’t load that ROM. Go back and try Play again.",
               err && err.domMessage
             );

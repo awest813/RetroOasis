@@ -16,6 +16,7 @@
  */
 
 import {
+  ARCHIVE_EXTENSIONS,
   isArchiveFile,
   platformForArchiveEntry,
   platformFromExtension,
@@ -99,6 +100,31 @@ export async function peekArchive(blob: Blob): Promise<ArchivePeek | null> {
   }
 }
 
+/**
+ * Why a .zip / .7z / .rar can't be a usable archive, or null when it looks fine (or isn't an archive).
+ * Catches downloads that stopped early and files renamed to the wrong extension before they are saved.
+ */
+export async function archiveProblem(file: File): Promise<string | null> {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (!ARCHIVE_EXTENSIONS.has(ext)) return null
+  let head: Uint8Array
+  try {
+    head = new Uint8Array(await file.slice(0, 8).arrayBuffer())
+  } catch {
+    return null
+  }
+  const format = archiveFormatFromBytes(head)
+  if (!format) return `That isn’t a real .${ext} file. It may be damaged or have the wrong extension.`
+  if (format === 'zip') {
+    try {
+      if (!(await listZipEntries(file))) return 'This zip is incomplete or damaged. The download may have stopped early.'
+    } catch {
+      return 'This zip is incomplete or damaged. The download may have stopped early.'
+    }
+  }
+  return null
+}
+
 /** Platform votes from entry names; null when nothing recognizable is inside. */
 export function platformFromArchiveEntries(names: string[]): string | null {
   const votes = new Map<string, number>()
@@ -126,6 +152,12 @@ export function platformFromArchiveEntries(names: string[]): string | null {
   }
   return best
 }
+
+/** Largest archive Auto-detect still treats as a DOS game. */
+const DOS_ARCHIVE_MAX_BYTES = 700 * 1024 * 1024
+
+/** Largest archive Auto-detect still assumes is an arcade set when its contents are unreadable. */
+const ARCADE_ARCHIVE_MAX_BYTES = 512 * 1024 * 1024
 
 /** Disc-heavy systems beat generic ones when entry counts tie. */
 const PLATFORM_PRIORITY = [
@@ -175,9 +207,14 @@ export async function detectRomPlatform(file: File): Promise<string | null> {
   if (isArchiveFile(file.name)) {
     const peek = await peekArchive(file)
     const fromEntries = peek ? platformFromArchiveEntries(peek.names) : null
+    // DOS games are small; a huge archive of .exe files is a Windows installer or a disc, not DOS.
+    if (fromEntries === 'dos' && file.size > DOS_ARCHIVE_MAX_BYTES) return null
     if (fromEntries) return fromEntries
     const names = peek?.names ?? []
     if (names.some((name) => isIsoLikeFilename(name))) return null
+    // Arcade sets are small. A multi-gigabyte archive we couldn't read is far more likely a PC game
+    // or a disc dump than an arcade set, so ask rather than save it as one.
+    if (extPlatform === 'arcade' && file.size > ARCADE_ARCHIVE_MAX_BYTES) return null
     return extPlatform
   }
 

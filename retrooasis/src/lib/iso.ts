@@ -116,3 +116,38 @@ export async function detectIsoPlatform(blob: Blob): Promise<string | null> {
   const peek = await peekIso9660(blob)
   return peek ? platformFromIsoPeek(peek) : null
 }
+
+/** What a .chd holds, read from its metadata. CHD v5 files lead with a 124-byte header whose
+ * metadata chain says how the disc was dumped (CD tracks, a Dreamcast GD-ROM, a DVD, a hard disk). */
+export type ChdMedia = 'cd' | 'gdrom' | 'dvd' | 'hd'
+
+const CHD_METADATA: Record<string, ChdMedia> = {
+  CHCD: 'cd', CHTR: 'cd', CHT2: 'cd', CHGD: 'gdrom', CHGT: 'gdrom', 'DVD ': 'dvd', GDDD: 'hd',
+}
+
+export async function peekChdMedia(blob: Blob): Promise<ChdMedia | null> {
+  try {
+    const head = new DataView(await blob.slice(0, 124).arrayBuffer())
+    if (head.byteLength < 124 || String.fromCharCode(...new Uint8Array(head.buffer, 0, 8)) !== 'MComprHD') return null
+    if (head.getUint32(12) !== 5) return null
+    let offset = Number(head.getBigUint64(48))
+    for (let step = 0; offset > 0 && step < 16 && offset + 16 <= blob.size; step += 1) {
+      const entry = new DataView(await blob.slice(offset, offset + 16).arrayBuffer())
+      const tag = String.fromCharCode(entry.getUint8(0), entry.getUint8(1), entry.getUint8(2), entry.getUint8(3))
+      if (CHD_METADATA[tag]) return CHD_METADATA[tag]
+      offset = Number(entry.getBigUint64(8))
+    }
+  } catch {
+    /* unreadable: treat as unknown */
+  }
+  return null
+}
+
+/** Why a .chd can't be played here, or null when it is a CD image (PlayStation, Sega CD, Saturn). */
+export async function unsupportedChdReason(blob: Blob): Promise<string | null> {
+  const media = await peekChdMedia(blob)
+  if (media === 'gdrom') return 'This is a Dreamcast disc (GD-ROM). RetroOasis can’t play Dreamcast games yet.'
+  if (media === 'dvd') return 'This is a DVD-sized disc image (PlayStation 2, GameCube, Xbox or similar). RetroOasis can’t play those yet.'
+  if (media === 'hd') return 'This is a hard-disk image, not a game disc.'
+  return null
+}

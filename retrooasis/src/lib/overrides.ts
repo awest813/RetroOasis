@@ -40,7 +40,11 @@ export function getOverride(gameId: string): GameOverride | undefined {
   return over
 }
 
-/** Map the metadata form to a patch. Unchanged / empty fields become '' so they drop. */
+/**
+ * Map the metadata form to a patch. `game` is what the shelf shows now (saved edits already applied).
+ * A field left as shown keeps whatever edit was saved for it, a changed field becomes the new edit, and
+ * a blank one drops its edit so the original shows again. Text is trimmed: a title of spaces is blank.
+ */
 export function formFieldsToPatch(
   game: Pick<Game, 'title' | 'core' | 'cover' | 'description' | 'year' | 'developer'>,
   fields: {
@@ -51,15 +55,21 @@ export function formFieldsToPatch(
     cover: string
     description: string
   },
+  saved: GameSidecar = {},
 ): GameSidecar {
   const origYear = game.year == null ? '' : String(game.year)
+  const pick = (value: string, shown: string, kept: string | number | undefined): string => {
+    const next = value.trim()
+    if (next === shown.trim()) return kept == null ? '' : String(kept)
+    return next
+  }
   return {
-    title: fields.title !== game.title ? fields.title : '',
-    core: fields.core !== game.core ? fields.core : '',
-    year: fields.year !== origYear ? fields.year : '',
-    developer: fields.developer !== (game.developer ?? '') ? fields.developer : '',
-    cover: fields.cover !== (game.cover ?? '') ? fields.cover : '',
-    description: fields.description !== (game.description ?? '') ? fields.description : '',
+    title: pick(fields.title, game.title, saved.title),
+    core: pick(fields.core, game.core, saved.core),
+    year: pick(fields.year, origYear, saved.year),
+    developer: pick(fields.developer, game.developer ?? '', saved.developer),
+    cover: pick(fields.cover, game.cover ?? '', saved.cover),
+    description: pick(fields.description, game.description ?? '', saved.description),
   }
 }
 

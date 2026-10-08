@@ -215,9 +215,52 @@ export function normalizeFolderName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, '')
 }
 
+/**
+ * Folder names as Libretro / No-Intro / Redump collections spell them ("Nintendo - Game Boy
+ * Advance", "Sega - Mega Drive - Genesis"). Keys are letters and digits only.
+ */
+const FOLDER_LONG_NAMES: Record<string, string> = {
+  nintendoentertainmentsystem: 'nes',
+  supernintendoentertainmentsystem: 'snes',
+  supernintendo: 'snes',
+  superfamicom: 'snes',
+  gameboycolor: 'gb',
+  gameboyadvance: 'gba',
+  nintendods: 'nds',
+  nintendodsi: 'nds',
+  megadrivegenesis: 'segaMD',
+  genesismegadrive: 'segaMD',
+  segamegadrive: 'segaMD',
+  segagenesis: 'segaMD',
+  segamastersystem: 'segaMS',
+  segagamegear: 'segaGG',
+  segacdmegacd: 'segaCD',
+  megacdsegacd: 'segaCD',
+  segasaturn: 'segaSaturn',
+  sonyplaystation: 'psx',
+  sonyplaystationportable: 'psp',
+  turbografx16: 'pce',
+  pcenginetg16: 'pce',
+  pcengineturbografx16: 'pce',
+  neogeopocketcolor: 'ngp',
+  wonderswancolor: 'ws',
+  atarilynx: 'lynx',
+  atarijaguar: 'jaguar',
+}
+
+/** Platform for a ROM folder name: short aliases ("gba", "Mega Drive") and long collection names. */
 export function platformFromFolder(name: string): string | null {
-  const key = normalizeFolderName(name)
-  return FOLDER_TO_PLATFORM[key] ?? null
+  const direct = FOLDER_TO_PLATFORM[normalizeFolderName(name)]
+  if (direct) return direct
+  // "Maker - System [ - Region name]": try the whole name, then each part, letters and digits only.
+  const squash = (text: string) => text.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '')
+  const parts = name.split(/\s+-\s+/)
+  const candidates = [squash(name), ...parts.map(squash), ...(parts.length > 2 ? [squash(parts.slice(1).join(' '))] : [])]
+  for (const key of candidates) {
+    const platform = FOLDER_LONG_NAMES[key] ?? FOLDER_TO_PLATFORM[key]
+    if (platform) return platform
+  }
+  return null
 }
 
 export function coreForPlatform(platformId: string): string {

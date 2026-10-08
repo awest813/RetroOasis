@@ -998,7 +998,7 @@ html[data-crt='on'] .ro-shell::after {
 }
 
 .ro-chip__count {
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
 }
@@ -1024,7 +1024,7 @@ html[data-crt='on'] .ro-shell::after {
   }
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (any-pointer: coarse) {
   .ro-chip {
     min-height: 44px;
   }
@@ -1198,7 +1198,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-tile__sub {
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--ro-text-dim);
@@ -1577,7 +1577,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   min-height: 2rem;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (any-pointer: coarse) {
   .ro-cover-resources a {
     display: inline-flex;
     align-items: center;
@@ -2208,9 +2208,14 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-tpk-card__facts strong { color: var(--ro-text); font: 600 0.7rem/1.4 var(--ro-font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 
 /* Touch screens: small text links get thumb-sized hit areas (44px) without moving. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (any-pointer: coarse) {
   .ro-kicker a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
   .ro-nav a { display: inline-flex; align-items: center; min-height: 44px; }
+  .ro-brand { min-height: 44px; align-items: center; }
+  .ro-skip { min-height: 44px; display: inline-flex; align-items: center; }
+  .ro-input, select.ro-input { min-height: 44px; }
+  .ro-librarybar__search input { min-height: 44px; }
+  .ro-librarybar__clear { width: 44px; height: 44px; }
 }
 
 /* Settings → Online play: the two ways to play together, side by side. */
@@ -2274,7 +2279,7 @@ html[data-layout='tv'] .ro-btn--toggle {
     backdrop-filter: blur(8px);
   }
   .ro-settings__nav::-webkit-scrollbar { display: none; }
-  .ro-settings__nav .ro-btn { flex: 0 0 auto; white-space: nowrap; min-height: 40px; }
+  .ro-settings__nav .ro-btn { flex: 0 0 auto; white-space: nowrap; min-height: 44px; }
 }
 @supports not (color: color-mix(in srgb, red, blue)) {
   .ro-settings__nav .ro-btn[aria-current='true'] { background: rgba(46, 230, 214, 0.1); }

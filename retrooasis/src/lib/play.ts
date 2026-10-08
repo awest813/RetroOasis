@@ -7,6 +7,7 @@ import {
   missingCompanionsMessage,
   parseDiscReferences,
 } from './discSets'
+import { BIOS_REF_PREFIX, biosKindFor, hasBios, type BiosKind } from './bios'
 import { getLocalRomFiles, hasLocalHandle } from './localLibrary'
 import { hrefFor } from './router'
 import { stageRomForPlay } from './romBridge'
@@ -19,6 +20,7 @@ export function buildPlayerUrl(
   backPath: string,
   lanHost = false,
   transferPak = '',
+  biosRef = '',
 ): string {
   const core = normalizePlayCore(game.core)
   const channel = lanHost ? 'local' : resolveEjsChannel(core)
@@ -32,6 +34,7 @@ export function buildPlayerUrl(
   // The player records this game's save path under its id, for the game page's save card.
   params.set('gid', game.id)
   if (game.bios) params.set('bios', game.bios)
+  else if (biosRef) params.set('bios', biosRef)
   if (coreNeedsThreads(core)) params.set('threads', '1')
   if (lanHost) params.set('lanhost', '1')
   // N64 Transfer Pak: a Game Boy / Color game in Controller 1 (Pokémon Stadium).
@@ -148,9 +151,11 @@ export async function launchGame(
   backRoute = hrefFor(`/game/${encodeURIComponent(game.id)}`),
   lanHost: boolean | 'link' = false,
   transferPak?: Game,
+  biosKind: BiosKind | null = biosKindFor(game),
 ): Promise<void> {
   pushRecent(game.id)
   const cartRef = transferPak ? await playableRef(transferPak) : ''
+  const biosRef = biosKind && (await hasBios(biosKind)) ? `${BIOS_REF_PREFIX}${biosKind}` : ''
 
   let romUrl = game.file
   if (game.source === 'local' || hasLocalHandle(game.id) || game.file.startsWith('local://')) {
@@ -169,5 +174,5 @@ export async function launchGame(
   }
   // Uploaded games already use durable library: refs — player reads without consuming.
 
-  window.location.href = lanHost === 'link' ? buildLinkUrl(game, romUrl, backRoute) : buildPlayerUrl(game, romUrl, backRoute, lanHost, cartRef)
+  window.location.href = lanHost === 'link' ? buildLinkUrl(game, romUrl, backRoute) : buildPlayerUrl(game, romUrl, backRoute, lanHost, cartRef, biosRef)
 }

@@ -54,6 +54,12 @@ let uploadedGames: Game[] = []
 let localGames: Game[] = []
 let localMeta: Catalog['local'] = null
 let listeners = new Set<() => void>()
+let extrasPending = true
+
+/** True until the hosted list, saved ROMs and linked folder have been read once. */
+export function catalogExtrasPending(): boolean {
+  return extrasPending
+}
 
 async function loadJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -144,6 +150,14 @@ export async function clearUploadedCatalog(): Promise<void> {
 
 export async function initCatalogExtras(): Promise<void> {
   try {
+    await readCatalogExtras()
+  } finally {
+    extrasPending = false
+  }
+}
+
+async function readCatalogExtras(): Promise<void> {
+  try {
     hostedGames = await loadHostedManifest()
   } catch {
     hostedGames = []
@@ -194,7 +208,7 @@ export function findGame(catalog: Catalog, id: string): Game | undefined {
 }
 
 export function findPlatform(catalog: Catalog, id: string): Platform | undefined {
-  return catalog.platforms.find((p) => p.id === id)
+  return catalog.platforms.find((p) => p.id === id) ?? catalog.platforms.find((p) => p.id.toLowerCase() === id.toLowerCase())
 }
 
 export function platformAccentVar(accent: PlatformAccent | string): string {

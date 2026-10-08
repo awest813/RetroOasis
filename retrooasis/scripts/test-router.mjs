@@ -62,6 +62,13 @@ check('settings', parseRouteHash('#/settings'), { name: 'settings' })
 check('saves', parseRouteHash('#/saves'), { name: 'saves' })
 check('unknown', parseRouteHash('#/nope'), { name: 'notfound' })
 
+// Hand-typed links: page names ignore case, broken % escapes don't throw, ids keep their case.
+check('page names ignore case', parseRouteHash('#/Settings'), { name: 'settings' })
+check('library keyword ignores case', parseRouteHash('#/LIBRARY/@all'), { name: 'collection', collection: 'all' })
+check('system ids keep their case', parseRouteHash('#/library/segaMD'), { name: 'platform', platformId: 'segaMD' })
+check('broken % escape in a game id', parseRouteHash('#/game/%E0%A4%A'), { name: 'game', gameId: '%E0%A4%A' })
+check('broken % escape in a tag', parseRouteHash('#/library/tag/%E0%A4%A'), { name: 'tag', tagId: '%E0%A4%A' })
+
 // Back without an in-app history entry goes to the logical parent, never off-site.
 const parent = hash => parentHash(parseRouteHash(hash))
 check('home has no parent', parent('#/'), null)

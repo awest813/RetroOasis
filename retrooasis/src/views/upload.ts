@@ -5,7 +5,9 @@ import {
   isRomFile,
   romFileAccept,
 } from '../lib/cores'
-import { detectRomPlatform } from '../lib/archives'
+import { archiveProblem, detectRomPlatform, peekArchive } from '../lib/archives'
+import { hasBios } from '../lib/bios'
+import { unsupportedChdReason } from '../lib/iso'
 import {
   groupDiscSetFiles,
   missingCompanionsMessage,
@@ -292,6 +294,23 @@ export function renderUpload(root: HTMLElement): void {
         const label = discSetLabel(plan.files.map((file) => file.name))
         let core = coreSelect.value
 
+        // Stopped downloads and mislabelled files fail here, not as a blank screen at play time.
+        const damaged = await archiveProblem(plan.primary).catch(() => null)
+        if (damaged) {
+          outcomes.push({ kind: 'skipped', filename: label, detail: damaged })
+          continue
+        }
+
+        // A .chd is only playable when it holds a CD image; Dreamcast and DVD dumps would start
+        // the PlayStation core and stall on a blank screen.
+        if (plan.primary.name.toLowerCase().endsWith('.chd') && ['auto', 'psx', 'segaCD', 'segaSaturn'].includes(core)) {
+          const reason = await unsupportedChdReason(plan.primary).catch(() => null)
+          if (reason) {
+            outcomes.push({ kind: 'skipped', filename: label, detail: reason })
+            continue
+          }
+        }
+
         if (core === 'auto') {
           if (!isRomFile(plan.primary.name)) {
             const detail = `File type isn’t recognized. Pick a system above, or use a common ROM extension.`
@@ -340,7 +359,15 @@ export function renderUpload(root: HTMLElement): void {
             outcomes.push({ kind: 'error', filename: label, detail: spaceNote })
             continue
           }
-          const { game, replaced } = await saveUploadedRomSet(plan.files, core)
+          // Famicom Disk System games run only with disksys.rom; without it the emulator opens its own menu.
+          const diskNames = plan.primary.name.toLowerCase().endsWith('.fds')
+            ? [plan.primary.name]
+            : core === 'nes' ? ((await peekArchive(plan.primary).catch(() => null))?.names ?? []) : []
+          const isDisk = diskNames.some((name) => name.toLowerCase().endsWith('.fds'))
+          const biosNote = isDisk && !(await hasBios('fds'))
+            ? ' This is a Famicom Disk System game: add the disksys.rom BIOS file on its game page to start it.'
+            : ''
+          const { game, replaced } = await saveUploadedRomSet(plan.files, core, isDisk ? ['famicom-disk'] : [])
           pushRecent(game.id)
           await reloadUploadedLibrary()
           const needsThreads = coreNeedsThreads(core)
@@ -349,13 +376,14 @@ export function renderUpload(root: HTMLElement): void {
               ? ' Saved, but this page is missing thread support so it may not start.'
               : ''
           const setNote = plan.kind === 'disc-set' ? ` Packed ${plan.files.length} files.` : ''
+
           const spaceWarn = spaceNote ? ` ${spaceNote}` : ''
           outcomes.push({
             kind: 'saved',
             filename: label,
-            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}${spaceWarn}`,
+            detail: `${replaced ? 'Replaced existing file' : 'Added to library'}${setNote}${missingNote ? ` ${missingNote}` : ''}${threadNote}${biosNote}${spaceWarn}`,
             gameId: game.id,
-            holdLaunch: Boolean(missingNote),
+            holdLaunch: Boolean(missingNote) || Boolean(biosNote),
           })
           playable = game
         } catch (err) {
