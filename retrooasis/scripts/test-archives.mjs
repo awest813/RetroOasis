@@ -40,8 +40,8 @@ if (!process.features.typescript) {
 
 const { peekArchive, platformFromArchiveEntries, detectRomPlatform, archiveFormatFromBytes, archiveProblem } =
   await import(`file://${path.join(cacheDir, 'archives.ts').replace(/\\/g, '/')}`)
-const { peekChdMedia, unsupportedChdReason } = await import(`file://${path.join(cacheDir, 'iso.ts').replace(/\\/g, '/')}`)
-const { platformFromFolder } = await import(`file://${path.join(cacheDir, 'cores.ts').replace(/\\/g, '/')}`)
+const { peekChdMedia, unsupportedChdReason, unsupportedDiscSystem } = await import(`file://${path.join(cacheDir, 'iso.ts').replace(/\\/g, '/')}`)
+const { platformFromFolder, unsupportedSystemFromFolder, unsupportedSystemFromExtension } = await import(`file://${path.join(cacheDir, 'cores.ts').replace(/\\/g, '/')}`)
 
 let passed = 0
 let failed = 0
@@ -447,9 +447,10 @@ const smallUnreadable = toFile(new Uint8Array(64), 'sets.7z')
 check('small unreadable archive still falls back to arcade', await detectRomPlatform(smallUnreadable), 'arcade')
 
 // CHD v5: a 124-byte header whose metadata chain tells CD images from Dreamcast and DVD dumps.
-function makeChd(tag, version = 5) {
+function makeChd(tag, version = 5, logicalBytes = 0) {
   const buf = new Uint8Array(124 + 16 + 20)
   const view = new DataView(buf.buffer)
+  view.setBigUint64(32, BigInt(logicalBytes))
   buf.set(new TextEncoder().encode('MComprHD'), 0)
   view.setUint32(8, 124)
   view.setUint32(12, version)
@@ -465,7 +466,23 @@ check('chd v4 is unknown, not rejected', await peekChdMedia(toFile(makeChd('CHGD
 check('non-chd bytes are unknown', await peekChdMedia(toFile(new Uint8Array(400), 'junk.chd')), null)
 check('CD chd has no objection', await unsupportedChdReason(toFile(makeChd('CHT2'), 'tekken.chd')), null)
 check('Dreamcast chd is explained', /Dreamcast/.test(await unsupportedChdReason(toFile(makeChd('CHGD'), 'taxi.chd'))), true)
-check('DVD chd is explained', /DVD/.test(await unsupportedChdReason(toFile(makeChd('DVD '), 'madden.chd'))), true)
+check('big DVD chd is explained', /DVD/.test(await unsupportedChdReason(toFile(makeChd('DVD ', 5, 4.3e9), 'ps2.chd'))), true)
+check('UMD-sized DVD chd is recognised as PSP', /PSP game stored as .chd/.test(await unsupportedChdReason(toFile(makeChd('DVD ', 5, 1.52e9), 'madden.chd'))), true)
+check('any chd is refused for the PSP core', /PSP game stored as .chd/.test(await unsupportedChdReason(toFile(makeChd('CHT2'), 'x.chd'), 'ppsspp')), true)
+check('a CD chd is fine for the PlayStation core', await unsupportedChdReason(toFile(makeChd('CHT2'), 'x.chd'), 'psx'), null)
+
+function discWithMagic(size, at, bytes) { const buf = new Uint8Array(size); buf.set(bytes, at); return buf }
+check('Xbox disc image is recognised', await unsupportedDiscSystem(toFile(discWithMagic(0x10100, 0x10000, new TextEncoder().encode('MICROSOFT*XBOX*MEDIA')), 'halo.iso')), 'Xbox')
+check('GameCube disc image is recognised', await unsupportedDiscSystem(toFile(discWithMagic(0x100, 0x1c, [0xc2, 0x33, 0x9f, 0x3d]), 'mp.iso')), 'GameCube')
+check('Wii disc image is recognised', await unsupportedDiscSystem(toFile(discWithMagic(0x100, 0x18, [0x5d, 0x1c, 0x9e, 0xa3]), 'wii.iso')), 'Wii')
+check('PlayStation CD image is not flagged', await unsupportedDiscSystem(toFile(makeIso(['SYSTEM.CNF']), 'ps1.iso')), null)
+
+check('Dreamcast folder', unsupportedSystemFromFolder('Sega - Dreamcast'), 'Dreamcast')
+check('PlayStation 2 folder', unsupportedSystemFromFolder('Sony - PlayStation 2'), 'PlayStation 2')
+check('supported folders are not unsupported', unsupportedSystemFromFolder('Sega - Genesis'), null)
+check('.gdi is Dreamcast', unsupportedSystemFromExtension('Crazy Taxi.gdi'), 'Dreamcast')
+check('.nsp is Switch', unsupportedSystemFromExtension('game.NSP'), 'Nintendo Switch')
+check('.gba is supported', unsupportedSystemFromExtension('game.gba'), null)
 
 // Folder names as Libretro / No-Intro collections spell them.
 const folders = {

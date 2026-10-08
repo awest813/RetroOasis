@@ -1,5 +1,5 @@
 import type { Route } from './lib/router'
-import { getRoute, hrefFor, onRoute, startRouter } from './lib/router'
+import { arrivedByNewEntry, getRoute, hrefFor, onRoute, startRouter } from './lib/router'
 import {
   applyStoredAccent,
   applyStoredCrt,
@@ -28,7 +28,7 @@ import { disposeXmb, clearXmbSession, renderXmb } from './views/xmb'
 import { renderCollection, renderLibrary } from './views/library'
 import { renderGameDetail } from './views/detail'
 import { renderUpload } from './views/upload'
-import { renderSettings } from './views/settings'
+import { forgetSettingsPosition, renderSettings } from './views/settings'
 import { renderSaves } from './views/saves'
 
 import './styles/tokens.css'
@@ -228,8 +228,18 @@ function render(route: Route): Promise<void> {
   return renderChain
 }
 
+/** The page you arrive on starts at the top; a re-render of the same page (the catalog changed) keeps its place. */
+let lastRouteKey = ''
+
 async function renderRoute(route: Route): Promise<void> {
+  // The old view first: Settings notes its scroll position as it closes.
   disposeActiveView()
+  const routeKey = JSON.stringify(route)
+  if (routeKey !== lastRouteKey) {
+    window.scrollTo(0, 0)
+    if (route.name === 'settings' && arrivedByNewEntry()) forgetSettingsPosition()
+  }
+  lastRouteKey = routeKey
   syncNav(route)
   syncShellMode(route)
   syncInstallButton()

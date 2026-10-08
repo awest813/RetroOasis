@@ -4,10 +4,11 @@ import {
   coreNeedsThreads,
   isRomFile,
   romFileAccept,
+  unsupportedSystemMessage,
 } from '../lib/cores'
 import { archiveProblem, detectRomPlatform, peekArchive } from '../lib/archives'
 import { hasBios } from '../lib/bios'
-import { unsupportedChdReason } from '../lib/iso'
+import { unsupportedChdReason, unsupportedDiscSystem } from '../lib/iso'
 import {
   groupDiscSetFiles,
   missingCompanionsMessage,
@@ -303,10 +304,18 @@ export function renderUpload(root: HTMLElement): void {
 
         // A .chd is only playable when it holds a CD image; Dreamcast and DVD dumps would start
         // the PlayStation core and stall on a blank screen.
-        if (plan.primary.name.toLowerCase().endsWith('.chd') && ['auto', 'psx', 'segaCD', 'segaSaturn'].includes(core)) {
-          const reason = await unsupportedChdReason(plan.primary).catch(() => null)
+        if (plan.primary.name.toLowerCase().endsWith('.chd') && ['auto', 'psx', 'segaCD', 'segaSaturn', 'ppsspp'].includes(core)) {
+          const reason = await unsupportedChdReason(plan.primary, core).catch(() => null)
           if (reason) {
             outcomes.push({ kind: 'skipped', filename: label, detail: reason })
+            continue
+          }
+        }
+        // An Xbox, GameCube, Wii or PlayStation 2 disc image would start a core that can't read it.
+        if (/\.(iso|img)$/i.test(plan.primary.name)) {
+          const system = await unsupportedDiscSystem(plan.primary).catch(() => null)
+          if (system) {
+            outcomes.push({ kind: 'skipped', filename: label, detail: unsupportedSystemMessage(system) })
             continue
           }
         }

@@ -92,6 +92,16 @@ function readScroll(): number | null {
   }
 }
 
+/** Arriving at Settings from the menu starts at the top; Back from a link inside it returns to the same spot. */
+export function forgetSettingsPosition(): void {
+  try {
+    sessionStorage.removeItem(FOCUS_KEY)
+    sessionStorage.removeItem(SCROLL_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 function pressed(on: boolean): string {
   return on ? 'true' : 'false'
 }
@@ -171,6 +181,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   ])
   if (!active) return
   const hasSab = typeof SharedArrayBuffer !== 'undefined'
+  // Without the isolation headers here, the player turns threads on itself through the service worker.
+  const canIsolate = !hasSab && 'serviceWorker' in navigator && window.isSecureContext
   const canPick = supportsDirectoryPicker()
   const installState = getPwaInstallState()
   // Preserve row focus/scroll across catalog-driven rebuilds.
@@ -434,6 +446,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                         : 'This browser can’t link folders. Use Add ROM instead.'
                 }
               </p>
+              ${catalog.local?.unsupported?.length
+                ? `<p class="ro-muted">Skipped ${escapeHtml(catalog.local.unsupported.join(', '))}: RetroOasis has no browser emulator for ${catalog.local.unsupported.length === 1 ? 'it' : 'them'} yet.</p>`
+                : ''}
               <p class="ro-muted" id="ro-folder-status" role="status" hidden></p>
             </div>
             <div class="ro-btn-row">
@@ -585,11 +600,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                 ${
                   hasSab
                     ? 'Available here. These systems also need compatible cores and game files.'
-                    : 'Missing here. Use the RetroOasis dev server, or host with isolation headers (see README). GitHub Pages can’t set them.'
+                    : canIsolate
+                      ? 'Not on this page, but RetroOasis turns it on in the player when you start a PSP, DOS or 3DS game (the page reloads once).'
+                      : 'Missing here, and this browser can’t turn it on. Use HTTPS or localhost in a recent Chrome, Edge or Firefox, or host with isolation headers (see README).'
                 }
               </p>
             </div>
-            <span class="ro-badge ${hasSab ? 'ro-badge--ok' : 'ro-badge--threads'}" role="status">${hasSab ? 'Ready' : 'Missing'}</span>
+            <span class="ro-badge ${hasSab || canIsolate ? 'ro-badge--ok' : 'ro-badge--threads'}" role="status">${hasSab ? 'Ready' : canIsolate ? 'On demand' : 'Missing'}</span>
           </div>
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">

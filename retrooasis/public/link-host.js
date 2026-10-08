@@ -68,10 +68,15 @@ function refreshSteps() {
   }
 }
 setInterval(refreshSteps, 500)
+let startAnnounced = false
 function refreshButtons() {
   refreshSteps()
   const running = !!session
   buttons.start.disabled = running || !host || !guest?.bytes
+  // Once the friend's cartridge arrives Start link is the only thing left to do; on a phone it sits
+  // below both consoles, so bring it into view the first time it can be pressed.
+  if (buttons.start.disabled) startAnnounced = false
+  else if (!startAnnounced) { startAnnounced = true; buttons.start.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }
   buttons.start.hidden = running || sessionEnded
   for (const id of ['pause', 'my-save', 'end']) buttons[id].hidden = !running
   buttons['save-library'].hidden = !running || !host?.saveKey

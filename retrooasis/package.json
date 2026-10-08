@@ -24,7 +24,8 @@
     "test:static": "node scripts/test-static.mjs",
     "test:online-browser": "node scripts/test-online-browser.mjs",
     "test:roms": "node scripts/test-roms-browser.mjs",
-    "test:ui": "node scripts/test-ui-browser.mjs"
+    "test:ui": "node scripts/test-ui-browser.mjs",
+    "test:threads": "node scripts/test-threads-static.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

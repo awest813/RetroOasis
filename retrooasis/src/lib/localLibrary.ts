@@ -6,6 +6,7 @@ import {
   isRomFile,
   platformFromFolder,
   slugId,
+  unsupportedSystemFromFolder,
   titleFromFilename,
 } from './cores'
 import {
@@ -25,6 +26,8 @@ export interface LocalScanResult {
   games: Game[]
   folderName: string
   count: number
+  /** Systems found in the folder that RetroOasis can't run (Dreamcast, PlayStation 2...). */
+  unsupported?: string[]
 }
 
 declare global {
@@ -236,12 +239,17 @@ export async function scanDirectory(root: FileSystemDirectoryHandle): Promise<Lo
     start = root
   }
 
+  const unsupported = new Set<string>()
   const scanSystems = async (parent: FileSystemDirectoryHandle): Promise<number> => {
     let found = 0
     for await (const [name, handle] of parent.entries()) {
       if (handle.kind !== 'directory') continue
       const platformId = platformFromFolder(name)
-      if (!platformId) continue
+      if (!platformId) {
+        const system = unsupportedSystemFromFolder(name)
+        if (system) unsupported.add(system)
+        continue
+      }
       await scanPlatformDir(platformId, handle as FileSystemDirectoryHandle, games)
       await scanCoversBucket(parent, platformId, games)
       found += 1
@@ -260,6 +268,7 @@ export async function scanDirectory(root: FileSystemDirectoryHandle): Promise<Lo
     games,
     folderName: root.name,
     count: games.length,
+    unsupported: [...unsupported].sort(),
   }
 }
 

@@ -143,11 +143,58 @@ export async function peekChdMedia(blob: Blob): Promise<ChdMedia | null> {
   return null
 }
 
-/** Why a .chd can't be played here, or null when it is a CD image (PlayStation, Sega CD, Saturn). */
-export async function unsupportedChdReason(blob: Blob): Promise<string | null> {
+/** Uncompressed size of a CHD v5 image (its header says how many bytes the disc holds), or 0 when unknown. */
+export async function chdLogicalBytes(blob: Blob): Promise<number> {
+  try {
+    const head = new DataView(await blob.slice(0, 124).arrayBuffer())
+    if (head.byteLength < 124 || head.getUint32(12) !== 5) return 0
+    return Number(head.getBigUint64(32))
+  } catch {
+    return 0
+  }
+}
+
+/** A UMD holds at most 1.8 GB; a DVD-sized image smaller than that is most likely a PSP game. */
+const PSP_MAX_BYTES = 1.9 * 1024 * 1024 * 1024
+
+/**
+ * Why a .chd can't be played here, or null when it is a CD image the chosen system can use. `core` is the
+ * system the person picked ('auto' when letting RetroOasis decide).
+ */
+export async function unsupportedChdReason(blob: Blob, core = 'auto'): Promise<string | null> {
   const media = await peekChdMedia(blob)
+  if (core === 'ppsspp' || (media === 'dvd' && (await chdLogicalBytes(blob)) <= PSP_MAX_BYTES)) {
+    if (media === 'dvd' || core === 'ppsspp') {
+      return 'This looks like a PSP game stored as .chd. The PSP emulator in the browser can’t open .chd files. Convert it to .iso or .cso first (chdman extractdvd gives an .iso), then add that.'
+    }
+  }
   if (media === 'gdrom') return 'This is a Dreamcast disc (GD-ROM). RetroOasis can’t play Dreamcast games yet.'
   if (media === 'dvd') return 'This is a DVD-sized disc image (PlayStation 2, GameCube, Xbox or similar). RetroOasis can’t play those yet.'
   if (media === 'hd') return 'This is a hard-disk image, not a game disc.'
+  return null
+}
+
+const asciiOf = (bytes: Uint8Array) => String.fromCharCode(...bytes)
+
+/**
+ * The system of a disc image RetroOasis can't run (Xbox, GameCube, Wii, PlayStation 2), read from the
+ * image's own headers, or null. Only meant for .iso / .img files.
+ */
+export async function unsupportedDiscSystem(blob: Blob): Promise<string | null> {
+  try {
+    if (blob.size > 0x10014 && asciiOf(new Uint8Array(await blob.slice(0x10000, 0x10014).arrayBuffer())) === 'MICROSOFT*XBOX*MEDIA') return 'Xbox'
+    if (blob.size > 0x20) {
+      const head = new DataView(await blob.slice(0, 0x20).arrayBuffer())
+      if (head.getUint32(0x1c) === 0xc2339f3d) return 'GameCube'
+      if (head.getUint32(0x18) === 0x5d1c9ea3) return 'Wii'
+    }
+    // A PlayStation 1 CD tops out near 700 MB; a SYSTEM.CNF on anything bigger is a PlayStation 2 DVD.
+    if (blob.size > 800 * 1024 * 1024) {
+      const peek = await peekIso9660(blob)
+      if (peek?.names.some((name) => name.toUpperCase() === 'SYSTEM.CNF')) return 'PlayStation 2'
+    }
+  } catch {
+    /* unreadable: treat as unknown */
+  }
   return null
 }

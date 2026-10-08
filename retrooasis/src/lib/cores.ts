@@ -263,6 +263,45 @@ export function platformFromFolder(name: string): string | null {
   return null
 }
 
+/**
+ * Systems people have collections of that RetroOasis cannot run: EmulatorJS ships no browser core for them.
+ * Used to say so plainly instead of silently skipping a folder or file.
+ */
+const UNSUPPORTED_FOLDER_NAMES: Record<string, string> = {
+  dreamcast: 'Dreamcast', segadreamcast: 'Dreamcast', dc: 'Dreamcast',
+  gamecube: 'GameCube', nintendogamecube: 'GameCube', gc: 'GameCube', ngc: 'GameCube',
+  wii: 'Wii', nintendowii: 'Wii', wiiu: 'Wii U', nintendowiiu: 'Wii U',
+  switch: 'Nintendo Switch', nintendoswitch: 'Nintendo Switch',
+  ps2: 'PlayStation 2', playstation2: 'PlayStation 2', sonyplaystation2: 'PlayStation 2',
+  ps3: 'PlayStation 3', playstation3: 'PlayStation 3', sonyplaystation3: 'PlayStation 3',
+  xbox: 'Xbox', microsoftxbox: 'Xbox', xbox360: 'Xbox 360', microsoftxbox360: 'Xbox 360',
+}
+
+/** The system name when a folder holds games RetroOasis can't run, otherwise null. */
+export function unsupportedSystemFromFolder(name: string): string | null {
+  const squash = (text: string) => text.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '')
+  const parts = name.split(/\s+-\s+/)
+  for (const key of [squash(name), ...parts.map(squash)]) if (UNSUPPORTED_FOLDER_NAMES[key]) return UNSUPPORTED_FOLDER_NAMES[key]
+  return null
+}
+
+const UNSUPPORTED_EXTENSIONS: Record<string, string> = {
+  gdi: 'Dreamcast', cdi: 'Dreamcast',
+  gcm: 'GameCube', rvz: 'GameCube or Wii', wbfs: 'Wii', wad: 'Wii', ciso: 'GameCube or Wii', nkit: 'GameCube or Wii',
+  wux: 'Wii U', wud: 'Wii U', wua: 'Wii U',
+  nsp: 'Nintendo Switch', xci: 'Nintendo Switch', nsz: 'Nintendo Switch',
+  xiso: 'Xbox', xbe: 'Xbox',
+}
+
+/** The system name for a file type RetroOasis can't run (a Dreamcast .gdi, a Switch .nsp), otherwise null. */
+export function unsupportedSystemFromExtension(filename: string): string | null {
+  return UNSUPPORTED_EXTENSIONS[filename.split('.').pop()?.toLowerCase() ?? ''] ?? null
+}
+
+export function unsupportedSystemMessage(system: string): string {
+  return `${system} isn’t supported yet: RetroOasis has no browser emulator for it.`
+}
+
 export function coreForPlatform(platformId: string): string {
   return PLATFORM_TO_CORE[platformId] ?? platformId
 }

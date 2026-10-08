@@ -171,6 +171,8 @@ checkTrue('empty drop mentions ROM', emptyDropMessage().includes('ROM'))
 check('disc set label', discSetLabel(['game.cue', 'game.bin']), 'game.cue + 1 more')
 
 console.log('unplannedFileVerdict')
+checkTrue('a Dreamcast .gdi says so', /Dreamcast/.test(unplannedFileVerdict('Crazy Taxi.gdi', false)))
+checkTrue('a Dreamcast .gdi is refused even with a system chosen', /Dreamcast/.test(unplannedFileVerdict('Crazy Taxi.gdi', true)))
 check('manual system saves odd extension', unplannedFileVerdict('Prototype.rom', true), 'save')
 checkTrue('manual system never saves a battery save as a game', unplannedFileVerdict('Pokemon.sav', true).startsWith('Save or state'))
 checkTrue('save states are recognized', unplannedFileVerdict('Pokemon.state3', true).startsWith('Save or state'))

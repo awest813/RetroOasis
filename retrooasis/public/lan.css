@@ -303,3 +303,23 @@ input[type=file] { padding: .5rem; }
   [data-lan-play] .ro-lan-topbar h1 { font-size: 1.05rem; flex-basis: 100%; }
   .ro-lan-controls { gap: .6rem; margin: .6rem 0; }
 }
+
+/* Join page: a message (room not found, full, can't reach the host) sits above the form, where it is seen,
+   not under the steps and notes where a phone never scrolls to. */
+.ro-lan-guest .ro-lan-main { display: flex; flex-direction: column; }
+.ro-lan-guest .ro-lan-main > [data-lan-status] { order: -1; margin-bottom: 1rem; }
+.ro-lan-guest .ro-lan-main > #retry-service { order: -1; align-self: flex-start; margin-bottom: 1rem; }
+.ro-room-code span { font-size: .72rem; }
+
+/* Touch screens, including touch laptops and Chromebooks: thumb-sized targets (44px). */
+@media (pointer: coarse), (any-pointer: coarse) {
+  .ro-lan-header a { display: inline-flex; align-items: center; min-height: 44px; }
+  .ro-lan-system button, .ro-seat button { min-height: 44px; }
+  .ro-lan-invite > summary { min-height: 44px; }
+}
+/* The invite section can be folded away once the room is full: show that it opens. */
+.ro-lan-invite > summary { list-style: none; gap: .5rem; }
+.ro-lan-invite > summary::-webkit-details-marker { display: none; }
+.ro-lan-invite > summary::before { content: '▸'; color: var(--lan-accent); transition: transform .15s; }
+.ro-lan-invite[open] > summary::before { transform: rotate(90deg); }
+@media (pointer: coarse), (any-pointer: coarse) { .ro-link-page [data-link-back] { display: inline-flex; align-items: center; min-height: 44px; } }

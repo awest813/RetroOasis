@@ -581,6 +581,8 @@ select.ro-input {
 }
 
 .ro-btn {
+  max-width: 100%;
+  overflow-wrap: anywhere; /* large text sizes: a long label wraps instead of widening the page */
   display: inline-flex;
   gap: 0.5rem;
   align-items: center;
@@ -1310,9 +1312,9 @@ html[data-layout='tv'] .ro-btn--toggle {
   align-content: start;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 45em) {
   .ro-detail {
-    grid-template-columns: minmax(11rem, 16rem) 1fr;
+    grid-template-columns: minmax(11rem, 16rem) minmax(0, 1fr);
     align-items: start;
     gap: 1.75rem 2rem;
   }
@@ -1320,7 +1322,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 @media (min-width: 1100px) {
   .ro-detail {
-    grid-template-columns: minmax(14rem, 18rem) 1fr;
+    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
   }
 }
 
@@ -2166,8 +2168,9 @@ html[data-layout='tv'] .ro-btn--toggle {
     linear-gradient(135deg, color-mix(in srgb, var(--ro-accent) 10%, transparent), transparent 55%),
     color-mix(in srgb, var(--ro-bg-panel-solid) 85%, transparent);
 }
+.ro-online-card { min-width: 0; }
 .ro-online-card p { margin: 0; }
-.ro-online-card__head { display: flex; align-items: center; gap: 0.75rem; }
+.ro-online-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
 .ro-online-card__title {
   margin: 0;
   font-family: var(--ro-font-display);
@@ -2285,3 +2288,4 @@ html[data-layout='tv'] .ro-btn--toggle {
   .ro-settings__nav .ro-btn[aria-current='true'] { background: rgba(46, 230, 214, 0.1); }
   @media (max-width: 999px) { .ro-settings > .ro-settings__nav { background: #071018; } }
 }
+.ro-saves__toolbar .ro-btn { min-width: 0; }

@@ -98,8 +98,16 @@ export function parentHash(route: Route): string | null {
 // survives reloads and back/forward; a bookmark or shared link starts at 0.
 let depth = 0
 let replacing = false
+let lastWasNewEntry = true
+
+/** True when the last navigation opened a new history entry; false for Back, Forward and reloads. */
+export function arrivedByNewEntry(): boolean {
+  return lastWasNewEntry
+}
+
 function trackDepth(): void {
   const stored = (history.state as { roDepth?: unknown } | null)?.roDepth
+  lastWasNewEntry = typeof stored !== 'number'
   if (typeof stored === 'number') depth = stored
   else {
     // A replaced entry (Back to a parent route) keeps its depth; a new one adds to it.

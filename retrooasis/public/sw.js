@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v13'
+const CACHE = 'retrooasis-shell-v14'
 // Libretro box art, so the library keeps its covers offline. Fetched with CORS:
 // opaque responses would each count as megabytes of padded quota.
 const COVER_CACHE = 'retrooasis-covers-v1'
@@ -37,6 +37,15 @@ async function coverResponse(event, url) {
   } catch {
     return (await cache.match(key.href)) || Response.error()
   }
+}
+
+// PSP, DOS and 3DS cores need threads, which browsers allow only on pages sent with these headers.
+// A static host can't send them, so the player page (opened with threads=1) gets them here.
+function withIsolation(res) {
+  const headers = new Headers(res.headers)
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
 }
 
 const PRECACHE = [
@@ -198,6 +207,8 @@ self.addEventListener('fetch', (event) => {
   // Navigations / HTML: network-first so deploys update, offline falls back to shell.
   const isNav = req.mode === 'navigate' || req.destination === 'document'
   if (isNav) {
+    const isolate = path.endsWith('/player.html') && url.searchParams.get('threads') === '1'
+    const finish = (res) => (isolate && res && res.type !== 'error' && res.status !== 0 ? withIsolation(res) : res)
     event.respondWith(
       fetch(req)
         .then((res) => {
@@ -211,15 +222,15 @@ self.addEventListener('fetch', (event) => {
               return cache.put(cacheReq, copy)
             }).catch(() => {}))
           }
-          return res
+          return finish(res)
         })
         .catch(async () => {
           const cache = await caches.open(CACHE)
-          return (
+          return finish(
             (await cache.match(req, { ignoreSearch: true })) ||
             (await cache.match('./index.html')) ||
             (await cache.match('./')) ||
-            Response.error()
+            Response.error(),
           )
         }),
     )

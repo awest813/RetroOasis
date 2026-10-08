@@ -1,6 +1,6 @@
 /** Pure helpers for the Add a ROM view — status copy, file lists, batch summaries. */
 
-import { coreNeedsThreads } from './cores'
+import { coreNeedsThreads, unsupportedSystemFromExtension, unsupportedSystemMessage } from './cores'
 
 export type UploadKind = 'saved' | 'skipped' | 'error'
 
@@ -126,6 +126,8 @@ export function unplannedFileVerdict(filename: string, systemChosen: boolean): '
   if (NON_GAME_EXTENSIONS.has(ext) || filename.startsWith('.')) return NOT_A_GAME
   if (SAVE_EXTENSIONS.has(ext) || /^state\d+$/.test(ext)) return SAVE_FILE
   if (ORPHAN_TRACK_EXTENSIONS.has(ext)) return 'Disc track without its .cue or .m3u — add them in the same batch.'
+  const unsupported = unsupportedSystemFromExtension(filename)
+  if (unsupported) return unsupportedSystemMessage(unsupported)
   if (systemChosen) return 'save'
   return 'File type isn’t recognized. Pick its system above, then add it again.'
 }

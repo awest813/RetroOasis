@@ -43,7 +43,7 @@ export interface Game {
 export interface Catalog {
   platforms: Platform[]
   games: Game[]
-  local?: { folderName: string; count: number } | null
+  local?: { folderName: string; count: number; unsupported?: string[] } | null
   hostedCount?: number
   uploadedCount?: number
 }
@@ -116,7 +116,7 @@ function emitCatalogChange(): void {
 
 export async function applyLocalScan(result: LocalScanResult): Promise<Catalog> {
   localGames = result.games
-  localMeta = { folderName: result.folderName, count: result.count }
+  localMeta = { folderName: result.folderName, count: result.count, unsupported: result.unsupported }
   const catalog = await loadCatalog()
   emitCatalogChange()
   return catalog
@@ -173,7 +173,7 @@ async function readCatalogExtras(): Promise<void> {
     const restored = await restoreLocalLibrary()
     if (restored) {
       localGames = restored.games
-      localMeta = { folderName: restored.folderName, count: restored.count }
+      localMeta = { folderName: restored.folderName, count: restored.count, unsupported: restored.unsupported }
     }
   } catch {
     localGames = []

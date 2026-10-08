@@ -110,6 +110,61 @@ const pressed = (page, selector) => page.evaluate(selector => document.querySele
   await page.context().close()
 }
 
+// ---- Add ROM explains what it can't run, and a linked folder says what it skipped
+{
+  const page = await newPage()
+  const chd = (tag, bytes) => { const b = Buffer.alloc(124 + 16 + 20); b.write('MComprHD', 0); b.writeUInt32BE(124, 8); b.writeUInt32BE(5, 12); b.writeBigUInt64BE(BigInt(bytes), 32); b.writeBigUInt64BE(124n, 48); b.write(tag, 124); b.writeUInt32BE(20, 128); return b }
+  const xbox = Buffer.alloc(0x10100); xbox.write('MICROSOFT*XBOX*MEDIA', 0x10000)
+  await page.goto(`${base}/#/upload`); await page.waitForSelector('#ro-file', { state: 'attached' })
+  await page.setInputFiles('#ro-file', [
+    { name: 'Crazy Taxi.gdi', mimeType: 'application/octet-stream', buffer: Buffer.from('3 1 0 4 2352 track01.bin 0') },
+    { name: 'taxi.chd', mimeType: 'application/octet-stream', buffer: chd('CHGD', 1.3e9) },
+    { name: 'madden.chd', mimeType: 'application/octet-stream', buffer: chd('DVD ', 1.5e9) },
+    { name: 'ps2.chd', mimeType: 'application/octet-stream', buffer: chd('DVD ', 4.3e9) },
+    { name: 'halo.iso', mimeType: 'application/octet-stream', buffer: xbox },
+  ])
+  await page.waitForFunction(() => document.querySelectorAll('.ro-upload__log-item').length >= 5, null, { timeout: 20000 }).catch(() => {})
+  const log = await page.evaluate(() => [...document.querySelectorAll('.ro-upload__log-item')].map(li => li.innerText.replace(/\s+/g, ' ')))
+  const row = name => log.find(line => line.includes(name)) ?? ''
+  check(/skipped.*Dreamcast/i.test(row('Crazy Taxi.gdi')), 'A Dreamcast .gdi is refused with the reason', row('Crazy Taxi.gdi').slice(0, 90))
+  check(/skipped.*Dreamcast/i.test(row('taxi.chd')), 'A Dreamcast .chd is refused with the reason')
+  check(/skipped.*PSP game stored as \.chd/i.test(row('madden.chd')), 'A UMD-sized DVD .chd is recognised as a PSP game it cannot open')
+  check(/skipped.*DVD/i.test(row('ps2.chd')), 'A full-size DVD .chd is refused')
+  check(/skipped.*Xbox/i.test(row('halo.iso')), 'An Xbox disc image is refused', row('halo.iso').slice(0, 90))
+  await page.context().close()
+}
+{
+  const page = await newPage()
+  await page.goto(`${base}/#/settings`); await page.waitForSelector('[data-ro-settings]')
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    await root.removeEntry('ui-roms', { recursive: true }).catch(() => {})
+    const top = await root.getDirectoryHandle('ui-roms', { create: true })
+    const put = async (dir, name) => { const handle = await dir.getFileHandle(name, { create: true }); const writer = await handle.createWritable(); await writer.write('x'); await writer.close() }
+    for (const [folder, file] of [['Nintendo - Game Boy Advance', 'Advance Wars.gba'], ['Sega - Dreamcast', 'Crazy Taxi.gdi'], ['Sony - PlayStation 2', 'Game.iso']]) await put(await top.getDirectoryHandle(folder, { create: true }), file)
+    window.showDirectoryPicker = async () => top
+  })
+  await page.click('#ro-link'); await page.waitForTimeout(1200)
+  const text = await page.evaluate(() => document.querySelector('#ro-link').closest('.ro-settings-row').innerText.replace(/\s+/g, ' '))
+  check(/Skipped Dreamcast, PlayStation 2/.test(text), 'A linked folder lists the systems it skipped', text.slice(0, 160))
+  await page.context().close()
+}
+
+// ---- A new page starts at the top; Back to Settings keeps your place
+{
+  const page = await newPage({ width: 390, height: 700 }, { hasTouch: true, isMobile: true })
+  await page.goto(`${base}/#/settings`); await page.waitForSelector('[data-ro-settings]'); await page.waitForTimeout(400)
+  await page.evaluate(() => window.scrollTo(0, 1400)); await page.waitForTimeout(300)
+  await page.evaluate(() => { location.hash = '#/saves' }); await page.waitForTimeout(700)
+  check(await page.evaluate(() => scrollY) === 0, 'Opening another page starts at the top')
+  await page.goBack(); await page.waitForSelector('[data-ro-settings]'); await page.waitForTimeout(700)
+  check(await page.evaluate(() => scrollY) > 400, 'Back to Settings returns to where you were', String(await page.evaluate(() => scrollY)))
+  await page.evaluate(() => { location.hash = '#/' }); await page.waitForTimeout(500)
+  await page.evaluate(() => { location.hash = '#/settings' }); await page.waitForSelector('[data-ro-settings]'); await page.waitForTimeout(700)
+  check(await page.evaluate(() => scrollY) < 50, 'Opening Settings from the menu starts at the top', String(await page.evaluate(() => scrollY)))
+  await page.context().close()
+}
+
 // ---- Layout on every device class
 const devices = {
   'desktop 1920': { width: 1920, height: 1080 },

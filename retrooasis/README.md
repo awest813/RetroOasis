@@ -25,7 +25,9 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 - The library lists **all EmulatorJS systems** (NES through PSP, 3DS, DOS, etc.).
 - Settings → **Emulator files** defaults to **stable** for most systems. **PSP / 3DS / DOS** always launch on **nightly** (unless Local).
 - Channels: `stable` · `nightly` · `latest` · `local` (`data/` beside the site).
-- PSP/DOS/3DS require `SharedArrayBuffer`. Use the Vite dev/preview headers, or deploy `public/_headers` on a host that supports custom headers (for example, Netlify). GitHub Pages does not support custom header files.
+- PSP/DOS/3DS require `SharedArrayBuffer`. The Vite dev/preview servers and `public/_headers` (Netlify and similar) send the headers. On a host that can't, such as GitHub Pages, the player turns thread support on itself: it installs the app's service worker, which adds the headers to `player.html?threads=1`, and reloads once. That needs HTTPS (or localhost) and a browser that allows service workers; `npm --prefix retrooasis run test:threads` checks it.
+- **PSP** games run on the PPSSPP core from the Nightly channel, which only exists as a threaded build. It reads `.iso`, `.cso` and `.pbp`, not `.chd`: convert a PSP `.chd` with `chdman extractdvd`.
+- **Dreamcast, GameCube, Wii, Wii U, Switch, PlayStation 2/3 and Xbox** are not supported: EmulatorJS publishes no browser core for them (the CDN has no Flycast build on any channel). Add ROM refuses their files and disc images with that reason, and linking a folder lists the systems it skipped.
 
 ## Scripts
 

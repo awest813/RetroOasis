@@ -87,6 +87,19 @@ function platformFromFolder(name) {
   return null
 }
 
+/** Mirrors unsupportedSystemFromFolder in src/lib/cores.ts. */
+const UNSUPPORTED_FOLDERS = {
+  dreamcast: 'Dreamcast', segadreamcast: 'Dreamcast', dc: 'Dreamcast', gamecube: 'GameCube', nintendogamecube: 'GameCube', gc: 'GameCube',
+  wii: 'Wii', nintendowii: 'Wii', wiiu: 'Wii U', nintendowiiu: 'Wii U', switch: 'Nintendo Switch', nintendoswitch: 'Nintendo Switch',
+  ps2: 'PlayStation 2', playstation2: 'PlayStation 2', sonyplaystation2: 'PlayStation 2', ps3: 'PlayStation 3', playstation3: 'PlayStation 3',
+  xbox: 'Xbox', microsoftxbox: 'Xbox', xbox360: 'Xbox 360', microsoftxbox360: 'Xbox 360',
+}
+function unsupportedSystemFromFolder(name) {
+  const squash = (text) => text.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '')
+  for (const key of [squash(name), ...name.split(/\s+-\s+/).map(squash)]) if (UNSUPPORTED_FOLDERS[key]) return UNSUPPORTED_FOLDERS[key]
+  return null
+}
+
 const hostedPath = (...parts) => parts.map(encodeURIComponent).join('/')
 
 function parseCueFileReferences(text) {
@@ -188,7 +201,11 @@ const games = []
 for (const entry of fs.readdirSync(romsRoot, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue
   const platform = platformFromFolder(entry.name)
-  if (!platform) continue
+  if (!platform) {
+    const unsupported = unsupportedSystemFromFolder(entry.name)
+    if (unsupported) console.log(`Skipped "${entry.name}": ${unsupported} isn't supported yet (no browser emulator).`)
+    continue
+  }
 
   const platformDir = path.join(romsRoot, entry.name)
   const romFiles = fs.readdirSync(platformDir).filter((file) => {

@@ -417,4 +417,6 @@ The full findings, fixes and open items are in [docs/plans/audit-menus-roms.md](
 
 `npm --prefix retrooasis run test:roms -- "<folder of system folders>" [--limit N] [--concurrency N] [--channel nightly]` repeats the ROM check on your own collection. It serves the folder read-only on loopback, boots each game in the real player and reports ok, blank or failed. It needs a build and Playwright, like `test:online-browser`.
 
+`npm --prefix retrooasis run test:threads` serves the build with no isolation headers and checks that a PSP core still starts (the service worker adds them), plus the no-service-worker message. It needs Playwright and a network connection.
+
 New unit checks in `npm test`: CHD media detection, folder names in the Libretro / No-Intro style, damaged-archive detection, size guards for unreadable archives, router decoding and case, and edited-field merging.
