@@ -23,8 +23,9 @@ export function isLanAddress(ip = '') {
 }
 /**
  * The computer's LAN and virtual-LAN addresses, best invite first, each with a label people
- * recognise: Wi-Fi and Ethernet first, virtual LANs (internet play) next, other adapters,
- * then virtual-machine adapters (WSL, Hyper-V, Docker…), which guests can't reach.
+ * recognise: Wi-Fi and Ethernet first, virtual LANs and VPNs next, other adapters, then
+ * virtual-machine adapters (WSL, Hyper-V, Docker…) and self-assigned 169.254 addresses, which
+ * guests can't reach. Self-assigned addresses are left out when a real network exists.
  */
 export function describeAddresses(interfaces = os.networkInterfaces()) {
   const seen = new Set(), out = []
@@ -32,31 +33,41 @@ export function describeAddresses(interfaces = os.networkInterfaces()) {
     for (const entry of entries ?? []) {
       if (!entry || entry.internal || entry.family !== 'IPv4' || !isLanAddress(entry.address) || seen.has(entry.address)) continue
       seen.add(entry.address)
+      const linkLocal = /^169\.254\./.test(entry.address)
       const tailscale = /tailscale/i.test(name) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(entry.address)
-      const [rank, label] = tailscale ? [2, 'Tailscale (internet)']
-        : /zerotier|^zt|nebula/i.test(name) ? [2, `${name} (internet)`]
-          : /vethernet|wsl|hyper-v|docker|virtualbox|vmware|vmnet|^br-|^veth|virbr|vboxnet/i.test(name) ? [4, 'Virtual machine adapter']
-            : /wi-?fi|wlan|wireless|^wl/i.test(name) ? [0, 'Wi-Fi']
-              : /ethernet|^eth|^en\d|^enp/i.test(name) ? [1, 'Ethernet']
-                : [3, name]
-      out.push({ ip: entry.address, name, label, rank })
+      const [rank, label, kind] = linkLocal ? [5, 'No network (self-assigned address)', 'none']
+        : tailscale ? [2, 'Tailscale (internet)', 'internet']
+          : /zerotier|^zt|nebula/i.test(name) ? [2, `${name} (internet)`, 'internet']
+            : /vethernet|wsl|hyper-v|docker|virtualbox|vmware|vmnet|^br-|^veth|virbr|vboxnet|vmenet|vnic|bridge\d|lxcbr|lxdbr|podman|local area connection\*/i.test(name) ? [4, 'Virtual machine adapter', 'virtual']
+              : /vpn|^tap|tap-|^tun\d|^utun|^ppp|wireguard|^wg\d|openvpn|anyconnect|proton|nord|mullvad|globalprotect/i.test(name) ? [3, `${name} (VPN)`, 'vpn']
+                : /wi-?fi|wlan|wireless|^wl/i.test(name) ? [0, 'Wi-Fi', 'network']
+                  : /ethernet|^eth|^enp|^eno|^ens|local area connection/i.test(name) ? [1, 'Ethernet', 'network']
+                    : /^en\d+$/i.test(name) ? [1, 'Wi-Fi or Ethernet', 'network'] // macOS: en0 is Wi-Fi on a laptop, Ethernet on a desktop
+                      : [3, name, 'other']
+      out.push({ ip: entry.address, name, label, rank, kind })
     }
   }
-  return out.sort((a, b) => a.rank - b.rank)
+  const sorted = out.sort((a, b) => a.rank - b.rank)
+  return sorted.some(value => value.rank < 5) ? sorted.filter(value => value.rank < 5) : sorted
 }
-export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.app, linkRoot = defaultLinkRoot } = {}) {
+export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.app, linkRoot = defaultLinkRoot, interfaces = () => os.networkInterfaces(), addressRefreshMs = 2000 } = {}) {
   if (!!cert !== !!key) throw new Error('Provide both --cert and --key for HTTPS.')
   const secure = !!cert
-  const described = describeAddresses()
-  const addresses = described.map(value => value.ip)
-  const hosts = new Set(['localhost', '127.0.0.1', '[::1]', os.hostname().toLowerCase(), ...addresses])
+  // Re-read the adapters every couple of seconds: Wi-Fi reconnects, DHCP changes and Tailscale coming up
+  // after the host started would otherwise leave guests refused at an address that is now valid.
+  let snapshot = { at: -Infinity, described: [] }
+  const current = () => {
+    if (Date.now() - snapshot.at > addressRefreshMs) snapshot = { at: Date.now(), described: describeAddresses(interfaces()) }
+    return snapshot.described
+  }
+  const knownHosts = () => new Set(['localhost', '127.0.0.1', '[::1]', os.hostname().toLowerCase(), ...current().map(value => value.ip)])
   let actualPort = port
   const validRequest = req => {
     if (!isLanAddress(req.socket.remoteAddress)) return false
     let url
     try { url = new URL(`${secure ? 'https' : 'http'}://${req.headers.host}`) } catch { return false }
     if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) return false
-    if (!hosts.has(url.hostname.toLowerCase()) || Number(url.port || (secure ? 443 : 80)) !== actualPort) return false
+    if (!knownHosts().has(url.hostname.toLowerCase()) || Number(url.port || (secure ? 443 : 80)) !== actualPort) return false
     return !req.headers.origin || req.headers.origin === url.origin
   }
   const roots = { '/data/': lanPaths.data, '/roms/': lanPaths.roms }
@@ -87,13 +98,13 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
       const linked = link.ready ? Object.keys(LINK_CAPABILITIES) : []
       res.end(JSON.stringify({ available: true, protocol: LAN_PROTOCOL, maxPlayers: 4, cores: [...Object.keys(LAN_CAPABILITIES), ...linked], capabilities: LAN_CAPABILITIES, secure,
         link: { ready: link.ready, systems: linked, ...(link.ready ? {} : { error: link.error }) },
-        addresses: addresses.map(ip => `${secure ? 'https' : 'http'}://${ip}:${actualPort}`), addressLabels: described.map(value => value.label) }))
+        addresses: current().map(value => `${secure ? 'https' : 'http'}://${value.ip}:${actualPort}`), addressLabels: current().map(value => value.label), addressKinds: current().map(value => value.kind) }))
       return
     }
     if (pathname === '/api/lan/qr') {
       try {
         const invite = new URL(url.searchParams.get('invite'))
-        if (!hosts.has(invite.hostname.toLowerCase()) || invite.protocol !== (secure ? 'https:' : 'http:')
+        if (!knownHosts().has(invite.hostname.toLowerCase()) || invite.protocol !== (secure ? 'https:' : 'http:')
           || Number(invite.port || (secure ? 443 : 80)) !== actualPort || invite.pathname !== '/lan.html'
           || !/^#[A-F0-9]{10}$/.test(invite.hash) || invite.search || invite.username || invite.password) throw new Error('Invalid invite')
         res.setHeader('Content-Type', 'image/svg+xml')
@@ -144,7 +155,7 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
   const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384,
     allowRequest: (req, callback) => callback(null, validRequest(req)), cors: { origin: false } })
   const rooms = attachRooms(io, { linkAvailable: () => link.ready })
-  return { server, io, rooms, addresses, described, secure, refreshLink, setPort: value => { actualPort = value } }
+  return { server, io, rooms, get addresses() { return current().map(value => value.ip) }, get described() { return current() }, secure, refreshLink, setPort: value => { actualPort = value } }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

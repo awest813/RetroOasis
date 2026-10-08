@@ -14,7 +14,7 @@ class Element {
   addEventListener() {}
   querySelector(selector) { return this.nodes?.[selector] }
 }
-const selectors = ['[data-lan-note]','form', '[data-lan-room]', '[data-lan-address]', '[data-lan-invite]', '[data-lan-lock]', '[data-lan-retry]', '[data-lan-pause]', '[data-lan-end]', '[data-lan-copy]', '[data-lan-qr]', '[data-lan-players]', '[data-lan-capacity]', 'details', 'summary']
+const selectors = ['[data-lan-note]','form', '[data-lan-room]', '[data-lan-address]', '[data-lan-address-hint]', '[data-lan-invite]', '[data-lan-lock]', '[data-lan-retry]', '[data-lan-pause]', '[data-lan-end]', '[data-lan-copy]', '[data-lan-qr]', '[data-lan-players]', '[data-lan-capacity]', 'details', 'summary']
 const panel = new Element()
 panel.nodes = Object.fromEntries(selectors.map(selector => [selector, new Element()]))
 panel.nodes.form.nodes = {button:new Element()}

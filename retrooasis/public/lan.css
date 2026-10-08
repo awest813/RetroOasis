@@ -323,3 +323,5 @@ input[type=file] { padding: .5rem; }
 .ro-lan-invite > summary::before { content: '▸'; color: var(--lan-accent); transition: transform .15s; }
 .ro-lan-invite[open] > summary::before { transform: rotate(90deg); }
 @media (pointer: coarse), (any-pointer: coarse) { .ro-link-page [data-link-back] { display: inline-flex; align-items: center; min-height: 44px; } }
+/* The address hint spans the whole row; left in the narrow QR column it squeezed the address picker. */
+.ro-lan-invite__body .ro-lan-panel__hint { grid-column: 1 / -1; margin: 0; }

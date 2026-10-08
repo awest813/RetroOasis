@@ -41,7 +41,7 @@ export async function mountHost(emu, options = {}) {
       <p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul class="ro-seats" data-lan-players aria-label="Players"></ul>
       <details class="ro-lan-invite" open><summary>Invite players</summary>
         <div class="ro-lan-invite__body"><img class="ro-lan-qr" data-lan-qr alt="Scan to join this room">
-        <label>Network <select data-lan-address aria-label="Network friends join through"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
+        <label>Network <select data-lan-address aria-label="Network friends join through" aria-describedby="lan-address-hint"></select></label><p class="ro-lan-panel__hint" id="lan-address-hint" data-lan-address-hint hidden></p><input data-lan-invite readonly aria-label="Room invite link"></div></details>
       <div class="ro-lan-actions"><button type="button" class="ro-lan-primary" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
       <p class="ro-lan-panel__hint" data-lan-note></p></div>
     <p data-lan-status role="status" aria-live="polite">Getting ready…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
@@ -302,7 +302,24 @@ export async function mountHost(emu, options = {}) {
       if (codeLine) codeLine.textContent = room ? `${room.code.slice(0, 5)} ${room.code.slice(5)}` : ''
       if (room) panel.querySelector('[data-lan-qr]').src = `/api/lan/qr?invite=${encodeURIComponent(invite.value)}`
     }
-    address.onchange = refreshInvite
+    // Say what the chosen address means for friends: which network they need to be on, or why it won't work.
+    const addressHint = panel.querySelector('[data-lan-address-hint]')
+    const networks = (info.addressKinds ?? []).filter(kind => kind === 'network').length
+    const hintFor = kind => ({
+      network: networks > 1 ? 'Pick the network your friends’ devices are on.' : '',
+      internet: 'Friends join over the internet only if they are on the same virtual network (Tailscale, Nebula or ZeroTier).',
+      vpn: 'A VPN address usually works only for friends on the same VPN.',
+      virtual: 'This is a virtual adapter inside your computer, so friends can’t reach it. Use the Wi-Fi or Ethernet address.',
+      none: 'This computer isn’t connected to a network. Connect to Wi-Fi or Ethernet so friends can join.',
+      other: 'Not sure this network is the one your friends are on? Try the Wi-Fi or Ethernet address first.',
+    })[kind] ?? ''
+    const refreshHint = () => {
+      if (!addressHint) return
+      const text = hintFor(info.addressKinds?.[address.selectedIndex])
+      addressHint.textContent = text; addressHint.hidden = !text
+    }
+    refreshHint()
+    address.onchange = () => { refreshHint(); refreshInvite() }
     socket.on('room:update', update)
     socket.on('room:signal', ({ sender, signal }) => { void peers.get(sender)?.accept(signal) })
     socket.on('room:ended', ({ reason }) => endLocal(ending ? 'Room ended. You can continue playing locally.' : reason))

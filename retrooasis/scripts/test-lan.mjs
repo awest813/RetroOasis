@@ -49,6 +49,49 @@ assert(!isLanAddress('100.63.0.1') && !isLanAddress('100.128.0.1'), 'The rest of
   const described = describeAddresses({ 'vEthernet (WSL)': nic('172.23.96.1'), 'Wi-Fi': nic('192.168.1.20'), Tailscale: nic('100.101.2.3'), eth0: nic('10.0.0.5'), public: nic('8.8.8.8') })
   assert.deepEqual(described.map(a => a.label), ['Wi-Fi', 'Ethernet', 'Tailscale (internet)', 'Virtual machine adapter'], 'Invite addresses: Wi-Fi first, VM adapters last, public never')
 }
+// Several adapters at once, as real computers report them.
+{
+  const nic = (...addresses) => addresses.map(address => ({ address, family: 'IPv4', internal: false }))
+  const v6 = [{ address: 'fe80::1', family: 'IPv6', internal: false }]
+  const rows = interfaces => describeAddresses(interfaces).map(a => `${a.label} ${a.ip}`)
+  assert.deepEqual(rows({
+    'vEthernet (Default Switch)': nic('172.28.64.1'), 'vEthernet (WSL (Hyper-V firewall))': nic('172.23.96.1'),
+    'Local Area Connection* 1': nic('169.254.83.107'), 'Local Area Connection* 2': nic('169.254.12.9'), 'Bluetooth Network Connection': nic('169.254.7.7'),
+    'Wi-Fi': nic('192.168.1.210'), 'Ethernet': nic('192.168.1.55'), 'Tailscale': [...nic('100.88.1.2'), ...v6], 'ZeroTier One [8056c2e21c000001]': nic('10.147.17.5'),
+    'Loopback Pseudo-Interface 1': [{ address: '127.0.0.1', family: 'IPv4', internal: true }],
+  }), ['Wi-Fi 192.168.1.210', 'Ethernet 192.168.1.55', 'Tailscale (internet) 100.88.1.2', 'ZeroTier One [8056c2e21c000001] (internet) 10.147.17.5', 'Virtual machine adapter 172.28.64.1', 'Virtual machine adapter 172.23.96.1'],
+  'Windows: real networks first, virtual LANs next, Hyper-V/WSL last, self-assigned and loopback addresses never')
+  assert.deepEqual(rows({ lo0: [{ address: '127.0.0.1', family: 'IPv4', internal: true }], en0: nic('192.168.0.14'), en5: nic('10.0.0.8'), bridge100: nic('192.168.2.1'), utun4: nic('100.100.5.5'), awdl0: v6, utun1: nic('10.8.0.2') }),
+    ['Wi-Fi or Ethernet 192.168.0.14', 'Wi-Fi or Ethernet 10.0.0.8', 'Tailscale (internet) 100.100.5.5', 'utun1 (VPN) 10.8.0.2', 'Virtual machine adapter 192.168.2.1'],
+    'macOS: en0 is not claimed to be Ethernet, VPN tunnels are labelled, Internet Sharing bridges go last')
+  assert.deepEqual(rows({ lo: [{ address: '127.0.0.1', family: 'IPv4', internal: true }], wlp3s0: nic('192.168.1.77'), enp4s0: nic('192.168.1.78'), docker0: nic('172.17.0.1'), 'br-1a2b3c': nic('172.18.0.1'), virbr0: nic('192.168.122.1'), tailscale0: nic('100.70.0.9'), wg0: nic('10.2.0.2') }),
+    ['Wi-Fi 192.168.1.77', 'Ethernet 192.168.1.78', 'Tailscale (internet) 100.70.0.9', 'wg0 (VPN) 10.2.0.2', 'Virtual machine adapter 172.17.0.1', 'Virtual machine adapter 172.18.0.1', 'Virtual machine adapter 192.168.122.1'],
+    'Linux: Wi-Fi, Ethernet, Tailscale, WireGuard, then Docker and libvirt bridges')
+  assert.deepEqual(rows({ 'Local Area Connection* 3': nic('169.254.1.2') }), ['No network (self-assigned address) 169.254.1.2'], 'A self-assigned address is the only choice when nothing else exists')
+  assert.deepEqual(rows({ Wifi: nic('192.168.1.5'), 'Wi-Fi 2': nic('192.168.1.5') }), ['Wi-Fi 192.168.1.5'], 'The same address on two adapters is listed once')
+  assert.deepEqual(rows({}), [], 'No adapters: no addresses (the page falls back to the address it was opened at)')
+  assert.deepEqual(rows({ Ethernet: [{ address: '8.8.8.8', family: 'IPv4', internal: false }] }), [], 'A public address is never offered')
+}
+// The server re-reads the adapters, so an address that appears after start is accepted and offered.
+{
+  let current = { 'Wi-Fi': [{ address: '192.168.1.20', family: 'IPv4', internal: false }] }
+  const lan = createLanServer({ port: 0, interfaces: () => current, addressRefreshMs: 0 })
+  await new Promise(resolve => lan.server.listen(0, '127.0.0.1', resolve))
+  const port = lan.server.address().port
+  lan.setPort(port)
+  const fetchAs = (host, pathname = '/api/lan') => new Promise((resolve, reject) => http.get({ host: '127.0.0.1', port, path: pathname, headers: { host: `${host}:${port}` } }, response => { let body = ''; response.on('data', chunk => { body += chunk }); response.on('end', () => resolve({ status: response.statusCode, body })) }).on('error', reject))
+  assert.equal((await fetchAs('100.88.1.2')).status, 403, 'An address the host does not have yet is refused')
+  current = { 'Wi-Fi': current['Wi-Fi'], Tailscale: [{ address: '100.88.1.2', family: 'IPv4', internal: false }] }
+  const info = await fetchAs('100.88.1.2')
+  assert.equal(info.status, 200, 'Once Tailscale is up its address is accepted without restarting the host')
+  assert.deepEqual(JSON.parse(info.body).addressLabels, ['Wi-Fi', 'Tailscale (internet)'], 'and offered, labelled, in the invite list')
+  current = { Ethernet: [{ address: '10.0.0.9', family: 'IPv4', internal: false }] }
+  assert.equal((await fetchAs('192.168.1.20')).status, 403, 'An address the host no longer has (moved networks) is refused again')
+  assert.deepEqual(JSON.parse((await fetchAs('10.0.0.9')).body).addresses, [`http://10.0.0.9:${port}`], 'and the new network is the one offered')
+  const qr = await fetchAs('10.0.0.9', `/api/lan/qr?invite=${encodeURIComponent(`http://10.0.0.9:${port}/lan.html#A1B2C3D4E5`)}`)
+  assert.equal(qr.status, 200, 'The invite QR works for a new address')
+  lan.rooms.close(); lan.io.close(); lan.server.close()
+}
 assert(!isLanAddress('8.8.8.8'))
 assert(!isLanAddress('2001:4860:4860::8888'))
 assert(!isLanAddress('192.168.invalid'))

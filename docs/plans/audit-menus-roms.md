@@ -127,4 +127,19 @@ Not tested: a real PSP game. None is in Downloads, so the PSP checks used a plac
 
 Checked and fine: pasting a whole invite link, lower case and spaces; a blank, hostile or 90-character name (shown as text, trimmed, no overflow); a third player in a two-seat room; Lock and Unlock room; host pause (guest sees why); End room (guest told, join form back); a dead socket; resizing across nine sizes on six pages; reduced motion; 835 games in the library (first tile in 0.9 s, search in 0.4 s).
 
-Not covered: a real second device on the network, physical controllers, and the Wi-Fi/Tailscale address picker with more than one adapter.
+Not covered: a real second device on the network and physical controllers.
+
+## 9. Invite-address picker with several network adapters
+
+Checked with adapter lists shaped like a Windows PC (Wi-Fi, Ethernet, WSL, Hyper-V Default Switch, Wi-Fi Direct and Bluetooth with 169.254 addresses, Tailscale, ZeroTier, OpenVPN), a Mac (en0, en5, bridge100, utun for Tailscale and a VPN) and a Linux box (wlp, enp, docker0, br-, virbr0, tailscale0, WireGuard), through the real room host with the adapters faked.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 38 | **The room host read the adapters once, at start.** Joining Wi-Fi later, a changed DHCP address or Tailscale coming up afterwards left guests refused ("Use this server's LAN address") and the invite list stale until the host restarted. | The adapters are re-read every two seconds, for the host check, the invite list and the QR check. Tested: an address that appears is accepted and offered; one that disappears is refused. |
+| 39 | **Self-assigned 169.254 addresses were offered as invites** (Windows creates several, for Wi-Fi Direct and Bluetooth). | Left out whenever a real network exists; shown, labelled "No network (self-assigned address)", only when nothing else is. |
+| 40 | **Mac `en0` was labelled "Ethernet"** (it is Wi-Fi on a laptop). VPN tunnels, Hyper-V, Docker, libvirt, Podman and Internet Sharing bridges were raw names or unranked. | `en0`-style names say "Wi-Fi or Ethernet"; VPNs say "(VPN)"; virtual-machine adapters go last. |
+| 41 | **The picker never said what a choice means.** | A hint under it: pick the network your friends are on (several real networks); friends need the same Tailscale, Nebula or ZeroTier; a VPN usually works only for that VPN; a virtual adapter can't be reached by friends; no network at all. Shown straight away when the best address is a virtual adapter. |
+| 42 | **On a phone the new hint squeezed the picker to a few letters** in the first version. | The hint spans the whole row; the picker is 44 px tall and inside the panel. |
+| 43 | **Nothing tested this.** | `test:lan` covers the three platforms, duplicates, public addresses, no adapters and the live re-read; the browser run covered the picker, invite link, QR, hints, a guest opening the invite and a phone layout. |
+
+Still not covered: a second real device joining over each address.
