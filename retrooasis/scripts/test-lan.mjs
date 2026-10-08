@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
 import http from 'node:http'
 import WebSocket from 'ws'
-import { createLanServer, isLanAddress } from './lan-server.mjs'
+import { createLanServer, isLanAddress, describeAddresses } from './lan-server.mjs'
 import { keyboardLayout, BUTTON_LABELS, inputIndices, ROOM_KEY_EXCEPTIONS, gamepadControls } from '../public/lan-capabilities.js'
 import { LINK_FILES } from './lan-link.mjs'
 import { cleanText } from './lan-rooms.mjs'
@@ -44,6 +44,11 @@ assert(isLanAddress('::1'))
 assert(!isLanAddress('172.32.0.1'))
 assert(isLanAddress('100.101.102.103') && isLanAddress('100.64.0.1') && isLanAddress('100.127.255.254'), 'Virtual LANs (Tailscale) use 100.64.0.0/10')
 assert(!isLanAddress('100.63.0.1') && !isLanAddress('100.128.0.1'), 'The rest of 100/8 is public')
+{
+  const nic = address => [{ address, family: 'IPv4', internal: false }]
+  const described = describeAddresses({ 'vEthernet (WSL)': nic('172.23.96.1'), 'Wi-Fi': nic('192.168.1.20'), Tailscale: nic('100.101.2.3'), eth0: nic('10.0.0.5'), public: nic('8.8.8.8') })
+  assert.deepEqual(described.map(a => a.label), ['Wi-Fi', 'Ethernet', 'Tailscale (internet)', 'Virtual machine adapter'], 'Invite addresses: Wi-Fi first, VM adapters last, public never')
+}
 assert(!isLanAddress('8.8.8.8'))
 assert(!isLanAddress('2001:4860:4860::8888'))
 assert(!isLanAddress('192.168.invalid'))

@@ -23,7 +23,7 @@ export function installLanHost() {
 }
 
 /** options.onPeer(peer, player): add channels before the offer (link rooms use it for cartridges).
- * options.onDrop(socketId): a guest's game connection was removed. options.note: room description. */
+ * options.onDrop(socketId): a guest's game connection was removed. options.note: room description. options.lede: what guests get. */
 export async function mountHost(emu, options = {}) {
   const core = emu.getCore(true)
   const profile = ROOM_PROFILES[core]
@@ -32,7 +32,7 @@ export async function mountHost(emu, options = {}) {
   panel.className = 'ro-lan-panel'
   panel.setAttribute('aria-label', 'Online room')
   panel.innerHTML = `<details open><summary>${options.heading || 'Online room'}</summary>
-    <form data-lan-create><p class="ro-lan-panel__lede">Friends on the same Wi-Fi join from their own browser. Each gets a controller; everyone sees this screen.</p>
+    <form data-lan-create><p class="ro-lan-panel__lede">${options.lede || 'Friends join from their own browser on your network. Each gets a controller and sees this screen.'}</p>
     <label>Your name <input name="nickname" maxlength="32" autocomplete="nickname" required></label>
     ${profile.maxPlayers > 2 ? '<label>Players <select name="maxPlayers" aria-describedby="lan-capacity-help"><option value="2">2 players · you + 1 guest</option><option value="4">4 players · you + 3 guests</option></select></label><p id="lan-capacity-help" class="ro-lan-panel__hint">Pick 4 before creating the room, then choose the game’s 4-player mode once everyone has joined.</p>' : ''}
     <button type="submit" class="ro-lan-primary ro-lan-wide" disabled>Create room</button></form>
@@ -40,8 +40,8 @@ export async function mountHost(emu, options = {}) {
       <div class="ro-room-code"><span>Room code</span><strong data-lan-code aria-live="polite"></strong></div>
       <p data-lan-capacity role="status" aria-live="polite" aria-atomic="true"></p><ul class="ro-seats" data-lan-players aria-label="Controller seats"></ul>
       <details class="ro-lan-invite" open><summary>Invite players</summary>
-        <div class="ro-lan-invite__body"><img class="ro-lan-qr" data-lan-qr alt="Scan to join this room on the same Wi-Fi">
-        <label>Address for this Wi-Fi <select data-lan-address aria-label="Invite address"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
+        <div class="ro-lan-invite__body"><img class="ro-lan-qr" data-lan-qr alt="Scan to join this room">
+        <label>Invite address <select data-lan-address aria-label="Invite address"></select></label><input data-lan-invite readonly aria-label="Room invite link"></div></details>
       <div class="ro-lan-actions"><button type="button" class="ro-lan-primary" data-lan-copy>Copy invite</button><button type="button" data-lan-lock aria-pressed="false">Lock room</button><button type="button" data-lan-pause>Pause game</button><button type="button" data-lan-end>End room</button></div>
       <p class="ro-lan-panel__hint" data-lan-note></p></div>
     <p data-lan-status role="status" aria-live="polite">Preparing room host…</p><button type="button" data-lan-retry hidden>Retry connection</button></details>`
@@ -117,7 +117,7 @@ export async function mountHost(emu, options = {}) {
     if (!room) {
       createButton.disabled = false
       if (retryFocus && (document.activeElement === document.body || document.activeElement === retry)) createButton.focus({ preventScroll: true })
-      status('Room host ready. Create a room when you’re ready.', panel)
+      status('Ready. Enter your name and create a room.', panel)
     }
     retryFocus = false
   }
@@ -285,7 +285,13 @@ export async function mountHost(emu, options = {}) {
     socket = await connectSocket()
     if (stopped) { socket.disconnect(); return }
     const addresses = info.addresses.length ? info.addresses : [location.origin]
-    for (const origin of addresses) { const option = document.createElement('option'); option.value = origin; option.textContent = origin; address.append(option) }
+    // Labelled by network (Wi-Fi first, virtual-machine adapters last), so the right one is obvious.
+    addresses.forEach((origin, index) => {
+      const option = document.createElement('option'); option.value = origin
+      const label = info.addressLabels?.[index]
+      option.textContent = label ? `${label} · ${origin.replace(/^https?:\/\//, '')}` : origin
+      address.append(option)
+    })
     // Prefer the address this host already reached the server with.
     if (addresses.includes(location.origin)) address.value = location.origin
     const loopbackOnly = !info.addresses.length
@@ -320,8 +326,8 @@ export async function mountHost(emu, options = {}) {
         refreshInvite()
         form.hidden = true; roomBox.hidden = false
         panel.querySelector('[data-lan-copy]').focus({ preventScroll: true })
-        status(loopbackOnly ? 'Room open, but this computer has no LAN address. Connect it to Wi-Fi or Ethernet so other devices can join.'
-          : stream.getAudioTracks().length ? `Room open for ${room.maxPlayers} players. Share the invite on the same Wi-Fi.` : 'Room open with video only; this core did not provide audio capture.', panel)
+        status(loopbackOnly ? 'Room open, but this computer isn’t on a network. Connect it to Wi-Fi or Ethernet so friends can join.'
+          : stream.getAudioTracks().length ? 'Room open. Send the invite: Copy invite, or let friends scan the QR code.' : 'Room open, without sound (this system’s emulator can’t share audio). Send the invite.', panel)
       } catch (error) {
         if (!stopped && attempt === generation) {
           if (socket.connected) socket.emit('room:leave', {})

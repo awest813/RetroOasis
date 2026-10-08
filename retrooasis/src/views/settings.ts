@@ -344,16 +344,23 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
             <div class="ro-settings-row__copy">
               <details class="ro-settings__help">
                 <summary data-focus-id="lan-help" data-ro-focusable="true">Set up a room host</summary>
-                <p class="ro-muted"><b>Portable host</b> (any Windows, macOS or Linux computer with <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+): unzip the RetroOasis room host and run <b>start-host</b>. Build it from the project with <code>npm run oasis:host:pack</code>.</p>
-                <p class="ro-muted"><b>From the project folder:</b></p>
                 <ol class="ro-settings__online-steps ro-muted">
-                  <li>Prepare the multiplayer cores once, while online:<code>npm run oasis:lan:prepare</code></li>
-                  <li>For Trade &amp; link, build the link cores once:<code>npm run oasis:lan:link</code></li>
-                  <li>Start the room host and leave it running:<code>npm run oasis:lan</code></li>
+                  <li>On the computer that will host, install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> (version 18 or newer).</li>
+                  <li>Unzip the <b>RetroOasis room host</b> folder there and run <b>start-host</b>.</li>
+                  <li>On that computer, open the <b>localhost</b> address it shows, add your games, and choose <b>Host a room</b>.</li>
                 </ol>
-                <p class="ro-muted">Then open the <b>localhost</b> address it prints on the host computer and add your games there; samples can’t host. Saved games belong to each browser address.</p>
-                <p class="ro-muted"><b>Over the internet:</b> put everyone on one virtual LAN, such as <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, <a href="https://github.com/slackhq/nebula" target="_blank" rel="noopener">Nebula</a> or <a href="https://www.zerotier.com" target="_blank" rel="noopener">ZeroTier</a>, and share the invite for that network. No port forwarding needed.</p>
-                <p class="ro-muted"><b>If guests can’t connect:</b> check they’re on the same network (guest Wi-Fi often blocks devices from seeing each other) and allow Node.js through the host’s firewall for private networks. Keyboard and touch work over HTTP; guest gamepads need trusted HTTPS.</p>
+                <p class="ro-muted"><b>Over the internet:</b> everyone joins the same virtual LAN (<a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, <a href="https://github.com/slackhq/nebula" target="_blank" rel="noopener">Nebula</a> or <a href="https://www.zerotier.com" target="_blank" rel="noopener">ZeroTier</a>), then pick that network’s invite address. No port forwarding.</p>
+                <p class="ro-muted"><b>Friends can’t connect?</b> Use the invite address marked Wi-Fi or Ethernet, put everyone on the same network (guest Wi-Fi often blocks this), and let Node.js through the host’s firewall.</p>
+                <details class="ro-settings__help">
+                  <summary data-focus-id="lan-dev" data-ro-focusable="true">From the project folder (developers)</summary>
+                  <ol class="ro-settings__online-steps ro-muted">
+                    <li>Build the portable room host:<code>npm run oasis:host:pack</code></li>
+                    <li>Or run it in place. Prepare cores once, while online:<code>npm run oasis:lan:prepare</code></li>
+                    <li>For Trade &amp; link, build the link cores once:<code>npm run oasis:lan:link</code></li>
+                    <li>Start the room host:<code>npm run oasis:lan</code></li>
+                  </ol>
+                  <p class="ro-muted">Guest game controllers need HTTPS: <code>npm run oasis:lan:cert</code>, then start with <code>--cert</code> and <code>--key</code> (see README).</p>
+                </details>
               </details>
             </div>
           </div>
@@ -720,7 +727,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     if (!active || attempt !== lanCheck) return
     const browserSupported = typeof window.RTCPeerConnection === 'function'
     const messages = {
-      ready: ['Ready', 'Room host running. The player checks each game’s core when you create a room.'],
+      ready: ['Ready', 'A room host is running here. Friends can join the rooms you host.'],
       unavailable: ['Not here', 'No room host at this address. Guests: open the host’s invite link. Hosts: start a room host (see Set up a room host) and open the address it shows.'],
       unreachable: ['Unavailable', 'Couldn’t reach the room host. Keep its window open, check the network, then try again.'],
       timeout: ['Timed out', 'The room host took too long to reply. Check the host computer and network, then try again.'],
@@ -733,8 +740,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     if (badge) { badge.textContent = label; badge.dataset.state = available ? 'ready' : 'unavailable' }
     if (controls && available && result.state === 'ready') {
       controls.textContent = result.info.secure
-        ? 'HTTPS · Keyboard, touch, and supported gamepads. Guests must trust this HTTPS address.'
-        : 'HTTP · Keyboard and touch for guests. Guest gamepads need trusted HTTPS.'
+        ? 'Secure address: guests can use keyboard, touch and game controllers.'
+        : 'Guests can use keyboard and touch. Game controllers need a secure (HTTPS) host; see setup.'
       controls.hidden = false
     }
     // Re-enable the check before moving focus away from an unavailable link.

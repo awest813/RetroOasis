@@ -21,10 +21,34 @@ export function isLanAddress(ip = '') {
   if (!isIP(ip)) return false
   return privateV4(ip) || ip === '::1' || /^f[cd][\da-f]{2}:|^fe[89ab][\da-f]:/.test(ip)
 }
+/**
+ * The computer's LAN and virtual-LAN addresses, best invite first, each with a label people
+ * recognise: Wi-Fi and Ethernet first, virtual LANs (internet play) next, other adapters,
+ * then virtual-machine adapters (WSL, Hyper-V, Docker…), which guests can't reach.
+ */
+export function describeAddresses(interfaces = os.networkInterfaces()) {
+  const seen = new Set(), out = []
+  for (const [name, entries] of Object.entries(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (!entry || entry.internal || entry.family !== 'IPv4' || !isLanAddress(entry.address) || seen.has(entry.address)) continue
+      seen.add(entry.address)
+      const tailscale = /tailscale/i.test(name) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(entry.address)
+      const [rank, label] = tailscale ? [2, 'Tailscale (internet)']
+        : /zerotier|^zt|nebula/i.test(name) ? [2, `${name} (internet)`]
+          : /vethernet|wsl|hyper-v|docker|virtualbox|vmware|vmnet|^br-|^veth|virbr|vboxnet/i.test(name) ? [4, 'Virtual machine adapter']
+            : /wi-?fi|wlan|wireless|^wl/i.test(name) ? [0, 'Wi-Fi']
+              : /ethernet|^eth|^en\d|^enp/i.test(name) ? [1, 'Ethernet']
+                : [3, name]
+      out.push({ ip: entry.address, name, label, rank })
+    }
+  }
+  return out.sort((a, b) => a.rank - b.rank)
+}
 export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.app, linkRoot = defaultLinkRoot } = {}) {
   if (!!cert !== !!key) throw new Error('Provide both --cert and --key for HTTPS.')
   const secure = !!cert
-  const addresses = [...new Set(Object.values(os.networkInterfaces()).flat().filter(value => value && !value.internal && value.family === 'IPv4' && isLanAddress(value.address)).map(value => value.address))]
+  const described = describeAddresses()
+  const addresses = described.map(value => value.ip)
   const hosts = new Set(['localhost', '127.0.0.1', '[::1]', os.hostname().toLowerCase(), ...addresses])
   let actualPort = port
   const validRequest = req => {
@@ -63,7 +87,7 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
       const linked = link.ready ? Object.keys(LINK_CAPABILITIES) : []
       res.end(JSON.stringify({ available: true, protocol: LAN_PROTOCOL, maxPlayers: 4, cores: [...Object.keys(LAN_CAPABILITIES), ...linked], capabilities: LAN_CAPABILITIES, secure,
         link: { ready: link.ready, systems: linked, ...(link.ready ? {} : { error: link.error }) },
-        addresses: addresses.map(ip => `${secure ? 'https' : 'http'}://${ip}:${actualPort}`) }))
+        addresses: addresses.map(ip => `${secure ? 'https' : 'http'}://${ip}:${actualPort}`), addressLabels: described.map(value => value.label) }))
       return
     }
     if (pathname === '/api/lan/qr') {
@@ -120,7 +144,7 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
   const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384,
     allowRequest: (req, callback) => callback(null, validRequest(req)), cors: { origin: false } })
   const rooms = attachRooms(io, { linkAvailable: () => link.ready })
-  return { server, io, rooms, addresses, secure, refreshLink, setPort: value => { actualPort = value } }
+  return { server, io, rooms, addresses, described, secure, refreshLink, setPort: value => { actualPort = value } }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -145,9 +169,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   })
   lan.server.listen(port, '0.0.0.0', () => {
     const protocol = lan.secure ? 'https' : 'http'
-    console.log(`RetroOasis LAN host: ${protocol}://localhost:${port}`)
-    for (const ip of lan.addresses) console.log(`Guest invite address: ${protocol}://${ip}:${port}/lan.html`)
-    if (!lan.secure) console.log('HTTP mode: keyboard/touch guests. Use --cert and --key with a trusted certificate for guest gamepads and secure browser APIs.')
+    console.log(`RetroOasis room host. Open on this computer: ${protocol}://localhost:${port}`)
+    for (const { ip, label } of lan.described) console.log(`Friends join at (${label}): ${protocol}://${ip}:${port}/lan.html`)
+    if (!lan.secure) console.log('Guests can use keyboard and touch. For guest gamepads, start with --cert and --key (a trusted HTTPS certificate).')
     console.log('Keep this window and the host game open. Players join on the same Wi-Fi, or over the internet on a shared virtual LAN (Tailscale, Nebula, ZeroTier). No port forwarding is needed.')
   })
   const stop = () => { lan.rooms.close(); lan.io.close(); lan.server.close() }

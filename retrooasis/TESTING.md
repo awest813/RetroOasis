@@ -372,3 +372,16 @@ Regression after the overhaul:
 - **Add ROM** with one game now opens its game page (Play, online, Save data) instead of starting it.
 
 **Regression:** full `npm test`, lint (0 errors), typecheck and build; lobby harness (every state, drop recovered in 2.9 s); in-repo online browser test (24/24).
+
+## Online play menus and instructions audit (October 7)
+
+Every online surface was walked as a first-time user: Settings, the game-page cards, the host panel, the join page, the guest view, Trade & link and the portable host's README. Changes:
+- **Invite addresses are labelled and ranked.** The host panel used to list raw IPs in no order. On the test PC it offered a WSL/Hyper-V adapter (`172.23.96.1`) that guests can't reach. Options now read "Wi-Fi · 192.168.1.210:8797", then Ethernet, then Tailscale (internet), and "Virtual machine adapter" last. The default is the best one. The room host's window labels them the same way. Unit-tested (`describeAddresses`).
+- **Host panel:** one plain lede per method. Rooms say friends join from their browser and see your screen. Trade & link says your friend plays Console 2 with their own game; it used to claim "everyone sees this screen". The panel is now named "Trade & link" (it was "Link room"). Status lines are single and plain ("Ready. Enter your name and create a room.", "Room open. Send the invite…").
+- **Trade & link page:** the intro, save-file hint and save warning are each one short sentence.
+- **Join and guest pages:**
+  - The footer no longer says "same LAN only", which contradicted internet play. It now reads: keyboard and touch always work; controllers need a secure host.
+  - The two methods are explained in one line each.
+- **Settings → Online play:** plain room host status, and "Set up a room host" is three numbered steps (install Node.js, run start-host, open localhost and host), then one line on internet play and one on fixing connections. Developer commands are folded away.
+
+**Regression:** full `npm test`, lint (0 errors), and the in-repo online browser test (NES room and Game Boy link, Chromium and Firefox guests) passed.

@@ -534,7 +534,7 @@ async function join(reconnecting = false) {
     playView.scrollIntoView({ block: 'start' })
     refreshCart()
     document.querySelector('[data-lan-input-hint]').textContent = keyboardLayout(room.core).hint + (room.core === 'n64' ? ' Gamepad: left stick moves, right stick uses C-buttons, triggers use Z.' : ROOM_PROFILES[room.core]?.dualAnalog ? ' Gamepad: both sticks are analog; games that support the DualShock use them.' : '')
-    document.querySelector('[data-lan-input-hint]').textContent += ' After connecting or returning to this tab, release gamepad buttons and center both sticks before playing.'
+    document.querySelector('[data-lan-input-hint]').textContent += ' If a controller seems stuck, release its buttons and center the sticks.'
     update(room)
     status('Joined. Connecting to the host’s game…')
   } catch (error) { if (attempt === generation) end(error.message) }

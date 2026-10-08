@@ -455,11 +455,12 @@ async function start() {
   emu.config.gameName = title
   buildTouchControls()
   placeholder(0, `${info.title}\nReady`)
-  setStatus('Create a room in the Link room panel, then share the invite with your guest.')
+  setStatus('Create a room in the Trade & link panel, then send your friend the invite.')
   const { panel } = await mountHost(emu, {
     // This panel sits beside the consoles (or folds itself on phones), never over them.
-    heading: 'Link room', onPeer, onDrop, collapseWhenReady: false, pauseButton: false,
-    note: 'Keep this page and the room host open. Your guest plays Console 2 with their own cartridge and save; their screen streams from here.',
+    heading: 'Trade & link', onPeer, onDrop, collapseWhenReady: false, pauseButton: false,
+    lede: 'Your friend joins from their own browser and plays Console 2 with their own game and save.',
+    note: 'Keep this page open while you play.',
   })
   // In the page flow, so on narrow screens it never covers the consoles or touch controls.
   roomPanel = panel

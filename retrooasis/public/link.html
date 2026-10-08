@@ -13,7 +13,7 @@
     <header class="ro-lan-header"><a href="./#/">RETRO OASIS</a><span>Trade &amp; link</span></header>
     <main class="ro-lan-main">
       <h1 data-link-title>Loading cartridge…</h1>
-      <p class="ro-link-lede">Both consoles run here on one emulated link cable. You play Console 1; your friend plays Console 2 from their own device on your network, with their own cartridge and save.</p>
+      <p class="ro-link-lede">You play Console 1 here. Your friend plays Console 2 from their own browser, with their own game and save.</p>
       <ol class="ro-link-steps" data-link-steps aria-label="Link setup">
         <li data-step="cart"><b>1</b><span>Your cartridge</span></li>
         <li data-step="room"><b>2</b><span>Invite a friend</span></li>
@@ -28,8 +28,8 @@
       <div class="ro-lan-controls ro-link-touch" data-link-touch aria-label="Console 1 touch controls" hidden></div>
       <form id="link-setup" class="ro-link-setup">
         <label class="ro-link-check" data-link-library hidden><input type="checkbox" name="library" checked> <span>Use my RetroOasis save</span></label>
-        <label>Use a save file instead (optional) <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
-        <p id="save-help">A .sav or .srm from any emulator works. Without a save, Console 1 starts a new game. Each in-game save updates this game’s RetroOasis save; the one from before the session is kept as a backup.</p>
+        <label>Use a save file instead <input type="file" name="save" accept=".sav,.srm,.sa1,.fla,.eep,application/octet-stream" aria-describedby="save-help"></label>
+        <p id="save-help">Optional: a .sav or .srm from another emulator. Otherwise Console 1 uses this game’s RetroOasis save, or starts a new game.</p>
       </form>
       <div class="ro-lan-actions">
         <button type="button" id="start" class="ro-lan-primary" disabled>Start link</button>
@@ -40,7 +40,7 @@
         <button type="button" id="end" hidden>End session</button>
       </div>
       <p data-link-hint>A keyboard or gamepad works; keys match the RetroOasis player.</p>
-      <p class="ro-link-warning">Save in-game after every trade. Each in-game save updates your RetroOasis save and is sent to your guest’s page automatically; close other tabs playing this game first.</p>
+      <p class="ro-link-warning">Save in-game after each trade. Saves go to your library and to your friend automatically. Close other tabs playing this game.</p>
       <p data-lan-status data-link-status role="status" aria-live="polite" aria-atomic="true">Loading…</p>
       <p class="ro-link-sync" data-link-sync role="status" aria-live="polite"></p>
       <a data-link-back href="./#/library">Back to library</a>

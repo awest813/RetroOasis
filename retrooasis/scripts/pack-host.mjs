@@ -63,8 +63,12 @@ Start:  Windows: double-click start-host.cmd
         Linux / macOS: ./start-host.sh
 Options: --port 8787 (default), --cert cert.pem --key key.pem (HTTPS, for guest gamepads)
 
-The window prints the addresses to use. On this computer open http://localhost:8787,
-pick a game and choose "Host a room". Friends open the invite link or scan the QR code.
+1. Start it (above). The window shows the address to open on this computer and
+   the addresses friends join at, labelled Wi-Fi, Ethernet or Tailscale.
+2. On this computer open http://localhost:8787, add your games, pick one and choose
+   "Host a room" (or "Start Trade & link" for Game Boy / GBA).
+3. Friends open the invite link or scan the QR code. Pick the invite address
+   marked Wi-Fi or Ethernet (or Tailscale for internet play).
 Allow Node.js through the firewall on private networks when asked.
 
 Playing over the internet, like a LAN party (Hamachi-style):
