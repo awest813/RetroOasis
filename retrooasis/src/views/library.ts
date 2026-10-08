@@ -9,6 +9,7 @@ import {
   type Game,
   type Platform,
 } from '../lib/catalog'
+import { romFileTags } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { bindGridFocus } from '../lib/focus'
@@ -152,7 +153,7 @@ export async function renderLibrary(
     const sampleCue =
       // The hint is for a mostly empty shelf; a full library doesn't need it.
       games.some((g) => g.demo) && !demoOnly && games.filter((g) => !g.demo).length < 12
-        ? '<p class="ro-gallery__cue">Sample entries fill the shelf so you can explore the UI — hide them in Settings if you only want real ROMs.</p>'
+        ? '<p class="ro-gallery__cue">Sample entries fill the shelf. Hide them in Settings.</p>'
         : ''
     const onboard = demoOnly
       ? `<aside class="ro-onboard" aria-label="Getting started">
@@ -207,7 +208,7 @@ export async function renderLibrary(
 
     const twins = findTwins(games)
     const body = `<div class="ro-grid" data-ro-grid>${games
-      .map((g) => gameTile(g, platformById.get(g.platform), useLibretro, twins.has(twinKey(g)) ? variantLabel(g) : ''))
+      .map((g) => gameTile(g, platformById.get(g.platform), useLibretro, twins.has(twinKey(g)) ? romFileTags(g.romFilename) : ''))
       .join('')}</div>`
 
     root.innerHTML = `
@@ -428,12 +429,6 @@ function findTwins(games: Game[]): Set<string> {
   return twins
 }
 
-/** "USA, Europe · Rev 1" from the file name's tags, for cards that would otherwise read the same. */
-function variantLabel(game: Game): string {
-  const name = (game.romFilename ?? '').replace(/\.[^.]+$/, '')
-  return [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]).filter(Boolean).join(' · ')
-}
-
 function gameTile(
   game: Game,
   platform: Platform | undefined,
@@ -451,7 +446,7 @@ function gameTile(
         data-ro-focusable="true"
         aria-label="View ${escapeAttr(game.title)}${variant ? ` (${escapeAttr(variant)})` : ''} details${game.demo ? ' (sample)' : ''}"
       >
-        ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
+        ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover, platform?.shortName ?? game.platform)}
         <span class="ro-tile__caption">
           <span class="ro-tile__title">${escapeHtml(game.title)}</span>
           <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${variant ? ` · ${escapeHtml(variant)}` : ''}${game.demo ? ' · Sample' : ''}</span>

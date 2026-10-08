@@ -15,6 +15,11 @@ function bundledEmulator(): Plugin {
       for (const name of ['loader.js', 'emulator.min.js', 'emulator.min.css']) {
         this.emitFile({ type: 'asset', fileName: `emulator/${name}`, source: fs.readFileSync(path.join(repoRoot, 'data', name)) })
       }
+      // The workers that unpack .zip / .7z / .rar games. Fetched from the CDN they would be needed online
+      // every time; bundled, a cached core plays zipped games offline too.
+      for (const name of ['extractzip.js', 'extract7z.js', 'libunrar.js', 'libunrar.wasm']) {
+        this.emitFile({ type: 'asset', fileName: `emulator/compression/${name}`, source: fs.readFileSync(path.join(repoRoot, 'data', 'compression', name)) })
+      }
     },
   }
 }

@@ -32,8 +32,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     <section class="ro-view ro-saves">
       <p class="ro-kicker"><a href="${hrefFor('/settings')}">Settings</a> / On this device</p>
       <h1 class="ro-title">Local saves</h1>
-      <p class="ro-lede">Keep your progress close. Back up and restore saves stored in this browser.</p>
-      <p class="ro-muted">Close games in other tabs before changing saves. Browser data is separate for each site and device; clearing it removes local progress.</p>
+      <p class="ro-lede">Back up and restore the saves stored in this browser. Close games in other tabs first, and remember that clearing browser data removes saves.</p>
       <div class="ro-saves__toolbar">
         <div class="ro-toggle-group" role="group" aria-label="Save type">
           <button class="ro-btn" data-kind="game" aria-pressed="true">In-game saves</button>

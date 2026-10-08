@@ -162,6 +162,18 @@ try {
   cover = paint([`${imageOrigin}/art.svg`])
   await waitFor(() => cover.classList.contains('ro-cover--ready'))
   check(cover.querySelector('canvas.ro-cover__backdrop')?.getAttribute('aria-hidden') === 'true', 'Ready art gets a blurred backdrop drawn from the loaded image')
+  // Offline: no run of guesses, a placeholder, and the art returns by itself when the network does.
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+  const offlineBefore = await fetch('/counts').then(res => res.json())
+  cover = paint([`${imageOrigin}/offline-first.svg`, `${imageOrigin}/art.svg`])
+  await waitFor(() => cover.classList.contains('ro-cover--missing'))
+  const offlineAfter = await fetch('/counts').then(res => res.json())
+  check((offlineAfter['/art.svg'] ?? 0) === (offlineBefore['/art.svg'] ?? 0), 'Offline, a failed guess is not followed by more guesses')
+  check(!cover.classList.contains('ro-cover--ready'), 'Offline, the cover stays a placeholder')
+  delete navigator.onLine
+  window.dispatchEvent(new Event('online'))
+  await waitFor(() => cover.classList.contains('ro-cover--ready'))
+  check(!cover.classList.contains('ro-cover--missing') && cover.querySelector('img').naturalWidth > 0, 'Back online, the cover loads without leaving the view')
   results.textContent += `\nPASS: ${passed} cover loading checks`
 } catch (error) {
   results.textContent += `\nFAIL: ${error.message}`

@@ -111,8 +111,9 @@ function nameParts(name: string): { base: string; variants: string[]; region: st
     const value = (match[2] ?? match[3]).trim()
     const region = regionName(value)
     const language = !region && value.split(',').every((part) => LANGUAGES.has(part.trim().toLowerCase()))
+    // A [bracketed] tag is always dump or patch metadata ([!], [a1], [T-En by …], [Vanilla Unlock]), never part of a title.
     const dump = /^(?:rev(?:ision)?\s+[\w.]+|v\d[\w.]*|disc\s+\d+(?:\s+of\s+\d+)?|track\s+\d+|(?:beta|proto(?:type)?|demo)(?:\s+\d+)?)$/i.test(value)
-      || (match[3] !== undefined && /^(?:!|[abofhp]\d*|[abofhp]\s+.+|t[+-].+)$/i.test(value))
+      || match[3] !== undefined
     if (!region && !language && !dump) break
     suffixes.unshift({ raw: match[1], kind: region ? 'region' : language ? 'language' : 'dump', region })
     base = base.slice(0, match.index).trim()

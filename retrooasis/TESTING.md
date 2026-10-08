@@ -422,3 +422,9 @@ The full findings, fixes and open items are in [docs/plans/audit-menus-roms.md](
 `npm run test:lan` also checks the invite-address list against Windows, macOS and Linux style adapter sets, and that the room host picks up an address that appears or disappears after it started.
 
 New unit checks in `npm test`: CHD media detection, folder names in the Libretro / No-Intro style, damaged-archive detection, size guards for unreadable archives, router decoding and case, and edited-field merging.
+
+## Cover art and offline cores (October 8)
+
+Covers: a name-matching sweep over 825 real file names against the Libretro listings, plus a browser run against a fake thumbnail host (slow, corrupt, dropped, redirected, rate-limited, offline and 150-tile lazy loading). The cover browser suite now has 36 checks, including offline placeholders and the `online` retry.
+
+Offline cores: with the CDN blocked, every core that had been played online started again from its saved copy, including PSP (through the worker's copy of `ppsspp-assets.zip`, since EmulatorJS discards its own). A damaged core download (truncated, or a captive-portal page) is recovered by **Try again**, which forgets the saved cores first. The local channel needs no internet for the cores that `data/cores` contains. To repeat this by hand: play a game for each system online, block `cdn.emulatorjs.org` (DevTools → Network → block request domain), reload the player page and check that it starts and draws. `npm run test:covers` covers the worker's PSP pack copy and its survival across updates and activation.

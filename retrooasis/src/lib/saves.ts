@@ -107,6 +107,7 @@ export function decodeBackup(text: string): SaveBackup {
   try { raw = JSON.parse(text) } catch {
     throw new Error('This file is not a valid save backup. Choose a RetroOasis backup (.json).')
   }
+  if (raw?.format === 'retrooasis-saves' && typeof raw.version === 'number' && raw.version !== 1) throw new Error(`This backup was made by a different version of RetroOasis (backup version ${raw.version}). Update RetroOasis, or make a new backup.`)
   if (raw?.format !== 'retrooasis-saves' || raw.version !== 1 || !['game', 'state'].includes(raw.kind) ||
       !Array.isArray(raw.entries) || raw.entries.length > 10000) throw new Error('Choose a RetroOasis save backup (.json).')
   const keys = new Set<string>()

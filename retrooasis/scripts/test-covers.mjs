@@ -26,6 +26,10 @@ assert.equal(new Set(urls).size, urls.length)
 assert(urls.length <= 18, 'Bound the number of guesses')
 assert.equal(name(resolveCoverUrls('snes', 'Game (USA) [!]', null, true)[1]), 'Game (USA).png')
 assert(resolveCoverUrls('nes', 'Super Mario Bros', null, true, 'Super Mario Bros. (Europe) [!].nes').some(url => name(url) === 'Super Mario Bros. (World).png'), 'Preserve filename punctuation in region guesses')
+// Fan-translation and patch tags: the art belongs to the original release.
+assert(resolveCoverUrls('gb', 'Mobile Golf', null, true, 'Mobile Golf (Japan) [T-En by Somebody & Others v1.1] [Vanilla Unlock].zip').some(url => name(url) === 'Mobile Golf (Japan).png'), 'Trailing [patch] tags are dropped, however many there are')
+assert(resolveCoverUrls('gba', 'Super Robot Taisen R', null, true, 'Super Robot Taisen R (Japan) [T-En by Shadownall v090202] [i].zip').some(url => name(url) === 'Super Robot Taisen R (Japan).png'), 'A hack and an [i] tag are dropped')
+assert(resolveCoverUrls('segaMD', 'Game', null, true, 'Game (USA) [!].zip').some(url => name(url) === 'Game (USA).png'), 'A [!] verified-dump tag is dropped')
 assert.deepEqual(resolveCoverUrls('nes', 'Game', null, false), [])
 assert.deepEqual(resolveCoverUrls('unknown', 'Game', './local.png', true), ['./local.png'])
 assert.equal(resolveCoverUrls('nes', 'Game', 'blob:fixture', true)[0], 'blob:fixture')
@@ -135,9 +139,9 @@ const cacheNames = new Set(['retrooasis-shell-old', 'other-app-shell'])
 const cachedImage = {
   put: async (request, response) => {
     if (delayCacheWrite) await new Promise(resolve => { completeCacheWrite = resolve })
-    cachedImages.set(request.url, response)
+    cachedImages.set(request.url ?? request, response)
   },
-  match: async request => cachedImages.get(request.url)?.clone(),
+  match: async request => cachedImages.get(request.url ?? request)?.clone(),
 }
 vm.runInNewContext(fs.readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), {
   URL, Request, Response,
@@ -182,6 +186,18 @@ for (const folder of ['roms', 'data']) {
 }
 console.log('PASS: cover refresh bypasses stale caches, saves fresh art and retains offline fallback')
 
+// PPSSPP's support pack is stored by the worker too: EmulatorJS discards its own copy of the
+// zip (it holds empty files), so without this PSP could not start offline after being played.
+const pspPack = { method: 'GET', destination: '', credentials: 'omit', url: 'https://cdn.emulatorjs.org/nightly/data/cores/ppsspp-assets.zip' }
+networkMode = 'online'
+assert.equal(await (await swFetch(pspPack)).text(), 'fresh-image')
+assert(lastLifetimeCount > 0, 'The PSP pack copy is written before the worker exits')
+networkMode = 'offline'
+assert.equal(await (await swFetch(pspPack)).text(), 'fresh-image', 'Offline, the PSP support pack comes from the saved copy')
+assert.equal((await swFetch({ ...pspPack, url: 'https://cdn.emulatorjs.org/nightly/data/cores/ppsspp-thread-wasm.data' })), undefined, 'Cores and other files stay with EmulatorJS’s own cache')
+networkMode = 'online'
+console.log('PASS: PSP support pack keeps an offline copy')
+
 // The fixed-name player frontend must receive controller fixes on the next online launch.
 const frontendRequest = { method:'GET', destination:'script', credentials:'same-origin', url:'https://retrooasis.test/emulator/emulator.min.js' }
 cachedImages.set(frontendRequest.url, new Response('old-controller-code'))
@@ -219,7 +235,8 @@ swHandlers.get('activate')({ waitUntil: value => activation.push(value) })
 await Promise.all(activation)
 assert(!cacheNames.has('retrooasis-shell-old'), 'Activation removes obsolete app caches')
 assert(cacheNames.has('other-app-shell'), 'Activation preserves unrelated applications on the same origin')
-assert.equal(cacheNames.size, 2, 'The current app cache survives activation')
+assert(cacheNames.has('retrooasis-core-assets-v1'), 'Activation keeps the saved PSP support pack')
+assert.equal(cacheNames.size, 3, 'The current app cache survives activation')
 
 // Run the real manifest generator and --covers scanner against disposable files.
 const here = path.dirname(fileURLToPath(import.meta.url))

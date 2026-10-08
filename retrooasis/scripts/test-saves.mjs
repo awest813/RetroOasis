@@ -14,6 +14,8 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;'
 const hrefFor = path => '#' + path;
 const formatBytes = n => n + ' bytes';
 const suppressPadBackUntilRelease = () => {};
+const loadCatalog = async () => ({ games: [] });
+const savePathOwners = () => new Map();
 const registerViewCleanup = () => {};
 export const navigationRoots = new Set();
 const bindRowFocus = root => { navigationRoots.add(root); return () => navigationRoots.delete(root); };

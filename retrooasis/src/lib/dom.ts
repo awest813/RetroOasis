@@ -13,6 +13,7 @@ export function escapeAttr(value: string): string {
 // Reuse successful matches when switching between the library, home and detail.
 const loadedCovers = new Map<string, string>()
 const hydratedCovers = new WeakSet<HTMLImageElement>()
+const isOffline = (): boolean => navigator.onLine === false
 let coverRefreshVersion = 0
 
 // Match results also persist across visits and reloads: a hit is tried first,
@@ -87,6 +88,8 @@ export function coverMarkup(
   title: string,
   accentVar: string,
   coverUrl: string | readonly string[] | null | undefined,
+  /** Text on the placeholder; defaults to the title. Tiles pass the system, since the caption already names the game. */
+  label: string = title,
 ): string {
   const candidates = [...new Set((typeof coverUrl === 'string' ? [coverUrl] : [...(coverUrl ?? [])]).map((url) => url.trim()).filter(Boolean))]
   const key = JSON.stringify(candidates)
@@ -112,14 +115,14 @@ export function coverMarkup(
           decoding="async"
         />
         <span class="ro-cover__mark" aria-hidden="true"></span>
-        <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(title)}</span>
+        <span class="ro-cover__label ro-cover__label--fallback">${escapeHtml(label)}</span>
       </div>
     `
   }
   return `
     <div class="ro-cover" style="--cover-accent: ${accentVar}">
       <span class="ro-cover__mark" aria-hidden="true"></span>
-      <span class="ro-cover__label">${escapeHtml(title)}</span>
+      <span class="ro-cover__label">${escapeHtml(label)}</span>
     </div>
   `
 }
@@ -156,6 +159,24 @@ function markCoverMissing(img: HTMLImageElement): void {
   parent.classList.add('ro-cover--missing')
   parent.classList.remove('ro-cover--ready')
 }
+
+/** Back online: covers that stayed placeholders only because the network was down try again. */
+export function retryMissingCovers(root: ParentNode = document): void {
+  root.querySelectorAll<HTMLImageElement>('.ro-cover--missing img').forEach((img) => {
+    const parent = img.parentElement
+    if (!parent || !img.isConnected || !img.dataset.coverCandidates) return
+    let first = ''
+    try { first = (JSON.parse(img.dataset.coverCandidates) as string[])[0] ?? '' } catch { /* leave it */ }
+    if (!first) return
+    // Only covers whose misses were not remembered as "no art" (a remembered miss never reaches the page as an image).
+    hydratedCovers.delete(img)
+    parent.classList.remove('ro-cover--missing')
+    img.style.display = ''
+    img.src = coverRequestUrl(first, Number(img.dataset.coverVersion ?? coverRefreshVersion))
+  })
+  hydrateCovers(root)
+}
+if (typeof window !== 'undefined') window.addEventListener('online', () => retryMissingCovers())
 
 /**
  * Bind load/error for covers after innerHTML inject.
@@ -208,6 +229,13 @@ export function hydrateCovers(root: ParentNode): void {
       }
       // A stale view must not start new guesses or erase a fresh learned match.
       if (requestVersion !== coverRefreshVersion) {
+        markCoverMissing(img)
+        finish()
+        return
+      }
+      // Offline, the guesses that follow a miss can't succeed either (art this device has seen is
+      // answered from the cache on the first try). Show the placeholder; coming back online retries.
+      if (isOffline()) {
         markCoverMissing(img)
         finish()
         return

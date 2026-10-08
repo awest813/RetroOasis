@@ -458,3 +458,9 @@ export function coreOptionsMarkup(selected: string, { includeAuto = false } = {}
   })
   return head.join('') + groups.join('')
 }
+
+/** "USA, Europe · Rev 1": the bracketed tags of a ROM file name (region, revision), for telling two copies of a game apart. */
+export function romFileTags(filename: string | undefined): string {
+  const name = (filename ?? '').replace(/\.[^.]+$/, '')
+  return [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]).filter(Boolean).join(' · ')
+}

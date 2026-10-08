@@ -436,6 +436,13 @@ check('truncated zip is reported', /incomplete|damaged/.test(await archiveProble
 check('text renamed .zip is reported', /isn.t a real \.zip/.test(await archiveProblem(toFile(new TextEncoder().encode('not a zip at all'), 'fake.zip'))), true)
 check('non-archives are not judged', await archiveProblem(toFile(new Uint8Array(10), 'game.gba')), null)
 
+const sega = new Uint8Array(0x200); sega.set(new TextEncoder().encode('SEGA MEGA DRIVE'), 0x100)
+check('a lone .bin with a Mega Drive header is Mega Drive', await detectRomPlatform(toFile(sega, 'game.bin')), 'segaMD')
+const rawSector = new Uint8Array(2352); rawSector.fill(0xff, 1, 11); rawSector[0] = 0; rawSector[11] = 0
+check('a lone raw CD track is a PlayStation disc', await detectRomPlatform(toFile(rawSector, 'track01.bin')), 'psx')
+check('a lone .bin with no known header asks the person', await detectRomPlatform(toFile(new Uint8Array(4096).fill(7), 'mystery.bin')), null)
+check('a .bin inside a zip is still read from the archive entries', await detectRomPlatform(toFile(makeZip(['game/game.cue', 'game/game.bin']), 'g.zip')), 'psx')
+
 const bigUnreadable = toFile(new Uint8Array(64), 'pc-game.7z')
 Object.defineProperty(bigUnreadable, 'size', { value: 2.6e9 })
 check('multi-gigabyte unreadable archive is not assumed arcade', await detectRomPlatform(bigUnreadable), null)

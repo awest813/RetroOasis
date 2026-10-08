@@ -39,6 +39,9 @@ try {
     try { decodeBackup('{unfinished') } catch (error) { message = error.message }
     assert(message.includes('Choose a RetroOasis backup'), 'Broken JSON did not provide recovery guidance')
     const raw = JSON.parse(encodeBackup('game', [file('/data/saves/game.srm')]))
+    let versionMessage = ''
+    try { decodeBackup(JSON.stringify({ ...raw, version: 99 })) } catch (error) { versionMessage = error.message }
+    assert(/different version of RetroOasis/.test(versionMessage), 'A backup from another version did not say so: ' + versionMessage)
     for (const key of ['/other/save', '/data/saves/../save', '/data/saves//save', '/data/saves/a/./save', '/data/saves/a\\b', '?EJS_KEYS!']) {
       rejects(() => decodeBackup(JSON.stringify({ ...raw, entries: [{ ...raw.entries[0], key }] })))
     }

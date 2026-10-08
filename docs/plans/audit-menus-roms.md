@@ -143,3 +143,72 @@ Checked with adapter lists shaped like a Windows PC (Wi-Fi, Ethernet, WSL, Hyper
 | 43 | **Nothing tested this.** | `test:lan` covers the three platforms, duplicates, public addresses, no adapters and the live re-read; the browser run covered the picker, invite link, QR, hints, a guest opening the invite and a phone layout. |
 
 Still not covered: a second real device joining over each address.
+
+## 10. Simpler game cards
+
+The game page stacked up to four bordered cards (online play, Transfer Pak, save data, BIOS) under a header that said the system three times and printed the file name in monospace. On a phone an N64 game was 1,500 px tall. The library tiles repeated the game's title inside every placeholder cover, right above the caption that already said it.
+
+| # | Before | After |
+| --- | --- | --- |
+| 44 | Header: breadcrumb "GB", a "GB" badge, "Game Boy / Color · Pokemon - Crystal Version (USA, Europe) (Rev 1).zip". | One line: "Game Boy / Color · USA, Europe · Rev 1 · year". The region and revision come from the file name; the full file name is the tooltip. Badges appear only when they say something (Sample, Disc set, Edited, needs threads). |
+| 45 | Separate cards, each with a heading, a state pill, a paragraph and a large button. | One panel of rows: title and state on the left, the action on the right, a hairline between rows. On a phone the action goes full width under the text. Same ids and behaviour. |
+| 46 | Wordy copy ("Trade and battle on one link cable. Your friend joins from their browser with their own game and save. 2 players."). | One short sentence each ("Link cable for trades and battles. Your friend brings their own game and save."). "Online room" is "Play with a friend". |
+| 47 | Transfer Pak showed a three-part fact list at all times. | Folded under "How it works". |
+| 48 | The Options menu opened below all the cards, far from the Options button. | It opens directly under Play / Options. |
+| 49 | Placeholder covers repeated the title; the caption repeated it again. | Placeholders show the system ("GBA", "N64") on the cartridge graphic; the caption names the game. |
+| 50 | Library hint: "Sample entries fill the shelf so you can explore the UI — hide them in Settings if you only want real ROMs." Add ROM: two paragraphs, an always-on "Using the Stable channel…" line. Saves: two paragraphs. | One sentence each. The channel line shows only when you changed it. |
+
+An N64 game page on a phone is now about 1,100 px (it was 1,500), and a Game Boy page on a desktop fits one screen.
+
+### Every case
+
+After the redesign each page was driven through its combinations, on desktop, tablet, phone, a 320 px phone and phone landscape (about 1,100 page loads, no screenshots needed unless something failed).
+
+| Surface | Cases |
+| --- | --- |
+| Game page | 18 games (every online system, link systems, Famicom disk with BIOS, PSP and DOS with thread badges, disc set, 140-character unbroken title, long titled game with many tags, HTML characters in the title, no year or developer, long description, one-letter title) × 6 room-host states (ready, 404, unreachable, wrong version, core missing, 3.5 s timeout), plus the demo games, a saved game with a previous save, a saved ROM, an edited game, and the Options menu and edit form open on three games. Phone also at 200% text. |
+| Library | empty with and without samples, one game, twelve, 700, favorites and recents with items and empty, a system with no games, an unknown system, the same title three times, search with no results and clearing it. |
+| Home | the same sets, TV layout with CRT, the PlayStation accent, keyboard through every category. |
+| Add ROM | one good file, twelve mixed files (good, long name, Unicode name, save, empty, cut zip, Dreamcast, PSP-as-CHD, `.gdi`, no extension, a raw track), twenty files, nothing usable. |
+| Saves | none and 40 saves (long names, folders), search, backup, eight restore files (valid, empty list, wrong format, other version, path traversal, states, not JSON, empty), cancel, confirm, delete, the save-states tab. |
+| Settings | 8 room-host answers × 4 storage states (roomy, nearly full, full, unreported). |
+
+Found and fixed:
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 51 | A lone `.bin` was saved as a PlayStation game whatever it was, so a Mega Drive `.bin` would run on the wrong core. | The header decides: a Mega Drive header is Mega Drive, a raw CD sector is a PlayStation track, anything else asks. |
+| 52 | A backup made by another version of RetroOasis said "Choose a RetroOasis save backup". | It says it was made by a different version and what to do. |
+| 53 | The "Online play setup" link under an unavailable online row was 17–42 px tall, and the Transfer Pak picker 39 px in landscape. | Both are 44 px. |
+| 54 | `npm run test:saves` had been failing since the Saves page started naming games (the page loads the catalog, which the test page didn't provide). | The test page provides it; the suite passes again, with a new check for the version message. |
+
+Everything else passed: no sideways scroll, nothing outside the screen, no cut-off text, no "undefined", every online state showed the right label and enabled the right buttons, saved, edited, uploaded and demo games showed the right rows and badges, and the Options menu opened above the rows every time.
+
+## 11. Cover art and offline cores
+
+**Cover art.** All 825 games in the Downloads library were matched against the real Libretro thumbnail listings (no image downloads): 781 had art before, 790 after. The nine new matches were games whose file names end in a bracket tag such as `[T-En by …] [Vanilla Unlock]`, `[i]` or `[!]`; any trailing `[tag]` is now treated as a dump or patch note and dropped before matching. A local fake thumbnail host then ran every case in a browser:
+
+| Case | Result |
+| --- | --- |
+| Exact name, wrong region found after a few misses, slow host, no art anywhere | Art shows; placeholder first for the slow host; the placeholder names the system. |
+| Corrupt image bytes, dropped connection, redirect, 429 rate limit | A placeholder with no broken-image icon; a 429 is not remembered as "no art". |
+| Revisit | Finished art asks for one URL; games with no art make no requests. |
+| 150 tiles | Only tiles near the screen ask for art; scrolling loads the rest. |
+| Offline | Seen art comes from the worker's cache; unseen art is a clean placeholder, and nothing reaches the thumbnail host. |
+
+Found and fixed:
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 55 | Going offline, every cover without a saved copy walked its whole chain of candidate names, each failing, and was then remembered as "no art" — so the library stayed bare after reconnecting. | While offline a failed cover is a placeholder and nothing is remembered; the `online` event re-arms the missing covers and they load. |
+
+**Offline cores.** Each of 8 systems (Game Boy, GBA, NES, Mega Drive, SNES, N64, PlayStation, PSP) was played online, then again with the emulator CDN blocked; plus cases for a core that was never cached, a damaged core and the local channel.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 56 | A zipped game could not start offline: the zip and 7z unpack workers came from the CDN. | They ship with the app (`emulator/compression/`) and are pre-cached by the worker. |
+| 57 | PSP would not start offline even after being played. EmulatorJS discards its cached `ppsspp-assets.zip` every time, because the zip unpacks to folders and empty marker files and its integrity check rejects any empty file. It was silently re-downloaded (19 MB) on each launch. | The worker keeps its own copy of that one file (`retrooasis-core-assets-v1`, network first, offline fallback). Settings → Data → clear emulator cache removes it too. |
+| 58 | A core that downloaded cut short, or as a Wi-Fi sign-in page, was stored by EmulatorJS and failed on every try; "Try again" could never fix it. | For this failure, Try again first forgets the saved cores (games, saves and BIOS files stay), then downloads fresh copies. |
+| 59 | A failed download with no stated reason ("Network Error") showed a stuck EmulatorJS screen. | It shows "You’re offline" or "Couldn’t start the game" with Try again. |
+
+All 46 checks passed: every core starts offline from its saved copy with a drawn picture, a game never played before starts on a saved core, an uncached core says it is offline and recovers on Try again, a damaged core recovers, and the local channel starts NES, Mega Drive, SNES, N64 and PlayStation with zero CDN requests (Game Boy and GBA have no local core and say so). The harness needs the CDN and the Downloads library, so it is not in the repo; the service-worker piece is covered in `npm run test:covers`.

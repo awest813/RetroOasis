@@ -2289,3 +2289,50 @@ html[data-layout='tv'] .ro-btn--toggle {
   @media (max-width: 999px) { .ro-settings > .ro-settings__nav { background: #071018; } }
 }
 .ro-saves__toolbar .ro-btn { min-width: 0; }
+
+/* Game page: online play, Transfer Pak, save data and BIOS share one quiet block of rows (title and state on
+   the left, the action on the right) instead of a stack of separate cards. */
+.ro-detail__panels {
+  display: grid;
+  max-width: 40rem;
+  margin-top: 1.1rem;
+  overflow: hidden;
+  border: 1px solid var(--ro-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ro-bg-panel-solid) 80%, transparent);
+}
+.ro-detail__panels:not(:has(> section)) { display: none; }
+.ro-detail__panels > .ro-online-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  align-items: center;
+  max-width: none;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.ro-detail__panels > .ro-online-card + .ro-online-card { border-top: 1px solid var(--ro-line); }
+.ro-detail__panels .ro-online-card__head { grid-column: 1; grid-row: 1; }
+.ro-detail__panels .ro-online-card__state { margin-left: 0; }
+.ro-detail__panels .ro-online-card__text { grid-column: 1; grid-row: 2; font-size: 0.88rem; line-height: 1.4; }
+.ro-detail__panels .ro-online-card__actions { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; justify-content: flex-end; }
+.ro-detail__panels .ro-online-card__help,
+.ro-detail__panels .ro-tpk-card label,
+.ro-detail__panels .ro-tpk-card__more { grid-column: 1 / -1; }
+.ro-detail__panels .ro-online-card__help { font-size: 0.85rem; }
+.ro-tpk-card__more summary { cursor: pointer; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--ro-accent); font-size: 0.85rem; }
+.ro-detail__meta { margin: 0; }
+.ro-detail__badges:empty { display: none; }
+@media (max-width: 560px) {
+  .ro-detail__panels > .ro-online-card { grid-template-columns: minmax(0, 1fr); }
+  .ro-detail__panels .ro-online-card__actions { grid-column: 1; grid-row: auto; justify-content: stretch; margin-top: 0.35rem; }
+  .ro-detail__panels .ro-online-card__actions .ro-btn { flex: 1 1 auto; }
+}
+.ro-detail__panels .ro-tpk-card label { font-size: 0.85rem; }
+/* A placeholder cover names the system; the caption below already names the game. */
+.ro-cover:not(.ro-cover--image) .ro-cover__label, .ro-cover__label--fallback { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ro-text-dim); text-shadow: none; }
+/* The recovery link under an unavailable online row, and the Transfer Pak picker, are thumb-sized on every screen. */
+.ro-online-card__help a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
+.ro-tpk-card select { min-height: 44px; }

@@ -44,7 +44,13 @@ export function emulatorCacheUsage(): Promise<EmulatorCacheUsage> {
 
 /** Empties the cache in place. Deleting the database instead would wait on every open
  * game tab (EmulatorJS never closes its connections) and stall their cache reads meanwhile. */
-export function clearEmulatorCache(): Promise<void> {
+export async function clearEmulatorCache(): Promise<void> {
+  // The service worker's copy of the PSP support pack belongs to the same "emulator files".
+  try { await caches.delete('retrooasis-core-assets-v1') } catch { /* no Cache API here */ }
+  await clearEmulatorDb()
+}
+
+function clearEmulatorDb(): Promise<void> {
   return new Promise((resolve, reject) => {
     let missing = false
     let request: IDBOpenDBRequest

@@ -859,6 +859,50 @@
           restageRom().then(go, go);
         }
 
+        // A core file that downloaded damaged (a cut connection, a Wi-Fi sign-in page) is stored by
+        // EmulatorJS like a good one and then fails to start on every try. Forget the saved cores
+        // so the next try fetches clean copies. Games, saves and BIOS files are untouched.
+        function dropCachedCores() {
+          return new Promise(function (resolve) {
+            var done = function () { resolve(); };
+            var req;
+            try { req = indexedDB.open("EmulatorJS-Cache"); } catch (e) { done(); return; }
+            req.onupgradeneeded = function () { try { req.transaction.abort(); } catch (e) { } };
+            req.onerror = req.onblocked = done;
+            req.onsuccess = function () {
+              var db = req.result;
+              if (!db.objectStoreNames.contains("cache")) { db.close(); done(); return; }
+              var stores = db.objectStoreNames.contains("blobs") ? ["cache", "blobs"] : ["cache"];
+              var tx = db.transaction(stores, "readwrite");
+              var cache = tx.objectStore("cache");
+              var blobs = stores.length > 1 ? tx.objectStore("blobs") : null;
+              var all = cache.getAll();
+              all.onsuccess = function () {
+                var dropped = [];
+                (all.result || []).forEach(function (item) {
+                  if (!item || Array.isArray(item) || item.type !== "Core" || typeof item.key !== "string") return;
+                  dropped.push(item.key);
+                  cache.delete(item.key);
+                });
+                if (blobs && dropped.length) {
+                  var keys = blobs.getAllKeys();
+                  keys.onsuccess = function () {
+                    (keys.result || []).forEach(function (key) {
+                      var text = String(key);
+                      if (dropped.some(function (d) { return text === d || text.indexOf(d) === 0; })) blobs.delete(key);
+                    });
+                  };
+                }
+                var index = cache.get("?EJS_KEYS!");
+                index.onsuccess = function () {
+                  if (Array.isArray(index.result)) cache.put(index.result.filter(function (k) { return dropped.indexOf(k) === -1; }), "?EJS_KEYS!");
+                };
+              };
+              tx.oncomplete = tx.onerror = tx.onabort = function () { db.close(); done(); };
+            };
+          });
+        }
+
         // A core that aborts after start (an unsupported file type, no memory left) used to leave the page
         // saying "playing" over a dead screen. Say what happened instead.
         window.addEventListener("error", function (event) {
@@ -901,9 +945,13 @@
             if (channel !== "stable" && channel !== "local") newer.push({ label: "Use Stable", run: function () { retry("stable"); } });
             fail("Emulator too new", "The " + (CHANNEL_LABELS[channel] || channel) + " channel’s emulator needs a newer RetroOasis player than this site has. Choose Stable in Settings → Emulator files.", null, newer);
           } else if (reason === "runtime") {
-            fail("Emulator didn’t start", "The emulator downloaded but couldn’t start. Try again; if it keeps happening, clear the emulator cache in Settings → Data.", null, [again]);
+            fail("Emulator didn’t start", "The emulator downloaded but couldn’t start. Try again and it will download a fresh copy.", null, [{ label: "Try again", run: function () { showLoading("Restarting…"); dropCachedCores().then(function () { retry(); }); } }]);
+          } else if (offline) {
+            fail("You’re offline", "The game needs something that isn’t saved on this device yet. Connect to the internet and play it once; after that it starts offline too.", null, [again]);
+          } else {
+            // A download that failed part-way ("Network Error") has no reason of its own; give it a way forward.
+            fail("Couldn’t start the game", (detail && detail.message ? detail.message + ". " : "") + "Check your connection and try again. If it keeps happening, clear the emulator cache in Settings → Data.", null, [again]);
           }
-          // Other errors stay on EmulatorJS's screen, which shows its own message and menu.
         }
 
         function startEmulator(gameUrl) {
@@ -944,7 +992,12 @@
           // Use the fork's controller fixes for every core download channel.
           window.EJS_paths = Object.assign({}, window.EJS_paths, {
             'emulator.min.js': './emulator/emulator.min.js',
-            'emulator.min.css': './emulator/emulator.min.css'
+            'emulator.min.css': './emulator/emulator.min.css',
+            // Archive workers ship with the app so zipped games unpack without the CDN (offline, or a slow one).
+            'extractzip.js': './emulator/compression/extractzip.js',
+            'extract7z.js': './emulator/compression/extract7z.js',
+            'libunrar.js': './emulator/compression/libunrar.js',
+            'libunrar.wasm': './emulator/compression/libunrar.wasm'
           });
           window.EJS_startOnLoaded = true;
           window.EJS_askBeforeExit = false;

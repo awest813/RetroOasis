@@ -8,7 +8,7 @@ import {
   reloadUploadedLibrary,
 } from '../lib/catalog'
 import { archiveHoldsDisk, biosKindFor, biosSpec, hasBios, removeBios, saveBios } from '../lib/bios'
-import { coreNeedsThreads, coreOptionsMarkup, normalizePlayCore } from '../lib/cores'
+import { coreNeedsThreads, coreOptionsMarkup, normalizePlayCore, romFileTags } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverResourceLinks } from '../lib/coverResources'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
@@ -187,8 +187,8 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     root.querySelector('#ro-save-card')?.setAttribute('data-state', save ? 'ready' : 'none')
     detail.textContent = message ?? (!saveInfo ? ''
       : save ? `Last saved ${when(save.modified)} · ${formatBytes(save.bytes?.length ?? 0)}.${previous ? ` The save from before ${when(previous.modified)} is kept too.` : ''}`
-        : savePath ? 'Save in the game to keep your progress here. You can also start from a .sav or .srm file from another emulator.'
-          : 'Play once to create a save, or start from a .sav or .srm file from another emulator.')
+        : savePath ? 'Save in the game to keep your progress here, or start from a .sav or .srm file.'
+          : 'Play once to create a save, or start from a .sav or .srm file.')
     root.querySelector<HTMLElement>('#ro-save-download')!.hidden = !save
     root.querySelector<HTMLElement>('#ro-save-restore')!.hidden = !previous
   }
@@ -284,7 +284,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     root.innerHTML = `
       <section class="ro-view ro-detail">
         <div class="ro-detail__cover">
-          ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover)}
+          ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover, platform?.shortName ?? game.platform)}
         </div>
         <div class="ro-stack">
           <p class="ro-kicker">
@@ -298,19 +298,19 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             }
           </p>
           <h1 class="ro-title">${escapeHtml(game.title)}</h1>
-          <div class="ro-detail__badges">
-            <span class="ro-badge">${escapeHtml(platform?.shortName ?? game.platform)}</span>
+          <p class="ro-lede ro-detail__meta" title="${escapeAttr(fileLabel)} · emulator core ${escapeAttr(playCore)}">
+            <strong>${escapeHtml(platform?.name ?? playCore)}</strong>${[romFileTags(game.romFilename), game.year != null ? String(game.year) : '', game.developer ?? ''].filter(Boolean).map((part) => ` · ${escapeHtml(part)}`).join('')}
+          </p>
+          ${
+            game.demo || game.tags?.includes('disc-set') || over || threadBadge
+              ? `<div class="ro-detail__badges">
             ${game.demo ? '<span class="ro-badge">Sample</span>' : ''}
             ${game.tags?.includes('disc-set') ? '<span class="ro-badge">Disc set</span>' : ''}
             ${over ? '<span class="ro-badge">Edited locally</span>' : ''}
             ${threadBadge}
-          </div>
-          <p class="ro-lede">
-            <strong title="Emulator core: ${escapeAttr(playCore)}">${escapeHtml(platform?.name ?? playCore)}</strong>
-            · <code>${escapeHtml(fileLabel)}</code>
-            ${game.year != null ? ` · ${escapeHtml(String(game.year))}` : ''}
-            ${game.developer ? ` · ${escapeHtml(game.developer)}` : ''}
-          </p>
+          </div>`
+              : ''
+          }
           ${
             game.description
               ? `<p class="ro-lede">${escapeHtml(game.description)}</p>`
@@ -343,69 +343,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               aria-controls="ro-options-menu"
             >${icon('add')} Options</button>
           </div>
-          ${lanCandidate ? `
-          <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="${onlineState}">
-            <div class="ro-online-card__head">
-              <h2 class="ro-online-card__title" id="ro-online-title">${linkSystem ? 'Trade &amp; link' : 'Online room'}</h2>
-              <span class="ro-online-card__state" id="ro-online-state">${ONLINE_STATE_TEXT[onlineState]}</span>
-            </div>
-            <p class="ro-muted">${linkSystem
-              ? 'Trade and battle on one link cable. Your friend joins from their browser with their own game and save. 2 players.'
-              : normalizePlayCore(game.core) === 'n64'
-                ? 'Friends join from their browser and play on your screen. They don’t need the game. Up to 4 players.'
-                : 'A friend joins from their browser and plays on your screen. They don’t need the game. 2 players.'}</p>
-            <p class="ro-muted ro-online-card__help" id="ro-online-help"${onlineHelp(onlineState) ? '' : ' hidden'}>${onlineHelp(onlineState)} <a href="${hrefFor('/settings')}">Online play setup</a></p>
-            <div class="ro-btn-row">
-              <button type="button" class="ro-btn ro-btn--lg${lan ? ' ro-btn--primary' : ''}" id="ro-host-lan" data-ro-focusable="true"${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Start Trade &amp; link' : 'Host a room'}</button>
-            </div>
-          </section>` : ''}
-          ${
-            transferCarts.length || (normalizePlayCore(game.core) === 'n64' && /stadium/i.test(game.title))
-              ? `<section class="ro-online-card ro-tpk-card" aria-labelledby="ro-tpk-title">
-              <div class="ro-online-card__head">
-                <h2 class="ro-online-card__title" id="ro-tpk-title">Transfer Pak</h2>
-                <span class="ro-online-card__state">Controller 1</span>
-              </div>
-              ${transferCarts.length ? `<label class="ro-muted ro-transfer-pak">Game Boy cartridge
-              <select class="ro-input" id="ro-transfer-pak" data-ro-focusable="true" aria-describedby="ro-transfer-pak-help">
-                <option value="">None</option>
-                ${transferCarts.map(g => `<option value="${escapeAttr(g.id)}"${g.id === transferPakId ? ' selected' : ''}>${escapeHtml(g.title)}</option>`).join('')}
-              </select></label>` : `<p class="ro-muted">Add a Game Boy or Game Boy Color game with <a href="${hrefFor('/upload')}">Add ROM</a> to plug it in here.</p>`}
-              <ul class="ro-tpk-card__facts" id="ro-transfer-pak-help">
-                <li><strong>Games</strong> Stadium: Red, Blue, Yellow. Stadium 2: those plus Gold, Silver, Crystal.</li>
-                <li><strong>Save</strong> Uses the cartridge’s RetroOasis save (Save data on its game page). Save it in a Pokémon Center first. Changes go back to it, with a backup.</li>
-                <li><strong>Not yet</strong> GB Tower (playing the Game Boy game on the TV).</li>
-              </ul>
-            </section>`
-              : ''
-          }
-          ${game.demo ? '' : `<section class="ro-online-card ro-save-card" id="ro-save-card" aria-labelledby="ro-save-title">
-            <div class="ro-online-card__head">
-              <h2 class="ro-online-card__title" id="ro-save-title">Save data</h2>
-              <span class="ro-online-card__state" id="ro-save-state">Checking…</span>
-            </div>
-            <p class="ro-muted" id="ro-save-detail" role="status" aria-live="polite"></p>
-            <div class="ro-btn-row">
-              <button type="button" class="ro-btn" id="ro-save-use" data-ro-focusable="true"${busy ? ' disabled' : ''}>Use a save file</button>
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-download" data-ro-focusable="true" hidden>Download</button>
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-restore" data-ro-focusable="true" hidden>Restore previous save</button>
-            </div>
-            <input type="file" id="ro-save-file" accept=".sav,.srm,.sa1,.sra,.fla,.eep,.mpk,.mcr,.mcd,.dsv,application/octet-stream" hidden />
-          </section>`}
-          ${biosKind ? `<section class="ro-online-card" id="ro-bios-card" aria-labelledby="ro-bios-title" data-state="${biosPresent ? 'ready' : 'none'}">
-            <div class="ro-online-card__head">
-              <h2 class="ro-online-card__title" id="ro-bios-title">${escapeHtml(biosSpec(biosKind).label)} BIOS</h2>
-              <span class="ro-online-card__state" id="ro-bios-state">${biosPresent ? 'Added' : 'Needed'}</span>
-            </div>
-            <p class="ro-muted" id="ro-bios-detail" role="status" aria-live="polite">${biosPresent
-              ? `${escapeHtml(biosSpec(biosKind).filename)} is kept on this device and used when you play.`
-              : `This game needs <b>${escapeHtml(biosSpec(biosKind).filename)}</b> (${biosSpec(biosKind).size / 1024} KB) to start. Without it the emulator shows its own menu. Add your copy of the file here; it stays on this device.`}</p>
-            <div class="ro-btn-row">
-              <button type="button" class="ro-btn" id="ro-bios-add" data-ro-focusable="true"${busy ? ' disabled' : ''}>${biosPresent ? 'Replace file' : `Add ${escapeHtml(biosSpec(biosKind).filename)}`}</button>
-              ${biosPresent ? '<button type="button" class="ro-btn ro-btn--ghost" id="ro-bios-remove" data-ro-focusable="true">Remove</button>' : ''}
-            </div>
-            <input type="file" id="ro-bios-file" accept=".rom,.bin" hidden />
-          </section>` : ''}
           ${
             showMenu
               ? `
@@ -432,6 +369,74 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
           </div>`
               : ''
           }
+          <div class="ro-detail__panels">
+          ${lanCandidate ? `
+          <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="${onlineState}">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-online-title">${linkSystem ? 'Trade &amp; link' : 'Play with a friend'}</h2>
+              <span class="ro-online-card__state" id="ro-online-state">${ONLINE_STATE_TEXT[onlineState]}</span>
+            </div>
+            <p class="ro-muted ro-online-card__text">${linkSystem
+              ? 'Link cable for trades and battles. Your friend brings their own game and save.'
+              : normalizePlayCore(game.core) === 'n64'
+                ? 'Up to 4 friends join from their browser. They don’t need the game.'
+                : 'A friend joins from their browser. They don’t need the game.'}</p>
+            <p class="ro-muted ro-online-card__help" id="ro-online-help"${onlineHelp(onlineState) ? '' : ' hidden'}>${onlineHelp(onlineState)} <a href="${hrefFor('/settings')}">Online play setup</a></p>
+            <div class="ro-btn-row ro-online-card__actions">
+              <button type="button" class="ro-btn${lan ? ' ro-btn--primary' : ''}" id="ro-host-lan" data-ro-focusable="true"${busy || !lan ? ' disabled' : ''}>${linkSystem ? 'Start Trade &amp; link' : 'Host a room'}</button>
+            </div>
+          </section>` : ''}
+          ${
+            transferCarts.length || (normalizePlayCore(game.core) === 'n64' && /stadium/i.test(game.title))
+              ? `<section class="ro-online-card ro-tpk-card" aria-labelledby="ro-tpk-title">
+              <div class="ro-online-card__head">
+                <h2 class="ro-online-card__title" id="ro-tpk-title">Transfer Pak</h2>
+                <span class="ro-online-card__state">Controller 1</span>
+              </div>
+              ${transferCarts.length ? `<label class="ro-muted ro-transfer-pak">Game Boy cartridge
+              <select class="ro-input" id="ro-transfer-pak" data-ro-focusable="true" aria-describedby="ro-transfer-pak-help">
+                <option value="">None</option>
+                ${transferCarts.map(g => `<option value="${escapeAttr(g.id)}"${g.id === transferPakId ? ' selected' : ''}>${escapeHtml(g.title)}</option>`).join('')}
+              </select></label>` : `<p class="ro-muted">Add a Game Boy or Game Boy Color game with <a href="${hrefFor('/upload')}">Add ROM</a> to plug it in here.</p>`}
+              <details class="ro-tpk-card__more">
+                <summary data-ro-focusable="true">How it works</summary>
+                <ul class="ro-tpk-card__facts" id="ro-transfer-pak-help">
+                  <li><strong>Games</strong> Stadium: Red, Blue, Yellow. Stadium 2: those plus Gold, Silver, Crystal.</li>
+                  <li><strong>Save</strong> Uses the cartridge’s RetroOasis save (Save data on its game page). Save it in a Pokémon Center first. Changes go back to it, with a backup.</li>
+                  <li><strong>Not yet</strong> GB Tower (playing the Game Boy game on the TV).</li>
+                </ul>
+              </details>
+            </section>`
+              : ''
+          }
+          ${game.demo ? '' : `<section class="ro-online-card ro-save-card" id="ro-save-card" aria-labelledby="ro-save-title">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-save-title">Save data</h2>
+              <span class="ro-online-card__state" id="ro-save-state">Checking…</span>
+            </div>
+            <p class="ro-muted ro-online-card__text" id="ro-save-detail" role="status" aria-live="polite"></p>
+            <div class="ro-btn-row ro-online-card__actions">
+              <button type="button" class="ro-btn" id="ro-save-use" data-ro-focusable="true"${busy ? ' disabled' : ''}>Use a save file</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-download" data-ro-focusable="true" hidden>Download</button>
+              <button type="button" class="ro-btn ro-btn--ghost" id="ro-save-restore" data-ro-focusable="true" hidden>Restore previous save</button>
+            </div>
+            <input type="file" id="ro-save-file" accept=".sav,.srm,.sa1,.sra,.fla,.eep,.mpk,.mcr,.mcd,.dsv,application/octet-stream" hidden />
+          </section>`}
+          ${biosKind ? `<section class="ro-online-card" id="ro-bios-card" aria-labelledby="ro-bios-title" data-state="${biosPresent ? 'ready' : 'none'}">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-bios-title">${escapeHtml(biosSpec(biosKind).label)} BIOS</h2>
+              <span class="ro-online-card__state" id="ro-bios-state">${biosPresent ? 'Added' : 'Needed'}</span>
+            </div>
+            <p class="ro-muted ro-online-card__text" id="ro-bios-detail" role="status" aria-live="polite">${biosPresent
+              ? `${escapeHtml(biosSpec(biosKind).filename)} is kept on this device and used when you play.`
+              : `Needs <b>${escapeHtml(biosSpec(biosKind).filename)}</b> (${biosSpec(biosKind).size / 1024} KB) to start. Add your copy; it stays on this device.`}</p>
+            <div class="ro-btn-row ro-online-card__actions">
+              <button type="button" class="ro-btn" id="ro-bios-add" data-ro-focusable="true"${busy ? ' disabled' : ''}>${biosPresent ? 'Replace file' : `Add ${escapeHtml(biosSpec(biosKind).filename)}`}</button>
+              ${biosPresent ? '<button type="button" class="ro-btn ro-btn--ghost" id="ro-bios-remove" data-ro-focusable="true">Remove</button>' : ''}
+            </div>
+            <input type="file" id="ro-bios-file" accept=".rom,.bin" hidden />
+          </section>` : ''}
+          </div>
           ${
             editing
               ? `

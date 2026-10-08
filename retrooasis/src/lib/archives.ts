@@ -229,7 +229,22 @@ export async function detectRomPlatform(file: File): Promise<string | null> {
     if (file.name.split('.').pop()?.toLowerCase() === 'iso') return null
   }
 
+  // A lone .bin is a Mega Drive cartridge, a raw CD track, or an Atari ROM: read the header, don't guess.
+  if (file.name.split('.').pop()?.toLowerCase() === 'bin') return sniffBin(file)
+
   return extPlatform
+}
+
+async function sniffBin(file: Blob): Promise<string | null> {
+  try {
+    const head = new Uint8Array(await file.slice(0, 0x110).arrayBuffer())
+    if (String.fromCharCode(...head.subarray(0x100, 0x104)) === 'SEGA') return 'segaMD'
+    // A raw CD sector starts with 00, ten FF bytes and 00: a disc track, so it needs its .cue.
+    if (head[0] === 0 && head.subarray(1, 11).every((byte) => byte === 0xff) && head[11] === 0) return 'psx'
+  } catch {
+    /* unreadable: ask */
+  }
+  return null
 }
 
 // ---------------------------------------------------------------------------

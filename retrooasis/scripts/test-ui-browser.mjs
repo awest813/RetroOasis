@@ -150,6 +150,18 @@ const pressed = (page, selector) => page.evaluate(selector => document.querySele
   await page.context().close()
 }
 
+// ---- Game cards: a placeholder cover names the system, not the game twice
+{
+  const page = await newPage()
+  await page.goto(`${base}/#/library/@all`); await page.waitForSelector('.ro-tile'); await page.waitForTimeout(500)
+  const cards = await page.evaluate(() => [...document.querySelectorAll('.ro-tile')].map(tile => ({ title: tile.querySelector('.ro-tile__title')?.textContent.trim(), cover: tile.querySelector('.ro-cover__label')?.textContent.trim(), system: tile.querySelector('.ro-tile__sub')?.textContent.trim().split(' ·')[0] })))
+  check(cards.length > 0 && cards.every(card => card.cover && card.cover !== card.title && card.system.toUpperCase().startsWith(card.cover.toUpperCase().slice(0, 2))), 'Placeholder covers show the system, and the caption carries the title', JSON.stringify(cards[0]))
+  await page.goto(`${base}/#/game/demo-nes-adventure`); await page.waitForSelector('.ro-detail'); await page.waitForTimeout(500)
+  const meta = await page.evaluate(() => ({ badges: document.querySelectorAll('.ro-detail__badges .ro-badge').length, system: document.querySelector('.ro-detail__meta strong')?.textContent, hasFileName: /\.(zip|nes|gba|z64)/i.test(document.querySelector('.ro-detail__meta')?.textContent || '') }))
+  check(meta.system && !meta.hasFileName, 'The game page header names the system without the file name', JSON.stringify(meta))
+  await page.context().close()
+}
+
 // ---- A new page starts at the top; Back to Settings keeps your place
 {
   const page = await newPage({ width: 390, height: 700 }, { hasTouch: true, isMobile: true })

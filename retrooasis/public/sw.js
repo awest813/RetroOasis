@@ -1,7 +1,7 @@
 /* RetroOasis app-shell service worker.
  * Caches SPA chrome + catalog. Leaves /data/ and /roms/ on the network. */
 
-const CACHE = 'retrooasis-shell-v14'
+const CACHE = 'retrooasis-shell-v16'
 // Libretro box art, so the library keeps its covers offline. Fetched with CORS:
 // opaque responses would each count as megabytes of padded quota.
 const COVER_CACHE = 'retrooasis-covers-v1'
@@ -39,6 +39,27 @@ async function coverResponse(event, url) {
   }
 }
 
+// PPSSPP's support pack (fonts, shaders, themes) unzips to folders and empty marker files, and
+// EmulatorJS throws away any cached download holding an empty file. It fetched the 19 MB pack
+// again on every launch, so PSP could not start offline even after being played. This worker
+// keeps its own copy of the zip and serves it when the network is gone.
+const ASSET_CACHE = 'retrooasis-core-assets-v1'
+
+function isPspAssetPack(url) {
+  return url.hostname === 'cdn.emulatorjs.org' && /\/data\/cores\/ppsspp-assets\.zip$/.test(url.pathname)
+}
+
+async function assetPackResponse(event, req) {
+  const cache = await caches.open(ASSET_CACHE)
+  try {
+    const response = await fetch(req)
+    if (response.ok) event.waitUntil(cache.put(req.url, response.clone()).catch(() => {}))
+    return response
+  } catch {
+    return (await cache.match(req.url)) || Response.error()
+  }
+}
+
 // PSP, DOS and 3DS cores need threads, which browsers allow only on pages sent with these headers.
 // A static host can't send them, so the player page (opened with threads=1) gets them here.
 function withIsolation(res) {
@@ -65,6 +86,9 @@ const PRECACHE = [
   './emulator/loader.js',
   './emulator/emulator.min.js',
   './emulator/emulator.min.css',
+  // Unpack workers for zipped games, so a cached core plays them offline.
+  './emulator/compression/extractzip.js',
+  './emulator/compression/extract7z.js',
   // N64 Transfer Pak (Pokémon Stadium) works offline too.
   './transfer-pak.js',
   './game-saves.js',
@@ -144,6 +168,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(coverResponse(event, url))
     return
   }
+  if (isPspAssetPack(url)) {
+    event.respondWith(assetPackResponse(event, req))
+    return
+  }
   if (url.origin !== self.location.origin) return
 
   const path = url.pathname
@@ -172,7 +200,7 @@ self.addEventListener('fetch', (event) => {
         // A server error or an SPA fallback page (HTML for a script) must not replace a good
         // copy; a 404 still surfaces, since it means the deployment lacks the file.
         const type = response.headers.get('content-type') || ''
-        if (response.ok && /javascript|css/.test(type)) {
+        if (response.ok && /javascript|css|wasm/.test(type)) {
           event.waitUntil(cache.put(req, response.clone()).catch(() => {}))
           return response
         }

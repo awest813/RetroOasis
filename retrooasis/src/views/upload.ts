@@ -93,8 +93,10 @@ function coreHintText(core: string): string {
   return warn ? `${base} ${warn}` : base
 }
 
+/** Only worth saying when the emulator files aren't the default Stable ones. */
 function channelFootnote(): string {
-  return `Using the ${formatEjsChannelLabel()} channel. PSP, 3DS, and DOS always use Nightly — change the rest in Settings.`
+  const label = formatEjsChannelLabel()
+  return label === 'Stable' ? '' : `Emulator files: ${label}. PSP, 3DS and DOS always use Nightly. Change this in Settings.`
 }
 
 export function renderUpload(root: HTMLElement): void {
@@ -105,8 +107,8 @@ export function renderUpload(root: HTMLElement): void {
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Add a ROM</p>
         <h1 class="ro-title">Add a ROM</h1>
         <p class="ro-lede">
-          Drop in ROM or ISO files to save them on this device and start playing.
-          Disc dumps (.cue + .bin, playlists) are kept together. They stay in your library until you remove them.
+          Add game files or discs. They’re saved on this device until you remove them.
+          A disc made of several files (.cue + .bin) is kept together.
         </p>
       </header>
       <div class="ro-stack ro-upload__stack">
@@ -134,10 +136,10 @@ export function renderUpload(root: HTMLElement): void {
         <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite" hidden></p>
         <ol class="ro-upload__log" id="ro-upload-log" hidden></ol>
         <p class="ro-muted ro-upload__meta" id="ro-upload-meta"></p>
-        <p class="ro-muted ro-upload__footnote" id="ro-upload-footnote">${channelFootnote()}</p>
+        <p class="ro-muted ro-upload__footnote" id="ro-upload-footnote"${channelFootnote() ? '' : ' hidden'}>${channelFootnote()}</p>
         ${
           canPickFolder
-            ? `<p class="ro-muted ro-upload__footnote">To add a whole <code>roms/&lt;system&gt;/</code> folder without copying it, <a href="${hrefFor('/settings')}">link it in Settings</a>.</p>`
+            ? `<p class="ro-muted ro-upload__footnote">Have a whole folder of games? <a href="${hrefFor('/settings')}">Link it in Settings</a> instead of copying it.</p>`
             : ''
         }
         <div class="ro-btn-row ro-upload__actions">
