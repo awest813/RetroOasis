@@ -288,7 +288,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     next.querySelector('#ro-ra-more')?.addEventListener('click', () => {
       raListMode = raListMode === 0 ? 1 : 2
       paintRa()
-      root.querySelector<HTMLElement>('#ro-ra-list')?.focus()
+      root.querySelector<HTMLElement>('#ro-ra-more, #ro-ra-card .ro-online-card__actions [data-ro-focusable="true"]')?.focus()
     })
     next.querySelectorAll<HTMLImageElement>('img[data-fallback]').forEach((img) => {
       img.addEventListener('error', () => {

@@ -503,12 +503,15 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                     </div>
                     <p class="ro-muted" id="ro-ra-match-status" role="status" aria-live="polite"></p>
                     <p class="ro-muted">Match checks ROMs saved or linked on this device. Open a hosted game to check that one. The system list is saved for a week so it isn’t downloaded every time.</p>`
-                  : `<form class="ro-ra-form" id="ro-ra-form">
+                  : `<form class="ro-ra-form" id="ro-ra-form" autocomplete="off">
                       <label class="ro-muted">Username
-                        <input class="ro-input" id="ro-ra-user" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" data-focus-id="ra-user" data-ro-focusable="true" />
+                        <input class="ro-input" id="ro-ra-user" name="username" autocomplete="off" autocapitalize="off" spellcheck="false" data-focus-id="ra-user" data-ro-focusable="true" />
                       </label>
                       <label class="ro-muted">Web API key
-                        <input class="ro-input" id="ro-ra-key" name="key" type="password" autocomplete="off" spellcheck="false" data-focus-id="ra-key" data-ro-focusable="true" />
+                        <span class="ro-ra-keyline">
+                          <input class="ro-input ro-ra-key" id="ro-ra-key" name="ra-api-key" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-focus-id="ra-key" data-ro-focusable="true" />
+                          <button type="button" class="ro-btn ro-btn--ghost" id="ro-ra-reveal" data-focus-id="ra-reveal" data-ro-focusable="true" aria-pressed="false">Show</button>
+                        </span>
                       </label>
                       <p class="ro-muted">On RetroAchievements, open your settings and copy the web API key. It stays in this browser and is only sent to RetroAchievements.</p>
                       <div class="ro-btn-row">
@@ -1079,6 +1082,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       if (active && status) status.textContent = message
     }, raAbort.signal).then((summary) => {
       if (!active) return
+      if (!getRaAccount() && /web API key/i.test(summary)) {
+        raConnectNotice = 'That web API key no longer works. Connect again.'
+        rerender('ra-user')
+        return
+      }
       if (status) status.textContent = summary
       button.disabled = false
       button.removeAttribute('aria-busy')
@@ -1090,6 +1098,16 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       button.removeAttribute('aria-busy')
       button.focus()
     })
+  })
+
+  root.querySelector('#ro-ra-reveal')?.addEventListener('click', () => {
+    const input = root.querySelector<HTMLInputElement>('#ro-ra-key')
+    const button = root.querySelector<HTMLButtonElement>('#ro-ra-reveal')
+    if (!input || !button) return
+    const visible = input.classList.toggle('is-visible')
+    button.textContent = visible ? 'Hide' : 'Show'
+    button.setAttribute('aria-pressed', visible ? 'true' : 'false')
+    input.focus()
   })
 
   root.querySelector<HTMLImageElement>('.ro-ra-profile img')?.addEventListener('error', (event) => {

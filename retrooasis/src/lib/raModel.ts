@@ -85,6 +85,7 @@ export interface RaProgressSnap {
   total: number
   hardcore: number
   title: string
+  award?: string | null
 }
 
 const MEDIA = 'https://media.retroachievements.org'
@@ -164,10 +165,19 @@ export function takeAchievementsSettingsRequest(): boolean {
 }
 
 export function forgetRaGame(gameId: string): void {
+  forgetRaGames([gameId])
+}
+
+export function forgetRaGames(gameIds: string[]): void {
+  if (!gameIds.length) return
   const all = links()
-  if (!all[gameId]) return
-  delete all[gameId]
-  writeJson(LINKS_KEY, all)
+  let changed = false
+  for (const gameId of gameIds) {
+    if (!all[gameId]) continue
+    delete all[gameId]
+    changed = true
+  }
+  if (changed) writeJson(LINKS_KEY, all)
 }
 
 function progressMap(): Record<string, RaProgressSnap> {
@@ -183,6 +193,7 @@ export function rememberProgress(progress: RaProgress): void {
     total: progress.total,
     hardcore: progress.hardcore,
     title: progress.title,
+    award: progress.award,
   }
   writeJson(PROGRESS_KEY, all)
 }
@@ -202,6 +213,7 @@ export function achievementBadge(gameId: string): string {
   if (!snap || snap.total <= 0) return ''
   if (snap.hardcore >= snap.total) return 'Mastered'
   if (snap.earned >= snap.total) return 'Complete'
+  if (snap.award === 'Beaten') return 'Beaten'
   return `${snap.earned}/${snap.total}`
 }
 
@@ -210,6 +222,7 @@ export function achievementBadgeTitle(gameId: string): string {
   if (!badge) return ''
   if (badge === 'Mastered') return 'Mastered on RetroAchievements'
   if (badge === 'Complete') return 'Completed on RetroAchievements'
+  if (badge === 'Beaten') return 'Beaten on RetroAchievements'
   const [earned, total] = badge.split('/')
   return `${earned} of ${total} RetroAchievements`
 }
@@ -404,12 +417,12 @@ export function achievementCardHtml(card: RaCard, listMode = 0): string {
       : ''
   const awardBit = progress?.award && pill !== progress.award && pill !== 'Mastered' && pill !== 'Complete' ? progress.award : ''
   const actions = [
-    moreLabel ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-ra-more" data-ro-focusable="true">${moreLabel}</button>` : '',
+    moreLabel ? `<button type="button" class="ro-btn" id="ro-ra-more" data-ro-focusable="true">${moreLabel}</button>` : '',
     card.state === 'signed-out' ? `<a class="ro-btn" id="ro-ra-settings" href="${hrefFor('/settings')}" data-ro-focusable="true">Connect in Settings</a>` : '',
     card.state === 'error' || card.state === 'unmatched' || card.state === 'missing' || card.state === 'ready'
       ? `<button type="button" class="ro-btn ro-btn--ghost" id="ro-ra-retry" data-ro-focusable="true">Check again</button>`
       : '',
-    progress ? `<a class="ro-btn ro-btn--ghost" href="https://retroachievements.org/game/${progress.id}" target="_blank" rel="noopener" data-ro-focusable="true">View on RetroAchievements</a>` : '',
+    progress && listMode >= 1 ? `<a class="ro-btn ro-btn--ghost" href="https://retroachievements.org/game/${progress.id}" target="_blank" rel="noopener" data-ro-focusable="true">View on RetroAchievements</a>` : '',
   ].filter(Boolean).join('')
   const items = (progress?.achievements ?? []).slice(0, limit).map((ach) => {
     const locked = !ach.earned

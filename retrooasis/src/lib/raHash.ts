@@ -179,7 +179,8 @@ export function hashRomBytes(bytes: Uint8Array, kind: RaHashKind, cap = RA_HASH_
     case 'neo':
       return hashRange(capped)
     case 'nes':
-      if (startsWith(capped, 'NES\x1a') || startsWith(capped, 'FDS\x1a')) return hashRange(capped, 16)
+      // rcheevos only strips a header when the file is longer than the header itself.
+      if (capped.length > 16 && (startsWith(capped, 'NES\x1a') || startsWith(capped, 'FDS\x1a'))) return hashRange(capped, 16)
       return hashRange(capped)
     case 'snes': {
       const aligned = Math.floor(capped.length / 0x2000) * 0x2000

@@ -10,6 +10,7 @@ import {
   type Platform,
 } from '../lib/catalog'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
+import { achievementBadge } from '../lib/raModel'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
@@ -123,11 +124,12 @@ function gameItem(game: Game, catalog: Catalog, useLibretro: boolean): XmbItem {
   const accent = platformAccentVar(platform?.accent ?? 'sega')
   const cover = resolveCoverUrls(game.platform, game.title, game.cover, useLibretro && !game.demo, game.romFilename ?? romFilenameFromUrl(game.file))
   const platformName = platform?.shortName ?? game.platform
+  const badge = achievementBadge(game.id)
   return {
     kind: 'game',
     id: game.id,
     title: game.title,
-    sub: platformName,
+    sub: badge ? `${platformName} · ${badge}` : platformName,
     href: hrefFor(`/game/${encodeURIComponent(game.id)}`),
     accent,
     cover,

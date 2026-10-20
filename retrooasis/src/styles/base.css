@@ -2331,6 +2331,11 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-ra-form { display: grid; gap: 0.65rem; width: min(100%, 26rem); margin-top: 0.35rem; }
 .ro-ra-form label { display: grid; gap: 0.3rem; }
+.ro-ra-keyline { display: flex; gap: 0.5rem; align-items: center; }
+.ro-ra-keyline .ro-input { flex: 1; min-width: 0; }
+.ro-ra-key { -webkit-text-security: disc; }
+.ro-ra-key.is-visible { -webkit-text-security: none; }
+.ro-ra-keyline .ro-btn { flex: 0 0 auto; }
 .ro-ra-profile { display: flex; align-items: center; gap: 0.75rem; margin: 0.35rem 0; }
 .ro-ra-profile img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; background: color-mix(in srgb, var(--ro-bg-void) 65%, transparent); }
 .ro-ra-list { list-style: none; margin: 0.35rem 0 0; padding: 0; display: grid; gap: 0.75rem; }

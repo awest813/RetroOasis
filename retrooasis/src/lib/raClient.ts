@@ -255,6 +255,15 @@ async function loadProgress(account: RaAccount, gameId: number, signal?: AbortSi
   return progress
 }
 
+function rejectedKeyCard(message: string): RaCard | null {
+  if (!/web API key/i.test(message)) return null
+  clearRaAccount()
+  return {
+    state: 'signed-out',
+    message: 'That web API key no longer works. Connect again in Settings. Playing here doesn’t unlock achievements.',
+  }
+}
+
 function readyCard(progress: RaProgress): RaCard {
   const matched = progress.consoleName ? `${progress.title} on ${progress.consoleName}` : progress.title
   return {
@@ -295,8 +304,13 @@ export async function loadGameAchievements(
     const opened = await openGame(game, opts.signal, reusable)
     if ('reason' in opened) return { state: opened.missing ? 'missing' : 'error', message: opened.reason }
     fileKey = opened.fileKey
-    if (!opts.fresh && previous && previous.fileKey === fileKey && previous.hash) {
+    // A same-size hosted file skips the download and comes back as an empty placeholder.
+    if (opened.unchanged && previous?.hash) {
       hash = previous.hash
+    } else if (!opts.fresh && previous && previous.fileKey === fileKey && previous.hash) {
+      hash = previous.hash
+    } else if (opened.unchanged) {
+      return { state: 'error', message: 'Couldn’t read that ROM to match it.' }
     } else {
       const hashed = await hashForPlan(opened.source, opened.name, plan)
       if ('reason' in hashed) return { state: 'unsupported', message: hashed.reason }
@@ -326,7 +340,8 @@ export async function loadGameAchievements(
       }
     } catch (err) {
       if (opts.signal?.aborted) throw err
-      return { state: 'error', message: err instanceof Error ? err.message : 'Couldn’t match this game.' }
+      const message = err instanceof Error ? err.message : 'Couldn’t match this game.'
+      return rejectedKeyCard(message) ?? { state: 'error', message }
     }
     setRaLink(game.id, { fileKey, hash, raId: listed?.id ?? 0, at: Date.now() })
     if (!listed) return { state: 'unmatched', message: 'RetroAchievements has no set for this file.' }
@@ -339,7 +354,8 @@ export async function loadGameAchievements(
     return readyCard(progress)
   } catch (err) {
     if (opts.signal?.aborted) throw err
-    return { state: 'error', message: err instanceof Error ? err.message : 'Couldn’t load achievements for this game.' }
+    const message = err instanceof Error ? err.message : 'Couldn’t load achievements for this game.'
+    return rejectedKeyCard(message) ?? { state: 'error', message }
   }
 }
 
@@ -359,7 +375,7 @@ export async function matchSavedGames(
     onStatus(`Checking ${i + 1} of ${targets.length}…`)
     try {
       const card = await loadGameAchievements(targets[i], { signal })
-      if (card.state === 'error' && /web API key/i.test(card.message)) {
+      if (/web API key/i.test(card.message)) {
         clearRaAccount()
         return card.message
       }

@@ -88,6 +88,8 @@ console.log('hashes')
 const hello = text('HELLO')
 const nes = bytes(text('NES\x1a'), new Uint8Array(12), hello)
 check('nes skips iNES header', hashMod.hashRomBytes(nes, 'nes'), ref(hello))
+const headerOnly = bytes(text('NES\x1a'), new Uint8Array(12))
+check('nes header alone stays whole', hashMod.hashRomBytes(headerOnly, 'nes'), ref(headerOnly))
 check('fds skips header', hashMod.hashRomBytes(bytes(text('FDS\x1a'), new Uint8Array(12), hello), 'nes'), ref(hello))
 check('raw nes hashes the whole file', hashMod.hashRomBytes(hello, 'nes'), ref(hello))
 
@@ -229,6 +231,17 @@ model.rememberProgress({
   id: 9, title: 'Demo', consoleName: 'NES', icon: '', points: 5, earned: 5, total: 5, hardcore: 5, earnedPoints: 5, award: 'Mastered', achievements: [],
 })
 check('mastered badge', model.achievementBadge('game-1'), 'Mastered')
+model.rememberProgress({
+  id: 9, title: 'Demo', consoleName: 'NES', icon: '', points: 10, earned: 3, total: 10, hardcore: 0, earnedPoints: 4, award: 'Beaten', achievements: [],
+})
+check('beaten badge', model.achievementBadge('game-1'), 'Beaten')
+check('beaten title', model.achievementBadgeTitle('game-1'), 'Beaten on RetroAchievements')
+model.forgetRaGames(['game-1'])
+check('removed game drops its match', model.getRaLink('game-1'), null)
+model.setRaLink('game-1', { fileKey: 'a:1', hash: 'ab', raId: 9, at: Date.now() })
+model.rememberProgress({
+  id: 9, title: 'Demo', consoleName: 'NES', icon: '', points: 5, earned: 5, total: 5, hardcore: 5, earnedPoints: 5, award: 'Mastered', achievements: [],
+})
 check('badge title', model.achievementBadgeTitle('game-1'), 'Mastered on RetroAchievements')
 model.clearRaAccount()
 check('disconnect hides the badge', model.achievementBadge('game-1'), '')
@@ -250,7 +263,9 @@ check('date', model.formatRaDate(progress.achievements[0].earned), 'Mar 12, 2016
 const collapsed = model.achievementCardHtml({ state: 'ready', message: 'Matched', progress })
 check('card starts as a summary', collapsed.includes('Show achievements') && !collapsed.includes('&lt;script&gt;'), true)
 check('ready card can be checked again', collapsed.includes('id="ro-ra-retry"'), true)
+check('set link waits until the list is open', collapsed.includes('retroachievements.org/game/'), false)
 const html = model.achievementCardHtml({ state: 'ready', message: 'Matched', progress }, 2)
+check('open list links to the set', html.includes('retroachievements.org/game/1446'), true)
 check('card escapes the title', html.includes('&lt;script&gt;'), true)
 check('card drops an unsafe badge name', html.includes('badname') || !html.includes('bad name'), true)
 check('card does not include a raw script tag', html.includes('<script>'), false)
