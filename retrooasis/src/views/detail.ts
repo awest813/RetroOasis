@@ -25,6 +25,8 @@ import {
 } from '../lib/overrides'
 import { sfxToggle } from '../lib/sfx'
 import { forgetGameId, getLibretroCovers, getSavePath, getTransferPak, isFavorite, setPendingSave, setTransferPak, toggleFavorite } from '../lib/store'
+import { loadGameAchievements } from '../lib/raClient'
+import { achievementCardHtml, forgetRaGame, requestAchievementsSettings, type RaCard } from '../lib/raModel'
 import { readGameSave, swapWithPreviousSave, type GameSaveInfo } from '../lib/saves'
 import { formatBytes, getUploadedRomRecord, removeUploadedRom } from '../lib/uploadedLibrary'
 import { friendlyError } from '../lib/userErrors'
@@ -39,6 +41,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   let editing = false
   let menuOpen = false
   const lanAbort = new AbortController()
+  const raAbort = new AbortController()
   let paint: (restoreFocusId?: string) => void = () => {}
 
   const onKey = (event: KeyboardEvent) => {
@@ -62,6 +65,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
   registerViewCleanup(() => {
     active = false
     lanAbort.abort()
+    raAbort.abort()
     document.removeEventListener('keydown', onKey)
     focusCleanup?.()
     focusCleanup = null
@@ -268,6 +272,59 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     })
   }
 
+  let raCard: RaCard = { state: 'checking', message: 'Checking achievements…' }
+  let raListMode = 0
+  let raToken = 0
+  const paintRa = () => {
+    const current = root.querySelector('#ro-ra-card')
+    if (!current) return
+    const holder = document.createElement('div')
+    holder.innerHTML = achievementCardHtml(raCard, raListMode)
+    const next = holder.firstElementChild
+    if (!next) return
+    current.replaceWith(next)
+    next.querySelector('#ro-ra-retry')?.addEventListener('click', () => { void loadRa(true) })
+    next.querySelector('#ro-ra-settings')?.addEventListener('click', () => { requestAchievementsSettings() })
+    next.querySelector('#ro-ra-more')?.addEventListener('click', () => {
+      raListMode = raListMode === 0 ? 1 : 2
+      paintRa()
+      root.querySelector<HTMLElement>('#ro-ra-list')?.focus()
+    })
+    next.querySelectorAll<HTMLImageElement>('img[data-fallback]').forEach((img) => {
+      img.addEventListener('error', () => {
+        const nextSrc = img.dataset.fallback
+        if (!nextSrc) return
+        img.removeAttribute('data-fallback')
+        if (img.getAttribute('src') !== nextSrc) img.src = nextSrc
+      })
+    })
+  }
+  const loadRa = async (fresh = false) => {
+    if (game.demo) return
+    const token = ++raToken
+    if (fresh) raListMode = 0
+    raCard = { state: 'checking', message: fresh ? 'Checking again…' : 'Checking achievements…' }
+    paintRa()
+    try {
+      const next = await loadGameAchievements(game, {
+        fresh,
+        signal: raAbort.signal,
+        onStatus: (message) => {
+          if (!active || token !== raToken) return
+          raCard = { state: 'checking', message }
+          paintRa()
+        },
+      })
+      if (!active || token !== raToken) return
+      raCard = next
+      paintRa()
+    } catch (err) {
+      if (!active || token !== raToken || raAbort.signal.aborted) return
+      raCard = { state: 'error', message: err instanceof Error && err.message ? err.message : 'Couldn’t load achievements.' }
+      paintRa()
+    }
+  }
+
   paint = (restoreFocusId?: string) => {
     if (!active) return
     focusCleanup?.()
@@ -436,6 +493,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
             </div>
             <input type="file" id="ro-bios-file" accept=".rom,.bin" hidden />
           </section>` : ''}
+          ${game.demo ? '' : '<section class="ro-online-card ro-ra-card" id="ro-ra-card" data-state="checking" aria-labelledby="ro-ra-title"></section>'}
           </div>
           ${
             editing
@@ -468,6 +526,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     `
 
     hydrateCovers(root)
+    paintRa()
 
     root.querySelector('#ro-play')?.addEventListener('click', () => void startPlay('ro-play'))
     root.querySelector('#ro-host-lan')?.addEventListener('click', () => void startPlay('ro-host-lan', linkSystem ? 'link' : true))
@@ -508,6 +567,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         await removeUploadedRom(game.id)
         if (!active) return
         forgetGameId(game.id)
+        forgetRaGame(game.id)
         await reloadUploadedLibrary()
         if (!active) return
         navigate('/library')
@@ -582,6 +642,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
 
   document.addEventListener('keydown', onKey)
   paint()
+  if (!game.demo) void loadRa()
   if (lanCheck) void lanCheck.then(result => {
     if (!active) return
     lan = result.state === 'ready' && result.info.cores.includes(normalizePlayCore(game.core))

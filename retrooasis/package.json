@@ -17,6 +17,7 @@
     "test:upload-flow": "node scripts/test-upload-flow.mjs",
     "test:router": "node scripts/test-router.mjs",
     "test:overrides": "node scripts/test-overrides.mjs",
+    "test:ra": "node scripts/test-ra.mjs",
     "test:saves": "node scripts/test-saves.mjs",
     "test:gamepad": "node scripts/test-gamepad.mjs",
     "test:lan-service": "node scripts/test-lan-service.mjs",

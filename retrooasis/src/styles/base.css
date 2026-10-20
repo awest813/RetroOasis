@@ -2321,10 +2321,27 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-detail__panels .ro-online-card__help,
 .ro-detail__panels .ro-tpk-card label,
 .ro-detail__panels .ro-tpk-card__more { grid-column: 1 / -1; }
+.ro-detail__panels .ro-ra-list,
+.ro-detail__panels .ro-ra-card > .ro-muted:not(.ro-online-card__text),
+.ro-detail__panels .ro-ra-card:has(.ro-ra-list) .ro-online-card__actions { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
 .ro-detail__panels .ro-online-card__help { font-size: 0.85rem; }
 .ro-tpk-card__more summary { cursor: pointer; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--ro-accent); font-size: 0.85rem; }
 .ro-detail__meta { margin: 0; }
 .ro-detail__badges:empty { display: none; }
+
+.ro-ra-form { display: grid; gap: 0.65rem; width: min(100%, 26rem); margin-top: 0.35rem; }
+.ro-ra-form label { display: grid; gap: 0.3rem; }
+.ro-ra-profile { display: flex; align-items: center; gap: 0.75rem; margin: 0.35rem 0; }
+.ro-ra-profile img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; background: color-mix(in srgb, var(--ro-bg-void) 65%, transparent); }
+.ro-ra-list { list-style: none; margin: 0.35rem 0 0; padding: 0; display: grid; gap: 0.75rem; }
+.ro-ra-ach { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 0.7rem; align-items: start; }
+.ro-ra-ach[data-earned='false'] { opacity: 0.78; }
+.ro-ra-ach img, .ro-ra-ach__blank { width: 48px; height: 48px; object-fit: cover; background: color-mix(in srgb, var(--ro-bg-void) 65%, transparent); }
+.ro-ra-ach__top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
+.ro-ra-ach__top strong { min-width: 0; overflow-wrap: anywhere; }
+.ro-ra-ach__top span { color: var(--ro-accent); font-size: 0.75rem; letter-spacing: 0.04em; white-space: nowrap; }
+.ro-ra-ach p { margin: 0.15rem 0 0; font-size: 0.88rem; line-height: 1.4; overflow-wrap: anywhere; }
+#ro-ra-status:empty, #ro-ra-match-status:empty { display: none; }
 @media (max-width: 560px) {
   .ro-detail__panels > .ro-online-card { grid-template-columns: minmax(0, 1fr); }
   .ro-detail__panels .ro-online-card__actions { grid-column: 1; grid-row: auto; justify-content: stretch; margin-top: 0.35rem; }

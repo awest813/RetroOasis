@@ -86,7 +86,7 @@ const pressed = (page, selector) => page.evaluate(selector => document.querySele
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('#ro-export-over')])
   check(download?.suggestedFilename() === 'retrooasis-overrides.json', 'Export edits downloads a JSON file')
   for (const channel of ['nightly', 'latest', 'local', 'stable']) { await page.click(`[data-ejs=${channel}]`); await page.waitForTimeout(200); check((await stored(page, 'retrooasis.ejsChannel')) === channel && (await pressed(page, `[data-ejs=${channel}]`)) === 'true', `Emulator files ${channel} stores`) }
-  for (const section of ['look', 'playback', 'controller', 'lan', 'library', 'data', 'advanced']) {
+  for (const section of ['look', 'playback', 'controller', 'lan', 'library', 'achievements', 'data', 'advanced']) {
     await page.click(`[data-settings-section=${section}]`); await page.waitForTimeout(350)
     const top = await page.evaluate(id => Math.round(document.querySelector('#ro-set-' + id).getBoundingClientRect().top), section)
     check((top >= 0 && top < 400) || section === 'advanced', `Section rail reaches ${section}`, `top=${top}`)
