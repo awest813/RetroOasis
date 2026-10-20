@@ -12,6 +12,7 @@ import {
 import { romFileTags } from '../lib/cores'
 import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
+import { achievementBadge, achievementBadgeTitle } from '../lib/raModel'
 import { bindGridFocus } from '../lib/focus'
 import { hrefFor, type VirtualCollection } from '../lib/router'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
@@ -437,19 +438,21 @@ function gameTile(
 ): string {
   const cover = resolveCoverUrls(game.platform, game.title, game.cover, useLibretro && !game.demo, game.romFilename ?? romFilenameFromUrl(game.file))
   const gameHref = hrefFor(`/game/${encodeURIComponent(game.id)}`)
+  const achievements = achievementBadge(game.id)
+  const achievementTitle = achievementBadgeTitle(game.id)
   return `
     <div class="ro-tile">
       <a
         class="ro-tile__link"
         href="${gameHref}"
-        title="${escapeAttr(variant ? `${game.title} (${variant})` : game.title)}"
+        title="${escapeAttr(variant ? `${game.title} (${variant})` : game.title)}${achievementTitle ? ` — ${escapeAttr(achievementTitle)}` : ''}"
         data-ro-focusable="true"
-        aria-label="View ${escapeAttr(game.title)}${variant ? ` (${escapeAttr(variant)})` : ''} details${game.demo ? ' (sample)' : ''}"
+        aria-label="View ${escapeAttr(game.title)}${variant ? ` (${escapeAttr(variant)})` : ''} details${game.demo ? ' (sample)' : ''}${achievementTitle ? `, ${escapeAttr(achievementTitle)}` : ''}"
       >
         ${coverMarkup(game.title, platformAccentVar(platform?.accent ?? 'sega'), cover, platform?.shortName ?? game.platform)}
         <span class="ro-tile__caption">
           <span class="ro-tile__title">${escapeHtml(game.title)}</span>
-          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${variant ? ` · ${escapeHtml(variant)}` : ''}${game.demo ? ' · Sample' : ''}</span>
+          <span class="ro-tile__sub">${escapeHtml(platform?.shortName ?? game.platform)}${variant ? ` · ${escapeHtml(variant)}` : ''}${game.demo ? ' · Sample' : ''}${achievements ? ` · ${escapeHtml(achievements)}` : ''}</span>
         </span>
       </a>
     </div>

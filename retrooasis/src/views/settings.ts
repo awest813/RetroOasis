@@ -53,6 +53,10 @@ import { suppressPadBackUntilRelease } from '../lib/input'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { describeConnectedPads, onPadPresenceChange, onPadInputChange, buttonPressed } from '../lib/gamepad'
 import { controllerAxis } from '../../public/controller-input.js'
+import { connectRaAccount, disconnectRaAccount, matchSavedGames, refreshRaProfile } from '../lib/raClient'
+import { formatRaRank, getRaAccount, raImageUrl, takeAchievementsSettingsRequest } from '../lib/raModel'
+
+let raConnectNotice = ''
 
 const FOCUS_KEY = 'retrooasis.settings.focusId'
 const SCROLL_KEY = 'retrooasis.settings.scrollY'
@@ -114,6 +118,7 @@ function confirmAction(message: string): boolean {
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const lanAbort = new AbortController()
+  const raAbort = new AbortController()
   const lanPromise = checkLanService(lanAbort.signal)
   let active = true
   let focusCleanup: (() => void) | undefined
@@ -161,6 +166,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     active = false
     stopControllerTest?.()
     lanAbort.abort()
+    raAbort.abort()
     cancelAnimationFrame(scrollFrame)
     root.removeEventListener('focusin', rememberFocusedControl)
     window.removeEventListener('scroll', onScroll)
@@ -193,8 +199,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     rememberScroll()
   }
 
-  const restoreId = readFocus()
-  const restoreScroll = readScroll()
+  const raAccount = getRaAccount()
+  const raNotice = raConnectNotice
+  raConnectNotice = ''
+  const raPic = raAccount ? raImageUrl(raAccount.pic) : ''
+  const jumpToAchievements = takeAchievementsSettingsRequest()
+  const restoreId = jumpToAchievements ? (raAccount ? 'ra-match' : 'ra-user') : readFocus()
+  const restoreScroll = jumpToAchievements ? null : readScroll()
   pendingLanFocus = restoreId === 'lan-host' || restoreId === 'lan-join'
 
   root.innerHTML = `
@@ -202,14 +213,14 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       <header class="ro-settings-page__head">
         <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span>Settings</p>
         <h1 class="ro-title">Settings</h1>
-        <p class="ro-lede">Look and sound, controllers, online play, your library and saves.</p>
+        <p class="ro-lede">Look and sound, controllers, online play, your library, achievements and saves.</p>
       </header>
 
       <div class="ro-settings" data-ro-settings>
         <nav class="ro-settings__nav" aria-label="Settings sections" data-ro-focus-row>
           ${[
             ['look', 'Appearance'], ['playback', 'Sound'], ['controller', 'Controllers'],
-            ['lan', 'Online play'], ['library', 'Library'], ['data', 'Saves & storage'], ['advanced', 'Advanced'],
+            ['lan', 'Online play'], ['library', 'Library'], ['achievements', 'Achievements'], ['data', 'Saves & storage'], ['advanced', 'Advanced'],
           ].map(([id, label]) => `<button type="button" class="ro-btn ro-btn--ghost" data-settings-section="${id}" data-focus-id="section-${id}" data-ro-focusable="true">${escapeHtml(label)}</button>`).join('')}
         </nav>
         <section class="ro-settings__group" aria-labelledby="ro-set-look">
@@ -467,6 +478,49 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                     : 'Optional: put games under <code>roms/</code> and generate a manifest.'
                 }
               </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="ro-settings__group" aria-labelledby="ro-set-achievements">
+          <h2 class="ro-settings__heading" id="ro-set-achievements">Achievements</h2>
+          <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>RetroAchievements</strong>
+              <p class="ro-muted">See your progress on game pages and in the library. Playing in the browser doesn’t unlock anything — RetroArch and other supported emulators do.</p>
+              ${
+                raAccount
+                  ? `<div class="ro-ra-profile">
+                      ${raPic ? `<img src="${escapeHtml(raPic)}" alt="" width="48" height="48" />` : ''}
+                      <div>
+                        <strong>${escapeHtml(raAccount.username)}</strong>
+                        <p class="ro-muted" id="ro-ra-rank">${escapeHtml(formatRaRank(raAccount))}</p>
+                      </div>
+                    </div>
+                    <div class="ro-btn-row">
+                      <button type="button" class="ro-btn" id="ro-ra-match" data-focus-id="ra-match" data-ro-focusable="true">Match saved games</button>
+                      <button type="button" class="ro-btn ro-btn--ghost" id="ro-ra-disconnect" data-focus-id="ra-disconnect" data-ro-focusable="true">Disconnect</button>
+                    </div>
+                    <p class="ro-muted" id="ro-ra-match-status" role="status" aria-live="polite"></p>
+                    <p class="ro-muted">Match checks ROMs saved or linked on this device. Open a hosted game to check that one. The system list is saved for a week so it isn’t downloaded every time.</p>`
+                  : `<form class="ro-ra-form" id="ro-ra-form" autocomplete="off">
+                      <label class="ro-muted">Username
+                        <input class="ro-input" id="ro-ra-user" name="username" autocomplete="off" autocapitalize="off" spellcheck="false" data-focus-id="ra-user" data-ro-focusable="true" />
+                      </label>
+                      <label class="ro-muted">Web API key
+                        <span class="ro-ra-keyline">
+                          <input class="ro-input ro-ra-key" id="ro-ra-key" name="ra-api-key" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-focus-id="ra-key" data-ro-focusable="true" />
+                          <button type="button" class="ro-btn ro-btn--ghost" id="ro-ra-reveal" data-focus-id="ra-reveal" data-ro-focusable="true" aria-pressed="false">Show</button>
+                        </span>
+                      </label>
+                      <p class="ro-muted">On RetroAchievements, open your settings and copy the web API key. It stays in this browser and is only sent to RetroAchievements.</p>
+                      <div class="ro-btn-row">
+                        <button type="submit" class="ro-btn ro-btn--primary" id="ro-ra-connect" data-focus-id="ra-connect" data-ro-focusable="true">Connect</button>
+                        <a class="ro-btn ro-btn--ghost" href="https://retroachievements.org/settings" target="_blank" rel="noopener" data-focus-id="ra-site" data-ro-focusable="true">Get a key</a>
+                      </div>
+                      <p class="ro-muted" id="ro-ra-status" role="status" aria-live="polite">${escapeHtml(raNotice)}</p>
+                    </form>`
+              }
             </div>
           </div>
         </section>
@@ -992,6 +1046,89 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     refreshCatalogView()
   })
 
+  root.querySelector('#ro-ra-form')?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    if (!active) return
+    const user = root.querySelector<HTMLInputElement>('#ro-ra-user')?.value ?? ''
+    const key = root.querySelector<HTMLInputElement>('#ro-ra-key')?.value ?? ''
+    const status = root.querySelector<HTMLElement>('#ro-ra-status')
+    const button = root.querySelector<HTMLButtonElement>('#ro-ra-connect')
+    if (button) button.disabled = true
+    void connectRaAccount(user, key, raAbort.signal).then(() => {
+      if (!active) return
+      sfxToggle()
+      rerender('ra-disconnect')
+    }).catch((err) => {
+      if (!active || raAbort.signal.aborted) return
+      if (status) status.textContent = friendlyError(err, 'Couldn’t connect to RetroAchievements.')
+      if (button) button.disabled = false
+      button?.focus()
+    })
+  })
+
+  root.querySelector('#ro-ra-disconnect')?.addEventListener('click', () => {
+    if (!confirmAction('Disconnect RetroAchievements on this device? Your progress on their site stays put.')) return
+    disconnectRaAccount()
+    rerender('ra-user')
+  })
+
+  root.querySelector('#ro-ra-match')?.addEventListener('click', () => {
+    const button = root.querySelector<HTMLButtonElement>('#ro-ra-match')
+    const status = root.querySelector<HTMLElement>('#ro-ra-match-status')
+    if (!active || !button || button.disabled) return
+    button.disabled = true
+    button.setAttribute('aria-busy', 'true')
+    void matchSavedGames(catalog.games, (message) => {
+      if (active && status) status.textContent = message
+    }, raAbort.signal).then((summary) => {
+      if (!active) return
+      if (!getRaAccount() && /web API key/i.test(summary)) {
+        raConnectNotice = 'That web API key no longer works. Connect again.'
+        rerender('ra-user')
+        return
+      }
+      if (status) status.textContent = summary
+      button.disabled = false
+      button.removeAttribute('aria-busy')
+      button.focus()
+    }).catch((err) => {
+      if (!active || raAbort.signal.aborted) return
+      if (status) status.textContent = friendlyError(err, 'Couldn’t match those games.')
+      button.disabled = false
+      button.removeAttribute('aria-busy')
+      button.focus()
+    })
+  })
+
+  root.querySelector('#ro-ra-reveal')?.addEventListener('click', () => {
+    const input = root.querySelector<HTMLInputElement>('#ro-ra-key')
+    const button = root.querySelector<HTMLButtonElement>('#ro-ra-reveal')
+    if (!input || !button) return
+    const visible = input.classList.toggle('is-visible')
+    button.textContent = visible ? 'Hide' : 'Show'
+    button.setAttribute('aria-pressed', visible ? 'true' : 'false')
+    input.focus()
+  })
+
+  root.querySelector<HTMLImageElement>('.ro-ra-profile img')?.addEventListener('error', (event) => {
+    ;(event.currentTarget as HTMLImageElement).remove()
+  })
+
+  if (raAccount) {
+    void refreshRaProfile(raAbort.signal).then((result) => {
+      if (!active) return
+      if (result === 'unauthorized') {
+        raConnectNotice = 'That web API key no longer works. Connect again.'
+        rerender('ra-user')
+        return
+      }
+      if (result && result !== 'offline') {
+        const line = root.querySelector('#ro-ra-rank')
+        if (line) line.textContent = formatRaRank(result)
+      }
+    }).catch(() => { /* leaving Settings cancels the refresh */ })
+  }
+
   const focusRoot = root.querySelector<HTMLElement>('[data-ro-settings]')
   if (focusRoot) {
     // Controller L1 / R1 jump between sections, like the section tabs.
@@ -1019,7 +1156,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         : focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]:not([disabled]):not([aria-disabled="true"])'))
     if (restore) {
       restore.focus({ preventScroll: true })
-      if (restoreScroll != null) {
+      if (jumpToAchievements) {
+        root.querySelector('#ro-set-achievements')?.scrollIntoView({ block: 'start' })
+      } else if (restoreScroll != null) {
         window.scrollTo(0, restoreScroll)
         rememberScroll(restoreScroll)
       } else {

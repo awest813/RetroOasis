@@ -5,6 +5,7 @@ import {
 } from './localLibrary'
 import { loadHostedManifest } from './hostedLibrary'
 import { applyOverridesToGames } from './overrides'
+import { forgetRaGames } from './raModel'
 import { forgetGameIds, getHideDemos } from './store'
 import {
   clearUploadedLibrary,
@@ -144,6 +145,7 @@ export async function clearUploadedCatalog(): Promise<void> {
   const ids = await listUploadedRomIds().catch(() => uploadedGames.map((g) => g.id))
   await clearUploadedLibrary()
   forgetGameIds(ids)
+  forgetRaGames(ids)
   uploadedGames = []
   emitCatalogChange()
 }

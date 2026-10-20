@@ -177,6 +177,7 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right |
 | **Online play** | The two ways to play (Online rooms, Trade & link), host app status, host and join, host app setup |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
+| **Achievements** | RetroAchievements username and web API key (stored on this device). Game pages show the matched set and your progress. Playing in the browser does not unlock achievements. |
 | **Saves & storage** | Browser storage / keep ROMs, install as app (PWA), local saves, clear recents & favorites, export/clear metadata edits |
 | **Advanced** | Emulator files channel, thread-support status, self-hosting |
 
