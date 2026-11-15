@@ -92,6 +92,13 @@ Follow-up the same day, with a real game: Pokémon Emerald (GBA) on the mGBA cor
 - **Settings.** On-screen controls Off and Left-handed reach the player.
 - **Player bar.** The game's name now keeps its room in the top bar: the status line shortens first, and very long names get an ellipsis.
 
+Phone behaviour while playing, with the same game:
+
+- **Sound after an app switch.** Fixed. The system suspends a page's audio on an app switch, screen lock or call, and the core resumed it only on the very first touch, so the game stayed silent afterwards. The player now resumes it on the next touch, click or key press, and when the page becomes visible again. `test:touch` checks this. Safari's "Click to resume" prompt now says "Tap" on touch screens.
+- **Fullscreen.** Fixed. Browsers without page fullscreen (iPhone Safari, or an embedded page without permission) no longer show the button. A refused request no longer leaves "Exit Fullscreen" showing. Leaving with Android Back or an iPad swipe restores the button.
+- **Rotation mid-game.** Portrait → landscape → portrait: the canvas resizes and the bar moves between the control columns and back. No control ends up off-screen or over Exit or the menu button.
+- **Saves.** Hiding the page and closing it both write the battery save (`.srm`, 128 KB) and sync it to storage.
+
 Still not covered: real devices, real notch / home-indicator insets (Playwright doesn't emulate them), and systems other than GBA.
 
 The October 6 cover art audit used a hosted manifest of nine real game names plus two homebrew titles, against the live Libretro thumbnail host. All nine real games matched their exact art: regions, `(SGB Enhanced)`, `Legend of Zelda, The` and Game Boy Color fallback. The homebrew titles kept placeholders. Request counts went from 34 → 28 on a revisit and 34 on a reload, to 34 → 7–9 cached hits on a revisit and 9 on a reload, because remembered misses make no requests. Box art is contained, not cropped, and its blurred backdrop is drawn from the loaded image with no second request. The cover browser suite (`node retrooasis/scripts/test-covers.mjs --browser`) passed all 33 checks.

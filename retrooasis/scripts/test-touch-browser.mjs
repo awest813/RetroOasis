@@ -155,6 +155,15 @@ for (const [index, rom] of roms.entries()) {
       await touch(cdp, page, [[page.viewportSize().width / 2, 200]])
       const back = await page.evaluate(() => window.EJS_emulator.virtualGamepad.style.display !== 'none')
       check(tucked && back, `${label}: a controller hides the on-screen pad and a touch brings it back`, `hidden ${tucked}, back ${back}`)
+      // Phones suspend a page's audio on an app switch or a call; the next touch must bring the sound back.
+      const audioCtx = () => page.evaluate(() => { const al = window.EJS_emulator.Module.AL; return al && al.currentCtx && al.currentCtx.audioCtx ? al.currentCtx.audioCtx.state : 'none' })
+      if ((await audioCtx()) !== 'none') {
+        await page.evaluate(() => window.EJS_emulator.Module.AL.currentCtx.audioCtx.suspend()); await page.waitForTimeout(300)
+        const face = buttons[0]
+        await touch(cdp, page, [[face.x, face.y]]); await page.waitForTimeout(300)
+        const state = await audioCtx()
+        check(state === 'running', `${label}: sound comes back on the next touch after the phone suspends it`, state)
+      }
     }
     check(!errors.length, `${label} on ${device}: no page errors`, errors.join(' | '))
     await context.close()

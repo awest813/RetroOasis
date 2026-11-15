@@ -1202,6 +1202,7 @@ class EmulatorJS {
             this.handleResize();
             this.started = true;
             this.paused = false;
+            this.keepAudioRunning();
             if (this.touch) {
                 this.virtualGamepad.style.display = "";
             }
@@ -1233,6 +1234,23 @@ class EmulatorJS {
         }
         this.callEvent("start");
     }
+    /** Phones suspend a page's audio when the user switches apps, locks the screen or takes a call, and
+     * the core only resumes it on the very first touch. Resume it on the next touch, click or key press
+     * whenever it has stopped, and straight away when the page comes back if the browser allows it. */
+    keepAudioRunning() {
+        if (this.audioKeeper) return;
+        this.audioKeeper = () => {
+            const al = this.Module && this.Module.AL;
+            const ctx = al && al.currentCtx && al.currentCtx.audioCtx;
+            if (ctx && ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});
+        };
+        for (const type of ["touchend", "pointerup", "keydown", "click"]) {
+            document.addEventListener(type, this.audioKeeper, true);
+        }
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) this.audioKeeper();
+        });
+    }
     checkStarted() {
         (async () => {
             let sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -1247,7 +1265,7 @@ class EmulatorJS {
                 if (!popup) {
                     popup = this.createPopup("", {});
                     const button = this.createElement("button");
-                    button.innerText = this.localization("Click to resume Emulator");
+                    button.innerText = this.localization(this.isTouchFirst() ? "Tap to resume Emulator" : "Click to resume Emulator");
                     button.classList.add("ejs_menu_button");
                     button.style.width = "25%";
                     button.style.height = "25%";
@@ -2460,7 +2478,12 @@ class EmulatorJS {
         this.toggleFullscreen = (fullscreen) => {
             if (fullscreen) {
                 if (this.elements.parent.requestFullscreen) {
-                    this.elements.parent.requestFullscreen();
+                    // Refused (no gesture, or the browser won't): don't leave "Exit Fullscreen" showing.
+                    const request = this.elements.parent.requestFullscreen();
+                    if (request && request.catch) request.catch(() => {
+                        exit.style.display = "none";
+                        enter.style.display = "";
+                    });
                 } else if (this.elements.parent.mozRequestFullScreen) {
                     this.elements.parent.mozRequestFullScreen();
                 } else if (this.elements.parent.webkitRequestFullscreen) {
@@ -2561,7 +2584,8 @@ class EmulatorJS {
 
         this.addEventListener(document, "webkitfullscreenchange mozfullscreenchange fullscreenchange", (e) => {
             if (e.target !== this.elements.parent) return;
-            if (document.fullscreenElement === null) {
+            // Also left by a system gesture (Android Back, an iPad swipe); older WebKit only has the prefixed element.
+            if (!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)) {
                 exit.style.display = "none";
                 enter.style.display = "";
             } else {
@@ -2571,7 +2595,9 @@ class EmulatorJS {
             }
         })
 
-        const hasFullscreen = !!(this.elements.parent.requestFullscreen || this.elements.parent.mozRequestFullScreen || this.elements.parent.webkitRequestFullscreen || this.elements.parent.msRequestFullscreen);
+        // iPhone Safari has no page fullscreen, and a page embedded without permission reports it disabled.
+        const fullscreenDisabled = document.fullscreenEnabled === false && !document.webkitFullscreenEnabled;
+        const hasFullscreen = !fullscreenDisabled && !!(this.elements.parent.requestFullscreen || this.elements.parent.mozRequestFullScreen || this.elements.parent.webkitRequestFullscreen || this.elements.parent.msRequestFullscreen);
 
         if (!hasFullscreen) {
             exit.style.display = "none";
