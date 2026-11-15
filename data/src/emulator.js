@@ -2789,6 +2789,11 @@ class EmulatorJS {
         }
     }
 
+    /** Phones, and tablets whose browser reports a desktop user agent (iPadOS Safari). */
+    isTouchFirst() {
+        if (this.isMobile) return true;
+        return !!(this.hasTouchScreen && window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    }
     getControlScheme() {
         if (this.config.controlScheme && typeof this.config.controlScheme === "string") {
             return this.config.controlScheme;
@@ -3348,17 +3353,14 @@ class EmulatorJS {
                 input.id = "ejs_vp";
                 vgp.appendChild(input);
                 const label = this.createElement("label");
-                label.for = "ejs_vp";
-                label.innerText = "Virtual Gamepad";
+                label.htmlFor = "ejs_vp";
+                label.innerText = this.localization("Virtual Gamepad");
                 vgp.appendChild(label);
-                label.addEventListener("click", (e) => {
-                    input.checked = !input.checked;
+                input.addEventListener("change", () => {
                     this.changeSettingOption("virtual-gamepad", input.checked ? "enabled" : "disabled");
                 })
                 this.on("start", (e) => {
-                    if (this.getSettingValue("virtual-gamepad") === "disabled") {
-                        input.checked = false;
-                    }
+                    input.checked = this.getSettingValue("virtual-gamepad") !== "disabled";
                 })
                 playerTitle.appendChild(vgp);
             }
@@ -4267,15 +4269,44 @@ class EmulatorJS {
                 { "type": "button", "text": "Run", "id": "run", "location": "center", "left": 60, "fontSize": 15, "block": true, "input_value": 3 }
             ];
             info.push(...speedControlButtons);
+        } else if (["psx", "psp"].includes(this.getControlScheme())) {
+            // RetroPad X/Y/A/B sit where Triangle/Square/Circle/Cross do on a PlayStation pad.
+            info = [
+                { "type": "button", "text": "\u25B3", "id": "triangle", "location": "right", "left": 40, "fontSize": 26, "input_value": 9 },
+                { "type": "button", "text": "\u25A1", "id": "square", "location": "right", "top": 40, "fontSize": 26, "input_value": 1 },
+                { "type": "button", "text": "\u25CB", "id": "circle", "location": "right", "left": 81, "top": 40, "fontSize": 26, "input_value": 8 },
+                { "type": "button", "text": "\u2715", "id": "cross", "location": "right", "left": 40, "top": 80, "fontSize": 26, "input_value": 0 },
+                { "type": "dpad", "id": "dpad", "location": "left", "left": "50%", "top": "50%", "joystickInput": false, "inputValues": [4, 5, 6, 7] },
+                { "type": "button", "text": "Start", "id": "start", "location": "center", "left": 60, "fontSize": 15, "block": true, "input_value": 3 },
+                { "type": "button", "text": "Select", "id": "select", "location": "center", "left": -5, "fontSize": 15, "block": true, "input_value": 2 }
+            ];
+            if ("psx" === this.getControlScheme()) {
+                info.push(
+                    { "type": "button", "text": "L1", "id": "l1", "location": "left", "left": 3, "top": -100, "fontSize": 20, "bold": true, "block": true, "input_value": 10 },
+                    { "type": "button", "text": "L2", "id": "l2", "location": "left", "left": 63, "top": -100, "fontSize": 20, "bold": true, "block": true, "input_value": 12 },
+                    { "type": "button", "text": "R1", "id": "r1", "location": "right", "right": 3, "top": -100, "fontSize": 20, "bold": true, "block": true, "input_value": 11 },
+                    { "type": "button", "text": "R2", "id": "r2", "location": "right", "right": 63, "top": -100, "fontSize": 20, "bold": true, "block": true, "input_value": 13 }
+                );
+            } else {
+                info.push(
+                    { "type": "button", "text": "L", "id": "l", "location": "left", "left": 3, "top": -100, "bold": true, "block": true, "input_value": 10 },
+                    { "type": "button", "text": "R", "id": "r", "location": "right", "right": 3, "top": -100, "bold": true, "block": true, "input_value": 11 }
+                );
+            }
+            info.push(...speedControlButtons);
         } else {
+            // Everything else (arcade, 3DS, DOS, computers): a D-pad like the other layouts,
+            // plus L / R, which 3DS games and six-button arcade games need.
             info = [
                 { "type": "button", "text": "Y", "id": "y", "location": "right", "left": 40, "bold": true, "input_value": 9 },
                 { "type": "button", "text": "X", "id": "x", "location": "right", "top": 40, "bold": true, "input_value": 1 },
                 { "type": "button", "text": "B", "id": "b", "location": "right", "left": 81, "top": 40, "bold": true, "input_value": 8 },
                 { "type": "button", "text": "A", "id": "a", "location": "right", "left": 40, "top": 80, "bold": true, "input_value": 0 },
-                { "type": "zone", "id": "dpad", "location": "left", "left": "50%", "top": "50%", "joystickInput": false, "inputValues": [4, 5, 6, 7] },
+                { "type": "dpad", "id": "dpad", "location": "left", "left": "50%", "top": "50%", "joystickInput": false, "inputValues": [4, 5, 6, 7] },
                 { "type": "button", "text": "Start", "id": "start", "location": "center", "left": 60, "fontSize": 15, "block": true, "input_value": 3 },
-                { "type": "button", "text": "Select", "id": "select", "location": "center", "left": -5, "fontSize": 15, "block": true, "input_value": 2 }
+                { "type": "button", "text": "Select", "id": "select", "location": "center", "left": -5, "fontSize": 15, "block": true, "input_value": 2 },
+                { "type": "button", "text": "L", "id": "l", "location": "left", "left": 3, "top": -100, "bold": true, "block": true, "input_value": 10 },
+                { "type": "button", "text": "R", "id": "r", "location": "right", "right": 3, "top": -100, "bold": true, "block": true, "input_value": 11 }
             ];
             info.push(...speedControlButtons);
         }
@@ -4349,6 +4380,7 @@ class EmulatorJS {
                 button.style = style;
                 button.innerText = info[i].text;
                 button.classList.add("ejs_virtualGamepad_button", controlSchemeCls);
+                if (info[i].block) button.classList.add("ejs_virtualGamepad_block");
                 if (info[i].id) {
                     button.classList.add(`b_${info[i].id}`);
                 }
@@ -4532,7 +4564,7 @@ class EmulatorJS {
                     "left": zone.left,
                     "top": zone.top
                 },
-                "color": zone.color || "red"
+                "color": zone.color || "#c9d1d9"
             });
             zoneObj.on("end", () => {
                 this.gameManager.simulateInput(0, zone.inputValues[0], 0);
@@ -4645,7 +4677,7 @@ class EmulatorJS {
                 clearTimeout(timeout);
                 timeout = setTimeout(() => {
                     ready = true;
-                }, 2000)
+                }, 500)
                 ready = false;
                 e.preventDefault();
                 this.menu.toggle();
@@ -5661,7 +5693,7 @@ class EmulatorJS {
             addToMenu(this.localization("Virtual Gamepad"), "virtual-gamepad", {
                 "enabled": this.localization("Enabled"),
                 "disabled": this.localization("Disabled")
-            }, this.isMobile ? "enabled" : "disabled", virtualGamepad, true);
+            }, this.isTouchFirst() ? "enabled" : "disabled", virtualGamepad, true);
             addToMenu(this.localization("Menu Bar Button"), "menu-bar-button", {
                 "visible": this.localization("visible"),
                 "hidden": this.localization("hidden")

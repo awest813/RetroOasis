@@ -261,6 +261,40 @@ export function clearLocalPrefs(): void {
   clearFavorites()
 }
 
+/** The player's on-screen touch controls. Auto shows them on phones and tablets.
+ * The player reads these keys directly (public/player.html). */
+const TOUCH_CONTROLS_KEY = 'retrooasis.touchControls'
+const TOUCH_LEFT_HANDED_KEY = 'retrooasis.touchLeftHanded'
+export type TouchControlsMode = 'auto' | 'on' | 'off'
+
+export function getTouchControls(): TouchControlsMode {
+  try {
+    const raw = localStorage.getItem(TOUCH_CONTROLS_KEY)
+    if (raw === 'on' || raw === 'off') return raw
+  } catch {
+    /* ignore */
+  }
+  return 'auto'
+}
+
+export function setTouchControls(mode: TouchControlsMode): void {
+  if (mode === 'auto') removeRaw(TOUCH_CONTROLS_KEY)
+  else writeRaw(TOUCH_CONTROLS_KEY, mode)
+}
+
+export function getTouchLeftHanded(): boolean {
+  try {
+    return localStorage.getItem(TOUCH_LEFT_HANDED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setTouchLeftHanded(enabled: boolean): void {
+  if (enabled) writeRaw(TOUCH_LEFT_HANDED_KEY, '1')
+  else removeRaw(TOUCH_LEFT_HANDED_KEY)
+}
+
 /** N64 Transfer Pak: which Game Boy / Color game (by id) each N64 game plugs into Controller 1. */
 const TRANSFER_PAK_KEY = 'retrooasis.transferPak'
 export function getTransferPak(n64GameId: string): string {

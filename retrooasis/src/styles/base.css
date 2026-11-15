@@ -1678,12 +1678,14 @@ html[data-layout='tv'] .ro-btn--toggle {
   border-color: transparent;
 }
 
-.ro-toggle-group--packs {
+.ro-toggle-group--packs,
+.ro-toggle-group--thirds {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.ro-toggle-group--packs .ro-btn {
+.ro-toggle-group--packs .ro-btn,
+.ro-toggle-group--thirds .ro-btn {
   width: 100%;
   justify-content: center;
   text-align: center;
@@ -1861,7 +1863,8 @@ html[data-layout='tv'] .ro-btn--toggle {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ro-toggle-group--packs {
+  .ro-toggle-group--packs,
+  .ro-toggle-group--thirds {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -2282,6 +2285,11 @@ html[data-layout='tv'] .ro-btn--toggle {
     backdrop-filter: blur(8px);
   }
   .ro-settings__nav::-webkit-scrollbar { display: none; }
+  /* Section jumps and controller focus stop below the pinned section row, not under it. */
+  .ro-settings .ro-settings__heading,
+  .ro-settings .ro-settings-row {
+    scroll-margin-top: calc(var(--ro-rail-bottom, var(--ro-scroll-chrome, 3.65rem)) + 0.75rem);
+  }
   .ro-settings__nav .ro-btn { flex: 0 0 auto; white-space: nowrap; min-height: 44px; }
 }
 @supports not (color: color-mix(in srgb, red, blue)) {

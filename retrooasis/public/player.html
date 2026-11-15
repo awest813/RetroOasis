@@ -115,7 +115,12 @@
         color: var(--ro-bg-void);
       }
 
+      .ro-play-bar a {
+        flex-shrink: 0;
+      }
+
       .ro-play-title {
+        min-width: 0;
         font-size: 0.8rem;
         opacity: 0.85;
         overflow: hidden;
@@ -126,6 +131,56 @@
       .ro-play-meta {
         font-size: 0.7rem;
         opacity: 0.65;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* On-screen controls (EmulatorJS's touch pad). Taps that miss a button land on the game,
+         where a double tap would otherwise zoom the page. */
+      html,
+      body {
+        touch-action: manipulation;
+      }
+
+      /* Keep the pad clear of the home indicator and of a notch held sideways. */
+      #display .ejs_virtualGamepad_parent {
+        bottom: calc(50px + env(safe-area-inset-bottom, 0px));
+      }
+      #display .ejs_virtualGamepad_left {
+        left: calc(10px + env(safe-area-inset-left, 0px));
+      }
+      #display .ejs_virtualGamepad_right {
+        right: calc(10px + env(safe-area-inset-right, 0px));
+      }
+      #display .ejs_virtualGamepad_top {
+        left: env(safe-area-inset-left, 0px);
+        right: env(safe-area-inset-right, 0px);
+        width: auto;
+      }
+
+      /* Phones held sideways: the pad's top corners hold L / R, so the bar sits between the two
+         columns, the game menu button joins it, and the columns drop a little for shoulder room. */
+      @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+        #display .ejs_virtualGamepad_parent {
+          bottom: 50px;
+        }
+        #display .ejs_virtualGamepad_left,
+        #display .ejs_virtualGamepad_right {
+          bottom: 30px;
+        }
+        /* N64 L / Z / R: just under the screen's top edge, above the stick. */
+        #display .ejs_virtualGamepad_top {
+          bottom: calc(100dvh - 100px);
+        }
+        body:has(.ejs_virtualGamepad_parent:not([style*="none"])) .ro-play-bar {
+          padding-left: calc(150px + env(safe-area-inset-left, 0px));
+          padding-right: calc(196px + env(safe-area-inset-right, 0px));
+        }
+        body:has(.ejs_virtualGamepad_parent:not([style*="none"])) #display .ejs_virtualGamepad_open {
+          right: calc(146px + env(safe-area-inset-right, 0px));
+        }
       }
 
       /* Touch screens (phones, tablets, Chromebooks): a 44px hit area around Exit without a taller bar. */
@@ -1005,6 +1060,16 @@
           // EmulatorJS caches cores and every game it opens (default: 4 GB for 5 days).
           // Saved ROMs already live in the RetroOasis library, so keep that copy small.
           window.EJS_cacheConfig = { enabled: true, cacheMaxSizeMB: emulatorCacheMB, cacheMaxAgeMins: 7 * 24 * 60 };
+          // On-screen controls from Settings. Auto leaves it to EmulatorJS (phones and tablets);
+          // a choice made in a game's own menu still wins for that game.
+          var touchDefaults = {};
+          try {
+            var touchMode = localStorage.getItem("retrooasis.touchControls");
+            if (touchMode === "on") touchDefaults["virtual-gamepad"] = "enabled";
+            if (touchMode === "off") touchDefaults["virtual-gamepad"] = "disabled";
+            if (localStorage.getItem("retrooasis.touchLeftHanded") === "1") touchDefaults["virtual-gamepad-left-handed-mode"] = "enabled";
+          } catch (e) { /* private mode: EmulatorJS defaults */ }
+          window.EJS_defaultOptions = Object.assign({}, window.EJS_defaultOptions, touchDefaults);
           window.EJS_onStartError = explainStartError;
           window.EJS_onExit = function () {
             window.location.href = back;

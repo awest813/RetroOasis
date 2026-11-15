@@ -157,6 +157,13 @@ Custom layouts can be configured in the player's Controls menu. Each player's in
 controller assignment is separate from the menu controller. Controllers connected before
 game startup are assigned normally; disconnect, focus loss and pause release held input.
 After reconnecting or returning to play, release buttons and center standard-layout sticks.
+**On-screen controls** (Auto / On / Off) set the player's touch pad for every game: Auto shows it
+on phones and tablets (iPadOS included, even with Safari's desktop user agent) and hides it with a
+mouse; On shows it on any touch screen. **Left-handed controls** swap the D-pad and buttons.
+A game's own menu (Settings → Virtual Gamepad) still overrides both for that game. PlayStation
+and PSP pads show △ □ ○ ✕ with L1/L2/R1/R2 (L/R on PSP); arcade, 3DS and other systems get L/R.
+Held sideways on a phone, the player's top bar moves between the two control columns so L and R
+keep the corners, and the pad stays clear of notches and the home indicator.
 RetroOasis bundles its patched EmulatorJS frontend for every channel; the selected
 Stable/Nightly/Latest/Local channel still determines core and support-file downloads.
 Player frontend files are refreshed before use online and keep their last successful
@@ -174,7 +181,7 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | ----- | ------- |
 | **Appearance** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
 | **Sound** | UI sounds (off by default), sound pack (Soft / XMB / Arcade) |
-| **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right |
+| **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right; on-screen controls (Auto / On / Off) and left-handed layout |
 | **Online play** | The two ways to play (Online rooms, Trade & link), host app status, host and join, host app setup |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
 | **Achievements** | RetroAchievements username and web API key (stored on this device). Game pages show the matched set and your progress. Playing in the browser does not unlock achievements. |

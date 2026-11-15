@@ -26,6 +26,8 @@ import {
   getLibretroCovers,
   getSoundPack,
   getSoundsEnabled,
+  getTouchControls,
+  getTouchLeftHanded,
   setAccent,
   setCrtEnabled,
   setEjsChannel,
@@ -34,10 +36,13 @@ import {
   setLibretroCovers,
   setSoundPack,
   setSoundsEnabled,
+  setTouchControls,
+  setTouchLeftHanded,
   type AccentMode,
   type EjsChannel,
   type LayoutMode,
   type SoundPack,
+  type TouchControlsMode,
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
 import { formatBytes, getUploadedLibraryMeta } from '../lib/uploadedLibrary'
@@ -132,13 +137,20 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   }
   // The section rail marks the section on screen (the last one once the page bottoms out);
   // on phones the rail is one swipeable row, kept scrolled to that section's chip.
-  // Pin the rail right under the app header (its height varies on phones).
+  // Pin the rail right under the app header (its height varies on phones). Where the rail is a
+  // row above the content, section jumps and focused rows stop below both (--ro-rail-bottom).
   const pinRail = () => {
+    const settings = root.querySelector<HTMLElement>('[data-ro-settings]')
     const rail = root.querySelector<HTMLElement>('.ro-settings__nav')
     const bar = document.querySelector<HTMLElement>('.ro-topbar')
-    if (!rail || !bar) return
+    if (!settings || !rail || !bar) return
     const pinned = ['sticky', 'fixed'].includes(getComputedStyle(bar).position)
-    rail.style.setProperty('--ro-rail-top', `${pinned ? bar.offsetHeight : 0}px`)
+    const top = pinned ? bar.offsetHeight : 0
+    const railStyle = getComputedStyle(rail)
+    const railAbove = railStyle.position === 'sticky' && railStyle.flexDirection !== 'column'
+    settings.style.setProperty('--ro-rail-top', `${top}px`)
+    if (railAbove) settings.style.setProperty('--ro-rail-bottom', `${top + rail.offsetHeight}px`)
+    else settings.style.removeProperty('--ro-rail-bottom')
   }
   const markCurrentSection = () => {
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('[data-settings-section]')]
@@ -164,6 +176,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   registerViewCleanup(() => {
     if (root.querySelector('[data-ro-settings]')) rememberScroll()
     active = false
+    window.removeEventListener('resize', pinRail)
     stopControllerTest?.()
     lanAbort.abort()
     raAbort.abort()
@@ -182,6 +195,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   const pack = getSoundPack()
   const libretro = getLibretroCovers()
   const ejsChannel = getEjsChannel()
+  const touchControls = getTouchControls()
+  const touchLeftHanded = getTouchLeftHanded()
   const [meta, uploadedMeta, storage, catalog] = await Promise.all([
     getLocalLibraryMeta(), getUploadedLibraryMeta(), getStorageSnapshot(), loadCatalog(),
   ])
@@ -299,6 +314,24 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               </details>
             </div>
             <button type="button" class="ro-btn" id="ro-check-controller" data-focus-id="controller" data-ro-focusable="true" aria-describedby="ro-controller-status">Check controller</button>
+          </div>
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>On-screen controls</strong>
+              <p class="ro-muted">${touchControls === 'auto' ? 'Shown on phones and tablets, hidden elsewhere.' : touchControls === 'on' ? 'Shown on every touch screen, laptops included.' : 'Hidden. Use a controller or keyboard.'} A game’s own menu can still change this for that game.</p>
+            </div>
+            <div class="ro-toggle-group ro-toggle-group--thirds" role="group" aria-label="On-screen controls">
+              <button type="button" class="ro-btn" data-touch-controls="auto" data-focus-id="touch-auto" data-ro-focusable="true" aria-pressed="${pressed(touchControls === 'auto')}">Auto</button>
+              <button type="button" class="ro-btn" data-touch-controls="on" data-focus-id="touch-on" data-ro-focusable="true" aria-pressed="${pressed(touchControls === 'on')}">On</button>
+              <button type="button" class="ro-btn" data-touch-controls="off" data-focus-id="touch-off" data-ro-focusable="true" aria-pressed="${pressed(touchControls === 'off')}">Off</button>
+            </div>
+          </div>
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>Left-handed controls</strong>
+              <p class="ro-muted">Buttons on the left, D-pad on the right.</p>
+            </div>
+            <button type="button" class="ro-btn ro-btn--toggle" id="ro-touch-left" data-focus-id="touch-left" data-ro-focusable="true" aria-pressed="${pressed(touchLeftHanded)}" aria-label="Left-handed controls"${touchControls === 'off' ? ' disabled' : ''}>${touchLeftHanded ? 'On' : 'Off'}</button>
           </div>
           <div class="ro-settings-row ro-settings-row--note" data-ro-focus-row>
             <div class="ro-settings-row__copy">
@@ -697,6 +730,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   })
   markCurrentSection()
   pinRail()
+  window.addEventListener('resize', pinRail, { passive: true })
 
   let working = false
   const restoreActionFocus = (button: HTMLButtonElement, wasFocused: boolean) => {
@@ -765,6 +799,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       if (getSoundsEnabled()) sfxToggle()
       rerender(btn.dataset.focusId)
     })
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('[data-touch-controls]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setTouchControls(btn.dataset.touchControls as TouchControlsMode)
+      rerender(btn.dataset.focusId)
+    })
+  })
+
+  root.querySelector<HTMLButtonElement>('#ro-touch-left')?.addEventListener('click', (event) => {
+    if ((event.currentTarget as HTMLButtonElement).disabled) return
+    setTouchLeftHanded(!getTouchLeftHanded())
+    rerender('touch-left')
   })
 
   root.querySelector('#ro-libretro')?.addEventListener('click', () => {

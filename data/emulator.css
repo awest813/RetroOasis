@@ -862,6 +862,10 @@
     width: 100%;
     position: absolute;
     bottom: 50px;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .ejs_virtualGamepad_top {
@@ -913,6 +917,17 @@
 
 .ejs_virtualGamepad_button_down {
     background-color: #000000ad;
+}
+
+.ejs_virtualGamepad_button {
+    touch-action: none;
+}
+
+/* Start / Select / shoulder pills are 31px tall: reach 44px for fingers without moving them. */
+.ejs_virtualGamepad_block::after {
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
 }
 
 .ejs_dpad_main {
@@ -1781,6 +1796,18 @@
 
 .ejs_virtualGamepad_open svg {
     fill: currentColor;
+}
+
+/* The same 24px icon inside a 44px touch target. */
+@media (pointer: coarse) {
+    .ejs_virtualGamepad_open {
+        width: 44px;
+        height: 44px;
+        padding: 10px;
+        top: 0;
+        right: 0;
+        -webkit-tap-highlight-color: transparent;
+    }
 }
 
 .ejs-vgamepad-active {

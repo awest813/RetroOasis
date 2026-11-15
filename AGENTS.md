@@ -31,7 +31,7 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 - **Archives** (`src/lib/archives.ts`): header-only peek into zip/7z/rar for Auto-detect (zip central directory, RAR4/5 block walk, 7z plain header; compressed 7z headers fall back to EmulatorJS's `data/compression/extract7z.js` worker — CDN in production, same-origin on the local channel). EmulatorJS itself extracts archives at play time.
 - **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder
 - **Trade & link** (`public/link.html`, `link-host.js`, `link-session.js`): the host browser runs two linked handheld consoles and reuses the LAN room host (`lan-host.js` `mountHost`) to stream Console 2. Guests send their ROM and save over a `cart` data channel (`link-transfer.js`). Served by `scripts/lan-server.mjs` under `/link/` only after `scripts/lan-link.mjs` verifies the manifest checksums.
-- **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds, Libretro covers, EJS channel — all `localStorage`
+- **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds, Libretro covers, EJS channel, on-screen controls (passed to the player as `EJS_defaultOptions`) — all `localStorage`
 
 ### Non-obvious notes
 
