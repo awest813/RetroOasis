@@ -160,6 +160,8 @@ After reconnecting or returning to play, release buttons and center standard-lay
 **On-screen controls** (Auto / On / Off) set the player's touch pad for every game: Auto shows it
 on phones and tablets (iPadOS included, even with Safari's desktop user agent) and hides it with a
 mouse; On shows it on any touch screen. **Left-handed controls** swap the D-pad and buttons.
+Pressing a button on a Bluetooth or USB controller tucks the touch pad away; touch the screen
+(or disconnect the controller) to bring it back.
 A game's own menu (Settings → Virtual Gamepad) still overrides both for that game. PlayStation
 and PSP pads show △ □ ○ ✕ with L1/L2/R1/R2 (L/R on PSP); arcade, 3DS and other systems get L/R.
 Held sideways on a phone, the player's top bar moves between the two control columns so L and R

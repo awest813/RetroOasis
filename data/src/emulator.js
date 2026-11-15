@@ -1352,6 +1352,7 @@ class EmulatorJS {
             this.updateGamepadLabels();
         })
         this.gamepad.on("disconnected", (e) => {
+            if (this.untuckVirtualGamepad) this.untuckVirtualGamepad();
             const gamepadSelection = this.getGamepadSelectionValue(e.gamepadIndex);
             if (!gamepadSelection) return;
             for (let i = 0; i < this.gamepadSelection.length; i++) {
@@ -1361,8 +1362,15 @@ class EmulatorJS {
             }
             setTimeout(this.updateGamepadLabels.bind(this), 10);
         })
-        this.gamepad.on("axischanged", this.gamepadEvent.bind(this));
-        this.gamepad.on("buttondown", this.gamepadEvent.bind(this));
+        // A physical controller in use tucks the on-screen pad away (see setVirtualGamepad).
+        this.gamepad.on("axischanged", (e) => {
+            if (Math.abs(e.value) > 0.5 && this.tuckVirtualGamepad) this.tuckVirtualGamepad();
+            this.gamepadEvent(e);
+        });
+        this.gamepad.on("buttondown", (e) => {
+            if (this.tuckVirtualGamepad) this.tuckVirtualGamepad();
+            this.gamepadEvent(e);
+        });
         this.gamepad.on("buttonup", this.gamepadEvent.bind(this));
     }
     checkSupportedOpts() {
@@ -3993,9 +4001,25 @@ class EmulatorJS {
     }
     setVirtualGamepad() {
         this.virtualGamepad = this.createElement("div");
+        this.virtualGamepadTucked = false;
         this.toggleVirtualGamepad = (show) => {
+            this.virtualGamepadTucked = false;
             this.virtualGamepad.style.display = show ? "" : "none";
         }
+        // Playing with a Bluetooth / USB controller on a touch screen: hide the on-screen pad while
+        // it's in use, and bring it back on the next touch or when the controller disconnects.
+        // This never changes the saved Virtual Gamepad setting.
+        this.tuckVirtualGamepad = () => {
+            if (!this.started || this.virtualGamepadTucked || this.virtualGamepad.style.display === "none") return;
+            this.virtualGamepadTucked = true;
+            this.virtualGamepad.style.display = "none";
+        }
+        this.untuckVirtualGamepad = () => {
+            if (!this.virtualGamepadTucked) return;
+            this.virtualGamepadTucked = false;
+            this.virtualGamepad.style.display = "";
+        }
+        this.addEventListener(this.elements.parent, "touchstart", this.untuckVirtualGamepad);
         this.virtualGamepad.classList.add("ejs_virtualGamepad_parent");
         this.elements.parent.appendChild(this.virtualGamepad);
 
