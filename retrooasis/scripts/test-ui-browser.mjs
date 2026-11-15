@@ -152,6 +152,15 @@ const pressed = (page, selector) => page.evaluate(selector => document.querySele
     const put = async (dir, name) => { const handle = await dir.getFileHandle(name, { create: true }); const writer = await handle.createWritable(); await writer.write('x'); await writer.close() }
     for (const [folder, file] of [['Nintendo - Game Boy Advance', 'Advance Wars.gba'], ['Sega - Dreamcast', 'Crazy Taxi.gdi'], ['Sony - PlayStation 2', 'Game.iso']]) await put(await top.getDirectoryHandle(folder, { create: true }), file)
     window.showDirectoryPicker = async () => top
+    // Chromium aborts the whole browser when it reads an origin-private (OPFS) folder handle back out of
+    // IndexedDB. A real picked folder isn't one, so keep this fixture's handle in memory instead.
+    const put0 = IDBObjectStore.prototype.put, get0 = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.put = function (value, key) { return put0.call(this, value === top ? 'ui-fixture-folder' : value, key) }
+    IDBObjectStore.prototype.get = function (key) {
+      const request = get0.call(this, key)
+      request.addEventListener('success', () => { if (request.result === 'ui-fixture-folder') Object.defineProperty(request, 'result', { value: top }) }, { once: true })
+      return request
+    }
   })
   await page.click('#ro-link'); await page.waitForTimeout(1200)
   const text = await page.evaluate(() => document.querySelector('#ro-link').closest('.ro-settings-row').innerText.replace(/\s+/g, ' '))

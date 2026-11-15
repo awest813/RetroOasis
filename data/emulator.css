@@ -500,12 +500,21 @@
     border: none;
 }
 
-.ejs_small_screen .ejs_settings_center_right {
-    right: -35%
+/* Phones: settings and disk panels open centered over the 300px menu rather than at a fixed offset
+   from their button, which pushed wider panels past a narrow screen's edge. */
+.ejs_small_screen .ejs_menu_panel_anchor {
+    position: static !important;
 }
 
+.ejs_small_screen .ejs_settings_center_right,
 .ejs_small_screen .ejs_settings_center_left {
-    right: -135%
+    left: 0;
+    right: 0;
+    width: max-content;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: hidden;
 }
 
 .ejs_small_screen .ejs_settings_center_right::after {
@@ -1796,6 +1805,28 @@
 
 .ejs_virtualGamepad_open svg {
     fill: currentColor;
+}
+
+/* Touch screens: finger-sized menu rows. The phone menu grows to fit them instead of cutting off
+   its last row (it can't scroll: the settings panel hangs above it and would be clipped). */
+@media (pointer: coarse) {
+    .ejs_small_screen .ejs_menu_bar {
+        max-height: none;
+    }
+    .ejs_small_screen .ejs_menu_button {
+        min-height: 40px;
+    }
+    .ejs_big_screen .ejs_menu_button {
+        min-height: 44px;
+    }
+}
+
+/* Touch screens: the on-screen pad sits under popups (Control Settings, Cheats...); a near-opaque
+   backdrop keeps its buttons from showing through the rows. */
+@media (pointer: coarse) {
+    .ejs_popup_container {
+        background: rgba(0, 0, 0, 0.94);
+    }
 }
 
 /* The same 24px icon inside a 44px touch target. */

@@ -2372,6 +2372,7 @@ class EmulatorJS {
 
         this.diskParent = this.createElement("div");
         this.diskParent.id = "ejs_disksMenu";
+        this.diskParent.classList.add("ejs_menu_panel_anchor");
         this.disksMenuOpen = false;
         const diskButton = addButton(this.config.buttonOpts.diskButton, () => {
             this.disksMenuOpen = !this.disksMenuOpen;
@@ -2395,12 +2396,14 @@ class EmulatorJS {
         })
 
         this.settingParent = this.createElement("div");
+        this.settingParent.classList.add("ejs_menu_panel_anchor");
         this.settingsMenuOpen = false;
         const settingButton = addButton(this.config.buttonOpts.settings, () => {
             this.settingsMenuOpen = !this.settingsMenuOpen;
             settingButton[1].classList.toggle("ejs_svg_rotate", this.settingsMenuOpen);
             this.settingsMenu.style.display = this.settingsMenuOpen ? "" : "none";
             settingButton[2].classList.toggle("ejs_settings_text", this.settingsMenuOpen);
+            if (this.settingsMenuOpen && this.handleSettingsResize) this.handleSettingsResize();
         }, this.settingParent, true);
         this.elements.menu.appendChild(this.settingParent);
         this.closeSettingsMenu = () => {
@@ -5248,10 +5251,14 @@ class EmulatorJS {
             if (w2 > window.innerWidth) settingsX += (w2 - window.innerWidth);
             const onTheRight = settingsX > (w2 - 15) / 2;
             if (height > 375) height = 375;
-            home.style["max-height"] = (height - 95) + "px";
-            nested.style["max-height"] = (height - 95) + "px";
+            // The panel opens above the menu bar; on phones that bar is a tall list, so only the
+            // space above it is free (offsetTop ignores the bar's slide-in transform).
+            const above = this.elements.menu.offsetTop - 30;
+            const panelHeight = Math.max(120, Math.min(height - 95, above));
+            home.style["max-height"] = panelHeight + "px";
+            nested.style["max-height"] = panelHeight + "px";
             for (let i = 0; i < menus.length; i++) {
-                menus[i].style["max-height"] = (height - 95) + "px";
+                menus[i].style["max-height"] = panelHeight + "px";
             }
             this.settingsMenu.classList.toggle("ejs_settings_center_left", !onTheRight);
             this.settingsMenu.classList.toggle("ejs_settings_center_right", onTheRight);
