@@ -128,10 +128,12 @@
         white-space: nowrap;
       }
 
+      /* On a narrow bar the system / status line gives way first, so the game's name stays readable. */
       .ro-play-meta {
         font-size: 0.7rem;
         opacity: 0.65;
-        min-width: 0;
+        flex-shrink: 1000;
+        min-width: 4.5rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

@@ -21,6 +21,7 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 | `npx eslint .` | Lint (repo root). Rules are `warn`-only; ~1600 warnings from minified `data/` are expected and exit 0. |
 | `npm run typecheck` in `retrooasis/` | TypeScript check only (`npm --prefix retrooasis run typecheck` from the repo root) |
 | `npm run test:archives` in `retrooasis/` | Fixture tests for the zip/7z/rar archive-peek parsers (`src/lib/archives.ts`) |
+| `npm run test:touch -- --rom gba=<rom> [--cores <dir>]` in `retrooasis/` | Opt-in: your own ROMs in the built player on emulated phones/tablets; checks the touch pad end to end. Without CDN access, `npm pack @emulatorjs/core-<name>`, unpack it and pass the folder as `--cores`. |
 | `npm run build` in `retrooasis/` | Same as `oasis:build` |
 
 ### RetroOasis architecture (quick map)

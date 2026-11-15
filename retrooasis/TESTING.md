@@ -83,7 +83,16 @@ The November 15 mobile controls audit drew EmulatorJS's on-screen pad inside the
 - **In-game menus.** The settings panel stays on a 320px screen and fits above the menu. Menu rows are 40–44px, and the last row is no longer cut off. The Control Settings checkbox works when the box itself is tapped.
 - **Settings page.** Section jumps on phones land below the sticky chip row.
 
-Not covered: real touch input during play, and real notch / home-indicator insets, which Playwright doesn't emulate.
+Follow-up the same day, with a real game: Pokémon Emerald (GBA) on the mGBA core from the `@emulatorjs/core-mgba` npm package, through the built player on the Local channel. `npm run test:touch` (new) passed all 30 checks on iPhone 13 (portrait and landscape), iPhone SE and iPad Mini:
+
+- **Start-up.** The game starts and draws, and the pad shows by default.
+- **Layout.** Every control is on screen and clear of Exit and the menu button.
+- **Input.** All 8 buttons and the four D-pad directions reach the core as a press and a release, as do two fingers at once. A tap 4px outside the Start pill counts, so the enlarged hit area works. Tapping A skipped the intro to the title screen.
+- **Controllers.** A controller press hides the pad and a touch brings it back.
+- **Settings.** On-screen controls Off and Left-handed reach the player.
+- **Player bar.** The game's name now keeps its room in the top bar: the status line shortens first, and very long names get an ellipsis.
+
+Still not covered: real devices, real notch / home-indicator insets (Playwright doesn't emulate them), and systems other than GBA.
 
 The October 6 cover art audit used a hosted manifest of nine real game names plus two homebrew titles, against the live Libretro thumbnail host. All nine real games matched their exact art: regions, `(SGB Enhanced)`, `Legend of Zelda, The` and Game Boy Color fallback. The homebrew titles kept placeholders. Request counts went from 34 → 28 on a revisit and 34 on a reload, to 34 → 7–9 cached hits on a revisit and 9 on a reload, because remembered misses make no requests. Box art is contained, not cropped, and its blurred backdrop is drawn from the loaded image with no second request. The cover browser suite (`node retrooasis/scripts/test-covers.mjs --browser`) passed all 33 checks.
 

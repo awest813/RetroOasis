@@ -40,6 +40,7 @@ Open the URL Vite prints (default `http://localhost:5173/`). Dev mode proxies re
 | `npm run manifest` | Generate `../roms/manifest.json` from `roms/` |
 | `npm run scan` | Scan `roms/` (+ optional sidecars / covers) |
 | `npm run test:online-browser -- --room nes=<rom> [--link gb=<rom>]` | Opt-in browser test of online rooms and Trade & link with your own ROMs (needs Playwright) |
+| `npm run test:touch -- --rom gba=<rom> [--cores <folder>]` | Opt-in: play your own ROMs on emulated phones and tablets and check the on-screen controls end to end: layout, every button and D-pad direction reaching the core, two-finger input, controller tuck-away and the Settings choices (needs Playwright; `--cores` serves an unpacked `@emulatorjs/core-<name>` package instead of the CDN) |
 
 From the **repo root**, the same workflows are exposed as `npm run oasis:*` (for example `oasis:dev`, `oasis:build`, `oasis:scan`, and `oasis:host:pack` for the portable host app). `npm run build` at the root runs the RetroOasis build and syncs `retrooasis/dist/` → `dist/` for GitHub Pages.
 
