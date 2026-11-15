@@ -1915,6 +1915,13 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 }
 
+/* Short phones (iPhone SE and similar): a smaller cover keeps the title and Play on the first screen. */
+@media (max-width: 640px) and (max-height: 720px) {
+  .ro-detail__cover {
+    max-width: 8rem;
+  }
+}
+
 @media (min-width: 641px) and (max-width: 900px) {
   :root {
     --ro-tile-min: 8.75rem;

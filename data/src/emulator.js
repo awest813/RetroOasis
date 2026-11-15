@@ -1362,13 +1362,22 @@ class EmulatorJS {
             }
             setTimeout(this.updateGamepadLabels.bind(this), 10);
         })
-        // A physical controller in use tucks the on-screen pad away (see setVirtualGamepad).
+        // A physical controller in use tucks the on-screen pad away (see setVirtualGamepad). Only
+        // standard-layout pads count: some phones list a fingerprint sensor as a "gamepad".
+        const realController = (e) => {
+            try {
+                const pad = navigator.getGamepads()[e.gamepadIndex];
+                return !!pad && pad.mapping === "standard";
+            } catch (err) {
+                return false;
+            }
+        }
         this.gamepad.on("axischanged", (e) => {
-            if (Math.abs(e.value) > 0.5 && this.tuckVirtualGamepad) this.tuckVirtualGamepad();
+            if (Math.abs(e.value) > 0.5 && this.tuckVirtualGamepad && realController(e)) this.tuckVirtualGamepad();
             this.gamepadEvent(e);
         });
         this.gamepad.on("buttondown", (e) => {
-            if (this.tuckVirtualGamepad) this.tuckVirtualGamepad();
+            if (this.tuckVirtualGamepad && realController(e)) this.tuckVirtualGamepad();
             this.gamepadEvent(e);
         });
         this.gamepad.on("buttonup", this.gamepadEvent.bind(this));

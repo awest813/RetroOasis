@@ -32,6 +32,7 @@ import { formatBytes, getUploadedRomRecord, removeUploadedRom } from '../lib/upl
 import { friendlyError } from '../lib/userErrors'
 import { bindGridFocus } from '../lib/focus'
 import { suppressPadBackUntilRelease } from '../lib/input'
+import { getInputModality } from '../lib/inputModality'
 import { registerViewCleanup } from '../lib/viewLifecycle'
 import { icon } from '../lib/icons'
 
@@ -637,7 +638,9 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       : editing
       ? root.querySelector<HTMLElement>('#ro-meta-form input')
       : root.querySelector<HTMLElement>('#ro-play, .ro-detail__actions [data-ro-focusable="true"]')
-    preferred?.focus()
+    // Focus stays on Play for the next key or D-pad press, but touch and mouse players keep the
+    // page at the top: on a phone, scrolling Play into view hid the cover art and title.
+    preferred?.focus(getInputModality() === 'mouse' ? { preventScroll: true } : undefined)
   }
 
   document.addEventListener('keydown', onKey)

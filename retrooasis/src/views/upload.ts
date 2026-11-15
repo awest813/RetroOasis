@@ -99,6 +99,14 @@ function channelFootnote(): string {
   return label === 'Stable' ? '' : `Emulator files: ${label}. PSP, 3DS and DOS always use Nightly. Change this in Settings.`
 }
 
+/** Phones and tablets can't drag files in, and you tap there rather than click. */
+function idleDropText(): { title: string; sub: string } {
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+  return touch
+    ? { title: 'Choose ROM files', sub: 'Tap to pick from your files — you can add more than one' }
+    : { title: 'Drop ROM files here', sub: 'or click to choose — you can add more than one' }
+}
+
 export function renderUpload(root: HTMLElement): void {
   const canPickFolder = supportsDirectoryPicker()
   root.innerHTML = `
@@ -129,8 +137,8 @@ export function renderUpload(root: HTMLElement): void {
           aria-describedby="ro-drop-sub ro-core-hint"
         >
           <span class="ro-drop__mark" aria-hidden="true">${icon('add')}</span>
-          <strong class="ro-drop__title" id="ro-drop-title">Drop ROM files here</strong>
-          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">or click to choose — you can add more than one</span>
+          <strong class="ro-drop__title" id="ro-drop-title">${idleDropText().title}</strong>
+          <span class="ro-muted ro-drop__sub" id="ro-drop-sub">${idleDropText().sub}</span>
         </div>
         <input id="ro-file" type="file" accept="${romFileAccept()}" hidden multiple />
         <p class="ro-muted ro-upload__status" id="ro-status" role="status" aria-live="polite" hidden></p>
@@ -187,8 +195,8 @@ export function renderUpload(root: HTMLElement): void {
       dropSub.textContent = 'Saves to this device — one file opens its game page'
       return
     }
-    dropTitle.textContent = 'Drop ROM files here'
-    dropSub.textContent = 'or click to choose — you can add more than one'
+    dropTitle.textContent = idleDropText().title
+    dropSub.textContent = idleDropText().sub
   }
 
   const setBusy = (next: boolean) => {
