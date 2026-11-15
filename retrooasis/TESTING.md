@@ -74,6 +74,17 @@ The October 6 controller and Settings audit drove the built app with a scripted 
 - **Initial focus.** Settings no longer focuses its first tab for mouse or touch users; the first D-pad press still focuses it.
 - **Touch targets.** Phone Settings controls are at least 44px.
 
+The November 15 mobile controls audit drew EmulatorJS's on-screen pad inside the real player page on emulated iPhone SE, iPhone 13, iPad Mini and Pixel 7, in both orientations, for GBA, SNES, PlayStation, PSP, N64, Mega Drive, NES and arcade. No game ran, because the cores couldn't be downloaded in the test environment. It covered:
+
+- **Landscape phones.** Fixed: L and R covered the player's Exit and menu buttons, and N64 L sat half off-screen. The top bar now sits between the control columns. Every button is on screen on every device and system.
+- **Layouts.** PlayStation and PSP show △ □ ○ ✕ with L1/L2/R1/R2 (L/R on PSP); arcade, 3DS and other systems gained L/R and a D-pad. L and R line up.
+- **Defaults.** iPadOS with Safari's desktop user agent gets the pad. Settings → On-screen controls (Auto / On / Off) and Left-handed controls reach the player, and an explicit Off still wins.
+- **Controllers.** A controller button or a firm stick push hides the pad; small stick drift doesn't. A touch or a disconnect brings it back.
+- **In-game menus.** The settings panel stays on a 320px screen and fits above the menu. Menu rows are 40–44px, and the last row is no longer cut off. The Control Settings checkbox works when the box itself is tapped.
+- **Settings page.** Section jumps on phones land below the sticky chip row.
+
+Not covered: real touch input during play, and real notch / home-indicator insets, which Playwright doesn't emulate.
+
 The October 6 cover art audit used a hosted manifest of nine real game names plus two homebrew titles, against the live Libretro thumbnail host. All nine real games matched their exact art: regions, `(SGB Enhanced)`, `Legend of Zelda, The` and Game Boy Color fallback. The homebrew titles kept placeholders. Request counts went from 34 → 28 on a revisit and 34 on a reload, to 34 → 7–9 cached hits on a revisit and 9 on a reload, because remembered misses make no requests. Box art is contained, not cropped, and its blurred backdrop is drawn from the loaded image with no second request. The cover browser suite (`node retrooasis/scripts/test-covers.mjs --browser`) passed all 33 checks.
 
 The October 6 storage and offline audit used the production build behind its service worker and checked four things:

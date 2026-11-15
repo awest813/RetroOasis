@@ -895,8 +895,9 @@
 .ejs_virtualGamepad_left {
     position: absolute;
     bottom: 50px;
-    width: 125px;
-    height: 125px;
+    /* Same box as the right side, so L and R line up. */
+    width: 130px;
+    height: 130px;
     left: 10px;
 }
 
