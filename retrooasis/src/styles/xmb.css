@@ -488,10 +488,9 @@ html[data-layout] .ro-xmb:focus-visible {
   border-radius: 0;
 }
 
-.ro-xmb__item-thumb .ro-cover__label,
-.ro-xmb__item-thumb .ro-cover__label--fallback {
-  font-size: 0.45rem;
-  padding: 0.2rem;
+/* A thumb is too small for a title, and the rail prints it right beside. */
+.ro-xmb__item-thumb .ro-cover .ro-cover__label {
+  display: none;
 }
 
 .ro-xmb__item-thumb--glyph {
@@ -619,8 +618,8 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
 .ro-xmb__info {
   position: absolute;
-  /* Never above the clock's bottom edge (time + date), whatever the height. */
-  top: max(14%, 4.75rem);
+  /* Below the category row, beside the item rail — never over the icons. */
+  top: calc(var(--xmb-cat-y) + var(--xmb-info-drop, 5.75rem));
   right: max(var(--ro-space), 4vw);
   z-index: 6;
   width: min(18rem, 26vw);
@@ -638,12 +637,13 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   inset: -1.5rem -2rem -3rem -4rem;
   z-index: -1;
   background:
+    /* closest-side: fully transparent at every edge, so no box outline. */
     radial-gradient(
-      ellipse 95% 85% at 78% 22%,
-      rgba(5, 12, 20, 0.94) 0%,
-      rgba(5, 12, 20, 0.78) 38%,
-      rgba(5, 12, 20, 0.4) 62%,
-      transparent 78%
+      closest-side,
+      rgba(5, 12, 20, 0.82) 0%,
+      rgba(5, 12, 20, 0.62) 55%,
+      rgba(5, 12, 20, 0.25) 80%,
+      transparent 100%
     );
   pointer-events: none;
 }
@@ -654,17 +654,15 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
       90deg,
       transparent 0%,
       #000 5%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 96%
+      #000 80%,
+      transparent 98%
     );
     mask-image: linear-gradient(
       90deg,
       transparent 0%,
       #000 5%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 96%
+      #000 80%,
+      transparent 98%
     );
   }
 }
@@ -743,7 +741,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 }
 
 .ro-xmb__stage {
-  width: min(11.5rem, 100%);
+  width: min(11.5rem, 100%, 24vh);
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--item-accent, var(--ro-accent)) 40%, var(--ro-line));
@@ -806,6 +804,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 @media (min-width: 901px) {
   html[data-layout='tv'] .ro-xmb {
     --xmb-cat-y: 32%;
+    --xmb-info-drop: 6.5rem;
     --xmb-item-gap: 1rem;
   }
 
@@ -857,7 +856,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   html[data-layout='tv'] .ro-xmb__stage {
-    width: min(14rem, 100%);
+    width: min(14rem, 100%, 24vh);
   }
 
   html[data-layout='tv'] .ro-xmb__stage--glyph {
@@ -901,7 +900,6 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__info {
-    top: 12%;
     width: min(12.5rem, 22vw);
   }
 
@@ -969,7 +967,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__stage {
-    width: min(13rem, 100%);
+    width: min(13rem, 100%, 24vh);
   }
 
   .ro-xmb__stage--glyph {
@@ -982,10 +980,6 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   .ro-xmb {
     --xmb-cat-y: 30%;
     --xmb-item-gap: 0.45rem;
-  }
-
-  .ro-xmb__info {
-    top: max(8%, 4.75rem);
   }
 
   .ro-xmb__stage {
@@ -1036,10 +1030,6 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
   .ro-xmb__clock {
     top: 0.45rem;
-  }
-
-  .ro-xmb__info {
-    top: max(6%, 3.5rem);
   }
 
   .ro-xmb__stage {

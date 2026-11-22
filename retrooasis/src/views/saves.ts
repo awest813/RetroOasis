@@ -47,7 +47,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       <p class="ro-muted" id="ro-save-explainer"></p>
       <input type="file" id="ro-save-file" accept=".json,application/json" hidden />
       <div id="ro-save-review" class="ro-onboard" hidden></div>
-      <label class="ro-saves__search">Find a save <input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
+      <label class="ro-saves__search" id="ro-save-search" hidden>Find a save <input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
       <p class="ro-muted ro-saves__summary" id="ro-save-summary"></p>
       <p class="ro-muted ro-saves__status" id="ro-save-status" role="status" aria-live="polite"></p>
       <div id="ro-save-list"></div>
@@ -102,7 +102,14 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
         </div></article>`
     }).join('') : `<div class="ro-empty"><p class="ro-empty__title">${query ? 'No matching saves' : 'No saves here yet'}</p>
       <p class="ro-empty__body">${query ? 'Try another filename.' : kind === 'game' ? 'Save your progress inside a game, then return here. You can also restore a RetroOasis backup.' : 'In the player, choose Browser for Save State Location and create a save state. Downloaded states are not listed here.'}</p></div>`
-    summary.textContent = `${visible.length} of ${files.length} saves · ${formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))} total`
+    // Search and the tally only mean something once there is a save to find.
+    const search = root.querySelector<HTMLElement>('#ro-save-search')!
+    search.hidden = !files.length && !query
+    const total = formatBytes(files.reduce((sum, e) => sum + e.bytes!.byteLength, 0))
+    const noun = (n: number) => `${n} ${n === 1 ? 'save' : 'saves'}`
+    summary.textContent = !files.length ? ''
+      : query ? `${visible.length} of ${noun(files.length)} · ${total} total`
+      : `${noun(files.length)} · ${total} total`
   }
   const refresh = async (): Promise<boolean> => {
     failed = false

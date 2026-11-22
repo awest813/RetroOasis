@@ -2027,6 +2027,11 @@ html[data-layout='tv'] .ro-btn--toggle {
   color: var(--ro-text-dim);
 }
 
+.ro-saves__search[hidden],
+.ro-saves__summary:empty {
+  display: none;
+}
+
 .ro-saves__summary {
   margin: 1rem 0 0.75rem;
   font-variant-numeric: tabular-nums;
