@@ -221,6 +221,260 @@
         .ro-play-bar button::after { content: ""; position: absolute; inset: -9px -4px; }
       }
 
+      /* EmulatorJS Netplay, in RetroOasis's look: a centred card over the dimmed game instead of a
+         full-screen black sheet. Scoped to popups holding a netplay table, so EmulatorJS's other
+         menus are untouched. Some !important: EmulatorJS sets colours with !important and inline. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) {
+        --np-panel: color-mix(in srgb, var(--ro-bg-void-mid) 92%, var(--ro-accent) 8%);
+        --np-line: color-mix(in srgb, var(--ro-accent) 28%, transparent);
+        inset: 0;
+        margin: auto;
+        width: min(34rem, calc(100% - 2rem));
+        height: fit-content;
+        max-height: calc(100% - 5.5rem);
+        overflow: auto;
+        padding: 1.25rem 1.25rem 1.1rem;
+        border: 1px solid var(--np-line);
+        border-radius: 12px;
+        background: var(--np-panel);
+        box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--ro-bg-void) 78%, transparent), 0 24px 60px rgba(0, 0, 0, 0.5);
+        font-family: var(--ro-font-ui);
+        text-align: left;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) * {
+        color: var(--ro-text);
+        font-family: var(--ro-font-ui);
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) > h4 {
+        padding: 0 0 0.85rem;
+        font-family: var(--ro-font-display);
+        font-size: 1.5rem;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_popup_body {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
+      /* Section titles ("Rooms", the room's name, "Chat"): small accent caps, like Settings. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_popup_body > div > strong,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_header_row strong {
+        display: block;
+        margin: 0 0 0.5rem;
+        color: var(--ro-accent);
+        font-size: 0.75rem;
+        font-weight: 650;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      /* Tables: rows as list entries with hairline dividers; the header as quiet caps. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table {
+        padding: 0;
+        border-collapse: collapse;
+        font-size: 0.9375rem;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table thead td {
+        padding: 0 0 0.4rem;
+        color: var(--ro-text-dim);
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table tbody td {
+        padding: 0.6rem 0 !important;
+        border-top: 1px solid var(--np-line);
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table tbody td:last-child {
+        text-align: right;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table_row:hover {
+        background: color-mix(in srgb, var(--ro-accent) 8%, transparent);
+      }
+      /* No rooms yet: say so instead of an empty table. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_table tbody:empty::after {
+        content: "No rooms for this game yet. Create one and send your friend the host app’s address.";
+        display: block;
+        padding: 0.75rem 0;
+        border-top: 1px solid var(--np-line);
+        color: var(--ro-text-dim);
+        font-size: 0.875rem;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_popup_body > div > div:not([class]) {
+        margin: -0.25rem 0 0.5rem;
+        color: var(--ro-text-dim);
+        font-size: 0.8125rem;
+      }
+      /* Buttons: RetroOasis shapes. Solid accent for the main action, outline otherwise. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_button,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_button_button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        margin: 0;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 6px;
+        background: transparent !important;
+        color: var(--ro-accent) !important;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transform: none;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_button:first-of-type,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_join_button,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_popup_submit:first-of-type,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_row .ejs_button_button {
+        background: var(--ro-accent) !important;
+        color: var(--ro-bg-void) !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_join_button {
+        min-height: 34px;
+        padding: 0.3rem 0.9rem;
+      }
+      /* "Leave Room" is the first link while in a room: destructive, so red outline. */
+      #display .ejs_popup_container:has(.ejs_netplay_table):has(.ejs_netplay_table tbody tr:not(.ejs_netplay_table_row)) > a.ejs_button:first-of-type {
+        border-color: #ff4d6d;
+        background: color-mix(in srgb, #ff4d6d 14%, transparent) !important;
+        color: #ff4d6d !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) > a.ejs_button {
+        margin: 0.75rem 0.5rem 0 0;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_button:focus-visible,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_button_button:focus-visible {
+        outline: 2px solid var(--ro-accent);
+        outline-offset: 3px;
+      }
+      /* Inputs and selects, as in the app. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) input[type="text"],
+      #display .ejs_popup_container:has(.ejs_netplay_table) select {
+        height: 40px;
+        padding: 0 0.7rem;
+        border: 1px solid var(--np-line) !important;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--ro-bg-void) 85%, transparent) !important;
+        color: var(--ro-text) !important;
+        font-family: var(--ro-font-ui) !important;
+        font-size: 0.9375rem;
+        user-select: text;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) input[type="text"]:focus,
+      #display .ejs_popup_container:has(.ejs_netplay_table) select:focus {
+        outline: none;
+        border-color: var(--ro-accent) !important;
+      }
+      /* Chat. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_container {
+        margin-top: 1rem !important;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--np-line);
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_header_row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_hint {
+        color: var(--ro-text-dim);
+        font-size: 0.75rem;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_log {
+        min-height: 5rem;
+        max-height: 9rem;
+        border: 1px solid var(--np-line);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--ro-bg-void) 70%, transparent);
+        font-size: 0.875rem;
+        user-select: text;
+      }
+      /* Recipient, message and Send share the row; the message field gives way on phones. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_row {
+        display: flex;
+        gap: 0.5rem;
+        min-width: 0;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_to {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 9rem;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_input {
+        flex: 1 1 6rem;
+        min-width: 0;
+        width: auto;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_chat_row .ejs_button_button {
+        flex: none;
+        min-width: 0 !important;
+        height: 40px !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > br {
+        display: none;
+      }
+      /* Name and Create-a-room dialogs: a card of their own over the dimmed page. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_popup_container_box {
+        position: fixed;
+        z-index: 2;
+        background: color-mix(in srgb, var(--ro-bg-void) 80%, transparent);
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent {
+        display: grid;
+        gap: 0.75rem;
+        width: min(24rem, calc(100vw - 2rem));
+        padding: 1.25rem;
+        border: 1px solid var(--np-line);
+        border-radius: 12px;
+        background: var(--np-panel);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+        text-align: left;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_name_heading {
+        color: var(--ro-text) !important;
+        font-family: var(--ro-font-display);
+        font-size: 1.25rem;
+        font-weight: 650 !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_header {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_header br {
+        display: none;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_header strong {
+        margin-top: 0.4rem;
+        color: var(--ro-text-dim);
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_header input,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_netplay_header select {
+        width: 100%;
+        max-width: none;
+      }
+      /* Create a room: its two buttons sit side by side under the fields. */
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent:has(> .ejs_popup_submit) {
+        grid-template-columns: 1fr 1fr;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > :not(.ejs_popup_submit) {
+        grid-column: 1 / -1;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > div:last-child,
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > .ejs_popup_submit {
+        margin: 0.25rem 0 0 !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > div:last-child {
+        gap: 0.5rem !important;
+      }
+      #display .ejs_popup_container:has(.ejs_netplay_table) .ejs_cheat_parent > div:last-child {
+        justify-content: flex-start !important;
+      }
+
       /* Controller pause menu: the Home button, or holding Select + Start, from the couch. */
       .ro-pad-menu {
         position: fixed;
