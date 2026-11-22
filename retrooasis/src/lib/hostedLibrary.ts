@@ -43,8 +43,9 @@ export function normalizeHostedGames(manifest: HostedManifest): Game[] {
   for (const entry of manifest.games ?? []) {
     if (!entry.file) continue
     const filename = entry.romFilename || romFilenameFromUrl(entry.file)
+    // "gbc", "GBA", "Game Boy Advance" → the catalog's id, so the game gets its chip and name.
     const platform =
-      entry.platform ||
+      (entry.platform && (platformFromFolder(entry.platform) ?? entry.platform)) ||
       platformFromFilePath(entry.file) ||
       'nes'
     const core =

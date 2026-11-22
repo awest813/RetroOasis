@@ -489,8 +489,9 @@ html[data-layout] .ro-xmb:focus-visible {
 }
 
 /* A thumb is too small for a title, and the rail prints it right beside. */
-.ro-xmb__item-thumb .ro-cover .ro-cover__label {
-  display: none;
+.ro-xmb__item-thumb .ro-cover .ro-cover__label,
+.ro-xmb__item-thumb .ro-cover.ro-cover--image .ro-cover__label--fallback {
+  display: none !important;
 }
 
 .ro-xmb__item-thumb--glyph {

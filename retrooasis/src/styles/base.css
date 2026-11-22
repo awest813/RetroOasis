@@ -896,11 +896,13 @@ html[data-crt='on'] .ro-shell::after {
 
 .ro-cover--image img,
 .ro-cover__img {
+  /* Out of the grid flow, so a loading cover's label centers like a placeholder's. */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   /* Whole box art: portrait and landscape boxes keep their titles. */
   object-fit: contain;
-  position: relative;
   z-index: 1;
   opacity: 0;
   transition: opacity 180ms ease;
@@ -932,7 +934,9 @@ html[data-crt='on'] .ro-shell::after {
   display: block;
 }
 
-.ro-cover--missing {
+/* Loading looks exactly like "no art", so a cover never jumps when the lookup ends. */
+.ro-cover--missing,
+.ro-cover--image:not(.ro-cover--ready) {
   padding: 0.75rem;
 }
 
@@ -1185,6 +1189,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-cover--missing .ro-cover__mark,
+.ro-cover--image:not(.ro-cover--ready) .ro-cover__mark,
 .ro-cover:not(.ro-cover--image) .ro-cover__mark {
   display: block;
 }
@@ -1202,9 +1207,12 @@ html[data-layout='tv'] .ro-btn--toggle {
   font-weight: 600;
   line-height: 1.3;
   color: var(--ro-text);
-  white-space: nowrap;
+  /* Two lines: long series titles stay tellable apart ("…: Symphony" vs "…: Symphony II"). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
   overflow-wrap: anywhere;
 }
 
@@ -2275,6 +2283,12 @@ html[data-layout='tv'] .ro-btn--toggle {
     row-gap: 1.75rem;
     max-width: 64rem;
     align-items: start;
+  }
+  /* TV type is larger; widen the rail so "Saves & storage" stays on one line. */
+  html[data-layout='tv'] .ro-settings {
+    grid-template-columns: 15.5rem minmax(0, 46rem);
+    column-gap: 2.25rem;
+    max-width: 66rem;
   }
   .ro-settings > * { grid-column: 2; }
   /* Spans the seven sections and the footer beside it. */

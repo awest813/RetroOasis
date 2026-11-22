@@ -284,6 +284,13 @@
         text-decoration: underline;
       }
 
+      .ro-play-error a.ro-play-error__back {
+        justify-self: center;
+        padding: 0.5rem 1.1rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 999px;
+      }
+
       .ro-play-error__actions {
         display: flex;
         flex-wrap: wrap;
@@ -449,6 +456,9 @@
         function fail(title, message, domMessage, actions) {
           var display = document.getElementById("display");
           display.textContent = ""; // clear
+          // The bar shouldn't keep saying "loading…" under an error.
+          var meta = document.getElementById("meta");
+          if (/ · (loading|starting)…$/.test(meta.textContent)) meta.textContent = metaPrefix + " · couldn’t load";
 
           var container = document.createElement("div");
           container.className = "ro-play-error";
@@ -485,8 +495,12 @@
             row.querySelector("button").focus({ preventScroll: true });
             return;
           }
+          // Back is the only way on: give it a real button shape and focus,
+          // so Enter or a controller's A button gets you out.
+          a.className = "ro-play-error__back";
           container.appendChild(a);
           display.appendChild(container);
+          a.focus({ preventScroll: true });
         }
 
         function showLoading(message) {
