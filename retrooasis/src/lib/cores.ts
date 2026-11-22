@@ -392,7 +392,16 @@ export function coreNeedsThreads(core: string): boolean {
   return REQUIRES_THREADS.has(core) || REQUIRES_THREADS.has(core.toLowerCase())
 }
 
+/** Everyday names that aren't EmulatorJS systems; the player maps the same set. */
+const PLAY_CORE_ALIASES: Record<string, string> = {
+  gbc: 'gb', gameboy: 'gb', gameboycolor: 'gb',
+  genesis: 'segaMD', megadrive: 'segaMD', md: 'segaMD',
+  mastersystem: 'segaMS', sms: 'segaMS', gamegear: 'segaGG', gg: 'segaGG',
+  ps1: 'psx', playstation: 'psx', sfc: 'snes', superfamicom: 'snes', famicom: 'nes', fc: 'nes',
+}
+
 export function normalizePlayCore(core: string): string {
+  core = Object.hasOwn(PLAY_CORE_ALIASES, core.toLowerCase()) ? PLAY_CORE_ALIASES[core.toLowerCase()] : core
   if (core === 'psp') return 'ppsspp'
   if (core === 'dos') return 'dosbox_pure'
   if (core === '3ds') return 'azahar'

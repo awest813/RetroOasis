@@ -199,7 +199,7 @@
         left: 50%;
         bottom: max(1rem, env(safe-area-inset-bottom, 0px));
         transform: translateX(-50%);
-        z-index: 60;
+        z-index: 10000;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -214,6 +214,13 @@
         font-size: 0.82rem;
         line-height: 1.4;
         text-align: center;
+      }
+
+      @media (pointer: coarse) {
+        .ro-play-hint {
+          bottom: auto;
+          top: calc(4rem + env(safe-area-inset-top, 0px));
+        }
       }
 
       .ro-play-hint button {
@@ -427,6 +434,10 @@
         let channel = params.get("channel") || "stable";
         if (!PATHS[channel]) channel = "stable";
 
+        // Common names that aren't EmulatorJS systems ("gbc" runs on the gb core); an unknown name
+        // would otherwise fail as a missing download and wrongly blame the connection.
+        var CORE_ALIASES = { gbc: "gb", gameboy: "gb", gameboycolor: "gb", genesis: "segaMD", megadrive: "segaMD", md: "segaMD", mastersystem: "segaMS", sms: "segaMS", gamegear: "segaGG", gg: "segaGG", ps1: "psx", playstation: "psx", sfc: "snes", superfamicom: "snes", famicom: "nes", fc: "nes" };
+        if (Object.prototype.hasOwnProperty.call(CORE_ALIASES, core.toLowerCase())) core = CORE_ALIASES[core.toLowerCase()];
         if (core === "psp") core = "ppsspp";
         if (core === "dos") core = "dosbox_pure";
         if (core === "3ds") core = "azahar";
@@ -1100,6 +1111,10 @@
             var sample = function () {
               var canvas = document.querySelector("#game canvas");
               if (!canvas || document.hidden || (window.EJS_emulator && window.EJS_emulator.paused)) return;
+              // EmulatorJS is showing a prompt (e.g. "Tap to play" before sound may start): the game
+              // hasn't run yet, so a black frame says nothing. Start counting again afterwards.
+              var popup = document.querySelector("#game .ejs_popup_container");
+              if (popup && popup.offsetParent !== null) { flat = 0; return; }
               requestAnimationFrame(function () {
                 var shades = null;
                 try {
@@ -1248,7 +1263,23 @@
                 });
               })
             : Promise.resolve();
-          return Promise.all([gameSaves, transferPak]).then(function () {
+          // EmulatorJS's "tap to resume" prompt has no title and its translator turns that into the
+          // word "undefined"; on a first launch nothing is being resumed either. Tidy both.
+          var emulatorText = import("./ejs-start-hooks.js").then(function (module) {
+            module.beforeCoreStart(function (emulator) {
+              if (typeof emulator.localization !== "function" || emulator.__roText) return;
+              emulator.__roText = true;
+              var translate = emulator.localization.bind(emulator);
+              var plain = { "Tap to resume Emulator": "Tap to play", "Click to resume Emulator": "Click to play" };
+              emulator.localization = function (text, log) {
+                if (text === undefined || text === null || text === "") return "";
+                var out = translate(text, log);
+                if (Object.prototype.hasOwnProperty.call(plain, text) && out === text) return plain[text];
+                return out === undefined ? "" : out;
+              };
+            });
+          }).catch(function () { /* cosmetic only */ });
+          return Promise.all([gameSaves, transferPak, emulatorText]).then(function () {
             if (params.get("lanhost") === "1") {
               return import("./lan-host.js").then(function (module) {
                 module.installLanHost();
