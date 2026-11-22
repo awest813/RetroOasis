@@ -4,7 +4,7 @@ export const LAN_PROTOCOL = 2
 export const LAN_CAPABILITIES = Object.freeze({
   nes: { label: 'NES', mode: 'shared-console', maxPlayers: 2, cores: ['fceumm', 'nestopia'], buttons: [0, 2, 3, 4, 5, 6, 7, 8] },
   snes: { label: 'SNES', mode: 'shared-console', maxPlayers: 2, cores: ['snes9x', 'bsnes'], buttons: Array.from({ length: 12 }, (_, i) => i) },
-  segaMD: { label: 'Mega Drive / Genesis', mode: 'shared-console', maxPlayers: 2, cores: ['genesis_plus_gx', 'genesis_plus_gx_wide', 'picodrive'], buttons: [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  segaMD: { label: 'Genesis / Mega Drive', mode: 'shared-console', maxPlayers: 2, cores: ['genesis_plus_gx', 'genesis_plus_gx_wide', 'picodrive'], buttons: [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
   // PlayStation: the digital pad and all eight face/shoulder buttons, which is what
   // fighting games use (✕ □ ○ △, L1 R1, L2 R2), plus both analog sticks (dualAnalog) for
   // games that support a DualShock; the host's ports are set to DualShock in rooms.

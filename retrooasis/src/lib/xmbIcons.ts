@@ -16,7 +16,8 @@ const ICONS: Record<string, string> = {
      <path fill="currentColor" d="M15 8h2v8.2l5.2 3.1-.9 1.6L15 17.2z"/>`,
   ),
   favorites: svg(
-    `<path fill="currentColor" d="m16 5 2.7 6.4 6.9.6-5.2 4.4 1.6 6.7L16 19.6l-5.9 3.5 1.6-6.7-5.2-4.4 6.9-.6z"/>`,
+    // Scaled to sit as large as Home and Recent beside it.
+    `<path fill="currentColor" transform="translate(16 16.3) scale(1.3) translate(-16 -14)" d="m16 5 2.7 6.4 6.9.6-5.2 4.4 1.6 6.7L16 19.6l-5.9 3.5 1.6-6.7-5.2-4.4 6.9-.6z"/>`,
   ),
   add: svg(
     `<path fill="currentColor" d="M14.2 6.5h3.6v7.7h7.7v3.6h-7.7v7.7h-3.6v-7.7H6.5v-3.6h7.7z"/>`,
@@ -73,10 +74,14 @@ const ICONS: Record<string, string> = {
      <circle cx="23" cy="12" r="1" fill="currentColor"/><circle cx="25" cy="14" r="1" fill="currentColor"/>
      <circle cx="21" cy="14" r="1" fill="currentColor"/><circle cx="23" cy="16" r="1" fill="currentColor"/>`,
   ),
+  // Disc console from above: big lid on the left, buttons on the right (Sega CD's disc is centred).
   psx: svg(
-    `<rect x="6" y="11" width="20" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
-     <circle cx="11" cy="17" r="2" fill="currentColor"/>
-     <path fill="currentColor" d="M18.5 14.5h5v1.6h-5zm1.2 3h3.8v1.6h-3.8z"/>`,
+    `<rect x="3" y="9" width="26" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
+     <circle cx="11.5" cy="16.5" r="4.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+     <circle cx="11.5" cy="16.5" r="1.2" fill="currentColor"/>
+     <circle cx="20.5" cy="13.6" r="1.3" fill="currentColor"/>
+     <circle cx="24.8" cy="13.6" r="1.3" fill="currentColor"/>
+     <path fill="currentColor" d="M19.5 19.2h6.8v1.6h-6.8z"/>`,
   ),
   psp: svg(
     `<rect x="2" y="10" width="28" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -88,10 +93,13 @@ const ICONS: Record<string, string> = {
     `<rect x="4" y="12" width="24" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
      <path fill="currentColor" d="M7 15h5v4H7zm13-.5 4 2.5-4 2.5z"/>`,
   ),
+  // Low wedge with the cartridge slot on top.
   segaMS: svg(
-    `<rect x="5" y="11" width="22" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-     <circle cx="11" cy="16.5" r="2" fill="currentColor"/>
-     <path fill="currentColor" d="M17 14h7v2h-7zm0 3.5h5v2h-5z"/>`,
+    `<path d="M4 23V15l3-3h18l3 3v8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+     <path fill="currentColor" d="M11 8.5h10v3.5H11z" opacity=".55"/>
+     <path fill="currentColor" d="M7.5 18.5h9v1.8h-9z"/>
+     <circle cx="21.5" cy="19.4" r="1.4" fill="currentColor"/>
+     <circle cx="25" cy="19.4" r="1.4" fill="currentColor"/>`,
   ),
   segaGG: svg(
     `<rect x="6" y="6" width="20" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>

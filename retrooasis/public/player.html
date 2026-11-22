@@ -455,7 +455,7 @@
         // The default (Stable) file source goes unsaid; others, and hosting, are shown.
         const channelLabel = params.get("lanhost") === "1" ? "Online room" : channel === "stable" ? "" : CHANNEL_LABELS[channel] || channel;
         // People-facing system names for the top bar (the core key stays internal).
-        const SYSTEM_NAMES = { nes: "NES", snes: "SNES", gb: "Game Boy", gba: "Game Boy Advance", nds: "Nintendo DS", n64: "Nintendo 64", vb: "Virtual Boy", psx: "PlayStation", psp: "PSP", segaMD: "Mega Drive", segaMS: "Master System", segaGG: "Game Gear", segaCD: "Sega CD", sega32x: "32X", segaSaturn: "Saturn", arcade: "Arcade", mame2003: "Arcade", atari2600: "Atari 2600", atari7800: "Atari 7800", lynx: "Lynx", jaguar: "Jaguar", pce: "PC Engine", ngp: "Neo Geo Pocket", ws: "WonderSwan", dos: "DOS", dosbox_pure: "DOS", ppsspp: "PSP", "3ds": "3DS", azahar: "3DS" };
+        const SYSTEM_NAMES = { nes: "NES", snes: "SNES", gb: "Game Boy", gba: "Game Boy Advance", nds: "Nintendo DS", n64: "Nintendo 64", vb: "Virtual Boy", psx: "PlayStation", psp: "PSP", segaMD: "Genesis", segaMS: "Master System", segaGG: "Game Gear", segaCD: "Sega CD", sega32x: "32X", segaSaturn: "Saturn", arcade: "Arcade", mame2003: "Arcade", atari2600: "Atari 2600", atari7800: "Atari 7800", lynx: "Lynx", jaguar: "Jaguar", pce: "PC Engine", ngp: "Neo Geo Pocket", ws: "WonderSwan", dos: "DOS", dosbox_pure: "DOS", ppsspp: "PSP", "3ds": "3DS", azahar: "3DS" };
         const metaPrefix = (SYSTEM_NAMES[core] || core) + (channelLabel ? " · " + channelLabel : "");
 
         const dataPath = PATHS[channel];

@@ -207,7 +207,9 @@ export async function getUploadedLibraryMeta(): Promise<{ count: number; bytes: 
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  // Drop trailing zeros: "72 KB", "10 GB", but "5.7 MB" and "1.25 GB".
+  const tidy = (value: number, digits: number) => String(Number(value.toFixed(digits)))
+  if (bytes < 1024 * 1024) return `${tidy(bytes / 1024, 1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${tidy(bytes / (1024 * 1024), 1)} MB`
+  return `${tidy(bytes / (1024 * 1024 * 1024), 2)} GB`
 }

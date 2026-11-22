@@ -421,7 +421,7 @@ export const UPLOAD_CORE_OPTIONS: Array<{ label: string; value: string; group?: 
   { label: 'Nintendo 3DS (threads)', value: '3ds', group: 'Nintendo' },
   { label: 'PlayStation', value: 'psx', group: 'Sony' },
   { label: 'PlayStation Portable / PPSSPP (threads)', value: 'ppsspp', group: 'Sony' },
-  { label: 'Sega Mega Drive / Genesis', value: 'segaMD', group: 'Sega' },
+  { label: 'Sega Genesis / Mega Drive', value: 'segaMD', group: 'Sega' },
   { label: 'Sega Master System', value: 'segaMS', group: 'Sega' },
   { label: 'Sega Game Gear', value: 'segaGG', group: 'Sega' },
   { label: 'Sega CD', value: 'segaCD', group: 'Sega' },

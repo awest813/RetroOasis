@@ -357,7 +357,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                   <h3>Online rooms</h3>
                   <p>You run the game; friends see your screen and play with their own controller. They don’t need the game.</p>
                   <ul class="ro-settings__online-systems" aria-label="Online room systems">
-                    <li><span>NES · SNES · Mega Drive · PlayStation</span><span>2 players</span></li>
+                    <li><span>NES · SNES · Genesis · PlayStation</span><span>2 players</span></li>
                     <li><span>Nintendo 64 <em>Beta</em></span><span>Up to 4</span></li>
                   </ul>
                   <p class="ro-online-method__how">Game page → <b>Host a room</b></p>
@@ -567,7 +567,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">
                 ${
                   storage.supported && storage.quota > 0
-                    ? `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used (${Math.round(storage.percent)}%).${
+                    ? `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used (${storage.percent > 0 && storage.percent < 1 ? 'under 1' : Math.round(storage.percent)}%).${
                         storage.percent >= 80 ? ' Free space before adding large ISOs.' : ''
                       }`
                     : 'This browser doesn’t report how much space is left.'

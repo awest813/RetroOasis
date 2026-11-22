@@ -30,7 +30,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   registerViewCleanup(() => { active = false; cleanupFocus?.() })
   root.innerHTML = `
     <section class="ro-view ro-saves">
-      <p class="ro-kicker"><a href="${hrefFor('/settings')}">Settings</a> / On this device</p>
+      <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span><a href="${hrefFor('/settings')}">Settings</a><span aria-hidden="true"> / </span>Local saves</p>
       <h1 class="ro-title">Local saves</h1>
       <p class="ro-lede">Back up and restore the saves stored in this browser. Close games in other tabs first, and remember that clearing browser data removes saves.</p>
       <div class="ro-saves__toolbar">

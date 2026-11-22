@@ -333,7 +333,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     const over = getOverride(game.id)
     const playCore = normalizePlayCore(game.core)
     const threadBadge = coreNeedsThreads(playCore)
-      ? '<span class="ro-badge">Threads</span>'
+      ? '<span class="ro-badge" title="PSP, DOS and 3DS games need a recent browser and a fast device. See Settings → Advanced → Thread support.">Demanding</span>'
       : ''
     const libraryHref = platform
       ? hrefFor(`/library/${platform.id}`)

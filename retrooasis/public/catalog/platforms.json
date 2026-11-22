@@ -10,7 +10,7 @@
     { "id": "3ds", "name": "Nintendo 3DS", "shortName": "3DS", "core": "3ds", "accent": "n64" },
     { "id": "psx", "name": "PlayStation", "shortName": "PS1", "core": "psx", "accent": "ps" },
     { "id": "psp", "name": "PlayStation Portable", "shortName": "PSP", "core": "ppsspp", "accent": "ps" },
-    { "id": "segaMD", "name": "Sega Mega Drive", "shortName": "Genesis", "core": "segaMD", "accent": "sega" },
+    { "id": "segaMD", "name": "Sega Genesis / Mega Drive", "shortName": "Genesis", "core": "segaMD", "accent": "sega" },
     { "id": "segaMS", "name": "Sega Master System", "shortName": "SMS", "core": "segaMS", "accent": "sega" },
     { "id": "segaGG", "name": "Sega Game Gear", "shortName": "GG", "core": "segaGG", "accent": "sega" },
     { "id": "segaCD", "name": "Sega CD", "shortName": "Sega CD", "core": "segaCD", "accent": "sega" },
