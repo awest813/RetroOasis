@@ -300,7 +300,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
         href="${item.href}"
         data-ro-xmb-item="${escapeAttr(item.id)}"
         data-active="${active ? 'true' : 'false'}"
-        data-distance="${dist}"
+        data-distance="${dist}"${distance < 0 ? ' data-above' : ''}
         ${active ? 'aria-current="true"' : ''}
         tabindex="-1"
         style="--item-accent: ${item.accent}"
@@ -321,7 +321,7 @@ function itemMarkup(item: XmbItem, active: boolean, distance: number): string {
       href="${item.href}"
       data-ro-xmb-item="${escapeAttr(item.id)}"
       data-active="${active ? 'true' : 'false'}"
-      data-distance="${dist}"
+      data-distance="${dist}"${distance < 0 ? ' data-above' : ''}
       ${active ? 'aria-current="true"' : ''}
       tabindex="-1"
       style="--item-accent: ${item.accent}"

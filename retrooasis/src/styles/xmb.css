@@ -893,6 +893,13 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 }
 
+/* Items above the selection clear the category label, which sits in the gap just above it. */
+@media (min-width: 901px) {
+  .ro-xmb__item[data-above] {
+    translate: 0 -1.5rem;
+  }
+}
+
 /* Narrow desktop — keep rail and info from colliding */
 @media (min-width: 901px) and (max-width: 1199px) {
   .ro-xmb {
