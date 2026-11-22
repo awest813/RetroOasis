@@ -161,8 +161,8 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
   const server = secure ? https.createServer({ cert: fs.readFileSync(cert), key: fs.readFileSync(key) }, (req, res) => { void serve(req, res) })
     : http.createServer((req, res) => { void serve(req, res) })
   // Two socket.io servers share this HTTP server (rooms at /socket.io/, EmulatorJS Netplay at
-  // /netplay-io/); neither may close the other's WebSocket upgrades.
-  const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384, destroyUpgrade: false,
+  // /netplay-io/). engine.io only closes an upgrade nobody answered, so they coexist as is.
+  const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384,
     allowRequest: (req, callback) => callback(null, validRequest(req)), cors: { origin: false } })
   const rooms = attachRooms(io, { linkAvailable: () => link.ready })
   netplay = attachNetplay(server, { allowRequest: (req, callback) => callback(null, validRequest(req)) })
@@ -196,7 +196,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!lan.secure) console.log('Guests can use keyboard and touch. For guest gamepads, start with --cert and --key (a trusted HTTPS certificate).')
     console.log('Keep this window and the host game open. Players join on the same Wi-Fi, or over the internet on a shared virtual LAN (Tailscale, Nebula, ZeroTier). No port forwarding is needed.')
   })
-  const stop = () => { lan.rooms.close(); lan.io.close(); lan.server.close() }
+  const stop = () => { lan.rooms.close(); lan.netplay.close(); lan.io.close(); lan.server.close() }
   process.once('SIGINT', stop)
   process.once('SIGTERM', stop)
 }

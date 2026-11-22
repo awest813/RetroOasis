@@ -134,7 +134,7 @@ const SECTION_ALIASES: Record<string, string> = {
 }
 
 export async function renderSettings(root: HTMLElement, section?: string): Promise<void> {
-  const jumpSection = section ? SECTION_ALIASES[section] : undefined
+  const jumpSection = section && Object.hasOwn(SECTION_ALIASES, section) ? SECTION_ALIASES[section] : undefined
   const lanAbort = new AbortController()
   const raAbort = new AbortController()
   const lanPromise = checkLanService(lanAbort.signal)

@@ -15,6 +15,9 @@ export const NETPLAY_NAMESPACE = '/netplay'
 const MAX_MESSAGE = 32 * 1024 * 1024
 const MAX_ROOMS = 32
 const MAX_PLAYERS = 4
+const ROOMS_PER_ADDRESS = 4
+// Save states are large but rare; inputs are small and frequent. Over this, a client is dropped.
+const BYTES_PER_10S = 96 * 1024 * 1024
 const ID = /^[A-Za-z0-9_-]{1,64}$/
 
 const samePassword = (a, b) => {
@@ -42,7 +45,7 @@ function cleanExtra(extra) {
 /** attachNetplay(server, { allowRequest }) → { io, rooms, list(params), close() } */
 export function attachNetplay(server, { allowRequest }) {
   const io = new Server(server, {
-    path: NETPLAY_PATH, serveClient: false, transports: ['websocket'], maxHttpBufferSize: MAX_MESSAGE, destroyUpgrade: false,
+    path: NETPLAY_PATH, serveClient: false, transports: ['websocket'], maxHttpBufferSize: MAX_MESSAGE,
     allowRequest, cors: { origin: false },
   })
   const nsp = io.of(NETPLAY_NAMESPACE)
@@ -61,13 +64,28 @@ export function attachNetplay(server, { allowRequest }) {
       // The host left: the room is gone; anyone still in it sees an empty list and leaves.
       rooms.delete(room.extra.sessionid)
       nsp.to(room.extra.sessionid).emit('users-updated', {})
-      nsp.in(room.extra.sessionid).socketsLeave(room.extra.sessionid)
+      for (const user of room.users.values()) {
+        const member = nsp.sockets.get(user.socketId)
+        if (!member) continue
+        // Free them to open or join another room, and keep them out of a reused session id.
+        delete member.data.session; delete member.data.userid
+        member.leave(room.extra.sessionid)
+      }
       return
     }
     publish(room)
   }
 
+  const address = socket => socket.handshake.address || ''
   nsp.on('connection', socket => {
+    let bytes = 0, bytesStart = Date.now()
+    socket.conn.on('packet', packet => {
+      if (Date.now() - bytesStart > 10000) { bytesStart = Date.now(); bytes = 0 }
+      const size = typeof packet.data === 'string' ? packet.data.length : packet.data?.byteLength ?? 0
+      bytes += size
+      // Large payloads only make sense inside a room (save states); anything else is dropped.
+      if (bytes > BYTES_PER_10S || (size > 65536 && !socket.data.session)) socket.disconnect(true)
+    })
     let count = 0, windowStart = Date.now()
     socket.use((packet, next) => {
       // Inputs run every frame; this only stops a runaway client.
@@ -83,9 +101,11 @@ export function attachNetplay(server, { allowRequest }) {
       if (!extra) return reply(cb, 'That room request isn’t valid.')
       if (rooms.has(extra.sessionid)) return reply(cb, 'That room already exists.')
       if (rooms.size >= MAX_ROOMS) return reply(cb, 'This host app has too many rooms open. Try again later.')
+      const mine = [...rooms.values()].filter(room => room.address === address(socket)).length
+      if (mine >= ROOMS_PER_ADDRESS) return reply(cb, 'This device already has several rooms open. Close one first.')
       const max = Math.min(MAX_PLAYERS, Math.max(2, Number.parseInt(data?.maxPlayers, 10) || 2))
       const password = typeof data?.password === 'string' ? data.password.slice(0, 64) : ''
-      const room = { owner: socket.id, password, max, extra, users: new Map([[extra.userid, { ...extra, socketId: socket.id }]]) }
+      const room = { owner: socket.id, address: address(socket), password, max, extra, users: new Map([[extra.userid, { ...extra, socketId: socket.id }]]) }
       rooms.set(extra.sessionid, room)
       socket.data.session = extra.sessionid; socket.data.userid = extra.userid
       socket.join(extra.sessionid)
@@ -111,7 +131,7 @@ export function attachNetplay(server, { allowRequest }) {
 
     socket.on('data-message', data => {
       const session = socket.data.session
-      if (session && rooms.has(session)) socket.to(session).emit('data-message', data)
+      if (session && rooms.has(session) && socket.rooms.has(session)) socket.to(session).emit('data-message', data)
     })
 
     socket.on('webrtc-signal', data => {

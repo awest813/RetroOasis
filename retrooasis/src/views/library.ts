@@ -314,9 +314,12 @@ export async function renderLibrary(
     // shelf redraws, so Down goes straight into the filtered games.
     const onChipPick = (event: Event) => {
       if (getInputModality() === 'mouse') return
-      if ((event.target as HTMLElement | null)?.closest('.ro-chip')) refocusChip = true
+      // Only a chip that changes the shelf redraws it; the active one changes nothing.
+      const chip = (event.target as HTMLElement | null)?.closest<HTMLElement>('.ro-chip')
+      if (chip && !chip.classList.contains('is-active') && chip.getAttribute('href') !== location.hash) refocusChip = true
     }
     root.addEventListener('click', onChipPick)
+    if (refocusChip && opts.restoreSearch) refocusChip = false
     if (refocusChip) {
       refocusChip = false
       const chip = root.querySelector<HTMLElement>('.ro-chip.is-active')

@@ -88,6 +88,13 @@ try {
   host.emit('leave-room')
   assert.equal(Object.keys((await emptied)[0]).length, 0, 'Guests see the room empty when the host leaves')
   assert.equal((await list(1234)).room1, undefined, 'The room is gone from the list')
+  assert.equal((await ask(guest, 'open-room', { extra: extra('guestB', 'room3'), maxPlayers: 2 }))[0], null, 'Members of a closed room are free to open another')
+  // Large payloads outside a room are refused.
+  const loner = await connect()
+  const dropped = once(loner, 'disconnect')
+  loner.emit('data-message', { state: new Uint8Array(256 * 1024) })
+  await dropped
+  assert.ok(!loner.connected, 'A large message from a socket in no room drops it')
 
   // RetroOasis rooms still work on the same server (different socket.io path), and stay small.
   const roomsSocket = await connect(origin, {})

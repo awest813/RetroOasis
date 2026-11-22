@@ -1538,6 +1538,10 @@
               };
             }
             var tuck = function () {
+              // Hide / Show in the bar chose for the player: "Show" saves "on", which wins.
+              var chosen = null;
+              try { chosen = localStorage.getItem("retrooasis.touchControls"); } catch (e) { /* private mode */ }
+              if (chosen === "on" || chosen === "off") return;
               if (tucked || pad.style.display === "none") return;
               tucked = true;
               pad.style.display = "none";
@@ -1552,7 +1556,7 @@
             document.addEventListener("keydown", function (event) {
               if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
               var target = event.target;
-              if (target && target.closest && target.closest("input, textarea, select, .ejs_menu_bar, .ejs_popup_container")) return;
+              if (target && target.closest && target.closest("input, textarea, select, .ejs_menu_bar, .ejs_popup_container, .ro-play-bar, .ro-pad-menu")) return;
               tuck();
             }, true);
             var display = document.getElementById("display");
