@@ -603,10 +603,13 @@ select.ro-input {
   transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.ro-btn:hover {
-  text-decoration: none;
-  background: var(--ro-accent);
-  color: var(--ro-bg-void);
+/* Touch screens keep :hover after a tap; only real pointers get the fill. */
+@media (hover: hover) {
+  .ro-btn:hover {
+    text-decoration: none;
+    background: var(--ro-accent);
+    color: var(--ro-bg-void);
+  }
 }
 
 .ro-btn:active {
@@ -619,9 +622,12 @@ select.ro-input {
   color: var(--ro-bg-void);
 }
 
-.ro-btn--primary:hover {
-  background: color-mix(in srgb, var(--ro-accent) 85%, white);
-  color: var(--ro-bg-void);
+/* Touch screens keep :hover after a tap; only real pointers get the fill. */
+@media (hover: hover) {
+  .ro-btn--primary:hover {
+    background: color-mix(in srgb, var(--ro-accent) 85%, white);
+    color: var(--ro-bg-void);
+  }
 }
 
 .ro-btn:disabled,
@@ -642,10 +648,13 @@ select.ro-input {
   background: color-mix(in srgb, var(--ro-danger) 14%, transparent);
 }
 
-.ro-btn--danger:hover {
-  background: var(--ro-danger);
-  border-color: var(--ro-danger);
-  color: #1a050a;
+/* Touch screens keep :hover after a tap; only real pointers get the fill. */
+@media (hover: hover) {
+  .ro-btn--danger:hover {
+    background: var(--ro-danger);
+    border-color: var(--ro-danger);
+    color: #1a050a;
+  }
 }
 
 .ro-btn-row {
@@ -1650,8 +1659,15 @@ html[data-layout='tv'] .ro-btn--toggle {
   background: transparent;
 }
 
-.ro-toggle-group .ro-btn:hover:not(:disabled):not([aria-disabled='true']) {
+/* The plain .ro-btn hover paints dark text for a filled button; a toggle
+   option stays transparent, so keep its text in the accent instead. */
+.ro-toggle-group .ro-btn:hover:not([aria-pressed='true']) {
+  color: var(--ro-accent);
+}
+
+.ro-toggle-group .ro-btn:hover:not(:disabled):not([aria-disabled='true']):not([aria-pressed='true']) {
   border-color: color-mix(in srgb, var(--ro-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--ro-accent) 10%, transparent);
 }
 
 .ro-toggle-group .ro-btn:disabled,
@@ -2378,3 +2394,32 @@ html[data-layout='tv'] .ro-btn--toggle {
 /* The recovery link under an unavailable online row, and the Transfer Pak picker, are thumb-sized on every screen. */
 .ro-online-card__help a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
 .ro-tpk-card select { min-height: 44px; }
+
+/* The library draws its own clear button; the browser's second × is noise. */
+#ro-q::-webkit-search-cancel-button,
+#ro-q::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Options' + turns into × while its menu is open. */
+#ro-options-btn .ro-icon {
+  transition: transform 180ms ease;
+}
+
+#ro-options-btn[aria-expanded='true'] .ro-icon {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ro-options-btn .ro-icon {
+    transition: none;
+  }
+}
+
+/* Phones: the menu lines up with the full-width buttons above it. */
+@media (max-width: 640px) {
+  .ro-options {
+    max-width: none;
+  }
+}

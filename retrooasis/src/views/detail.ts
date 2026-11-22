@@ -544,6 +544,11 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
       menuOpen = !menuOpen
       sfxToggle()
       paint(menuOpen ? 'ro-menu-favorite' : 'ro-options-btn')
+      // On a phone the menu opens below the fold; bring it up so the tap visibly did something.
+      if (menuOpen) {
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+        root.querySelector('#ro-options-menu')?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })
+      }
     })
 
     root.querySelector('#ro-menu-favorite')?.addEventListener('click', () => {

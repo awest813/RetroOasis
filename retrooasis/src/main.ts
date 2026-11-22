@@ -143,35 +143,37 @@ app.addEventListener('click', (event) => {
   if (!link) return
   const href = link.getAttribute('href')
   if (href === '#/' || href === '#') clearXmbSession()
-  
-  // Close mobile nav when a nav link is clicked
-  const navToggle = app.querySelector<HTMLButtonElement>('#ro-nav-toggle')
-  const nav = app.querySelector<HTMLElement>('#ro-nav')
-  if (navToggle && nav && navToggle.getAttribute('aria-expanded') === 'true') {
-    const isNavLink = link.closest('.ro-nav')
-    if (isNavLink) {
-      navToggle.setAttribute('aria-expanded', 'false')
-      nav.removeAttribute('data-open')
-    }
-  }
+  // A menu link to the page already open changes no route; close it here too.
+  if (link.closest('.ro-nav')) setNavOpen(false)
 })
 
-// Mobile nav toggle button handler
-app.querySelector<HTMLButtonElement>('#ro-nav-toggle')?.addEventListener('click', () => {
+/** Phone menu: one place opens and closes it, so the button and panel never disagree. */
+function setNavOpen(open: boolean): void {
   const navToggle = app.querySelector<HTMLButtonElement>('#ro-nav-toggle')
   const nav = app.querySelector<HTMLElement>('#ro-nav')
   if (!navToggle || !nav) return
-  
-  const isExpanded = navToggle.getAttribute('aria-expanded') === 'true'
-  navToggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true')
-  if (isExpanded) {
-    nav.removeAttribute('data-open')
-  } else {
-    nav.setAttribute('data-open', 'true')
-  }
-})
+  navToggle.setAttribute('aria-expanded', String(open))
+  if (open) nav.setAttribute('data-open', 'true')
+  else nav.removeAttribute('data-open')
+}
+
+const navIsOpen = () => app.querySelector('#ro-nav-toggle')?.getAttribute('aria-expanded') === 'true'
+
+app.querySelector<HTMLButtonElement>('#ro-nav-toggle')?.addEventListener('click', () => setNavOpen(!navIsOpen()))
+
+// Escape closes the open menu and hands focus back to its button.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !navIsOpen()) return
+  // Capture phase: closing the menu is the whole job, not also "go back".
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  setNavOpen(false)
+  app.querySelector<HTMLButtonElement>('#ro-nav-toggle')?.focus({ preventScroll: true })
+}, true)
 
 function syncNav(route: Route): void {
+  // Any route change (a card, a breadcrumb, Back) leaves the phone menu closed.
+  setNavOpen(false)
   const map: Record<string, string> = {
     lobby: 'lobby',
     library: 'library',
