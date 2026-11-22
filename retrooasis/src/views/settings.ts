@@ -379,21 +379,21 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted" id="ro-lan-service-status" role="status" aria-atomic="true">Checking whether the host app is running…</p>
               <p class="ro-muted" id="ro-lan-controls-status" hidden></p>
             </div>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-check-lan" data-focus-id="lan-check" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Check again</button>
+            <button type="button" class="ro-btn" id="ro-check-lan" data-focus-id="lan-check" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Check again</button>
           </div>
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Host</strong>
               <p class="ro-muted">Pick a game, choose <b>Host a room</b> or <b>Start Trade &amp; link</b>, then share the invite link or QR code.</p>
             </div>
-            <a class="ro-btn ro-btn--primary" id="ro-lan-host" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-host" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Choose a game</a>
+            <a class="ro-btn" id="ro-lan-host" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-host" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Choose a game</a>
           </div>
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>Join</strong>
               <p class="ro-muted">Open the host’s invite link or scan their QR code. Or enter their room code here.</p>
             </div>
-            <a class="ro-btn ro-btn--ghost" id="ro-lan-join" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-join" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Enter room code</a>
+            <a class="ro-btn" id="ro-lan-join" role="link" tabindex="-1" aria-disabled="true" data-focus-id="lan-join" data-ro-focusable="true" aria-describedby="ro-lan-service-status">Enter room code</a>
           </div>
           <div class="ro-settings-row ro-settings-row--note" data-ro-focus-row>
             <div class="ro-settings-row__copy">
@@ -438,7 +438,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">Retry cover matching and reload artwork as you browse.</p>
               <p class="ro-muted ro-cover-refresh-status" id="ro-cover-refresh-status" role="status" aria-live="polite" aria-atomic="true"></p>
             </div>
-            <button type="button" class="ro-btn ro-btn--ghost" id="ro-refresh-covers" data-focus-id="refresh-covers" data-ro-focusable="true" aria-label="Refresh cover art" aria-describedby="ro-cover-refresh-status">Refresh</button>
+            <button type="button" class="ro-btn" id="ro-refresh-covers" data-focus-id="refresh-covers" data-ro-focusable="true" aria-label="Refresh cover art" aria-describedby="ro-cover-refresh-status">Refresh</button>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -471,7 +471,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
                 uploadedMeta.count
                   ? `<a class="ro-btn ro-btn--ghost" href="${hrefFor('/library/@all')}" data-focus-id="view-library" data-ro-focusable="true">View library</a>
                      <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-uploads" data-focus-id="clear-uploads" data-ro-focusable="true">Clear saved ROMs</button>`
-                  : `<a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-focus-id="add-rom" data-ro-focusable="true">Add ROM</a>`
+                  : `<a class="ro-btn" href="${hrefFor('/upload')}" data-focus-id="add-rom" data-ro-focusable="true">Add ROM</a>`
               }
             </div>
           </div>
@@ -609,7 +609,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <strong>Local saves</strong>
               <p class="ro-muted">Download, back up, and restore in-game progress and browser save states.</p>
             </div>
-            <a class="ro-btn ro-btn--primary" href="${hrefFor('/saves')}" data-focus-id="saves" data-ro-focusable="true">Manage saves</a>
+            <a class="ro-btn" href="${hrefFor('/saves')}" data-focus-id="saves" data-ro-focusable="true">Manage saves</a>
           </div>
 
           <div class="ro-settings-row" data-ro-focus-row>
@@ -631,7 +631,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               installState === 'installed'
                 ? `<span class="ro-badge ro-badge--ok" role="status">Installed</span>`
                 : installState === 'prompt'
-                  ? `<button type="button" class="ro-btn ro-btn--primary" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
+                  ? `<button type="button" class="ro-btn" id="ro-install" data-focus-id="install" data-ro-focusable="true" aria-label="Install RetroOasis as an app">Install as app</button>`
                   : installState === 'ios'
                     ? `<span class="ro-badge" role="status" title="Use Share → Add to Home Screen">iOS tip</span>`
                     : `<span class="ro-badge" role="status" title="Needs HTTPS and a supported browser after the shell is cached.">Unavailable here</span>`
@@ -652,7 +652,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
               <p class="ro-muted">Title and cover changes from game pages.</p>
             </div>
             <div class="ro-btn-row">
-              <button type="button" class="ro-btn ro-btn--ghost" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export edits</button>
+              <button type="button" class="ro-btn" id="ro-export-over" data-focus-id="export-over" data-ro-focusable="true">Export edits</button>
               <button type="button" class="ro-btn ro-btn--danger" id="ro-clear-over" data-focus-id="clear-over" data-ro-focusable="true">Clear edits</button>
             </div>
           </div>

@@ -16,10 +16,26 @@
   --ro-scanline: rgba(255, 255, 255, 0.035);
   --ro-grid: rgba(46, 230, 214, 0.12);
   --ro-focus: var(--ro-accent-sega);
-  --ro-radius: 6px;
+  --ro-radius: 6px;     /* controls: buttons, inputs, covers */
+  --ro-radius-lg: 12px; /* cards and panels */
   --ro-font-display: "Outfit", system-ui, sans-serif;
   --ro-font-ui: "Sora", system-ui, sans-serif;
   --ro-font-mono: ui-monospace, "Cascadia Code", monospace;
+
+  /* Type scale. Fixed sizes snap to these steps; headings use fluid clamp()s.
+     12px is the floor: nothing readable goes smaller. */
+  --ro-fs-2xs: 0.75rem;    /* 12px: caps labels, badges, counts */
+  --ro-fs-xs: 0.8125rem;   /* 13px: buttons, captions, meta */
+  --ro-fs-sm: 0.875rem;    /* 14px: secondary copy, hints */
+  --ro-fs-base: 0.9375rem; /* 15px: card and row copy */
+  --ro-fs-md: 1rem;        /* 16px: body */
+  --ro-fs-lg: 1.125rem;    /* 18px: ledes, item titles */
+  --ro-fs-xl: 1.25rem;     /* 20px: card titles */
+  --ro-fs-2xl: 1.5rem;     /* 24px: section titles */
+
+  /* Letter-spacing for uppercase labels: one for small caps text, one airier for eyebrows. */
+  --ro-track-caps: 0.1em;
+  --ro-track-eyebrow: 0.18em;
   --ro-space: clamp(0.9rem, 2.2vw, 1.75rem);
   --ro-max: 72rem;
   --ro-max-library: 96rem;

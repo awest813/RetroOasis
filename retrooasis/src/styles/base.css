@@ -36,10 +36,10 @@ html[data-online='false'] .ro-shell {
   transform: translateX(-50%);
   background: color-mix(in srgb, var(--ro-bg-panel-solid) 92%, #000);
   border: 1px solid color-mix(in srgb, var(--ro-accent) 45%, var(--ro-line));
-  border-radius: var(--ro-radius);
+  border-radius: var(--ro-radius-lg);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   color: var(--ro-text);
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
   letter-spacing: 0.04em;
   animation: ro-sw-toast-in 280ms ease both;
 }
@@ -58,7 +58,7 @@ html[data-online='false'] .ro-shell {
   background: color-mix(in srgb, var(--ro-bg-void) 88%, #7a3b00);
   border-bottom: 1px solid color-mix(in srgb, var(--ro-accent) 35%, var(--ro-line));
   color: var(--ro-text);
-  font-size: 0.78rem;
+  font-size: var(--ro-fs-xs);
   letter-spacing: 0.04em;
   text-align: center;
 }
@@ -105,8 +105,8 @@ html[data-online='false'] .ro-shell {
   color: var(--ro-bg-void);
   text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
+  letter-spacing: var(--ro-track-caps);
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
   border-radius: var(--ro-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -190,7 +190,7 @@ html[data-online='false'] .ro-shell {
 
 .ro-install-btn {
   padding: 0.35rem 0.65rem;
-  font-size: 0.68rem;
+  font-size: var(--ro-fs-2xs);
   flex-shrink: 0;
   border-color: color-mix(in srgb, var(--ro-line) 80%, transparent);
   color: var(--ro-text-dim);
@@ -229,7 +229,7 @@ select.ro-input {
     var(--ro-bg-panel);
   text-align: center;
   cursor: pointer;
-  border-radius: var(--ro-radius);
+  border-radius: var(--ro-radius-lg);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -242,7 +242,7 @@ select.ro-input {
 }
 
 .ro-drop__mark {
-  font-size: 1.55rem;
+  font-size: var(--ro-fs-2xl);
   color: var(--ro-accent);
   line-height: 1;
   opacity: 0.9;
@@ -250,13 +250,13 @@ select.ro-input {
 }
 
 .ro-drop__title {
-  font-size: 1.08rem;
+  font-size: var(--ro-fs-lg);
   font-weight: 650;
   color: var(--ro-text);
 }
 
 .ro-drop__sub {
-  font-size: 0.9rem;
+  font-size: var(--ro-fs-base);
   max-width: 22rem;
 }
 
@@ -311,9 +311,9 @@ select.ro-input {
 
 .ro-upload__label {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--ro-track-eyebrow);
   text-transform: uppercase;
   color: var(--ro-accent);
 }
@@ -325,7 +325,7 @@ select.ro-input {
 }
 
 .ro-upload__footnote {
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
   line-height: 1.55;
 }
 
@@ -349,14 +349,14 @@ select.ro-input {
   align-items: baseline;
   padding: 0.65rem 0.8rem;
   border: 1px solid color-mix(in srgb, var(--ro-line) 55%, transparent);
-  border-radius: var(--ro-radius);
+  border-radius: var(--ro-radius-lg);
   background: var(--ro-bg-panel);
 }
 
 .ro-upload__log-mark {
-  font-size: 0.68rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--ro-track-caps);
   text-transform: uppercase;
   color: var(--ro-accent);
 }
@@ -420,7 +420,7 @@ select.ro-input {
 }
 
 .ro-brand__sub {
-  font-size: 0.75rem;
+  font-size: var(--ro-fs-2xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--ro-text-dim);
@@ -503,8 +503,8 @@ select.ro-input {
 .ro-nav a {
   color: var(--ro-text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.78rem;
+  letter-spacing: var(--ro-track-caps);
+  font-size: var(--ro-fs-xs);
   text-decoration: none;
   padding: 0.35rem 0.1rem;
   border-bottom: 2px solid transparent;
@@ -530,7 +530,7 @@ select.ro-input {
   }
 
   .ro-nav a {
-    font-size: 0.74rem;
+    font-size: var(--ro-fs-2xs);
     letter-spacing: 0.08em;
   }
 
@@ -575,7 +575,7 @@ select.ro-input {
     max(1.35rem, env(safe-area-inset-bottom, 0px))
     max(var(--ro-space), env(safe-area-inset-left, 0px));
   color: color-mix(in srgb, var(--ro-text-dim) 88%, var(--ro-text));
-  font-size: 0.84rem;
+  font-size: var(--ro-fs-sm);
   text-align: center;
   border-top: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
 }
@@ -595,8 +595,8 @@ select.ro-input {
   color: var(--ro-accent);
   padding: 0.65rem 1.1rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.78rem;
+  letter-spacing: var(--ro-track-caps);
+  font-size: var(--ro-fs-xs);
   font-weight: 600;
   cursor: pointer;
   border-radius: var(--ro-radius);
@@ -665,8 +665,8 @@ select.ro-input {
 
 .ro-kicker {
   margin: 0 0 0.65rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.22em;
+  font-size: var(--ro-fs-2xs);
+  letter-spacing: var(--ro-track-eyebrow);
   text-transform: uppercase;
   color: var(--ro-accent);
   text-shadow: 0 1px 10px var(--ro-accent-soft);
@@ -788,7 +788,7 @@ select.ro-input {
   border-radius: 50%;
   background: var(--ro-accent-soft);
   color: var(--ro-text);
-  font-size: 1rem;
+  font-size: var(--ro-fs-md);
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -991,7 +991,7 @@ html[data-crt='on'] .ro-shell::after {
   border-radius: 999px;
   background: color-mix(in srgb, var(--ro-bg-panel) 70%, transparent);
   color: var(--ro-text-dim);
-  font-size: 0.8rem;
+  font-size: var(--ro-fs-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -1013,7 +1013,7 @@ html[data-crt='on'] .ro-shell::after {
 }
 
 .ro-chip__count {
-  font-size: 0.72rem;
+  font-size: var(--ro-fs-2xs);
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
 }
@@ -1049,14 +1049,14 @@ html[data-crt='on'] .ro-shell::after {
   margin: 0.35rem 0 0;
   max-width: 36rem;
   color: var(--ro-text-dim);
-  font-size: 0.88rem;
+  font-size: var(--ro-fs-sm);
 }
 
 .ro-onboard {
   margin: 0 0 1.15rem;
   padding: 1.1rem 1.25rem;
   border: 1px solid var(--ro-line);
-  border-radius: var(--ro-radius);
+  border-radius: var(--ro-radius-lg);
   background: linear-gradient(120deg, var(--ro-accent-soft), transparent);
   display: grid;
   gap: 0.55rem;
@@ -1075,7 +1075,7 @@ html[data-crt='on'] .ro-shell::after {
 .ro-onboard__body {
   margin: 0;
   color: var(--ro-text-dim);
-  font-size: 0.95rem;
+  font-size: var(--ro-fs-base);
 }
 
 .ro-onboard .ro-btn-row {
@@ -1084,7 +1084,7 @@ html[data-crt='on'] .ro-shell::after {
 
 .ro-upload__hint {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
   line-height: 1.5;
 }
 
@@ -1099,17 +1099,17 @@ html[data-layout='tv'] {
 }
 
 html[data-layout='tv'] .ro-brand__mark {
-  font-size: 1.2rem;
+  font-size: var(--ro-fs-xl);
 }
 
 html[data-layout='tv'] .ro-nav a {
-  font-size: 1rem;
+  font-size: var(--ro-fs-md);
   padding: 0.45rem 0.15rem;
 }
 
 html[data-layout='tv'] .ro-btn {
   padding: 0.95rem 1.35rem;
-  font-size: 0.95rem;
+  font-size: var(--ro-fs-base);
 }
 
 html[data-layout='tv'] .ro-grid {
@@ -1117,7 +1117,7 @@ html[data-layout='tv'] .ro-grid {
 }
 
 html[data-layout='tv'] .ro-tile__title {
-  font-size: 1.1rem;
+  font-size: var(--ro-fs-lg);
 }
 
 html[data-layout='tv'] .ro-title {
@@ -1144,11 +1144,11 @@ html[data-layout='tv'] .ro-settings-row {
 }
 
 html[data-layout='tv'] .ro-settings-row strong {
-  font-size: 1.12rem;
+  font-size: var(--ro-fs-lg);
 }
 
 html[data-layout='tv'] .ro-settings__heading {
-  font-size: 0.82rem;
+  font-size: var(--ro-fs-xs);
 }
 
 html[data-layout='tv'] .ro-btn--toggle {
@@ -1160,7 +1160,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   position: relative;
   z-index: 1;
   font-family: var(--ro-font-display);
-  font-size: 0.72rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 600;
   line-height: 1.35;
   text-align: center;
@@ -1203,7 +1203,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-tile__title {
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
   font-weight: 600;
   line-height: 1.3;
   color: var(--ro-text);
@@ -1217,9 +1217,9 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-tile__sub {
-  font-size: 0.7rem;
+  font-size: var(--ro-fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: var(--ro-track-caps);
   color: var(--ro-text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -1233,8 +1233,8 @@ html[data-layout='tv'] .ro-btn--toggle {
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--ro-line);
   color: var(--ro-accent);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
+  font-size: var(--ro-fs-2xs);
+  letter-spacing: var(--ro-track-caps);
   text-transform: uppercase;
 }
 
@@ -1262,6 +1262,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   gap: 0.75rem;
   padding: 2.25rem 1.25rem;
   border: 1px dashed var(--ro-line);
+  border-radius: var(--ro-radius-lg);
   background: color-mix(in srgb, var(--ro-bg-panel) 55%, transparent);
   color: var(--ro-text-dim);
   text-align: center;
@@ -1280,7 +1281,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-empty__body {
   margin: 0;
   max-width: 28rem;
-  font-size: 0.95rem;
+  font-size: var(--ro-fs-base);
 }
 
 .ro-empty .ro-btn-row {
@@ -1301,7 +1302,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-loading__label {
   margin: 0;
   color: var(--ro-text-dim);
-  font-size: 0.95rem;
+  font-size: var(--ro-fs-base);
 }
 
 .ro-loading__bar {
@@ -1362,7 +1363,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-btn--lg {
   min-height: 3.25rem;
   padding: 0.85rem 1.7rem;
-  font-size: 0.9rem;
+  font-size: var(--ro-fs-base);
 }
 
 /* Switch-style options menu: one vertical list behind ＋ Options */
@@ -1374,14 +1375,14 @@ html[data-layout='tv'] .ro-btn--toggle {
   padding: 0.45rem;
   max-width: 22rem;
   border: 1px solid var(--ro-line);
-  border-radius: var(--ro-radius);
+  border-radius: var(--ro-radius-lg);
   background: color-mix(in srgb, var(--ro-bg-panel) 82%, transparent);
 }
 
 .ro-options__label {
   margin: 0.2rem 0.45rem 0.3rem;
-  font-size: 0.64rem;
-  letter-spacing: 0.16em;
+  font-size: var(--ro-fs-2xs);
+  letter-spacing: var(--ro-track-eyebrow);
   text-transform: uppercase;
   color: var(--ro-text-dim);
 }
@@ -1400,7 +1401,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   background: transparent;
   color: var(--ro-text);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--ro-fs-base);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -1508,20 +1509,57 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-settings__online .ro-settings__online-intro > .ro-settings-row__copy,
 .ro-settings__online .ro-settings-row--note .ro-settings-row__copy { flex-basis: 100%; max-width: none; }
 .ro-settings__online-systems { margin: 0.85rem 0 0.65rem; padding: 0; list-style: none; }
-.ro-settings__online-systems li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.35rem 0; font-size: 0.85rem; }
+.ro-settings__online-systems li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.35rem 0; font-size: var(--ro-fs-sm); }
 .ro-settings__online-systems li > span:last-child { color: var(--ro-accent); white-space: nowrap; }
-.ro-settings__online-systems em { display: inline-block; margin-left: 0.3rem; font-size: 0.72rem; font-style: normal; color: var(--ro-text-dim); }
-.ro-settings__online-state { display: inline-block; margin: 0.2rem 0 0.2rem 0.4rem; padding: 0.2rem 0.5rem; border: 1px solid var(--ro-line); border-radius: 4px; font-size: 0.72rem; font-weight: 500; vertical-align: middle; }
-.ro-settings__online-state[data-state='ready'] { color: var(--ro-accent); border-color: color-mix(in srgb, var(--ro-accent) 50%, transparent); background: color-mix(in srgb, var(--ro-accent) 8%, transparent); }
+.ro-settings__online-systems em { display: inline-block; margin-left: 0.3rem; font-size: var(--ro-fs-2xs); font-style: normal; color: var(--ro-text-dim); }
+/* One status pill everywhere (game page cards and Settings): dot + caps, rounded so it never
+   reads as a button. Green = ready, amber = needs attention, grey = neutral or checking. */
+.ro-settings__online-state,
+.ro-settings .ro-badge[role='status'] {
+  --pill: #5d7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0.15rem 0.45rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--pill) 45%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ro-text-dim);
+  font-family: var(--ro-font-ui);
+  font-size: var(--ro-fs-2xs);
+  font-weight: 500;
+  letter-spacing: var(--ro-track-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.ro-settings__online-state:empty { display: none; }
+.ro-settings__online-state::before,
+.ro-settings .ro-badge[role='status']::before {
+  content: '';
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--pill);
+}
+.ro-settings__online-state[data-state='ready'],
+.ro-settings .ro-badge--ok[role='status'] { --pill: #4ade80; color: #4ade80; }
+.ro-settings__online-state[data-state='unavailable'],
+.ro-settings__online-state[data-state='unreachable'],
+.ro-settings .ro-badge--threads[role='status'] { --pill: #f0b429; }
+.ro-settings__online-state[data-state='ready']::before,
+.ro-settings .ro-badge--ok[role='status']::before { box-shadow: 0 0 8px #4ade80; }
 .ro-settings__online #ro-check-lan { min-width: 8rem; justify-content: center; }
 .ro-settings__online-steps { margin: 0.6rem 0 0.85rem; padding-left: 1.4rem; }
 .ro-settings__online-steps li { padding: 0.25rem 0 0.55rem 0.2rem; }
 .ro-settings__online-steps code { display: block; width: fit-content; max-width: 100%; margin-top: 0.5rem; padding: 0.45rem 0.65rem; border: 1px solid var(--ro-line); overflow-wrap: anywhere; }
-.ro-settings__controller-list { margin: 0.65rem 0 0; padding-left: 1.15rem; font-size: 0.84rem; overflow-wrap: anywhere; }
+.ro-settings__controller-list { margin: 0.65rem 0 0; padding-left: 1.15rem; font-size: var(--ro-fs-sm); overflow-wrap: anywhere; }
 .ro-settings__controller-list li { padding: 0.25rem 0; }
-.ro-settings__controller-list span { display: block; color: var(--ro-accent); font-size: 0.75rem; }
+.ro-settings__controller-list span { display: block; color: var(--ro-accent); font-size: var(--ro-fs-2xs); }
 .ro-controller-test__buttons { min-height: 1.6rem; color: var(--ro-accent); }
-.ro-controller-test__sticks { display: flex; flex-wrap: wrap; gap: 0.7rem 1.5rem; font-size: 0.84rem; }
+.ro-controller-test__sticks { display: flex; flex-wrap: wrap; gap: 0.7rem 1.5rem; font-size: var(--ro-fs-sm); }
 .ro-controller-test__sticks output { display: block; font-family: var(--ro-font-mono); color: var(--ro-text-dim); }
 
 .ro-settings__heading {
@@ -1530,9 +1568,9 @@ html[data-layout='tv'] .ro-btn--toggle {
   padding: 0 0 0.55rem;
   border-bottom: 1px solid color-mix(in srgb, var(--ro-line) 70%, transparent);
   font-family: var(--ro-font-ui);
-  font-size: 0.72rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--ro-track-eyebrow);
   text-transform: uppercase;
   color: var(--ro-accent);
 }
@@ -1586,7 +1624,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
 }
 
 .ro-cover-resources a {
@@ -1619,7 +1657,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 }
 
 .ro-settings-row strong {
-  font-size: 1rem;
+  font-size: var(--ro-fs-md);
   font-weight: 600;
 }
 
@@ -1634,7 +1672,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-settings__footnote {
   margin: 0;
   flex: 1 1 16rem;
-  font-size: 0.84rem;
+  font-size: var(--ro-fs-sm);
   line-height: 1.55;
 }
 
@@ -1752,12 +1790,12 @@ html[data-layout='tv'] .ro-btn--toggle {
 
   .ro-brand__sub {
     display: inline;
-    font-size: 0.62rem;
+    font-size: var(--ro-fs-2xs);
     letter-spacing: 0.12em;
   }
 
   .ro-brand__mark {
-    font-size: 0.95rem;
+    font-size: var(--ro-fs-base);
   }
 
   .ro-topbar__right {
@@ -1794,7 +1832,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-nav a {
-    font-size: 0.7rem;
+    font-size: var(--ro-fs-2xs);
     letter-spacing: 0.07em;
     padding: 0.4rem 0.45rem;
     border-bottom: 0;
@@ -1814,7 +1852,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 
   .ro-btn {
     padding: 0.6rem 0.95rem;
-    font-size: 0.74rem;
+    font-size: var(--ro-fs-2xs);
     letter-spacing: 0.1em;
   }
 
@@ -1912,7 +1950,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-drop__title {
-    font-size: 1rem;
+    font-size: var(--ro-fs-md);
   }
 
   .ro-upload,
@@ -1922,7 +1960,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-footer {
-    font-size: 0.78rem;
+    font-size: var(--ro-fs-xs);
     padding: 0.85rem var(--ro-space) 1.15rem;
   }
 
@@ -1952,11 +1990,11 @@ html[data-layout='tv'] .ro-btn--toggle {
   }
 
   .ro-brand__mark {
-    font-size: 1rem;
+    font-size: var(--ro-fs-md);
   }
 
   .ro-nav a {
-    font-size: 0.76rem;
+    font-size: var(--ro-fs-2xs);
   }
 
   .ro-detail__cover {
@@ -2118,7 +2156,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 .ro-save-row h2 {
   margin: 0 0 0.35rem;
-  font-size: 1rem;
+  font-size: var(--ro-fs-md);
 }
 
 .ro-save-row p {
@@ -2188,7 +2226,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 
   .ro-input,
   .ro-librarybar__search input {
-    font-size: 1rem;
+    font-size: var(--ro-fs-md);
     min-height: 2.75rem;
   }
 }
@@ -2202,7 +2240,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   padding: 1rem 1.15rem 1.1rem;
   max-width: 40rem;
   border: 1px solid var(--ro-line);
-  border-radius: 12px;
+  border-radius: var(--ro-radius-lg);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--ro-accent) 10%, transparent), transparent 55%),
     color-mix(in srgb, var(--ro-bg-panel-solid) 85%, transparent);
@@ -2213,7 +2251,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-online-card__title {
   margin: 0;
   font-family: var(--ro-font-display);
-  font-size: 1.05rem;
+  font-size: var(--ro-fs-lg);
   letter-spacing: 0.02em;
 }
 .ro-online-card__state {
@@ -2221,9 +2259,9 @@ html[data-layout='tv'] .ro-btn--toggle {
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
   border: 1px solid var(--ro-line);
-  font-size: 0.7rem;
+  font-size: var(--ro-fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: var(--ro-track-caps);
   color: var(--ro-text-dim);
   white-space: nowrap;
 }
@@ -2245,9 +2283,9 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-online-card .ro-btn-row { margin-top: 0.25rem; }
 .ro-tpk-card .ro-online-card__state::before { background: var(--ro-plat-gb); }
 .ro-tpk-card label { display: grid; gap: 0.4rem; }
-.ro-tpk-card__facts { display: grid; gap: 0.45rem; margin: 0.25rem 0 0; padding: 0; list-style: none; color: var(--ro-text-dim); font-size: 0.9rem; line-height: 1.45; }
+.ro-tpk-card__facts { display: grid; gap: 0.45rem; margin: 0.25rem 0 0; padding: 0; list-style: none; color: var(--ro-text-dim); font-size: var(--ro-fs-base); line-height: 1.45; }
 .ro-tpk-card__facts li { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline; }
-.ro-tpk-card__facts strong { color: var(--ro-text); font: 600 0.7rem/1.4 var(--ro-font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.ro-tpk-card__facts strong { color: var(--ro-text); font: 600 0.7rem/1.4 var(--ro-font-display); letter-spacing: var(--ro-track-caps); text-transform: uppercase; }
 
 /* Touch screens: small text links get thumb-sized hit areas (44px) without moving. */
 @media (pointer: coarse), (any-pointer: coarse) {
@@ -2262,11 +2300,11 @@ html[data-layout='tv'] .ro-btn--toggle {
 
 /* Settings → Online play: the two ways to play together, side by side. */
 .ro-online-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 0.85rem; margin-top: 0.85rem; }
-.ro-online-method { padding: 0.9rem 1rem; border: 1px solid var(--ro-line); border-radius: 10px; background: color-mix(in srgb, var(--ro-bg-panel, #102433) 70%, transparent); }
+.ro-online-method { padding: 0.9rem 1rem; border: 1px solid var(--ro-line); border-radius: var(--ro-radius-lg); background: color-mix(in srgb, var(--ro-bg-panel, #102433) 70%, transparent); }
 .ro-online-method h3 { margin: 0 0 0.35rem; font: 650 1rem/1.3 var(--ro-font-display); color: var(--ro-text); }
-.ro-online-method > p { margin: 0; color: var(--ro-text-dim); font-size: 0.88rem; line-height: 1.45; }
+.ro-online-method > p { margin: 0; color: var(--ro-text-dim); font-size: var(--ro-fs-sm); line-height: 1.45; }
 .ro-online-method .ro-settings__online-systems { margin: 0.6rem 0; }
-.ro-online-method__how { font-size: 0.8rem !important; letter-spacing: 0.04em; }
+.ro-online-method__how { font-size: var(--ro-fs-xs) !important; letter-spacing: 0.04em; }
 
 /* Settings: a section rail beside the settings on wide screens, a sticky swipeable row of
    section chips on narrow ones. The chip for the section on screen is marked. */
@@ -2348,7 +2386,7 @@ html[data-layout='tv'] .ro-btn--toggle {
   margin-top: 1.1rem;
   overflow: hidden;
   border: 1px solid var(--ro-line);
-  border-radius: 12px;
+  border-radius: var(--ro-radius-lg);
   background: color-mix(in srgb, var(--ro-bg-panel-solid) 80%, transparent);
 }
 .ro-detail__panels:not(:has(> section)) { display: none; }
@@ -2366,7 +2404,7 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-detail__panels > .ro-online-card + .ro-online-card { border-top: 1px solid var(--ro-line); }
 .ro-detail__panels .ro-online-card__head { grid-column: 1; grid-row: 1; }
 .ro-detail__panels .ro-online-card__state { margin-left: 0; }
-.ro-detail__panels .ro-online-card__text { grid-column: 1; grid-row: 2; font-size: 0.88rem; line-height: 1.4; }
+.ro-detail__panels .ro-online-card__text { grid-column: 1; grid-row: 2; font-size: var(--ro-fs-sm); line-height: 1.4; }
 .ro-detail__panels .ro-online-card__actions { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; justify-content: flex-end; }
 .ro-detail__panels .ro-online-card__help,
 .ro-detail__panels .ro-tpk-card label,
@@ -2374,8 +2412,8 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-detail__panels .ro-ra-list,
 .ro-detail__panels .ro-ra-card > .ro-muted:not(.ro-online-card__text),
 .ro-detail__panels .ro-ra-card:has(.ro-ra-list) .ro-online-card__actions { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
-.ro-detail__panels .ro-online-card__help { font-size: 0.85rem; }
-.ro-tpk-card__more summary { cursor: pointer; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--ro-accent); font-size: 0.85rem; }
+.ro-detail__panels .ro-online-card__help { font-size: var(--ro-fs-sm); }
+.ro-tpk-card__more summary { cursor: pointer; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--ro-accent); font-size: var(--ro-fs-sm); }
 .ro-detail__meta { margin: 0; }
 .ro-detail__badges:empty { display: none; }
 
@@ -2394,17 +2432,17 @@ html[data-layout='tv'] .ro-btn--toggle {
 .ro-ra-ach img, .ro-ra-ach__blank { width: 48px; height: 48px; object-fit: cover; background: color-mix(in srgb, var(--ro-bg-void) 65%, transparent); }
 .ro-ra-ach__top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
 .ro-ra-ach__top strong { min-width: 0; overflow-wrap: anywhere; }
-.ro-ra-ach__top span { color: var(--ro-accent); font-size: 0.75rem; letter-spacing: 0.04em; white-space: nowrap; }
-.ro-ra-ach p { margin: 0.15rem 0 0; font-size: 0.88rem; line-height: 1.4; overflow-wrap: anywhere; }
+.ro-ra-ach__top span { color: var(--ro-accent); font-size: var(--ro-fs-2xs); letter-spacing: 0.04em; white-space: nowrap; }
+.ro-ra-ach p { margin: 0.15rem 0 0; font-size: var(--ro-fs-sm); line-height: 1.4; overflow-wrap: anywhere; }
 #ro-ra-status:empty, #ro-ra-match-status:empty { display: none; }
 @media (max-width: 560px) {
   .ro-detail__panels > .ro-online-card { grid-template-columns: minmax(0, 1fr); }
   .ro-detail__panels .ro-online-card__actions { grid-column: 1; grid-row: auto; justify-content: stretch; margin-top: 0.35rem; }
   .ro-detail__panels .ro-online-card__actions .ro-btn { flex: 1 1 auto; }
 }
-.ro-detail__panels .ro-tpk-card label { font-size: 0.85rem; }
+.ro-detail__panels .ro-tpk-card label { font-size: var(--ro-fs-sm); }
 /* A placeholder cover names the system; the caption below already names the game. */
-.ro-cover:not(.ro-cover--image) .ro-cover__label, .ro-cover__label--fallback { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ro-text-dim); text-shadow: none; }
+.ro-cover:not(.ro-cover--image) .ro-cover__label, .ro-cover__label--fallback { font-size: var(--ro-fs-xs); letter-spacing: var(--ro-track-eyebrow); text-transform: uppercase; color: var(--ro-text-dim); text-shadow: none; }
 /* The recovery link under an unavailable online row, and the Transfer Pak picker, are thumb-sized on every screen. */
 .ro-online-card__help a { display: inline-block; padding-block: 0.9rem; margin-block: -0.9rem; }
 .ro-tpk-card select { min-height: 44px; }

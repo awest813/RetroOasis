@@ -136,9 +136,9 @@ html[data-layout] .ro-xmb:focus-visible {
   z-index: 3;
   margin: 0;
   padding: 0.35rem 0.65rem;
-  font-size: 0.78rem;
+  font-size: var(--ro-fs-xs);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ro-track-caps);
   text-transform: uppercase;
   color: color-mix(in srgb, var(--ro-text) 88%, var(--ro-text-dim));
   background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
@@ -195,7 +195,7 @@ html[data-layout] .ro-xmb:focus-visible {
 
 .ro-xmb__clock-date {
   font-family: var(--ro-font-ui);
-  font-size: 0.78rem;
+  font-size: var(--ro-fs-xs);
   font-weight: 500;
   color: var(--ro-text-dim);
   letter-spacing: 0.06em;
@@ -315,7 +315,7 @@ html[data-layout] .ro-xmb:focus-visible {
 
 .ro-xmb__cat-text {
   font-family: var(--ro-font-ui);
-  font-size: 0.58rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
   letter-spacing: 0.06em;
   line-height: 1.15;
@@ -347,7 +347,7 @@ html[data-layout] .ro-xmb:focus-visible {
 .ro-xmb__cat-label {
   order: -1;
   font-family: var(--ro-font-ui);
-  font-size: 0.84rem;
+  font-size: var(--ro-fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -498,7 +498,7 @@ html[data-layout] .ro-xmb:focus-visible {
   display: grid;
   place-items: center;
   font-family: var(--ro-font-ui);
-  font-size: 0.62rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 650;
   letter-spacing: 0.08em;
   color: var(--ro-text);
@@ -512,7 +512,7 @@ html[data-layout] .ro-xmb:focus-visible {
 
 .ro-xmb__item-title {
   font-family: var(--ro-font-display);
-  font-size: 1.12rem;
+  font-size: var(--ro-fs-lg);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--ro-text);
@@ -522,7 +522,7 @@ html[data-layout] .ro-xmb:focus-visible {
 }
 
 .ro-xmb__item-sub {
-  font-size: 0.8rem;
+  font-size: var(--ro-fs-xs);
   color: var(--ro-text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -542,7 +542,7 @@ html[data-layout] .ro-xmb:focus-visible {
   padding: 0.85rem 0.35rem;
   max-width: 18rem;
   font-family: var(--ro-font-ui);
-  font-size: 0.95rem;
+  font-size: var(--ro-fs-base);
   line-height: 1.45;
   color: var(--ro-text-dim);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
@@ -580,7 +580,7 @@ html[data-layout] .ro-xmb:focus-visible {
 
 .ro-xmb__info-body {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--ro-fs-base);
   color: color-mix(in srgb, var(--ro-text) 72%, var(--ro-text-dim));
   line-height: 1.5;
   max-width: 22em;
@@ -763,7 +763,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
 .ro-xmb__stage .ro-cover__label,
 .ro-xmb__stage .ro-cover__label--fallback {
-  font-size: 0.7rem;
+  font-size: var(--ro-fs-2xs);
   padding: 0.65rem;
 }
 
@@ -776,7 +776,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
 .ro-xmb__stage-glyph {
   font-family: var(--ro-font-display);
-  font-size: 0.85rem;
+  font-size: var(--ro-fs-sm);
   font-weight: 650;
   letter-spacing: 0.1em;
   color: var(--ro-text);
@@ -794,9 +794,9 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
 .ro-xmb__info-kicker {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: var(--ro-fs-2xs);
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--ro-track-eyebrow);
   text-transform: uppercase;
   color: color-mix(in srgb, var(--ro-accent) 82%, var(--ro-text-dim));
   opacity: 0.9;
@@ -829,7 +829,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   html[data-layout='tv'] .ro-xmb__cat-label {
-    font-size: 1rem;
+    font-size: var(--ro-fs-md);
   }
 
   html[data-layout='tv'] .ro-xmb__rail-inner {
@@ -849,11 +849,11 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   html[data-layout='tv'] .ro-xmb__item-title {
-    font-size: 1.28rem;
+    font-size: var(--ro-fs-xl);
   }
 
   html[data-layout='tv'] .ro-xmb__item-sub {
-    font-size: 0.92rem;
+    font-size: var(--ro-fs-base);
   }
 
   html[data-layout='tv'] .ro-xmb__stage {
@@ -873,11 +873,11 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   html[data-layout='tv'] .ro-xmb__info-body {
-    font-size: 1.05rem;
+    font-size: var(--ro-fs-lg);
   }
 
   html[data-layout='tv'] .ro-xmb__hint {
-    font-size: 0.9rem;
+    font-size: var(--ro-fs-base);
   }
 }
 
@@ -917,7 +917,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__info-body {
-    font-size: 0.88rem;
+    font-size: var(--ro-fs-sm);
   }
 
   html[data-layout='tv'] .ro-xmb__cat-icon {
@@ -1043,7 +1043,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__info-title {
-    font-size: 1rem;
+    font-size: var(--ro-fs-md);
   }
 
   .ro-xmb__item {
@@ -1057,7 +1057,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__item-title {
-    font-size: 0.95rem;
+    font-size: var(--ro-fs-base);
   }
 
   .ro-xmb__item-sub {
@@ -1327,7 +1327,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__clock-time {
-    font-size: 0.95rem;
+    font-size: var(--ro-fs-base);
   }
 
   .ro-xmb__cats {
@@ -1378,7 +1378,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
     opacity: 0.75;
     visibility: visible;
     transform: none;
-    font-size: 0.72rem;
+    font-size: var(--ro-fs-2xs);
   }
 
   .ro-xmb__cat[data-active='true'] .ro-xmb__cat-label {
@@ -1498,7 +1498,7 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   }
 
   .ro-xmb__cat-label {
-    font-size: 0.7rem;
+    font-size: var(--ro-fs-2xs);
   }
 
   .ro-xmb__rail {
