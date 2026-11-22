@@ -215,7 +215,8 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
   const gameLevels: Array<[number, string]> = [[0, 'Mute'], [0.25, 'Low'], [0.5, 'Medium'], [0.75, 'High'], [1, 'Max']]
   const gameVolume = getGameVolume()
   // A level set from a game's own slider lands on the nearest step.
-  const gameStep = gameLevels.reduce((best, level) => Math.abs(level[0] - gameVolume) < Math.abs(best[0] - gameVolume) ? level : best)[0]
+  // Mute only when it really is silent; any sound lands on the nearest audible step.
+  const gameStep = gameVolume === 0 ? 0 : gameLevels.slice(1).reduce((best, level) => Math.abs(level[0] - gameVolume) < Math.abs(best[0] - gameVolume) ? level : best)[0]
   const libretro = getLibretroCovers()
   const ejsChannel = getEjsChannel()
   const touchControls = getTouchControls()
@@ -861,7 +862,6 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
   root.querySelectorAll<HTMLButtonElement>('[data-game-volume]').forEach((btn) => {
     btn.addEventListener('click', () => {
       setGameVolume(Number(btn.dataset.gameVolume))
-      sfxToggle()
       rerender(btn.dataset.focusId)
     })
   })

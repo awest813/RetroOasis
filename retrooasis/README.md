@@ -242,7 +242,7 @@ Open the printed **localhost** address on the host, add a real ROM or use your e
 
 ### EmulatorJS Netplay
 
-The host app also runs a server for **EmulatorJS's own Netplay**, for any system. Open a game from the host app's address and the globe button in the game's menu bar opens Netplay (styled to match RetroOasis): create a room, or join one listed for the same game. Everyone opens the same game (rooms are matched by system and title); guests see the host's screen and play as Player 2 and up, with chat. The server lives at `/netplay-io/` (its own Socket.IO endpoint, so save-state-sized messages never reach the rooms' small limit) and lists rooms at `/netplay/list`. On a static site there is no server, so the button stays hidden. Like rooms, it works on one network or a virtual LAN; there is no STUN/TURN.
+The host app also runs a server for **EmulatorJS's own Netplay**, for any system. Open a game from the host app's address and the globe button in the game's menu bar opens Netplay (styled to match RetroOasis): create a room, or join one listed for the same game. Everyone opens the same game (rooms are matched by system and title); guests see the host's screen and play as Player 2 and up, with chat. The server lives at `/netplay-io/` (its own Socket.IO endpoint, so save-state-sized messages never reach the rooms' small limit) and lists rooms at `/netplay/list`. On a static site there is no server, so the button stays hidden. Like rooms, it works on one network or a virtual LAN; there is no STUN/TURN. The server allows 4 open rooms per device, told apart by address, so run the host app directly rather than behind a reverse proxy (or `tailscale serve`), where every player would share one address.
 
 ### Over the internet
 
