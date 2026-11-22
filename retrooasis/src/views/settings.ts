@@ -384,6 +384,7 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
                   <p class="ro-online-method__how">Game page → <b>Start Trade &amp; link</b></p>
                 </article>
               </div>
+              <p class="ro-muted">Also: <b>EmulatorJS Netplay</b>, for any system. Open a game from the host app’s address, then use the globe button in the game’s menu bar to create or join a room. Everyone opens the same game; guests see the host’s screen and play as Player 2 and up.</p>
             </div>
           </div>
           <div class="ro-settings-row ro-settings-row--stack" data-ro-focus-row>

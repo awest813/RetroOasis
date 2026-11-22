@@ -1534,7 +1534,38 @@
               };
             });
           }).catch(function () { /* cosmetic only */ });
-          return Promise.all([gameSaves, transferPak, emulatorText]).then(function () {
+          // EmulatorJS's own Netplay, when this page comes from the RetroOasis host app (which runs
+          // its server). Not for a room host: that page streams through RetroOasis rooms instead.
+          // Both players get the same numeric game id from the system and name, so they see each
+          // other's rooms; the socket.io client is pointed at the host app's netplay endpoint.
+          var netplaySetup = params.get("lanhost") === "1" ? Promise.resolve() : (function () {
+            var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 1500); });
+            var probe = fetch("./api/lan", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+            return Promise.race([probe, timeout]).then(function (lan) {
+              if (!lan || !lan.available) return;
+              var key = (core + ":" + name).toLowerCase().replace(/\s+/g, " ").trim();
+              var hash = 2166136261;
+              for (var i = 0; i < key.length; i++) { hash ^= key.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+              window.EJS_gameID = (hash >>> 1) || 1;
+              window.EJS_netplayServer = location.origin + "/netplay";
+              var server = window.EJS_netplayServer;
+              var realIo;
+              Object.defineProperty(window, "io", {
+                configurable: true,
+                get: function () {
+                  if (!realIo) return realIo;
+                  return function (url, options) {
+                    if (typeof url === "string" && url.indexOf(server) === 0) {
+                      options = Object.assign({ path: "/netplay-io/", transports: ["websocket"] }, options);
+                    }
+                    return realIo(url, options);
+                  };
+                },
+                set: function (value) { realIo = value; },
+              });
+            });
+          })();
+          return Promise.all([gameSaves, transferPak, emulatorText, netplaySetup]).then(function () {
             if (params.get("lanhost") === "1") {
               return import("./lan-host.js").then(function (module) {
                 module.installLanHost();

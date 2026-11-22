@@ -32,7 +32,7 @@
         "oasis:host:pack": "npm run oasis:build && node retrooasis/scripts/pack-host.mjs",
         "oasis:lan:link": "node retrooasis/scripts/prepare-link.mjs",
         "oasis:lan:cert": "pwsh -NoProfile -File retrooasis/scripts/lan-cert.ps1",
-        "test:lan": "node retrooasis/scripts/test-lan.mjs && npm --prefix retrooasis run test:lan-service && npm --prefix retrooasis run test:link"
+        "test:lan": "node retrooasis/scripts/test-lan.mjs && node retrooasis/scripts/test-netplay.mjs && npm --prefix retrooasis run test:lan-service && npm --prefix retrooasis run test:link"
     },
     "dependencies": {
         "@node-minify/clean-css": "^10.4.0",

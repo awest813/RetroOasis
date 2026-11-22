@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
 import QRCode from 'qrcode'
 import { attachRooms } from './lan-rooms.mjs'
+import { attachNetplay } from './lan-netplay.mjs'
 import { LAN_PROTOCOL, LAN_CAPABILITIES, LINK_CAPABILITIES } from '../public/lan-capabilities.js'
 import { inspectCore } from './lan-assets.mjs'
 import { inspectLink, verifiedLinkFile, linkRoot as defaultLinkRoot, LINK_FILES } from './lan-link.mjs'
@@ -71,6 +72,7 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
     return !req.headers.origin || req.headers.origin === url.origin
   }
   const roots = { '/data/': lanPaths.data, '/roms/': lanPaths.roms }
+  let netplay = null
   let link = { ready: false, systems: [] }
   const refreshLink = async () => { link = await inspectLink(linkRoot); return link }
   void refreshLink()
@@ -89,6 +91,12 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
       res.setHeader('Content-Type', 'application/json')
       try { res.end(JSON.stringify(await inspectCore(url.searchParams.get('core')))) }
       catch { res.writeHead(400); res.end(JSON.stringify({ ready: false, error: 'Unsupported LAN core.' })) }
+      return
+    }
+    if (pathname === '/netplay/list') {
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(netplay ? netplay.list(url.searchParams) : {}))
       return
     }
     if (pathname === '/api/lan') {
@@ -152,10 +160,13 @@ export function createLanServer({ port = 8787, cert, key, staticRoot = lanPaths.
   }
   const server = secure ? https.createServer({ cert: fs.readFileSync(cert), key: fs.readFileSync(key) }, (req, res) => { void serve(req, res) })
     : http.createServer((req, res) => { void serve(req, res) })
-  const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384,
+  // Two socket.io servers share this HTTP server (rooms at /socket.io/, EmulatorJS Netplay at
+  // /netplay-io/); neither may close the other's WebSocket upgrades.
+  const io = new Server(server, { serveClient: true, transports: ['websocket'], maxHttpBufferSize: 16384, destroyUpgrade: false,
     allowRequest: (req, callback) => callback(null, validRequest(req)), cors: { origin: false } })
   const rooms = attachRooms(io, { linkAvailable: () => link.ready })
-  return { server, io, rooms, get addresses() { return current().map(value => value.ip) }, get described() { return current() }, secure, refreshLink, setPort: value => { actualPort = value } }
+  netplay = attachNetplay(server, { allowRequest: (req, callback) => callback(null, validRequest(req)) })
+  return { server, io, rooms, netplay, get addresses() { return current().map(value => value.ip) }, get described() { return current() }, secure, refreshLink, setPort: value => { actualPort = value } }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

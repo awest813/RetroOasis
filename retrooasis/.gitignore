@@ -34,6 +34,7 @@ scripts/.ra-test-cache
 scripts/.covers-test-cache-*
 .lan-certs/
 scripts/.lan-test-cache-*/
+scripts/.netplay-test-cache-*/
 .handheld-cache/
 # Portable room host (npm run oasis:host:pack)
 release/
