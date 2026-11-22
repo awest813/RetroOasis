@@ -256,6 +256,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       [
         ['settings', 'All settings', 'Everything in one place', '/settings', 'SET', 'Look and sound, controllers, online play, library, achievements and saves. Settings stay on this device.'],
         ['set-look', 'Appearance', 'Accent, layout, CRT', '/settings/appearance', 'palette', 'Sega cyan or PlayStation amber, the larger TV layout, and the CRT overlay.'],
+        ['set-sound', 'Sound', 'Game and menu volume', '/settings/sound', 'sound', 'How loud games start, and the menu sounds: on or off, which pack, how loud.'],
         ['set-controller', 'Controllers', 'Pair a pad, on-screen controls', '/settings/controllers', 'gamepad', 'Connect a Bluetooth or USB controller, test its buttons, and set the touch controls.'],
         ['set-lan', 'Online play', 'Rooms and Trade & link', '/settings/online', 'online', 'Host a room for friends, join one, or link two handhelds for trades and battles.'],
         ['set-achievements', 'Achievements', 'RetroAchievements progress', '/settings/achievements', 'trophy', 'Connect your RetroAchievements account to see progress on game pages.'],

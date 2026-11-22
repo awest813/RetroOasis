@@ -25,6 +25,8 @@ import {
   getEjsChannel,
   getLibretroCovers,
   getSoundPack,
+  getSoundVolume,
+  getGameVolume,
   getSoundsEnabled,
   getTouchControls,
   getTouchLeftHanded,
@@ -35,6 +37,8 @@ import {
   setLayout,
   setLibretroCovers,
   setSoundPack,
+  setSoundVolume,
+  setGameVolume,
   setSoundsEnabled,
   setTouchControls,
   setTouchLeftHanded,
@@ -42,6 +46,7 @@ import {
   type EjsChannel,
   type LayoutMode,
   type SoundPack,
+  type SoundVolume,
   type TouchControlsMode,
 } from '../lib/store'
 import { sfxToggle } from '../lib/sfx'
@@ -206,6 +211,11 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
   const layout = getLayout()
   const sounds = getSoundsEnabled()
   const pack = getSoundPack()
+  const soundVolume = getSoundVolume()
+  const gameLevels: Array<[number, string]> = [[0, 'Mute'], [0.25, 'Low'], [0.5, 'Medium'], [0.75, 'High'], [1, 'Max']]
+  const gameVolume = getGameVolume()
+  // A level set from a game's own slider lands on the nearest step.
+  const gameStep = gameLevels.reduce((best, level) => Math.abs(level[0] - gameVolume) < Math.abs(best[0] - gameVolume) ? level : best)[0]
   const libretro = getLibretroCovers()
   const ejsChannel = getEjsChannel()
   const touchControls = getTouchControls()
@@ -290,6 +300,16 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
 
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
+              <strong>Game volume</strong>
+              <p class="ro-muted">For every game. The volume slider in a game’s menu changes the same setting.</p>
+            </div>
+            <div class="ro-toggle-group" role="group" aria-label="Game volume">
+              ${gameLevels.map(([level, label]) => `<button type="button" class="ro-btn" data-game-volume="${level}" data-focus-id="game-volume-${label.toLowerCase()}" data-ro-focusable="true" aria-pressed="${pressed(gameStep === level)}">${label}</button>`).join('')}
+            </div>
+          </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
               <strong>UI sounds</strong>
               <p class="ro-muted">Menu blips on move and confirm.</p>
             </div>
@@ -307,6 +327,17 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
               <button type="button" class="ro-btn" data-pack="arcade" data-focus-id="pack-arcade" data-ro-focusable="true" aria-pressed="${pressed(pack === 'arcade')}"${!sounds ? ' disabled' : ''}>Arcade</button>
             </div>
           </div>
+
+          <div class="ro-settings-row" data-ro-focus-row>
+            <div class="ro-settings-row__copy">
+              <strong>UI sound volume</strong>
+              <p class="ro-muted">${sounds ? 'How loud menu sounds are. Always quieter than games.' : 'Turn on UI sounds to set their volume.'}</p>
+            </div>
+            <div class="ro-toggle-group" role="group" aria-label="UI sound volume">
+              ${(['low', 'medium', 'high'] as SoundVolume[]).map(level => `<button type="button" class="ro-btn" data-sound-volume="${level}" data-focus-id="sound-volume-${level}" data-ro-focusable="true" aria-pressed="${pressed(soundVolume === level)}"${!sounds ? ' disabled' : ''}>${level[0].toUpperCase()}${level.slice(1)}</button>`).join('')}
+            </div>
+          </div>
+
 
         </section>
 
@@ -737,7 +768,10 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
     button.addEventListener('click', () => {
       const heading = root.querySelector<HTMLElement>(`#ro-set-${button.dataset.settingsSection}`)
       const section = heading?.closest('section')
-      const target = section?.querySelector<HTMLElement>('[data-ro-focusable="true"]:not(summary):not([disabled]):not([aria-disabled="true"])')
+      // The first control, or in a row of choices the current one, so a jump never lands on
+      // something like Mute that a stray press would change.
+      const first = section?.querySelector<HTMLElement>('[data-ro-focusable="true"]:not(summary):not([disabled]):not([aria-disabled="true"])')
+      const target = first?.closest('[data-ro-focus-row]')?.querySelector<HTMLElement>('[aria-pressed="true"]:not([disabled])') ?? first
       target?.focus({ preventScroll: true })
       heading?.scrollIntoView({ block: 'start' })
     })
@@ -811,6 +845,23 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
       if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return
       setSoundPack(btn.dataset.pack as SoundPack)
       if (getSoundsEnabled()) sfxToggle()
+      rerender(btn.dataset.focusId)
+    })
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('[data-sound-volume]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return
+      setSoundVolume(btn.dataset.soundVolume as SoundVolume)
+      sfxToggle() // a preview at the new level
+      rerender(btn.dataset.focusId)
+    })
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('[data-game-volume]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setGameVolume(Number(btn.dataset.gameVolume))
+      sfxToggle()
       rerender(btn.dataset.focusId)
     })
   })

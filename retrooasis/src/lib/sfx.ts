@@ -1,4 +1,4 @@
-import { getSoundPack, getSoundsEnabled, type SoundPack } from './store'
+import { getSoundPack, getSoundVolume, getSoundsEnabled, type SoundPack } from './store'
 
 let ctx: AudioContext | null = null
 
@@ -9,6 +9,12 @@ function audio(): AudioContext | null {
   if (ctx.state === 'suspended') void ctx.resume()
   return ctx
 }
+
+// The packs' own gains peak near -35 dBFS, far under game audio. Medium lifts them to about
+// -21 dBFS: clearly there on laptop speakers, still quieter than a game.
+const LEVELS = { low: 2.5, medium: 5, high: 10 } as const
+// XMB's sine clicks measured 4 dB under Soft and Arcade; bring them level.
+const TRIM: Partial<Record<SoundPack, number>> = { xmb: 1.6 }
 
 function tone(
   freq: number,
@@ -24,7 +30,7 @@ function tone(
   const g = ac.createGain()
   osc.type = type
   osc.frequency.value = freq
-  g.gain.setValueAtTime(gain, t0)
+  g.gain.setValueAtTime(gain * LEVELS[getSoundVolume()] * (TRIM[getSoundPack()] ?? 1), t0)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration)
   osc.connect(g)
   g.connect(ac.destination)

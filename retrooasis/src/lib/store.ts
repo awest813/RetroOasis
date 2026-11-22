@@ -8,6 +8,9 @@ const HIDE_DEMOS_KEY = 'retrooasis.hideDemos'
 const LAYOUT_KEY = 'retrooasis.layout'
 const SOUNDS_KEY = 'retrooasis.sounds'
 const SOUND_PACK_KEY = 'retrooasis.soundPack'
+const SOUND_VOLUME_KEY = 'retrooasis.soundVolume'
+/** EmulatorJS keeps one volume for every game here (same origin as the app). */
+const EJS_SETTINGS_KEY = 'ejs-settings'
 const LIBRETRO_COVERS_KEY = 'retrooasis.libretroCovers'
 const EJS_CHANNEL_KEY = 'retrooasis.ejsChannel'
 const MAX_RECENTS = 12
@@ -195,6 +198,46 @@ export function getSoundPack(): SoundPack {
     /* ignore */
   }
   return 'soft'
+}
+
+export type SoundVolume = 'low' | 'medium' | 'high'
+
+export function getSoundVolume(): SoundVolume {
+  try {
+    const raw = localStorage.getItem(SOUND_VOLUME_KEY)
+    if (raw === 'low' || raw === 'medium' || raw === 'high') return raw
+  } catch {
+    /* ignore */
+  }
+  return 'medium'
+}
+
+export function setSoundVolume(volume: SoundVolume): void {
+  writeRaw(SOUND_VOLUME_KEY, volume)
+}
+
+/** Game volume, 0–1 (0 when muted), shared with the volume slider inside every game. */
+export function getGameVolume(): number {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EJS_SETTINGS_KEY) ?? 'null') as { volume?: unknown; muted?: unknown } | null
+    if (raw && typeof raw.volume === 'number') return raw.muted === true ? 0 : Math.min(1, Math.max(0, raw.volume))
+  } catch {
+    /* ignore */
+  }
+  return 0.5 // EmulatorJS's default
+}
+
+export function setGameVolume(volume: number): void {
+  let previous = 0.5
+  try {
+    const raw = JSON.parse(localStorage.getItem(EJS_SETTINGS_KEY) ?? 'null') as { volume?: unknown } | null
+    if (raw && typeof raw.volume === 'number' && raw.volume > 0) previous = raw.volume
+  } catch {
+    /* ignore */
+  }
+  // Mute keeps the last level, so the game's own unmute returns to it.
+  const value = volume > 0 ? { volume, muted: false } : { volume: previous, muted: true }
+  writeRaw(EJS_SETTINGS_KEY, JSON.stringify(value))
 }
 
 export function setSoundPack(pack: SoundPack): void {
