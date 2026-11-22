@@ -22,15 +22,19 @@ function focusTarget(el: HTMLElement | null | undefined): void {
   el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
-function moveFocus(root: HTMLElement, key: Dir): void {
+/** Where the first press lands when nothing on the page is selected yet. */
+type Start = () => HTMLElement | null | undefined
+
+function moveFocus(root: HTMLElement, key: Dir, start?: Start): void {
   const dir: Dir = key === 'pageleft' ? 'left' : key === 'pageright' ? 'right' : key
   const list = focusables(root)
   if (!list.length) return
 
   const active = document.activeElement as HTMLElement | null
+  const first = () => { const el = start?.(); return el && list.includes(el) ? el : list[0] }
   if (dir === 'confirm') {
-    const target = active && list.includes(active) ? active : list[0]
-    if (!active || !list.includes(active)) { focusTarget(target); return }
+    if (!active || !list.includes(active)) { focusTarget(first()); return }
+    const target = active
     if (target.getAttribute('aria-disabled') === 'true') return
     if (target.matches('input:not([type=checkbox]):not([type=radio]), textarea, select')) { target.focus(); return }
     sfxConfirm()
@@ -38,7 +42,7 @@ function moveFocus(root: HTMLElement, key: Dir): void {
     return
   }
 
-  if (!active || !list.includes(active)) { focusTarget(list[0]); return }
+  if (!active || !list.includes(active)) { focusTarget(first()); return }
   const box = active.getBoundingClientRect()
   const horizontal = dir === 'left' || dir === 'right'
   const sign = dir === 'right' || dir === 'down' ? 1 : -1
@@ -58,8 +62,11 @@ function moveFocus(root: HTMLElement, key: Dir): void {
     const forward = (horizontal ? dx : dy) * sign
     if (forward < 1) continue
     const sideways = horizontal ? gap(box.top, box.bottom, rect.top, rect.bottom) : gap(box.left, box.right, rect.left, rect.right)
+    // Anything in line with the current control (overlapping across the direction of travel)
+    // beats anything off to the side, however close: Right from a cover is the next cover, not
+    // the search box above it. Off-line targets are only for when nothing is in line.
     // Strict '<' keeps the earliest element in document order on ties.
-    const distance = forward + sideways * 3
+    const distance = (sideways > 0 ? 1e6 : 0) + forward + sideways * 3
     if (distance < score) { score = distance; best = el }
   }
   if (best) { sfxMove(); focusTarget(best) }
@@ -159,8 +166,8 @@ function bindPadAndKeys(
   }
 }
 
-export function bindGridFocus(root: HTMLElement): Cleanup {
-  return bindPadAndKeys(root, moveFocus)
+export function bindGridFocus(root: HTMLElement, start?: Start): Cleanup {
+  return bindPadAndKeys(root, (target, dir) => moveFocus(target, dir, start))
 }
 
 /** Up/down between `[data-ro-focus-row]` groups; left/right within the row.

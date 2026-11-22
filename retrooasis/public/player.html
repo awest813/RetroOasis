@@ -221,6 +221,63 @@
         .ro-play-bar button::after { content: ""; position: absolute; inset: -9px -4px; }
       }
 
+      /* Controller pause menu: the Home button, or holding Select + Start, from the couch. */
+      .ro-pad-menu {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        display: grid;
+        place-items: center;
+        background: color-mix(in srgb, var(--ro-bg-void) 72%, transparent);
+        backdrop-filter: blur(3px);
+      }
+      .ro-pad-menu[hidden] {
+        display: none;
+      }
+      .ro-pad-menu__card {
+        display: grid;
+        gap: 0.75rem;
+        min-width: min(18rem, calc(100vw - 2rem));
+        padding: 1.25rem 1.25rem 1rem;
+        border: 1px solid var(--ro-accent);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--ro-bg-void) 94%, transparent);
+        text-align: center;
+      }
+      .ro-pad-menu h2 {
+        margin: 0 0 0.25rem;
+        font-family: var(--ro-font-display);
+        font-size: 1.25rem;
+        font-weight: 650;
+        color: var(--ro-text);
+      }
+      .ro-pad-menu button {
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+        border: 1px solid color-mix(in srgb, var(--ro-accent) 55%, transparent);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ro-text);
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .ro-pad-menu button:focus,
+      .ro-pad-menu button[data-current] {
+        outline: none;
+        background: var(--ro-accent);
+        border-color: var(--ro-accent);
+        color: var(--ro-bg-void);
+      }
+      .ro-pad-menu__hint {
+        margin: 0.25rem 0 0;
+        font-size: 0.75rem;
+        color: var(--ro-text-dim);
+      }
+
       .ro-play-hint {
         position: fixed;
         left: 50%;
@@ -405,6 +462,14 @@
       <span class="ro-play-meta" id="meta"></span>
     </div>
     <div id="display"><div id="game"></div></div>
+    <div id="pad-menu" class="ro-pad-menu" hidden role="dialog" aria-modal="true" aria-labelledby="pad-menu-title">
+      <div class="ro-pad-menu__card">
+        <h2 id="pad-menu-title">Paused</h2>
+        <button type="button" data-pad-act="resume">Resume</button>
+        <button type="button" data-pad-act="exit">Exit game</button>
+        <p class="ro-pad-menu__hint">A chooses · B resumes</p>
+      </div>
+    </div>
     <script>
       (function () {
         // EmulatorJS asks to keep the screen awake and doesn't handle a refusal (battery
@@ -1267,7 +1332,94 @@
             paint();
             button.hidden = false;
           }
+          // With only a controller in hand (a TV, the couch) there was no way out of a game: Exit and
+          // the game menu are touch / mouse targets. The Home button, or holding Select + Start on
+          // their own for a second, pauses and opens Resume / Exit. Holding keeps a quick Start, and
+          // soft-reset combos like A + B + Select + Start, for the game.
+          function installPadMenu(emulator) {
+            var menu = document.getElementById("pad-menu");
+            if (!menu || typeof navigator.getGamepads !== "function") return;
+            var buttons = Array.prototype.slice.call(menu.querySelectorAll("button"));
+            var current = 0;
+            var open = false;
+            var wasPaused = false;
+            var comboSince = 0;
+            var needRelease = false;
+            var prev = {};
+            var mark = function () {
+              buttons.forEach(function (b, i) { if (i === current) b.setAttribute("data-current", ""); else b.removeAttribute("data-current"); });
+              buttons[current].focus({ preventScroll: true });
+            };
+            var show = function () {
+              if (open) return;
+              open = true;
+              wasPaused = !!emulator.paused;
+              if (typeof emulator.pause === "function") emulator.pause();
+              current = 0;
+              menu.hidden = false;
+              mark();
+              needRelease = true;
+            };
+            var hide = function () {
+              if (!open) return;
+              open = false;
+              menu.hidden = true;
+              if (!wasPaused && typeof emulator.play === "function") emulator.play();
+              needRelease = true;
+            };
+            var act = function (name) {
+              if (name === "exit") { window.location.href = back; return; }
+              hide();
+            };
+            buttons.forEach(function (b, i) {
+              b.addEventListener("click", function () { act(b.getAttribute("data-pad-act")); });
+              b.addEventListener("focus", function () { current = i; buttons.forEach(function (o, j) { if (j !== i) o.removeAttribute("data-current"); else o.setAttribute("data-current", ""); }); });
+            });
+            menu.addEventListener("keydown", function (event) {
+              if (event.key === "Escape") { event.preventDefault(); hide(); }
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); current = (current + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length; mark(); }
+            });
+            var pressed = function (pad, i) { var b = pad.buttons[i]; return !!(b && (b.pressed || b.value > 0.5)); };
+            var tick = function (now) {
+              requestAnimationFrame(tick);
+              if (document.hidden) return;
+              var pads = navigator.getGamepads() || [];
+              var home = false, combo = false, any = false, up = false, down = false, a = false, bBtn = false, start = false;
+              for (var p = 0; p < pads.length; p++) {
+                var pad = pads[p];
+                if (!pad || !pad.connected) continue;
+                var others = false;
+                for (var i = 0; i < pad.buttons.length; i++) {
+                  if (!pressed(pad, i)) continue;
+                  any = true;
+                  if (i !== 8 && i !== 9 && i !== 16) others = true;
+                }
+                if (pressed(pad, 16)) home = true;
+                if (pressed(pad, 8) && pressed(pad, 9) && !others) combo = true;
+                var y = pad.axes && pad.axes.length > 1 ? pad.axes[1] : 0;
+                if (pressed(pad, 12) || y < -0.6) up = true;
+                if (pressed(pad, 13) || y > 0.6) down = true;
+                if (pressed(pad, 0)) a = true;
+                if (pressed(pad, 1)) bBtn = true;
+                if (pressed(pad, 9)) start = true;
+              }
+              if (needRelease) { if (!any) needRelease = false; prev = {}; comboSince = 0; return; }
+              if (!open) {
+                comboSince = combo ? (comboSince || now) : 0;
+                if (home || (comboSince && now - comboSince >= 1000)) show();
+                return;
+              }
+              // Edge-triggered while the menu is open.
+              var edge = function (name, value) { var was = prev[name]; prev[name] = value; return value && !was; };
+              if (edge("up", up)) { current = (current + buttons.length - 1) % buttons.length; mark(); }
+              if (edge("down", down)) { current = (current + 1) % buttons.length; mark(); }
+              if (edge("a", a)) act(buttons[current].getAttribute("data-pad-act"));
+              else if (edge("b", bBtn) || edge("home", home) || edge("start", start)) hide();
+            };
+            requestAnimationFrame(tick);
+          }
           window.EJS_onGameStart = function () {
+            try { installPadMenu(window.EJS_emulator); } catch (e) { console.warn("RetroOasis controller menu", e); }
             try { fitTouchPadToLaptops(window.EJS_emulator); } catch (e) { console.warn("RetroOasis touch pad fit", e); }
             try { installPadToggle(window.EJS_emulator); } catch (e) { console.warn("RetroOasis controls toggle", e); }
             nameMenuButtons();

@@ -320,7 +320,7 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
               <ul class="ro-settings__controller-list" id="ro-controller-list" aria-label="Connected controllers" hidden></ul>
               <details class="ro-settings__help">
                 <summary data-focus-id="controller-help" data-ro-focusable="true">Controls &amp; troubleshooting</summary>
-                <p class="ro-muted">D-pad or left stick moves. A / Cross chooses; B / Circle closes menus and goes back. Start chooses and Select goes back. In Settings, L1 / R1 jump between sections.</p>
+                <p class="ro-muted">D-pad or left stick moves. A / Cross chooses; B / Circle closes menus and goes back. Start chooses and Select goes back. In Settings, L1 / R1 jump between sections. In a game, the Home button, or holding Select + Start, pauses with Resume and Exit.</p>
                 <p class="ro-muted">Face-button labels vary by controller: the bottom button chooses and the right button goes back.</p>
                 <p class="ro-muted">Use HTTPS or localhost. If a controller stays unavailable, reconnect it and check again. Set game-specific controls in the player.</p>
                 <p class="ro-muted">To switch menu controllers, press and release a button on the other controller. Local multiplayer controller assignments are separate: select each player’s controller in the player’s Controls menu.</p>

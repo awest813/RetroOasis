@@ -14,6 +14,7 @@ import { resolveCoverUrls, romFilenameFromUrl } from '../lib/covers'
 import { coverMarkup, escapeAttr, escapeHtml, hydrateCovers } from '../lib/dom'
 import { achievementBadge, achievementBadgeTitle } from '../lib/raModel'
 import { bindGridFocus } from '../lib/focus'
+import { getInputModality } from '../lib/inputModality'
 import { hrefFor, type VirtualCollection } from '../lib/router'
 import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { registerViewCleanup } from '../lib/viewLifecycle'
@@ -21,6 +22,8 @@ import { icon } from '../lib/icons'
 
 // Last focused tile per shelf, so Back from a game returns to the same place.
 const lastTileByShelf = new Map<string, string>()
+/** Set when a filter chip is chosen with a controller or keys; the next shelf focuses its active chip. */
+let refocusChip = false
 
 export type LibrarySelection =
   | { kind: 'platform'; id: string }
@@ -300,10 +303,29 @@ export async function renderLibrary(
     }
     firstPaint = false
 
-    const cleanupNavigation = bindGridFocus(root)
+    // Controller / keys: the first press picks a game (the last one on this shelf, else the
+    // first), not the getting-started banner above the shelf.
+    const cleanupNavigation = bindGridFocus(root, () => {
+      const tiles = [...(grid?.querySelectorAll<HTMLElement>('.ro-tile__link[data-ro-focusable="true"]') ?? [])]
+      const href = lastTileByShelf.get(shelfKey)
+      return tiles.find(link => link.getAttribute('href') === href) ?? tiles[0] ?? root.querySelector<HTMLElement>('.ro-chip.is-active')
+    })
+    // A filter chip chosen with a controller or keys keeps focus on that chip after the
+    // shelf redraws, so Down goes straight into the filtered games.
+    const onChipPick = (event: Event) => {
+      if (getInputModality() === 'mouse') return
+      if ((event.target as HTMLElement | null)?.closest('.ro-chip')) refocusChip = true
+    }
+    root.addEventListener('click', onChipPick)
+    if (refocusChip) {
+      refocusChip = false
+      const chip = root.querySelector<HTMLElement>('.ro-chip.is-active')
+      if (chip) { chip.focus({ preventScroll: true }); chip.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }
+    }
     cleanup = () => {
       window.clearTimeout(searchTimer)
       grid?.removeEventListener('focusin', rememberTile)
+      root.removeEventListener('click', onChipPick)
       cleanupNavigation()
     }
   }
