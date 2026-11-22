@@ -26,13 +26,14 @@ Dependencies for both the repo root and `retrooasis/` are installed by the start
 
 ### RetroOasis architecture (quick map)
 
-- **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/library/tag/<t>` (legacy: opens All games with the tag prefilled as search), `#/game/<id>`, `#/upload`, `#/settings`, `#/saves`
+- **Routes** (`src/lib/router.ts`): hash router — `#/` (XMB home), `#/library`, `#/library/@recent|@favorites|@all`, `#/library/<platform>`, `#/library/tag/<t>` (legacy: opens All games with the tag prefilled as search), `#/game/<id>`, `#/upload`, `#/settings`, `#/settings/<section>` (opens Settings at appearance / sound / controllers / online / library / achievements / saves / advanced), `#/saves`
 - **Views** (`src/views/`): `xmb.ts` (home shell), `library.ts` (Switch-style flat cover grid: one filter chip row — a swipeable single row on phones, your games A–Z then labelled samples, search; Up/Down leave the search box), `detail.ts` (Play + “＋ Options” vertical menu for favorite/edit/remove), `upload.ts`, `settings.ts` (console-style row focus)
 - **Play**: navigates to `public/player.html` with EmulatorJS `EJS_*` globals (iframe isolation)
 - **Archives** (`src/lib/archives.ts`): header-only peek into zip/7z/rar for Auto-detect (zip central directory, RAR4/5 block walk, 7z plain header; compressed 7z headers fall back to EmulatorJS's `data/compression/extract7z.js` worker — CDN in production, same-origin on the local channel). EmulatorJS itself extracts archives at play time.
 - **Catalog merge** (`src/lib/catalog.ts`): demo JSON → `roms/manifest.json` → IndexedDB uploads → linked local folder
 - **Trade & link** (`public/link.html`, `link-host.js`, `link-session.js`): the host browser runs two linked handheld consoles and reuses the LAN room host (`lan-host.js` `mountHost`) to stream Console 2. Guests send their ROM and save over a `cart` data channel (`link-transfer.js`). Served by `scripts/lan-server.mjs` under `/link/` only after `scripts/lan-link.mjs` verifies the manifest checksums.
-- **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds, Libretro covers, EJS channel, on-screen controls (passed to the player as `EJS_defaultOptions`) — all `localStorage`
+- **Prefs** (`src/lib/store.ts`): recents, favorites, accent, CRT, layout, sounds (pack + UI volume), Libretro covers, EJS channel, on-screen controls (passed to the player as `EJS_defaultOptions`; the player's Hide / Show button writes the same key) — all `localStorage`. Game volume reads/writes EmulatorJS's own `ejs-settings` key, shared with the in-game slider.
+- **EmulatorJS Netplay** (`scripts/lan-netplay.mjs`): served by the host app on its own Socket.IO path `/netplay-io/` (32 MB messages, unlike rooms' 16 KB); `player.html` sets `EJS_netplayServer` / a numeric `EJS_gameID` only when served by the host app (probe `./api/lan`). Tested by `scripts/test-netplay.mjs` in `npm run test:lan`.
 
 ### Non-obvious notes
 

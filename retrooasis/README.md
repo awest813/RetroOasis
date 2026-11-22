@@ -59,6 +59,7 @@ Hash routing — no server rewrite rules required.
 | `#/game/<id>` | Game detail + Play |
 | `#/upload` | Add ROM (drag-drop or file picker) |
 | `#/settings` | Look, sound, emulator channel, library, data |
+| `#/settings/<section>` | Settings, opened at a section: `appearance`, `sound`, `controllers`, `online`, `library`, `achievements`, `saves`, `advanced` (unknown names open Settings) |
 
 Play opens `player.html` (EmulatorJS iframe host) with query params for the selected game.
 
@@ -162,7 +163,12 @@ After reconnecting or returning to play, release buttons and center standard-lay
 on phones and tablets (iPadOS included, even with Safari's desktop user agent) and hides it with a
 mouse; On shows it on any touch screen. **Left-handed controls** swap the D-pad and buttons.
 Pressing a button on a Bluetooth or USB controller tucks the touch pad away; touch the screen
-(or disconnect the controller) to bring it back.
+(or disconnect the controller) to bring it back. On a touchscreen laptop or Chromebook in laptop
+mode, Auto starts without the pad, shows it on a touch and tucks it away on a game key (tablet
+mode behaves like a tablet). While playing, **Hide / Show** in the player's top bar switches the pad
+at once and saves the choice as this setting (Off, or back to Auto).
+With only a controller, the **Home / Guide** button, or holding **Select + Start** for a second,
+pauses the game with **Resume** and **Exit game** (a quick Start and soft-reset combos stay with the game).
 A game's own menu (Settings → Virtual Gamepad) still overrides both for that game. PlayStation
 and PSP pads show △ □ ○ ✕ with L1/L2/R1/R2 (L/R on PSP); arcade, 3DS and other systems get L/R.
 Held sideways on a phone, the player's top bar moves between the two control columns so L and R
@@ -183,7 +189,7 @@ All preferences persist in **localStorage** on this device (except ROM bytes and
 | Group | Options |
 | ----- | ------- |
 | **Appearance** | Accent (Sega cyan / PS amber), Layout (Standard / TV), CRT overlay |
-| **Sound** | UI sounds (off by default), sound pack (Soft / XMB / Arcade) |
+| **Sound** | Game volume (Mute to Max; the same value as the volume slider in every game's menu), UI sounds (off by default), sound pack (Soft / XMB / Arcade), UI sound volume (Low / Medium / High) |
 | **Controllers** | Live Bluetooth/USB status; D-pad and stick move, A/Cross confirm, B/Circle back, L/R shoulders move like left/right; on-screen controls (Auto / On / Off) and left-handed layout |
 | **Online play** | The two ways to play (Online rooms, Trade & link), host app status, host and join, host app setup |
 | **Library** | Online box art, hide samples, saved ROMs, link local folder, hosted manifest status |
@@ -234,6 +240,10 @@ npm run oasis:lan
 
 Open the printed **localhost** address on the host, add a real ROM or use your existing library, and choose **Host a room** in the Online room card on its game page. In the game, choose **Create room**, select the invite address matching your Wi-Fi adapter, and share its link or QR code. The guest opens that link on the same network and chooses **Join room**. Settings → **Online play** also includes **Enter room code**, **Choose a game**, and host app status. Demo placeholders cannot host.
 
+### EmulatorJS Netplay
+
+The host app also runs a server for **EmulatorJS's own Netplay**, for any system. Open a game from the host app's address and the globe button in the game's menu bar opens Netplay (styled to match RetroOasis): create a room, or join one listed for the same game. Everyone opens the same game (rooms are matched by system and title); guests see the host's screen and play as Player 2 and up, with chat. The server lives at `/netplay-io/` (its own Socket.IO endpoint, so save-state-sized messages never reach the rooms' small limit) and lists rooms at `/netplay/list`. On a static site there is no server, so the button stays hidden. Like rooms, it works on one network or a virtual LAN; there is no STUN/TURN.
+
 ### Over the internet
 
 Put every player on one virtual LAN, Hamachi-style, then host as usual: [Tailscale](https://tailscale.com) (addresses in `100.64.0.0/10`), [Nebula](https://github.com/slackhq/nebula) (MIT, self-hosted) or [ZeroTier](https://www.zerotier.com). The host app prints and offers the virtual LAN address as an invite address. No port forwarding is needed, and rooms still refuse public addresses.
@@ -277,7 +287,7 @@ npm run oasis:lan:link
 npm run oasis:lan
 ```
 
-On a GB, GBC or GBA game page choose **Trade & link**, optionally add your `.sav`, create a room and share the invite. The guest joins, inserts their ROM and optional save under **Your cartridge** (zipped ROMs work), and the host chooses **Start link**. A Game Boy and a Game Boy Color cartridge can link: each console uses its cartridge's hardware. For GBA, Pokémon Ruby and Sapphire link over gpSP's Pokémon cable, while Emerald, FireRed and LeafGreen link over its emulated Wireless Adapter (trade in the Union Room on a Pokémon Center's second floor), so a cable game can't link with a wireless one. Advance Wars 1 and 2 link over their cable; a few wireless-adapter games (Digimon Racing, Dragon Ball Z: Buu's Fury) also link. The host page names the link in use, or warns when a game has no link support in gpSP, which is the case for most other GBA games.
+On a GB, GBC or GBA game page choose **Trade & link**, optionally add your `.sav`, create a room and share the invite. The guest joins, inserts their ROM and optional save under **Your cartridge** (zipped ROMs work), and the host chooses **Start link**. A Game Boy and a Game Boy Color cartridge can link: each console uses its cartridge's hardware. For GBA, Pokémon Ruby and Sapphire link over gpSP's Pokémon cable, while Emerald, FireRed and LeafGreen link over its emulated Wireless Adapter (trade in the Union Room on a Pokémon Center's second floor), so a cable game can't link with a wireless one. Advance Wars 1 and 2 link over their cable; a few wireless-adapter games (Digimon Racing, Dragon Ball Z: Buu's Fury) also link. The host page names the link in use, or warns as soon as the host's game loads (before a friend joins) when it has no link support in gpSP, which is the case for most other GBA games (Mario Party Advance, for one). Nintendo DS games have no online play: DS multiplayer needs the console's own wireless, which the browser emulator lacks, and their game pages say so.
 
 The host's RetroOasis save for that game is used automatically; uncheck it or choose a `.sav` to override. Save in-game after trading. Saves sync automatically: a few seconds after either game saves, Console 1's save replaces the game's RetroOasis save, and the guest's page receives theirs. The save from before the session is kept once as a `.before-trade` copy in Saves. The guest's page keeps their latest save ready under **Save to this device**, and downloads it automatically if the host leaves before they do. **End session** writes both final saves the same way. A save only counts as delivered once the guest's page confirms it; otherwise their save downloads on the host so it can be passed on. Clock cartridges (Pokémon Gold, Silver and Crystal) sync too: only cartridge RAM is compared, not the ticking clock. **Save to library**, **Download my save** and the guest's **Save to this device** work at any point. Close other tabs playing the same game first so they don't overwrite the updated save. The host plays Console 1 with the keyboard, a gamepad, or on-screen controls on touch devices. If the guest disconnects, both consoles pause mid-link and Console 2 keeps its cartridge until they rejoin.
 
