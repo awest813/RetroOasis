@@ -109,14 +109,39 @@
         border-radius: var(--ro-radius);
       }
 
-      .ro-play-bar a:hover,
-      .ro-play-bar button:hover {
-        background: var(--ro-accent);
-        color: var(--ro-bg-void);
+      /* Touch screens keep :hover after a tap; only real pointers get the fill. */
+      @media (hover: hover) {
+        .ro-play-bar a:hover,
+        .ro-play-bar button:hover {
+          background: var(--ro-accent);
+          color: var(--ro-bg-void);
+        }
       }
 
-      .ro-play-bar a {
+      .ro-play-bar a,
+      .ro-play-bar button {
         flex-shrink: 0;
+        box-sizing: border-box;
+        min-height: 2rem;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      /* The controls toggle reads as secondary beside Exit: a controller icon and Hide / Show. */
+      #pad-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-color: color-mix(in srgb, var(--ro-text) 35%, transparent);
+        color: var(--ro-text);
+      }
+      #pad-toggle[hidden] {
+        display: none;
+      }
+      #pad-toggle svg {
+        width: 1.05rem;
+        height: 1.05rem;
+        flex: none;
       }
 
       .ro-play-title {
@@ -190,8 +215,10 @@
 
       /* Touch screens (phones, tablets, Chromebooks): a 44px hit area around Exit without a taller bar. */
       @media (pointer: coarse), (any-pointer: coarse) {
-        .ro-play-bar a { position: relative; }
-        .ro-play-bar a::after { content: ""; position: absolute; inset: -9px -8px; }
+        .ro-play-bar a,
+        .ro-play-bar button { position: relative; }
+        .ro-play-bar a::after,
+        .ro-play-bar button::after { content: ""; position: absolute; inset: -9px -4px; }
       }
 
       .ro-play-hint {
@@ -373,6 +400,7 @@
   <body>
     <div class="ro-play-bar">
       <a id="back" href="./#/">Exit</a>
+      <button type="button" id="pad-toggle" hidden aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10a5 5 0 0 1 4.8 6.4l-1 3.4a2.4 2.4 0 0 1-4.2.8L14.5 15h-5l-2.1 2.6a2.4 2.4 0 0 1-4.2-.8l-1-3.4A5 5 0 0 1 7 7z"/><path d="M8 9.8v3.4M6.3 11.5h3.4"/></svg><span>Hide</span></button>
       <span class="ro-play-title" id="title"></span>
       <span class="ro-play-meta" id="meta"></span>
     </div>
@@ -1211,8 +1239,37 @@
             var display = document.getElementById("display");
             if (display) display.addEventListener("touchstart", untuck, { passive: true, capture: true });
           }
+          // On-screen controls are optional: one tap in the bar hides or shows them. The choice is
+          // the same setting as Settings → On-screen controls, so it holds for every game.
+          function installPadToggle(emulator) {
+            var button = document.getElementById("pad-toggle");
+            var pad = emulator && emulator.virtualGamepad;
+            if (!button || !pad || !(emulator.touch || emulator.hasTouchScreen)) return;
+            var shown = function () { return pad.style.display !== "none"; };
+            var paint = function () {
+              var on = shown();
+              button.querySelector("span").textContent = on ? "Hide" : "Show";
+              button.setAttribute("aria-pressed", String(on));
+              button.setAttribute("aria-label", on ? "Hide on-screen controls" : "Show on-screen controls");
+              button.title = on ? "Hide the on-screen controls (for a controller or keyboard)" : "Show the on-screen controls";
+            };
+            button.addEventListener("click", function () {
+              var next = !shown();
+              if (typeof emulator.toggleVirtualGamepad === "function") emulator.toggleVirtualGamepad(next);
+              else pad.style.display = next ? "" : "none";
+              // Showing on a trackpad-first laptop means "always", since Auto starts it hidden there.
+              var laptop = matchMedia("(pointer: fine)").matches;
+              try { localStorage.setItem("retrooasis.touchControls", next ? (laptop ? "on" : "auto") : "off"); } catch (e) { /* private mode: this game only */ }
+              paint();
+            });
+            // A controller, the keyboard or the game menu can hide or show the pad too.
+            new MutationObserver(paint).observe(pad, { attributes: true, attributeFilter: ["style"] });
+            paint();
+            button.hidden = false;
+          }
           window.EJS_onGameStart = function () {
             try { fitTouchPadToLaptops(window.EJS_emulator); } catch (e) { console.warn("RetroOasis touch pad fit", e); }
+            try { installPadToggle(window.EJS_emulator); } catch (e) { console.warn("RetroOasis controls toggle", e); }
             nameMenuButtons();
             setTimeout(nameMenuButtons, 1500);
             watchForBlankScreen();
