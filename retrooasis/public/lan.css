@@ -41,6 +41,8 @@ html[data-accent="ps"] { --ro-accent: var(--ro-accent-ps); --ro-line: rgba(240, 
 .ro-lan-page button:disabled, .ro-lan-panel button:disabled { opacity: .45; cursor: not-allowed; }
 .ro-lan-page button:hover:not(:disabled), .ro-lan-page button[aria-pressed=true], .ro-lan-panel button:hover:not(:disabled) { background: var(--lan-accent); color: var(--lan-bg); }
 .ro-lan-page .ro-lan-primary, .ro-lan-panel .ro-lan-primary { background: var(--lan-accent); color: var(--lan-bg); }
+/* A link used as the page's main action (Back, when a game can't load) takes the button shape. */
+.ro-lan-page a.ro-lan-primary { display: inline-flex; align-items: center; justify-content: center; justify-self: start; min-height: 44px; padding: .62rem 1.05rem; border: 1px solid var(--lan-accent); border-radius: 6px; font: 600 .78rem/1.2 var(--ro-font-ui); text-transform: uppercase; letter-spacing: .12em; text-decoration: none; }
 .ro-lan-page .ro-lan-primary:hover:not(:disabled), .ro-lan-panel .ro-lan-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ro-accent) 85%, white); }
 .ro-lan-page :focus-visible, .ro-lan-panel :focus-visible { outline: 2px solid var(--ro-accent); outline-offset: 3px; box-shadow: 0 0 0 5px var(--ro-accent-soft); }
 .ro-lan-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }

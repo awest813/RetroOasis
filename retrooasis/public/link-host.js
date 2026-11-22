@@ -54,11 +54,13 @@ function placeholder(slot, text) {
 function message(channel, payload) { if (channel?.readyState === 'open') channel.send(JSON.stringify(payload)) }
 // The setup tracker: each step is done, current (the next thing to do) or waiting.
 const stepList = document.querySelector('[data-link-steps]')
+// Set when this page's own game didn't load: nothing to set up, so the steps stay hidden.
+let loadFailed = false
 function refreshSteps() {
   if (!stepList) return
   const roomOpen = roomPanel?.querySelector('[data-lan-room]')?.hidden === false
   const done = { cart: !!host, room: roomOpen || !!session, guest: !!guest?.bytes || !!session, start: !!session }
-  stepList.hidden = sessionEnded
+  stepList.hidden = sessionEnded || loadFailed
   let current = false
   for (const item of stepList.children) {
     const isDone = done[item.dataset.step]
@@ -83,7 +85,7 @@ function refreshButtons() {
   buttons['guest-save'].hidden = !running || guest?.channel?.readyState !== 'open'
   buttons.pause.textContent = paused ? 'Resume both' : 'Pause both'
   touchPad.hidden = !running
-  setupForm.hidden = running || sessionEnded
+  setupForm.hidden = running || sessionEnded || loadFailed
 }
 
 function setPaused(value) {
@@ -472,4 +474,23 @@ async function start() {
   document.querySelector('[data-link-room]').append(panel)
   refreshButtons()
 }
-start().catch(error => { setStatus(error.message); placeholder(0, 'Game unavailable') })
+// The game didn't load: say so at the top, not only in the status line at the foot of the page,
+// clear away the set-up steps that can't be used, and make Back the way on.
+start().catch(error => {
+  loadFailed = true
+  placeholder(0, 'Game unavailable')
+  setStatus('')
+  statusLine.hidden = true
+  document.querySelector('[data-link-title]').textContent = 'Can’t load your game'
+  document.title = 'RetroOasis · Trade & link'
+  const lede = document.querySelector('.ro-link-lede')
+  lede.setAttribute('role', 'alert')
+  lede.textContent = `${error.message} Go back and start Trade & link again from the game’s page.`
+  for (const selector of ['[data-link-steps]', '.ro-link-stage', '#link-setup', '.ro-lan-actions', '[data-link-hint]', '.ro-link-warning']) {
+    const el = document.querySelector(selector)
+    if (el) el.hidden = true
+  }
+  const back = document.querySelector('[data-link-back]')
+  back.classList.add('ro-lan-primary')
+  back.focus({ preventScroll: true })
+})
