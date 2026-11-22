@@ -59,6 +59,9 @@ check('tag trailing slash', parseRouteHash('#/library/tag/'), { name: 'notfound'
 check('game', parseRouteHash('#/game/demo-nes-adventure'), { name: 'game', gameId: 'demo-nes-adventure' })
 check('upload', parseRouteHash('#/upload'), { name: 'upload' })
 check('settings', parseRouteHash('#/settings'), { name: 'settings' })
+check('settings section link', parseRouteHash('#/settings/controllers'), { name: 'settings', section: 'controllers' })
+check('settings section ignores case', parseRouteHash('#/Settings/Online'), { name: 'settings', section: 'online' })
+check('settings section too deep', parseRouteHash('#/settings/a/b'), { name: 'notfound' })
 check('saves', parseRouteHash('#/saves'), { name: 'saves' })
 check('unknown', parseRouteHash('#/nope'), { name: 'notfound' })
 

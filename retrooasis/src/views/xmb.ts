@@ -16,7 +16,7 @@ import { getFavorites, getLibretroCovers, getRecents } from '../lib/store'
 import { hrefFor, navigate } from '../lib/router'
 import { bindXmbFocus } from '../lib/xmbFocus'
 import { xmbCategoryIcon, xmbPlatformIcon } from '../lib/xmbIcons'
-import { icon } from '../lib/icons'
+import { icon, isIconName } from '../lib/icons'
 import { getInputModality } from '../lib/inputModality'
 import { sfxConfirm, sfxMove } from '../lib/sfx'
 
@@ -26,6 +26,7 @@ function actionGlyph(glyph: string): string {
   if (glyph === 'ALL') return icon('library')
   if (glyph === 'ADD') return icon('add')
   if (glyph === 'SET') return icon('settings')
+  if (isIconName(glyph)) return icon(glyph)
   return escapeHtml(glyph)
 }
 
@@ -225,12 +226,22 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       {
         kind: 'action',
         id: 'upload',
-        title: 'Add a ROM',
-        sub: 'Upload and keep it on this device',
+        title: 'Add ROM files',
+        sub: 'Keep games on this device',
         href: hrefFor('/upload'),
         glyph: 'ADD',
         accent: 'var(--ro-accent)',
-        blurb: 'Files stay in this browser until you remove them.',
+        blurb: 'Pick files or a .zip; the system is detected for you. They stay in this browser until you remove them.',
+      },
+      {
+        kind: 'action',
+        id: 'link-folder',
+        title: 'Link a folder',
+        sub: 'Play a games folder in place',
+        href: hrefFor('/settings/library'),
+        glyph: 'folder',
+        accent: 'var(--ro-accent)',
+        blurb: 'Point at a roms folder on this computer instead of copying every game in.',
       },
     ],
   })
@@ -240,18 +251,26 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
     label: 'Settings',
     icon: xmbCategoryIcon('settings'),
     accent: 'var(--ro-accent)',
-    items: [
-      {
-        kind: 'action',
-        id: 'settings',
-        title: 'Settings',
-        sub: 'Look, sound, library, and data',
-        href: hrefFor('/settings'),
-        glyph: 'SET',
-        accent: 'var(--ro-accent)',
-        blurb: 'Settings stay on this device.',
-      },
-    ],
+    // Shortcuts straight to a section, like a console's settings column.
+    items: (
+      [
+        ['settings', 'All settings', 'Everything in one place', '/settings', 'SET', 'Look and sound, controllers, online play, library, achievements and saves. Settings stay on this device.'],
+        ['set-look', 'Appearance', 'Accent, layout, CRT', '/settings/appearance', 'palette', 'Sega cyan or PlayStation amber, the larger TV layout, and the CRT overlay.'],
+        ['set-controller', 'Controllers', 'Pair a pad, on-screen controls', '/settings/controllers', 'gamepad', 'Connect a Bluetooth or USB controller, test its buttons, and set the touch controls.'],
+        ['set-lan', 'Online play', 'Rooms and Trade & link', '/settings/online', 'online', 'Host a room for friends, join one, or link two handhelds for trades and battles.'],
+        ['set-achievements', 'Achievements', 'RetroAchievements progress', '/settings/achievements', 'trophy', 'Connect your RetroAchievements account to see progress on game pages.'],
+        ['set-data', 'Saves & storage', 'Back up saves, free up space', '/settings/saves', 'saves', 'Back up and restore saves, keep ROMs from being cleared, and see how much space is used.'],
+      ] as const
+    ).map(([id, title, sub, path, glyph, blurb]): XmbItem => ({
+      kind: 'action',
+      id,
+      title,
+      sub,
+      href: hrefFor(path),
+      glyph,
+      accent: 'var(--ro-accent)',
+      blurb,
+    })),
   })
 
   return categories
@@ -363,10 +382,12 @@ function infoMarkup(cat: XmbCategory, itemIndex: number): string {
   if (!item) {
     return `
       <div class="ro-xmb__info-inner" data-ro-info>
+        <div class="ro-xmb__stage ro-xmb__stage--glyph ro-xmb__stage--empty" style="--item-accent: ${cat.accent}">
+          <span class="ro-xmb__stage-glyph" aria-hidden="true">${cat.icon}</span>
+        </div>
         <div class="ro-xmb__info-copy">
-          <p class="ro-xmb__info-kicker">${escapeHtml(cat.label)}</p>
+          <p class="ro-xmb__info-kicker">Empty</p>
           <h2 class="ro-xmb__info-title">${escapeHtml(cat.label)}</h2>
-          <p class="ro-xmb__info-body">${escapeHtml(cat.empty ?? 'Nothing here yet.')}</p>
         </div>
       </div>`
   }

@@ -237,7 +237,8 @@ async function renderRoute(route: Route): Promise<void> {
   // The old view first: Settings notes its scroll position as it closes.
   disposeActiveView()
   const routeKey = JSON.stringify(route)
-  if (routeKey !== lastRouteKey) {
+  const freshVisit = routeKey !== lastRouteKey
+  if (freshVisit) {
     window.scrollTo(0, 0)
     if (route.name === 'settings' && arrivedByNewEntry()) forgetSettingsPosition()
   }
@@ -278,7 +279,8 @@ async function renderRoute(route: Route): Promise<void> {
       break
     case 'settings':
       main.focus({ preventScroll: true })
-      await renderSettings(main)
+      // Jump to a linked section on arrival only, not when the page redraws itself.
+      await renderSettings(main, freshVisit ? route.section : undefined)
       break
     case 'saves':
       main.focus({ preventScroll: true })

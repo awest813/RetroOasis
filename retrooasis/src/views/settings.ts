@@ -121,7 +121,20 @@ function confirmAction(message: string): boolean {
   return ok
 }
 
-export async function renderSettings(root: HTMLElement): Promise<void> {
+/** #/settings/<name>: section ids, plus the words people would type or link. */
+const SECTION_ALIASES: Record<string, string> = {
+  look: 'look', appearance: 'look',
+  playback: 'playback', sound: 'playback',
+  controller: 'controller', controllers: 'controller',
+  lan: 'lan', online: 'lan', 'online-play': 'lan',
+  library: 'library',
+  achievements: 'achievements',
+  data: 'data', saves: 'data', storage: 'data',
+  advanced: 'advanced',
+}
+
+export async function renderSettings(root: HTMLElement, section?: string): Promise<void> {
+  const jumpSection = section ? SECTION_ALIASES[section] : undefined
   const lanAbort = new AbortController()
   const raAbort = new AbortController()
   const lanPromise = checkLanService(lanAbort.signal)
@@ -219,8 +232,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
   raConnectNotice = ''
   const raPic = raAccount ? raImageUrl(raAccount.pic) : ''
   const jumpToAchievements = takeAchievementsSettingsRequest()
-  const restoreId = jumpToAchievements ? (raAccount ? 'ra-match' : 'ra-user') : readFocus()
-  const restoreScroll = jumpToAchievements ? null : readScroll()
+  const restoreId = jumpToAchievements ? (raAccount ? 'ra-match' : 'ra-user') : jumpSection ? null : readFocus()
+  const restoreScroll = jumpToAchievements || jumpSection ? null : readScroll()
   pendingLanFocus = restoreId === 'lan-host' || restoreId === 'lan-join'
 
   root.innerHTML = `
@@ -1215,6 +1228,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
     } else if (restoreScroll != null) {
       window.scrollTo(0, restoreScroll)
       rememberScroll(restoreScroll)
+    }
+    // A link to a section (#/settings/controllers, the home menu's shortcuts) lands on it,
+    // the same as choosing it in the section rail.
+    if (jumpSection && !jumpToAchievements) {
+      focusRoot.querySelector<HTMLButtonElement>(`[data-settings-section="${jumpSection}"]`)?.click()
     }
   }
 

@@ -787,9 +787,21 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   height: 1.75rem;
 }
 
-.ro-xmb__stage-glyph .ro-icon {
+.ro-xmb__stage-glyph .ro-icon,
+.ro-xmb__stage-glyph .ro-xmb__glyph {
   width: 2.5rem;
   height: 2.5rem;
+}
+
+/* An empty category: its own icon, quieter, with a dashed frame like the empty states. */
+.ro-xmb__stage--empty {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--item-accent, var(--ro-accent)) 6%, transparent);
+  box-shadow: none;
+}
+
+.ro-xmb__stage--empty .ro-xmb__stage-glyph {
+  color: var(--ro-text-dim);
 }
 
 .ro-xmb__info-kicker {
@@ -1406,9 +1418,10 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
     left: auto;
     top: auto;
     width: 100%;
-    max-width: 28rem;
+    max-width: 30rem;
     transform: none !important;
-    margin: 0 auto;
+    /* Left-aligned under the category row; a centred column drifted away from its icon on tablets. */
+    margin: 0;
   }
 
   .ro-xmb__item {
@@ -1444,6 +1457,39 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
 
   .ro-shell--xmb .ro-nav {
     display: flex;
+  }
+}
+
+/* Tablets (portrait): room for the description panel under the list, instead of empty space. */
+@media (min-width: 641px) and (max-width: 900px) and (min-height: 700px) {
+  .ro-xmb__info {
+    display: block;
+    position: relative;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-width: 30rem;
+    margin: 1.25rem max(var(--ro-space), env(safe-area-inset-left, 0px)) 0;
+    padding-left: 0;
+  }
+
+  .ro-xmb__info::before {
+    display: none;
+  }
+
+  .ro-xmb__info-inner {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 1.25rem;
+  }
+
+  .ro-xmb__stage {
+    width: 8.5rem;
+    margin-bottom: 0;
+  }
+
+  .ro-xmb__stage--glyph {
+    width: 5rem;
   }
 }
 

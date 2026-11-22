@@ -8,7 +8,7 @@ export type Route =
   | { name: 'tag'; tagId: string }
   | { name: 'game'; gameId: string }
   | { name: 'upload' }
-  | { name: 'settings' }
+  | { name: 'settings'; section?: string }
   | { name: 'saves' }
   | { name: 'notfound' }
 
@@ -51,6 +51,8 @@ function parseHash(hash: string): Route {
   }
   if (parts[0] === 'upload' && parts.length === 1) return { name: 'upload' }
   if (parts[0] === 'settings' && parts.length === 1) return { name: 'settings' }
+  // #/settings/<section> opens Settings at that section (unknown names just open Settings).
+  if (parts[0] === 'settings' && parts.length === 2 && parts[1]) return { name: 'settings', section: parts[1].toLowerCase() }
   if (parts[0] === 'saves' && parts.length === 1) return { name: 'saves' }
   return { name: 'notfound' }
 }
