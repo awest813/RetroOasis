@@ -1063,6 +1063,20 @@ html[data-crt='on'] .ro-shell::after {
   max-width: none;
 }
 
+/* Wide screens: one row, copy left and buttons right, so short laptop and Chromebook
+   windows reach the covers sooner. */
+@media (min-width: 900px) {
+  .ro-onboard--banner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'title actions' 'body actions';
+    column-gap: 2rem;
+    align-items: center;
+  }
+  .ro-onboard--banner .ro-onboard__title { grid-area: title; }
+  .ro-onboard--banner .ro-onboard__body { grid-area: body; }
+  .ro-onboard--banner .ro-btn-row { grid-area: actions; margin: 0; flex-wrap: nowrap; }
+}
+
 .ro-onboard__title {
   margin: 0;
   font-family: var(--ro-font-display);

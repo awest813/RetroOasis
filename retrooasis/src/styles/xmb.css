@@ -1010,8 +1010,14 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
     width: 3.75rem;
   }
 
+  /* The panel sits under the category row now, so short screens (Chromebooks, laptops at
+     125–150% zoom) keep the description; two lines at most. */
   .ro-xmb__info-body {
-    display: none;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
   }
 
   .ro-xmb__hint {
@@ -1030,10 +1036,6 @@ html[data-input='pad'] .ro-xmb__cat[data-active='true'] .ro-xmb__cat-icon {
   .ro-xmb__cat-icon {
     width: 3rem;
     height: 3rem;
-  }
-
-  .ro-xmb__clock-date {
-    display: none;
   }
 }
 

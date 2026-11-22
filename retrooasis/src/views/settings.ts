@@ -331,7 +331,7 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
           <div class="ro-settings-row" data-ro-focus-row>
             <div class="ro-settings-row__copy">
               <strong>On-screen controls</strong>
-              <p class="ro-muted">${touchControls === 'auto' ? 'Shown on phones and tablets, hidden elsewhere.' : touchControls === 'on' ? 'Shown on every touch screen, laptops included.' : 'Hidden. Use a controller or keyboard.'} A game’s own menu can still change this for that game.</p>
+              <p class="ro-muted">${touchControls === 'auto' ? 'Shown on phones and tablets. On a touchscreen laptop or Chromebook, they appear when you touch the screen and tuck away while you use the keyboard.' : touchControls === 'on' ? 'Shown on every touch screen, laptops included.' : 'Hidden. Use a controller or keyboard.'} A game’s own menu can still change this for that game.</p>
             </div>
             <div class="ro-toggle-group ro-toggle-group--thirds" role="group" aria-label="On-screen controls">
               <button type="button" class="ro-btn" data-touch-controls="auto" data-focus-id="touch-auto" data-ro-focusable="true" aria-pressed="${pressed(touchControls === 'auto')}">Auto</button>

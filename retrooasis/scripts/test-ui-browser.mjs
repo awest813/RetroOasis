@@ -199,7 +199,10 @@ const pressed = (page, selector) => page.evaluate(selector => document.querySele
 const devices = {
   'desktop 1920': { width: 1920, height: 1080 },
   'laptop 1366': { width: 1366, height: 768 },
-  'Chromebook 1366 (touch)': { width: 1366, height: 768, hasTouch: true, userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+  // Chromebooks: the window, not the panel. Tabs, address bar and shelf take ~135px of a 1366x768
+  // screen, and many 1080p models default to 150% zoom (1280x590 of room).
+  'Chromebook 1366 (touch)': { width: 1366, height: 633, hasTouch: true, userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+  'Chromebook 1280 at 150% (touch)': { width: 1280, height: 590, deviceScaleFactor: 1.5, hasTouch: true, userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
   'tablet 768': { width: 768, height: 1024, hasTouch: true, isMobile: true },
   'tablet landscape 1024': { width: 1024, height: 768, hasTouch: true, isMobile: true },
   'phone 390': { width: 390, height: 844, hasTouch: true, isMobile: true },

@@ -157,12 +157,12 @@ export async function renderLibrary(
         ? '<p class="ro-gallery__cue">Sample entries fill the shelf. Hide them in Settings.</p>'
         : ''
     const onboard = demoOnly
-      ? `<aside class="ro-onboard" aria-label="Getting started">
+      ? `<aside class="ro-onboard ro-onboard--banner" aria-label="Getting started">
           <p class="ro-onboard__title">Add a ROM to start playing</p>
           <p class="ro-onboard__body">Samples fill the shelf so you can look around. Drop in a file or link a folder when you’re ready.</p>
           <div class="ro-btn-row">
             <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
+            <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings/library')}" data-ro-focusable="true">Link a folder</a>
           </div>
         </aside>`
       : ''

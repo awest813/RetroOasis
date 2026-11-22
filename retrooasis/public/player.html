@@ -1166,7 +1166,53 @@
               if (!button.getAttribute("aria-label") && !button.textContent.trim()) button.setAttribute("aria-label", button.title || "Game menu");
             });
           }
+          // Touchscreen laptops (Chromebooks, touch Windows laptops): EmulatorJS shows its touch pad on
+          // any touchscreen, so in laptop mode it covered the game while you played on the keyboard.
+          // With On-screen controls on Auto: start without it when the trackpad is the main pointer,
+          // tuck it away on a game key, and bring it back on the next touch. Phones, tablets and
+          // Chromebook tablet mode (touch is the main pointer) start with it as before.
+          function fitTouchPadToLaptops(emulator) {
+            var mode = null;
+            try { mode = localStorage.getItem("retrooasis.touchControls"); } catch (e) { /* private mode */ }
+            if (mode === "on" || mode === "off") return;
+            if (!matchMedia("(any-pointer: coarse)").matches || !matchMedia("(any-pointer: fine)").matches) return;
+            var pad = emulator && emulator.virtualGamepad;
+            if (!pad) return;
+            var tucked = false;
+            // Its saved setting can't tell us (it reads "disabled" on anything that isn't a phone), so
+            // follow the game menu's Virtual Gamepad switch itself: turning it off wins.
+            var switchedOff = false;
+            if (typeof emulator.toggleVirtualGamepad === "function") {
+              var toggle = emulator.toggleVirtualGamepad.bind(emulator);
+              emulator.toggleVirtualGamepad = function (show) {
+                switchedOff = !show;
+                tucked = false;
+                return toggle(show);
+              };
+            }
+            var tuck = function () {
+              if (tucked || pad.style.display === "none") return;
+              tucked = true;
+              pad.style.display = "none";
+            };
+            var untuck = function () {
+              if (!tucked) return;
+              tucked = false;
+              if (switchedOff) return;
+              pad.style.display = "";
+            };
+            if (matchMedia("(pointer: fine)").matches) tuck();
+            document.addEventListener("keydown", function (event) {
+              if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+              var target = event.target;
+              if (target && target.closest && target.closest("input, textarea, select, .ejs_menu_bar, .ejs_popup_container")) return;
+              tuck();
+            }, true);
+            var display = document.getElementById("display");
+            if (display) display.addEventListener("touchstart", untuck, { passive: true, capture: true });
+          }
           window.EJS_onGameStart = function () {
+            try { fitTouchPadToLaptops(window.EJS_emulator); } catch (e) { console.warn("RetroOasis touch pad fit", e); }
             nameMenuButtons();
             setTimeout(nameMenuButtons, 1500);
             watchForBlankScreen();
