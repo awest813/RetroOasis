@@ -67,7 +67,7 @@ export function saveSettler(initial = null, length = 0) {
 
 export function describeGbaLink(modes, titles = ['Your game', 'Your friend’s game']) {
   const missing = modes.findIndex(mode => !GBA_LINK_LABELS[mode])
-  if (missing !== -1) return { label: null, warning: `${titles[missing]} can’t link in RetroOasis yet. Both games run, but trading and battles won’t work. Games that link: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, and Advance Wars 1 and 2.` }
+  if (missing !== -1) return { label: null, warning: `${titles[missing]} can’t link in RetroOasis yet. Both games run, but its link features (trading, battles, multiplayer) won’t connect. Games that link: Pokémon Ruby, Sapphire, Emerald, FireRed and LeafGreen, and Advance Wars 1 and 2.` }
   // gpSP emulates Ruby and Sapphire's cable but FireRed, LeafGreen and Emerald's wireless adapter.
   if (modes[0] !== modes[1] && modes.includes(2) && modes.includes(3)) return { label: null, warning: 'Pokémon Ruby and Sapphire can’t link with FireRed, LeafGreen or Emerald here. Pair Ruby with Sapphire, or FireRed, LeafGreen and Emerald with each other.' }
   if (modes[0] !== modes[1]) return { label: null, warning: 'These two games can’t link with each other.' }
@@ -145,7 +145,7 @@ async function gbSession({ carts, saves, loadCore, loadFile }) {
   }
 }
 
-async function gbaSession({ carts, saves, loadCore }) {
+async function gbaSession({ carts, saves, loadCore, titles }) {
   const info = carts.map(cart => cartridgeInfo('gba', cart))
   const mode = gbaLinkMode(info.map(cart => cart.code))
   const inbox = [[], []], cores = []
@@ -180,7 +180,8 @@ async function gbaSession({ carts, saves, loadCore }) {
   } catch (error) { cores.forEach(core => core._gba_close()); throw error }
   const audioBuffers = cores.map(core => core._malloc(4096 * 4))
   let elapsed = 0
-  const link = describeGbaLink(cores.map(core => core._gba_link_mode?.() ?? -1), info.map(cart => cart.title))
+  // File names ("Mario Party Advance") read better than headers ("MARIOPARTYUS") when given.
+  const link = describeGbaLink(cores.map(core => core._gba_link_mode?.() ?? -1), info.map((cart, id) => titles?.[id] || cart.title))
   return {
     info, mode, link, width: 240, height: 160, sampleRate: cores[0]._gba_sample_rate(),
     advance(ms) {
@@ -221,12 +222,29 @@ async function gbaSession({ carts, saves, loadCore }) {
 }
 
 /** carts / saves: [host, guest] Uint8Arrays (saves may be null). */
-export async function createLinkSession({ system, carts, saves = [null, null], loadCore, loadFile }) {
+/**
+ * Whether a GBA game can link here, known before a friend joins: one throwaway console
+ * loads the game and reports gpSP's link mode. null when it can, else the warning text.
+ */
+export async function gbaLinkWarning(cart, { loadCore, title }) {
+  const info = cartridgeInfo('gba', cart)
+  const core = await loadCore('gpsp-link.mjs', { onPoll() {}, onPacket() {} })
+  try {
+    if (core._gba_init() !== 1) return null
+    core.FS.writeFile('/cartridge.gba', cart)
+    if (core.cwrap('gba_load', 'number', ['string', 'number'])('/cartridge.gba', gbaLinkMode([info.code])) !== 1) return null
+    const mode = core._gba_link_mode?.() ?? -1
+    const name = title || info.title
+    return describeGbaLink([mode, mode], [name, name]).warning
+  } finally { core._gba_close() }
+}
+
+export async function createLinkSession({ system, carts, saves = [null, null], loadCore, loadFile, titles }) {
   if (!LINK_CAPABILITIES[system] || carts?.length !== 2) throw new Error('Choose two games to play together.')
   saves.forEach((save, slot) => {
     if (save && !validSaveSize(system, save.length)) throw new Error(`${slot ? 'Your friend’s' : 'Your'} save file isn’t a ${system === 'gb' ? 'Game Boy' : 'GBA'} save.`)
   })
-  return holdTaps(await (system === 'gb' ? gbSession({ carts, saves, loadCore, loadFile }) : gbaSession({ carts, saves, loadCore })))
+  return holdTaps(await (system === 'gb' ? gbSession({ carts, saves, loadCore, loadFile }) : gbaSession({ carts, saves, loadCore, titles })))
 }
 
 /**

@@ -2,7 +2,7 @@ import { mountHost } from './lan-host.js'
 import { keyboardControl, buttonHolds } from './lan-shared.js'
 import { LINK_CAPABILITIES, gamepadControls, keyboardLayout } from './lan-capabilities.js'
 import { readControllers, ControllerSelector, ControllerGate } from './controller-input.js'
-import { createLinkSession, cartridgeInfo, cartTitle, validSaveSize, saveSettler } from './link-session.js'
+import { createLinkSession, gbaLinkWarning, cartridgeInfo, cartTitle, validSaveSize, saveSettler } from './link-session.js'
 import { readRomReference, unwrapRom } from './rom-source.js'
 import { fileReceiver, sendFile, downloadBytes, saveName, SAVE_LIMIT } from './link-transfer.js'
 import { libraryCartSave, writeLibrarySave } from './library-saves.js'
@@ -351,7 +351,7 @@ buttons.start.onclick = async () => {
     }
     void audioContext.resume().catch(() => {})
     const starting = guest
-    session = await createLinkSession({ system, carts: [host.bytes, guest.bytes], saves: [hostSave, guest.save], loadCore, loadFile })
+    session = await createLinkSession({ system, carts: [host.bytes, guest.bytes], saves: [hostSave, guest.save], loadCore, loadFile, titles: [host.info.title, guest.info.title] })
     if (guest !== starting) {
       // The guest left or rejoined while the cores loaded; their cartridge went with them.
       session.close(); session = null
@@ -462,6 +462,16 @@ async function start() {
   emu.config.gameName = title
   buildTouchControls()
   placeholder(0, `${info.title}\nReady`)
+  // A GBA game the link emulator can't connect: say so now, before a friend sets up to join.
+  if (system === 'gba') {
+    gbaLinkWarning(host.bytes, { loadCore, title: params.get('name') || info.title }).then(warning => {
+      const note = document.querySelector('.ro-link-warning')
+      if (!warning || !note) return
+      note.textContent = warning
+      note.setAttribute('role', 'alert')
+      document.querySelector('.ro-link-room')?.before(note)
+    }).catch(() => { /* the check is advisory; Start still reports it */ })
+  }
   setStatus('Create a room in the Trade & link panel, then send your friend the invite.')
   const { panel } = await mountHost(emu, {
     // This panel sits beside the consoles (or folds itself on phones), never over them.

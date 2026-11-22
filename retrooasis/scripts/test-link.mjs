@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { inspectLink, linkRoot } from './lan-link.mjs'
-import { createLinkSession, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink, saveSettler, holdTaps, MIN_PRESS_MS } from '../public/link-session.js'
+import { createLinkSession, gbaLinkWarning, cartridgeInfo, gbaLinkMode, validSaveSize, describeGbaLink, saveSettler, holdTaps, MIN_PRESS_MS } from '../public/link-session.js'
 import { blockCartridge, withGbHeader, transferByte, gbaCartridge } from './handheld/link-fixtures.js'
 import { sendFile, fileReceiver, saveName, CHUNK, SAVE_LIMIT } from '../public/link-transfer.js'
 import { unwrapRom } from '../public/rom-source.js'
@@ -239,7 +239,9 @@ for (const [codes, expected] of [[['AXVE', 'AXPE'], 'Pokémon link cable'], [['B
     if (!expected) assert.match(session.link.warning, /can’t link in RetroOasis yet/)
   } finally { session.close() }
 }
-console.log('PASS GBA link mode detection: Pokémon and Advance Wars cables, unsupported-game warning')
+assert.equal(await gbaLinkWarning(gbaCartridge('AW', 'AWRE'), { loadCore }), null, 'A linkable game gets no early warning')
+assert.match(await gbaLinkWarning(gbaCartridge('TS', 'RTST'), { loadCore, title: 'Test Party' }), /^Test Party can’t link/, 'An unlinkable game is named from its file before a friend joins')
+console.log('PASS GBA link mode detection: Pokémon and Advance Wars cables, unsupported-game warning, early check')
 
 // Game-page saves: a chosen save file is used once, only by its own game.
 {
