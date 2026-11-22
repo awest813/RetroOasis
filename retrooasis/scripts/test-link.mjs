@@ -71,7 +71,7 @@ assert(isBlank(goldFirstBoot), 'Gold’s first-boot marker is not a save')
 // Stadium writes scratch bytes into a cartridge with no save: still not a save.
 assert(!keepsCartRam(null, Uint8Array.of(0, 7, 9)) && !keepsCartRam(new Uint8Array(4), new Uint8Array(4)) && keepsCartRam(new Uint8Array(4), Uint8Array.from({ length: 64 }, (_, i) => i)), 'Only a cartridge that had a save is written back')
 assert.deepEqual(describeGbaLink([3, 3]), { label: 'Pokémon link cable', warning: null, howTo: 'Use the trade or battle menu in both games.' })
-assert.match(describeGbaLink([2, 2]).howTo, /Union Room/, 'Wireless-adapter links say where Pokémon players trade')
+assert.match(describeGbaLink([2, 2], ['POKEMON EMER', 'POKEMON EMER']).howTo, /Union Room/, 'Wireless-adapter links say where Pokémon players trade')
 {
   // Quick taps survive slow catch-up batches: a release waits for two emulated frames.
   const calls = [], session = holdTaps({ key: (slot, index, pressed) => calls.push([slot, index, pressed]), advance() {}, setPaused() {} })
@@ -88,6 +88,8 @@ assert.match(describeGbaLink([2, 2]).howTo, /Union Room/, 'Wireless-adapter link
   session.key(0, 5, true); session.key(0, 5, false); session.key(0, 5, true); session.advance(1000)
   assert.deepEqual(calls.at(-1), [0, 5, true], 'Pressing again cancels a deferred release')
 }
+assert.match(describeGbaLink([2, 2], ['POKEMON FIRE', 'POKEMON LEAF']).howTo, /Union Room/, 'Pokémon wireless games get the Union Room tip')
+assert.doesNotMatch(describeGbaLink([2, 2], ['MARIOGOLFGBA', 'MARIOGOLFGBA']).howTo, /Pokémon|Union Room/, 'Other wireless games get a generic tip')
 assert.match(describeGbaLink([3, 2], ['POKEMON RUBY', 'POKEMON FIRE']).warning, /Pair Ruby with Sapphire/, 'Cable and wireless Pokémon games explain the pairing')
 assert.match(describeGbaLink([6, 3], ['Puzzle', 'Ruby']).warning, /^Puzzle can’t link/, 'Games without a gpSP link mode are named')
 assert.match(describeGbaLink([2, 4]).warning, /can’t link with each other/, 'Mismatched link modes are reported')

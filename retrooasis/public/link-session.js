@@ -71,8 +71,12 @@ export function describeGbaLink(modes, titles = ['Your game', 'Your friend’s g
   // gpSP emulates Ruby and Sapphire's cable but FireRed, LeafGreen and Emerald's wireless adapter.
   if (modes[0] !== modes[1] && modes.includes(2) && modes.includes(3)) return { label: null, warning: 'Pokémon Ruby and Sapphire can’t link with FireRed, LeafGreen or Emerald here. Pair Ruby with Sapphire, or FireRed, LeafGreen and Emerald with each other.' }
   if (modes[0] !== modes[1]) return { label: null, warning: 'These two games can’t link with each other.' }
+  // The Union Room tip only for the Pokémon games that have one.
+  const pokemon = titles.some(title => /POKEMON|Pok[eé]mon/i.test(String(title)))
   return { label: GBA_LINK_LABELS[modes[0]], warning: null, howTo: modes[0] === 2
-    ? 'Use the wireless menu in both games: in Pokémon FireRed, LeafGreen and Emerald, that’s the Union Room upstairs in any Pokémon Center.'
+    ? pokemon
+      ? 'Use the wireless menu in both games: in Pokémon FireRed, LeafGreen and Emerald, that’s the Union Room upstairs in any Pokémon Center.'
+      : 'Choose the two-player or link option in both games’ menus.'
     : 'Use the trade or battle menu in both games.' }
 }
 

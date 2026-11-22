@@ -428,6 +428,14 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               : ''
           }
           <div class="ro-detail__panels">
+          ${normalizePlayCore(game.core) === 'nds' && !game.demo ? `
+          <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="off">
+            <div class="ro-online-card__head">
+              <h2 class="ro-online-card__title" id="ro-online-title">Play with a friend</h2>
+              <span class="ro-online-card__state">Not available</span>
+            </div>
+            <p class="ro-muted ro-online-card__text">DS multiplayer uses the console’s own wireless, which the browser emulator doesn’t have, so this game plays single-player here.</p>
+          </section>` : ''}
           ${lanCandidate ? `
           <section class="ro-online-card" aria-labelledby="ro-online-title" id="ro-online" data-state="${onlineState}">
             <div class="ro-online-card__head">
