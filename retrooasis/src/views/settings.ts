@@ -131,7 +131,7 @@ const SECTION_ALIASES: Record<string, string> = {
   look: 'look', appearance: 'look',
   playback: 'playback', sound: 'playback',
   controller: 'controller', controllers: 'controller',
-  lan: 'lan', online: 'lan', 'online-play': 'lan',
+  lan: 'lan', online: 'lan', 'online-play': 'lan', netplay: 'lan',
   library: 'library',
   achievements: 'achievements',
   data: 'data', saves: 'data', storage: 'data',
@@ -772,8 +772,11 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
       // The first control, or in a row of choices the current one, so a jump never lands on
       // something like Mute that a stray press would change.
       const first = section?.querySelector<HTMLElement>('[data-ro-focusable="true"]:not(summary):not([disabled]):not([aria-disabled="true"])')
-      const target = first?.closest('[data-ro-focus-row]')?.querySelector<HTMLElement>('[aria-pressed="true"]:not([disabled])') ?? first
-      target?.focus({ preventScroll: true })
+      const pressed = first?.closest('[data-ro-focus-row]')?.querySelector<HTMLElement>('[aria-pressed="true"]:not([disabled]):not([aria-disabled="true"])')
+      // Online play disables its buttons while it checks the host app. Land on the
+      // section tab then, so keyboard focus isn't dropped on the way.
+      const target = pressed ?? first ?? button
+      target.focus({ preventScroll: true })
       heading?.scrollIntoView({ block: 'start' })
     })
   })
@@ -1266,7 +1269,12 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
       (getInputModality() === 'mouse'
         ? null
         : focusRoot.querySelector<HTMLElement>('[data-ro-focusable="true"]:not([disabled]):not([aria-disabled="true"])'))
-    if (restore) {
+    // A link to a section (#/settings/controllers, the home menu's shortcuts) lands on it,
+    // the same as choosing it in the section rail. Do that before the default first-control
+    // focus, or keyboard and controller players flash the Appearance tab on the way.
+    if (jumpSection && !jumpToAchievements) {
+      focusRoot.querySelector<HTMLButtonElement>(`[data-settings-section="${jumpSection}"]`)?.click()
+    } else if (restore) {
       restore.focus({ preventScroll: true })
       if (jumpToAchievements) {
         root.querySelector('#ro-set-achievements')?.scrollIntoView({ block: 'start' })
@@ -1280,11 +1288,6 @@ export async function renderSettings(root: HTMLElement, section?: string): Promi
     } else if (restoreScroll != null) {
       window.scrollTo(0, restoreScroll)
       rememberScroll(restoreScroll)
-    }
-    // A link to a section (#/settings/controllers, the home menu's shortcuts) lands on it,
-    // the same as choosing it in the section rail.
-    if (jumpSection && !jumpToAchievements) {
-      focusRoot.querySelector<HTMLButtonElement>(`[data-settings-section="${jumpSection}"]`)?.click()
     }
   }
 

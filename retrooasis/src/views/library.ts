@@ -151,6 +151,10 @@ export async function renderLibrary(
 
     const heading = shelfTitle(sel, catalog)
     document.title = `RetroOasis · ${heading}`
+    if (sel.kind === 'platform') {
+      const crumb = document.querySelector('.ro-brand__sub')
+      if (crumb) crumb.textContent = findPlatform(catalog, sel.id)?.shortName ?? heading
+    }
     // "Add a ROM to start" only once the hosted list, saved ROMs and linked folder have all been read.
     const demoOnly =
       !catalogExtrasPending() && !catalog.local && !(catalog.uploadedCount ?? 0) && !(catalog.hostedCount ?? 0)
@@ -419,7 +423,7 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">No favorites yet</p>
-        <p class="ro-empty__body">Open a game, then choose Favorite from Options.</p>
+        <p class="ro-empty__body">Open a game, then choose Favorite under ＋ Options.</p>
         <a class="ro-btn ro-btn--primary" href="${hrefFor('/library/@all')}" data-ro-focusable="true">Browse games</a>
       </div>`
   }
@@ -427,10 +431,10 @@ function emptyState(sel: LibrarySelection): string {
     return `
       <div class="ro-empty">
         <p class="ro-empty__title">Shelf is empty</p>
-        <p class="ro-empty__body">Link a ROM folder, host your games, or add a file — saved ROMs stay on this device.</p>
+        <p class="ro-empty__body">Add a game file, or link a folder of games. Saved games stay on this device.</p>
         <div class="ro-btn-row ro-btn-row--center">
           <a class="ro-btn ro-btn--primary" href="${hrefFor('/upload')}" data-ro-focusable="true">Add ROM</a>
-          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings')}" data-ro-focusable="true">Settings</a>
+          <a class="ro-btn ro-btn--ghost" href="${hrefFor('/settings/library')}" data-ro-focusable="true">Link a folder</a>
         </div>
       </div>`
   }

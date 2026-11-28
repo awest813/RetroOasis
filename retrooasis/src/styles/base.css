@@ -425,6 +425,9 @@ select.ro-input {
   letter-spacing: 0.18em;
   color: var(--ro-text-dim);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(16rem, 34vw);
 }
 
 .ro-nav {

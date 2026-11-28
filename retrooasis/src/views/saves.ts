@@ -27,7 +27,8 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   let busyFocus: HTMLElement | null = null
   let failed = false
   let query = ''
-  registerViewCleanup(() => { active = false; cleanupFocus?.() })
+  let searchAnnounce = 0
+  registerViewCleanup(() => { active = false; window.clearTimeout(searchAnnounce); cleanupFocus?.() })
   root.innerHTML = `
     <section class="ro-view ro-saves">
       <p class="ro-kicker"><a href="${hrefFor('/')}">Home</a><span aria-hidden="true"> / </span><a href="${hrefFor('/settings')}">Settings</a><span aria-hidden="true"> / </span>Local saves</p>
@@ -47,7 +48,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       <p class="ro-muted" id="ro-save-explainer"></p>
       <input type="file" id="ro-save-file" accept=".json,application/json" hidden />
       <div id="ro-save-review" class="ro-onboard" hidden></div>
-      <label class="ro-saves__search" id="ro-save-search" hidden>Find a save <input type="search" class="ro-input" id="ro-save-query" placeholder="Search filenames" /></label>
+      <label class="ro-saves__search" id="ro-save-search" hidden>Find a save <input type="search" class="ro-input" id="ro-save-query" placeholder="Search saves" /></label>
       <p class="ro-muted ro-saves__summary" id="ro-save-summary"></p>
       <p class="ro-muted ro-saves__status" id="ro-save-status" role="status" aria-live="polite"></p>
       <div id="ro-save-list"></div>
@@ -62,7 +63,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   const setBusy = (value: boolean) => {
     if (value && !busy) busyFocus = root.contains(document.activeElement) ? document.activeElement as HTMLElement : null
     busy = value
-    root.querySelectorAll<HTMLButtonElement>('button').forEach(b => { b.disabled = value })
+    root.querySelectorAll<HTMLButtonElement>('button').forEach(b => { b.disabled = value || b.dataset.locked === 'true' })
     root.querySelector<HTMLInputElement>('#ro-save-query')!.disabled = value
     review.querySelector<HTMLInputElement>('#ro-save-replace')?.toggleAttribute('disabled', value)
     root.querySelector<HTMLButtonElement>('#ro-save-backup')!.disabled = value || failed || !entries.some(e => e.bytes)
@@ -79,29 +80,35 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     owners = new Map([...savePathOwners()].filter(([, id]) => titles.has(id)).map(([path, id]) => [path, { id, title: titles.get(id)! }]))
     draw()
   }).catch(() => {})
+  const saveLabel = (entry: SaveEntry): string => {
+    const filename = entry.key.split('/').pop() ?? entry.key
+    const previous = entry.key.endsWith('.before-trade')
+    // Clock carts (Pokémon Gold/Silver/Crystal) keep the clock beside the save, as .rtc.
+    const clock = /\.rtc$/i.test(entry.key)
+    const owner = owners.get(previous ? entry.key.slice(0, -'.before-trade'.length) : clock ? entry.key.replace(/\.rtc$/i, '.srm') : entry.key)
+    const stem = filename.replace(/\.before-trade$/, '').replace(/\.[^.]+$/, '')
+    return `${previous ? 'Previous save · ' : clock ? 'Clock · ' : ''}${owner?.title ?? stem}`
+  }
   const draw = () => {
     const files = entries.filter(e => e.bytes)
-    const visible = files.filter(e => e.key.toLowerCase().includes(query.toLowerCase()))
+    const visible = files.filter(e => e.key.toLowerCase().includes(query.toLowerCase()) || saveLabel(e).toLowerCase().includes(query.toLowerCase()))
     list.innerHTML = visible.length ? visible.map(entry => {
       const index = entries.indexOf(entry)
-      const filename = entry.key.split('/').pop()!
       const previous = entry.key.endsWith('.before-trade')
-      // Clock carts (Pokémon Gold/Silver/Crystal) keep the clock beside the save, as .rtc.
       const clock = /\.rtc$/i.test(entry.key)
       const owner = owners.get(previous ? entry.key.slice(0, -'.before-trade'.length) : clock ? entry.key.replace(/\.rtc$/i, '.srm') : entry.key)
-      const stem = filename.replace(/\.before-trade$/, '').replace(/\.[^.]+$/, '')
-      const title = `${previous ? 'Previous save · ' : clock ? 'Clock · ' : ''}${owner?.title ?? stem}`
+      const title = saveLabel(entry)
       return `<article class="ro-save-row" data-ro-focus-row>
         <div class="ro-save-row__copy"><h2>${escapeHtml(title)}</h2>
           <p class="ro-muted">${formatBytes(entry.bytes!.byteLength)}${entry.modified ? ` · ${escapeHtml(new Date(entry.modified).toLocaleString())}` : ' · Date unavailable'}</p>
           ${kind === 'game' ? `<p class="ro-save-row__path">${escapeHtml(entry.key.slice('/data/saves/'.length))}${owner ? ` · <a href="${hrefFor(`/game/${encodeURIComponent(owner.id)}`)}">Game page</a>` : ''}</p>` : ''}
         </div>
         <div class="ro-btn-row">
-          <button class="ro-btn ro-btn--ghost" data-download="${index}" data-ro-focusable="true" aria-label="Download ${escapeHtml(filename)}">Download</button>
-          <button class="ro-btn ro-btn--danger" data-delete="${index}" data-ro-focusable="true" aria-label="Delete ${escapeHtml(filename)}">Delete</button>
+          <button class="ro-btn ro-btn--ghost" data-download="${index}" data-ro-focusable="true" aria-label="Download ${escapeHtml(title)}">Download</button>
+          <button class="ro-btn ro-btn--danger" data-delete="${index}" data-ro-focusable="true" aria-label="Delete ${escapeHtml(title)}">Delete</button>
         </div></article>`
     }).join('') : `<div class="ro-empty"><p class="ro-empty__title">${query ? 'No matching saves' : 'No saves here yet'}</p>
-      <p class="ro-empty__body">${query ? 'Try another filename.' : kind === 'game' ? 'Save your progress inside a game, then return here. You can also restore a RetroOasis backup.' : 'In the player, choose Browser for Save State Location and create a save state. Downloaded states are not listed here.'}</p></div>`
+      <p class="ro-empty__body">${query ? 'Try another name.' : kind === 'game' ? 'Save your progress inside a game, then return here. You can also restore a RetroOasis backup.' : 'In the player, choose Browser for Save State Location and create a save state. Downloaded states are not listed here.'}</p></div>`
     // Search and the tally only mean something once there is a save to find.
     const search = root.querySelector<HTMLElement>('#ro-save-search')!
     search.hidden = !files.length && !query
@@ -150,7 +157,11 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
   }))
   root.querySelector('#ro-save-query')!.addEventListener('input', event => {
     query = (event.target as HTMLInputElement).value.trim()
-    if (!busy && !failed) { draw(); say(summary.textContent ?? '') }
+    if (busy || failed) return
+    draw()
+    // Announce the settled count once, not on every keystroke.
+    window.clearTimeout(searchAnnounce)
+    searchAnnounce = window.setTimeout(() => { if (active && !busy) say(summary.textContent ?? '') }, 400)
   })
   root.querySelector('#ro-save-refresh')!.addEventListener('click', () => { void refresh() })
   root.querySelector('#ro-save-backup')!.addEventListener('click', () => void run(async () => {
@@ -188,15 +199,22 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
     const updatePlan = () => {
       const replace = review.querySelector<HTMLInputElement>('#ro-save-replace')!.checked
       const restoring = replace ? count : count - conflicts
-      review.querySelector('#ro-save-plan')!.textContent = replace
-        ? `Add ${count - conflicts} new saves and replace ${conflicts} matching saves. Counts are checked again when restoring.`
-        : `Add ${restoring} new saves and keep ${conflicts} existing saves. Counts are checked again when restoring.`
-      review.querySelector<HTMLButtonElement>('#ro-save-confirm')!.textContent = restoring ? `Restore ${restoring} save${restoring === 1 ? '' : 's'}` : 'Keep existing saves'
+      const confirm = review.querySelector<HTMLButtonElement>('#ro-save-confirm')!
+      review.querySelector('#ro-save-plan')!.textContent = restoring
+        ? replace
+          ? `Add ${count - conflicts} new saves and replace ${conflicts} matching saves. Counts are checked again when restoring.`
+          : `Add ${restoring} new saves and keep ${conflicts} existing saves. Counts are checked again when restoring.`
+        : 'Every save in this backup is already on this device. Turn on replace to overwrite them.'
+      confirm.dataset.locked = restoring === 0 ? 'true' : ''
+      confirm.disabled = restoring === 0
+      confirm.textContent = restoring ? `Restore ${restoring} save${restoring === 1 ? '' : 's'}` : 'Nothing new to restore'
     }
     review.querySelector('#ro-save-replace')!.addEventListener('change', updatePlan)
     updatePlan()
     review.querySelector('#ro-save-cancel')!.addEventListener('click', () => { pending = null; review.hidden = true; root.querySelector<HTMLButtonElement>('#ro-save-import')!.focus() })
-    review.querySelector('#ro-save-confirm')!.addEventListener('click', () => void run(async () => {
+    const confirmBtn = review.querySelector<HTMLButtonElement>('#ro-save-confirm')!
+    ;(confirmBtn.disabled ? review.querySelector<HTMLButtonElement>('#ro-save-cancel')! : confirmBtn).focus()
+    confirmBtn.addEventListener('click', () => void run(async () => {
       if (!pending) return
       const replace = review.querySelector<HTMLInputElement>('#ro-save-replace')!.checked
       if (replace) {
@@ -219,7 +237,6 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       else say(`Restored ${result.restored} saves; kept ${result.skipped}. The list could not be refreshed. Try Refresh.`)
       root.querySelector<HTMLButtonElement>('#ro-save-import')!.focus()
     }))
-    review.querySelector<HTMLButtonElement>('#ro-save-confirm')!.focus()
     say('Backup checked. Review the restore options above.')
   }))
   list.addEventListener('click', event => {
@@ -232,7 +249,7 @@ export async function renderSaves(root: HTMLElement): Promise<void> {
       download(new Blob([entry.bytes], { type: 'application/octet-stream' }), entry.key.split('/').pop()!)
       say('Save download started. Use the player to import an individual raw save file.')
     } else {
-      const ok = window.confirm(`Delete “${entry.key}” from this browser? This cannot be undone. Download it first if you want a backup. Close other game tabs first.`)
+      const ok = window.confirm(`Delete “${saveLabel(entry)}” from this browser? This cannot be undone. Download it first if you want a backup. Close other game tabs first.`)
       suppressPadBackUntilRelease()
       if (ok) void run(async () => {
         await deleteSave(kind, entry.key)

@@ -833,6 +833,7 @@
 
           var a = document.createElement("a");
           a.href = back;
+          a.className = "ro-play-error__back";
           a.textContent = "Back";
 
           container.appendChild(h1);
@@ -853,9 +854,8 @@
             row.querySelector("button").focus({ preventScroll: true });
             return;
           }
-          // Back is the only way on: give it a real button shape and focus,
+          // Back is the only way on: it already has a button shape, and focus
           // so Enter or a controller's A button gets you out.
-          a.className = "ro-play-error__back";
           container.appendChild(a);
           display.appendChild(container);
           a.focus({ preventScroll: true });
@@ -1382,7 +1382,7 @@
             fail("You’re offline", "The game needs something that isn’t saved on this device yet. Connect to the internet and play it once; after that it starts offline too.", null, [again]);
           } else {
             // A download that failed part-way ("Network Error") has no reason of its own; give it a way forward.
-            fail("Couldn’t start the game", (detail && detail.message ? detail.message + ". " : "") + "Check your connection and try again. If it keeps happening, clear the emulator cache in Settings → Data.", null, [again]);
+            fail("Couldn’t start the game", (detail && detail.message ? detail.message + ". " : "") + "Check your connection and try again. If it keeps happening, clear the emulator cache in Settings → Saves & storage.", null, [again]);
           }
         }
 

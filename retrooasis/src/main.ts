@@ -6,7 +6,7 @@ import {
   applyStoredLayout,
   getAccent,
 } from './lib/store'
-import { initCatalogExtras, onCatalogChange } from './lib/catalog'
+import { initCatalogExtras, knownPlatform, onCatalogChange } from './lib/catalog'
 import {
   applyPwaDisplayMode,
   canInstallPwa,
@@ -61,7 +61,7 @@ initFileHandling((files) => {
 })
 
 app.innerHTML = `
-  <a class="ro-skip" href="#ro-main">Skip to shelf</a>
+  <a class="ro-skip" href="#ro-main">Skip to content</a>
   <div class="ro-shell">
     <div class="ro-wave" aria-hidden="true">
       <canvas class="ro-wave__canvas" id="ro-wave-canvas"></canvas>
@@ -87,7 +87,7 @@ app.innerHTML = `
       </div>
     </header>
     <main class="ro-main" id="ro-main" tabindex="-1"></main>
-    <footer class="ro-footer">RetroOasis · your static ROM shelf · powered by EmulatorJS</footer>
+    <footer class="ro-footer">RetroOasis · your games, in the browser · powered by EmulatorJS</footer>
   </div>
 `
 
@@ -98,9 +98,11 @@ if (waveCanvas) mountWave(waveCanvas)
 const mainEl = app.querySelector<HTMLElement>('#ro-main')
 if (!mainEl) throw new Error('#ro-main missing')
 // The skip link only moves focus: following its #ro-main hash would be routed as a page.
+// On Home the menu handles arrows only while it (or something inside it) is focused.
 app.querySelector<HTMLAnchorElement>('.ro-skip')?.addEventListener('click', (event) => {
   event.preventDefault()
-  mainEl.focus()
+  const menu = mainEl.querySelector<HTMLElement>('.ro-xmb')
+  ;(menu ?? mainEl).focus({ preventScroll: true })
 })
 const main = mainEl
 
@@ -322,7 +324,7 @@ function syncDocumentTitle(route: Route): void {
       document.title = `${base} · #${route.tagId}`
       break
     case 'platform':
-      document.title = `${base} · ${route.platformId}`
+      document.title = `${base} · ${knownPlatform(route.platformId)?.name ?? route.platformId}`
       break
     case 'game':
       document.title = `${base} · Game`
@@ -363,7 +365,7 @@ function syncBrandSub(route: Route): void {
       label = `#${route.tagId}`
       break
     case 'platform':
-      label = route.platformId
+      label = knownPlatform(route.platformId)?.shortName ?? route.platformId
       break
     case 'game':
       label = 'Game'

@@ -208,7 +208,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
       icon: xmbCategoryIcon('favorites'),
       accent: 'var(--ro-accent-ps)',
       items: favoriteGames.map((g) => gameItem(g, catalog, useLibretro)),
-      empty: 'No favorites yet. Open a game, then choose Favorite from Options.',
+      empty: 'No favorites yet. Open a game, then choose Favorite under ＋ Options.',
     },
   ]
 
@@ -241,7 +241,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         href: hrefFor('/settings/library'),
         glyph: 'folder',
         accent: 'var(--ro-accent)',
-        blurb: 'Point at a roms folder on this computer instead of copying every game in.',
+        blurb: 'Point at a games folder on this computer instead of copying every game in.',
       },
     ],
   })
@@ -260,7 +260,7 @@ function buildCategories(catalog: Catalog): XmbCategory[] {
         ['set-controller', 'Controllers', 'Pair a pad, on-screen controls', '/settings/controllers', 'gamepad', 'Connect a Bluetooth or USB controller, test its buttons, and set the touch controls.'],
         ['set-lan', 'Online play', 'Rooms and Trade & link', '/settings/online', 'online', 'Host a room for friends, join one, or link two handhelds for trades and battles.'],
         ['set-achievements', 'Achievements', 'RetroAchievements progress', '/settings/achievements', 'trophy', 'Connect your RetroAchievements account to see progress on game pages.'],
-        ['set-data', 'Saves & storage', 'Back up saves, free up space', '/settings/saves', 'saves', 'Back up and restore saves, keep ROMs from being cleared, and see how much space is used.'],
+        ['set-data', 'Saves & storage', 'Back up saves, free up space', '/settings/saves', 'saves', 'Back up and restore saves, keep saved games from being cleared, and see how much space is used.'],
       ] as const
     ).map(([id, title, sub, path, glyph, blurb]): XmbItem => ({
       kind: 'action',
@@ -433,7 +433,7 @@ function hintCopy(): string {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(pointer: coarse)').matches
   ) {
-    return 'Swipe the icons · tap to open'
+    return 'Swipe categories · tap to open'
   }
   return getInputModality() === 'pad'
     ? 'D-pad move · A / Start open'
