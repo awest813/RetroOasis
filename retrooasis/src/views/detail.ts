@@ -398,7 +398,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
               id="ro-options-btn"
               data-ro-focusable="true"
               aria-expanded="${showMenu}"
-              aria-controls="ro-options-menu"
+              ${showMenu ? 'aria-controls="ro-options-menu"' : ''}
             >${icon('add')} Options</button>
           </div>
           ${
@@ -590,7 +590,7 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
         const el = root.querySelector<HTMLElement>('#ro-play-status')
         if (el) {
           el.hidden = false
-          el.textContent = friendlyError(err, 'Couldn’t remove that ROM. Try again.')
+          el.textContent = friendlyError(err, 'Couldn’t remove that game. Try again.')
         }
       }
     })
@@ -673,4 +673,6 @@ export async function renderGameDetail(root: HTMLElement, gameId: string): Promi
     if (button) { button.disabled = busy || !lan; button.classList.toggle('ro-btn--primary', lan) }
   })
   document.title = `RetroOasis · ${game.title}`
+  const crumb = document.querySelector('.ro-brand__sub')
+  if (crumb) crumb.textContent = game.title
 }

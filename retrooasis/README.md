@@ -209,7 +209,7 @@ On wide screens a section rail sits beside the settings and marks the section on
 - **Standalone mode**: home-screen launch uses `viewport-fit=cover`, safe-area padding, and hides install CTAs
 - **Offline**: a banner appears when the network drops; the cached app shell and IndexedDB ROMs still open, and systems played once online start offline from cached cores
 - **File handlers**: an installed PWA can receive ROM/ISO files from the OS and send them to Add ROM
-- **Skip link**: “Skip to shelf” for keyboard users (reachable from XMB and Library)
+- **Skip link**: “Skip to content” for keyboard users (reachable from Home and Library; on Home it focuses the menu so arrow keys keep working)
 - **Onboarding**: empty-library hint in the grid when only demo samples are visible
 - Escape / gamepad B goes back; focus rings for keyboard/gamepad (`:focus-visible`); mouse/touch without sticky rings
 - `manifest.webmanifest` (icons + shortcuts) + `sw.js` cache the app shell and catalog (not cores/ROMs), production only

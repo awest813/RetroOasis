@@ -70,17 +70,28 @@ async function loadJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+let seedPlatforms: Platform[] = []
+
 function loadSeed() {
   if (!seedPromise) {
     seedPromise = Promise.all([
       loadJson<{ platforms: Platform[] }>('./catalog/platforms.json'),
       loadJson<{ games: Game[] }>('./catalog/games.json'),
-    ]).then(([platforms, games]) => ({
-      platforms: platforms.platforms,
-      games: games.games.map((g) => ({ ...g, source: 'catalog' as const })),
-    }))
+    ]).then(([platforms, games]) => {
+      seedPlatforms = platforms.platforms
+      return {
+        platforms: platforms.platforms,
+        games: games.games.map((g) => ({ ...g, source: 'catalog' as const })),
+      }
+    })
   }
   return seedPromise
+}
+
+/** A system from the catalog, once it has loaded. Chrome uses this before a view paints. */
+export function knownPlatform(id: string): Platform | undefined {
+  const key = id.toLowerCase()
+  return seedPlatforms.find((platform) => platform.id.toLowerCase() === key)
 }
 
 function buildCatalog(seed: { platforms: Platform[]; games: Game[] }): Catalog {
